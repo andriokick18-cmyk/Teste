@@ -1,0 +1,2193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>H2BApply — Admin Console v14</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700;800&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%;scroll-behavior:smooth}
+body{font-family:'DM Sans',system-ui,sans-serif;background:#040a14;color:#e2e8f0;font-size:13px;line-height:1.5;height:100%;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:inherit}
+a{color:inherit;text-decoration:none}
+:root{
+  --bg:#040a14;--bg2:#070f1d;--bg3:#0b1527;
+  --glass:rgba(255,255,255,.03);--glass2:rgba(255,255,255,.055);--glass3:rgba(255,255,255,.09);
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.12);--border3:rgba(255,255,255,.18);
+  --text:#e2e8f0;--t2:#94a3b8;--t3:#475569;--t4:#334155;
+  --blue:#3b82f6;--blueg:rgba(59,130,246,.15);--blueb:rgba(59,130,246,.3);
+  --green:#10b981;--greeng:rgba(16,185,129,.13);--greenb:rgba(16,185,129,.28);
+  --red:#ef4444;--redg:rgba(239,68,68,.12);--redb:rgba(239,68,68,.28);
+  --amber:#f59e0b;--amberg:rgba(245,158,11,.12);--amberb:rgba(245,158,11,.28);
+  --purple:#a78bfa;--purpleg:rgba(167,139,250,.12);--purpleb:rgba(167,139,250,.28);
+  --cyan:#22d3ee;--cyang:rgba(34,211,238,.1);
+  --r:8px;--rl:12px;
+  --shadow:0 4px 24px rgba(0,0,0,.5);
+  --shadowl:0 12px 48px rgba(0,0,0,.7);
+}
+#app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:224px;min-width:224px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:52px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 20px;flex-shrink:0}
+.content{flex:1;overflow-y:auto;padding:20px;background:var(--bg)}
+.sb-logo{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
+.sb-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.sb-logo-text{font-family:'Sora',sans-serif;font-size:14px;font-weight:800;color:#fff}
+.sb-logo-sub{font-size:9px;color:var(--t3);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-top:1px}
+.sb-nav{padding:8px;flex:1}
+.sb-label{font-size:9px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;padding:10px 6px 4px}
+.sb-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;transition:all .12s;border:none;background:none;width:100%;text-align:left}
+.sb-item:hover{background:var(--glass2);color:var(--text)}
+.sb-item.active{background:var(--blueg);color:var(--blue);border:1px solid var(--blueb)}
+.sb-item i{font-size:15px;flex-shrink:0}
+.sb-badge{margin-left:auto;font-size:10px;font-weight:800;padding:1px 6px;border-radius:20px;min-width:18px;text-align:center}
+.sb-badge-r{background:var(--red);color:#fff}
+.sb-badge-g{background:var(--green);color:#fff}
+.sb-badge-a{background:var(--amber);color:#000}
+.sb-bottom{padding:12px;border-top:1px solid var(--border)}
+.tb-title{font-family:'Sora',sans-serif;font-size:15px;font-weight:800;color:#fff}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.85)}}
+.refresh-btn{background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .14s}
+.refresh-btn:hover{background:var(--glass3);color:var(--text)}
+.refresh-btn.spinning i{animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.tb-time{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t3)}
+.tb-uptime{font-size:11px;color:var(--t3);padding:3px 8px;background:var(--glass);border:1px solid var(--border);border-radius:6px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:14px 16px;position:relative;overflow:hidden;transition:all .15s}
+.stat-card::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,var(--glow,transparent) 0%,transparent 60%);pointer-events:none}
+.stat-card:hover{border-color:var(--border3);transform:translateY(-1px)}
+.stat-val{font-family:'Sora',sans-serif;font-size:28px;font-weight:800;line-height:1;margin-bottom:3px}
+.stat-lbl{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
+.stat-sub{font-size:10px;color:var(--t3);margin-top:3px}
+.stat-icon{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:28px;opacity:.1}
+.stat-blue{--glow:rgba(59,130,246,.06)}.stat-blue .stat-val{color:var(--blue)}
+.stat-green{--glow:rgba(16,185,129,.06)}.stat-green .stat-val{color:var(--green)}
+.stat-red{--glow:rgba(239,68,68,.06)}.stat-red .stat-val{color:var(--red)}
+.stat-amber{--glow:rgba(245,158,11,.06)}.stat-amber .stat-val{color:var(--amber)}
+.stat-purple{--glow:rgba(167,139,250,.06)}.stat-purple .stat-val{color:var(--purple)}
+.stat-cyan{--glow:rgba(34,211,238,.06)}.stat-cyan .stat-val{color:var(--cyan)}
+.section{margin-bottom:24px}
+.section-hdr{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.section-title{font-size:13px;font-weight:800;color:#fff;letter-spacing:.02em}
+.section-sub{font-size:11px;color:var(--t3);margin-left:2px}
+.section-actions{margin-left:auto;display:flex;gap:6px}
+.tbl-wrap{background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);overflow:hidden}
+.tbl-toolbar{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inp{background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text);outline:none;transition:all .14s}
+.inp:focus{border-color:var(--blue);background:var(--glass3)}
+.search-inp{background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:6px 10px 6px 30px;font-size:12px;color:var(--text);outline:none;width:200px;transition:all .14s}
+.search-wrap{position:relative}
+.search-wrap i{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--t3);pointer-events:none}
+.search-inp:focus{border-color:var(--blue);background:var(--glass3)}
+.filter-sel{background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text);outline:none;cursor:pointer}
+table{width:100%;border-collapse:collapse}
+thead th{padding:9px 12px;font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;text-align:left;background:var(--glass);border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer}
+tbody tr:hover{background:var(--glass2)}
+tbody tr:last-child{border-bottom:none}
+td{padding:10px 12px;vertical-align:middle;font-size:12px}
+.mono{font-family:'JetBrains Mono',monospace;font-size:11px}
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap}
+.b-green{background:var(--greeng);color:var(--green);border:1px solid var(--greenb)}
+.b-red{background:var(--redg);color:var(--red);border:1px solid var(--redb)}
+.b-amber{background:var(--amberg);color:var(--amber);border:1px solid var(--amberb)}
+.b-blue{background:var(--blueg);color:var(--blue);border:1px solid var(--blueb)}
+.b-purple{background:var(--purpleg);color:var(--purple);border:1px solid var(--purpleb)}
+.b-gray{background:var(--glass2);color:var(--t2);border:1px solid var(--border2)}
+.b-cyan{background:var(--cyang);color:var(--cyan);border:1px solid rgba(34,211,238,.3)}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:all .14s;font-family:inherit}
+.btn:disabled{opacity:.4;pointer-events:none}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:#2563eb}
+.btn-danger{background:var(--redg);color:var(--red);border:1px solid var(--redb)}.btn-danger:hover{background:var(--red);color:#fff}
+.btn-success{background:var(--greeng);color:var(--green);border:1px solid var(--greenb)}.btn-success:hover{background:var(--green);color:#fff}
+.btn-amber{background:var(--amberg);color:var(--amber);border:1px solid var(--amberb)}.btn-amber:hover{background:var(--amber);color:#000}
+.btn-ghost{background:var(--glass2);color:var(--t2);border:1px solid var(--border2)}.btn-ghost:hover{background:var(--glass3);color:var(--text)}
+.btn-purple{background:var(--purpleg);color:var(--purple);border:1px solid var(--purpleb)}.btn-purple:hover{background:var(--purple);color:#fff}
+.btn-sm{padding:4px 9px;font-size:11px}
+.btn-xs{padding:2px 7px;font-size:10px;border-radius:5px}
+.status-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px}
+.sp-ok{background:var(--greeng);color:var(--green);border:1px solid var(--greenb)}
+.sp-err{background:var(--redg);color:var(--red);border:1px solid var(--redb)}
+.sp-warn{background:var(--amberg);color:var(--amber);border:1px solid var(--amberb)}
+.sp-idle{background:var(--glass2);color:var(--t3);border:1px solid var(--border)}
+.sp-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.sp-ok .sp-dot{background:var(--green);animation:pulse 2s infinite}
+.sp-err .sp-dot{background:var(--red)}
+.sp-warn .sp-dot{background:var(--amber);animation:pulse 1.5s infinite}
+.sp-idle .sp-dot{background:var(--t3)}
+.event-list{display:flex;flex-direction:column;gap:0}
+.event-item{display:flex;align-items:flex-start;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);transition:background .1s}
+.event-item:hover{background:var(--glass2)}
+.event-item:last-child{border-bottom:none}
+.event-icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:1px}
+.ei-info{background:var(--blueg);color:var(--blue)}
+.ei-warn{background:var(--amberg);color:var(--amber)}
+.ei-error{background:var(--redg);color:var(--red)}
+.ei-ok{background:var(--greeng);color:var(--green)}
+.event-body{flex:1;min-width:0}
+.event-msg{font-size:12px;font-weight:600;color:var(--text);margin-bottom:1px}
+.event-meta{font-size:10px;color:var(--t3);display:flex;gap:8px;flex-wrap:wrap}
+.event-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t3);white-space:nowrap;flex-shrink:0}
+.empty-state{padding:32px 20px;text-align:center;color:var(--t3);font-size:12px}
+.empty-state i{font-size:32px;opacity:.4;margin-bottom:8px;display:block}
+
+/* MODAL — aumentado para mais detalhes */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;backdrop-filter:blur(4px);overflow-y:auto}
+.modal{background:#0d1629;border:1px solid var(--border2);border-radius:16px;width:100%;max-width:900px;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadowl);animation:fadeIn .18s ease;margin:auto}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+.modal-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
+.modal-title{font-size:15px;font-weight:800;color:#fff;flex:1}
+.modal-body{flex:1;overflow-y:auto;padding:16px 20px;max-height:75vh}
+.modal-foot{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.modal-foot-left{flex:1;display:flex;gap:8px;flex-wrap:wrap}
+.modal-foot-right{display:flex;gap:8px}
+
+/* TABS */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap}
+.tab-btn{padding:9px 14px;font-size:12px;font-weight:700;color:var(--t2);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .14s;font-family:inherit;white-space:nowrap}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
+.tab-content{display:none}.tab-content.active{display:block}
+
+/* LOG LINES */
+.log-line{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);align-items:flex-start;font-size:11px}
+.log-line:last-child{border-bottom:none}
+.log-ts{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t3);white-space:nowrap;flex-shrink:0;padding-top:1px;min-width:70px}
+.log-status{flex-shrink:0}
+.log-body{flex:1;min-width:0}
+.log-job{font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log-err{font-size:10px;color:var(--red);margin-top:2px;word-break:break-word;white-space:normal}
+.log-co{font-size:10px;color:var(--t3)}
+.log-detail{font-size:10px;color:var(--t3);margin-top:2px}
+
+/* DETAIL GRID */
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.detail-card{background:var(--glass);border:1px solid var(--border2);border-radius:8px;padding:14px}
+.detail-card-title{font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:5px}
+.detail-row{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px}
+.detail-row:last-child{border-bottom:none}
+.detail-label{color:var(--t3);min-width:110px;flex-shrink:0;font-size:10px;font-weight:600;padding-top:1px}
+.detail-val{flex:1;color:var(--text);word-break:break-all}
+
+/* STOP REASON BOX */
+.stop-reason-box{background:var(--redg);border:1px solid var(--redb);border-radius:8px;padding:12px;margin-bottom:12px}
+.stop-reason-title{font-size:11px;font-weight:800;color:var(--red);margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.stop-reason-msg{font-size:12px;color:#fca5a5;line-height:1.5}
+.stop-reason-detail{font-size:10px;color:#f87171;margin-top:4px;font-family:'JetBrains Mono',monospace}
+
+/* HEALTH INDICATORS */
+.health-row{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.hi{width:7px;height:7px;border-radius:50%;flex-shrink:0;cursor:help}
+.hi-ok{background:var(--green)}
+.hi-err{background:var(--red)}
+.hi-warn{background:var(--amber)}
+.hi-unk{background:var(--t3)}
+
+/* PROGRESS */
+.prog-bg{height:4px;background:var(--glass3);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;transition:width .4s}
+.pg-blue{background:var(--blue)}
+.pg-green{background:var(--green)}
+.pg-amber{background:var(--amber)}
+.pg-red{background:var(--red)}
+
+/* VIEW SYSTEM */
+.view{display:none}.view.active{display:block}
+
+/* ALERT BANNER */
+.alert-banner{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r);margin-bottom:10px;font-size:12px}
+.ab-warn{background:var(--amberg);border:1px solid var(--amberb);color:var(--amber)}
+.ab-err{background:var(--redg);border:1px solid var(--redb);color:var(--red)}
+.ab-ok{background:var(--greeng);border:1px solid var(--greenb);color:var(--green)}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+
+/* TOAST */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:999;pointer-events:none}
+.toast-item{background:#1e2d4a;border:1px solid var(--border2);border-radius:8px;padding:9px 16px;font-size:12px;font-weight:700;color:#fff;margin-top:6px;animation:toastIn .2s ease;box-shadow:var(--shadow)}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* PDF LIST */
+.pdf-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);font-size:11px}
+.pdf-item:last-child{border-bottom:none}
+.pdf-icon{width:28px;height:28px;background:var(--redg);border:1px solid var(--redb);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--red);flex-shrink:0}
+.pdf-info{flex:1;min-width:0}
+.pdf-name{font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pdf-meta{font-size:10px;color:var(--t3)}
+
+/* FORM FIELDS */
+.form-group{margin-bottom:12px}
+.form-label{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px}
+.form-inp{background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);outline:none;width:100%;transition:all .14s}
+.form-inp:focus{border-color:var(--blue);background:var(--glass3)}
+.form-textarea{background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);outline:none;width:100%;min-height:80px;resize:vertical;transition:all .14s}
+.form-textarea:focus{border-color:var(--blue);background:var(--glass3)}
+
+/* SEND HISTORY */
+.history-item{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);align-items:flex-start;font-size:11px}
+.history-item:last-child{border-bottom:none}
+
+@media(max-width:768px){
+  .sidebar{display:none}
+  .stat-grid{grid-template-columns:1fr 1fr}
+  .detail-grid{grid-template-columns:1fr}
+  .modal{max-width:100%}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-icon"><i class="ti ti-shield" style="color:#fff;font-size:16px"></i></div>
+      <div>
+        <div class="sb-logo-text">H2BApply</div>
+        <div class="sb-logo-sub">Admin Console v14</div>
+      </div>
+    </div>
+    <div class="sb-nav">
+      <div class="sb-label">Monitor</div>
+      <button class="sb-item active" onclick="showView('dashboard')"><i class="ti ti-dashboard"></i>Dashboard<span class="sb-badge sb-badge-r" id="sb-alerts" style="display:none">0</span></button>
+      <button class="sb-item" onclick="showView('workers')"><i class="ti ti-robot"></i>Automáticos<span class="sb-badge sb-badge-g" id="sb-workers">0</span></button>
+      <button class="sb-item" onclick="showView('events')"><i class="ti ti-alert-triangle"></i>Eventos<span class="sb-badge sb-badge-a" id="sb-events-cnt">0</span></button>
+      <div class="sb-label">Usuários</div>
+      <button class="sb-item" onclick="showView('users')"><i class="ti ti-users"></i>Todos Usuários</button>
+      <button class="sb-item" onclick="showView('vip')"><i class="ti ti-diamond"></i>VIP & Planos</button>
+      <div class="sb-label">Sistema</div>
+      <button class="sb-item" onclick="showView('codes')"><i class="ti ti-ticket"></i>Códigos Promo</button>
+      <button class="sb-item" onclick="showView('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
+      <button class="sb-item" onclick="showView('notificacoes')"><i class="ti ti-bell"></i>Notificações</button>
+      <button class="sb-item" onclick="showView('indicacoes')"><i class="ti ti-users-group"></i>Indicações</button>
+      <button class="sb-item" onclick="showView('settings')"><i class="ti ti-settings"></i>Configurações</button>
+    </div>
+    <div class="sb-bottom">
+      <div style="font-size:10px;color:var(--t3);margin-bottom:4px">Logado como admin</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="admin-email">–</div>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px;justify-content:center" onclick="location.href='/'"><i class="ti ti-home"></i> Voltar ao app</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="live-dot" id="live-dot"></div>
+      <div class="tb-title" id="view-title">Dashboard</div>
+      <div class="tb-right">
+        <div class="tb-time" id="clock">–</div>
+        <div class="tb-uptime" id="uptime-badge">⏱ –</div>
+        <button class="refresh-btn" id="refresh-btn" onclick="refreshAll()"><i class="ti ti-refresh"></i> Atualizar</button>
+        <label style="font-size:11px;color:var(--t3);display:flex;align-items:center;gap:5px;cursor:pointer">
+          <input type="checkbox" id="auto-refresh" checked style="accent-color:var(--blue)"> Auto
+        </label>
+      </div>
+    </div>
+
+    <div class="content" id="content">
+
+      <!-- DASHBOARD -->
+      <div class="view active" id="view-dashboard">
+        <div id="alert-banners"></div>
+        <div class="stat-grid" id="stat-grid">
+          <div class="stat-card stat-blue"><i class="ti ti-users stat-icon"></i><div class="stat-val" id="s-online">–</div><div class="stat-lbl">Online agora</div><div class="stat-sub" id="s-sessions">– sessões ativas</div></div>
+          <div class="stat-card stat-green"><i class="ti ti-robot stat-icon"></i><div class="stat-val" id="s-auto">–</div><div class="stat-lbl">Automáticos ativos</div><div class="stat-sub" id="s-auto-sub">– vagas na fila</div></div>
+          <div class="stat-card stat-amber"><i class="ti ti-alert-triangle stat-icon"></i><div class="stat-val" id="s-stalled">–</div><div class="stat-lbl">Filas travadas</div><div class="stat-sub">Watchdog ativo</div></div>
+          <div class="stat-card stat-cyan"><i class="ti ti-send stat-icon"></i><div class="stat-val" id="s-today">–</div><div class="stat-lbl">Enviados hoje</div><div class="stat-sub" id="s-total">– total geral</div></div>
+          <div class="stat-card stat-purple"><i class="ti ti-users stat-icon"></i><div class="stat-val" id="s-users">–</div><div class="stat-lbl">Total usuários</div><div class="stat-sub" id="s-vip">– planos ativos</div></div>
+          <div class="stat-card stat-red"><i class="ti ti-server stat-icon"></i><div class="stat-val" id="s-mem">–</div><div class="stat-lbl">RAM usada</div><div class="stat-sub" id="s-cache">– vagas DOL</div></div>
+        </div>
+        <div class="section">
+          <div class="section-hdr">
+            <i class="ti ti-robot" style="color:var(--green)"></i>
+            <div class="section-title">Workers Ativos</div>
+            <div class="section-sub" id="workers-count-lbl">carregando...</div>
+          </div>
+          <div class="tbl-wrap" id="dash-workers-table">
+            <div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-hdr">
+            <i class="ti ti-alert-circle" style="color:var(--amber)"></i>
+            <div class="section-title">Eventos Recentes</div>
+            <div class="section-sub">Watchdog + crash reports</div>
+            <div class="section-actions"><button class="btn btn-ghost btn-sm" onclick="showView('events')">Ver todos →</button></div>
+          </div>
+          <div class="tbl-wrap" id="dash-events-list">
+            <div class="empty-state"><i class="ti ti-check"></i>Nenhum evento crítico</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WORKERS -->
+      <div class="view" id="view-workers">
+        <div class="section">
+          <div class="section-hdr">
+            <i class="ti ti-robot" style="color:var(--green)"></i>
+            <div class="section-title">Envios Automáticos</div>
+            <div class="section-sub" id="workers-detail-lbl">–</div>
+          </div>
+          <div class="tbl-wrap">
+            <div class="tbl-toolbar">
+              <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" id="w-search" placeholder="Buscar email..." oninput="filterWorkers()"></div>
+              <select class="filter-sel" id="w-filter-status" onchange="filterWorkers()">
+                <option value="">Todos status</option>
+                <option value="active">Ativos</option>
+                <option value="stalled">Travados</option>
+                <option value="paused">Pausados</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" onclick="loadLive()"><i class="ti ti-refresh"></i> Atualizar</button>
+            </div>
+            <div id="workers-table-body">
+              <div class="empty-state"><i class="ti ti-robot"></i>Nenhum worker encontrado</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EVENTS -->
+      <div class="view" id="view-events">
+        <div class="section">
+          <div class="section-hdr">
+            <i class="ti ti-alert-triangle" style="color:var(--amber)"></i>
+            <div class="section-title">Eventos & Crash Reports</div>
+            <div class="section-sub">Watchdog global — últimas 500 ocorrências</div>
+            <div class="section-actions">
+              <select class="filter-sel" id="ev-filter" onchange="filterEvents()">
+                <option value="">Todos</option>
+                <option value="error">🔴 Erros</option>
+                <option value="warn">🟡 Alertas</option>
+                <option value="info">🔵 Info</option>
+              </select>
+            </div>
+          </div>
+          <div class="tbl-wrap">
+            <div class="event-list" id="events-list">
+              <div class="empty-state"><i class="ti ti-check"></i>Nenhum evento</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- USERS -->
+      <div class="view" id="view-users">
+        <div class="section">
+          <div class="section-hdr">
+            <i class="ti ti-users" style="color:var(--blue)"></i>
+            <div class="section-title">Todos os Usuários</div>
+            <div class="section-sub" id="users-count-lbl">–</div>
+          </div>
+          <div class="tbl-wrap">
+            <div class="tbl-toolbar">
+              <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" id="u-search" placeholder="Email, nome..." oninput="filterUsers()"></div>
+              <select class="filter-sel" id="u-filter-plan" onchange="filterUsers()">
+                <option value="">Todos planos</option>
+                <option value="vipro">VIPro</option>
+                <option value="vip">VIP</option>
+                <option value="pro">Pro</option>
+                <option value="free">Free</option>
+              </select>
+              <select class="filter-sel" id="u-filter-auto" onchange="filterUsers()">
+                <option value="">Auto: todos</option>
+                <option value="yes">Com automático</option>
+                <option value="no">Sem automático</option>
+              </select>
+              <select class="filter-sel" id="u-filter-online" onchange="filterUsers()">
+                <option value="">Online: todos</option>
+                <option value="yes">Online agora</option>
+                <option value="no">Offline</option>
+              </select>
+            </div>
+            <table>
+              <thead><tr>
+                <th>Usuário</th><th>Plano</th><th>Status</th><th>Automático</th>
+                <th>Hoje</th><th>Total</th><th>CVs</th><th>Saúde</th><th>Criado</th><th>Ações</th>
+              </tr></thead>
+              <tbody id="users-tbody">
+                <tr><td colspan="10" class="empty-state">Carregando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIP -->
+      <div class="view" id="view-vip">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <div class="section-hdr"><i class="ti ti-diamond" style="color:var(--purple)"></i><div class="section-title">Ativar / Editar VIP</div></div>
+            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:16px;display:flex;flex-direction:column;gap:10px">
+              <div class="form-group"><label class="form-label">Email do usuário</label><input class="form-inp" id="vip-email" placeholder="user@gmail.com"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div class="form-group"><label class="form-label">Dias VIP Manual</label><input class="form-inp" id="vip-days" type="number" value="30" min="1" max="365"></div>
+                <div class="form-group"><label class="form-label">Dias VIP Auto</label><input class="form-inp" id="vip-auto-days" type="number" value="0" min="0" max="365"></div>
+              </div>
+              <div class="form-group"><label class="form-label">Plano</label>
+                <select class="form-inp" id="vip-plan">
+                  <option value="vipro">⭐🤖 VIPro (Manual + Auto)</option>
+                  <option value="vip">⭐ VIP (só Manual)</option>
+                  <option value="pro">🤖 Pro (só Auto)</option>
+                </select>
+              </div>
+              <div class="form-group"><label class="form-label">Nota interna (opcional)</label><input class="form-inp" id="vip-note" placeholder="Ex: Pagamento PIX #1234"></div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-success" style="flex:1;justify-content:center" onclick="activateVip()"><i class="ti ti-diamond"></i> Ativar VIP</button>
+                <button class="btn btn-danger" style="flex:1;justify-content:center" onclick="revokeVip()"><i class="ti ti-ban"></i> Revogar</button>
+              </div>
+              <div id="vip-result" style="font-size:12px;color:var(--green);display:none;padding:8px;background:var(--greeng);border-radius:6px;border:1px solid var(--greenb)"></div>
+            </div>
+          </div>
+          <div>
+            <div class="section-hdr"><i class="ti ti-message" style="color:var(--blue)"></i><div class="section-title">Mensagem para Usuário</div></div>
+            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:16px;display:flex;flex-direction:column;gap:10px">
+              <div class="form-group"><label class="form-label">Email do usuário</label><input class="form-inp" id="msg-email" placeholder="user@gmail.com"></div>
+              <div class="form-group"><label class="form-label">Mensagem (aparecerá no app)</label><textarea class="form-textarea" id="msg-text" placeholder="Escreva aqui..." style="min-height:100px"></textarea></div>
+              <button class="btn btn-primary" style="justify-content:center" onclick="sendAdminMsg()"><i class="ti ti-send"></i> Enviar mensagem</button>
+            </div>
+            <div style="margin-top:14px">
+              <div class="section-hdr"><i class="ti ti-trash" style="color:var(--red)"></i><div class="section-title">Limpar Histórico de Enviados</div></div>
+              <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:16px;display:flex;flex-direction:column;gap:10px">
+                <div class="form-group"><label class="form-label">Email do usuário</label><input class="form-inp" id="clear-email" placeholder="user@gmail.com"></div>
+                <button class="btn btn-danger" style="justify-content:center" onclick="clearSent()"><i class="ti ti-refresh"></i> Limpar sent_emails (permite reenvio)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CODES -->
+      <div class="view" id="view-codes">
+        <div style="display:grid;grid-template-columns:340px 1fr;gap:16px">
+          <div>
+            <div class="section-hdr"><i class="ti ti-ticket" style="color:var(--amber)"></i><div class="section-title">Criar Código Promo</div></div>
+            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:16px;display:flex;flex-direction:column;gap:10px">
+              <div class="form-group"><label class="form-label">Dias VIP Manual</label><input class="form-inp" id="code-manual-days" type="number" value="30" min="0"></div>
+              <div class="form-group"><label class="form-label">Dias VIP Auto</label><input class="form-inp" id="code-auto-days" type="number" value="0" min="0"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div class="form-group"><label class="form-label">Usos máx.</label><input class="form-inp" id="code-uses" type="number" value="1" min="1" max="1000"></div>
+                <div class="form-group"><label class="form-label">Nota</label><input class="form-inp" id="code-note" placeholder="Opcional"></div>
+              </div>
+              <div class="form-group"><label class="form-label">Código personalizado (vazio = auto)</label><input class="form-inp" id="code-custom" placeholder="Ex: PROMO2024" maxlength="12" style="text-transform:uppercase;letter-spacing:2px;font-family:monospace"></div>
+              <button class="btn btn-amber" style="justify-content:center" onclick="createCode()"><i class="ti ti-ticket"></i> Gerar Código</button>
+              <div id="code-result" style="display:none"></div>
+            </div>
+          </div>
+          <div>
+            <div class="section-hdr"><i class="ti ti-list" style="color:var(--t2)"></i><div class="section-title">Códigos Cadastrados</div><div class="section-actions"><button class="btn btn-ghost btn-sm" onclick="loadCodes()"><i class="ti ti-refresh"></i></button></div></div>
+            <div class="tbl-wrap"><div id="codes-list"><div class="empty-state">Carregando...</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RANKING -->
+      <div class="view" id="view-ranking">
+        <div class="section">
+          <div class="section-hdr"><i class="ti ti-trophy" style="color:var(--amber)"></i><div class="section-title">Ranking</div></div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <select class="filter-sel" id="rank-period" onchange="loadRankingAdmin()">
+              <option value="day">Hoje</option><option value="week">Semana</option>
+              <option value="month">Mês</option><option value="all">Todos</option>
+            </select>
+            <select class="filter-sel" id="rank-category" onchange="loadRankingAdmin()">
+              <option value="sends">Envios</option><option value="responses">Respostas</option><option value="active">Ativo</option>
+            </select>
+            <button class="btn btn-danger btn-sm" onclick="resetRanking()"><i class="ti ti-trash"></i> Reset período</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadRankingAdmin()"><i class="ti ti-refresh"></i></button>
+          </div>
+          <div class="tbl-wrap"><div id="ranking-list"><div class="empty-state">Carregando...</div></div></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="view" id="view-settings">
+        <div style="max-width:560px">
+          <div class="section-hdr"><i class="ti ti-settings" style="color:var(--t2)"></i><div class="section-title">Configurações do Sistema</div></div>
+          <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:16px;display:flex;flex-direction:column;gap:14px" id="settings-form">
+            <div class="empty-state">Carregando...</div>
+          </div>
+          <div id="settings-result" style="margin-top:10px"></div>
+        </div>
+      </div>
+
+      <!-- ══ NOTIFICAÇÕES ══ -->
+      <div class="view" id="view-notificacoes">
+        <div style="max-width:680px">
+          <div class="section-hdr"><i class="ti ti-bell" style="color:#7c3aed"></i><div class="section-title">Enviar Notificação Global</div></div>
+          <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:20px;margin-bottom:20px">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div>
+                <label style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px">Título</label>
+                <input id="notif-title-input" placeholder="Ex: Atualização importante do sistema" style="width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:6px">Mensagem</label>
+                <textarea id="notif-body-input" placeholder="Escreva a mensagem completa aqui..." rows="4" style="width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;font-family:inherit;box-sizing:border-box;resize:vertical"></textarea>
+              </div>
+              <button onclick="sendAdminNotif()" style="background:linear-gradient(135deg,#6d28d9,#7c3aed);color:#fff;border:none;border-radius:8px;padding:11px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-send"></i> Enviar para Todos os Usuários</button>
+              <div id="notif-send-result" style="font-size:12px;margin-top:4px"></div>
+            </div>
+          </div>
+          <div class="section-hdr"><i class="ti ti-history" style="color:var(--t2)"></i><div class="section-title">Histórico de Notificações</div><button class="btn btn-ghost btn-sm" onclick="loadAdminNotifs()"><i class="ti ti-refresh"></i></button></div>
+          <div id="admin-notif-list"><div class="empty-state">Carregando...</div></div>
+        </div>
+      </div>
+
+      <!-- ══ INDICAÇÕES ══ -->
+      <div class="view" id="view-indicacoes">
+        <div style="max-width:800px">
+          <div class="section-hdr"><i class="ti ti-users-group" style="color:#059669"></i><div class="section-title">Sistema de Indicações</div><button class="btn btn-ghost btn-sm" onclick="loadAdminReferrals()"><i class="ti ti-refresh"></i></button></div>
+          <div id="admin-referral-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px"></div>
+          <div id="admin-referral-list"><div class="empty-state">Carregando...</div></div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ══ USER DETAIL MODAL (completo) ══ -->
+<div class="modal-overlay" id="user-modal" style="display:none" onclick="if(event.target===this)closeUserModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div id="modal-av" style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff;flex-shrink:0">?</div>
+      <div style="flex:1;min-width:0">
+        <div class="modal-title" id="modal-name">–</div>
+        <div style="font-size:11px;color:var(--t3)" id="modal-email">–</div>
+      </div>
+      <div id="modal-badges" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+      <button onclick="closeUserModal()" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:20px;padding:2px;margin-left:6px"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchModalTab('overview')"><i class="ti ti-info-circle"></i> Visão Geral</button>
+        <button class="tab-btn" onclick="switchModalTab('auto')"><i class="ti ti-robot"></i> Automático</button>
+        <button class="tab-btn" onclick="switchModalTab('pdfs')"><i class="ti ti-file-type-pdf"></i> PDFs</button>
+        <button class="tab-btn" onclick="switchModalTab('profiles')"><i class="ti ti-id-badge"></i> Perfis</button>
+        <button class="tab-btn" onclick="switchModalTab('logs')"><i class="ti ti-list"></i> Logs Auto</button>
+        <button class="tab-btn" onclick="switchModalTab('history')"><i class="ti ti-history"></i> Histórico</button>
+        <button class="tab-btn" onclick="switchModalTab('enviados')"><i class="ti ti-mail"></i> Enviados</button>
+        <button class="tab-btn" onclick="switchModalTab('health')"><i class="ti ti-heart-rate-monitor"></i> Saúde</button>
+        <button class="tab-btn" onclick="switchModalTab('edit')"><i class="ti ti-edit"></i> Editar</button>
+      </div>
+      <div class="tab-content active" id="modal-tab-overview"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      <div class="tab-content" id="modal-tab-auto"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      <div class="tab-content" id="modal-tab-pdfs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      <div class="tab-content" id="modal-tab-profiles"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      <div class="tab-content" id="modal-tab-logs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      <div class="tab-content" id="modal-tab-history"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      <div class="tab-content" id="modal-tab-enviados"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      <div class="tab-content" id="modal-tab-health"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      <div class="tab-content" id="modal-tab-edit"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+    </div>
+    <div class="modal-foot">
+      <div class="modal-foot-left">
+        <button class="btn btn-success btn-sm" id="modal-restart-btn" onclick="forceRestartFromModal()" style="display:none"><i class="ti ti-refresh"></i> Reiniciar Worker</button>
+        <button class="btn btn-danger btn-sm" id="modal-stop-btn" onclick="forceStopFromModal()" style="display:none"><i class="ti ti-player-stop"></i> Parar Auto</button>
+        <button class="btn btn-amber btn-sm" id="modal-clearjob-btn" onclick="clearJobFromModal()" style="display:none"><i class="ti ti-trash"></i> Limpar Fila</button>
+        <button class="btn btn-ghost btn-sm" onclick="refreshModal()"><i class="ti ti-refresh"></i> Recarregar</button>
+      </div>
+      <div class="modal-foot-right">
+        <button class="btn btn-ghost" onclick="closeUserModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════
+let liveData = null;
+let allEvents = [];
+let allUsers = [];
+let currentView = 'dashboard';
+let currentModalEmail = null;
+let currentModalData = null;
+let autoRefreshInterval = null;
+const AUTO_REFRESH_MS = 9000;
+
+// ══════════════════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  startClock();
+  refreshAll();
+  startAutoRefresh();
+});
+
+function startClock() {
+  const tick = () => { const el=document.getElementById('clock'); if(el) el.textContent=new Date().toLocaleTimeString('pt-BR'); };
+  tick(); setInterval(tick, 1000);
+}
+
+function startAutoRefresh() {
+  if(autoRefreshInterval) clearInterval(autoRefreshInterval);
+  autoRefreshInterval = setInterval(() => {
+    if(document.getElementById('auto-refresh')?.checked) refreshAll();
+  }, AUTO_REFRESH_MS);
+}
+
+// ══════════════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════════════
+function showView(name) {
+  currentView = name;
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  const v = document.getElementById('view-'+name);
+  if(v) v.classList.add('active');
+  const titles={dashboard:'Dashboard',workers:'Automáticos',events:'Eventos & Crashes',users:'Usuários',vip:'VIP & Planos',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',indicacoes:'Indicações'};
+  setText('view-title', titles[name]||name);
+  document.querySelectorAll('.sb-item').forEach(b=>{if(b.getAttribute('onclick')?.includes(`'${name}'`))b.classList.add('active');});
+  if(name==='users') renderUsersTable();
+  if(name==='workers') renderWorkersTable();
+  if(name==='events') renderEventsView();
+  if(name==='codes') loadCodes();
+  if(name==='ranking') loadRankingAdmin();
+  if(name==='settings') loadSettings();
+  if(name==='notificacoes') loadAdminNotifs();
+  if(name==='indicacoes') loadAdminReferrals();
+  if(name==='vip') {} // static
+}
+
+// ══════════════════════════════════════════════════════════
+//  DATA FETCH
+// ══════════════════════════════════════════════════════════
+async function refreshAll() {
+  const btn = document.getElementById('refresh-btn');
+  if(btn) btn.classList.add('spinning');
+  try {
+    const r = await fetch('/api/admin/live', {credentials:'include'});
+    if(r.status===401){location.href='/';return;}
+    if(r.status===403){document.body.innerHTML='<div style="padding:60px;text-align:center;color:#ef4444;font-size:18px;font-family:sans-serif">⛔ Acesso negado — somente administradores</div>';return;}
+    liveData = await r.json();
+    allEvents = liveData.globalEvents||[];
+    allUsers  = liveData.users||[];
+
+    updateDashboard();
+
+    // Get admin email from live data
+    const adminEl = document.getElementById('admin-email');
+    if(adminEl) {
+      const admin = allUsers.find(u=>u.email?.toLowerCase().includes('admin'))||null;
+      // Actually we derive from session, not user list
+      adminEl.textContent = liveData.adminEmail || '(admin)';
+    }
+
+    const upEl = document.getElementById('uptime-badge');
+    if(upEl && liveData.serverUptime){
+      const h=Math.floor(liveData.serverUptime/3600), m=Math.floor((liveData.serverUptime%3600)/60);
+      upEl.textContent=`⏱ ${h}h ${m}m`;
+    }
+
+    if(currentView==='workers') renderWorkersTable();
+    if(currentView==='events')  renderEventsView();
+    if(currentView==='users')   renderUsersTable();
+
+    // Live refresh modal if open
+    if(currentModalEmail && currentModalData) {
+      const u = allUsers.find(x=>x.email===currentModalEmail);
+      if(u) updateModalWorkerStatus(u);
+    }
+
+  } catch(e) {
+    console.error(e);
+    toast('Erro ao carregar: '+e.message,'err');
+  }
+  if(btn) btn.classList.remove('spinning');
+}
+
+async function loadLive() { await refreshAll(); }
+
+// ══════════════════════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════════════════════
+function updateDashboard() {
+  if(!liveData) return;
+  const d = liveData;
+  setText('s-online', d.onlineCount??'–');
+  setText('s-sessions', `${d.activeSessions??0} sessões ativas`);
+  setText('s-auto', d.activeAutoCount??'–');
+  const totalQ=(d.users||[]).filter(u=>u.hasAuto).reduce((n,u)=>n+(u.queueSize||0),0);
+  setText('s-auto-sub', `${totalQ.toLocaleString('pt-BR')} vagas na fila`);
+  setText('s-stalled', d.stalledCount??'–');
+  setText('s-today', (d.totalSentToday||0).toLocaleString('pt-BR'));
+  setText('s-total', `${(d.totalSentAll||0).toLocaleString('pt-BR')} total`);
+  setText('s-users', (d.totalUsers||0).toLocaleString('pt-BR'));
+  const vipCount=(d.users||[]).filter(u=>u.plan&&u.plan!=='free').length;
+  setText('s-vip', `${vipCount} com plano pago`);
+  setText('s-mem', `${d.memMB??'–'}MB`);
+  setText('s-cache', `${(d.jobsCache||0).toLocaleString('pt-BR')} vagas DOL`);
+
+  // Alert banners
+  const banners = document.getElementById('alert-banners');
+  if(banners){
+    let html='';
+    if(d.stalledCount>0) html+=`<div class="alert-banner ab-warn"><i class="ti ti-alert-triangle"></i><strong>${d.stalledCount} fila(s) travada(s)</strong> — Watchdog tentando reiniciar. Veja "Automáticos".</div>`;
+    const noOauth=(d.users||[]).filter(u=>u.hasAuto&&u.oauthOk===false);
+    if(noOauth.length) html+=`<div class="alert-banner ab-err"><i class="ti ti-lock"></i><strong>${noOauth.length} usuário(s) com OAuth expirado</strong> — Automático pausado. Precisam fazer login novamente.</div>`;
+    const noPdf=(d.users||[]).filter(u=>u.hasAuto&&u.hasPdf===false);
+    if(noPdf.length) html+=`<div class="alert-banner ab-warn"><i class="ti ti-file-x"></i><strong>${noPdf.length} usuário(s) sem PDF</strong> — Envios podem falhar. Verifique os perfis.</div>`;
+    if(!d.stalledCount&&!noOauth.length&&!noPdf.length&&d.activeAutoCount>0)
+      html+=`<div class="alert-banner ab-ok"><i class="ti ti-check"></i><strong>Sistema operacional</strong> — ${d.activeAutoCount} automático(s) rodando normalmente.</div>`;
+    banners.innerHTML=html;
+  }
+
+  // Sidebar badges
+  const wEl=document.getElementById('sb-workers'); if(wEl) wEl.textContent=d.activeAutoCount||'0';
+  const evEl=document.getElementById('sb-events-cnt'); if(evEl) evEl.textContent=allEvents.filter(e=>e.level==='error').length||'0';
+  const alertsEl=document.getElementById('sb-alerts');
+  if(alertsEl){
+    const noOauthLen=(d.users||[]).filter(u=>u.hasAuto&&u.oauthOk===false).length;
+    const noPdfLen=(d.users||[]).filter(u=>u.hasAuto&&u.hasPdf===false).length;
+    const count=(d.stalledCount||0)+noOauthLen+noPdfLen;
+    alertsEl.style.display=count>0?'':'none';
+    alertsEl.textContent=count;
+  }
+
+  renderDashWorkers();
+  renderDashEvents();
+}
+
+function renderDashWorkers(){
+  const el=document.getElementById('dash-workers-table');
+  const lbl=document.getElementById('workers-count-lbl');
+  if(!el||!liveData) return;
+  const workers=(liveData.users||[]).filter(u=>u.hasAuto||u.jobStalled);
+  if(lbl) lbl.textContent=`${workers.length} ativo(s)`;
+  if(!workers.length){el.innerHTML='<div class="empty-state"><i class="ti ti-robot"></i>Nenhum automático rodando</div>';return;}
+  el.innerHTML=buildWorkersTable(workers.slice(0,10));
+}
+
+function renderDashEvents(){
+  const el=document.getElementById('dash-events-list');
+  if(!el) return;
+  const ev=allEvents.slice(0,5);
+  if(!ev.length){el.innerHTML='<div class="empty-state"><i class="ti ti-check"></i>Nenhum evento crítico</div>';return;}
+  el.innerHTML=ev.map(renderEventItem).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+//  WORKERS TABLE
+// ══════════════════════════════════════════════════════════
+function buildWorkersTable(workers){
+  const now=Date.now();
+  const rows=workers.map(u=>{
+    const lastSentAgo=u.lastSentAt?fmtAgo(now-u.lastSentAt):'–';
+    const startedAgo=u.startedAt?fmtAgo(now-u.startedAt):'–';
+    const progress=u.originalCount?Math.round((1-u.queueSize/u.originalCount)*100):0;
+    const isStalled=u.jobStalled;
+    const rInfo=STOP_REASON_FULL[u.autoStatus]||null;
+    const tooltipTxt=isStalled?'⚠️ Fila travada há mais de 20min — reinicie o worker'
+      :rInfo?`${rInfo.icon} ${rInfo.titulo} | ${rInfo.admin_pode}`
+      :u.autoStatus||'';
+    const statusBadge=isStalled
+      ?`<span class="status-pill sp-warn" title="${esc(tooltipTxt)}"><span class="sp-dot"></span>⚠️ Travado</span>`
+      :u.hasAuto
+        ?`<span class="status-pill sp-ok" title="${esc(tooltipTxt)}"><span class="sp-dot"></span>${fmtStatus(u.autoStatus)}</span>`
+        :u.autoStatus
+          ?`<span class="status-pill sp-idle" title="${esc(tooltipTxt)}" style="cursor:help"><span class="sp-dot"></span>${fmtStatus(u.autoStatus)}</span>`
+          :`<span class="status-pill sp-idle"><span class="sp-dot"></span>Inativo</span>`;
+    const healthDots=`<div class="health-row">
+      <span class="hi ${u.oauthOk===false?'hi-err':u.oauthOk===true?'hi-ok':'hi-unk'}" title="OAuth: ${u.oauthOk===false?'❌ Inválido':u.oauthOk===true?'✅ OK':'?'}"></span>
+      <span class="hi ${u.hasPdf===false?'hi-err':u.hasPdf===true?'hi-ok':'hi-unk'}" title="PDF: ${u.hasPdf===false?'❌ Ausente':u.hasPdf===true?'✅ OK':'?'}"></span>
+      <span class="hi ${u.timers?'hi-ok':'hi-warn'}" title="Timer: ${u.timers?'✅ Ativo':'⚠️ Sem timer'}"></span>
+      ${u.errors>0?`<span class="hi hi-err" title="${u.errors} erros"></span>`:''}
+      ${u.restarts>0?`<span style="font-size:9px;color:var(--amber)">↺${u.restarts}</span>`:''}
+    </div>`;
+    const nextTxt=u.nextSendAt&&u.nextSendAt>now?fmtAgo(u.nextSendAt-now)+'<br><span style="font-size:9px;color:var(--t3)">próximo</span>':'–';
+    return `<tr onclick="openUser('${esc(u.email)}')" style="${isStalled?'background:rgba(245,158,11,.05)':''}">
+      <td>
+        <div style="display:flex;align-items:center;gap:7px">
+          ${u.picture?`<img src="${esc(u.picture)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover">`:avLetter(u.name||u.email)}
+          <div><div style="font-weight:700;font-size:12px">${esc(u.name||u.email.split('@')[0])}</div><div class="mono" style="color:var(--t3);font-size:10px">${esc(u.email)}</div></div>
+        </div>
+      </td>
+      <td>${statusBadge}</td>
+      <td style="max-width:200px">
+        ${isStalled
+          ? `<div style="font-size:11px;color:var(--amber);font-weight:700">⚠️ Fila travada</div><div style="font-size:10px;color:var(--t2)">Reinicie o worker</div>`
+          : rInfo && !u.hasAuto
+            ? `<div style="font-size:11px;color:${rInfo.voce_resolve?'var(--green)':'var(--red)'};font-weight:700">${rInfo.voce_resolve?'✅':'❌'} ${esc(rInfo.titulo)}</div><div style="font-size:10px;color:var(--t2);margin-top:2px">${esc((rInfo.admin_pode||'').slice(0,80))}${rInfo.admin_pode&&rInfo.admin_pode.length>80?'…':''}</div>`
+            : u.hasAuto
+              ? `<div style="font-size:11px;color:var(--green)">✅ Rodando normalmente</div>`
+              : `<div style="font-size:11px;color:var(--t3)">–</div>`
+        }
+      </td>
+      <td>
+        <div style="font-size:11px;margin-bottom:3px">${(u.queueSize||0).toLocaleString('pt-BR')} / ${(u.originalCount||0).toLocaleString('pt-BR')}</div>
+        <div class="prog-bg" style="width:80px"><div class="prog-fill ${isStalled?'pg-amber':'pg-green'}" style="width:${progress}%"></div></div>
+      </td>
+      <td style="font-size:11px;color:var(--t2)">${lastSentAgo}</td>
+      <td>${healthDots}</td>
+      <td onclick="event.stopPropagation()" style="white-space:nowrap">
+        <button class="btn btn-xs btn-success" onclick="forceRestart('${esc(u.email)}')" title="Reiniciar"><i class="ti ti-refresh"></i></button>
+        <button class="btn btn-xs btn-danger" onclick="forceStop('${esc(u.email)}')" title="Parar"><i class="ti ti-player-stop"></i></button>
+        <button class="btn btn-xs btn-ghost" onclick="openUser('${esc(u.email)}')" title="Detalhes"><i class="ti ti-eye"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+  return `<table><thead><tr>
+    <th>Usuário</th><th>Status</th><th>Por que parou / O que fazer</th><th>Fila</th><th>Último envio</th><th>Saúde</th><th>Ações</th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderWorkersTable(){
+  const el=document.getElementById('workers-table-body');
+  const lbl=document.getElementById('workers-detail-lbl');
+  if(!el||!liveData) return;
+  const q=(document.getElementById('w-search')?.value||'').toLowerCase();
+  const sf=document.getElementById('w-filter-status')?.value||'';
+  let workers=(liveData.users||[]).filter(u=>u.hasAuto||u.autoStatus);
+  if(q) workers=workers.filter(u=>(u.email||'').includes(q)||(u.name||'').toLowerCase().includes(q));
+  if(sf==='active') workers=workers.filter(u=>u.hasAuto&&!u.jobStalled);
+  if(sf==='stalled') workers=workers.filter(u=>u.jobStalled);
+  if(sf==='paused') workers=workers.filter(u=>!u.hasAuto&&u.autoStatus);
+  if(lbl) lbl.textContent=`${workers.length} worker(s) encontrado(s)`;
+  if(!workers.length){el.innerHTML='<div class="empty-state"><i class="ti ti-robot"></i>Nenhum worker encontrado</div>';return;}
+  el.innerHTML=buildWorkersTable(workers);
+}
+function filterWorkers(){renderWorkersTable();}
+
+// ══════════════════════════════════════════════════════════
+//  EVENTS VIEW
+// ══════════════════════════════════════════════════════════
+const EVENT_LABELS={
+  stalled:'Fila travada',recovery:'Watchdog recuperou',dead_timer:'Timer morto',
+  orphan_recovery:'Job órfão recuperado',oauth_invalid:'OAuth expirado',no_pdf:'PDF ausente',
+  too_many_errors:'Muitos erros consecutivos',force_restart:'Admin reiniciou',
+  force_stop:'Admin parou',info:'Informação'
+};
+const EVENT_ICONS={stalled:'ti-clock-pause',recovery:'ti-refresh',dead_timer:'ti-clock-x',
+  orphan_recovery:'ti-heart-rate-monitor',oauth_invalid:'ti-lock',no_pdf:'ti-file-x',
+  too_many_errors:'ti-bug',force_restart:'ti-refresh',force_stop:'ti-player-stop'};
+
+function renderEventItem(ev){
+  const iconClass={error:'ei-error',warn:'ei-warn',info:'ei-info',ok:'ei-ok'}[ev.level]||'ei-warn';
+  const icon=EVENT_ICONS[ev.type]||'ti-alert-circle';
+  const label=EVENT_LABELS[ev.type]||ev.type||'Evento';
+  return `<div class="event-item">
+    <div class="event-icon ${iconClass}"><i class="ti ${icon}"></i></div>
+    <div class="event-body">
+      <div class="event-msg">${esc(ev.msg)}</div>
+      <div class="event-meta">
+        ${ev.email?`<span>👤 <strong>${esc(ev.email.split('@')[0])}</strong>@…</span>`:''}
+        <span class="badge b-gray" style="font-size:9px">${label}</span>
+      </div>
+    </div>
+    <div class="event-time">${ev.date||''}</div>
+  </div>`;
+}
+function renderEventsView(){
+  const el=document.getElementById('events-list');
+  if(!el) return;
+  const f=document.getElementById('ev-filter')?.value||'';
+  let ev=allEvents;
+  if(f) ev=ev.filter(e=>e.level===f);
+  if(!ev.length){el.innerHTML='<div class="empty-state"><i class="ti ti-check"></i>Nenhum evento</div>';return;}
+  el.innerHTML=ev.map(renderEventItem).join('');
+}
+function filterEvents(){renderEventsView();}
+
+// ══════════════════════════════════════════════════════════
+//  USERS TABLE
+// ══════════════════════════════════════════════════════════
+function renderUsersTable(){
+  const el=document.getElementById('users-tbody');
+  const lbl=document.getElementById('users-count-lbl');
+  if(!el||!liveData) return;
+  const q=(document.getElementById('u-search')?.value||'').toLowerCase();
+  const pf=document.getElementById('u-filter-plan')?.value||'';
+  const af=document.getElementById('u-filter-auto')?.value||'';
+  const of=document.getElementById('u-filter-online')?.value||'';
+  let users=allUsers;
+  if(q) users=users.filter(u=>(u.email||'').includes(q)||(u.name||'').toLowerCase().includes(q));
+  if(pf) users=users.filter(u=>(u.plan||'')===pf);
+  if(af==='yes') users=users.filter(u=>u.hasAuto);
+  if(af==='no') users=users.filter(u=>!u.hasAuto);
+  if(of==='yes') users=users.filter(u=>u.isOnline);
+  if(of==='no') users=users.filter(u=>!u.isOnline);
+  if(lbl) lbl.textContent=`${users.length} de ${allUsers.length} usuários`;
+  const planBadge=p=>({free:'<span class="badge b-gray">Free</span>',vip:'<span class="badge b-purple">⭐ VIP</span>',pro:'<span class="badge b-cyan">🤖 Pro</span>',vipro:'<span class="badge b-blue">⭐🤖 VIPro</span>'}[p]||`<span class="badge b-gray">${esc(p||'?')}</span>`);
+  const rows=users.map(u=>{
+    const onlineBadge=u.isOnline
+      ?`<span class="status-pill sp-ok"><span class="sp-dot"></span>Online${u.sessionAge?` ${u.sessionAge}m`:''}</span>`
+      :`<span class="status-pill sp-idle"><span class="sp-dot"></span>Offline</span>`;
+    const autoBadge=u.hasAuto
+      ?(u.jobStalled?`<span class="badge b-amber">⚠️ Travado</span>`:`<span class="badge b-green">🤖 Rodando</span>`)
+      :(u.autoStatus?`<span class="badge b-gray" title="${esc(u.autoStatus)}">${fmtStatus(u.autoStatus)}</span>`:`<span style="color:var(--t3);font-size:11px">–</span>`);
+    const health=`<div class="health-row">
+      <span class="hi ${u.oauthOk===false?'hi-err':u.oauthOk===true?'hi-ok':'hi-unk'}" title="OAuth"></span>
+      <span class="hi ${u.hasPdf===false?'hi-err':u.hasPdf===true?'hi-ok':'hi-unk'}" title="PDF"></span>
+      ${u.errors>0?`<span style="font-size:9px;color:var(--red)" title="${u.errors} erros">⚠️${u.errors}</span>`:''}
+    </div>`;
+    const crAt=(u.createdAt||'').slice(0,10)||'–';
+    return `<tr onclick="openUser('${esc(u.email)}')">
+      <td>
+        <div style="display:flex;align-items:center;gap:7px">
+          ${u.picture?`<img src="${esc(u.picture)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover">`:avLetter(u.name||u.email)}
+          <div>
+            <div style="font-weight:700;font-size:12px">${esc(u.name||u.email.split('@')[0])}</div>
+            <div class="mono" style="color:var(--t3);font-size:10px">${esc(u.email)}</div>
+          </div>
+        </div>
+      </td>
+      <td>${planBadge(u.plan)}</td>
+      <td>${onlineBadge}</td>
+      <td>${autoBadge}</td>
+      <td style="font-size:12px;font-weight:700;color:var(--text)">${u.todaySent||0}</td>
+      <td style="font-size:11px;color:var(--t2)">${(u.totalSent||0).toLocaleString('pt-BR')}</td>
+      <td style="font-size:11px;color:var(--t2)">${u.cvCount||0}</td>
+      <td>${health}</td>
+      <td style="font-size:10px;color:var(--t3)">${crAt}</td>
+      <td onclick="event.stopPropagation()" style="white-space:nowrap">
+        ${u.hasAuto?`<button class="btn btn-xs btn-success" onclick="forceRestart('${esc(u.email)}')" title="Reiniciar"><i class="ti ti-refresh"></i></button>`:''}
+        <button class="btn btn-xs btn-ghost" onclick="openUser('${esc(u.email)}')"><i class="ti ti-eye"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+  el.innerHTML=rows||'<tr><td colspan="10" class="empty-state">Nenhum usuário</td></tr>';
+}
+function filterUsers(){renderUsersTable();}
+
+// ══════════════════════════════════════════════════════════
+//  USER DETAIL MODAL — COMPLETO
+// ══════════════════════════════════════════════════════════
+async function openUser(email){
+  currentModalEmail=email;
+  document.getElementById('user-modal').style.display='flex';
+  document.getElementById('modal-name').textContent='…';
+  document.getElementById('modal-email').textContent=email;
+  // Reset tabs
+  ['overview','auto','pdfs','profiles','logs','history','enviados','health','edit'].forEach(t=>{
+    const el=document.getElementById('modal-tab-'+t);
+    if(el) el.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>';
+  });
+  // Activate overview tab
+  switchModalTab('overview');
+
+  // Quick data from liveData
+  const u=allUsers.find(x=>x.email===email);
+  if(u) {
+    document.getElementById('modal-name').textContent=u.name||email;
+    const av=document.getElementById('modal-av');
+    if(av) av.innerHTML=u.picture?`<img src="${esc(u.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:(u.name||email)[0].toUpperCase();
+    const badges=document.getElementById('modal-badges');
+    const planLabel={free:'<span class="badge b-gray">Free</span>',vip:'<span class="badge b-purple">⭐ VIP</span>',pro:'<span class="badge b-cyan">🤖 Pro</span>',vipro:'<span class="badge b-blue">⭐🤖 VIPro</span>'}[u.plan]||'';
+    if(badges) badges.innerHTML=planLabel+(u.isOnline?'<span class="badge b-green">🟢 Online</span>':'<span class="badge b-gray">Offline</span>');
+    document.getElementById('modal-restart-btn').style.display=u.hasAuto?'':'none';
+    document.getElementById('modal-stop-btn').style.display=u.hasAuto?'':'none';
+    document.getElementById('modal-clearjob-btn').style.display=u.hasAuto?'':'none';
+  }
+
+  // Load full detail from API
+  try {
+    const r=await fetch(`/api/admin/user-detail/${encodeURIComponent(email)}`,{credentials:'include'});
+    const d=await r.json();
+    if(d.error){
+      document.getElementById('modal-tab-overview').innerHTML=`<div class="empty-state" style="color:var(--red)"><i class="ti ti-alert-circle"></i>${esc(d.error)}</div>`;
+      return;
+    }
+    currentModalData=d;
+    renderModalOverview(d,u);
+    renderModalAuto(d,u);
+    renderModalPdfs(d,u);
+    renderModalProfiles(d,u);
+    renderModalLogs(d);
+    renderModalHistory(d);
+    renderModalEnviados(d,u);
+    renderModalHealth(d,u);
+    renderModalEdit(d,u);
+  } catch(e){
+    document.getElementById('modal-tab-overview').innerHTML=`<div class="empty-state" style="color:var(--red)"><i class="ti ti-alert-circle"></i>Erro: ${esc(e.message)}</div>`;
+  }
+}
+
+function closeUserModal(){
+  document.getElementById('user-modal').style.display='none';
+  currentModalEmail=null;
+  currentModalData=null;
+}
+
+async function refreshModal(){
+  if(currentModalEmail) await openUser(currentModalEmail);
+}
+
+function updateModalWorkerStatus(u){
+  // Update just the worker status pills in the modal without full reload
+  const autoTab=document.getElementById('modal-tab-auto');
+  if(!autoTab||!currentModalData) return;
+  // Minimal update - just the status badge
+  const statusEl=autoTab.querySelector('#modal-auto-status');
+  if(statusEl){
+    const isStalled=u.jobStalled;
+    statusEl.className=`status-pill ${isStalled?'sp-warn':u.hasAuto?'sp-ok':'sp-idle'}`;
+    statusEl.innerHTML=`<span class="sp-dot"></span>${isStalled?'⚠️ Travado':u.hasAuto?fmtStatus(u.autoStatus):'Inativo'}`;
+  }
+}
+
+// ── TAB: OVERVIEW ─────────────────────────────────────────
+function renderModalOverview(d,u){
+  const el=document.getElementById('modal-tab-overview');
+  if(!el) return;
+  const now=Date.now();
+  const job=d.job;
+  const user=d.user||{};
+
+  // Stop reason detection (usa STOP_REASON_FULL para explicações claras)
+  let stopReasonHtml='';
+  if(job&&!job.active){
+    const reason=STOP_REASON_FULL[job.status]||{icon:'ℹ️',titulo:'Status: '+(job.status||'desconhecido'),usuario_precisa:'Contactar suporte.',admin_pode:'Verificar os logs.',voce_resolve:false,cor:'gray'};
+    const now2=Date.now();
+    const corMap2={green:'var(--greenb)',amber:'var(--amberb)',red:'var(--redb)',blue:'var(--blueb)',gray:'var(--border2)'};
+    const bgMap2 ={green:'var(--greeng)',amber:'var(--amberg)',red:'var(--redg)', blue:'var(--blueg)', gray:'var(--glass2)'};
+    const txtMap2={green:'var(--green)', amber:'var(--amber)', red:'var(--red)',  blue:'var(--blue)',  gray:'var(--t2)'};
+    const bc=corMap2[reason.cor]||'var(--redb)';
+    const bg=bgMap2[reason.cor]||'var(--redg)';
+    const tc=txtMap2[reason.cor]||'var(--red)';
+    stopReasonHtml=`<div style="background:${bg};border:1.5px solid ${bc};border-radius:8px;padding:12px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:800;color:${tc};margin-bottom:8px;display:flex;align-items:center;gap:5px">
+        <span>${reason.icon}</span> ${esc(reason.titulo)}
+      </div>
+      <div style="font-size:11px;color:var(--text);margin-bottom:5px"><strong>${reason.voce_resolve?'✅ Admin pode resolver:':'❌ Admin NÃO resolve (usuário precisa agir):'}</strong></div>
+      <div style="font-size:11px;color:var(--text);line-height:1.5;margin-bottom:5px">${esc(reason.admin_pode)}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--amber)">👤 Usuário precisa: ${esc(reason.usuario_precisa)}</div>
+      ${d.health?.lastError?`<div style="font-size:10px;color:var(--red);font-family:monospace;margin-top:6px;word-break:break-all">Erro: ${esc(d.health.lastError)}</div>`:''}
+      ${job.lastSentAt?`<div style="font-size:10px;color:var(--t3);margin-top:4px">Último envio: ${new Date(job.lastSentAt).toLocaleString('pt-BR')} (${fmtAgo(now2-job.lastSentAt)} atrás)</div>`:''}
+    </div>`;
+  }
+
+  const vip=user.vip||{};
+  const vipInfo=vip.active?`<span class="badge b-purple">Ativo até ${vip.manualExpires?new Date(vip.manualExpires).toLocaleDateString('pt-BR'):'–'}</span>`:'<span class="badge b-gray">Sem plano VIP</span>';
+
+  let html=stopReasonHtml+`
+  <div class="detail-grid">
+    <div class="detail-card">
+      <div class="detail-card-title"><i class="ti ti-user"></i> Dados da Conta</div>
+      <div class="detail-row"><span class="detail-label">Email</span><span class="detail-val mono" style="font-size:11px">${esc(user.email||email)}</span></div>
+      <div class="detail-row"><span class="detail-label">Nome</span><span class="detail-val">${esc(user.name||'–')}</span></div>
+      <div class="detail-row"><span class="detail-label">País</span><span class="detail-val">${esc(user.country||'–')}</span></div>
+      <div class="detail-row"><span class="detail-label">Telefone</span><span class="detail-val">${esc(user.phone||'–')}</span></div>
+      <div class="detail-row"><span class="detail-label">Cidade</span><span class="detail-val">${esc(user.city||'–')}</span></div>
+      <div class="detail-row"><span class="detail-label">Plano atual</span><span class="detail-val">${esc(u?.plan||user.plan||'free')}</span></div>
+      <div class="detail-row"><span class="detail-label">VIP status</span><span class="detail-val">${vipInfo}</span></div>
+      <div class="detail-row"><span class="detail-label">Admin</span><span class="detail-val">${user.isAdmin?'✅ Sim':'Não'}</span></div>
+      <div class="detail-row"><span class="detail-label">Criado em</span><span class="detail-val">${user.created_at?new Date(user.created_at).toLocaleString('pt-BR'):'–'}</span></div>
+      <div class="detail-row"><span class="detail-label">Último login</span><span class="detail-val">${user.last_login?new Date(user.last_login).toLocaleString('pt-BR'):'–'}</span></div>
+    </div>
+    <div class="detail-card">
+      <div class="detail-card-title"><i class="ti ti-chart-bar"></i> Estatísticas</div>
+      <div style="background:linear-gradient(135deg,#1a56db,#7e3af2);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+        <div><div style="font-size:22px;font-weight:800;color:#fff">${d.todayTotal||0}</div><div style="font-size:10px;color:rgba(255,255,255,.7);font-weight:600">HOJE TOTAL</div></div>
+        <div style="border-left:1px solid rgba(255,255,255,.2)"><div style="font-size:22px;font-weight:800;color:#6ee7b7">${d.todayManual||0}</div><div style="font-size:10px;color:rgba(255,255,255,.7);font-weight:600">MANUAL</div></div>
+        <div style="border-left:1px solid rgba(255,255,255,.2)"><div style="font-size:22px;font-weight:800;color:#fbbf24">${d.todayAuto||0}</div><div style="font-size:10px;color:rgba(255,255,255,.7);font-weight:600">AUTO</div></div>
+      </div>
+      <div class="detail-row"><span class="detail-label">Histórico total</span><span class="detail-val" style="font-weight:700;color:var(--blue)">${(d.histCount||0).toLocaleString('pt-BR')} enviados</span></div>
+      <div class="detail-row"><span class="detail-label">Enviados (set único)</span><span class="detail-val">${(d.sentSet||0).toLocaleString('pt-BR')} e-mails únicos</span></div>
+      <div class="detail-row"><span class="detail-label">CVs/PDFs</span><span class="detail-val">${(user.cvs||[]).length} arquivo(s) cadastrados</span></div>
+      <div class="detail-row"><span class="detail-label">Perfis</span><span class="detail-val">${(user.profiles||[]).length} perfil(is)</span></div>
+      <div class="detail-row"><span class="detail-label">Templates</span><span class="detail-val">${(user.templates||[]).length} template(s)</span></div>
+      <div class="detail-row"><span class="detail-label">Timer ativo</span><span class="detail-val">${d.timers?'✅ Sim':'❌ Não'}</span></div>
+      <div class="detail-row"><span class="detail-label">VIP expira (manual)</span><span class="detail-val">${vip.manualExpires?new Date(vip.manualExpires).toLocaleDateString('pt-BR'):'–'}</span></div>
+      <div class="detail-row"><span class="detail-label">VIP expira (auto)</span><span class="detail-val">${vip.autoExpires?new Date(vip.autoExpires).toLocaleDateString('pt-BR'):'–'}</span></div>
+    </div>
+  </div>`;
+
+  // Admin message
+  if(user.adminMessage){
+    html+=`<div style="background:var(--blueg);border:1px solid var(--blueb);border-radius:8px;padding:10px;margin-bottom:12px;font-size:11px">
+      <div style="font-weight:700;color:var(--blue);margin-bottom:4px">📢 Mensagem admin enviada:</div>
+      <div style="color:var(--text)">${esc(user.adminMessage.text)}</div>
+      <div style="color:var(--t3);font-size:10px;margin-top:4px">${new Date(user.adminMessage.date).toLocaleString('pt-BR')}</div>
+    </div>`;
+  }
+
+  // Recent logs preview
+  const recent=(d.logs||[]).slice(0,5);
+  if(recent.length){
+    html+=`<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:6px">Últimos logs</div>`;
+    html+=recent.map(l=>renderLogLine(l)).join('');
+  }
+  el.innerHTML=html;
+}
+
+// ── TAB: AUTO ─────────────────────────────────────────────
+// Mapa COMPLETO de status com: o que é, por que parou, o que você (admin) pode fazer, e o que o usuário precisa fazer
+const STOP_REASON_FULL = {
+  paused: {
+    icon: '⏸️',
+    titulo: 'Pausado pelo usuário',
+    oque: 'O próprio usuário clicou em "Pausar" no aplicativo.',
+    porque: 'Pode ter pausado para editar o perfil, mudar configurações, ou simplesmente não queria enviar naquele momento.',
+    admin_pode: 'Você pode reiniciar o worker clicando em "Reiniciar Worker" abaixo. O job vai retomar de onde parou.',
+    usuario_precisa: 'Nada — o usuário pausou voluntariamente. Ele pode retomar quando quiser.',
+    voce_resolve: true,
+    cor: 'amber'
+  },
+  finished: {
+    icon: '✅',
+    titulo: 'Fila finalizada com sucesso',
+    oque: 'Todas as vagas da fila foram processadas. O sistema enviou e-mails para todas as empresas disponíveis.',
+    porque: 'Normal — o automático chegou ao fim da lista de vagas.',
+    admin_pode: 'Nada — o job terminou normalmente. Se quiser reiniciar, o usuário precisa iniciar uma nova rodada no app.',
+    usuario_precisa: 'Iniciar uma nova rodada clicando em "Iniciar Automático" no aplicativo.',
+    voce_resolve: false,
+    cor: 'green'
+  },
+  paused_no_session: {
+    icon: '🔐',
+    titulo: 'TOKEN EXPIRADO — Usuário precisa fazer login',
+    oque: 'O token de autenticação do Google (OAuth) expirou. Sem ele, o sistema não consegue usar o Gmail para enviar e-mails.',
+    porque: 'O Google invalida o token após ~7 dias sem uso, ou se o usuário saiu da conta, revogou o acesso, ou trocou de senha.',
+    admin_pode: '❌ NÃO dá para resolver remotamente. O token precisa ser renovado pela própria conta Google do usuário.',
+    usuario_precisa: '⚠️ O USUÁRIO PRECISA: Abrir o app H2BApply → Fazer logout → Fazer login novamente com o Google → O automático vai retomar sozinho.',
+    voce_resolve: false,
+    cor: 'red'
+  },
+  paused_oauth_expired: {
+    icon: '🔐',
+    titulo: 'AUTENTICAÇÃO GOOGLE EXPIRADA — Login necessário',
+    oque: 'O Google revogou o acesso ou o refresh token expirou permanentemente.',
+    porque: 'O Google revoga tokens se: (1) o usuário ficou mais de 6 meses sem usar, (2) o usuário trocou de senha, (3) o usuário revogou o acesso em conta.google.com, (4) muitos tokens simultâneos para a mesma conta.',
+    admin_pode: '❌ NÃO dá para resolver remotamente. É uma limitação do Google.',
+    usuario_precisa: '⚠️ O USUÁRIO PRECISA: Abrir o app → Sair → Entrar novamente com o Google. O automático retomará automaticamente.',
+    voce_resolve: false,
+    cor: 'red'
+  },
+  stalled: {
+    icon: '⚠️',
+    titulo: 'Fila travada — Worker parou de responder',
+    oque: 'O worker estava ativo mas ficou sem enviar por mais de 20 minutos. O Watchdog detectou e está tentando reiniciar.',
+    porque: 'Pode ser: (1) erro de rede temporário, (2) servidor reiniciado, (3) bug raro no timer do Node.js.',
+    admin_pode: '✅ Você pode reiniciar clicando em "Reiniciar Worker". O job vai retomar do ponto onde parou.',
+    usuario_precisa: 'Nada — o admin pode resolver isso.',
+    voce_resolve: true,
+    cor: 'amber'
+  },
+  restarted_by_admin: {
+    icon: '🔄',
+    titulo: 'Reiniciado por administrador',
+    oque: 'Um administrador reiniciou este job manualmente.',
+    porque: 'Ação administrativa — pode ter sido para corrigir um travamento ou erro.',
+    admin_pode: 'O job deve estar rodando. Se não estiver, reinicie novamente.',
+    usuario_precisa: 'Nada.',
+    voce_resolve: true,
+    cor: 'blue'
+  },
+  cancelled: {
+    icon: '🛑',
+    titulo: 'Cancelado pelo administrador',
+    oque: 'Um administrador parou este job usando "Parar" no painel.',
+    porque: 'Ação administrativa deliberada.',
+    admin_pode: 'Para reiniciar, o usuário precisa iniciar uma nova rodada no app (a fila foi apagada).',
+    usuario_precisa: 'Iniciar um novo envio automático no aplicativo.',
+    voce_resolve: false,
+    cor: 'red'
+  },
+  sending: {
+    icon: '📤',
+    titulo: 'Enviando agora',
+    oque: 'O worker está ativo e enviando um e-mail neste momento.',
+    porque: 'Funcionamento normal.',
+    admin_pode: 'Nada — está funcionando.',
+    usuario_precisa: 'Nada.',
+    voce_resolve: true,
+    cor: 'green'
+  },
+  waiting_interval: {
+    icon: '⏱️',
+    titulo: 'Aguardando intervalo entre envios',
+    oque: 'O sistema enviou um e-mail e está esperando 3 a 5 minutos antes do próximo para não ser bloqueado pelo Gmail.',
+    porque: 'Medida de segurança — enviar muito rápido causa bloqueio de conta pelo Google.',
+    admin_pode: 'Nada — comportamento normal e saudável.',
+    usuario_precisa: 'Nada.',
+    voce_resolve: true,
+    cor: 'blue'
+  },
+  waiting_hour: {
+    icon: '🕐',
+    titulo: 'Fora do horário de envio configurado',
+    oque: 'O worker está ativo mas aguardando o horário de início configurado pelo usuário.',
+    porque: 'O usuário configurou um horário específico (ex: 8h às 20h) para evitar enviar de madrugada.',
+    admin_pode: 'Verificar os horários configurados abaixo. Se necessário, o usuário pode alterar no app.',
+    usuario_precisa: 'Aguardar o horário, ou alterar a configuração de horário no app.',
+    voce_resolve: false,
+    cor: 'amber'
+  },
+  waiting_limit: {
+    icon: '📊',
+    titulo: 'Limite diário atingido — retoma amanhã',
+    oque: 'O usuário já enviou o máximo de e-mails automáticos permitidos para hoje.',
+    porque: 'Limites por plano: Free=10/dia, Pro=200/dia, VIPro=200/dia. Proteção contra spam.',
+    admin_pode: 'Se precisar aumentar o limite, ative um plano VIPro. O job retoma automaticamente amanhã no horário configurado.',
+    usuario_precisa: 'Aguardar até amanhã, ou fazer upgrade de plano.',
+    voce_resolve: false,
+    cor: 'amber'
+  },
+  starting: {
+    icon: '🚀',
+    titulo: 'Iniciando worker',
+    oque: 'O job acabou de ser criado e o worker está carregando.',
+    porque: 'Funcionamento normal — demora poucos segundos.',
+    admin_pode: 'Aguardar.',
+    usuario_precisa: 'Nada.',
+    voce_resolve: true,
+    cor: 'blue'
+  },
+  resuming: {
+    icon: '▶️',
+    titulo: 'Retomando envio',
+    oque: 'O job estava pausado e está sendo retomado agora.',
+    porque: 'O usuário ou admin clicou em "Retomar".',
+    admin_pode: 'Aguardar — deve começar a enviar em breve.',
+    usuario_precisa: 'Nada.',
+    voce_resolve: true,
+    cor: 'green'
+  }
+};
+
+function renderModalAuto(d,u){
+  const el=document.getElementById('modal-tab-auto');
+  if(!el) return;
+  const now=Date.now();
+  const job=d.job;
+  if(!job){
+    el.innerHTML=`<div class="empty-state"><i class="ti ti-robot"></i>Nenhum job automático ativo ou recente para este usuário.<br><small style="color:var(--t3)">O usuário nunca iniciou um envio automático, ou o job foi apagado.</small></div>`;
+    return;
+  }
+  const progress=job.originalCount?Math.round((1-((job.queue&&job.queue.length)||0)/job.originalCount)*100):0;
+  const isActive=job.active;
+  const isStalled=u?.jobStalled;
+  const statusClass=isStalled?'sp-warn':isActive?'sp-ok':'sp-idle';
+
+  // Pega a explicação completa do status
+  const reason = STOP_REASON_FULL[job.status] || {
+    icon: 'ℹ️',
+    titulo: 'Status desconhecido: ' + (job.status||'–'),
+    oque: 'Status não mapeado no sistema.',
+    porque: '–',
+    admin_pode: 'Tente reiniciar o worker.',
+    usuario_precisa: 'Contactar suporte se persistir.',
+    voce_resolve: true,
+    cor: 'gray'
+  };
+
+  const corMap = {green:'var(--greenb)',amber:'var(--amberb)',red:'var(--redb)',blue:'var(--blueb)',gray:'var(--border2)'};
+  const bgMap  = {green:'var(--greeng)',amber:'var(--amberg)',red:'var(--redg)', blue:'var(--blueg)', gray:'var(--glass2)'};
+  const txtMap = {green:'var(--green)', amber:'var(--amber)', red:'var(--red)',  blue:'var(--blue)',  gray:'var(--t2)'};
+
+  let html=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:12px;background:var(--glass);border:1px solid var(--border2);border-radius:8px">
+    <span class="status-pill ${statusClass}" id="modal-auto-status" style="font-size:12px">
+      <span class="sp-dot"></span>${isStalled?'⚠️ Travado':isActive?fmtStatus(job.status):'Parado — '+fmtStatus(job.status)}
+    </span>
+    <div style="flex:1;min-width:0">
+      <div class="prog-bg" style="margin-bottom:4px"><div class="prog-fill ${isStalled?'pg-amber':isActive?'pg-green':'pg-blue'}" style="width:${progress}%"></div></div>
+      <div style="font-size:10px;color:var(--t3)">${progress}% concluído · ${((job.queue&&job.queue.length)||0).toLocaleString('pt-BR')} restante(s) de ${(job.originalCount||0).toLocaleString('pt-BR')}</div>
+    </div>
+  </div>`;
+
+  // Caixa explicativa SEMPRE presente (mesmo se ativo)
+  const borderColor = isStalled ? 'var(--amberb)' : (corMap[reason.cor]||'var(--border2)');
+  const bgColor     = isStalled ? 'var(--amberg)' : (bgMap[reason.cor]||'var(--glass2)');
+  const txtColor    = isStalled ? 'var(--amber)'  : (txtMap[reason.cor]||'var(--t2)');
+
+  html += `<div style="background:${bgColor};border:1.5px solid ${borderColor};border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="font-size:14px;font-weight:800;color:${txtColor};margin-bottom:10px;display:flex;align-items:center;gap:7px">
+      <span style="font-size:18px">${reason.icon}</span>
+      ${esc(reason.titulo)}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <span style="flex-shrink:0;font-weight:700;color:${txtColor};min-width:90px">O que é:</span>
+        <span style="color:var(--text);line-height:1.5">${esc(reason.oque)}</span>
+      </div>
+      <div style="border-top:1px solid ${borderColor};padding-top:8px;display:flex;gap:8px;align-items:flex-start">
+        <span style="flex-shrink:0;font-weight:700;color:${txtColor};min-width:90px">Por que parou:</span>
+        <span style="color:var(--text);line-height:1.5">${esc(reason.porque)}</span>
+      </div>
+      <div style="border-top:1px solid ${borderColor};padding-top:8px;display:flex;gap:8px;align-items:flex-start">
+        <span style="flex-shrink:0;font-weight:700;min-width:90px;${reason.voce_resolve?'color:var(--green)':'color:var(--red)'}">
+          ${reason.voce_resolve?'✅ Você pode:':'❌ Você (admin):'}
+        </span>
+        <span style="color:var(--text);line-height:1.5;font-weight:600">${esc(reason.admin_pode)}</span>
+      </div>
+      <div style="border-top:1px solid ${borderColor};padding-top:8px;display:flex;gap:8px;align-items:flex-start">
+        <span style="flex-shrink:0;font-weight:700;color:var(--amber);min-width:90px">Usuário precisa:</span>
+        <span style="color:var(--text);line-height:1.5;font-weight:600">${esc(reason.usuario_precisa)}</span>
+      </div>
+      ${d.health?.lastError ? `<div style="border-top:1px solid ${borderColor};padding-top:8px;display:flex;gap:8px;align-items:flex-start">
+        <span style="flex-shrink:0;font-weight:700;color:var(--red);min-width:90px">Erro técnico:</span>
+        <span style="color:#fca5a5;font-family:monospace;font-size:11px;word-break:break-all;line-height:1.5">${esc(d.health.lastError)}</span>
+      </div>` : ''}
+      ${job.lastSentAt ? `<div style="border-top:1px solid ${borderColor};padding-top:8px;display:flex;gap:8px">
+        <span style="flex-shrink:0;font-weight:700;color:${txtColor};min-width:90px">Último envio:</span>
+        <span style="color:var(--t2);font-size:11px">${new Date(job.lastSentAt).toLocaleString('pt-BR')} (${fmtAgo(now-job.lastSentAt)} atrás)</span>
+      </div>` : ''}
+    </div>
+  </div>`;
+
+  html+=`<div class="detail-grid">
+    <div class="detail-card">
+      <div class="detail-card-title"><i class="ti ti-info-circle"></i> Configuração do Job</div>
+      <div class="detail-row"><span class="detail-label">Fonte/Planilha</span><span class="detail-val">${esc(job.source||'–')}</span></div>
+      <div class="detail-row"><span class="detail-label">Categoria</span><span class="detail-val">${esc(job.category||'all')}</span></div>
+      <div class="detail-row"><span class="detail-label">Horário início</span><span class="detail-val">${job.startH??'–'}h BRT</span></div>
+      <div class="detail-row"><span class="detail-label">Horário fim</span><span class="detail-val">${job.endH??'–'}h BRT</span></div>
+      <div class="detail-row"><span class="detail-label">Resume PDF idx</span><span class="detail-val mono">${job.resumeIdx??'auto (perfil)'}</span></div>
+      <div class="detail-row"><span class="detail-label">Cover PDF idx</span><span class="detail-val mono">${job.coverIdx??'–'}</span></div>
+    </div>
+    <div class="detail-card">
+      <div class="detail-card-title"><i class="ti ti-clock"></i> Tempo & Progresso</div>
+      <div class="detail-row"><span class="detail-label">Iniciado em</span><span class="detail-val">${job.startedAt?new Date(job.startedAt).toLocaleString('pt-BR'):'–'}</span></div>
+      <div class="detail-row"><span class="detail-label">Último envio</span><span class="detail-val">${job.lastSentAt?new Date(job.lastSentAt).toLocaleString('pt-BR')+' ('+fmtAgo(now-job.lastSentAt)+')':'–'}</span></div>
+      <div class="detail-row"><span class="detail-label">Próximo envio</span><span class="detail-val">${job.nextSendAt&&job.nextSendAt>now?fmtAgo(job.nextSendAt-now)+' restante':'–'}</span></div>
+      <div class="detail-row"><span class="detail-label">Finalizado em</span><span class="detail-val">${job.finishedAt?new Date(job.finishedAt).toLocaleString('pt-BR'):'–'}</span></div>
+      <div class="detail-row"><span class="detail-label">Timer JS ativo</span><span class="detail-val">${d.timers?'✅ Sim':'❌ Não'}</span></div>
+      <div class="detail-row"><span class="detail-label">Vagas na fila</span><span class="detail-val" style="font-weight:700;color:var(--amber)">${((job.queue&&job.queue.length)||0).toLocaleString('pt-BR')}</span></div>
+    </div>
+  </div>`;
+
+  // Current job being sent
+  if(job.currentJob){
+    html+=`<div style="background:var(--blueg);border:1px solid var(--blueb);border-radius:8px;padding:12px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;margin-bottom:6px">Vaga atual sendo processada</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">
+        <div><span style="color:var(--t3)">Empresa: </span><strong>${esc(job.currentJob.company||'–')}</strong></div>
+        <div><span style="color:var(--t3)">Email: </span><span class="mono">${esc(job.currentJob.to||'–')}</span></div>
+        <div><span style="color:var(--t3)">Cargo: </span>${esc(job.currentJob.title||'–')}</div>
+        <div><span style="color:var(--t3)">Categoria: </span>${esc(job.currentJob.category||'–')}</div>
+      </div>
+    </div>`;
+  }
+
+  // Queue preview (first 10)
+  const queue=job.queue||[];
+  if(queue.length>0){
+    html+=`<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:6px">Próximas ${Math.min(10,queue.length)} vagas na fila</div>
+    <div style="background:var(--glass);border:1px solid var(--border2);border-radius:8px;overflow:hidden;margin-bottom:12px">
+      <table style="width:100%;font-size:11px"><thead><tr>
+        <th style="padding:7px 10px;color:var(--t3);text-transform:uppercase;font-size:9px;font-weight:700;text-align:left">Empresa</th>
+        <th style="padding:7px 10px;color:var(--t3);text-transform:uppercase;font-size:9px;font-weight:700;text-align:left">Email</th>
+        <th style="padding:7px 10px;color:var(--t3);text-transform:uppercase;font-size:9px;font-weight:700;text-align:left">Cargo</th>
+        <th style="padding:7px 10px;color:var(--t3);text-transform:uppercase;font-size:9px;font-weight:700;text-align:left">Cat.</th>
+      </tr></thead><tbody>
+      ${queue.slice(0,10).map(q=>`<tr style="border-top:1px solid var(--border)">
+        <td style="padding:6px 10px;font-weight:600">${esc(q.company||'–')}</td>
+        <td style="padding:6px 10px" class="mono">${esc(q.to||'–')}</td>
+        <td style="padding:6px 10px;color:var(--t2)">${esc(q.title||'–')}</td>
+        <td style="padding:6px 10px"><span class="badge b-gray">${esc(q.category||'–')}</span></td>
+      </tr>`).join('')}
+      </tbody></table>
+      ${queue.length>10?`<div style="padding:8px 12px;text-align:center;font-size:11px;color:var(--t3);border-top:1px solid var(--border)">... e mais ${queue.length-10} vagas na fila</div>`:''}
+    </div>`;
+  }
+
+  el.innerHTML=html;
+}
+
+// ── TAB: PDFs ─────────────────────────────────────────────
+function renderModalPdfs(d,u){
+  const el=document.getElementById('modal-tab-pdfs');
+  if(!el) return;
+  const user=d.user||{};
+  const cvs=user.cvs||[];
+  const profiles=user.profiles||[];
+
+  let html=`<div style="background:var(--amberg);border:1px solid var(--amberb);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px;color:var(--amber)">
+    <i class="ti ti-info-circle"></i> <strong>Regra:</strong> Todos os envios automáticos usam EXCLUSIVAMENTE os PDFs vinculados ao perfil do usuário (campo <code>resumeIdx</code> e <code>coverIdx</code>).
+    PDFs sem vínculo a um perfil NÃO são usados nos envios automáticos.
+  </div>`;
+
+  if(!cvs.length){
+    html+=`<div class="empty-state"><i class="ti ti-file-x"></i>Nenhum PDF cadastrado<br><small style="color:var(--red)">⚠️ Sem PDF o envio automático vai falhar!</small></div>`;
+    el.innerHTML=html;
+    return;
+  }
+
+  html+=`<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:8px">PDFs cadastrados (${cvs.length})</div>
+  <div style="background:var(--glass);border:1px solid var(--border2);border-radius:8px;overflow:hidden;margin-bottom:16px">`;
+
+  for(const cv of cvs){
+    // Find which profiles use this CV
+    const usedByProfiles=profiles.filter(p=>parseInt(p.resumeIdx,10)===parseInt(cv.idx,10)||parseInt(p.coverIdx,10)===parseInt(cv.idx,10));
+    const isUsedByAuto=usedByProfiles.length>0||(d.job?.resumeIdx!=null&&parseInt(d.job.resumeIdx,10)===parseInt(cv.idx,10));
+    html+=`<div class="pdf-item">
+      <div class="pdf-icon"><i class="ti ti-file-type-pdf"></i></div>
+      <div class="pdf-info">
+        <div class="pdf-name">${esc(cv.name||'PDF sem nome')}</div>
+        <div class="pdf-meta">
+          idx: <code>${cv.idx}</code> · 
+          ${cv.size?Math.round(cv.size/1024)+'KB · ':''}
+          ${cv.date?'Upload: '+new Date(cv.date).toLocaleDateString('pt-BR'):''}
+          <span class="badge ${cv.cvType==='cover'?'b-purple':'b-blue'}" style="margin-left:4px">${cv.cvType==='cover'?'Cover Letter':'Currículo'}</span>
+          ${isUsedByAuto?`<span class="badge b-green" style="margin-left:4px">✅ Usado no auto</span>`:`<span class="badge b-gray" style="margin-left:4px">Não vinculado a perfil</span>`}
+        </div>
+        ${usedByProfiles.length?`<div style="font-size:10px;color:var(--t3);margin-top:2px">Perfis: ${usedByProfiles.map(p=>`<strong>${esc(p.name)}</strong>`).join(', ')}</div>`:''}
+      </div>
+    </div>`;
+  }
+  html+=`</div>`;
+
+  // Job's effective PDF
+  if(d.job){
+    const ri=d.job.resumeIdx;
+    const ci=d.job.coverIdx;
+    html+=`<div style="background:var(--glass);border:1px solid var(--border2);border-radius:8px;padding:12px;font-size:11px">
+      <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:8px">PDFs em uso no job atual</div>
+      ${ri!=null?`<div class="detail-row"><span class="detail-label">Currículo (resumeIdx)</span><span class="detail-val"><code>${ri}</code> → ${esc(cvs.find(c=>parseInt(c.idx,10)===parseInt(ri,10))?.name||'⚠️ PDF não encontrado!')}</span></div>`:'<div style="color:var(--amber)">⚠️ resumeIdx não definido — usa fallback automático</div>'}
+      ${ci!=null?`<div class="detail-row"><span class="detail-label">Cover (coverIdx)</span><span class="detail-val"><code>${ci}</code> → ${esc(cvs.find(c=>parseInt(c.idx,10)===parseInt(ci,10))?.name||'⚠️ PDF não encontrado!')}</span></div>`:''}
+    </div>`;
+  }
+
+  el.innerHTML=html;
+}
+
+// ── TAB: PROFILES ─────────────────────────────────────────
+function renderModalProfiles(d,u){
+  const el=document.getElementById('modal-tab-profiles');
+  if(!el) return;
+  const user=d.user||{};
+  const profiles=user.profiles||[];
+  const cvs=user.cvs||[];
+
+  if(!profiles.length){
+    el.innerHTML=`<div class="empty-state"><i class="ti ti-id-badge"></i>Nenhum perfil configurado<br><small style="color:var(--amber)">Sem perfil, o envio automático usa configurações padrão</small></div>`;
+    return;
+  }
+
+  let html=`<div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:10px">${profiles.length} Perfil(is) — Os PDFs e templates de cada perfil são usados no envio automático</div>`;
+
+  for(const pr of profiles){
+    const resumeCv=cvs.find(c=>parseInt(c.idx,10)===parseInt(pr.resumeIdx,10));
+    const coverCv=cvs.find(c=>parseInt(c.idx,10)===parseInt(pr.coverIdx,10));
+    const pdfOk=!!resumeCv;
+    html+=`<div style="background:var(--glass);border:1px solid ${pdfOk?'var(--border2)':'var(--redb)'};border-radius:8px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-weight:700;font-size:13px;color:var(--text)">${esc(pr.name)}</span>
+        ${pr.active!==false?'<span class="badge b-green">Ativo</span>':'<span class="badge b-gray">Inativo</span>'}
+        ${pr.isGeneral?'<span class="badge b-blue">Geral (fallback)</span>':''}
+        ${!pdfOk?'<span class="badge b-red">⚠️ PDF não vinculado!</span>':''}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">
+        <div>
+          <div class="detail-row"><span class="detail-label">Currículo (PDF)</span>
+            <span class="detail-val ${pdfOk?'':'stop-reason-msg'}">
+              ${resumeCv?`<span class="badge b-green">✅ ${esc(resumeCv.name)}</span>`:pr.resumeIdx!=null?`<span class="badge b-red">❌ idx ${pr.resumeIdx} não encontrado no disco</span>`:'<span class="badge b-amber">⚠️ Não definido — usa fallback</span>'}
+            </span>
+          </div>
+          <div class="detail-row"><span class="detail-label">Cover Letter</span>
+            <span class="detail-val">${coverCv?`<span class="badge b-purple">${esc(coverCv.name)}</span>`:'<span style="color:var(--t3)">–</span>'}</span>
+          </div>
+          <div class="detail-row"><span class="detail-label">Categorias</span><span class="detail-val">${(pr.categories||[]).length?pr.categories.map(c=>`<span class="badge b-gray">${esc(c)}</span>`).join(' '):'<span style="color:var(--t3)">todas</span>'}</span></div>
+          <div class="detail-row"><span class="detail-label">Planilhas</span><span class="detail-val">${(pr.sheets||[]).join(', ')||'todas'}</span></div>
+        </div>
+        <div>
+          <div class="detail-row"><span class="detail-label">Assuntos</span><span class="detail-val">${(pr.subjects||[]).length} configurado(s)</span></div>
+          <div class="detail-row"><span class="detail-label">Corpos de email</span><span class="detail-val">${(pr.emailBodies||[]).length} configurado(s)</span></div>
+          <div class="detail-row"><span class="detail-label">Atualizado</span><span class="detail-val">${pr.updatedAt?new Date(pr.updatedAt).toLocaleDateString('pt-BR'):'–'}</span></div>
+        </div>
+      </div>
+      ${pr.subjects&&pr.subjects.length?`<div style="margin-top:8px;font-size:10px;color:var(--t3)"><strong>Assuntos:</strong> ${pr.subjects.slice(0,2).map(s=>'"'+esc(s.slice(0,60))+'"').join(', ')}${pr.subjects.length>2?` +${pr.subjects.length-2} mais`:''}</div>`:''}
+    </div>`;
+  }
+
+  el.innerHTML=html;
+}
+
+// ── TAB: LOGS ─────────────────────────────────────────────
+function renderModalLogs(d){
+  const el=document.getElementById('modal-tab-logs');
+  if(!el) return;
+  const logs=(d.logs||[]).slice(0,200);
+  if(!logs.length){el.innerHTML='<div class="empty-state"><i class="ti ti-list"></i>Sem logs de automático</div>';return;}
+
+  // Stats
+  const sent=logs.filter(l=>l.status==='enviado').length;
+  const failed=logs.filter(l=>l.status==='falhou').length;
+  const skipped=logs.filter(l=>l.status==='duplicado'||l.status==='pulado').length;
+
+  let html=`<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <span class="badge b-green">✅ ${sent} enviados</span>
+    <span class="badge b-red">❌ ${failed} falhas</span>
+    <span class="badge b-amber">⏭️ ${skipped} ignorados</span>
+    <span style="font-size:10px;color:var(--t3);margin-left:auto">Mostrando ${logs.length} mais recentes</span>
+  </div>
+  <div style="background:var(--glass);border:1px solid var(--border2);border-radius:8px;overflow:hidden">`;
+  html+=logs.map(l=>renderLogLineFull(l)).join('');
+  html+=`</div>`;
+  el.innerHTML=html;
+}
+
+// ── TAB: HISTORY ──────────────────────────────────────────
+function renderModalHistory(d){
+  const el=document.getElementById('modal-tab-history');
+  if(!el) return;
+  const hist=(d.history||[]).slice(0,100);
+  if(!hist.length){
+    el.innerHTML=`<div class="empty-state"><i class="ti ti-history"></i>Nenhum envio no histórico</div>`;
+    return;
+  }
+  let html=`<div style="font-size:10px;color:var(--t3);margin-bottom:8px">Últimos ${hist.length} envios (de ${d.histCount||hist.length} total)</div>
+  <div style="background:var(--glass);border:1px solid var(--border2);border-radius:8px;overflow:hidden">
+  <table style="width:100%;font-size:11px"><thead><tr>
+    <th style="padding:7px 10px;color:var(--t3);font-size:9px;font-weight:700;text-transform:uppercase;text-align:left">Data</th>
+    <th style="padding:7px 10px;color:var(--t3);font-size:9px;font-weight:700;text-transform:uppercase;text-align:left">Empresa</th>
+    <th style="padding:7px 10px;color:var(--t3);font-size:9px;font-weight:700;text-transform:uppercase;text-align:left">Email</th>
+    <th style="padding:7px 10px;color:var(--t3);font-size:9px;font-weight:700;text-transform:uppercase;text-align:left">Tipo</th>
+    <th style="padding:7px 10px;color:var(--t3);font-size:9px;font-weight:700;text-transform:uppercase;text-align:left">Perfil</th>
+    <th style="padding:7px 10px;color:var(--t3);font-size:9px;font-weight:700;text-transform:uppercase;text-align:left">PDFs</th>
+  </tr></thead><tbody>
+  ${hist.map(h=>`<tr style="border-top:1px solid var(--border)">
+    <td style="padding:6px 10px;white-space:nowrap;color:var(--t3)">${h.dateStr||h.date?.slice(0,10)||'–'}</td>
+    <td style="padding:6px 10px;font-weight:600">${esc(h.company||'–')}</td>
+    <td style="padding:6px 10px" class="mono">${esc(h.to||'–')}</td>
+    <td style="padding:6px 10px"><span class="badge ${h.type==='auto'?'b-green':h.type==='reply'?'b-purple':'b-blue'}">${h.type||'?'}</span></td>
+    <td style="padding:6px 10px;color:var(--t2)">${esc(h.profileUsed||'–')}</td>
+    <td style="padding:6px 10px;text-align:center">${h.attachCount||0}</td>
+  </tr>`).join('')}
+  </tbody></table></div>`;
+  el.innerHTML=html;
+}
+
+// ── TAB: HEALTH ───────────────────────────────────────────
+function renderModalHealth(d,u){
+  const el=document.getElementById('modal-tab-health');
+  if(!el) return;
+  const h=d.health||{};
+  const now=Date.now();
+
+  // Diagnóstico completo
+  const diagItems=[
+    {label:'OAuth / Token Google', ok:h.oauthOk, detail:h.oauthOk===false?'Token expirado ou revogado. Usuário precisa fazer login novamente.':'Token válido e acessível.', icon:'ti-lock'},
+    {label:'PDF / Currículo', ok:h.hasPdf, detail:h.hasPdf===false?`Nenhum PDF encontrado no servidor para este usuário. CVs cadastrados: ${(d.user?.cvs||[]).length}. Faça upload novamente.`:`${(d.user?.cvs||[]).length} PDF(s) disponíveis.`, icon:'ti-file-type-pdf'},
+    {label:'Timer JavaScript', ok:d.timers, detail:d.timers?'Timer ativo — próximo envio agendado.':'Timer ausente. Watchdog deve detectar e reiniciar.', icon:'ti-clock'},
+  ];
+
+  let html=`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">`;
+  for(const item of diagItems){
+    const cls=item.ok===false?'b-red':item.ok===true?'b-green':'b-gray';
+    const icon=item.ok===false?'ti-x':item.ok===true?'ti-check':'ti-question-mark';
+    html+=`<div style="background:var(--glass);border:1px solid var(--border2);border-radius:8px;padding:12px;display:flex;gap:10px;align-items:flex-start">
+      <div style="width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;${item.ok===false?'background:var(--redg);color:var(--red)':item.ok===true?'background:var(--greeng);color:var(--green)':'background:var(--glass2);color:var(--t2)'}">
+        <i class="ti ${icon}"></i>
+      </div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:12px;color:var(--text);margin-bottom:2px"><i class="ti ${item.icon}"></i> ${item.label}</div>
+        <div style="font-size:11px;color:${item.ok===false?'var(--red)':item.ok===true?'var(--green)':'var(--t2)'}">${item.detail}</div>
+      </div>
+    </div>`;
+  }
+  html+=`</div>`;
+
+  html+=`<div class="detail-card" style="background:var(--glass);border:1px solid var(--border2);border-radius:8px;padding:14px">
+    <div class="detail-card-title"><i class="ti ti-activity"></i> Métricas de Watchdog</div>
+    <div class="detail-row"><span class="detail-label">Último heartbeat</span><span class="detail-val">${h.lastSent?fmtAgo(now-h.lastSent)+' atrás ('+new Date(h.lastSent).toLocaleString('pt-BR')+')':'Nunca'}</span></div>
+    <div class="detail-row"><span class="detail-label">Restarts automáticos</span><span class="detail-val"><span class="${h.restarts>0?'badge b-amber':'badge b-gray'}">${h.restarts||0}</span></span></div>
+    <div class="detail-row"><span class="detail-label">Erros consecutivos</span><span class="detail-val"><span class="${h.errors>0?'badge b-red':'badge b-gray'}">${h.errors||0}</span></span></div>
+    ${h.lastError?`<div class="detail-row"><span class="detail-label">Último erro técnico</span><span class="detail-val" style="font-size:10px;color:var(--red);font-family:monospace">${esc(h.lastError)}</span></div>`:''}
+    ${h.stalledAt?`<div class="detail-row"><span class="detail-label">Travada desde</span><span class="detail-val"><span class="badge b-amber">${fmtAgo(now-h.stalledAt)} atrás</span></span></div>`:''}
+  </div>`;
+
+  el.innerHTML=html;
+}
+
+// ── TAB: EDIT ─────────────────────────────────────────────
+function renderModalEdit(d,u){
+  const el=document.getElementById('modal-tab-edit');
+  if(!el) return;
+  const user=d.user||{};
+  const email=user.email||currentModalEmail;
+
+  el.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div>
+      <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:8px">Editar dados do perfil</div>
+      <div class="form-group"><label class="form-label">Nome</label><input class="form-inp" id="edit-name" value="${esc(user.name||'')}"></div>
+      <div class="form-group"><label class="form-label">País</label><input class="form-inp" id="edit-country" value="${esc(user.country||'')}"></div>
+      <div class="form-group"><label class="form-label">Telefone</label><input class="form-inp" id="edit-phone" value="${esc(user.phone||'')}"></div>
+      <div class="form-group"><label class="form-label">CC (cópia email)</label><input class="form-inp" id="edit-cc" value="${esc(user.cc||'')}"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:4px" onclick="saveUserProfile('${esc(email)}')"><i class="ti ti-check"></i> Salvar dados</button>
+    </div>
+    <div>
+      <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:8px">Ações administrativas</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-amber" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'vip')"><i class="ti ti-diamond"></i> Ativar VIP 30 dias (manual)</button>
+        <button class="btn btn-purple" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'vipro')"><i class="ti ti-diamond"></i> Ativar VIPro 30 dias</button>
+        <button class="btn btn-success" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'pro')"><i class="ti ti-robot"></i> Ativar Pro Auto 30 dias</button>
+        <button class="btn btn-ghost" style="justify-content:center" onclick="adminClearSentUser('${esc(email)}')"><i class="ti ti-refresh"></i> Limpar histórico de enviados</button>
+        <div style="border-top:1px solid var(--border);margin:4px 0"></div>
+        <button class="btn btn-danger" style="justify-content:center" onclick="deleteUser('${esc(email)}')"><i class="ti ti-trash"></i> Excluir usuário permanentemente</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ──────────────────────────────────────────────────────────
+function renderLogLine(l){
+  const statusColors={enviado:'b-green',falhou:'b-red',duplicado:'b-amber',pulado:'b-amber',pausado:'b-gray',cancelado:'b-gray',sistema:'b-blue',erro_anexo:'b-red'};
+  const statusIcons={enviado:'ti-check',falhou:'ti-x',duplicado:'ti-repeat',pulado:'ti-skip-forward',pausado:'ti-player-pause',cancelado:'ti-ban',sistema:'ti-info-circle',erro_anexo:'ti-file-x'};
+  const sc=statusColors[l.status]||'b-gray';
+  const si=statusIcons[l.status]||'ti-circle';
+  return `<div class="log-line">
+    <span class="log-ts">${l.hour||l.ts?(l.hour||new Date(l.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})):''}</span>
+    <span class="log-status"><span class="badge ${sc}"><i class="ti ${si}" style="font-size:9px"></i>${l.status||'?'}</span></span>
+    <span class="log-body">
+      <div class="log-job">${esc(l.jobTitle||l.company||'–')}</div>
+      ${l.to?`<div class="log-co">${esc(l.to)}</div>`:''}
+      ${l.error?`<div class="log-err">⚠️ ${esc(l.error)}</div>`:''}
+    </span>
+  </div>`;
+}
+
+function renderLogLineFull(l){
+  const statusColors={enviado:'b-green',falhou:'b-red',duplicado:'b-amber',pulado:'b-amber',pausado:'b-gray',cancelado:'b-gray',sistema:'b-blue',erro_anexo:'b-red'};
+  const statusIcons={enviado:'ti-check',falhou:'ti-x',duplicado:'ti-repeat',pulado:'ti-skip-forward',pausado:'ti-player-pause',cancelado:'ti-ban',sistema:'ti-info-circle',erro_anexo:'ti-file-x'};
+  const sc=statusColors[l.status]||'b-gray';
+  const si=statusIcons[l.status]||'ti-circle';
+  return `<div class="log-line" style="padding:8px 12px">
+    <span class="log-ts" style="min-width:80px">${l.hour||(l.ts?new Date(l.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'–')}</span>
+    <span class="log-status"><span class="badge ${sc}"><i class="ti ${si}" style="font-size:9px"></i>${l.status||'?'}</span></span>
+    <span class="log-body" style="flex:1">
+      <div class="log-job">${esc(l.jobTitle||'–')}</div>
+      ${l.company?`<div class="log-co">${esc(l.company)}</div>`:''}
+      ${l.to?`<div class="log-detail">→ ${esc(l.to)}</div>`:''}
+      ${l.profileUsed?`<div class="log-detail">Perfil: <strong>${esc(l.profileUsed)}</strong></div>`:''}
+      ${l.resumeName?`<div class="log-detail">PDF: ${esc(l.resumeName)}</div>`:''}
+      ${l.attachCount!=null?`<div class="log-detail">Anexos: ${l.attachCount}</div>`:''}
+      ${l.error?`<div class="log-err">⚠️ ${esc(l.error)}</div>`:''}
+    </span>
+    ${l.state?`<span class="badge b-gray" style="flex-shrink:0;font-size:9px">${esc(l.state)}</span>`:''}
+  </div>`;
+}
+
+function switchModalTab(name){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.querySelector(`.tab-btn[onclick*="'${name}'"]`)?.classList.add('active');
+  document.getElementById(`modal-tab-${name}`)?.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════
+//  MODAL ACTIONS
+// ══════════════════════════════════════════════════════════
+async function forceRestartFromModal(){ if(currentModalEmail) await forceRestart(currentModalEmail); }
+async function forceStopFromModal(){ if(currentModalEmail){ await forceStop(currentModalEmail); await refreshModal(); } }
+async function clearJobFromModal(){
+  if(!currentModalEmail||!confirm('Limpar histórico de enviados deste usuário?')) return;
+  await adminClearSentUser(currentModalEmail);
+}
+
+// ══════════════════════════════════════════════════════════
+//  WORKER ACTIONS
+// ══════════════════════════════════════════════════════════
+async function forceRestart(email){
+  if(!confirm(`Reiniciar worker de ${email}?`)) return;
+  try{
+    const r=await fetch('/api/admin/force-restart',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json();
+    if(d.ok){toast(`✅ Worker reiniciado (restart #${d.restarts})`,'ok');refreshAll();}
+    else toast(d.error||'Erro','err');
+  }catch(e){toast(e.message,'err');}
+}
+
+async function forceStop(email){
+  if(!confirm(`⚠️ Parar automático de ${email}?\nO job será apagado. Fila perdida.`)) return;
+  try{
+    const r=await fetch('/api/admin/force-stop',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json();
+    if(d.ok){toast('✅ Worker parado','ok');refreshAll();}
+    else toast(d.error||'Erro','err');
+  }catch(e){toast(e.message,'err');}
+}
+
+// ══════════════════════════════════════════════════════════
+//  USER EDIT ACTIONS
+// ══════════════════════════════════════════════════════════
+async function saveUserProfile(email){
+  const name=document.getElementById('edit-name')?.value.trim();
+  const country=document.getElementById('edit-country')?.value.trim();
+  const phone=document.getElementById('edit-phone')?.value.trim();
+  const cc=document.getElementById('edit-cc')?.value.trim();
+  try{
+    const r=await fetch('/api/admin/user/update',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,name,country,phone,cc})});
+    const d=await r.json();
+    if(d.ok){toast('✅ Dados salvos com sucesso','ok');await refreshModal();}
+    else toast(d.error||'Erro ao salvar','err');
+  }catch(e){toast(e.message,'err');}
+}
+
+async function adminVipQuick(email,days,plan){
+  const autoDays=plan==='pro'||plan==='vipro'?days:0;
+  try{
+    const r=await fetch('/api/admin/vip/activate',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,days,autoDays,plan})});
+    const d=await r.json();
+    if(d.ok){toast(`✅ ${plan.toUpperCase()} ativado por ${days} dias`,'ok');await refreshModal();refreshAll();}
+    else toast(d.error||'Erro','err');
+  }catch(e){toast(e.message,'err');}
+}
+
+async function adminClearSentUser(email){
+  if(!confirm(`Limpar histórico de enviados de ${email}?\nIsso permite que o automático reenvie para as mesmas empresas.`)) return;
+  try{
+    const r=await fetch('/api/admin/clear-sent',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json();
+    if(d.ok){toast('✅ Histórico limpo','ok');}
+    else toast(d.error||'Erro','err');
+  }catch(e){toast(e.message,'err');}
+}
+
+async function deleteUser(email){
+  if(!confirm(`⚠️⚠️ EXCLUIR PERMANENTEMENTE o usuário ${email}?\nTodos os dados, histórico, PDFs e configurações serão apagados.\nEsta ação NÃO pode ser desfeita!`)) return;
+  if(!confirm(`Confirmação final: excluir ${email}?`)) return;
+  try{
+    const r=await fetch(`/api/admin/user/${encodeURIComponent(email)}`,{method:'DELETE',credentials:'include'});
+    const d=await r.json();
+    if(d.ok){toast('✅ Usuário excluído','ok');closeUserModal();refreshAll();}
+    else toast(d.error||'Erro','err');
+  }catch(e){toast(e.message,'err');}
+}
+
+// ══════════════════════════════════════════════════════════
+//  VIP ACTIONS
+// ══════════════════════════════════════════════════════════
+async function activateVip(){
+  const email=document.getElementById('vip-email')?.value.trim();
+  const days=parseInt(document.getElementById('vip-days')?.value)||30;
+  const autoDays=parseInt(document.getElementById('vip-auto-days')?.value)||0;
+  const plan=document.getElementById('vip-plan')?.value||'vip';
+  const note=document.getElementById('vip-note')?.value.trim();
+  if(!email){toast('Email obrigatório','err');return;}
+  try{
+    const r=await fetch('/api/admin/vip/activate',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,days,autoDays,plan,note})});
+    const d=await r.json();
+    if(d.ok){
+      toast(`✅ ${plan.toUpperCase()} ativado para ${email}`,'ok');
+      const res=document.getElementById('vip-result');
+      if(res){res.style.display='block';res.textContent=`✅ VIP ${plan.toUpperCase()} ativado! Manual expira: ${d.manualExpiresDate||'–'} · Auto expira: ${d.autoExpiresDate||'–'}`;}
+      refreshAll();
+    }else toast(d.error||'Erro','err');
+  }catch(e){toast(e.message,'err');}
+}
+
+async function revokeVip(){
+  const email=document.getElementById('vip-email')?.value.trim();
+  if(!email||!confirm(`Revogar VIP de ${email}? O automático também será parado.`)) return;
+  try{
+    const r=await fetch('/api/admin/vip/revoke',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json();
+    if(d.ok)toast('✅ VIP revogado e automático parado','ok');else toast(d.error||'Erro','err');
+    refreshAll();
+  }catch(e){toast(e.message,'err');}
+}
+
+async function clearSent(){
+  const email=document.getElementById('clear-email')?.value.trim();
+  if(!email){toast('Email obrigatório','err');return;}
+  if(!confirm(`Limpar histórico de enviados de ${email}?`)) return;
+  try{
+    const r=await fetch('/api/admin/clear-sent',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json();
+    if(d.ok)toast('✅ Histórico limpo','ok');else toast(d.error||'Erro','err');
+  }catch(e){toast(e.message,'err');}
+}
+
+async function sendAdminMsg(){
+  const email=document.getElementById('msg-email')?.value.trim();
+  const text=document.getElementById('msg-text')?.value.trim();
+  if(!email||!text){toast('Email e mensagem obrigatórios','err');return;}
+  try{
+    const r=await fetch('/api/admin/message',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,text})});
+    const d=await r.json();
+    if(d.ok){toast('✅ Mensagem enviada — aparecerá no app do usuário','ok');document.getElementById('msg-text').value='';}
+    else toast(d.error||'Erro','err');
+  }catch(e){toast(e.message,'err');}
+}
+
+// ══════════════════════════════════════════════════════════
+//  CODES
+// ══════════════════════════════════════════════════════════
+async function loadCodes(){
+  const el=document.getElementById('codes-list');
+  if(!el) return;
+  try{
+    const r=await fetch('/api/admin/codes',{credentials:'include'});
+    const d=await r.json();
+    if(!d.codes?.length){el.innerHTML='<div class="empty-state"><i class="ti ti-ticket"></i>Nenhum código cadastrado</div>';return;}
+    el.innerHTML=`<table><thead><tr>
+      <th>Código</th><th>Manual</th><th>Auto</th><th>Usos</th><th>Nota</th><th>Criado</th><th>Status</th><th>Ações</th>
+    </tr></thead><tbody>${
+      d.codes.map(c=>`<tr>
+        <td class="mono" style="font-size:14px;font-weight:700;letter-spacing:2px">${esc(c.code)}</td>
+        <td>${c.manualDays||0}d</td>
+        <td>${c.autoDays||0}d</td>
+        <td><span class="badge b-gray">${(c.usedBy||[]).length}/${c.maxUses||1}</span></td>
+        <td style="color:var(--t2);font-size:11px">${esc(c.note||'–')}</td>
+        <td style="font-size:10px;color:var(--t3)">${c.createdAt?new Date(c.createdAt).toLocaleDateString('pt-BR'):'–'}</td>
+        <td>${c.active?'<span class="badge b-green">Ativo</span>':'<span class="badge b-red">Revogado</span>'}</td>
+        <td onclick="event.stopPropagation()" style="white-space:nowrap">
+          ${c.active?`<button class="btn btn-xs btn-danger" onclick="revokeCode('${esc(c.code)}')"><i class="ti ti-ban"></i></button>`:''}
+          <button class="btn btn-xs btn-ghost" onclick="deleteCode('${esc(c.code)}')"><i class="ti ti-trash"></i></button>
+        </td>
+      </tr>`).join('')
+    }</tbody></table>`;
+  }catch(e){el.innerHTML=`<div class="empty-state" style="color:var(--red)">${e.message}</div>`;}
+}
+
+async function createCode(){
+  const manualDays=parseInt(document.getElementById('code-manual-days')?.value)||0;
+  const autoDays=parseInt(document.getElementById('code-auto-days')?.value)||0;
+  const maxUses=parseInt(document.getElementById('code-uses')?.value)||1;
+  const note=document.getElementById('code-note')?.value.trim();
+  const customCode=document.getElementById('code-custom')?.value.trim().toUpperCase()||undefined;
+  if(!manualDays&&!autoDays){toast('Configure pelo menos 1 dia (manual ou auto)','err');return;}
+  try{
+    const r=await fetch('/api/admin/codes/create',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({manualDays,autoDays,maxUses,note,code:customCode})});
+    const d=await r.json();
+    if(d.ok){
+      const el=document.getElementById('code-result');
+      if(el){
+        el.style.display='block';
+        el.innerHTML=`<div style="background:var(--greeng);border:1px solid var(--greenb);border-radius:8px;padding:14px;text-align:center">
+          <div style="font-size:10px;color:var(--green);font-weight:700;text-transform:uppercase;margin-bottom:6px">✅ Código Gerado</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:800;color:var(--green);letter-spacing:4px">${esc(d.code)}</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:6px">Manual: ${d.manualDays}d · Auto: ${d.autoDays}d · Usos: ${maxUses}</div>
+        </div>`;
+      }
+      loadCodes();
+    }else toast(d.error||'Erro','err');
+  }catch(e){toast(e.message,'err');}
+}
+
+async function revokeCode(code){
+  try{const r=await fetch('/api/admin/codes/revoke',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});const d=await r.json();if(d.ok){toast('✅ Código revogado','ok');loadCodes();}else toast(d.error,'err');}catch(e){toast(e.message,'err');}
+}
+async function deleteCode(code){
+  if(!confirm('Excluir código permanentemente?')) return;
+  try{const r=await fetch('/api/admin/codes/delete',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});const d=await r.json();if(d.ok){toast('✅ Excluído','ok');loadCodes();}else toast(d.error,'err');}catch(e){toast(e.message,'err');}
+}
+
+// ══════════════════════════════════════════════════════════
+//  RANKING
+// ══════════════════════════════════════════════════════════
+async function loadRankingAdmin(){
+  const el=document.getElementById('ranking-list');
+  if(!el) return;
+  el.innerHTML='<div class="empty-state">Carregando...</div>';
+  const period=document.getElementById('rank-period')?.value||'day';
+  const category=document.getElementById('rank-category')?.value||'sends';
+  try{
+    const r=await fetch(`/api/admin/ranking?period=${period}&category=${category}`,{credentials:'include'});
+    const d=await r.json();
+    if(!d.list?.length){el.innerHTML='<div class="empty-state"><i class="ti ti-trophy"></i>Nenhum dado de ranking</div>';return;}
+    el.innerHTML=`<table><thead><tr>
+      <th>#</th><th>Usuário</th><th>Plano</th><th>Score</th><th>Envios</th><th>Respostas</th><th>Ações</th>
+    </tr></thead><tbody>${
+      d.list.map(r=>`<tr>
+        <td style="font-weight:800;color:var(--amber)">${r.pos}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${r.picture?`<img src="${esc(r.picture)}" style="width:22px;height:22px;border-radius:50%;object-fit:cover">`:''}
+            <div><div style="font-weight:700">${esc(r.name||'–')}</div><div style="font-size:10px;color:var(--t3)">${r.isOnline?'🟢 Online':'Offline'}</div></div>
+          </div>
+        </td>
+        <td><span class="badge b-gray">${esc(r.plan||'free')}</span></td>
+        <td style="font-weight:700;color:var(--text)">${(r.score||0).toLocaleString('pt-BR')}</td>
+        <td>${(r.sends||0).toLocaleString('pt-BR')}</td>
+        <td>${(r.responses||0).toLocaleString('pt-BR')}</td>
+        <td>
+          <button class="btn btn-xs btn-danger" onclick="hideFromRanking('${esc(r.uid)}',true)" title="Ocultar do ranking"><i class="ti ti-eye-off"></i></button>
+        </td>
+      </tr>`).join('')
+    }</tbody></table><div style="padding:10px 14px;font-size:11px;color:var(--t3)">Total no ranking: ${d.total} usuários · Ocultos: ${d.hiddenCount||0}</div>`;
+  }catch(e){el.innerHTML=`<div class="empty-state" style="color:var(--red)">${e.message}</div>`;}
+}
+
+async function resetRanking(){
+  const period=document.getElementById('rank-period')?.value||'day';
+  if(!confirm(`⚠️ Resetar cache do ranking "${period}"?`)) return;
+  try{const r=await fetch('/api/admin/ranking/reset',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({period})});const d=await r.json();if(d.ok)toast('✅ Cache de ranking resetado','ok');else toast(d.error,'err');}catch(e){toast(e.message,'err');}
+}
+
+async function hideFromRanking(uid,hide){
+  toast('Função disponível via API diretamente','warn');
+}
+
+// ══════════════════════════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════════════════════════
+async function loadSettings(){
+  const el=document.getElementById('settings-form');
+  if(!el) return;
+  try{
+    const r=await fetch('/api/admin/settings',{credentials:'include'});
+    const d=await r.json();
+    const s=d.settings||{};
+    el.innerHTML=`
+      <div class="form-group">
+        <label class="form-label">Trial automático para novos usuários</label>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+          <input type="checkbox" id="cfg-trial-en" ${s.newUserTrialEnabled!==false?'checked':''} style="accent-color:var(--blue);width:16px;height:16px">
+          <label for="cfg-trial-en" style="font-size:12px;font-weight:600;cursor:pointer">Ativar trial automático para novos cadastros</label>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Dias de trial para novos usuários</label><input class="form-inp" id="cfg-trial-days" type="number" value="${s.newUserTrialDays||5}" min="0" max="30"></div>
+      <div class="form-group"><label class="form-label">Plano do trial</label>
+        <select class="form-inp" id="cfg-trial-plan">
+          <option value="vip" ${(s.newUserTrialPlan||'vip')==='vip'?'selected':''}>VIP (só manual)</option>
+          <option value="vipro" ${s.newUserTrialPlan==='vipro'?'selected':''}>VIPro (manual + auto)</option>
+          <option value="pro" ${s.newUserTrialPlan==='pro'?'selected':''}>Pro (só auto)</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="justify-content:center" onclick="saveSettings()"><i class="ti ti-check"></i> Salvar configurações</button>
+    `;
+  }catch(e){el.innerHTML=`<div style="color:var(--red);font-size:12px">Erro: ${e.message}</div>`;}
+}
+
+async function saveSettings(){
+  const days=parseInt(document.getElementById('cfg-trial-days')?.value)||5;
+  const enabled=!!document.getElementById('cfg-trial-en')?.checked;
+  const plan=document.getElementById('cfg-trial-plan')?.value||'vip';
+  try{
+    const r=await fetch('/api/admin/settings',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({newUserTrialDays:days,newUserTrialEnabled:enabled,newUserTrialPlan:plan})});
+    const d=await r.json();
+    if(d.ok)toast('✅ Configurações salvas','ok');else toast(d.error||'Erro','err');
+  }catch(e){toast(e.message,'err');}
+}
+
+// ══════════════════════════════════════════════════════════
+//  UTILITIES
+// ══════════════════════════════════════════════════════════
+function setText(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+function fmtAgo(ms){
+  if(ms<0)return'agora';
+  if(ms<60000)return`${Math.round(ms/1000)}s`;
+  if(ms<3600000)return`${Math.round(ms/60000)}min`;
+  if(ms<86400000)return`${Math.round(ms/3600000)}h`;
+  return`${Math.round(ms/86400000)}d`;
+}
+
+function fmtStatus(s){
+  const map={sending:'Enviando',waiting_interval:'Aguardando intervalo',waiting_hour:'Fora do horário',waiting_limit:'Limite do dia',starting:'Iniciando',restarted_by_admin:'Reiniciado (admin)',paused:'Pausado',paused_oauth_expired:'OAuth expirado',paused_no_session:'Sem sessão/token',finished:'Finalizado',stalled:'Travado',resuming:'Retomando',cancelled:'Cancelado'};
+  return map[s]||s||'–';
+}
+
+function avLetter(name){
+  const l=(name||'?')[0].toUpperCase();
+  const colors=['#2563eb','#7c3aed','#059669','#dc2626','#d97706','#0891b2','#db2777'];
+  const c=colors[l.charCodeAt(0)%colors.length];
+  return`<div style="width:26px;height:26px;border-radius:50%;background:${c};color:#fff;font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${l}</div>`;
+}
+
+function toast(msg,type='ok'){
+  const c=document.getElementById('toast');
+  if(!c)return;
+  const d=document.createElement('div');
+  d.className='toast-item';
+  d.style.borderColor={ok:'var(--greenb)',err:'var(--redb)',warn:'var(--amberb)'}[type]||'var(--border2)';
+  d.style.color={ok:'var(--green)',err:'var(--red)',warn:'var(--amber)'}[type]||'#fff';
+  d.textContent=msg;
+  c.appendChild(d);
+  setTimeout(()=>d.remove(),3500);
+}
+
+// ══════════════════════════════════════════════════════════
+//  NOTIFICAÇÕES (ADM)
+// ══════════════════════════════════════════════════════════
+async function sendAdminNotif(){
+  const title=(document.getElementById('notif-title-input')?.value||'').trim();
+  const body=(document.getElementById('notif-body-input')?.value||'').trim();
+  const res=document.getElementById('notif-send-result');
+  if(!title||!body){if(res)res.innerHTML='<span style="color:var(--red)">⚠️ Preencha título e mensagem.</span>';return;}
+  try{
+    const r=await fetch('/api/admin/notif/send',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({title,body})});
+    const d=await r.json();
+    if(d.ok){
+      if(res)res.innerHTML='<span style="color:var(--green)">✅ Notificação enviada para todos os usuários!</span>';
+      document.getElementById('notif-title-input').value='';
+      document.getElementById('notif-body-input').value='';
+      setTimeout(()=>loadAdminNotifs(),500);
+    } else {
+      if(res)res.innerHTML=`<span style="color:var(--red)">❌ ${esc(d.error||'Erro')}</span>`;
+    }
+  }catch(e){if(res)res.innerHTML=`<span style="color:var(--red)">❌ ${esc(e.message)}</span>`;}
+}
+
+async function loadAdminNotifs(){
+  const el=document.getElementById('admin-notif-list');
+  if(!el)return;
+  try{
+    const r=await fetch('/api/admin/notif/list',{credentials:'include'});
+    const d=await r.json();
+    const notifs=d.notifications||[];
+    if(!notifs.length){el.innerHTML='<div class="empty-state"><i class="ti ti-bell-off"></i>Nenhuma notificação enviada ainda</div>';return;}
+    el.innerHTML=notifs.map(n=>`
+      <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:13px;color:var(--text)">${esc(n.title)}</div>
+            <div style="font-size:12px;color:var(--t2);margin-top:4px;white-space:pre-wrap">${esc(n.body)}</div>
+            <div style="margin-top:8px;display:flex;gap:10px;font-size:11px;color:var(--t3);flex-wrap:wrap">
+              <span><i class="ti ti-calendar"></i> ${new Date(n.createdAt).toLocaleString('pt-BR')}</span>
+              <span style="color:var(--green)"><i class="ti ti-eye"></i> ${n.readCount} leram</span>
+              <span style="color:var(--t3)"><i class="ti ti-users"></i> ${n.totalUsers} usuários</span>
+            </div>
+          </div>
+          <button onclick="deleteAdminNotif('${esc(n.id)}')" style="flex-shrink:0;background:var(--redg);border:1px solid var(--redb);border-radius:6px;color:var(--red);padding:5px 8px;cursor:pointer;font-size:11px" title="Excluir"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`).join('');
+  }catch(e){el.innerHTML=`<div class="empty-state" style="color:var(--red)">Erro: ${esc(e.message)}</div>`;}
+}
+
+async function deleteAdminNotif(id){
+  if(!confirm('Excluir esta notificação?')) return;
+  try{
+    await fetch('/api/admin/notif/delete',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});
+    loadAdminNotifs();
+  }catch{}
+}
+
+// ══════════════════════════════════════════════════════════
+//  INDICAÇÕES (ADM)
+// ══════════════════════════════════════════════════════════
+async function loadAdminReferrals(){
+  const listEl=document.getElementById('admin-referral-list');
+  const statsEl=document.getElementById('admin-referral-stats');
+  if(!listEl) return;
+  try{
+    const r=await fetch('/api/admin/referral/list',{credentials:'include'});
+    const d=await r.json();
+    const refs=d.referrals||[];
+    // Stats
+    const total=refs.length;
+    const paid=refs.filter(r=>r.paidAt).length;
+    const bonus1=refs.filter(r=>r.bonusPaid).length;
+    const bonus2=refs.filter(r=>r.bonus2Paid).length;
+    if(statsEl) statsEl.innerHTML=`
+      <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:24px;font-weight:800;color:var(--blue)">${total}</div>
+        <div style="font-size:11px;color:var(--t3)">Total indicados</div>
+      </div>
+      <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:24px;font-weight:800;color:var(--green)">${paid}</div>
+        <div style="font-size:11px;color:var(--t3)">Compraram plano</div>
+      </div>
+      <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:14px;text-align:center">
+        <div style="font-size:24px;font-weight:800;color:#d97706">${(bonus1*5+bonus2*5)}</div>
+        <div style="font-size:11px;color:var(--t3)">Dias VIP concedidos</div>
+      </div>`;
+    if(!refs.length){listEl.innerHTML='<div class="empty-state"><i class="ti ti-users-group"></i>Nenhuma indicação registrada ainda</div>';return;}
+    listEl.innerHTML=`
+      <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;overflow:hidden">
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr style="border-bottom:1px solid var(--border2)">
+          <th style="padding:10px 12px;text-align:left;font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase">Indicado</th>
+          <th style="padding:10px 12px;text-align:left;font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase">Por quem</th>
+          <th style="padding:10px 12px;text-align:left;font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase">Cadastro</th>
+          <th style="padding:10px 12px;text-align:left;font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase">Comprou</th>
+          <th style="padding:10px 12px;text-align:left;font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase">Bônus</th>
+        </tr></thead>
+        <tbody>
+        ${refs.map(r=>`<tr style="border-top:1px solid var(--border)">
+          <td style="padding:8px 12px">
+            <div style="font-weight:600">${esc(r.name||r.email)}</div>
+            <div style="font-size:10px;color:var(--t3)">${esc(r.email)}</div>
+          </td>
+          <td style="padding:8px 12px">
+            <div style="font-weight:600">${esc(r.referredByName||r.referredBy)}</div>
+            <div style="font-size:10px;color:var(--t3)">${esc(r.referredBy)}</div>
+          </td>
+          <td style="padding:8px 12px;color:var(--t2)">${r.joinedAt?new Date(r.joinedAt).toLocaleDateString('pt-BR'):'–'}</td>
+          <td style="padding:8px 12px">${r.paidAt?`<span class="badge b-green">✅ ${new Date(r.paidAt).toLocaleDateString('pt-BR')}</span>`:'<span class="badge b-gray">Não</span>'}</td>
+          <td style="padding:8px 12px">
+            ${r.bonusPaid?'<span class="badge b-green">+5d cadastro</span>':''}
+            ${r.bonus2Paid?'<span class="badge b-purple">+5d compra</span>':''}
+            ${!r.bonusPaid&&!r.bonus2Paid?'<span class="badge b-gray">–</span>':''}
+          </td>
+        </tr>`).join('')}
+        </tbody>
+      </table></div>`;
+  }catch(e){listEl.innerHTML=`<div class="empty-state" style="color:var(--red)">Erro: ${esc(e.message)}</div>`;}
+}
+
+// ══════════════════════════════════════════════════════════
+//  TAB: ENVIADOS (visualizador de email como chat)
+// ══════════════════════════════════════════════════════════
+function renderModalEnviados(d,u){
+  const el=document.getElementById('modal-tab-enviados');
+  if(!el) return;
+  const hist=(d.history||[]).filter(h=>h.subject||h.body||h.jobSnapshot);
+  if(!hist.length){
+    el.innerHTML='<div class="empty-state"><i class="ti ti-mail-off"></i>Nenhum email com conteúdo disponível</div>';
+    return;
+  }
+  el.innerHTML=`
+    <div style="display:flex;gap:10px;height:100%;min-height:400px">
+      <div id="email-list-panel" style="width:220px;flex-shrink:0;border-right:1px solid var(--border2);overflow-y:auto;padding:8px 0">
+        ${hist.map((h,i)=>`
+          <div onclick="openEmailChat(${i})" id="email-list-item-${i}" style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s" onmouseover="this.style.background='var(--glass2)'" onmouseout="this.style.background=''">
+            <div style="font-size:11px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(h.company||h.to||'–')}</div>
+            <div style="font-size:10px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(h.to||'–')}</div>
+            <div style="font-size:10px;color:var(--t3);margin-top:2px">${h.dateStr||'–'}</div>
+            <span class="badge ${h.type==='auto'?'b-green':h.type==='reply'?'b-purple':'b-blue'}" style="margin-top:4px">${h.type||'manual'}</span>
+          </div>`).join('')}
+      </div>
+      <div id="email-chat-panel" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:0">
+        <div style="text-align:center;color:var(--t3);font-size:12px;margin-top:40px">← Selecione um envio para ver o conteúdo</div>
+      </div>
+    </div>`;
+  // Store hist data for chat viewer
+  window._adminEmailHist = hist;
+  // Auto-open first
+  setTimeout(()=>openEmailChat(0), 100);
+}
+
+function openEmailChat(idx){
+  const hist=window._adminEmailHist||[];
+  const h=hist[idx];
+  if(!h) return;
+  // Highlight selected
+  document.querySelectorAll('[id^="email-list-item-"]').forEach(el=>el.style.background='');
+  const sel=document.getElementById('email-list-item-'+idx);
+  if(sel) sel.style.background='var(--glass2)';
+  const panel=document.getElementById('email-chat-panel');
+  if(!panel) return;
+  const snap=h.jobSnapshot||{};
+  const subject=h.subject||snap.subject||snap.emailSubject||`Candidatura — ${snap.company||h.company||''}`;
+  const body=h.body||snap.body||snap.emailBody||snap.letter||'';
+  const to=h.to||snap.to||snap.sourceEmail||'';
+  const attachments=h.attachments||snap.attachments||[];
+  panel.innerHTML=`
+    <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Detalhes do Envio</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12px">
+        <span style="color:var(--t3)">Para:</span><span style="font-weight:600;color:var(--text)">${esc(to)}</span>
+        <span style="color:var(--t3)">Empresa:</span><span>${esc(h.company||snap.company||'–')}</span>
+        <span style="color:var(--t3)">Assunto:</span><span style="font-style:italic">${esc(subject)}</span>
+        <span style="color:var(--t3)">Data:</span><span>${esc(h.dateStr||new Date(h.sentAt||h.date||Date.now()).toLocaleString('pt-BR'))}</span>
+        <span style="color:var(--t3)">Tipo:</span><span><span class="badge ${h.type==='auto'?'b-green':h.type==='reply'?'b-purple':'b-blue'}">${h.type||'manual'}</span></span>
+        ${h.attachCount||attachments.length?`<span style="color:var(--t3)">Anexos:</span><span>${h.attachCount||attachments.length} PDF(s)</span>`:''}
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+      <div style="background:var(--glass2);border:1px solid var(--border2);border-radius:14px 14px 4px 14px;padding:12px 16px;max-width:95%;font-size:12px;line-height:1.7;color:var(--text);white-space:pre-wrap;font-family:inherit;word-break:break-word">
+        ${body?esc(body):'<em style="color:var(--t3)">Conteúdo do email não disponível neste registro.</em>'}
+      </div>
+    </div>
+    ${snap.company?`<div style="text-align:center;font-size:10px;color:var(--t3);margin-top:8px">Enviado para <strong>${esc(snap.company)}</strong> em ${esc(h.dateStr||'–')}</div>`:''}`;
+}
+
+</script>
+</body>
+</html>
