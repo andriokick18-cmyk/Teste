@@ -1,0 +1,12 @@
+{
+  "name": "h2bapply",
+  "version": "15.0.0",
+  "description": "H2BApply - Vagas H-2B e H-2A automatizadas v15",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
