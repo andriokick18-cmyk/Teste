@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0d1b4b" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#0d1b4b">
+<meta name="theme-color" content="#4f46e5">
 <title>H2BApply — Vagas H-2B & H-2A</title>
 
 <!-- ══ Acessibilidade ══ -->
@@ -16,8 +15,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="H2BApply">
 <meta name="application-name" content="H2BApply">
-<meta name="msapplication-TileColor" content="#0d1b4b">
-<meta name="msapplication-TileImage" content="/icon-192.png?v=2">
+<meta name="msapplication-TileColor" content="#1a56db">
 <meta name="msapplication-tap-highlight" content="no">
 <!-- Ícones PWA — servidos como arquivos estáticos -->
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
@@ -987,20 +985,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 @media(max-width:760px){.ln-rank-card{display:none}}
 .ln-rank-card-hdr{display:flex;align-items:center;gap:7px;padding:14px 16px;background:linear-gradient(135deg,rgba(251,191,36,.08),rgba(245,158,11,.04));border-bottom:1px solid rgba(255,255,255,.07);font-size:13px;font-weight:800;color:#fbbf24}
 .ln-rank-loading{padding:32px;text-align:center}
-
-/* Ranking preview premium na landing */
-.ln-rank-pod{text-align:center;padding:8px 4px;transition:transform .18s}
-.ln-rank-pod:hover{transform:translateY(-4px)}
-.ln-rank-av{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;margin:0 auto 6px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
-.ln-rank-pos{font-size:11px;font-weight:800;color:rgba(255,255,255,.6);margin-bottom:3px}
-.ln-rank-name{font-size:12px;font-weight:700;color:#fff;margin-bottom:4px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ln-rank-score{font-size:10px;color:rgba(255,255,255,.55);margin-top:3px}
-.ln-rank-podium{display:flex;justify-content:center;align-items:flex-end;gap:8px;padding:0 8px}
-/* 1° lugar maior */
-.ln-rank-podium>.ln-rank-pod:nth-child(2){transform:scale(1.1);margin-bottom:12px}
-.ln-rank-podium>.ln-rank-pod:nth-child(2):hover{transform:scale(1.1) translateY(-4px)}
-.ln-rank-podium>.ln-rank-pod:nth-child(2) .ln-rank-av{width:56px;height:56px;font-size:22px;box-shadow:0 0 24px rgba(251,191,36,.6)}
-
 .ln-rank-preview-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;transition:background .14s}
 .ln-rank-preview-row:hover{background:rgba(255,255,255,.04)}
 .ln-rank-preview-row:last-child{border-bottom:none}
@@ -1304,186 +1288,24 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .ed-open-job-btn{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(99,102,241,.12));border:1.5px solid rgba(99,102,241,.3);color:#4f46e5;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .14s;margin-top:6px;width:100%}
 .ed-open-job-btn:hover{background:linear-gradient(135deg,rgba(59,130,246,.25),rgba(99,102,241,.2));color:#3730a3}
 
-
-/* ══ PREMIUM GLOBAL v17 ══ */
-
-/* Animação de entrada nas views */
-.view:not(.gone){animation:viewIn .28s ease both}
-@keyframes viewIn{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:translateY(0)}}
-/* Skeleton loading premium */
-.skel{background:linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);background-size:200% 100%;animation:skelShimmer 1.4s infinite;border-radius:8px}
-@keyframes skelShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-/* Hover cards de vagas */
-.ls-card:hover .ls-apply-btn{background:var(--purple)!important;color:#fff!important}
-/* Badge animado novo */
-@keyframes badgePop{0%{transform:scale(0)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
-.sb-badge:not([style*="none"]){animation:badgePop .25s ease}
-
-
-/* Micro-transições suaves em todos os elementos interativos */
-button,a,.card,.sb-item,.bn{transition:all .18s cubic-bezier(.4,0,.2,1)!important}
-
-/* Cards com hover lift */
-.home-stat-card:hover,.ls-card:hover{transform:translateY(-3px)!important;box-shadow:0 8px 32px rgba(79,70,229,.15)!important}
-
-/* Sidebar premium */
-.sidebar{border-right:1px solid rgba(99,102,241,.1)!important;background:linear-gradient(180deg,#fff 0%,#f8f9ff 100%)!important}
-.sb-item{border-radius:10px!important;font-weight:600;padding:10px 12px!important;margin-bottom:2px;color:var(--t2);font-size:13px}
-.sb-item:hover{background:var(--sf3)!important;color:var(--text)!important;transform:translateX(2px)!important}
-.sb-item.active{background:linear-gradient(135deg,var(--purplel),var(--bluel))!important;color:var(--purple)!important;font-weight:800!important}
-.sb-lbl{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--t4);padding:8px 12px 4px;margin-top:4px}
-
-/* Bottom nav premium */
-.bottom-nav{background:rgba(255,255,255,.96)!important;backdrop-filter:blur(20px)!important;border-top:1px solid rgba(99,102,241,.12)!important;box-shadow:0 -4px 30px rgba(99,102,241,.1)!important}
-.bn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 2px;background:none;border:none;cursor:pointer;font-size:9px;font-weight:700;color:var(--t3);letter-spacing:.02em;border-top:2.5px solid transparent;transition:all .18s!important}
-.bn.active{color:var(--purple)!important;border-top-color:var(--purple)!important;background:var(--purplel)!important}
-.bn:active{transform:scale(.93)!important}
-.bn i{font-size:20px;line-height:1}
-
-/* Botões premium */
-.btn-auto{background:linear-gradient(135deg,#4f46e5,#7c3aed)!important;box-shadow:0 4px 16px rgba(79,70,229,.3)!important}
-.btn-auto:hover{box-shadow:0 6px 24px rgba(79,70,229,.45)!important;transform:translateY(-1px)!important}
-.btn-auto:active{transform:scale(.97)!important}
-
-/* Cards modernos */
-.home-stat-card{border-radius:14px!important;border:1.5px solid var(--border)!important;box-shadow:0 2px 12px rgba(99,102,241,.06)!important}
-.ls-card{border-radius:12px!important;border:1.5px solid var(--border)!important;box-shadow:0 2px 8px rgba(0,0,0,.04)!important;overflow:hidden}
-
-/* Input premium */
-.input{border:1.5px solid var(--border2)!important;border-radius:10px!important;transition:all .18s!important}
-.input:focus{border-color:var(--purple)!important;box-shadow:0 0 0 3px var(--purplel)!important;outline:none!important}
-
-/* Ranking cards modernos */
-.rank-row{border-radius:12px!important;margin-bottom:6px!important;transition:all .18s!important}
-.rank-row:hover{background:var(--sf3)!important;transform:translateX(3px)!important}
-
-/* home header gradient */
-.home-header{background:linear-gradient(135deg,#0d1b4b 0%,#1e3a8a 50%,#1a56db 100%)!important;border-radius:0 0 24px 24px!important;padding-bottom:24px!important}
-
-/* Auto card pulse border */
-.home-auto-card{border:1.5px solid var(--border)!important;border-radius:16px!important;box-shadow:0 2px 12px rgba(0,0,0,.05)!important;background:#fff!important}
-@keyframes autoActivePulse{0%,100%{box-shadow:0 0 0 0 rgba(79,70,229,.4)}50%{box-shadow:0 0 0 8px rgba(79,70,229,0)}}
-.home-auto-card.active{border-color:var(--purple)!important;animation:autoActivePulse 2.5s infinite!important}
-
-/* Pill badges modernos */
-.sb-badge{border-radius:99px!important;font-size:10px!important;font-weight:800!important;padding:1px 7px!important;min-width:18px}
-
-/* Toast animado */
-@keyframes slideInDown{0%{opacity:0;transform:translateY(-8px)}100%{opacity:1;transform:translateY(0)}}
-@keyframes toastIn{0%{opacity:0;transform:translateY(8px) scale(.95)}100%{opacity:1;transform:translateY(0) scale(1)}}
-
-/* View scroll */
-.view-scroll{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
-.view-scroll::-webkit-scrollbar{width:5px}
-.view-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
-
-/* Landing CTA premium */
-.ln-cta-btn{background:linear-gradient(135deg,#fff 0%,#f0f9ff 100%)!important;color:#0f172a!important;font-weight:800!important;border-radius:14px!important;padding:16px 28px!important;box-shadow:0 8px 32px rgba(0,0,0,.15)!important;font-size:16px!important}
-.ln-cta-btn:hover{transform:translateY(-3px)!important;box-shadow:0 14px 40px rgba(0,0,0,.2)!important}
-.ln-cta-btn:active{transform:scale(.97)!important}
-
-/* Ranking podium glow */
-.podium-slot:nth-child(1) .podium-avatar-wrap{filter:drop-shadow(0 0 16px rgba(251,191,36,.6))}
-.podium-slot:nth-child(2) .podium-avatar-wrap{filter:drop-shadow(0 0 10px rgba(148,163,184,.5))}
-.podium-slot:nth-child(3) .podium-avatar-wrap{filter:drop-shadow(0 0 10px rgba(201,124,47,.5))}
-
-/* Glass card */
-.glass-card{background:rgba(255,255,255,.75)!important;backdrop-filter:blur(12px)!important;border:1.5px solid rgba(255,255,255,.5)!important;border-radius:16px!important}
-
 </style>
 </head>
+<body>
 
-<!-- ══ SPLASH SCREEN / LOADING ══ -->
-<div id="splash-screen" style="
-  position:fixed;inset:0;z-index:99999;
-  background:#ffffff;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:0;transition:opacity .5s ease,transform .5s ease;
-">
-  <!-- Logo -->
-  <div style="display:flex;flex-direction:column;align-items:center;gap:20px">
-    <img src="/icon-192.png?v=2" alt="H2BApply" style="
-      width:108px;height:108px;border-radius:24px;
-      box-shadow:0 8px 40px rgba(13,27,75,.18);
-      animation:splashPop .6s cubic-bezier(.34,1.56,.64,1) both;
-    "/>
-    <div style="text-align:center;animation:splashFadeUp .7s .15s both ease">
-      <div style="font-family:'Sora',sans-serif;font-size:28px;font-weight:800;color:#0d1b4b;letter-spacing:-.5px">H2BApply</div>
-      <div style="font-size:13px;color:#7c7fb5;margin-top:4px;font-weight:500">Vagas H-2B & H-2A nos EUA</div>
-    </div>
-    <!-- Barra de loading animada -->
-    <div style="width:160px;height:4px;background:#e0e7ff;border-radius:99px;overflow:hidden;animation:splashFadeUp .7s .3s both ease">
-      <div style="height:100%;background:linear-gradient(90deg,#4f46e5,#7c3aed,#2563eb);border-radius:99px;animation:splashBar 1.4s .4s ease-out both"></div>
-    </div>
+<div id="splash-screen" style="position:fixed;inset:0;z-index:99999;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .4s ease">
+  <img src="/apple-touch-icon.png?v=2" alt="H2BApply" style="width:96px;height:96px;border-radius:22px;box-shadow:0 8px 32px rgba(13,27,75,.2)">
+  <div style="text-align:center">
+    <div style="font-family:'Sora',sans-serif;font-size:24px;font-weight:800;color:#0d1b4b">H2BApply</div>
+    <div style="font-size:12px;color:#7c7fb5;margin-top:4px">Vagas H-2B & H-2A nos EUA</div>
+  </div>
+  <div style="width:140px;height:3px;background:#e0e7ff;border-radius:99px;overflow:hidden">
+    <div style="height:100%;background:linear-gradient(90deg,#4f46e5,#7c3aed);border-radius:99px;animation:splashBar 1.2s ease-out forwards"></div>
   </div>
 </div>
 <style>
-@keyframes splashPop{0%{opacity:0;transform:scale(.7)}100%{opacity:1;transform:scale(1)}}
-@keyframes splashFadeUp{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}
-@keyframes splashBar{0%{width:0%}80%{width:100%}100%{width:100%}}
-@keyframes splashOut{0%{opacity:1}100%{opacity:0;pointer-events:none}}
+@keyframes splashBar{0%{width:0}100%{width:100%}}
 </style>
-<script>
-(function(){
-  function hideSplash(){
-    var s=document.getElementById('splash-screen');
-    if(!s)return;
-    s.style.animation='splashOut .45s ease forwards';
-    setTimeout(function(){s.remove();},460);
-  }
-  // Esconde quando app estiver pronto (chamado pelo initApp) ou após 2.8s máximo
-  window._hideSplash=hideSplash;
-  setTimeout(hideSplash, 2800);
-})();
-</script>
 
-
-<!-- ══ MODAL AVISO GOOGLE LOGIN ══ -->
-<div id="google-warn-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.62);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px">
-  <div style="background:#fff;border-radius:20px;max-width:440px;width:100%;padding:28px 24px;box-shadow:0 24px 80px rgba(0,0,0,.25);animation:modalIn .32s cubic-bezier(.34,1.56,.64,1) both;position:relative">
-    <div style="display:flex;justify-content:center;margin-bottom:18px">
-      <div style="width:62px;height:62px;border-radius:50%;background:linear-gradient(135deg,#fef9c3,#fde68a);border:2.5px solid #fbbf24;display:flex;align-items:center;justify-content:center">
-        <i class="ti ti-shield-exclamation" style="font-size:30px;color:#d97706"></i>
-      </div>
-    </div>
-    <div style="text-align:center;font-family:'Sora',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin-bottom:6px">Aviso antes de continuar</div>
-    <div style="text-align:center;font-size:12px;color:#7c7fb5;margin-bottom:18px">Leia antes de fazer login com o Google</div>
-    <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:15px;font-size:13px;color:#374151;line-height:1.65;margin-bottom:16px">
-      <p style="margin-bottom:10px">O sistema ainda está em processo de <strong>verificação oficial pelo Google</strong>. Por isso, durante o login, pode aparecer um aviso de segurança.</p>
-      <p style="margin-bottom:12px;color:#059669;font-weight:600">⚡ Não se preocupe: o site é confiável e utilizado pela comunidade H2B.</p>
-      <p style="margin-bottom:8px;font-size:12px;color:#6b7280">Caso tenha dúvidas, procure no YouTube:</p>
-      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-        <span style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;border:1px solid #fde68a">▶ Diego H2B</span>
-        <span style="background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;border:1px solid #fde68a">▶ Canal Diego Cardoso</span>
-      </div>
-      <div style="border-top:1px solid #e2e8f0;padding-top:12px">
-        <p style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">&#128203; Nos próximos passos do Google:</p>
-        <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:#4b5563">
-          <div style="display:flex;gap:8px;align-items:flex-start"><span style="background:#4f46e5;color:#fff;border-radius:50%;width:18px;height:18px;min-width:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">1</span><span>Clique em <strong>"Avançado"</strong></span></div>
-          <div style="display:flex;gap:8px;align-items:flex-start"><span style="background:#4f46e5;color:#fff;border-radius:50%;width:18px;height:18px;min-width:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">2</span><span>Clique no <strong>link para continuar</strong> para o site</span></div>
-          <div style="display:flex;gap:8px;align-items:flex-start"><span style="background:#4f46e5;color:#fff;border-radius:50%;width:18px;height:18px;min-width:18px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">3</span><span>Autorize normalmente o acesso do Gmail</span></div>
-        </div>
-      </div>
-    </div>
-    <p style="text-align:center;font-size:11px;color:#9ca3af;margin-bottom:16px">Isso ocorre apenas porque o aplicativo ainda aguarda aprovação oficial do Google.</p>
-    <div style="display:flex;gap:10px">
-      <button onclick="document.getElementById('google-warn-modal').style.display='none'" style="flex:1;padding:11px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#6b7280;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancelar</button>
-      <button id="google-warn-continue" style="flex:2;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">&#9889; Entendi, Continuar</button>
-    </div>
-  </div>
-</div>
-<script>
-function showGoogleWarnModal(){
-  var m=document.getElementById("google-warn-modal");
-  m.style.display="flex";
-  document.getElementById("google-warn-continue").onclick=function(){
-    m.style.display="none";
-    location.href=_getOAuthURL();
-  };
-}
-</script>
-
-<body>
 <!-- Star particles background — padrão visual ranking -->
 <div class="star-bg"></div>
 
@@ -1492,7 +1314,7 @@ function showGoogleWarnModal(){
 
   <!-- ── NAVBAR LANDING ── -->
   <div class="ln-nav">
-    <div class="ln-nav-logo"><img src="/favicon-32.png?v=2" alt="" style="width:22px;height:22px;border-radius:6px;object-fit:cover"> H2BApply</div>
+    <div class="ln-nav-logo"><i class="ti ti-briefcase-2"></i> H2BApply</div>
     <div class="ln-nav-actions">
       <span class="ln-live-badge"><span class="live-dot"></span> Ao vivo</span>
       <a href="/oauth/start" class="btn-google-sm" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px" onclick="event.preventDefault();showGoogleWarnModal()">
@@ -1575,11 +1397,7 @@ function showGoogleWarnModal(){
 
       <!-- Right: live ranking preview card -->
       <div class="ln-rank-card">
-        <div class="ln-rank-card-hdr" style="
-          background:linear-gradient(135deg,#0d1b4b,#1e3a8a);
-          color:#fff;padding:12px 14px;border-radius:12px 12px 0 0;
-          display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700
-        ">
+        <div class="ln-rank-card-hdr">
           <i class="ti ti-trophy" style="color:#fbbf24"></i>
           <span>Ranking do Dia</span>
           <span class="live-dot" style="margin-left:auto"></span>
@@ -1690,7 +1508,6 @@ function showGoogleWarnModal(){
         <button class="sb-item sb-item-plans" id="si-plans" onclick="sv('plans')" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.07));border:1.5px solid rgba(99,102,241,.3);border-radius:var(--r);font-weight:800;color:#4f46e5;margin-top:4px"><i class="ti ti-diamond" style="font-size:16px;color:#4f46e5"></i>Planos & Recompensas</button>
         <button class="sb-item" id="si-logs" onclick="sv('logs')" style="color:var(--t3);font-size:12px"><i class="ti ti-list-details" style="font-size:14px"></i>Logs Automático<span class="sb-badge sb-badge-r" id="sib-logs" style="display:none"></span></button>
         <button class="sb-item" id="si-indicar" onclick="sv('indicar')"><i class="ti ti-users-group"></i>Indicar Amigos<span class="sb-badge" id="sib-indicar" style="display:none;background:var(--green);color:#fff"></span></button>
-        <button class="sb-item" id="si-redeem" onclick="sv('redeem')" style="background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(109,40,217,.07));border:1.5px solid rgba(139,92,246,.28);border-radius:var(--r);font-weight:800;color:#7c3aed"><i class="ti ti-ticket" style="font-size:16px;color:#7c3aed"></i>Resgatar Código <span style="font-size:9px;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:99px;margin-left:2px">NOVO</span></button>
         <button class="sb-item" id="si-notificacoes" onclick="sv('notificacoes')"><i class="ti ti-bell"></i>Notificações<span class="sb-badge" id="sib-notificacoes" style="display:none;background:#7c3aed;color:#fff"></span></button>
       </div>
       <div class="sb-sec" id="sb-admin-sec" style="display:none">
@@ -2713,51 +2530,6 @@ function showGoogleWarnModal(){
         </div>
 
       </div></div>
-
-      <!-- ══ RESGATAR CÓDIGO ══ -->
-      <div class="view gone" id="v-redeem"><div class="view-scroll" style="padding:0 0 80px">
-        <!-- Header -->
-        <div style="background:linear-gradient(135deg,#4c1d95,#6d28d9,#7c3aed);color:#fff;padding:24px 20px;text-align:center">
-          <div style="width:64px;height:64px;border-radius:20px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:30px">🎟️</div>
-          <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px">Resgatar Código</div>
-          <div style="font-size:13px;opacity:.85">Recebeu um código especial? Resgate aqui e ganhe dias VIP!</div>
-        </div>
-        <!-- Card principal -->
-        <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
-          <div style="background:#fff;border:2px solid rgba(139,92,246,.25);border-radius:16px;padding:22px;box-shadow:0 4px 20px rgba(139,92,246,.1)">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px">
-              <div style="width:44px;height:44px;border-radius:12px;background:var(--purplel);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-gift" style="font-size:22px;color:var(--purple)"></i></div>
-              <div>
-                <div style="font-size:15px;font-weight:800;color:var(--text)">Código de Recompensa</div>
-                <div style="font-size:12px;color:var(--t2);margin-top:2px">1 resgate por conta · código de 8 caracteres</div>
-              </div>
-            </div>
-            <label style="display:block;font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px;letter-spacing:.05em;text-transform:uppercase">Seu código</label>
-            <div style="display:flex;gap:10px;align-items:stretch">
-              <input class="input" id="reward-code-input-v2" type="text" maxlength="8"
-                placeholder="Ex: A1B2C3D4"
-                autocomplete="off" autocapitalize="characters" spellcheck="false"
-                style="text-transform:uppercase;letter-spacing:3px;font-weight:800;font-size:18px;flex:1;font-family:monospace;text-align:center;border:2px solid rgba(139,92,246,.3);border-radius:10px;padding:14px"
-                oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"
-                onkeydown="if(event.key='Enter')redeemCodeV2()">
-              <button class="btn btn-auto" onclick="redeemCodeV2()" style="padding:14px 20px;flex-shrink:0;font-size:14px;font-weight:800;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#4f46e5)">
-                <i class="ti ti-ticket"></i> Resgatar
-              </button>
-            </div>
-            <div id="reward-msg-v2" style="margin-top:12px;display:none"></div>
-          </div>
-          <!-- Info -->
-          <div style="background:#f5f3ff;border:1.5px solid rgba(139,92,246,.2);border-radius:14px;padding:16px">
-            <div style="font-size:13px;font-weight:700;color:#4c1d95;margin-bottom:12px">Como conseguir um código?</div>
-            <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;color:#5b21b6">
-              <div style="display:flex;gap:10px;align-items:flex-start"><i class="ti ti-brand-instagram" style="font-size:16px;flex-shrink:0;margin-top:1px;color:#7c3aed"></i><span>Siga <strong>@andrio.k</strong> e <strong>@diego.cardoso_oficial</strong> no Instagram — códigos são postados periodicamente</span></div>
-              <div style="display:flex;gap:10px;align-items:flex-start"><i class="ti ti-brand-youtube" style="font-size:16px;flex-shrink:0;margin-top:1px;color:#7c3aed"></i><span>Assista ao canal <strong>Diego H2B</strong> no YouTube — códigos aparecem em vídeos e lives</span></div>
-              <div style="display:flex;gap:10px;align-items:flex-start"><i class="ti ti-users-group" style="font-size:16px;flex-shrink:0;margin-top:1px;color:#7c3aed"></i><span>Indique amigos e ganhe dias VIP — veja a aba <strong>Indicar Amigos</strong></span></div>
-            </div>
-          </div>
-        </div>
-      </div></div>
-
       <!-- ══ v16: INDICAR AMIGOS ══ -->
       <div class="view gone" id="v-indicar"><div class="view-scroll" style="padding:0 0 80px">
         <div style="background:linear-gradient(135deg,#064e3b,#065f46,#059669);color:#fff;padding:16px;margin-bottom:0">
@@ -2832,10 +2604,6 @@ function showGoogleWarnModal(){
       <i class="ti ti-mail-opened" style="color:var(--green)"></i>
       <span style="color:var(--green);font-weight:700">Respostas</span>
       <span class="bn-dot" id="bnd-respostas" style="background:var(--green);display:none"></span>
-    </button>
-    <button class="bn" id="bn-redeem" onclick="sv('redeem')" style="position:relative">
-      <i class="ti ti-ticket" style="color:#7c3aed;font-size:20px"></i>
-      <span style="color:#7c3aed;font-weight:700;font-size:10px">Código</span>
     </button>
     <button class="bn" id="bn-ranking" onclick="sv('ranking')" style="position:relative">
       <i class="ti ti-trophy" style="color:#f59e0b;font-size:21px"></i>
@@ -3694,7 +3462,7 @@ function renderDrawer(){
 // ═══════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════
-const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","indicar","notificacoes",'redeem'];
+const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","indicar","notificacoes"];
 function sv(v,...args){
   // ── "auto" abre modal em vez da view ──
   if(v==="auto"){if(typeof openAutoModal==="function"){openAutoModal();return;}}
@@ -3708,7 +3476,6 @@ function sv(v,...args){
   if(v==="home")renderHome();
   if(v==="ranking"){loadRanking(true);startRankTimer();}else{stopRankTimer();}
   if(v==="pesquisa"){initPesquisaView();}
-  if(v==="redeem"){/* view própria de resgatar código */}
   if(v==="indicar"){loadReferralView();}
   if(v==="notificacoes"){loadNotifView();}
   if(v!=="jobs")closeMobDetail();closeDrawer();
@@ -3990,27 +3757,6 @@ function setStat(s){fStat=s;g("#fs-all")?.classList.toggle("on",s==="all");g("#f
 function setSort(s){fSort=s;g("#so-rand")?.classList.toggle("on",s==="random");g("#so-desc")?.classList.toggle("on",s==="desc");g("#so-asc")?.classList.toggle("on",s==="asc");if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}
 
 const PAGE=25;
-
-// Mostra aviso se vagas estão na fila automática (evita confusão)
-function _checkAutoQueueWarning(sheetTab){
-  if(!_autoQueueIds||_autoQueueIds.size===0)return;
-  const inAutoFromSheet=[..._autoQueueIds].filter(id=>id&&String(id).length>3).length;
-  if(inAutoFromSheet===0)return;
-  const existing=document.getElementById('auto-queue-warn-bar');
-  if(existing)return; // já exibindo
-  const bar=document.createElement('div');
-  bar.id='auto-queue-warn-bar';
-  bar.style.cssText='background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 14px;margin:10px 14px;display:flex;align-items:flex-start;gap:10px;font-size:12px;color:#92400e;animation:slideInDown .3s ease';
-  bar.innerHTML=`<i class="ti ti-alert-triangle" style="font-size:16px;color:#f59e0b;flex-shrink:0;margin-top:1px"></i>
-    <div style="flex:1">
-      <span style="font-weight:700">Você possui ${inAutoFromSheet} vaga${inAutoFromSheet!==1?'s':''} atualmente na fila do envio automático.</span><br>
-      <span>Essas vagas foram removidas da listagem manual para evitar envios duplicados.</span>
-    </div>
-    <button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:#92400e;font-size:16px;padding:0;flex-shrink:0;line-height:1">×</button>`;
-  const jlist=document.getElementById('jlist');
-  if(jlist&&jlist.parentElement)jlist.parentElement.insertBefore(bar,jlist);
-}
-
 async function loadJobs(reset=false){
   if(loading)return;if(reset){skip=0;total=0;done=false;JOBS=[];g("#jlist").innerHTML=mkSkels(6);g("#lmore").innerHTML="";}
   if(done)return;loading=true;if(!reset)g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><span class="spin"></span></div>`;
@@ -4021,7 +3767,7 @@ async function loadJobs(reset=false){
     if(reset)g("#jlist").innerHTML="";
     if(!jobs.length&&!JOBS.length){done=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">Nenhuma vaga encontrada.</div>`;}
     else if(jobs.length){jobs.forEach(j=>{JOBS.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkCard(j));});skip+=d.jobs.length;total=d.total||JOBS.length;if(d.jobs.length<PAGE){done=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadJobs()">Carregar mais</button></div>`;}
-    const cnt=g("#jcount");if(cnt)cnt.innerHTML=`<strong>${total.toLocaleString()}</strong> vaga${total!==1?"s":""}`;_checkAutoQueueWarning(tab);const cc=g("#jfrom-cache");if(cc)cc.style.display=d.from_cache?"":"none";
+    const cnt=g("#jcount");if(cnt)cnt.innerHTML=`<strong>${total.toLocaleString()}</strong> vaga${total!==1?"s":""}`;const cc=g("#jfrom-cache");if(cc)cc.style.display=d.from_cache?"":"none";
     const sib=g("#sib-jobs");if(sib){sib.style.display="";sib.textContent=total>999?"999+":String(total);}
   }catch(e){g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--red)">Erro. <span style="cursor:pointer;text-decoration:underline" onclick="loadJobs()">Tentar novamente</span></div>`;}
   finally{loading=false;} // FIX: always libera lock
@@ -4075,10 +3821,9 @@ function updSheetCounter(){
   }
   const cnt=g("#jcount");if(!cnt||!sTotal)return;
   const sentInSheet=HIST.filter(h=>h.sheetSource===tab).length;
-  const inAutoQ=[..._autoQueueIds].filter(id=>id&&String(id).length>3).length;
-  const remaining=Math.max(0,sTotal-sentInSheet-inAutoQ);
+  const remaining=Math.max(0,sTotal-sentInSheet);
   const sheetLabel=tab==="jan2026"?"Jan 2026":"Jul 2025";
-  cnt.innerHTML=`<strong style="color:var(--text)">${remaining.toLocaleString()}</strong> <span style="color:var(--t2)">disponíveis</span>${sentInSheet>0?` · <span style="color:var(--green);font-size:11px">✅ ${sentInSheet} enviadas</span>`:''}${inAutoQ>0?` · <span style="color:var(--purple);font-size:11px">🤖 ${inAutoQ} no auto</span>`:''} · <span style="font-size:11px;color:var(--blue);font-weight:700">${sheetLabel}</span>`;
+  cnt.innerHTML=`<strong>${remaining.toLocaleString()}</strong> restantes · <span style="font-size:11px;color:var(--t3)">${sentInSheet>0?`<span style="color:var(--green)">${sentInSheet} enviadas</span> de ${sTotal.toLocaleString()}`:sTotal.toLocaleString()+` total`}</span> · <span style="font-size:11px;color:var(--blue)">${sheetLabel}</span>`;
 }
 
 function mkSheetCard(j){
@@ -6516,32 +6261,7 @@ document.addEventListener("DOMContentLoaded",()=>{loadPublicStats();setInterval(
 async function doLogout(){closeDrawer();await fetch("/api/disconnect",{credentials:"include"});U={connected:false};clearInterval(autoInterval);g("#app").style.display="none";g("#landing").style.display="flex";}
 function copyPix(){navigator.clipboard.writeText(PIX).then(()=>toast("Pix copiado ✓","g")).catch(()=>toast("Copie manualmente","r"));}
 
-async 
-function redeemCodeV2(){
-  const inp=document.getElementById('reward-code-input-v2');
-  const code=(inp?.value||'').trim().toUpperCase();
-  if(!code){toast('Digite o código','r');return;}
-  if(code.length!==8){toast('Código deve ter 8 caracteres','r');return;}
-  const btn=document.querySelector('#v-redeem .btn-auto');
-  const msgEl=document.getElementById('reward-msg-v2');
-  if(btn)btn.disabled=true;
-  fetch('/api/redeem-code',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})})
-    .then(r=>r.json()).then(d=>{
-      if(d.ok){
-        msgEl.style.display='block';
-        msgEl.innerHTML='<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:12px;color:#15803d;font-weight:700;text-align:center;font-size:14px">🎉 '+d.message+'</div>';
-        inp.value='';
-        toast(d.message||'Código resgatado!','g');
-        if(typeof loadUser==='function')loadUser();
-      }else{
-        msgEl.style.display='block';
-        msgEl.innerHTML='<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;color:#dc2626;font-weight:600;text-align:center;font-size:13px">❌ '+(d.error||'Código inválido')+'</div>';
-      }
-    }).catch(()=>toast('Erro ao resgatar','r'))
-    .finally(()=>{if(btn)btn.disabled=false;});
-}
-
-function redeemCode(){
+async function redeemCode(){
   const inp=g("#reward-code-input");
   const msg=g("#reward-msg");
   const btn=g("#reward-btn");
@@ -6611,34 +6331,6 @@ addEventListener("DOMContentLoaded",()=>{
 // Ícones PWA servidos como arquivos estáticos pelo servidor
 // icon-192.png, icon-512.png, apple-touch-icon.png, favicon-32.png
 // NÃO gerar ícone via canvas — usa os arquivos PNG reais do projeto
-
-
-// Countup animation para stats da landing
-function animateCountUp(el, target, duration=1200){
-  if(!el)return;
-  const start=parseInt(el.textContent.replace(/[^0-9]/g,''))||0;
-  const diff=target-start;
-  const startTime=performance.now();
-  function step(now){
-    const elapsed=now-startTime;
-    const progress=Math.min(elapsed/duration,1);
-    const ease=1-Math.pow(1-progress,3); // cubic ease-out
-    const val=Math.round(start+diff*ease);
-    el.textContent=val.toLocaleString('pt-BR');
-    if(progress<1)requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
-}
-const _origUpdatePublicStats=window.updatePublicStats;
-window.updatePublicStats=function(d){
-  if(_origUpdatePublicStats)_origUpdatePublicStats(d);
-  // Anima os números
-  setTimeout(()=>{
-    if(d.users)animateCountUp(document.getElementById('ps-users'),d.users);
-    if(d.today)animateCountUp(document.getElementById('ps-today'),d.today);
-    if(d.total)animateCountUp(document.getElementById('ps-total'),d.total);
-  },300);
-};
 
 // Registro do Service Worker
 if("serviceWorker" in navigator){
@@ -9749,6 +9441,75 @@ Best regards,
     </div>
   </div>
 </div>
+
+<script>
+(function(){
+  var _splashHidden=false;
+  function hideSplash(){
+    if(_splashHidden)return;
+    _splashHidden=true;
+    var s=document.getElementById('splash-screen');
+    if(!s)return;
+    s.style.opacity='0';
+    setTimeout(function(){s&&s.remove();},420);
+  }
+  // Observa quando landing ou app ficam visíveis
+  var _obs=new MutationObserver(function(){
+    var landing=document.getElementById('landing');
+    var app=document.getElementById('app');
+    if((landing&&landing.style.display!=='none'&&landing.style.display!=='')||
+       (app&&app.style.display!=='none'&&app.style.display!=='')){
+      hideSplash();
+    }
+  });
+  document.addEventListener('DOMContentLoaded',function(){
+    var landing=document.getElementById('landing');
+    var app=document.getElementById('app');
+    if(landing)_obs.observe(landing,{attributes:true,attributeFilter:['style']});
+    if(app)_obs.observe(app,{attributes:true,attributeFilter:['style']});
+    // Fallback: esconde após 3s no máximo
+    setTimeout(hideSplash,3000);
+  });
+})();
+</script>
+
+
+<div id="google-warn-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px">
+  <div style="background:#fff;border-radius:20px;max-width:420px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="width:56px;height:56px;border-radius:50%;background:#fef9c3;border:2px solid #fbbf24;display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
+        <i class="ti ti-shield-exclamation" style="font-size:26px;color:#d97706"></i>
+      </div>
+      <div style="font-size:17px;font-weight:800;color:#0f172a">Aviso antes de continuar</div>
+    </div>
+    <div style="background:#f8fafc;border-radius:10px;padding:14px;font-size:13px;color:#374151;line-height:1.6;margin-bottom:14px">
+      <p style="margin-bottom:8px">O sistema está em <strong>verificação oficial pelo Google</strong>. Pode aparecer um aviso de segurança no login.</p>
+      <p style="margin-bottom:10px;color:#059669;font-weight:600">✅ O site é confiável e usado pela comunidade H2B.</p>
+      <p style="margin-bottom:6px;font-size:12px">Dúvidas? Procure no YouTube: <strong>Diego H2B</strong> ou <strong>Canal Diego Cardoso</strong></p>
+      <div style="border-top:1px solid #e2e8f0;padding-top:10px;margin-top:10px;font-size:12px">
+        <p style="font-weight:700;margin-bottom:6px">Nos próximos passos do Google:</p>
+        <p>1. Clique em <strong>"Avançado"</strong></p>
+        <p>2. Clique no link para continuar</p>
+        <p>3. Autorize o acesso do Gmail</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="document.getElementById('google-warn-modal').style.display='none'" style="flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#6b7280;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancelar</button>
+      <button id="gwm-continue" style="flex:2;padding:10px;border:none;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Entendi, Continuar →</button>
+    </div>
+  </div>
+</div>
+<script>
+function showGoogleWarnModal(){
+  var m=document.getElementById('google-warn-modal');
+  m.style.display='flex';
+  document.getElementById('gwm-continue').onclick=function(){
+    m.style.display='none';
+    location.href=_getOAuthURL();
+  };
+}
+</script>
+
 </body>
 <script>
 // ════════════════════════════════════════════════════
