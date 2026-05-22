@@ -962,18 +962,15 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .btn-google-sm:hover{opacity:.9;transform:translateY(-1px)}
 
 /* Hero */
-.ln-hero{position:relative;padding:24px 16px 0;max-width:1100px;margin:0 auto}
+.ln-hero{position:relative;padding:50px 20px 0;max-width:1100px;margin:0 auto}
 .ln-hero-inner{display:grid;grid-template-columns:1fr 340px;gap:40px;align-items:start}
-@media(max-width:760px){
-  .ln-hero{padding:20px 14px 0}
-  .ln-hero-inner{grid-template-columns:1fr;gap:24px}
-}
+@media(max-width:760px){.ln-hero-inner{grid-template-columns:1fr}}
 .ln-vip-pill{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(251,191,36,.18),rgba(245,158,11,.12));border:1.5px solid rgba(251,191,36,.4);color:#fbbf24;font-size:13px;font-weight:800;padding:6px 14px;border-radius:30px;margin-bottom:18px;animation:pulse-slow 3s ease-in-out infinite}
 @keyframes pulse-slow{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,.3)}50%{box-shadow:0 0 0 8px rgba(251,191,36,0)}}
-.ln-hero-title{font-family:'Sora',sans-serif;font-size:clamp(26px,6vw,54px);font-weight:800;line-height:1.1;color:#fff;margin-bottom:12px}
+.ln-hero-title{font-family:'Sora',sans-serif;font-size:clamp(32px,6vw,54px);font-weight:800;line-height:1.1;color:#fff;margin-bottom:16px}
 .ln-title-usa{background:linear-gradient(135deg,#3b82f6,#8b5cf6,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.ln-hero-sub{font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:16px;max-width:520px}
-.ln-feats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.ln-hero-sub{font-size:15px;color:var(--t2);line-height:1.65;margin-bottom:22px;max-width:520px}
+.ln-feats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
 .ln-feat{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--t2);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:6px 12px;border-radius:20px}
 .ln-feat i{color:var(--blue);font-size:13px}
 .ln-cta-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;max-width:400px;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;border-radius:14px;padding:16px 24px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .18s;box-shadow:0 8px 32px rgba(59,130,246,.35)}
@@ -1002,11 +999,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .ln-rank-cta:hover{background:rgba(59,130,246,.1)}
 
 /* Stats bar */
-.ln-stats-bar{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;background:#0d1635;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:12px 16px;margin:20px 0 0;gap:4px}
-@media(max-width:480px){.ln-stats-bar{padding:10px 10px;gap:2px;border-radius:12px}}
-@media(max-width:480px){.ln-stat{min-width:70px;padding:6px 4px}}
-@media(max-width:480px){.ln-stat-num{font-size:18px}}
-@media(max-width:480px){.ln-stat-lbl{font-size:9px}}
+.ln-stats-bar{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;background:#0d1635;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:16px 24px;margin:32px 0 0;gap:4px}
 .ln-stat{display:flex;flex-direction:column;align-items:center;padding:0 20px}
 .ln-stat-num{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#fff}
 .ln-stat-lbl{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
@@ -1296,45 +1289,74 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .ed-open-job-btn:hover{background:linear-gradient(135deg,rgba(59,130,246,.25),rgba(99,102,241,.2));color:#3730a3}
 
 
-/* ══ LANDING MOBILE FIX ══ */
 @media(max-width:480px){
-  .ln-nav{padding:10px 14px}
-  .ln-nav-logo{font-size:16px}
-  .ln-vip-pill{font-size:11px;padding:6px 10px;margin-bottom:12px}
-  .ln-hero-title{font-size:24px!important;margin-bottom:10px}
-  .ln-hero-sub{font-size:13px;margin-bottom:12px}
-  .ln-cta-btn{padding:14px 18px;font-size:15px}
-  .ln-trust-row{font-size:11px;gap:10px;flex-wrap:wrap}
-  .ln-feat{font-size:11px;padding:5px 9px}
-  .login-social{margin-top:16px}
-  .login-social-card{padding:10px 12px}
-  .ln-stats-bar{margin:16px 0 20px}
-  #landing{overflow-x:hidden}
-  .ln-hero{overflow-x:hidden}
+  .ln-hero{padding:20px 14px 0!important}
+  .ln-hero-title{font-size:24px!important}
+  .ln-hero-sub{font-size:13px!important}
+  .ln-cta-btn{padding:14px 18px!important;font-size:15px!important}
+  .ln-feats{gap:6px!important}
+  .ln-stats-bar{padding:10px 10px!important;margin:16px 0 20px!important}
+  #landing{overflow-x:hidden!important}
 }
-@media(max-width:360px){
-  .ln-hero-title{font-size:21px!important}
-  .ln-cta-btn{font-size:14px;padding:13px 14px}
+@media(max-width:760px){
+  .ln-hero-inner{grid-template-columns:1fr!important;gap:20px!important}
+  .ln-rank-card{display:none!important}
 }
+
+
+/* ══ TUTORIAIS ══ */
+.tip-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(139,92,246,.15);color:#7c3aed;font-size:10px;font-weight:800;cursor:pointer;border:1.5px solid rgba(139,92,246,.3);flex-shrink:0;transition:all .18s;vertical-align:middle;margin-left:4px;line-height:1}
+.tip-icon:hover{background:#7c3aed;color:#fff}
+.tip-box{position:fixed;z-index:9990;background:#1e1b4b;color:#fff;border-radius:12px;padding:12px 14px;font-size:12px;line-height:1.6;max-width:260px;box-shadow:0 8px 32px rgba(0,0,0,.35);animation:tipIn .18s ease both}
+.tip-box strong{color:#a78bfa}
+@keyframes tipIn{0%{opacity:0;transform:scale(.92)}100%{opacity:1;transform:scale(1)}}
 
 </style>
 </head>
 <body>
-
-<div id="splash-screen" style="position:fixed;inset:0;z-index:99999;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .4s ease">
+<div id="h2b-splash" style="position:fixed;inset:0;z-index:99999;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .4s ease;pointer-events:none">
   <img src="/apple-touch-icon.png?v=2" alt="H2BApply" style="width:96px;height:96px;border-radius:22px;box-shadow:0 8px 32px rgba(13,27,75,.2)">
   <div style="text-align:center">
     <div style="font-family:'Sora',sans-serif;font-size:24px;font-weight:800;color:#0d1b4b">H2BApply</div>
-    <div style="font-size:12px;color:#7c7fb5;margin-top:4px">Vagas H-2B & H-2A nos EUA</div>
+    <div style="font-size:13px;color:#7c7fb5;margin-top:4px">Vagas H-2B & H-2A nos EUA</div>
   </div>
-  <div style="width:140px;height:3px;background:#e0e7ff;border-radius:99px;overflow:hidden">
-    <div style="height:100%;background:linear-gradient(90deg,#4f46e5,#7c3aed);border-radius:99px;animation:splashBar 1.2s ease-out forwards"></div>
+  <div style="width:160px;height:3px;background:#e0e7ff;border-radius:99px;overflow:hidden">
+    <div style="height:100%;background:linear-gradient(90deg,#4f46e5,#7c3aed);border-radius:99px;animation:h2bBar 1.4s ease-out forwards"></div>
   </div>
 </div>
 <style>
-@keyframes splashBar{0%{width:0}100%{width:100%}}
+@keyframes h2bBar{0%{width:0%}100%{width:100%}}
 </style>
-
+<script>
+(function(){
+  var done=false;
+  function hide(){
+    if(done)return; done=true;
+    var s=document.getElementById('h2b-splash');
+    if(!s)return;
+    s.style.opacity='0';
+    setTimeout(function(){if(s.parentNode)s.parentNode.removeChild(s);},420);
+  }
+  // Observa mudanças de display no landing e app
+  function watch(){
+    var landing=document.getElementById('landing');
+    var app=document.getElementById('app');
+    if(!landing&&!app){setTimeout(watch,100);return;}
+    var obs=new MutationObserver(function(){
+      var lv=landing&&landing.style.display;
+      var av=app&&app.style.display;
+      if(lv==='flex'||lv===''||av==='flex'||av===''){hide();}
+    });
+    if(landing)obs.observe(landing,{attributes:true,attributeFilter:['style']});
+    if(app)obs.observe(app,{attributes:true,attributeFilter:['style']});
+    // Fallback máximo 4s
+    setTimeout(hide,4000);
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',watch);
+  } else { watch(); }
+})();
+</script>
 <!-- Star particles background — padrão visual ranking -->
 <div class="star-bg"></div>
 
@@ -1435,7 +1457,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <div id="ln-rank-preview">
           <div class="ln-rank-loading"><span class="spin spin-sm"></span></div>
         </div>
-        <div class="ln-rank-cta" onclick="location.href=_getOAuthURL()">
+        <div class="ln-rank-cta" onclick="showGoogleWarnModal()">
           <i class="ti ti-trophy"></i> Entre e dispute seu lugar no topo
         </div>
       </div>
@@ -1537,7 +1559,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <button class="sb-item sb-item-plans" id="si-plans" onclick="sv('plans')" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.07));border:1.5px solid rgba(99,102,241,.3);border-radius:var(--r);font-weight:800;color:#4f46e5;margin-top:4px"><i class="ti ti-diamond" style="font-size:16px;color:#4f46e5"></i>Planos & Recompensas</button>
         <button class="sb-item" id="si-logs" onclick="sv('logs')" style="color:var(--t3);font-size:12px"><i class="ti ti-list-details" style="font-size:14px"></i>Logs Automático<span class="sb-badge sb-badge-r" id="sib-logs" style="display:none"></span></button>
         <button class="sb-item" id="si-indicar" onclick="sv('indicar')"><i class="ti ti-users-group"></i>Indicar Amigos<span class="sb-badge" id="sib-indicar" style="display:none;background:var(--green);color:#fff"></span></button>
-        <button class="sb-item" id="si-redeem" onclick="sv('redeem')" style="background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(109,40,217,.07));border:1.5px solid rgba(139,92,246,.28);border-radius:var(--r);font-weight:800;color:#7c3aed;margin-top:2px"><i class="ti ti-ticket" style="font-size:15px;color:#7c3aed"></i>Resgatar Código <span style="font-size:9px;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:99px;margin-left:2px;font-weight:800">NOVO</span></button>
+        <button class="sb-item" id="si-redeem" onclick="sv('redeem')" style="background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(109,40,217,.06));border:1.5px solid rgba(139,92,246,.25);border-radius:10px;font-weight:800;color:#7c3aed"><i class="ti ti-ticket" style="font-size:15px;color:#7c3aed"></i>Resgatar Código<span style="margin-left:auto;font-size:9px;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:99px;font-weight:800">NOVO</span></button>
         <button class="sb-item" id="si-notificacoes" onclick="sv('notificacoes')"><i class="ti ti-bell"></i>Notificações<span class="sb-badge" id="sib-notificacoes" style="display:none;background:#7c3aed;color:#fff"></span></button>
       </div>
       <div class="sb-sec" id="sb-admin-sec" style="display:none">
@@ -1703,7 +1725,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <div class="jobs-view">
           <div class="jlist-panel" id="jlist-panel">
             <div class="jlist-hdr">
-              <span class="jcount" id="jcount">Carregando...</span>
+              <span class="jcount" id="jcount">Carregando...</span> <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Envio Manual</strong><br>Clique em uma vaga → veja os detalhes → clique em Candidatar.<br><br>⚡ Vagas já enviadas e as que estão no Automático não aparecem aqui.')">?</span>
               <span id="jfrom-cache" style="font-size:10px;color:var(--amber);display:none">cache</span>
             </div>
             <div id="jlist"></div>
@@ -1732,7 +1754,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       <!-- ══ HIST ══ -->
       <div class="view gone" id="v-hist"><div class="view-scroll">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-          <div style="font-size:18px;font-weight:800">Candidaturas Enviadas</div>
+          <div style="font-size:18px;font-weight:800;display:flex;align-items:center;gap:6px">Candidaturas Enviadas <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Candidaturas Enviadas</strong><br>✅ Verde = enviado<br>❌ Vermelho = falhou<br>🔁 Laranja = duplicado (já enviado antes)')">?</span></div>
           <div style="display:flex;gap:6px;align-items:center">
             <button class="fbtn on" id="ht-all"    onclick="setHistTab('all')">Todas</button>
             <button class="fbtn"    id="ht-manual" onclick="setHistTab('manual')">Manual</button>
@@ -2098,12 +2120,12 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-bottom:12px">
               <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px">Dados pessoais</div>
               <div class="field-row">
-                <div class="field"><label>Nome completo *</label><input class="input" id="cfg-name" type="text" placeholder="Seu nome completo"></div>
-                <div class="field"><label>País</label><input class="input" id="cfg-country" type="text" placeholder="Brazil"></div>
+                <div class="field"><label>Nome completo * <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Nome completo</strong><br>Aparece automaticamente em todos os e-mails enviados. Use exatamente como no passaporte.')">?</span></label><input class="input" id="cfg-name" type="text" placeholder="Seu nome completo"></div>
+                <div class="field"><label>País <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>País de origem</strong><br>Usado no modelo de e-mail. Escreva em inglês: <strong>Brazil</strong>')">?</span></label><input class="input" id="cfg-country" type="text" placeholder="Brazil"></div>
               </div>
               <div class="field-row">
                 <div class="field"><label>Cidade</label><input class="input" id="cfg-city" type="text"></div>
-                <div class="field"><label>WhatsApp</label><input class="input" id="cfg-phone" type="tel" inputmode="tel"></div>
+                <div class="field"><label>WhatsApp <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>WhatsApp</strong><br>Seu número com DDI. Ex: +55 85 99999-9999.<br>Aparece na assinatura dos e-mails para empregadores te ligarem diretamente.')">?</span></label><input class="input" id="cfg-phone" type="tel" inputmode="tel"></div>
               </div>
               <div class="field-row">
                 
@@ -2113,7 +2135,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <button class="btn btn-primary w100" onclick="saveProfile()"><i class="ti ti-check"></i> Salvar dados</button>
             <!-- Notificações -->
             <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-top:12px">
-              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px"><i class="ti ti-bell" style="font-size:13px"></i> Notificações</div>
+              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px"><i class="ti ti-bell" style="font-size:13px"></i> Notificações <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Notificações Push</strong><br>Receba alerta no celular quando uma empresa americana responder.<br><br>📱 Funciona mesmo com o app fechado!')">?</span></div>
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
                 <div>
                   <div style="font-size:13px;font-weight:700;margin-bottom:2px">🛫 Alerta de nova resposta</div>
@@ -2578,24 +2600,23 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               </div>
             </div>
             <div style="display:flex;gap:10px;align-items:stretch">
-              <input class="input" id="reward-code-input-v2" type="text" maxlength="8"
-                placeholder="Ex: A1B2C3D4"
+              <input class="input" id="redeem-code-inp" type="text" maxlength="8" placeholder="Ex: A1B2C3D4"
                 autocomplete="off" autocapitalize="characters" spellcheck="false"
                 style="text-transform:uppercase;letter-spacing:3px;font-weight:800;font-size:18px;flex:1;font-family:monospace;text-align:center;padding:14px"
                 oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"
-                onkeydown="if(event.key==='Enter')redeemCodeV2()">
-              <button class="btn btn-auto" onclick="redeemCodeV2()" style="padding:14px 18px;flex-shrink:0;font-size:14px;font-weight:800;border-radius:10px">
+                onkeydown="if(event.key==='Enter')doRedeemCode()">
+              <button class="btn btn-auto" onclick="doRedeemCode()" id="redeem-btn" style="padding:14px 18px;flex-shrink:0;font-size:14px;font-weight:800;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#4f46e5)">
                 <i class="ti ti-ticket"></i> Resgatar
               </button>
             </div>
-            <div id="reward-msg-v2" style="margin-top:12px;display:none"></div>
+            <div id="redeem-msg" style="margin-top:12px;display:none"></div>
           </div>
           <div style="background:#f5f3ff;border:1.5px solid rgba(139,92,246,.18);border-radius:14px;padding:16px">
             <div style="font-size:13px;font-weight:700;color:#4c1d95;margin-bottom:12px">📢 Como conseguir um código?</div>
             <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;color:#5b21b6">
               <div style="display:flex;gap:10px;align-items:flex-start"><i class="ti ti-brand-instagram" style="font-size:16px;flex-shrink:0;color:#7c3aed"></i><span>Siga <strong>@andrio.k</strong> e <strong>@diego.cardoso_oficial</strong> no Instagram</span></div>
               <div style="display:flex;gap:10px;align-items:flex-start"><i class="ti ti-brand-youtube" style="font-size:16px;flex-shrink:0;color:#7c3aed"></i><span>Assista ao canal <strong>Diego H2B</strong> no YouTube</span></div>
-              <div style="display:flex;gap:10px;align-items:flex-start"><i class="ti ti-users-group" style="font-size:16px;flex-shrink:0;color:#7c3aed"></i><span>Indique amigos e ganhe dias VIP — veja a aba <strong>Indicar Amigos</strong></span></div>
+              <div style="display:flex;gap:10px;align-items:flex-start"><i class="ti ti-users-group" style="font-size:16px;flex-shrink:0;color:#7c3aed"></i><span>Indique amigos — veja a aba <strong>Indicar Amigos</strong></span></div>
             </div>
           </div>
         </div>
@@ -3324,35 +3345,28 @@ let CFG={name:"",country:"Brazil",phone:"",city:"",language:"pt-BR",subject:"",b
 let DOCS=[],activeResIdx=null,activeCovIdx=null;
 let JOBS=[],HIST=[],SAVED=new Set(),APPLIED=new Set();
 
-// IDs de vagas já enviadas por fonte (carregado ao iniciar e após cada envio)
-let _sentIdsJan=new Set();
-let _sentIdsJul=new Set();
-let _sentIdsSeasonal=new Set();
-let _sentIdsLoaded=false;
-
-async function loadSentIds(){
+// IDs de vagas já enviadas por fonte
+let _sentJan=new Set(),_sentJul=new Set(),_sentSeasonal=new Set(),_sentLoaded=false;
+async function _loadSentIds(){
   try{
-    const r=await fetch("/api/sent-ids",{credentials:"include"});
+    const r=await fetch('/api/sent-ids',{credentials:'include'});
+    if(!r.ok)return;
     const d=await r.json();
-    _sentIdsJan=new Set(d.jan2026||[]);
-    _sentIdsJul=new Set(d.jul2025||[]);
-    _sentIdsSeasonal=new Set(d.seasonal||[]);
-    _sentIdsLoaded=true;
-  }catch(e){console.warn("loadSentIds error",e);}
+    _sentJan=new Set(d.jan2026||[]);
+    _sentJul=new Set(d.jul2025||[]);
+    _sentSeasonal=new Set(d.seasonal||[]);
+    _sentLoaded=true;
+  }catch(e){}
 }
-
-// Verifica se vaga foi enviada
-function isSentSheet(caseNum, sheet){
-  if(sheet==="jan2026")return _sentIdsJan.has(caseNum);
-  if(sheet==="jul2025")return _sentIdsJul.has(caseNum);
+function _isSent(cn,sheet){
+  if(sheet==='jan2026')return _sentJan.has(cn);
+  if(sheet==='jul2025')return _sentJul.has(cn);
   return false;
 }
-function isSentSeasonal(jobId){ return _sentIdsSeasonal.has(jobId); }
-
-// Verifica se vaga está na fila do automático
-function isInAutoQueue(caseNum, jobId){
-  if(caseNum)return _autoQueueIds.has(caseNum)||_autoQueueIds.has("s_"+caseNum);
-  if(jobId)return _autoQueueIds.has(jobId);
+function _isSentSeasonal(id){return _sentSeasonal.has(id);}
+function _inAuto(cn,id){
+  if(cn)return _autoQueueIds.has(cn)||_autoQueueIds.has('s_'+cn);
+  if(id)return _autoQueueIds.has(id);
   return false;
 }
 
@@ -3402,7 +3416,7 @@ async function checkStatus(){
           try{localStorage.setItem('h2b_lang',d.language);}catch{}
         }
       }
-      showApp();syncData();checkAdminMsg();
+      showApp();syncData();checkAdminMsg();_loadSentIds();
       // Apply language AFTER showApp so all elements exist
       setTimeout(applyLang, 100);
       // Dispara setup automático de push após login (com delay para app carregar)
@@ -3411,7 +3425,6 @@ async function checkStatus(){
   }catch(e){console.warn("[boot]",e);showLanding();}
 }
 function showLanding(){g("#landing").style.display="flex";g("#app").style.display="none";}
-
 
 function renderOnboardChecklist(){/* removido */}
 
@@ -3875,10 +3888,9 @@ async function loadJobs(reset=false){
     const r=await fetch("/api/jobs?"+p,{credentials:"include"});const d=await r.json();
     let jobs=d.jobs||[];if(fWage>0)jobs=jobs.filter(j=>{const w=parseFloat((j.wage||"").replace(/[^0-9.]/g,""));return w>=fWage;});if(fWorkers>0)jobs=jobs.filter(j=>j.workers>=fWorkers);
     if(reset)g("#jlist").innerHTML="";
-    // Seasonal: filtra apenas vagas realmente enviadas (não as do auto)
-    const filteredSeasonalJobs=jobs.filter(j=>!isSentSeasonal(j.id));
-    if(!filteredSeasonalJobs.length&&!JOBS.length){done=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">Nenhuma vaga encontrada.</div>`;}
-    else if(filteredSeasonalJobs.length){filteredSeasonalJobs.forEach(j=>{JOBS.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkCard(j));});skip+=d.jobs.length;total=d.total||JOBS.length;if(d.jobs.length<PAGE){done=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadJobs()">Carregar mais</button></div>`;}
+    const _sj=jobs.filter(j=>!_isSentSeasonal(j.id));
+    if(!_sj.length&&!JOBS.length){done=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">Nenhuma vaga encontrada.</div>`;}
+    else if(_sj.length){_sj.forEach(j=>{JOBS.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkCard(j));});skip+=d.jobs.length;total=d.total||JOBS.length;if(d.jobs.length<PAGE){done=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadJobs()">Carregar mais</button></div>`;}
     const cnt=g("#jcount");if(cnt)cnt.innerHTML=`<strong>${total.toLocaleString()}</strong> vaga${total!==1?"s":""}`;const cc=g("#jfrom-cache");if(cc)cc.style.display=d.from_cache?"":"none";
     const sib=g("#sib-jobs");if(sib){sib.style.display="";sib.textContent=total>999?"999+":String(total);}
   }catch(e){g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--red)">Erro. <span style="cursor:pointer;text-decoration:underline" onclick="loadJobs()">Tentar novamente</span></div>`;}
@@ -3888,29 +3900,6 @@ async function loadJobs(reset=false){
 // ═══════════════════════════════════════════
 //  SHEET JOBS
 // ═══════════════════════════════════════════
-
-function _showSheetFilterWarning(sheet,inAutoCount,sentCount){
-  const existing=document.getElementById("sheet-filter-warn");
-  if(existing)existing.remove();
-  if(inAutoCount===0&&sentCount===0)return;
-  const bar=document.createElement("div");
-  bar.id="sheet-filter-warn";
-  bar.style.cssText="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 14px;margin:10px 14px 0;font-size:12px;color:#92400e;display:flex;align-items:flex-start;gap:10px";
-  let msg="";
-  if(inAutoCount>0&&sentCount>0){
-    msg=`<strong>${inAutoCount} vaga${inAutoCount!==1?"s":""} no automático</strong> e <strong>${sentCount} já enviada${sentCount!==1?"s":""}</strong> foram removidas desta listagem para evitar duplicatas.`;
-  } else if(inAutoCount>0){
-    msg=`<strong>${inAutoCount} vaga${inAutoCount!==1?"s":""}</strong> na fila do automático foram removidas desta listagem.`;
-  } else {
-    msg=`<strong>${sentCount} vaga${sentCount!==1?"s":""} já enviada${sentCount!==1?"s":""}</strong> foram removidas desta listagem.`;
-  }
-  bar.innerHTML=`<i class="ti ti-info-circle" style="font-size:16px;color:#f59e0b;flex-shrink:0;margin-top:1px"></i>
-    <div style="flex:1">${msg}</div>
-    <button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:#92400e;font-size:18px;padding:0;flex-shrink:0">×</button>`;
-  const jlist=document.getElementById("jlist");
-  if(jlist&&jlist.parentElement)jlist.parentElement.insertBefore(bar,jlist);
-}
-
 async function loadSheetMeta(reset=false){
   if(sLoading)return;sLoading=true;if(!reset)g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><span class="spin"></span></div>`;
   let _jobsToEnrich=[];
@@ -3920,20 +3909,18 @@ async function loadSheetMeta(reset=false){
     if(reset)g("#jlist").innerHTML="";
     if(!d.jobs?.length){sDone=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">${sJobs.length?"Sem mais vagas.":"Nenhuma vaga encontrada."}</div>`;}
     else{
-      // Filtrar vagas já enviadas e as que estão na fila do automático (só nas planilhas)
-      const filteredJobs=d.jobs.filter(j=>{
-        const cn=j.caseNum||j.id||"";
-        const sent=isSentSheet(cn,tab);
-        const inAuto=isInAutoQueue(cn,null);
-        return !sent&&!inAuto;
+      const _fj=d.jobs.filter(j=>{
+        const cn=j.caseNum||j.id||'';
+        return !_isSent(cn,tab)&&!_inAuto(cn,null);
       });
-      const removedCount=d.jobs.length-filteredJobs.length;
-      if(removedCount>0&&reset){
-        const inAutoCount=[..._autoQueueIds].length;
-        const sentCount=removedCount-Math.min(removedCount,inAutoCount);
-        _showSheetFilterWarning(tab,inAutoCount,sentCount);
+      const _removed=d.jobs.length-_fj.length;
+      if(_removed>0&&reset){
+        const bar=document.createElement('div');
+        bar.style.cssText='background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:10px 14px;margin:10px 14px 0;font-size:12px;color:#92400e;display:flex;gap:8px;align-items:center';
+        bar.innerHTML='<i class="ti ti-info-circle" style="font-size:15px;color:#f59e0b;flex-shrink:0"></i><span><strong>'+_removed+' vaga'+(_removed!==1?'s':'')+' ocultada'+(_removed!==1?'s':'')+'</strong> — já enviadas ou na fila do automático.</span>';
+        const jl=document.getElementById('jlist');if(jl?.parentElement)jl.parentElement.insertBefore(bar,jl);
       }
-      filteredJobs.forEach(j=>{sJobs.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkSheetCard(j));});
+      _fj.forEach(j=>{sJobs.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkSheetCard(j));});
       sSkip+=d.jobs.length;sTotal=d.total||sJobs.length;_jobsToEnrich=d.jobs;
       if(d.jobs.length<PAGE){sDone=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadSheetMeta()">Carregar mais</button></div>`;
     }
@@ -4311,9 +4298,9 @@ async function doSend(){
     closeModal();
     if(j?.id){
       APPLIED.add(j.id);
-        if(tab==="seasonal")_sentIdsSeasonal.add(j.id);
-        else if(tab==="jan2026")_sentIdsJan.add(j.caseNum||j.id);
-        else if(tab==="jul2025")_sentIdsJul.add(j.caseNum||j.id);
+        if(tab==="seasonal")_sentSeasonal.add(j.id);
+        else if(tab==="jan2026"&&(j.caseNum||j.id))_sentJan.add(j.caseNum||j.id);
+        else if(tab==="jul2025"&&(j.caseNum||j.id))_sentJul.add(j.caseNum||j.id);
       // Seasonal card: fade out e some
       const sc=g("#jcard-"+j.id);
       if(sc){sc.style.transition="opacity .3s ease";sc.style.opacity="0";setTimeout(()=>{sc.style.display="none";sc.style.opacity="";sc.style.transition="";},320);}
@@ -6221,9 +6208,8 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
 async function pauseAuto(){try{await fetch("/api/auto/pause",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:false,status:"paused"};updateAutoUI();updateLimChip();toast("Pausado","au");}catch(e){toast("Erro","r");}}
 async function resumeAuto(){try{await fetch("/api/auto/resume",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:true,status:"resuming"};updateAutoUI();updateLimChip();startAutoPolling();toast("Retomado ✓","g");}catch(e){toast("Erro","r");}}
 async function stopAuto(){
-  // Recarrega IDs enviados ao cancelar auto — vagas não enviadas voltam pro manual
-  setTimeout(()=>{loadSentIds();if(tab!=="seasonal")loadSheetMeta(true);},500);
-  if(!confirm("Parar o envio completamente?"))return;try{await fetch("/api/auto/stop",{method:"POST",credentials:"include"});U.autoJob=null;_autoQueueIds=new Set();_syncAutoQueueVisibility();clearInterval(autoInterval);autoInterval=null;if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado","r");// Recarrega perfis do servidor para garantir que não sumiram
+  setTimeout(async()=>{await _loadSentIds();if(tab!=="seasonal")loadSheetMeta(true);},600);
+if(!confirm("Parar o envio completamente?"))return;try{await fetch("/api/auto/stop",{method:"POST",credentials:"include"});U.autoJob=null;_autoQueueIds=new Set();_syncAutoQueueVisibility();clearInterval(autoInterval);autoInterval=null;if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado","r");// Recarrega perfis do servidor para garantir que não sumiram
 try{const pr=await fetch("/api/profiles",{credentials:"include"}).then(r=>r.json());UPROFILES=pr.profiles||[];if(U)U.profiles=UPROFILES;}catch{}
 }catch(e){toast("Erro","r");}}
 
@@ -6356,9 +6342,9 @@ function _getOAuthURL(){
   var ref=(new URLSearchParams(location.search)).get('ref')||window._pendingRefCode||'';
   return '/oauth/start'+(ref?'?ref='+encodeURIComponent(ref.trim().toUpperCase()):'');
 }
-function connectGmail(){location.href=_getOAuthURL();}
+function connectGmail(){showGoogleWarnModal();}
 function closeLoginWarn(){const ov=document.getElementById("login-warn-overlay");if(ov)ov.style.display="none";}
-function showLoginWarning(){location.href=_getOAuthURL();}
+function showLoginWarning(){showGoogleWarnModal();}
 async function loadPublicStats(){
   try{
     const r=await fetch("/api/public-stats");const d=await r.json();
@@ -6416,26 +6402,28 @@ async function doLogout(){closeDrawer();await fetch("/api/disconnect",{credentia
 function copyPix(){navigator.clipboard.writeText(PIX).then(()=>toast("Pix copiado ✓","g")).catch(()=>toast("Copie manualmente","r"));}
 
 async 
-function redeemCodeV2(){
-  const inp=document.getElementById('reward-code-input-v2');
+function doRedeemCode(){
+  const inp=document.getElementById('redeem-code-inp');
   const code=(inp?.value||'').trim().toUpperCase();
   if(!code){toast('Digite o código','r');return;}
   if(code.length!==8){toast('Código deve ter 8 caracteres','r');return;}
-  const btn=document.querySelector('#v-redeem .btn-auto');
-  const msgEl=document.getElementById('reward-msg-v2');
+  const btn=document.getElementById('redeem-btn');
+  const msgEl=document.getElementById('redeem-msg');
   if(btn)btn.disabled=true;
-  fetch('/api/redeem-code',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})})
+  fetch('/api/redeem-code',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({code})})
     .then(r=>r.json()).then(d=>{
       msgEl.style.display='block';
       if(d.ok){
-        msgEl.innerHTML='<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:12px;color:#15803d;font-weight:700;text-align:center">🎉 '+( d.message||'Código resgatado!')+'</div>';
-        inp.value='';
+        msgEl.innerHTML='<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:12px;color:#15803d;font-weight:700;text-align:center;font-size:14px">🎉 '+(d.message||'Código resgatado com sucesso!')+'</div>';
+        if(inp)inp.value='';
         toast(d.message||'Código resgatado!','g');
-        if(typeof loadUser==='function')loadUser();
+        if(typeof loadUser==='function')setTimeout(loadUser,500);
       }else{
-        msgEl.innerHTML='<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;color:#dc2626;font-weight:600;text-align:center">❌ '+(d.error||'Código inválido')+'</div>';
+        msgEl.innerHTML='<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;color:#dc2626;font-weight:600;text-align:center;font-size:13px">❌ '+(d.error||'Código inválido ou já utilizado')+'</div>';
       }
-    }).catch(()=>toast('Erro ao resgatar','r'))
+    }).catch(()=>toast('Erro de conexão. Tente novamente.','r'))
     .finally(()=>{if(btn)btn.disabled=false;});
 }
 
@@ -6509,6 +6497,22 @@ addEventListener("DOMContentLoaded",()=>{
 // Ícones PWA servidos como arquivos estáticos pelo servidor
 // icon-192.png, icon-512.png, apple-touch-icon.png, favicon-32.png
 // NÃO gerar ícone via canvas — usa os arquivos PNG reais do projeto
+
+
+var _tip=null;
+function showTip(el,html){
+  if(_tip){_tip.remove();_tip=null;}
+  var t=document.createElement('div');
+  t.className='tip-box';
+  t.innerHTML=html;
+  document.body.appendChild(t);
+  _tip=t;
+  var r=el.getBoundingClientRect(),tw=260;
+  var top=r.top>150?r.top-8-t.offsetHeight:r.bottom+8;
+  var left=Math.min(Math.max(r.left-tw/2+r.width/2,8),window.innerWidth-tw-8);
+  t.style.cssText+='top:'+top+'px;left:'+left+'px;width:'+tw+'px;position:fixed';
+  setTimeout(function(){document.addEventListener('click',function f(){if(_tip){_tip.remove();_tip=null;}document.removeEventListener('click',f);},{once:true});},50);
+}
 
 // Registro do Service Worker
 if("serviceWorker" in navigator){
@@ -7767,7 +7771,28 @@ function sendEmailReply(){
 }
 
 // ── Render Home ───────────────────────────────────────────
+
+function _welcome(){
+  try{if(localStorage.getItem('h2b_ok'))return;}catch(e){}
+  var hdr=document.querySelector('.home-header');
+  if(!hdr||document.getElementById('h2b-welcome'))return;
+  var b=document.createElement('div');
+  b.id='h2b-welcome';
+  b.style.cssText='margin:12px 14px 0;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:14px;padding:16px;position:relative';
+  b.innerHTML='<button onclick="this.parentElement.remove();try{localStorage.setItem('h2b_ok','1');}catch(e){}" style="position:absolute;top:8px;right:10px;background:none;border:none;color:rgba(255,255,255,.8);font-size:20px;cursor:pointer;padding:0;line-height:1">×</button>'+
+    '<div style="font-size:15px;font-weight:800;margin-bottom:10px">🚀 Bem-vindo ao H2BApply!</div>'+
+    '<div style="display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.55">'+
+    '<div style="display:flex;gap:8px"><span style="background:rgba(255,255,255,.25);border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">1</span><span>Vá em <strong>Perfil → Perfis de Email</strong> e configure seu currículo</span></div>'+
+    '<div style="display:flex;gap:8px"><span style="background:rgba(255,255,255,.25);border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">2</span><span>Acesse <strong>Envio Manual</strong> para escolher vagas e candidatar</span></div>'+
+    '<div style="display:flex;gap:8px"><span style="background:rgba(255,255,255,.25);border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">3</span><span>Ative o <strong>Envio Automático</strong> para candidaturas no piloto automático 24h</span></div>'+
+    '<div style="display:flex;gap:8px"><span style="background:rgba(255,255,255,.25);border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">4</span><span>Acompanhe as <strong>Respostas</strong> quando empresas americanas te responderem</span></div>'+
+    '</div>';
+  hdr.insertAdjacentElement('afterend',b);
+}
+
 function renderHome(){
+  _welcome();
+
   // Saudação por hora
   const hr=new Date().getHours();
   const gr=hr>=6&&hr<12?"☀️ Bom dia":hr>=12&&hr<18?"🌤️ Boa tarde":hr>=18?"🌙 Boa noite":"🌙 Madrugada";
@@ -9351,7 +9376,7 @@ strong,b{font-weight:700;color:inherit}
                 <span>Ranking e métricas em tempo real</span>
               </div>
             </div>
-            <button class="ln-cta-btn" onclick="location.href=_getOAuthURL()" style="font-size:14px;padding:12px 20px;width:100%">
+            <button class="ln-cta-btn" onclick="showGoogleWarnModal()" style="font-size:14px;padding:12px 20px;width:100%">
               <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
               Ativar o automático agora
             </button>
@@ -9537,12 +9562,12 @@ console.log('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas');
       <div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:8px;color:var(--navy)">Complete seu Perfil</div>
       <div style="font-size:13px;color:var(--t2);text-align:center;margin-bottom:20px;line-height:1.6">Estas informações serão usadas automaticamente nos seus e-mails de candidatura.</div>
       <div class="field-row" style="margin-bottom:10px">
-        <div class="field"><label>Nome completo *</label><input class="input" id="ob-name" type="text" placeholder="Seu nome completo"></div>
-        <div class="field"><label>WhatsApp</label><input class="input" id="ob-phone" type="tel" inputmode="tel" placeholder="+55 11 99999-9999"></div>
+        <div class="field"><label>Nome completo * <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Nome completo</strong><br>Aparece automaticamente em todos os e-mails enviados. Use exatamente como no passaporte.')">?</span></label><input class="input" id="ob-name" type="text" placeholder="Seu nome completo"></div>
+        <div class="field"><label>WhatsApp <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>WhatsApp</strong><br>Seu número com DDI. Ex: +55 85 99999-9999.<br>Aparece na assinatura dos e-mails para empregadores te ligarem diretamente.')">?</span></label><input class="input" id="ob-phone" type="tel" inputmode="tel" placeholder="+55 11 99999-9999"></div>
       </div>
       <div class="field-row" style="margin-bottom:10px">
         <div class="field"><label>Cidade</label><input class="input" id="ob-city" type="text" placeholder="Sua cidade"></div>
-        <div class="field"><label>País</label><input class="input" id="ob-country" type="text" placeholder="Brazil" value="Brazil"></div>
+        <div class="field"><label>País <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>País de origem</strong><br>Usado no modelo de e-mail. Escreva em inglês: <strong>Brazil</strong>')">?</span></label><input class="input" id="ob-country" type="text" placeholder="Brazil" value="Brazil"></div>
       </div>
       
       <button onclick="obSavePersonal()" class="btn btn-primary w100" style="padding:13px;font-size:14px">Continuar →</button>
@@ -9620,50 +9645,16 @@ Best regards,
   </div>
 </div>
 
-<script>
-(function(){
-  var _splashHidden=false;
-  function hideSplash(){
-    if(_splashHidden)return;
-    _splashHidden=true;
-    var s=document.getElementById('splash-screen');
-    if(!s)return;
-    s.style.opacity='0';
-    setTimeout(function(){s&&s.remove();},420);
-  }
-  // Observa quando landing ou app ficam visíveis
-  var _obs=new MutationObserver(function(){
-    var landing=document.getElementById('landing');
-    var app=document.getElementById('app');
-    if((landing&&landing.style.display!=='none'&&landing.style.display!=='')||
-       (app&&app.style.display!=='none'&&app.style.display!=='')){
-      hideSplash();
-    }
-  });
-  document.addEventListener('DOMContentLoaded',function(){
-    var landing=document.getElementById('landing');
-    var app=document.getElementById('app');
-    if(landing)_obs.observe(landing,{attributes:true,attributeFilter:['style']});
-    if(app)_obs.observe(app,{attributes:true,attributeFilter:['style']});
-    // Fallback: esconde após 3s no máximo
-    setTimeout(hideSplash,3000);
-  });
-})();
-</script>
-
-
-<div id="google-warn-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px">
+<div id="gwm" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px">
   <div style="background:#fff;border-radius:20px;max-width:420px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)">
     <div style="text-align:center;margin-bottom:16px">
-      <div style="width:56px;height:56px;border-radius:50%;background:#fef9c3;border:2px solid #fbbf24;display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
-        <i class="ti ti-shield-exclamation" style="font-size:26px;color:#d97706"></i>
-      </div>
+      <div style="width:56px;height:56px;border-radius:50%;background:#fef9c3;border:2px solid #fbbf24;display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><i class="ti ti-shield-exclamation" style="font-size:26px;color:#d97706"></i></div>
       <div style="font-size:17px;font-weight:800;color:#0f172a">Aviso antes de continuar</div>
     </div>
     <div style="background:#f8fafc;border-radius:10px;padding:14px;font-size:13px;color:#374151;line-height:1.6;margin-bottom:14px">
-      <p style="margin-bottom:8px">O sistema está em <strong>verificação oficial pelo Google</strong>. Pode aparecer um aviso de segurança no login.</p>
+      <p style="margin-bottom:8px">O sistema está em <strong>verificação oficial pelo Google</strong>. Pode aparecer um aviso de segurança.</p>
       <p style="margin-bottom:10px;color:#059669;font-weight:600">✅ O site é confiável e usado pela comunidade H2B.</p>
-      <p style="margin-bottom:6px;font-size:12px">Dúvidas? Procure no YouTube: <strong>Diego H2B</strong> ou <strong>Canal Diego Cardoso</strong></p>
+      <p style="margin-bottom:6px;font-size:12px;color:#6b7280">Dúvidas? YouTube: <strong>Diego H2B</strong> ou <strong>Canal Diego Cardoso</strong></p>
       <div style="border-top:1px solid #e2e8f0;padding-top:10px;margin-top:10px;font-size:12px">
         <p style="font-weight:700;margin-bottom:6px">Nos próximos passos do Google:</p>
         <p>1. Clique em <strong>"Avançado"</strong></p>
@@ -9672,16 +9663,16 @@ Best regards,
       </div>
     </div>
     <div style="display:flex;gap:8px">
-      <button onclick="document.getElementById('google-warn-modal').style.display='none'" style="flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#6b7280;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancelar</button>
-      <button id="gwm-continue" style="flex:2;padding:10px;border:none;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Entendi, Continuar →</button>
+      <button onclick="document.getElementById('gwm').style.display='none'" style="flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#6b7280;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancelar</button>
+      <button id="gwm-ok" style="flex:2;padding:10px;border:none;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Entendi, Continuar →</button>
     </div>
   </div>
 </div>
 <script>
 function showGoogleWarnModal(){
-  var m=document.getElementById('google-warn-modal');
+  var m=document.getElementById('gwm');
   m.style.display='flex';
-  document.getElementById('gwm-continue').onclick=function(){
+  document.getElementById('gwm-ok').onclick=function(){
     m.style.display='none';
     location.href=_getOAuthURL();
   };
