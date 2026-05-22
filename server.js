@@ -2298,6 +2298,20 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
   }
 
 
+
+  if(pathname==="/api/accept-terms"&&req.method==="POST"){
+    try{
+      const s2=getSess(req);
+      const d=JSON.parse(await readBody(req));
+      const ip=(req.headers["x-forwarded-for"]||"").split(",")[0].trim()||"unknown";
+      if(s2?.user_email){
+        setUser(s2.user_email,{termsAccepted:{version:d.version||"2.0",ts:Date.now(),date:new Date().toISOString(),ip}});
+        console.log("[terms] Aceite:",s2.user_email,d.version,ip);
+      }
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,200,{ok:true});}
+  }
+
   if(pathname==="/api/sent-ids"&&req.method==="GET"){
     const s2=getSess(req);if(!s2?.user_email)return json(res,401,{error:"Não autenticado."});
     const hist=getHist(s2.user_email);

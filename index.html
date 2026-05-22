@@ -1300,6 +1300,41 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 }
 
 </style>
+
+<style id="terms-css">
+#terms-overlay{position:fixed;inset:0;z-index:99997;background:rgba(10,14,30,.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:16px}
+#terms-box{background:#fff;border-radius:20px;max-width:520px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.4);overflow:hidden}
+#terms-header{background:linear-gradient(135deg,#0d1b4b,#1e3a8a);padding:20px 24px;flex-shrink:0}
+#terms-header h2{color:#fff;font-family:'Sora',sans-serif;font-size:18px;font-weight:800;margin:0 0 4px}
+#terms-header p{color:rgba(255,255,255,.7);font-size:12px;margin:0}
+#terms-body{overflow-y:auto;padding:20px 24px;flex:1;font-size:13px;color:#374151;line-height:1.65}
+#terms-body h3{font-size:11px;font-weight:800;color:#0d1b4b;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 6px;padding-bottom:4px;border-bottom:1.5px solid #e5e7eb}
+#terms-body h3:first-child{margin-top:0}
+#terms-body p{margin-bottom:8px}
+#terms-body ul{margin:6px 0 10px 16px;padding:0}
+#terms-body ul li{margin-bottom:4px}
+.terms-warning{background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:#991b1b;font-weight:600;text-align:center}
+.terms-highlight{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:#1e40af}
+#terms-footer{padding:16px 24px;border-top:1.5px solid #e5e7eb;flex-shrink:0;background:#f9fafb}
+#terms-scroll-hint{font-size:11px;color:#9ca3af;text-align:center;margin-bottom:10px}
+#terms-check-row{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;cursor:pointer}
+#terms-check-row input[type=checkbox]{width:18px;height:18px;margin-top:1px;flex-shrink:0;accent-color:#4f46e5;cursor:pointer}
+#terms-check-label{font-size:12px;color:#374151;line-height:1.5;cursor:pointer;user-select:none}
+#terms-btns{display:flex;gap:10px}
+#terms-decline{flex:1;padding:11px;border:1.5px solid #e5e7eb;border-radius:10px;background:#fff;color:#6b7280;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+#terms-accept{flex:2;padding:11px;border:none;border-radius:10px;background:#e5e7eb;color:#9ca3af;font-size:14px;font-weight:700;cursor:not-allowed;font-family:inherit;transition:all .2s}
+#terms-accept.active{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;cursor:pointer}
+</style>
+
+
+<style id="tooltip-css">
+.tip-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(139,92,246,.15);color:#7c3aed;font-size:10px;font-weight:800;cursor:pointer;border:1.5px solid rgba(139,92,246,.3);flex-shrink:0;transition:all .18s;vertical-align:middle;margin-left:4px;line-height:1}
+.tip-icon:hover{background:#7c3aed;color:#fff}
+.tip-box{position:fixed;z-index:9990;background:#1e1b4b;color:#fff;border-radius:12px;padding:12px 14px;font-size:12px;line-height:1.6;max-width:260px;box-shadow:0 8px 32px rgba(0,0,0,.35);animation:tipIn .18s ease both;pointer-events:none}
+.tip-box strong{color:#a78bfa}
+@keyframes tipIn{0%{opacity:0;transform:scale(.92)}100%{opacity:1;transform:scale(1)}}
+</style>
+
 </head>
 <body>
 <div id="h2b-splash" style="position:fixed;inset:0;z-index:99999;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .4s ease;pointer-events:none">
@@ -2097,12 +2132,12 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-bottom:12px">
               <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px">Dados pessoais</div>
               <div class="field-row">
-                <div class="field"><label>Nome completo *</label><input class="input" id="cfg-name" type="text" placeholder="Seu nome completo"></div>
-                <div class="field"><label>País</label><input class="input" id="cfg-country" type="text" placeholder="Brazil"></div>
+                <div class="field"><label>Nome completo * <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Nome completo</strong><br>Aparece automaticamente em todos os e-mails enviados. Use exatamente como no passaporte.')">?</span></label><input class="input" id="cfg-name" type="text" placeholder="Seu nome completo"></div>
+                <div class="field"><label>País <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>País de origem</strong><br>Escreva em inglês: <strong>Brazil</strong>. Aparece no modelo de e-mail.')">?</span></label><input class="input" id="cfg-country" type="text" placeholder="Brazil"></div>
               </div>
               <div class="field-row">
                 <div class="field"><label>Cidade</label><input class="input" id="cfg-city" type="text"></div>
-                <div class="field"><label>WhatsApp</label><input class="input" id="cfg-phone" type="tel" inputmode="tel"></div>
+                <div class="field"><label>WhatsApp <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>WhatsApp</strong><br>Com DDI. Ex: +55 85 99999-9999.<br>Aparece na assinatura dos e-mails.')">?</span></label><input class="input" id="cfg-phone" type="tel" inputmode="tel"></div>
               </div>
               <div class="field-row">
                 
@@ -3304,6 +3339,32 @@ let U={connected:false,email:"",name:"",picture:"",isAdmin:false,plan:"free",vip
 let CFG={name:"",country:"Brazil",phone:"",city:"",language:"pt-BR",subject:"",body:""};
 let DOCS=[],activeResIdx=null,activeCovIdx=null;
 let JOBS=[],HIST=[],SAVED=new Set(),APPLIED=new Set();
+
+// ── Sistema de filtro de vagas ──
+var _sentJan=new Set(),_sentJul=new Set(),_sentSeasonal=new Set(),_sentLoaded=false;
+
+async function _loadSentIds(){
+  try{
+    var r=await fetch("/api/sent-ids",{credentials:"include"});
+    if(!r.ok)return;
+    var d=await r.json();
+    _sentJan=new Set(d.jan2026||[]);
+    _sentJul=new Set(d.jul2025||[]);
+    _sentSeasonal=new Set(d.seasonal||[]);
+    _sentLoaded=true;
+  }catch(e){}
+}
+function _isSent(cn,sheet){
+  if(sheet==="jan2026")return _sentJan.has(cn);
+  if(sheet==="jul2025")return _sentJul.has(cn);
+  return false;
+}
+function _isSentSeasonal(id){return _sentSeasonal.has(id);}
+function _inAuto(cn){
+  return _autoQueueIds.has(cn)||_autoQueueIds.has("s_"+cn)||
+         [..._autoQueueIds].some(function(id){return id===cn;});
+}
+
 let _autoQueueIds=new Set(); // IDs de vagas na fila automática (ocultas do manual)
 let selJob=null,curJob=null;
 let _currentModalJob=null; // alias para curJob — atualizado por openModal
@@ -3351,7 +3412,7 @@ async function checkStatus(){
           try{localStorage.setItem('h2b_lang',d.language);}catch{}
         }
       }
-      showApp();syncData();checkAdminMsg();
+      showApp();syncData();checkAdminMsg();_loadSentIds();
       // Apply language AFTER showApp so all elements exist
       setTimeout(applyLang, 100);
       // Dispara setup automático de push após login (com delay para app carregar)
@@ -3823,8 +3884,9 @@ async function loadJobs(reset=false){
     const r=await fetch("/api/jobs?"+p,{credentials:"include"});const d=await r.json();
     let jobs=d.jobs||[];if(fWage>0)jobs=jobs.filter(j=>{const w=parseFloat((j.wage||"").replace(/[^0-9.]/g,""));return w>=fWage;});if(fWorkers>0)jobs=jobs.filter(j=>j.workers>=fWorkers);
     if(reset)g("#jlist").innerHTML="";
-    if(!jobs.length&&!JOBS.length){done=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">Nenhuma vaga encontrada.</div>`;}
-    else if(jobs.length){jobs.forEach(j=>{JOBS.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkCard(j));});skip+=d.jobs.length;total=d.total||JOBS.length;if(d.jobs.length<PAGE){done=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadJobs()">Carregar mais</button></div>`;}
+    var _sj=jobs.filter(function(j){return !_isSentSeasonal(j.id);});
+    if(!_sj.length&&!JOBS.length){done=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">Nenhuma vaga encontrada.</div>`;}
+    else if(_sj.length){_sj.forEach(function(j){JOBS.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkCard(j));});skip+=d.jobs.length;total=d.total||JOBS.length;if(d.jobs.length<PAGE){done=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadJobs()">Carregar mais</button></div>`;}
     const cnt=g("#jcount");if(cnt)cnt.innerHTML=`<strong>${total.toLocaleString()}</strong> vaga${total!==1?"s":""}`;const cc=g("#jfrom-cache");if(cc)cc.style.display=d.from_cache?"":"none";
     const sib=g("#sib-jobs");if(sib){sib.style.display="";sib.textContent=total>999?"999+":String(total);}
   }catch(e){g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--red)">Erro. <span style="cursor:pointer;text-decoration:underline" onclick="loadJobs()">Tentar novamente</span></div>`;}
@@ -3843,7 +3905,27 @@ async function loadSheetMeta(reset=false){
     if(reset)g("#jlist").innerHTML="";
     if(!d.jobs?.length){sDone=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">${sJobs.length?"Sem mais vagas.":"Nenhuma vaga encontrada."}</div>`;}
     else{
-      d.jobs.forEach(j=>{sJobs.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkSheetCard(j));});
+      // Filtrar vagas já enviadas e as que estão no automático
+      var _fj=d.jobs.filter(function(j){
+        var cn=j.caseNum||j.id||"";
+        return !_isSent(cn,tab)&&!_inAuto(cn);
+      });
+      var _removed=d.jobs.length-_fj.length;
+      if(_removed>0&&reset){
+        // Mostrar aviso de vagas removidas
+        var _existing=document.getElementById("sheet-filter-warn");
+        if(_existing)_existing.remove();
+        var _bar=document.createElement("div");
+        _bar.id="sheet-filter-warn";
+        _bar.style.cssText="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:10px 14px;margin:10px 14px 0;font-size:12px;color:#92400e;display:flex;gap:8px;align-items:center";
+        var _inAutoCount=[..._autoQueueIds].filter(function(id){return id&&id.length>3;}).length;
+        var _msg=_inAutoCount>0
+          ? _inAutoCount+" vaga"+(_inAutoCount!==1?"s":"")+" na fila do automático foram removidas desta listagem para evitar duplicatas."
+          : _removed+" vaga"+(_removed!==1?"s enviadas foram removidas":' enviada foi removida')+" desta listagem.";
+        _bar.innerHTML="<i class='ti ti-info-circle' style='font-size:15px;color:#f59e0b;flex-shrink:0'></i><span>"+_msg+"</span><button onclick='this.parentElement.remove()' style='background:none;border:none;cursor:pointer;color:#92400e;font-size:18px;padding:0;margin-left:auto;flex-shrink:0'>×</button>";
+        var _jl=document.getElementById("jlist");if(_jl&&_jl.parentElement)_jl.parentElement.insertBefore(_bar,_jl);
+      }
+      _fj.forEach(function(j){sJobs.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkSheetCard(j));});
       sSkip+=d.jobs.length;sTotal=d.total||sJobs.length;_jobsToEnrich=d.jobs;
       if(d.jobs.length<PAGE){sDone=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadSheetMeta()">Carregar mais</button></div>`;
     }
@@ -4221,6 +4303,9 @@ async function doSend(){
     closeModal();
     if(j?.id){
       APPLIED.add(j.id);
+        if(tab==="seasonal")_sentSeasonal.add(j.id);
+        else if(tab==="jan2026"&&(j.caseNum||j.id))_sentJan.add(j.caseNum||j.id);
+        else if(tab==="jul2025"&&(j.caseNum||j.id))_sentJul.add(j.caseNum||j.id);
       // Seasonal card: fade out e some
       const sc=g("#jcard-"+j.id);
       if(sc){sc.style.transition="opacity .3s ease";sc.style.opacity="0";setTimeout(()=>{sc.style.display="none";sc.style.opacity="";sc.style.transition="";},320);}
@@ -6127,7 +6212,9 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
 
 async function pauseAuto(){try{await fetch("/api/auto/pause",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:false,status:"paused"};updateAutoUI();updateLimChip();toast("Pausado","au");}catch(e){toast("Erro","r");}}
 async function resumeAuto(){try{await fetch("/api/auto/resume",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:true,status:"resuming"};updateAutoUI();updateLimChip();startAutoPolling();toast("Retomado ✓","g");}catch(e){toast("Erro","r");}}
-async function stopAuto(){if(!confirm("Parar o envio completamente?"))return;try{await fetch("/api/auto/stop",{method:"POST",credentials:"include"});U.autoJob=null;_autoQueueIds=new Set();_syncAutoQueueVisibility();clearInterval(autoInterval);autoInterval=null;if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado","r");// Recarrega perfis do servidor para garantir que não sumiram
+async function stopAuto(){
+  setTimeout(async function(){await _loadSentIds();if(tab!=="seasonal")loadSheetMeta(true);},600);
+if(!confirm("Parar o envio completamente?"))return;try{await fetch("/api/auto/stop",{method:"POST",credentials:"include"});U.autoJob=null;_autoQueueIds=new Set();_syncAutoQueueVisibility();clearInterval(autoInterval);autoInterval=null;if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado","r");// Recarrega perfis do servidor para garantir que não sumiram
 try{const pr=await fetch("/api/profiles",{credentials:"include"}).then(r=>r.json());UPROFILES=pr.profiles||[];if(U)U.profiles=UPROFILES;}catch{}
 }catch(e){toast("Erro","r");}}
 
@@ -7676,6 +7763,8 @@ function sendEmailReply(){
 
 // ── Render Home ───────────────────────────────────────────
 function renderHome(){
+  _showWelcome();
+
   // Saudação por hora
   const hr=new Date().getHours();
   const gr=hr>=6&&hr<12?"☀️ Bom dia":hr>=12&&hr<18?"🌤️ Boa tarde":hr>=18?"🌙 Boa noite":"🌙 Madrugada";
@@ -9445,12 +9534,12 @@ console.log('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas');
       <div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:8px;color:var(--navy)">Complete seu Perfil</div>
       <div style="font-size:13px;color:var(--t2);text-align:center;margin-bottom:20px;line-height:1.6">Estas informações serão usadas automaticamente nos seus e-mails de candidatura.</div>
       <div class="field-row" style="margin-bottom:10px">
-        <div class="field"><label>Nome completo *</label><input class="input" id="ob-name" type="text" placeholder="Seu nome completo"></div>
-        <div class="field"><label>WhatsApp</label><input class="input" id="ob-phone" type="tel" inputmode="tel" placeholder="+55 11 99999-9999"></div>
+        <div class="field"><label>Nome completo * <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Nome completo</strong><br>Aparece automaticamente em todos os e-mails enviados. Use exatamente como no passaporte.')">?</span></label><input class="input" id="ob-name" type="text" placeholder="Seu nome completo"></div>
+        <div class="field"><label>WhatsApp <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>WhatsApp</strong><br>Com DDI. Ex: +55 85 99999-9999.<br>Aparece na assinatura dos e-mails.')">?</span></label><input class="input" id="ob-phone" type="tel" inputmode="tel" placeholder="+55 11 99999-9999"></div>
       </div>
       <div class="field-row" style="margin-bottom:10px">
         <div class="field"><label>Cidade</label><input class="input" id="ob-city" type="text" placeholder="Sua cidade"></div>
-        <div class="field"><label>País</label><input class="input" id="ob-country" type="text" placeholder="Brazil" value="Brazil"></div>
+        <div class="field"><label>País <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>País de origem</strong><br>Escreva em inglês: <strong>Brazil</strong>. Aparece no modelo de e-mail.')">?</span></label><input class="input" id="ob-country" type="text" placeholder="Brazil" value="Brazil"></div>
       </div>
       
       <button onclick="obSavePersonal()" class="btn btn-primary w100" style="padding:13px;font-size:14px">Continuar →</button>
@@ -9559,6 +9648,165 @@ function showGoogleWarnModal(){
     m.style.display="none";
     location.href=_getOAuthURL();
   };
+}
+</script>
+
+
+<div id="terms-overlay">
+  <div id="terms-box">
+    <div id="terms-header">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="ti ti-file-certificate" style="font-size:24px;color:#fff"></i>
+        </div>
+        <div><h2>Termos de Uso</h2><p>Leia atentamente · Versão 2.0 · 22/05/2026</p></div>
+      </div>
+      <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;font-size:11px;color:rgba(255,255,255,.85);display:flex;align-items:center;gap:8px">
+        <i class="ti ti-lock" style="font-size:14px;flex-shrink:0"></i>
+        Seu aceite será registrado com data, hora e identificador para fins legais.
+      </div>
+    </div>
+    <div id="terms-body">
+      <div class="terms-warning">⚠️ LEIA INTEGRALMENTE. AO CONTINUAR, VOCÊ CONCORDA LEGALMENTE COM ESTES TERMOS.</div>
+      <div class="terms-highlight"><strong>📋 Resumo:</strong> H2BApply é uma plataforma de <strong>tecnologia para automação de candidaturas</strong>. Não somos agência, escritório de advocacia, nem garantimos emprego, visto ou entrada nos EUA.</div>
+      <h3>1. Natureza da Plataforma</h3>
+      <p>A <strong>H2BApply</strong> é uma plataforma tecnológica privada. <strong>NÃO é</strong>: agência governamental, escritório de advocacia, consultoria migratória, empregadora, patrocinadora de vistos, nem representante do USCIS, DOL, DOS, CBP ou qualquer autoridade migratória.</p>
+      <h3>2. Elegibilidade</h3>
+      <ul><li>Mínimo <strong>18 anos de idade</strong></li><li>Plena capacidade legal para contratar</li><li>Uso exclusivo para fins lícitos</li><li>Informações verdadeiras e completas</li><li>Não utilizará identidade falsa ou documentos fraudulentos</li></ul>
+      <h3>3. Ausência de Garantias</h3>
+      <p>A H2BApply <strong>NÃO garante</strong>: contratação, entrevista, aprovação de visto, autorização migratória, entrada nos EUA, sucesso financeiro ou resposta de empregadores. Toda decisão depende exclusivamente de empregadores, consulados e autoridades governamentais.</p>
+      <h3>4. Automação e Uso do Gmail</h3>
+      <p>Ao ativar o envio automático, você autoriza o envio de e-mails em seu nome via Gmail. Você reconhece que: podem ocorrer falhas técnicas; o Google pode bloquear sua conta por volume de envios; você assume responsabilidade integral pelos dados transmitidos.</p>
+      <h3>5. Condutas Proibidas</h3>
+      <ul><li>Documentos falsos ou adulterados</li><li>Fraude migratória ou trabalhista</li><li>Spam ou comunicações ilegais</li><li>Engenharia reversa ou exploração comercial da plataforma</li><li>Violação de leis brasileiras, americanas ou internacionais</li></ul>
+      <h3>6. Privacidade e LGPD</h3>
+      <p>Coletamos: nome, e-mail, currículo, histórico de candidaturas, IP e dados de acesso, em conformidade com a <strong>LGPD (Lei 13.709/2018)</strong>. Dados <strong>NÃO são vendidos</strong> a terceiros. Usados para prestação dos serviços e segurança.</p>
+      <h3>7. Limitação de Responsabilidade</h3>
+      <p>A H2BApply não se responsabiliza por: deportação, recusa de visto, prejuízos financeiros, bloqueios de conta Gmail, fraudes de terceiros ou indisponibilidade do sistema. Responsabilidade máxima limitada ao <strong>valor pago nos últimos 12 meses</strong>.</p>
+      <h3>8. Indenização pelo Usuário</h3>
+      <p>Você concorda em indenizar a H2BApply por reclamações decorrentes de uso indevido, informações falsas ou violação destes termos.</p>
+      <h3>9. Suspensão de Conta</h3>
+      <p>A H2BApply pode suspender contas por fraude, abuso ou violação destes termos, sem aviso prévio e sem reembolso.</p>
+      <h3>10. Alterações e Legislação</h3>
+      <p>Termos podem ser alterados com aviso de 7 dias. Regidos pela <strong>legislação brasileira</strong>. Foro: domicílio do usuário.</p>
+      <div class="terms-highlight" style="margin-top:14px;border-color:#d1fae5;background:#f0fdf4">
+        <strong style="color:#065f46">✅ Versão 2.0 — 22 de maio de 2026</strong><br>
+        <span style="color:#047857;font-size:11px">Contato: Instagram @andrio.k e @diego.cardoso_oficial</span>
+      </div>
+    </div>
+    <div id="terms-footer">
+      <p id="terms-scroll-hint">↕ Role até o final para habilitar o aceite</p>
+      <div id="terms-check-row" onclick="termsToggleCheck()">
+        <input type="checkbox" id="terms-checkbox" onclick="event.stopPropagation();termsToggleCheck()">
+        <label id="terms-check-label">Li integralmente e <strong>aceito os Termos de Uso</strong> da H2BApply (v2.0), incluindo a ausência de garantias de emprego ou visto, autorização de envio automático via Gmail, e minha responsabilidade pelos dados enviados. Tenho ao menos 18 anos.</label>
+      </div>
+      <div id="terms-btns">
+        <button id="terms-decline" onclick="termsDecline()">Não aceito</button>
+        <button id="terms-accept" onclick="termsAccept()"><i class="ti ti-shield-check"></i> Aceito e Continuar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var _termsChecked=false,_termsScrolled=false,_termsCallback=null;
+function showTerms(callback){
+  try{
+    var a=localStorage.getItem("h2b_terms_v2");
+    if(a){var d=JSON.parse(a);if(d.accepted&&d.ts&&(Date.now()-d.ts)<365*86400000){if(callback)callback();return;}}
+  }catch(e){}
+  _termsCallback=callback||null;_termsChecked=false;_termsScrolled=false;
+  var chk=document.getElementById("terms-checkbox");if(chk)chk.checked=false;
+  var btn=document.getElementById("terms-accept");if(btn)btn.classList.remove("active");
+  var hint=document.getElementById("terms-scroll-hint");if(hint)hint.style.display="";
+  var row=document.getElementById("terms-check-row");if(row)row.style.opacity=".5";
+  var overlay=document.getElementById("terms-overlay");if(overlay)overlay.style.display="flex";
+  var body=document.getElementById("terms-body");
+  if(body){
+    body.scrollTop=0;
+    body.onscroll=function(){
+      if(!_termsScrolled&&body.scrollTop+body.clientHeight>=body.scrollHeight-40){
+        _termsScrolled=true;
+        var h=document.getElementById("terms-scroll-hint");if(h)h.style.display="none";
+        var r=document.getElementById("terms-check-row");if(r)r.style.opacity="1";
+      }
+    };
+  }
+}
+function termsToggleCheck(){
+  if(!_termsScrolled){
+    var body=document.getElementById("terms-body");
+    if(body)body.scrollTo({top:body.scrollHeight,behavior:"smooth"});
+    return;
+  }
+  _termsChecked=!_termsChecked;
+  var chk=document.getElementById("terms-checkbox");if(chk)chk.checked=_termsChecked;
+  var btn=document.getElementById("terms-accept");
+  if(btn){if(_termsChecked)btn.classList.add("active");else btn.classList.remove("active");}
+}
+function termsAccept(){
+  if(!_termsChecked)return;
+  try{
+    localStorage.setItem("h2b_terms_v2",JSON.stringify({
+      accepted:true,ts:Date.now(),date:new Date().toISOString(),version:"2.0",
+      ua:navigator.userAgent.slice(0,200)
+    }));
+    fetch("/api/accept-terms",{method:"POST",credentials:"include",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({version:"2.0",ts:Date.now()})
+    }).catch(function(){});
+  }catch(e){}
+  var overlay=document.getElementById("terms-overlay");if(overlay)overlay.style.display="none";
+  if(_termsCallback)_termsCallback();
+  _termsCallback=null;
+}
+function termsDecline(){
+  var overlay=document.getElementById("terms-overlay");if(overlay)overlay.style.display="none";
+  _termsCallback=null;
+  if(typeof toast==="function")toast("Você precisa aceitar os Termos para usar a H2BApply.","r");
+}
+// Interceptar modal do Google para mostrar termos primeiro
+var _origGwm=window.showGoogleWarnModal;
+window.showGoogleWarnModal=function(){
+  showTerms(function(){if(_origGwm)_origGwm();else location.href="/oauth/start";});
+};
+</script>
+
+
+<script id="tooltip-js">
+var _tip=null;
+function showTip(el,html){
+  if(_tip){_tip.remove();_tip=null;}
+  var t=document.createElement("div");
+  t.className="tip-box";t.innerHTML=html;
+  document.body.appendChild(t);_tip=t;
+  var r=el.getBoundingClientRect(),tw=260;
+  var top=r.top>150?r.top-8-120:r.bottom+8;
+  var left=Math.min(Math.max(r.left-tw/2+r.width/2,8),window.innerWidth-tw-8);
+  t.style.cssText+="top:"+top+"px;left:"+left+"px;width:"+tw+"px;position:fixed";
+  setTimeout(function(){document.addEventListener("click",function _hd(){if(_tip){_tip.remove();_tip=null;}document.removeEventListener("click",_hd);},{once:true});},50);
+}
+
+// Banner boas-vindas (1ª vez)
+function _showWelcome(){
+  try{if(localStorage.getItem("h2b_ok"))return;}catch(e){}
+  var hdr=document.querySelector(".home-header");
+  if(!hdr||document.getElementById("h2b-welcome"))return;
+  var b=document.createElement("div");
+  b.id="h2b-welcome";
+  b.style.cssText="margin:12px 14px 0;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:14px;padding:16px;position:relative";
+  var close=document.createElement("button");
+  close.style.cssText="position:absolute;top:8px;right:10px;background:none;border:none;color:rgba(255,255,255,.8);font-size:20px;cursor:pointer;padding:0;line-height:1";
+  close.textContent="×";
+  close.onclick=function(){b.remove();try{localStorage.setItem("h2b_ok","1");}catch(e){}};
+  b.appendChild(close);
+  var steps=["Vá em <strong>Perfil → Perfis de Email</strong> e configure seu currículo","Acesse <strong>Envio Manual</strong> para escolher vagas e candidatar","Ative o <strong>Envio Automático</strong> para candidaturas 24h no piloto automático","Acompanhe as <strong>Respostas</strong> quando empresas americanas te responderem"];
+  var inner=document.createElement("div");
+  inner.innerHTML="<div style='font-size:15px;font-weight:800;margin-bottom:10px'>🚀 Bem-vindo ao H2BApply!</div><div style='display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.55'>"+
+    steps.map(function(s,i){return "<div style='display:flex;gap:8px'><span style='background:rgba(255,255,255,.25);border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800'>"+(i+1)+"</span><span>"+s+"</span></div>";}).join("")+
+    "</div>";
+  b.appendChild(inner);
+  hdr.insertAdjacentElement("afterend",b);
 }
 </script>
 
