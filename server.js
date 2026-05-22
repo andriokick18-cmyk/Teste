@@ -1612,7 +1612,22 @@ function rateLimit(k,max,ms){const n=Date.now();if(!rateMap[k]||rateMap[k].r<n)r
 const makeCookieStr=id=>{const b=`h2b_session=${id}; Path=/; HttpOnly; Max-Age=${7*86400}`;return IS_PROD?b+"; Secure; SameSite=Lax":b+"; SameSite=Lax";};
 const clearCookieStr=()=>{const b="h2b_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT";return IS_PROD?b+"; Secure; SameSite=Lax":b;};
 const getSessId=req=>{const m=(req.headers.cookie||"").match(/(?:^|;\s*)h2b_session=([^;]+)/);return m?m[1]:null;};
-const getSess  =req=>{const id=getSessId(req);return id?sessions[id]:null;};
+const getSess=req=>{
+  const id=getSessId(req);
+  if(!id)return null;
+  if(sessions[id])return sessions[id];
+  // Sessão sumiu (restart do servidor) — tenta recriar a partir do DB_USERS
+  // Busca pelo sid no DB para reconectar o cookie ao usuário
+  for(const [email,u] of Object.entries(DB_USERS)){
+    if(u._lastSid===id && u.cached_access_token && u.cached_token_expiry && Date.now()<u.cached_token_expiry){
+      // Recria a sessão em memória
+      sessions[id]={access_token:u.cached_access_token,refresh_token:u.refresh_token||null,expires_at:u.cached_token_expiry,user_email:email,user_name:u.name||email,picture:u.picture||"",created_at:u._sidCreated||Date.now()};
+      console.log("[session] Sessão recriada para:",email);
+      return sessions[id];
+    }
+  }
+  return null;
+};
 
 function makeCallbackPage(sessId){
   return`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Entrando...</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;font-family:sans-serif;color:#fff}.box{text-align:center}.spin{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="box"><div class="spin"></div><div style="font-size:18px;font-weight:600">Entrando na sua conta...</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:8px">Aguarde um momento</div></div><script>setTimeout(function(){window.location.replace('/')},800);</script></body></html>`;
@@ -2159,6 +2174,8 @@ const server=http.createServer(async(req,res)=>{
       if(!ui.email)return fail("E-mail não obtido.");
       const sid="sess_"+crypto.randomBytes(24).toString("hex");
       sessions[sid]={access_token:tk.access_token,refresh_token:tk.refresh_token||null,expires_at:Date.now()+(tk.expires_in||3600)*1000,user_email:ui.email,user_name:ui.name||ui.email,picture:ui.picture||"",created_at:Date.now()};
+      // Salva o sid no usuário para recriar sessão após restart
+      if(DB_USERS[ui.email]){DB_USERS[ui.email]._lastSid=sid;DB_USERS[ui.email]._sidCreated=Date.now();}
       // Salva refresh_token e access_token no banco para uso pelo automático sem sessão
       const tokenData={cached_access_token:tk.access_token,cached_token_expiry:Date.now()+(tk.expires_in||3600)*1000};
       if(tk.refresh_token)tokenData.refresh_token=tk.refresh_token;
