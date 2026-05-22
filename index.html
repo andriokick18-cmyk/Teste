@@ -962,15 +962,18 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .btn-google-sm:hover{opacity:.9;transform:translateY(-1px)}
 
 /* Hero */
-.ln-hero{position:relative;padding:50px 20px 0;max-width:1100px;margin:0 auto}
+.ln-hero{position:relative;padding:24px 16px 0;max-width:1100px;margin:0 auto}
 .ln-hero-inner{display:grid;grid-template-columns:1fr 340px;gap:40px;align-items:start}
-@media(max-width:760px){.ln-hero-inner{grid-template-columns:1fr}}
+@media(max-width:760px){
+  .ln-hero{padding:20px 14px 0}
+  .ln-hero-inner{grid-template-columns:1fr;gap:24px}
+}
 .ln-vip-pill{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(251,191,36,.18),rgba(245,158,11,.12));border:1.5px solid rgba(251,191,36,.4);color:#fbbf24;font-size:13px;font-weight:800;padding:6px 14px;border-radius:30px;margin-bottom:18px;animation:pulse-slow 3s ease-in-out infinite}
 @keyframes pulse-slow{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,.3)}50%{box-shadow:0 0 0 8px rgba(251,191,36,0)}}
-.ln-hero-title{font-family:'Sora',sans-serif;font-size:clamp(32px,6vw,54px);font-weight:800;line-height:1.1;color:#fff;margin-bottom:16px}
+.ln-hero-title{font-family:'Sora',sans-serif;font-size:clamp(26px,6vw,54px);font-weight:800;line-height:1.1;color:#fff;margin-bottom:12px}
 .ln-title-usa{background:linear-gradient(135deg,#3b82f6,#8b5cf6,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.ln-hero-sub{font-size:15px;color:var(--t2);line-height:1.65;margin-bottom:22px;max-width:520px}
-.ln-feats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+.ln-hero-sub{font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:16px;max-width:520px}
+.ln-feats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
 .ln-feat{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--t2);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:6px 12px;border-radius:20px}
 .ln-feat i{color:var(--blue);font-size:13px}
 .ln-cta-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;max-width:400px;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;border-radius:14px;padding:16px 24px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .18s;box-shadow:0 8px 32px rgba(59,130,246,.35)}
@@ -999,7 +1002,11 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .ln-rank-cta:hover{background:rgba(59,130,246,.1)}
 
 /* Stats bar */
-.ln-stats-bar{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;background:#0d1635;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:16px 24px;margin:32px 0 0;gap:4px}
+.ln-stats-bar{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;background:#0d1635;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:12px 16px;margin:20px 0 0;gap:4px}
+@media(max-width:480px){.ln-stats-bar{padding:10px 10px;gap:2px;border-radius:12px}}
+@media(max-width:480px){.ln-stat{min-width:70px;padding:6px 4px}}
+@media(max-width:480px){.ln-stat-num{font-size:18px}}
+@media(max-width:480px){.ln-stat-lbl{font-size:9px}}
 .ln-stat{display:flex;flex-direction:column;align-items:center;padding:0 20px}
 .ln-stat-num{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#fff}
 .ln-stat-lbl{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
@@ -1288,6 +1295,28 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .ed-open-job-btn{display:inline-flex;align-items:center;gap:5px;background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(99,102,241,.12));border:1.5px solid rgba(99,102,241,.3);color:#4f46e5;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .14s;margin-top:6px;width:100%}
 .ed-open-job-btn:hover{background:linear-gradient(135deg,rgba(59,130,246,.25),rgba(99,102,241,.2));color:#3730a3}
 
+
+/* ══ LANDING MOBILE FIX ══ */
+@media(max-width:480px){
+  .ln-nav{padding:10px 14px}
+  .ln-nav-logo{font-size:16px}
+  .ln-vip-pill{font-size:11px;padding:6px 10px;margin-bottom:12px}
+  .ln-hero-title{font-size:24px!important;margin-bottom:10px}
+  .ln-hero-sub{font-size:13px;margin-bottom:12px}
+  .ln-cta-btn{padding:14px 18px;font-size:15px}
+  .ln-trust-row{font-size:11px;gap:10px;flex-wrap:wrap}
+  .ln-feat{font-size:11px;padding:5px 9px}
+  .login-social{margin-top:16px}
+  .login-social-card{padding:10px 12px}
+  .ln-stats-bar{margin:16px 0 20px}
+  #landing{overflow-x:hidden}
+  .ln-hero{overflow-x:hidden}
+}
+@media(max-width:360px){
+  .ln-hero-title{font-size:21px!important}
+  .ln-cta-btn{font-size:14px;padding:13px 14px}
+}
+
 </style>
 </head>
 <body>
@@ -1508,6 +1537,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <button class="sb-item sb-item-plans" id="si-plans" onclick="sv('plans')" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.07));border:1.5px solid rgba(99,102,241,.3);border-radius:var(--r);font-weight:800;color:#4f46e5;margin-top:4px"><i class="ti ti-diamond" style="font-size:16px;color:#4f46e5"></i>Planos & Recompensas</button>
         <button class="sb-item" id="si-logs" onclick="sv('logs')" style="color:var(--t3);font-size:12px"><i class="ti ti-list-details" style="font-size:14px"></i>Logs Automático<span class="sb-badge sb-badge-r" id="sib-logs" style="display:none"></span></button>
         <button class="sb-item" id="si-indicar" onclick="sv('indicar')"><i class="ti ti-users-group"></i>Indicar Amigos<span class="sb-badge" id="sib-indicar" style="display:none;background:var(--green);color:#fff"></span></button>
+        <button class="sb-item" id="si-redeem" onclick="sv('redeem')" style="background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(109,40,217,.07));border:1.5px solid rgba(139,92,246,.28);border-radius:var(--r);font-weight:800;color:#7c3aed;margin-top:2px"><i class="ti ti-ticket" style="font-size:15px;color:#7c3aed"></i>Resgatar Código <span style="font-size:9px;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:99px;margin-left:2px;font-weight:800">NOVO</span></button>
         <button class="sb-item" id="si-notificacoes" onclick="sv('notificacoes')"><i class="ti ti-bell"></i>Notificações<span class="sb-badge" id="sib-notificacoes" style="display:none;background:#7c3aed;color:#fff"></span></button>
       </div>
       <div class="sb-sec" id="sb-admin-sec" style="display:none">
@@ -2530,6 +2560,47 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         </div>
 
       </div></div>
+
+      <!-- ══ RESGATAR CÓDIGO ══ -->
+      <div class="view gone" id="v-redeem"><div class="view-scroll" style="padding:0 0 80px">
+        <div style="background:linear-gradient(135deg,#4c1d95,#6d28d9,#7c3aed);color:#fff;padding:24px 20px;text-align:center">
+          <div style="width:60px;height:60px;border-radius:18px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:28px">🎟️</div>
+          <div style="font-family:'Sora',sans-serif;font-size:20px;font-weight:800;margin-bottom:6px">Resgatar Código</div>
+          <div style="font-size:13px;opacity:.85">Recebeu um código? Resgate aqui e ganhe dias VIP!</div>
+        </div>
+        <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
+          <div style="background:#fff;border:2px solid rgba(139,92,246,.2);border-radius:16px;padding:20px;box-shadow:0 4px 20px rgba(139,92,246,.08)">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+              <div style="width:42px;height:42px;border-radius:12px;background:#f5f3ff;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-gift" style="font-size:22px;color:#7c3aed"></i></div>
+              <div>
+                <div style="font-size:14px;font-weight:800;color:#1e1b4b">Código de Recompensa</div>
+                <div style="font-size:12px;color:#6b7280;margin-top:2px">1 resgate por conta · código de 8 caracteres</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:stretch">
+              <input class="input" id="reward-code-input-v2" type="text" maxlength="8"
+                placeholder="Ex: A1B2C3D4"
+                autocomplete="off" autocapitalize="characters" spellcheck="false"
+                style="text-transform:uppercase;letter-spacing:3px;font-weight:800;font-size:18px;flex:1;font-family:monospace;text-align:center;padding:14px"
+                oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"
+                onkeydown="if(event.key==='Enter')redeemCodeV2()">
+              <button class="btn btn-auto" onclick="redeemCodeV2()" style="padding:14px 18px;flex-shrink:0;font-size:14px;font-weight:800;border-radius:10px">
+                <i class="ti ti-ticket"></i> Resgatar
+              </button>
+            </div>
+            <div id="reward-msg-v2" style="margin-top:12px;display:none"></div>
+          </div>
+          <div style="background:#f5f3ff;border:1.5px solid rgba(139,92,246,.18);border-radius:14px;padding:16px">
+            <div style="font-size:13px;font-weight:700;color:#4c1d95;margin-bottom:12px">📢 Como conseguir um código?</div>
+            <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;color:#5b21b6">
+              <div style="display:flex;gap:10px;align-items:flex-start"><i class="ti ti-brand-instagram" style="font-size:16px;flex-shrink:0;color:#7c3aed"></i><span>Siga <strong>@andrio.k</strong> e <strong>@diego.cardoso_oficial</strong> no Instagram</span></div>
+              <div style="display:flex;gap:10px;align-items:flex-start"><i class="ti ti-brand-youtube" style="font-size:16px;flex-shrink:0;color:#7c3aed"></i><span>Assista ao canal <strong>Diego H2B</strong> no YouTube</span></div>
+              <div style="display:flex;gap:10px;align-items:flex-start"><i class="ti ti-users-group" style="font-size:16px;flex-shrink:0;color:#7c3aed"></i><span>Indique amigos e ganhe dias VIP — veja a aba <strong>Indicar Amigos</strong></span></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+
       <!-- ══ v16: INDICAR AMIGOS ══ -->
       <div class="view gone" id="v-indicar"><div class="view-scroll" style="padding:0 0 80px">
         <div style="background:linear-gradient(135deg,#064e3b,#065f46,#059669);color:#fff;padding:16px;margin-bottom:0">
@@ -2604,6 +2675,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       <i class="ti ti-mail-opened" style="color:var(--green)"></i>
       <span style="color:var(--green);font-weight:700">Respostas</span>
       <span class="bn-dot" id="bnd-respostas" style="background:var(--green);display:none"></span>
+    </button>
+    <button class="bn" id="bn-redeem" onclick="sv('redeem')" style="position:relative">
+      <i class="ti ti-ticket" style="color:#7c3aed;font-size:20px"></i>
+      <span style="color:#7c3aed;font-weight:700;font-size:9px">Código</span>
     </button>
     <button class="bn" id="bn-ranking" onclick="sv('ranking')" style="position:relative">
       <i class="ti ti-trophy" style="color:#f59e0b;font-size:21px"></i>
@@ -3248,6 +3323,39 @@ let U={connected:false,email:"",name:"",picture:"",isAdmin:false,plan:"free",vip
 let CFG={name:"",country:"Brazil",phone:"",city:"",language:"pt-BR",subject:"",body:""};
 let DOCS=[],activeResIdx=null,activeCovIdx=null;
 let JOBS=[],HIST=[],SAVED=new Set(),APPLIED=new Set();
+
+// IDs de vagas já enviadas por fonte (carregado ao iniciar e após cada envio)
+let _sentIdsJan=new Set();
+let _sentIdsJul=new Set();
+let _sentIdsSeasonal=new Set();
+let _sentIdsLoaded=false;
+
+async function loadSentIds(){
+  try{
+    const r=await fetch("/api/sent-ids",{credentials:"include"});
+    const d=await r.json();
+    _sentIdsJan=new Set(d.jan2026||[]);
+    _sentIdsJul=new Set(d.jul2025||[]);
+    _sentIdsSeasonal=new Set(d.seasonal||[]);
+    _sentIdsLoaded=true;
+  }catch(e){console.warn("loadSentIds error",e);}
+}
+
+// Verifica se vaga foi enviada
+function isSentSheet(caseNum, sheet){
+  if(sheet==="jan2026")return _sentIdsJan.has(caseNum);
+  if(sheet==="jul2025")return _sentIdsJul.has(caseNum);
+  return false;
+}
+function isSentSeasonal(jobId){ return _sentIdsSeasonal.has(jobId); }
+
+// Verifica se vaga está na fila do automático
+function isInAutoQueue(caseNum, jobId){
+  if(caseNum)return _autoQueueIds.has(caseNum)||_autoQueueIds.has("s_"+caseNum);
+  if(jobId)return _autoQueueIds.has(jobId);
+  return false;
+}
+
 let _autoQueueIds=new Set(); // IDs de vagas na fila automática (ocultas do manual)
 let selJob=null,curJob=null;
 let _currentModalJob=null; // alias para curJob — atualizado por openModal
@@ -3303,6 +3411,7 @@ async function checkStatus(){
   }catch(e){console.warn("[boot]",e);showLanding();}
 }
 function showLanding(){g("#landing").style.display="flex";g("#app").style.display="none";}
+
 
 function renderOnboardChecklist(){/* removido */}
 
@@ -3462,7 +3571,7 @@ function renderDrawer(){
 // ═══════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════
-const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","indicar","notificacoes"];
+const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","indicar","notificacoes","redeem"];
 function sv(v,...args){
   // ── "auto" abre modal em vez da view ──
   if(v==="auto"){if(typeof openAutoModal==="function"){openAutoModal();return;}}
@@ -3476,6 +3585,7 @@ function sv(v,...args){
   if(v==="home")renderHome();
   if(v==="ranking"){loadRanking(true);startRankTimer();}else{stopRankTimer();}
   if(v==="pesquisa"){initPesquisaView();}
+  if(v==="redeem"){/* view própria */}
   if(v==="indicar"){loadReferralView();}
   if(v==="notificacoes"){loadNotifView();}
   if(v!=="jobs")closeMobDetail();closeDrawer();
@@ -3765,8 +3875,10 @@ async function loadJobs(reset=false){
     const r=await fetch("/api/jobs?"+p,{credentials:"include"});const d=await r.json();
     let jobs=d.jobs||[];if(fWage>0)jobs=jobs.filter(j=>{const w=parseFloat((j.wage||"").replace(/[^0-9.]/g,""));return w>=fWage;});if(fWorkers>0)jobs=jobs.filter(j=>j.workers>=fWorkers);
     if(reset)g("#jlist").innerHTML="";
-    if(!jobs.length&&!JOBS.length){done=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">Nenhuma vaga encontrada.</div>`;}
-    else if(jobs.length){jobs.forEach(j=>{JOBS.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkCard(j));});skip+=d.jobs.length;total=d.total||JOBS.length;if(d.jobs.length<PAGE){done=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadJobs()">Carregar mais</button></div>`;}
+    // Seasonal: filtra apenas vagas realmente enviadas (não as do auto)
+    const filteredSeasonalJobs=jobs.filter(j=>!isSentSeasonal(j.id));
+    if(!filteredSeasonalJobs.length&&!JOBS.length){done=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">Nenhuma vaga encontrada.</div>`;}
+    else if(filteredSeasonalJobs.length){filteredSeasonalJobs.forEach(j=>{JOBS.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkCard(j));});skip+=d.jobs.length;total=d.total||JOBS.length;if(d.jobs.length<PAGE){done=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadJobs()">Carregar mais</button></div>`;}
     const cnt=g("#jcount");if(cnt)cnt.innerHTML=`<strong>${total.toLocaleString()}</strong> vaga${total!==1?"s":""}`;const cc=g("#jfrom-cache");if(cc)cc.style.display=d.from_cache?"":"none";
     const sib=g("#sib-jobs");if(sib){sib.style.display="";sib.textContent=total>999?"999+":String(total);}
   }catch(e){g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--red)">Erro. <span style="cursor:pointer;text-decoration:underline" onclick="loadJobs()">Tentar novamente</span></div>`;}
@@ -3776,6 +3888,29 @@ async function loadJobs(reset=false){
 // ═══════════════════════════════════════════
 //  SHEET JOBS
 // ═══════════════════════════════════════════
+
+function _showSheetFilterWarning(sheet,inAutoCount,sentCount){
+  const existing=document.getElementById("sheet-filter-warn");
+  if(existing)existing.remove();
+  if(inAutoCount===0&&sentCount===0)return;
+  const bar=document.createElement("div");
+  bar.id="sheet-filter-warn";
+  bar.style.cssText="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:12px 14px;margin:10px 14px 0;font-size:12px;color:#92400e;display:flex;align-items:flex-start;gap:10px";
+  let msg="";
+  if(inAutoCount>0&&sentCount>0){
+    msg=`<strong>${inAutoCount} vaga${inAutoCount!==1?"s":""} no automático</strong> e <strong>${sentCount} já enviada${sentCount!==1?"s":""}</strong> foram removidas desta listagem para evitar duplicatas.`;
+  } else if(inAutoCount>0){
+    msg=`<strong>${inAutoCount} vaga${inAutoCount!==1?"s":""}</strong> na fila do automático foram removidas desta listagem.`;
+  } else {
+    msg=`<strong>${sentCount} vaga${sentCount!==1?"s":""} já enviada${sentCount!==1?"s":""}</strong> foram removidas desta listagem.`;
+  }
+  bar.innerHTML=`<i class="ti ti-info-circle" style="font-size:16px;color:#f59e0b;flex-shrink:0;margin-top:1px"></i>
+    <div style="flex:1">${msg}</div>
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:#92400e;font-size:18px;padding:0;flex-shrink:0">×</button>`;
+  const jlist=document.getElementById("jlist");
+  if(jlist&&jlist.parentElement)jlist.parentElement.insertBefore(bar,jlist);
+}
+
 async function loadSheetMeta(reset=false){
   if(sLoading)return;sLoading=true;if(!reset)g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><span class="spin"></span></div>`;
   let _jobsToEnrich=[];
@@ -3785,7 +3920,20 @@ async function loadSheetMeta(reset=false){
     if(reset)g("#jlist").innerHTML="";
     if(!d.jobs?.length){sDone=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">${sJobs.length?"Sem mais vagas.":"Nenhuma vaga encontrada."}</div>`;}
     else{
-      d.jobs.forEach(j=>{sJobs.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkSheetCard(j));});
+      // Filtrar vagas já enviadas e as que estão na fila do automático (só nas planilhas)
+      const filteredJobs=d.jobs.filter(j=>{
+        const cn=j.caseNum||j.id||"";
+        const sent=isSentSheet(cn,tab);
+        const inAuto=isInAutoQueue(cn,null);
+        return !sent&&!inAuto;
+      });
+      const removedCount=d.jobs.length-filteredJobs.length;
+      if(removedCount>0&&reset){
+        const inAutoCount=[..._autoQueueIds].length;
+        const sentCount=removedCount-Math.min(removedCount,inAutoCount);
+        _showSheetFilterWarning(tab,inAutoCount,sentCount);
+      }
+      filteredJobs.forEach(j=>{sJobs.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkSheetCard(j));});
       sSkip+=d.jobs.length;sTotal=d.total||sJobs.length;_jobsToEnrich=d.jobs;
       if(d.jobs.length<PAGE){sDone=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadSheetMeta()">Carregar mais</button></div>`;
     }
@@ -4163,6 +4311,9 @@ async function doSend(){
     closeModal();
     if(j?.id){
       APPLIED.add(j.id);
+        if(tab==="seasonal")_sentIdsSeasonal.add(j.id);
+        else if(tab==="jan2026")_sentIdsJan.add(j.caseNum||j.id);
+        else if(tab==="jul2025")_sentIdsJul.add(j.caseNum||j.id);
       // Seasonal card: fade out e some
       const sc=g("#jcard-"+j.id);
       if(sc){sc.style.transition="opacity .3s ease";sc.style.opacity="0";setTimeout(()=>{sc.style.display="none";sc.style.opacity="";sc.style.transition="";},320);}
@@ -6069,7 +6220,10 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
 
 async function pauseAuto(){try{await fetch("/api/auto/pause",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:false,status:"paused"};updateAutoUI();updateLimChip();toast("Pausado","au");}catch(e){toast("Erro","r");}}
 async function resumeAuto(){try{await fetch("/api/auto/resume",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:true,status:"resuming"};updateAutoUI();updateLimChip();startAutoPolling();toast("Retomado ✓","g");}catch(e){toast("Erro","r");}}
-async function stopAuto(){if(!confirm("Parar o envio completamente?"))return;try{await fetch("/api/auto/stop",{method:"POST",credentials:"include"});U.autoJob=null;_autoQueueIds=new Set();_syncAutoQueueVisibility();clearInterval(autoInterval);autoInterval=null;if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado","r");// Recarrega perfis do servidor para garantir que não sumiram
+async function stopAuto(){
+  // Recarrega IDs enviados ao cancelar auto — vagas não enviadas voltam pro manual
+  setTimeout(()=>{loadSentIds();if(tab!=="seasonal")loadSheetMeta(true);},500);
+  if(!confirm("Parar o envio completamente?"))return;try{await fetch("/api/auto/stop",{method:"POST",credentials:"include"});U.autoJob=null;_autoQueueIds=new Set();_syncAutoQueueVisibility();clearInterval(autoInterval);autoInterval=null;if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado","r");// Recarrega perfis do servidor para garantir que não sumiram
 try{const pr=await fetch("/api/profiles",{credentials:"include"}).then(r=>r.json());UPROFILES=pr.profiles||[];if(U)U.profiles=UPROFILES;}catch{}
 }catch(e){toast("Erro","r");}}
 
@@ -6261,7 +6415,31 @@ document.addEventListener("DOMContentLoaded",()=>{loadPublicStats();setInterval(
 async function doLogout(){closeDrawer();await fetch("/api/disconnect",{credentials:"include"});U={connected:false};clearInterval(autoInterval);g("#app").style.display="none";g("#landing").style.display="flex";}
 function copyPix(){navigator.clipboard.writeText(PIX).then(()=>toast("Pix copiado ✓","g")).catch(()=>toast("Copie manualmente","r"));}
 
-async function redeemCode(){
+async 
+function redeemCodeV2(){
+  const inp=document.getElementById('reward-code-input-v2');
+  const code=(inp?.value||'').trim().toUpperCase();
+  if(!code){toast('Digite o código','r');return;}
+  if(code.length!==8){toast('Código deve ter 8 caracteres','r');return;}
+  const btn=document.querySelector('#v-redeem .btn-auto');
+  const msgEl=document.getElementById('reward-msg-v2');
+  if(btn)btn.disabled=true;
+  fetch('/api/redeem-code',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})})
+    .then(r=>r.json()).then(d=>{
+      msgEl.style.display='block';
+      if(d.ok){
+        msgEl.innerHTML='<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:12px;color:#15803d;font-weight:700;text-align:center">🎉 '+( d.message||'Código resgatado!')+'</div>';
+        inp.value='';
+        toast(d.message||'Código resgatado!','g');
+        if(typeof loadUser==='function')loadUser();
+      }else{
+        msgEl.innerHTML='<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;color:#dc2626;font-weight:600;text-align:center">❌ '+(d.error||'Código inválido')+'</div>';
+      }
+    }).catch(()=>toast('Erro ao resgatar','r'))
+    .finally(()=>{if(btn)btn.disabled=false;});
+}
+
+function redeemCode(){
   const inp=g("#reward-code-input");
   const msg=g("#reward-msg");
   const btn=g("#reward-btn");

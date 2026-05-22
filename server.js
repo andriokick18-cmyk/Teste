@@ -893,22 +893,27 @@ function searchSheet(arr, q, state, category, skip, top, sort) {
     }
 
     if(impliedCat && (!category||category==="all")){
-      // PRIORITY SEARCH:
-      // Tier 1: exact company name contains query (e.g. "bartender" in company name)
-      // Tier 2: category matches (food service companies for bartender)
-      const tier1=arr.filter(r=>(r.n||"").toLowerCase().includes(ql)||(r.e||"").toLowerCase().includes(ql)||(r.c||"").toLowerCase().includes(ql));
-      const tier2=arr.filter(r=>(r.k||"other")===impliedCat&&!(r.n||"").toLowerCase().includes(ql)&&!(r.c||"").toLowerCase().includes(ql));
-      // Merge: tier1 first (exact matches), then tier2 (similar category), dedup by case number
-      const seen=new Set(tier1.map(r=>r.c));
-      list=[...tier1,...tier2.filter(r=>!seen.has(r.c))];
+      // BUSCA POR RELEVÂNCIA:
+      // Tier 1: título da vaga contém exatamente a query (ex: "Bartender" no título)
+      // Tier 2: cargo/ocupação contém a query
+      // Tier 3: empresa contém a query
+      // Tier 4: categoria relacionada (food para bartender) — sem título direto
+      const tier1=arr.filter(r=>(r.t||"").toLowerCase().includes(ql));
+      const tier1ids=new Set(tier1.map(r=>r.c));
+      const tier2=arr.filter(r=>!tier1ids.has(r.c)&&(r.oc||"").toLowerCase().includes(ql));
+      const tier2ids=new Set([...tier1ids,...tier2.map(r=>r.c)]);
+      const tier3=arr.filter(r=>!tier2ids.has(r.c)&&(r.n||"").toLowerCase().includes(ql));
+      const tier3ids=new Set([...tier2ids,...tier3.map(r=>r.c)]);
+      const tier4=arr.filter(r=>!tier3ids.has(r.c)&&(r.k||"other")===impliedCat);
+      list=[...tier1,...tier2,...tier3,...tier4];
     } else {
-      // Regular search: company name, state, case number, email only
-      list = list.filter(r =>
-        (r.n  || "").toLowerCase().includes(ql) ||  // company name
-        (r.c  || "").toLowerCase().includes(ql) ||  // ETA case number
-        (r.e  || "").toLowerCase().includes(ql) ||  // email
-        (r.s  || "").toLowerCase().includes(ql)     // state name
-      );
+      // Busca geral: título > empresa > estado > email
+      const t1=list.filter(r=>(r.t||"").toLowerCase().includes(ql));
+      const t1ids=new Set(t1.map(r=>r.c));
+      const t2=list.filter(r=>!t1ids.has(r.c)&&((r.oc||"").toLowerCase().includes(ql)||(r.n||"").toLowerCase().includes(ql)));
+      const t2ids=new Set([...t1ids,...t2.map(r=>r.c)]);
+      const t3=list.filter(r=>!t2ids.has(r.c)&&((r.e||"").toLowerCase().includes(ql)||(r.s||"").toLowerCase().includes(ql)));
+      list=[...t1,...t2,...t3];
     }
   }
   if (state)    list=list.filter(r=>(r.s||"").toUpperCase()===state.toUpperCase());
@@ -1958,6 +1963,25 @@ const server=http.createServer(async(req,res)=>{
     }catch(e){ res.writeHead(404); return res.end("icon not found"); }
   }
 
+
+  // ── /api/sent-ids — IDs enviados por fonte ────────────
+  // Usado para filtrar vagas já enviadas no manual e no auto
+  if(pathname==="/api/sent-ids"&&req.method==="GET"){
+    const s2=getSess(req);if(!s2?.user_email)return json(res,401,{error:"Não autenticado."});
+    const hist=getHist(s2.user_email);
+    const sentJan=new Set();const sentJul=new Set();const sentSeasonal=new Set();
+    hist.forEach(h=>{
+      if(h.sheetSource==="jan2026"&&h.caseNum)sentJan.add(h.caseNum);
+      else if(h.sheetSource==="jul2025"&&h.caseNum)sentJul.add(h.caseNum);
+      else if(h.jobId)sentSeasonal.add(h.jobId);
+    });
+    return json(res,200,{
+      jan2026:[...sentJan],
+      jul2025:[...sentJul],
+      seasonal:[...sentSeasonal]
+    });
+  }
+
   // ── /api/jobs ─────────────────────────────────────────
   if(pathname==="/api/jobs"){
     const opts={query:(u.searchParams.get("q")||"").trim(),state:(u.searchParams.get("state")||"").trim(),jobType:(u.searchParams.get("jobType")||"all"),jobStatus:(u.searchParams.get("jobStatus")||"all"),beginDate:(u.searchParams.get("beginDate")||""),sort:(u.searchParams.get("sort")||"desc")};
@@ -1967,7 +1991,18 @@ const server=http.createServer(async(req,res)=>{
     catch(e){
       let src=jobsCache.length?[...jobsCache]:[...FALLBACK_JOBS];
       const{query:q,state,jobType,jobStatus,beginDate}=opts;
-      if(q){const ql=q.toLowerCase();src=src.filter(j=>j.title.toLowerCase().includes(ql)||j.company.toLowerCase().includes(ql)||j.state.toLowerCase().includes(ql)||j.desc.toLowerCase().includes(ql));}
+      if(q){
+        const ql=q.toLowerCase();
+        // Tier 1: título exato
+        const dt1=src.filter(j=>j.title.toLowerCase().includes(ql));
+        const dt1ids=new Set(dt1.map(j=>j.id));
+        // Tier 2: empresa ou categoria
+        const dt2=src.filter(j=>!dt1ids.has(j.id)&&(j.company.toLowerCase().includes(ql)||(j.category||"").toLowerCase().includes(ql)));
+        const dt2ids=new Set([...dt1ids,...dt2.map(j=>j.id)]);
+        // Tier 3: descrição (menor relevância)
+        const dt3=src.filter(j=>!dt2ids.has(j.id)&&(j.desc||"").toLowerCase().includes(ql));
+        src=[...dt1,...dt2,...dt3];
+      }
       if(state)src=src.filter(j=>j.state.toUpperCase()===state.toUpperCase());
       if(jobType==="agricultural")src=src.filter(j=>j.visa==="H-2A");if(jobType==="non-agricultural")src=src.filter(j=>j.visa==="H-2B");
       if(jobStatus==="active")src=src.filter(j=>j.active);if(jobStatus==="inactive")src=src.filter(j=>!j.active);
