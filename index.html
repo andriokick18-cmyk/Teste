@@ -2,28 +2,6 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<script>
-// Limpa service workers e caches antigos que podem estar servindo página sem cookie
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.getRegistrations().then(function(regs){
-    regs.forEach(function(reg){
-      // Se o SW foi registrado em versão antiga, força atualização
-      reg.update();
-    });
-  });
-}
-// Limpa caches antigos
-if('caches' in window){
-  caches.keys().then(function(keys){
-    keys.forEach(function(key){
-      if(key.indexOf('h2bapply') > -1 && key !== 'h2bapply-v6'){
-        caches.delete(key);
-      }
-    });
-  });
-}
-</script>
-
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#4f46e5">
 <title>H2BApply — Vagas H-2B & H-2A</title>
@@ -31,7 +9,7 @@ if('caches' in window){
 <!-- ══ Acessibilidade ══ -->
 
 <!-- ══ PWA ══ -->
-<link rel="manifest" href="/manifest.json?v=2">
+<link rel="manifest" href="/manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -39,12 +17,10 @@ if('caches' in window){
 <meta name="application-name" content="H2BApply">
 <meta name="msapplication-TileColor" content="#1a56db">
 <meta name="msapplication-tap-highlight" content="no">
-<!-- Ícones PWA — servidos como arquivos estáticos -->
+<!-- Ícone para iOS (gerado via canvas abaixo) -->
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=2">
 <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=2">
-<link rel="shortcut icon" href="/favicon.ico?v=2">
 <!-- Splash screens iOS -->
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <!-- SEO / Open Graph -->
@@ -192,7 +168,7 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 
 /* ══════════ LANDING ══════════ */
-#landing{flex-direction:column;min-height:100dvh;background:#0e1428;overflow-x:hidden;width:100%}
+#landing{flex-direction:column;min-height:100dvh;background:#0e1428}
 
 /* USA stars background for landing */
 #landing::before{
@@ -984,10 +960,9 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .btn-google-sm:hover{opacity:.9;transform:translateY(-1px)}
 
 /* Hero */
-.ln-hero{position:relative;padding:32px 16px 0;max-width:1100px;margin:0 auto;width:100%;box-sizing:border-box}
+.ln-hero{position:relative;padding:50px 20px 0;max-width:1100px;margin:0 auto}
 .ln-hero-inner{display:grid;grid-template-columns:1fr 340px;gap:40px;align-items:start}
-@media(max-width:860px){.ln-hero-inner{grid-template-columns:1fr;gap:24px}}
-@media(max-width:860px){.ln-rank-card{display:none}}
+@media(max-width:760px){.ln-hero-inner{grid-template-columns:1fr}}
 .ln-vip-pill{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(251,191,36,.18),rgba(245,158,11,.12));border:1.5px solid rgba(251,191,36,.4);color:#fbbf24;font-size:13px;font-weight:800;padding:6px 14px;border-radius:30px;margin-bottom:18px;animation:pulse-slow 3s ease-in-out infinite}
 @keyframes pulse-slow{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,.3)}50%{box-shadow:0 0 0 8px rgba(251,191,36,0)}}
 .ln-hero-title{font-family:'Sora',sans-serif;font-size:clamp(32px,6vw,54px);font-weight:800;line-height:1.1;color:#fff;margin-bottom:16px}
@@ -1312,384 +1287,21 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .ed-open-job-btn:hover{background:linear-gradient(135deg,rgba(59,130,246,.25),rgba(99,102,241,.2));color:#3730a3}
 
 
-
-/* ══ TUTORIAIS ══ */
-.tip-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(139,92,246,.15);color:#7c3aed;font-size:10px;font-weight:800;cursor:pointer;border:1.5px solid rgba(139,92,246,.3);flex-shrink:0;transition:all .18s;vertical-align:middle;margin-left:4px;line-height:1}
-.tip-icon:hover{background:#7c3aed;color:#fff}
-.tip-box{position:fixed;z-index:9990;background:#1e1b4b;color:#fff;border-radius:12px;padding:12px 14px;font-size:12px;line-height:1.6;max-width:260px;box-shadow:0 8px 32px rgba(0,0,0,.35);animation:tipIn .18s ease both}
-.tip-box strong{color:#a78bfa}
-@keyframes tipIn{0%{opacity:0;transform:scale(.92)}100%{opacity:1;transform:scale(1)}}
-
-
-/* ══ LANDING MOBILE ══ */
 @media(max-width:600px){
-  .ln-hero{padding:20px 14px 0}
-  .ln-hero-title{font-size:clamp(22px,8vw,38px)}
-  .ln-hero-sub{font-size:13px;line-height:1.55}
-  .ln-feats{gap:6px;margin-bottom:14px}
-  .ln-feat{font-size:11px;padding:5px 9px}
-  .ln-cta-btn{font-size:15px;padding:14px 20px}
-  .ln-trust-row{font-size:11px;gap:10px;flex-wrap:wrap;justify-content:center}
-  .ln-stats-bar{padding:10px 12px;margin:16px 0}
-  .ln-stat-num{font-size:20px}
-  .ln-stat-lbl{font-size:9px}
-  .ln-vip-pill{font-size:11px;padding:5px 10px}
-  .ln-nav-logo{font-size:15px}
+  .ln-hero{padding:20px 14px 0!important}
+  .ln-hero-title{font-size:clamp(22px,8vw,38px)!important}
+  .ln-hero-sub{font-size:13px!important}
+  .ln-cta-btn{font-size:15px!important;padding:14px 20px!important}
+  #landing{overflow-x:hidden!important}
 }
-
-
-/* ══ TERMOS DE USO ══ */
-#terms-overlay{position:fixed;inset:0;z-index:99997;background:rgba(10,14,30,.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:16px}
-#terms-box{background:#fff;border-radius:20px;max-width:520px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.4);overflow:hidden}
-#terms-header{background:linear-gradient(135deg,#0d1b4b,#1e3a8a);padding:20px 24px;flex-shrink:0}
-#terms-header h2{color:#fff;font-family:'Sora',sans-serif;font-size:18px;font-weight:800;margin:0 0 4px}
-#terms-header p{color:rgba(255,255,255,.7);font-size:12px;margin:0}
-#terms-body{overflow-y:auto;padding:20px 24px;flex:1;font-size:13px;color:#374151;line-height:1.65}
-#terms-body h3{font-size:12px;font-weight:800;color:#0d1b4b;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1.5px solid #e5e7eb}
-#terms-body h3:first-child{margin-top:0}
-#terms-body p{margin-bottom:8px}
-#terms-body ul{margin:6px 0 10px 16px;padding:0}
-#terms-body ul li{margin-bottom:4px}
-#terms-body .terms-warning{background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:#991b1b;font-weight:600;text-align:center}
-#terms-body .terms-highlight{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:#1e40af}
-#terms-footer{padding:16px 24px;border-top:1.5px solid #e5e7eb;flex-shrink:0;background:#f9fafb}
-#terms-check-row{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;cursor:pointer}
-#terms-check-row input[type=checkbox]{width:18px;height:18px;margin-top:1px;flex-shrink:0;accent-color:#4f46e5;cursor:pointer}
-#terms-check-label{font-size:12px;color:#374151;line-height:1.5;cursor:pointer;user-select:none}
-#terms-check-label strong{color:#0d1b4b}
-#terms-btns{display:flex;gap:10px}
-#terms-decline{flex:1;padding:11px;border:1.5px solid #e5e7eb;border-radius:10px;background:#fff;color:#6b7280;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s}
-#terms-decline:hover{background:#f3f4f6}
-#terms-accept{flex:2;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;opacity:.5;pointer-events:none}
-#terms-accept.active{opacity:1;pointer-events:all}
-#terms-accept.active:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(79,70,229,.4)}
-.terms-scroll-hint{font-size:11px;color:#9ca3af;text-align:center;margin-bottom:10px}
+@media(max-width:860px){
+  .ln-hero-inner{grid-template-columns:1fr!important}
+  .ln-rank-card{display:none!important}
+}
 
 </style>
 </head>
 <body>
-
-<!-- ══ TERMOS DE USO ══ -->
-<div id="terms-overlay">
-  <div id="terms-box">
-    <div id="terms-header">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-        <div style="width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <i class="ti ti-file-certificate" style="font-size:24px;color:#fff"></i>
-        </div>
-        <div>
-          <h2>Termos de Uso</h2>
-          <p>Leia atentamente antes de continuar · Versão 2.0 · 22/05/2026</p>
-        </div>
-      </div>
-      <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;font-size:11px;color:rgba(255,255,255,.85);display:flex;align-items:center;gap:8px">
-        <i class="ti ti-lock" style="font-size:14px;flex-shrink:0"></i>
-        Seu aceite será registrado com data, hora e identificador de acesso para fins legais.
-      </div>
-    </div>
-
-    <div id="terms-body">
-
-      <div class="terms-warning">
-        ⚠️ LEIA INTEGRALMENTE ANTES DE CONTINUAR. O ACEITE CONSTITUI CONTRATO LEGALMENTE VINCULANTE.
-      </div>
-
-      <div class="terms-highlight">
-        <strong>📋 Resumo executivo:</strong> A H2BApply é uma plataforma de <strong>tecnologia para automação de candidaturas</strong>. Não somos agência de empregos, escritório de advocacia, consultoria migratória nem garantimos qualquer resultado. Você utiliza a plataforma sob sua inteira responsabilidade.
-      </div>
-
-      <h3>1. Identificação e Natureza Jurídica da Plataforma</h3>
-      <p>A <strong>H2BApply</strong> é uma plataforma tecnológica privada que fornece ferramentas de automação para organização e envio de candidaturas de trabalho temporário, incluindo programas H-2B e H-2A dos Estados Unidos da América.</p>
-      <p>A H2BApply expressamente declara que <strong>NÃO é e NÃO representa</strong>, sob nenhuma hipótese:</p>
-      <ul>
-        <li>Agência governamental, órgão público ou entidade oficial de qualquer natureza</li>
-        <li>Escritório de advocacia, consultório jurídico ou prestadora de aconselhamento legal</li>
-        <li>Consultoria migratória credenciada perante qualquer autoridade</li>
-        <li>Empregadora, recrutadora ou intermediária de mão de obra</li>
-        <li>Patrocinadora, requerente ou facilitadora de vistos de qualquer categoria</li>
-        <li>Representante, agente ou parceira do USCIS, Department of Labor (DOL), Department of State (DOS), U.S. Customs and Border Protection (CBP), Embaixada Americana ou qualquer autoridade migratória</li>
-        <li>Garantidora de emprego, visto, entrada ou permanência nos Estados Unidos</li>
-      </ul>
-      <p>Toda informação disponibilizada na Plataforma tem caráter meramente informativo e tecnológico, <strong>não constituindo aconselhamento jurídico, migratório ou trabalhista</strong>.</p>
-
-      <h3>2. Elegibilidade, Capacidade Legal e Declarações do Usuário</h3>
-      <p>Ao acessar ou utilizar a Plataforma, você declara, sob pena de responsabilidade civil e criminal, que:</p>
-      <ul>
-        <li>Possui ao menos <strong>18 (dezoito) anos de idade</strong> completos</li>
-        <li>Possui plena capacidade civil e legal para contratar nos termos do Código Civil Brasileiro</li>
-        <li>Utilizará a Plataforma <strong>exclusivamente para fins lícitos</strong>, em conformidade com as leis brasileiras e americanas</li>
-        <li>Fornecerá apenas informações <strong>verdadeiras, completas, atualizadas e não enganosas</strong></li>
-        <li>Não utilizará identidade falsa, documentos fraudulentos ou dados de terceiros sem autorização</li>
-        <li>Não está proibido de utilizar serviços digitais por decisão judicial ou administrativa</li>
-        <li>Compreende que enviar candidaturas falsas ou com dados incorretos pode configurar crime</li>
-      </ul>
-
-      <h3>3. Descrição dos Serviços</h3>
-      <p>A H2BApply poderá disponibilizar, conforme o plano contratado:</p>
-      <ul>
-        <li>Criação e gestão de perfil profissional</li>
-        <li>Armazenamento e gestão de currículo e documentos</li>
-        <li>Organização, filtragem e monitoramento de vagas</li>
-        <li>Automação parcial ou integral de envio de candidaturas por e-mail</li>
-        <li>Geração de conteúdo assistida por inteligência artificial</li>
-        <li>Sistema de ranking e competição entre usuários</li>
-        <li>Notificações push e alertas de respostas</li>
-        <li>Integração com Gmail via OAuth 2.0 do Google</li>
-      </ul>
-      <p>Os serviços são fornecidos <strong>"no estado em que se encontram"</strong> (as-is), sem garantia de disponibilidade, continuidade ou ausência de erros.</p>
-
-      <h3>4. Ausência Absoluta de Garantias de Resultado</h3>
-      <p>A H2BApply <strong>NÃO garante, NÃO assegura e NÃO promete</strong>, sob nenhuma circunstância:</p>
-      <ul>
-        <li>Contratação, entrevista, oferta de emprego ou qualquer retorno de empregadores</li>
-        <li>Aprovação, emissão, renovação ou manutenção de visto de qualquer categoria</li>
-        <li>Autorização de entrada, permanência legal ou documentação nos EUA</li>
-        <li>Sucesso financeiro, retorno sobre investimento ou compensação de qualquer natureza</li>
-        <li>Número mínimo de respostas, entrevistas ou propostas recebidas</li>
-        <li>Que os envios automáticos serão recebidos ou lidos pelos empregadores</li>
-      </ul>
-      <p><strong>Toda decisão de contratação, concessão de visto ou autorização migratória depende exclusivamente</strong> de empregadores privados, consulados, USCIS, CBP e outras autoridades governamentais, sobre as quais a H2BApply não possui influência, acesso ou relacionamento.</p>
-
-      <h3>5. Autorização Expressa para Automação — Uso do Gmail</h3>
-      <p>Ao conectar sua conta Gmail e ativar funcionalidades automáticas, você <strong>expressamente autoriza e reconhece</strong> que:</p>
-      <ul>
-        <li>A Plataforma enviará e-mails automatizados em seu nome para empregadores terceiros</li>
-        <li>Os e-mails partirão do seu endereço Gmail pessoal, podendo afetar sua reputação de remetente</li>
-        <li>Podem ocorrer falhas técnicas, atrasos, bloqueios ou erros nos envios</li>
-        <li>O Google ou provedores de e-mail terceiros podem bloquear sua conta por volume de envios</li>
-        <li>A H2BApply não se responsabiliza por suspensões da conta Gmail decorrentes do uso da Plataforma</li>
-        <li>Você assume integral responsabilidade pelo conteúdo dos e-mails enviados automaticamente</li>
-        <li>O sistema aplica proteções anti-spam e anti-duplicata, mas não pode garantir entrega ou leitura</li>
-        <li>A revogação do acesso ao Gmail pode ser feita a qualquer momento nas configurações do Google</li>
-      </ul>
-
-      <h3>6. Responsabilidade Exclusiva e Condutas Proibidas</h3>
-      <p>Você é <strong>integralmente e exclusivamente responsável</strong> por todas as informações, documentos, currículos e dados transmitidos por meio da Plataforma. São <strong>expressamente proibidas</strong> as seguintes condutas, sujeitando o infrator às sanções civis, criminais e administrativas cabíveis:</p>
-      <ul>
-        <li>Utilizar, enviar ou apresentar documentos falsos, adulterados ou de terceiros</li>
-        <li>Praticar fraude migratória, trabalhista ou documental de qualquer espécie</li>
-        <li>Fazer declarações falsas a empregadores, consulados ou autoridades</li>
-        <li>Enviar spam, comunicações em massa não autorizadas ou conteúdo ilegal</li>
-        <li>Utilizar identidade, dados ou documentos de terceiros sem autorização formal</li>
-        <li>Burlar, hackear, explorar ou comprometer sistemas de segurança da Plataforma</li>
-        <li>Realizar engenharia reversa, descompilar ou extrair código-fonte da Plataforma</li>
-        <li>Usar a Plataforma para fins comerciais, revenda ou benefício de terceiros sem autorização</li>
-        <li>Violar leis brasileiras, norte-americanas ou tratados internacionais aplicáveis</li>
-      </ul>
-
-      <h3>7. Vagas e Empregadores Terceiros</h3>
-      <p>As vagas disponibilizadas na Plataforma são provenientes de fontes públicas, incluindo dados do U.S. Department of Labor (DOL). A H2BApply:</p>
-      <ul>
-        <li>Não valida individualmente a autenticidade, legitimidade ou disponibilidade de cada vaga</li>
-        <li>Não garante que os empregadores listados estão ativamente recrutando</li>
-        <li>Não verifica a idoneidade, capacidade financeira ou intenção dos empregadores</li>
-        <li>Não se responsabiliza por golpes, fraudes ou condutas ilícitas praticadas por terceiros</li>
-        <li>Recomenda ao usuário verificar independentemente a legitimidade de qualquer empregador antes de fornecer dados pessoais adicionais</li>
-      </ul>
-
-      <h3>8. Privacidade, LGPD e Tratamento de Dados</h3>
-      <p>Em conformidade com a <strong>Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018)</strong>, a Plataforma coleta e processa os seguintes dados pessoais:</p>
-      <ul>
-        <li><strong>Dados de identificação:</strong> nome completo, e-mail, fotografia de perfil</li>
-        <li><strong>Dados profissionais:</strong> currículo, experiências, habilidades</li>
-        <li><strong>Dados de uso:</strong> histórico de candidaturas, vagas visualizadas, configurações</li>
-        <li><strong>Dados técnicos:</strong> endereço IP, dados de acesso, identificadores de sessão</li>
-        <li><strong>Dados do Gmail:</strong> acesso para envio de e-mails (escopo restrito ao envio e leitura de respostas)</li>
-      </ul>
-      <p><strong>Finalidades do tratamento:</strong> prestação dos serviços contratados, prevenção à fraude, segurança da Plataforma, cumprimento de obrigações legais e melhoria dos serviços. <strong>Os dados NÃO são vendidos a terceiros.</strong></p>
-      <p>O usuário tem direito à confirmação, acesso, correção, anonimização, portabilidade e eliminação dos seus dados, nos termos da LGPD. Solicitações devem ser enviadas aos canais oficiais da H2BApply.</p>
-
-      <h3>9. Limitação de Responsabilidade e Exclusões</h3>
-      <p>Na máxima extensão permitida pela legislação aplicável, a H2BApply <strong>não será responsabilizada</strong>, em nenhuma hipótese, por:</p>
-      <ul>
-        <li>Deportação, detenção, recusa de entrada ou cancelamento de visto</li>
-        <li>Prejuízos financeiros, danos emergentes ou lucros cessantes de qualquer natureza</li>
-        <li>Danos indiretos, incidentais, especiais ou punitivos</li>
-        <li>Suspensão ou bloqueio de contas Gmail ou outros serviços de terceiros</li>
-        <li>Decisões de autoridades migratórias, consulares ou trabalhistas</li>
-        <li>Fraudes praticadas por empregadores ou terceiros</li>
-        <li>Interrupções, falhas, erros ou indisponibilidade da Plataforma</li>
-        <li>Alterações nas políticas ou requisitos do programa H-2B/H-2A pelo governo americano</li>
-      </ul>
-      <p>A responsabilidade total e agregada da H2BApply perante o usuário fica <strong>limitada ao valor efetivamente pago</strong> pelo usuário à H2BApply nos <strong>12 (doze) meses anteriores</strong> ao evento gerador do dano.</p>
-
-      <h3>10. Planos, Pagamentos e Política de Reembolso</h3>
-      <p>A H2BApply oferece planos gratuitos e pagos. Para planos pagos:</p>
-      <ul>
-        <li>Os valores são informados no ato da contratação e podem ser alterados com aviso prévio de 30 dias</li>
-        <li>Não há reembolso por período já utilizado do plano</li>
-        <li>A suspensão da conta por violação destes Termos não gera direito a reembolso</li>
-        <li>Planos promocionais ou cortesias não geram direito adquirido de continuidade</li>
-      </ul>
-
-      <h3>11. Suspensão, Bloqueio e Encerramento de Conta</h3>
-      <p>A H2BApply reserva-se o direito de suspender, bloquear, limitar ou encerrar permanentemente o acesso de qualquer usuário, a qualquer momento e sem aviso prévio, em caso de:</p>
-      <ul>
-        <li>Fraude, falsificação de documentos ou identidade</li>
-        <li>Violação de qualquer disposição destes Termos</li>
-        <li>Suspeita fundamentada de atividade ilegal</li>
-        <li>Abuso das funcionalidades da Plataforma</li>
-        <li>Determinação judicial ou administrativa</li>
-        <li>Risco à segurança da Plataforma ou de outros usuários</li>
-      </ul>
-      <p>O encerramento por justa causa não gera direito a reembolso ou indenização de qualquer natureza.</p>
-
-      <h3>12. Propriedade Intelectual</h3>
-      <p>Todo o conteúdo, código-fonte, marcas, logos, interfaces, algoritmos, bases de dados, documentação e sistemas da Plataforma são de <strong>propriedade exclusiva da H2BApply</strong>, protegidos pela Lei nº 9.610/1998 (Lei de Direitos Autorais), Lei nº 9.279/1996 (Lei de Propriedade Industrial) e tratados internacionais.</p>
-      <p>É <strong>expressamente proibido</strong>, sem autorização prévia e por escrito: copiar, reproduzir, modificar, adaptar, traduzir, distribuir, sublicenciar, revender, criar obras derivadas, realizar engenharia reversa ou explorar comercialmente qualquer elemento da Plataforma.</p>
-
-      <h3>13. Indenização pelo Usuário</h3>
-      <p>O usuário concorda em <strong>defender, indenizar e isentar</strong> a H2BApply, seus sócios, colaboradores, parceiros e representantes de quaisquer reclamações, ações judiciais, danos, perdas, custos e despesas (incluindo honorários advocatícios razoáveis) decorrentes de: (i) uso indevido da Plataforma; (ii) violação destes Termos; (iii) violação de direitos de terceiros; (iv) informações falsas fornecidas à Plataforma.</p>
-
-      <h3>14. Modificações dos Termos</h3>
-      <p>A H2BApply poderá modificar estes Termos a qualquer momento. Alterações substanciais serão comunicadas com antecedência mínima de <strong>7 (sete) dias</strong> por e-mail ou notificação na Plataforma. O uso contínuo da Plataforma após o prazo de notificação constitui aceitação automática das alterações. Caso não concorde, o usuário deverá encerrar sua conta.</p>
-
-      <h3>15. Força Maior e Caso Fortuito</h3>
-      <p>A H2BApply não será responsável por descumprimento de obrigações decorrente de eventos de força maior ou caso fortuito, incluindo falhas de infraestrutura de internet, ataques cibernéticos, alterações regulatórias, pandemias, desastres naturais ou qualquer outro evento fora do controle razoável da Plataforma.</p>
-
-      <h3>16. Legislação Aplicável e Foro</h3>
-      <p>Estes Termos são regidos pela <strong>legislação da República Federativa do Brasil</strong>. Fica eleito o foro da <strong>comarca do domicílio do usuário</strong> para resolução de conflitos, sem prejuízo da aplicação subsidiária da legislação americana nas relações com empregadores dos EUA. As partes concordam em tentar resolver disputas amigavelmente antes de recorrer ao Judiciário.</p>
-
-      <h3>17. Disposições Gerais</h3>
-      <ul>
-        <li><strong>Integralidade:</strong> Estes Termos constituem o acordo completo entre as partes quanto ao seu objeto</li>
-        <li><strong>Separabilidade:</strong> A invalidade de qualquer cláusula não afeta as demais</li>
-        <li><strong>Renúncia:</strong> A não exigência de qualquer direito não constitui renúncia ao mesmo</li>
-        <li><strong>Cessão:</strong> O usuário não pode ceder sua conta ou direitos decorrentes destes Termos sem autorização escrita da H2BApply</li>
-        <li><strong>Idioma:</strong> Em caso de conflito entre versões em idiomas distintos, prevalece a versão em português do Brasil</li>
-      </ul>
-
-      <h3>18. Contato e Canal Oficial</h3>
-      <p>Para comunicações legais, exercício de direitos LGPD, dúvidas ou notificações formais, utilize exclusivamente os canais oficiais disponibilizados pela H2BApply: Instagram <strong>@andrio.k</strong> e <strong>@diego.cardoso_oficial</strong>.</p>
-
-      <div class="terms-highlight" style="margin-top:16px;border-color:#d1fae5;background:#f0fdf4">
-        <strong style="color:#065f46">✅ Última atualização: 22 de maio de 2026 · Versão 2.0</strong><br>
-        <span style="color:#047857;font-size:11px">Seu aceite é registrado com timestamp, versão e identificador único para fins legais e comprobatórios.</span>
-      </div>
-
-    </div>
-
-    <div id="terms-footer">
-      <p class="terms-scroll-hint" id="terms-scroll-hint">↕ Role até o final para habilitar o aceite</p>
-      <div id="terms-check-row" class="terms-check-row" onclick="termsToggleCheck()">
-        <input type="checkbox" id="terms-checkbox" onclick="event.stopPropagation();termsToggleCheck()">
-        <label id="terms-check-label" class="terms-check-label">
-          Li integralmente, compreendi e <strong>aceito todas as cláusulas</strong> dos Termos de Uso da H2BApply (v2.0), incluindo: ausência de garantias de emprego ou visto, autorização para envio automatizado via Gmail, limitação de responsabilidade e minha responsabilidade exclusiva pelos dados enviados. Declaro ter ao menos 18 anos e capacidade legal para contratar.
-        </label>
-      </div>
-      <div id="terms-btns">
-        <button id="terms-decline" onclick="termsDecline()">Não aceito</button>
-        <button id="terms-accept" onclick="termsAccept()" style="position:relative">
-          <i class="ti ti-shield-check"></i> Aceito os Termos e Continuar
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-var _termsChecked=false;
-var _termsScrolled=false;
-var _termsCallback=null;
-
-function showTerms(callback){
-  // Se já aceitou antes, prosseguir direto
-  try{
-    var accepted=localStorage.getItem('h2b_terms_v2');
-    if(accepted){var d=JSON.parse(accepted);if(d.accepted&&d.ts&&(Date.now()-d.ts)<365*86400000){if(callback)callback();return;}}
-  }catch(e){}
-  _termsCallback=callback||null;
-  _termsChecked=false;
-  _termsScrolled=false;
-  var chk=document.getElementById('terms-checkbox');
-  if(chk)chk.checked=false;
-  var btn=document.getElementById('terms-accept');
-  if(btn)btn.classList.remove('active');
-  var hint=document.getElementById('terms-scroll-hint');
-  if(hint)hint.style.display='';
-  var overlay=document.getElementById('terms-overlay');
-  if(overlay)overlay.style.display='flex';
-  // Detectar scroll até o final
-  var body=document.getElementById('terms-body');
-  if(body){
-    body.scrollTop=0;
-    body.onscroll=function(){
-      if(!_termsScrolled&&body.scrollTop+body.clientHeight>=body.scrollHeight-30){
-        _termsScrolled=true;
-        var h=document.getElementById('terms-scroll-hint');
-        if(h)h.style.display='none';
-        // Habilita o checkbox após ler
-        var row=document.getElementById('terms-check-row');
-        if(row)row.style.opacity='1';
-      }
-    };
-    // Começa desabilitado
-    var row=document.getElementById('terms-check-row');
-    if(row)row.style.opacity='.5';
-  }
-}
-
-function termsToggleCheck(){
-  if(!_termsScrolled){
-    // Força rolar até o final
-    var body=document.getElementById('terms-body');
-    if(body)body.scrollTo({top:body.scrollHeight,behavior:'smooth'});
-    return;
-  }
-  _termsChecked=!_termsChecked;
-  var chk=document.getElementById('terms-checkbox');
-  if(chk)chk.checked=_termsChecked;
-  var btn=document.getElementById('terms-accept');
-  if(btn){
-    if(_termsChecked)btn.classList.add('active');
-    else btn.classList.remove('active');
-  }
-}
-
-function termsAccept(){
-  if(!_termsChecked)return;
-  // Registrar aceite localmente com timestamp, UA e dados probatórios
-  try{
-    var acceptData={
-      accepted:true,
-      ts:Date.now(),
-      date:new Date().toISOString(),
-      version:'2.0',
-      ua:navigator.userAgent.slice(0,200),
-      lang:navigator.language||'',
-      tz:Intl.DateTimeFormat().resolvedOptions().timeZone||'',
-      screen:screen.width+'x'+screen.height
-    };
-    localStorage.setItem('h2b_terms_v2',JSON.stringify(acceptData));
-    // Enviar aceite ao servidor para registro permanente
-    fetch('/api/accept-terms',{method:'POST',credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({version:'2.0',ts:acceptData.ts})
-    }).catch(function(){});
-  }catch(e){}
-  var overlay=document.getElementById('terms-overlay');
-  if(overlay)overlay.style.display='none';
-  if(_termsCallback)_termsCallback();
-  _termsCallback=null;
-}
-
-function termsDecline(){
-  var overlay=document.getElementById('terms-overlay');
-  if(overlay)overlay.style.display='none';
-  _termsCallback=null;
-  // Mostrar mensagem de que precisa aceitar para usar
-  if(typeof toast==='function')toast('Você precisa aceitar os Termos de Uso para usar a H2BApply.','r');
-}
-
-// Interceptar showGoogleWarnModal para mostrar termos primeiro
-var _origShowGoogleWarn=window.showGoogleWarnModal;
-window.showGoogleWarnModal=function(){
-  showTerms(function(){
-    if(_origShowGoogleWarn)_origShowGoogleWarn();
-    else location.href='/oauth/start';
-  });
-};
-</script>
 <div id="h2b-splash" style="position:fixed;inset:0;z-index:99999;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .4s ease;pointer-events:none">
   <img src="/apple-touch-icon.png?v=2" alt="H2BApply" style="width:96px;height:96px;border-radius:22px;box-shadow:0 8px 32px rgba(13,27,75,.2)">
   <div style="text-align:center">
@@ -1697,40 +1309,25 @@ window.showGoogleWarnModal=function(){
     <div style="font-size:13px;color:#7c7fb5;margin-top:4px">Vagas H-2B & H-2A nos EUA</div>
   </div>
   <div style="width:160px;height:3px;background:#e0e7ff;border-radius:99px;overflow:hidden">
-    <div style="height:100%;background:linear-gradient(90deg,#4f46e5,#7c3aed);border-radius:99px;animation:h2bBar 1.4s ease-out forwards"></div>
+    <div style="height:100%;background:linear-gradient(90deg,#4f46e5,#7c3aed);border-radius:99px;animation:h2bBar 1.2s ease-out forwards"></div>
   </div>
 </div>
-<style>
-@keyframes h2bBar{0%{width:0%}100%{width:100%}}
-</style>
+<style>@keyframes h2bBar{0%{width:0}100%{width:100%}}</style>
 <script>
 (function(){
   var done=false;
-  function hide(){
-    if(done)return; done=true;
-    var s=document.getElementById('h2b-splash');
-    if(!s)return;
-    s.style.opacity='0';
-    setTimeout(function(){if(s.parentNode)s.parentNode.removeChild(s);},420);
-  }
-  // Observa mudanças de display no landing e app
+  function hide(){if(done)return;done=true;var s=document.getElementById("h2b-splash");if(!s)return;s.style.opacity="0";setTimeout(function(){if(s.parentNode)s.parentNode.removeChild(s);},420);}
   function watch(){
-    var landing=document.getElementById('landing');
-    var app=document.getElementById('app');
+    var landing=document.getElementById("landing");var app=document.getElementById("app");
     if(!landing&&!app){setTimeout(watch,100);return;}
     var obs=new MutationObserver(function(){
-      var lv=landing&&landing.style.display;
-      var av=app&&app.style.display;
-      if(lv==='flex'||lv===''||av==='flex'||av===''){hide();}
+      if((landing&&landing.style.display==="flex")||(app&&app.style.display==="flex")){hide();}
     });
-    if(landing)obs.observe(landing,{attributes:true,attributeFilter:['style']});
-    if(app)obs.observe(app,{attributes:true,attributeFilter:['style']});
-    // Fallback máximo 4s
+    if(landing)obs.observe(landing,{attributes:true,attributeFilter:["style"]});
+    if(app)obs.observe(app,{attributes:true,attributeFilter:["style"]});
     setTimeout(hide,4000);
   }
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',watch);
-  } else { watch(); }
+  if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",watch);}else{watch();}
 })();
 </script>
 <!-- Star particles background — padrão visual ranking -->
@@ -1833,7 +1430,7 @@ window.showGoogleWarnModal=function(){
         <div id="ln-rank-preview">
           <div class="ln-rank-loading"><span class="spin spin-sm"></span></div>
         </div>
-        <div class="ln-rank-cta" onclick="showGoogleWarnModal()">
+        <div class="ln-rank-cta" onclick="location.href=_getOAuthURL()">
           <i class="ti ti-trophy"></i> Entre e dispute seu lugar no topo
         </div>
       </div>
@@ -1935,7 +1532,7 @@ window.showGoogleWarnModal=function(){
         <button class="sb-item sb-item-plans" id="si-plans" onclick="sv('plans')" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.07));border:1.5px solid rgba(99,102,241,.3);border-radius:var(--r);font-weight:800;color:#4f46e5;margin-top:4px"><i class="ti ti-diamond" style="font-size:16px;color:#4f46e5"></i>Planos & Recompensas</button>
         <button class="sb-item" id="si-logs" onclick="sv('logs')" style="color:var(--t3);font-size:12px"><i class="ti ti-list-details" style="font-size:14px"></i>Logs Automático<span class="sb-badge sb-badge-r" id="sib-logs" style="display:none"></span></button>
         <button class="sb-item" id="si-indicar" onclick="sv('indicar')"><i class="ti ti-users-group"></i>Indicar Amigos<span class="sb-badge" id="sib-indicar" style="display:none;background:var(--green);color:#fff"></span></button>
-        <button class="sb-item" id="si-redeem" onclick="sv('redeem')" style="background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(109,40,217,.06));border:1.5px solid rgba(139,92,246,.25);border-radius:10px;font-weight:800;color:#7c3aed"><i class="ti ti-ticket" style="font-size:15px;color:#7c3aed"></i>Resgatar Código<span style="margin-left:auto;font-size:9px;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:99px;font-weight:800">NOVO</span></button>
+        <button class="sb-item" id="si-redeem" onclick="sv('redeem')" style="background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(109,40,217,.06));border:1.5px solid rgba(139,92,246,.25);border-radius:10px;font-weight:800;color:#7c3aed"><i class="ti ti-ticket" style="font-size:15px;color:#7c3aed"></i>Resgatar Código<span style="margin-left:auto;font-size:9px;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:99px">NOVO</span></button>
         <button class="sb-item" id="si-notificacoes" onclick="sv('notificacoes')"><i class="ti ti-bell"></i>Notificações<span class="sb-badge" id="sib-notificacoes" style="display:none;background:#7c3aed;color:#fff"></span></button>
       </div>
       <div class="sb-sec" id="sb-admin-sec" style="display:none">
@@ -2101,7 +1698,7 @@ window.showGoogleWarnModal=function(){
         <div class="jobs-view">
           <div class="jlist-panel" id="jlist-panel">
             <div class="jlist-hdr">
-              <span class="jcount" id="jcount">Carregando...</span> <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Envio Manual</strong><br>Clique em uma vaga → veja os detalhes → clique em Candidatar.<br><br>⚡ Vagas já enviadas e as que estão no Automático não aparecem aqui.')">?</span>
+              <span class="jcount" id="jcount">Carregando...</span>
               <span id="jfrom-cache" style="font-size:10px;color:var(--amber);display:none">cache</span>
             </div>
             <div id="jlist"></div>
@@ -2130,7 +1727,7 @@ window.showGoogleWarnModal=function(){
       <!-- ══ HIST ══ -->
       <div class="view gone" id="v-hist"><div class="view-scroll">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-          <div style="font-size:18px;font-weight:800;display:flex;align-items:center;gap:6px">Candidaturas Enviadas <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Candidaturas Enviadas</strong><br>✅ Verde = enviado<br>❌ Vermelho = falhou<br>🔁 Laranja = duplicado (já enviado antes)')">?</span></div>
+          <div style="font-size:18px;font-weight:800">Candidaturas Enviadas</div>
           <div style="display:flex;gap:6px;align-items:center">
             <button class="fbtn on" id="ht-all"    onclick="setHistTab('all')">Todas</button>
             <button class="fbtn"    id="ht-manual" onclick="setHistTab('manual')">Manual</button>
@@ -2222,11 +1819,11 @@ window.showGoogleWarnModal=function(){
 
         <!-- Stats bar -->
         <div style="display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
-          <div style="flex:1;padding:8px 6px;text-align:center;border-right:1px solid var(--border);cursor:pointer" onclick="setInboxFilter('all')" title="Ver todas as respostas">
+          <div style="flex:1;padding:8px 6px;text-align:center;border-right:1px solid var(--border);cursor:pointer" onclick="setInboxMainTab('replies')" title="Ver respostas de enviados">
             <div style="font-size:17px;font-weight:800;color:var(--green);line-height:1" id="inbox-stat-replies">–</div>
             <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Respostas</div>
           </div>
-          <div style="flex:1;padding:8px 6px;text-align:center;border-right:1px solid var(--border);cursor:pointer" onclick="setInboxFilter('unread')">
+          <div style="flex:1;padding:8px 6px;text-align:center;border-right:1px solid var(--border);cursor:pointer" onclick="setInboxMainTab('all')">
             <div style="font-size:17px;font-weight:800;color:var(--blue);line-height:1" id="inbox-stat-total">–</div>
             <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Total</div>
           </div>
@@ -2240,11 +1837,15 @@ window.showGoogleWarnModal=function(){
           </div>
         </div>
 
-        <!-- Main Tabs — aba "Todos" removida: exibia todos os e-mails da inbox, não só respostas -->
+        <!-- Main Tabs -->
         <div class="inbox-tabs" id="inbox-main-tabs" style="display:flex;align-items:stretch">
           <button class="inbox-tab inbox-tab-replies active" id="imtab-replies" onclick="setInboxMainTab('replies')" style="color:var(--green);font-weight:700;flex:1">
             <i class="ti ti-arrow-back-up" style="font-size:14px;color:var(--green)"></i> Respostas
             <span class="inbox-tab-badge badge-green" id="imtab-replies-badge" style="display:none"></span>
+          </button>
+          <button class="inbox-tab inbox-tab-all" id="imtab-all" onclick="setInboxMainTab('all')" style="flex:1">
+            <i class="ti ti-inbox" style="font-size:14px"></i> Todos
+            <span class="inbox-tab-badge badge-blue" id="imtab-all-badge" style="display:none"></span>
           </button>
           <button class="inbox-tab" id="imtab-pipeline" onclick="setInboxMainTab('pipeline')" style="flex:1">
             <i class="ti ti-layout-kanban" style="font-size:14px"></i> Pipeline
@@ -2496,12 +2097,12 @@ window.showGoogleWarnModal=function(){
             <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-bottom:12px">
               <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px">Dados pessoais</div>
               <div class="field-row">
-                <div class="field"><label>Nome completo * <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Nome completo</strong><br>Aparece automaticamente em todos os e-mails enviados. Use exatamente como no passaporte.')">?</span></label><input class="input" id="cfg-name" type="text" placeholder="Seu nome completo"></div>
-                <div class="field"><label>País <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>País de origem</strong><br>Usado no modelo de e-mail. Escreva em inglês: <strong>Brazil</strong>')">?</span></label><input class="input" id="cfg-country" type="text" placeholder="Brazil"></div>
+                <div class="field"><label>Nome completo *</label><input class="input" id="cfg-name" type="text" placeholder="Seu nome completo"></div>
+                <div class="field"><label>País</label><input class="input" id="cfg-country" type="text" placeholder="Brazil"></div>
               </div>
               <div class="field-row">
                 <div class="field"><label>Cidade</label><input class="input" id="cfg-city" type="text"></div>
-                <div class="field"><label>WhatsApp <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>WhatsApp</strong><br>Seu número com DDI. Ex: +55 85 99999-9999.<br>Aparece na assinatura dos e-mails para empregadores te ligarem diretamente.')">?</span></label><input class="input" id="cfg-phone" type="tel" inputmode="tel"></div>
+                <div class="field"><label>WhatsApp</label><input class="input" id="cfg-phone" type="tel" inputmode="tel"></div>
               </div>
               <div class="field-row">
                 
@@ -2511,7 +2112,7 @@ window.showGoogleWarnModal=function(){
             <button class="btn btn-primary w100" onclick="saveProfile()"><i class="ti ti-check"></i> Salvar dados</button>
             <!-- Notificações -->
             <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-top:12px">
-              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px"><i class="ti ti-bell" style="font-size:13px"></i> Notificações <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Notificações Push</strong><br>Receba alerta no celular quando uma empresa americana responder.<br><br>📱 Funciona mesmo com o app fechado!')">?</span></div>
+              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px"><i class="ti ti-bell" style="font-size:13px"></i> Notificações</div>
               <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
                 <div>
                   <div style="font-size:13px;font-weight:700;margin-bottom:2px">🛫 Alerta de nova resposta</div>
@@ -2959,41 +2560,24 @@ window.showGoogleWarnModal=function(){
 
       </div></div>
 
-      <!-- ══ RESGATAR CÓDIGO ══ -->
       <div class="view gone" id="v-redeem"><div class="view-scroll" style="padding:0 0 80px">
-        <div style="background:linear-gradient(135deg,#4c1d95,#6d28d9,#7c3aed);color:#fff;padding:24px 20px;text-align:center">
-          <div style="width:60px;height:60px;border-radius:18px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:28px">🎟️</div>
+        <div style="background:linear-gradient(135deg,#4c1d95,#7c3aed);color:#fff;padding:24px 20px;text-align:center">
+          <div style="font-size:28px;margin-bottom:14px">🎟️</div>
           <div style="font-family:'Sora',sans-serif;font-size:20px;font-weight:800;margin-bottom:6px">Resgatar Código</div>
           <div style="font-size:13px;opacity:.85">Recebeu um código? Resgate aqui e ganhe dias VIP!</div>
         </div>
         <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
-          <div style="background:#fff;border:2px solid rgba(139,92,246,.2);border-radius:16px;padding:20px;box-shadow:0 4px 20px rgba(139,92,246,.08)">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-              <div style="width:42px;height:42px;border-radius:12px;background:#f5f3ff;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-gift" style="font-size:22px;color:#7c3aed"></i></div>
-              <div>
-                <div style="font-size:14px;font-weight:800;color:#1e1b4b">Código de Recompensa</div>
-                <div style="font-size:12px;color:#6b7280;margin-top:2px">1 resgate por conta · código de 8 caracteres</div>
-              </div>
-            </div>
+          <div style="background:#fff;border:2px solid rgba(139,92,246,.2);border-radius:16px;padding:20px">
             <div style="display:flex;gap:10px;align-items:stretch">
               <input class="input" id="redeem-code-inp" type="text" maxlength="8" placeholder="Ex: A1B2C3D4"
-                autocomplete="off" autocapitalize="characters" spellcheck="false"
                 style="text-transform:uppercase;letter-spacing:3px;font-weight:800;font-size:18px;flex:1;font-family:monospace;text-align:center;padding:14px"
                 oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')"
                 onkeydown="if(event.key==='Enter')doRedeemCode()">
-              <button class="btn btn-auto" onclick="doRedeemCode()" id="redeem-btn" style="padding:14px 18px;flex-shrink:0;font-size:14px;font-weight:800;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#4f46e5)">
+              <button class="btn btn-auto" onclick="doRedeemCode()" id="redeem-btn" style="padding:14px 18px;flex-shrink:0;font-size:14px;font-weight:800;border-radius:10px">
                 <i class="ti ti-ticket"></i> Resgatar
               </button>
             </div>
             <div id="redeem-msg" style="margin-top:12px;display:none"></div>
-          </div>
-          <div style="background:#f5f3ff;border:1.5px solid rgba(139,92,246,.18);border-radius:14px;padding:16px">
-            <div style="font-size:13px;font-weight:700;color:#4c1d95;margin-bottom:12px">📢 Como conseguir um código?</div>
-            <div style="display:flex;flex-direction:column;gap:10px;font-size:12px;color:#5b21b6">
-              <div style="display:flex;gap:10px;align-items:flex-start"><i class="ti ti-brand-instagram" style="font-size:16px;flex-shrink:0;color:#7c3aed"></i><span>Siga <strong>@andrio.k</strong> e <strong>@diego.cardoso_oficial</strong> no Instagram</span></div>
-              <div style="display:flex;gap:10px;align-items:flex-start"><i class="ti ti-brand-youtube" style="font-size:16px;flex-shrink:0;color:#7c3aed"></i><span>Assista ao canal <strong>Diego H2B</strong> no YouTube</span></div>
-              <div style="display:flex;gap:10px;align-items:flex-start"><i class="ti ti-users-group" style="font-size:16px;flex-shrink:0;color:#7c3aed"></i><span>Indique amigos — veja a aba <strong>Indicar Amigos</strong></span></div>
-            </div>
           </div>
         </div>
       </div></div>
@@ -3720,32 +3304,6 @@ let U={connected:false,email:"",name:"",picture:"",isAdmin:false,plan:"free",vip
 let CFG={name:"",country:"Brazil",phone:"",city:"",language:"pt-BR",subject:"",body:""};
 let DOCS=[],activeResIdx=null,activeCovIdx=null;
 let JOBS=[],HIST=[],SAVED=new Set(),APPLIED=new Set();
-
-// IDs de vagas já enviadas por fonte
-let _sentJan=new Set(),_sentJul=new Set(),_sentSeasonal=new Set(),_sentLoaded=false;
-async function _loadSentIds(){
-  try{
-    const r=await fetch('/api/sent-ids',{credentials:'include'});
-    if(!r.ok)return;
-    const d=await r.json();
-    _sentJan=new Set(d.jan2026||[]);
-    _sentJul=new Set(d.jul2025||[]);
-    _sentSeasonal=new Set(d.seasonal||[]);
-    _sentLoaded=true;
-  }catch(e){}
-}
-function _isSent(cn,sheet){
-  if(sheet==='jan2026')return _sentJan.has(cn);
-  if(sheet==='jul2025')return _sentJul.has(cn);
-  return false;
-}
-function _isSentSeasonal(id){return _sentSeasonal.has(id);}
-function _inAuto(cn,id){
-  if(cn)return _autoQueueIds.has(cn)||_autoQueueIds.has('s_'+cn);
-  if(id)return _autoQueueIds.has(id);
-  return false;
-}
-
 let _autoQueueIds=new Set(); // IDs de vagas na fila automática (ocultas do manual)
 let selJob=null,curJob=null;
 let _currentModalJob=null; // alias para curJob — atualizado por openModal
@@ -3773,10 +3331,7 @@ addEventListener("DOMContentLoaded",async()=>{
   if(err){const el=g("#login-err");if(el){el.style.display="block";el.textContent=err;}}
   if(ps.get("ok"))history.replaceState({},"","/");
   await checkStatus();
-  // Manter servidor acordado com ping a cada 4 minutos (Render hiberna após 15min)
-  setInterval(function(){
-    fetch('/api/status',{credentials:'include'}).catch(function(){});
-  }, 4*60*1000);
+  setInterval(function(){fetch("/api/warmup",{credentials:"include"}).catch(function(){});},4*60*1000);
 });
 
 async function checkStatus(){
@@ -3796,7 +3351,7 @@ async function checkStatus(){
           try{localStorage.setItem('h2b_lang',d.language);}catch{}
         }
       }
-      showApp();syncData();checkAdminMsg();_loadSentIds();
+      showApp();syncData();checkAdminMsg();
       // Apply language AFTER showApp so all elements exist
       setTimeout(applyLang, 100);
       // Dispara setup automático de push após login (com delay para app carregar)
@@ -3978,7 +3533,7 @@ function sv(v,...args){
   if(v==="home")renderHome();
   if(v==="ranking"){loadRanking(true);startRankTimer();}else{stopRankTimer();}
   if(v==="pesquisa"){initPesquisaView();}
-  if(v==="redeem"){/* view própria */}
+  if(v==="redeem"){/*view própria*/}
   if(v==="indicar"){loadReferralView();}
   if(v==="notificacoes"){loadNotifView();}
   if(v!=="jobs")closeMobDetail();closeDrawer();
@@ -4268,9 +3823,8 @@ async function loadJobs(reset=false){
     const r=await fetch("/api/jobs?"+p,{credentials:"include"});const d=await r.json();
     let jobs=d.jobs||[];if(fWage>0)jobs=jobs.filter(j=>{const w=parseFloat((j.wage||"").replace(/[^0-9.]/g,""));return w>=fWage;});if(fWorkers>0)jobs=jobs.filter(j=>j.workers>=fWorkers);
     if(reset)g("#jlist").innerHTML="";
-    const _sj=jobs.filter(j=>!_isSentSeasonal(j.id));
-    if(!_sj.length&&!JOBS.length){done=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">Nenhuma vaga encontrada.</div>`;}
-    else if(_sj.length){_sj.forEach(j=>{JOBS.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkCard(j));});skip+=d.jobs.length;total=d.total||JOBS.length;if(d.jobs.length<PAGE){done=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadJobs()">Carregar mais</button></div>`;}
+    if(!jobs.length&&!JOBS.length){done=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">Nenhuma vaga encontrada.</div>`;}
+    else if(jobs.length){jobs.forEach(j=>{JOBS.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkCard(j));});skip+=d.jobs.length;total=d.total||JOBS.length;if(d.jobs.length<PAGE){done=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadJobs()">Carregar mais</button></div>`;}
     const cnt=g("#jcount");if(cnt)cnt.innerHTML=`<strong>${total.toLocaleString()}</strong> vaga${total!==1?"s":""}`;const cc=g("#jfrom-cache");if(cc)cc.style.display=d.from_cache?"":"none";
     const sib=g("#sib-jobs");if(sib){sib.style.display="";sib.textContent=total>999?"999+":String(total);}
   }catch(e){g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--red)">Erro. <span style="cursor:pointer;text-decoration:underline" onclick="loadJobs()">Tentar novamente</span></div>`;}
@@ -4289,18 +3843,7 @@ async function loadSheetMeta(reset=false){
     if(reset)g("#jlist").innerHTML="";
     if(!d.jobs?.length){sDone=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">${sJobs.length?"Sem mais vagas.":"Nenhuma vaga encontrada."}</div>`;}
     else{
-      const _fj=d.jobs.filter(j=>{
-        const cn=j.caseNum||j.id||'';
-        return !_isSent(cn,tab)&&!_inAuto(cn,null);
-      });
-      const _removed=d.jobs.length-_fj.length;
-      if(_removed>0&&reset){
-        const bar=document.createElement('div');
-        bar.style.cssText='background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:10px 14px;margin:10px 14px 0;font-size:12px;color:#92400e;display:flex;gap:8px;align-items:center';
-        bar.innerHTML='<i class="ti ti-info-circle" style="font-size:15px;color:#f59e0b;flex-shrink:0"></i><span><strong>'+_removed+' vaga'+(_removed!==1?'s':'')+' ocultada'+(_removed!==1?'s':'')+'</strong> — já enviadas ou na fila do automático.</span>';
-        const jl=document.getElementById('jlist');if(jl?.parentElement)jl.parentElement.insertBefore(bar,jl);
-      }
-      _fj.forEach(j=>{sJobs.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkSheetCard(j));});
+      d.jobs.forEach(j=>{sJobs.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkSheetCard(j));});
       sSkip+=d.jobs.length;sTotal=d.total||sJobs.length;_jobsToEnrich=d.jobs;
       if(d.jobs.length<PAGE){sDone=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadSheetMeta()">Carregar mais</button></div>`;
     }
@@ -4678,9 +4221,6 @@ async function doSend(){
     closeModal();
     if(j?.id){
       APPLIED.add(j.id);
-        if(tab==="seasonal")_sentSeasonal.add(j.id);
-        else if(tab==="jan2026"&&(j.caseNum||j.id))_sentJan.add(j.caseNum||j.id);
-        else if(tab==="jul2025"&&(j.caseNum||j.id))_sentJul.add(j.caseNum||j.id);
       // Seasonal card: fade out e some
       const sc=g("#jcard-"+j.id);
       if(sc){sc.style.transition="opacity .3s ease";sc.style.opacity="0";setTimeout(()=>{sc.style.display="none";sc.style.opacity="";sc.style.transition="";},320);}
@@ -6587,9 +6127,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
 
 async function pauseAuto(){try{await fetch("/api/auto/pause",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:false,status:"paused"};updateAutoUI();updateLimChip();toast("Pausado","au");}catch(e){toast("Erro","r");}}
 async function resumeAuto(){try{await fetch("/api/auto/resume",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:true,status:"resuming"};updateAutoUI();updateLimChip();startAutoPolling();toast("Retomado ✓","g");}catch(e){toast("Erro","r");}}
-async function stopAuto(){
-  if(!confirm("Parar o envio completamente?"))return;try{await fetch("/api/auto/stop",{method:"POST",credentials:"include"});U.autoJob=null;_autoQueueIds=new Set();_syncAutoQueueVisibility();clearInterval(autoInterval);autoInterval=null;
-      setTimeout(async()=>{await _loadSentIds();if(tab!=="seasonal")loadSheetMeta(true);},600);if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado","r");// Recarrega perfis do servidor para garantir que não sumiram
+async function stopAuto(){if(!confirm("Parar o envio completamente?"))return;try{await fetch("/api/auto/stop",{method:"POST",credentials:"include"});U.autoJob=null;_autoQueueIds=new Set();_syncAutoQueueVisibility();clearInterval(autoInterval);autoInterval=null;if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado","r");// Recarrega perfis do servidor para garantir que não sumiram
 try{const pr=await fetch("/api/profiles",{credentials:"include"}).then(r=>r.json());UPROFILES=pr.profiles||[];if(U)U.profiles=UPROFILES;}catch{}
 }catch(e){toast("Erro","r");}}
 
@@ -6722,9 +6260,9 @@ function _getOAuthURL(){
   var ref=(new URLSearchParams(location.search)).get('ref')||window._pendingRefCode||'';
   return '/oauth/start'+(ref?'?ref='+encodeURIComponent(ref.trim().toUpperCase()):'');
 }
-function connectGmail(){showGoogleWarnModal();}
+function connectGmail(){location.href=_getOAuthURL();}
 function closeLoginWarn(){const ov=document.getElementById("login-warn-overlay");if(ov)ov.style.display="none";}
-function showLoginWarning(){showGoogleWarnModal();}
+function showLoginWarning(){location.href=_getOAuthURL();}
 async function loadPublicStats(){
   try{
     const r=await fetch("/api/public-stats");const d=await r.json();
@@ -6781,30 +6319,28 @@ document.addEventListener("DOMContentLoaded",()=>{loadPublicStats();setInterval(
 async function doLogout(){closeDrawer();await fetch("/api/disconnect",{credentials:"include"});U={connected:false};clearInterval(autoInterval);g("#app").style.display="none";g("#landing").style.display="flex";}
 function copyPix(){navigator.clipboard.writeText(PIX).then(()=>toast("Pix copiado ✓","g")).catch(()=>toast("Copie manualmente","r"));}
 
-async 
+
 function doRedeemCode(){
-  const inp=document.getElementById('redeem-code-inp');
-  const code=(inp?.value||'').trim().toUpperCase();
-  if(!code){toast('Digite o código','r');return;}
-  if(code.length!==8){toast('Código deve ter 8 caracteres','r');return;}
-  const btn=document.getElementById('redeem-btn');
-  const msgEl=document.getElementById('redeem-msg');
+  var inp=document.getElementById("redeem-code-inp");
+  var code=(inp?inp.value:"").trim().toUpperCase();
+  if(!code){toast("Digite o código","r");return;}
+  if(code.length!==8){toast("Código deve ter 8 caracteres","r");return;}
+  var btn=document.getElementById("redeem-btn");
+  var msgEl=document.getElementById("redeem-msg");
   if(btn)btn.disabled=true;
-  fetch('/api/redeem-code',{method:'POST',credentials:'include',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({code})})
-    .then(r=>r.json()).then(d=>{
-      msgEl.style.display='block';
+  fetch("/api/redeem-code",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:code})})
+    .then(function(r){return r.json();}).then(function(d){
+      msgEl.style.display="block";
       if(d.ok){
-        msgEl.innerHTML='<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:12px;color:#15803d;font-weight:700;text-align:center;font-size:14px">🎉 '+(d.message||'Código resgatado com sucesso!')+'</div>';
-        if(inp)inp.value='';
-        toast(d.message||'Código resgatado!','g');
-        if(typeof loadUser==='function')setTimeout(loadUser,500);
+        msgEl.innerHTML='<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:12px;color:#15803d;font-weight:700;text-align:center">&#127881; '+(d.message||"Código resgatado!")+"</div>";
+        if(inp)inp.value="";
+        toast(d.message||"Código resgatado!","g");
+        if(typeof loadUser==="function")setTimeout(loadUser,500);
       }else{
-        msgEl.innerHTML='<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;color:#dc2626;font-weight:600;text-align:center;font-size:13px">❌ '+(d.error||'Código inválido ou já utilizado')+'</div>';
+        msgEl.innerHTML='<div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;color:#dc2626;font-weight:600;text-align:center">&#10060; '+(d.error||"Código inválido")+"</div>";
       }
-    }).catch(()=>toast('Erro de conexão. Tente novamente.','r'))
-    .finally(()=>{if(btn)btn.disabled=false;});
+    }).catch(function(){toast("Erro de conexão","r");})
+    .finally(function(){if(btn)btn.disabled=false;});
 }
 
 async function redeemCode(){
@@ -6874,25 +6410,11 @@ addEventListener("DOMContentLoaded",()=>{
 // ══════════════════════════════════════════════════
 
 // Gera ícones dinamicamente via Canvas (evita precisar de arquivos PNG externos)
-// Ícones PWA servidos como arquivos estáticos pelo servidor
-// icon-192.png, icon-512.png, apple-touch-icon.png, favicon-32.png
-// NÃO gerar ícone via canvas — usa os arquivos PNG reais do projeto
+/* ícones servidos como arquivos estáticos */
 
-
-var _tip=null;
-function showTip(el,html){
-  if(_tip){_tip.remove();_tip=null;}
-  var t=document.createElement('div');
-  t.className='tip-box';
-  t.innerHTML=html;
-  document.body.appendChild(t);
-  _tip=t;
-  var r=el.getBoundingClientRect(),tw=260;
-  var top=r.top>150?r.top-8-t.offsetHeight:r.bottom+8;
-  var left=Math.min(Math.max(r.left-tw/2+r.width/2,8),window.innerWidth-tw-8);
-  t.style.cssText+='top:'+top+'px;left:'+left+'px;width:'+tw+'px;position:fixed';
-  setTimeout(function(){document.addEventListener('click',function f(){if(_tip){_tip.remove();_tip=null;}document.removeEventListener('click',f);},{once:true});},50);
-}
+// Rota de ícone via Service Worker (para o manifest.json)
+// O SW intercepta /icon-192.png e /icon-512.png e serve canvas gerado
+// Alternativa: o servidor pode servir PNG estáticos nesses paths
 
 // Registro do Service Worker
 if("serviceWorker" in navigator){
@@ -7113,7 +6635,7 @@ function _updateInboxStats(){
   const repliesUnread=replies.filter(e=>!e.isRead).length;
   const allUnread=unread.length;
   const rb=g("#imtab-replies-badge");if(rb){rb.style.display=repliesUnread?"":"none";rb.textContent=String(repliesUnread);}
-  // imtab-all-badge removido junto com a aba "Todos"
+  const ab=g("#imtab-all-badge");if(ab){ab.style.display=allUnread?"":"none";ab.textContent=String(allUnread);}
 
   // Bulk bar
   const vis=total.length>0;
@@ -7134,22 +6656,25 @@ function updInboxBadge(unread){
   const hb=g("#home-badge-resp");if(hb){hb.style.display=unread?"":"none";hb.textContent=String(unread);}
 }
 
-// ── Aba principal: Respostas de Enviados | Pipeline ──────
-// Aba "Todos e-mails" removida — exibia toda a inbox, não só respostas de candidaturas
+// ── Aba principal: Respostas de Enviados | Todos ─────────
 function setInboxMainTab(tab){
-  // Normaliza: se receber 'all' (chamada legada), redireciona para 'replies'
-  if(tab==="all") tab="replies";
   INBOX_MAIN_TAB=tab;
   // Reset filtro rápido para "all" ao trocar aba principal
   INBOX_FILTER="all";
   ["all","unread","starred","new"].forEach(k=>g("#ibf-"+k)?.classList.toggle("on",k==="all"));
-  // Aplica estilos visuais por aba
-  const repliesBtn=g("#imtab-replies");
+  // Aplica estilos visuais distintos por aba
+  const repliesBtn=g("#imtab-replies");const allBtn=g("#imtab-all");
   if(repliesBtn){
     repliesBtn.classList.toggle("active",tab==="replies");
     repliesBtn.style.color=tab==="replies"?"var(--green)":"";
     repliesBtn.style.borderBottomColor=tab==="replies"?"var(--green)":"transparent";
     repliesBtn.style.background=tab==="replies"?"var(--greenl)":"";
+  }
+  if(allBtn){
+    allBtn.classList.toggle("active",tab==="all");
+    allBtn.style.color=tab==="all"?"var(--blue)":"";
+    allBtn.style.borderBottomColor=tab==="all"?"var(--blue)":"transparent";
+    allBtn.style.background=tab==="all"?"var(--bluel)":"";
   }
   renderInbox();
 }
@@ -7293,8 +6818,7 @@ async function inboxMarkAllRead(){
 }
 
 function inboxViewAll(){
-  // Aba "Todos" removida — mostra todas as respostas sem filtros
-  setInboxMainTab("replies");
+  setInboxMainTab("all");
   setInboxFilter("all");
   if(g("#inbox-search"))g("#inbox-search").value="";
 }
@@ -7317,7 +6841,7 @@ function showInboxOptions(){
     {icon:"ti-checks",label:"Marcar todas como lidas",fn:()=>{inboxMarkAllRead();menu.remove();}},
     {icon:"ti-refresh",label:"Atualizar inbox",fn:()=>{loadInbox(true);menu.remove();}},
     {icon:"ti-bell",label:"Configurar notificações",fn:()=>{sv("profile");menu.remove();setTimeout(()=>document.getElementById("notif-toggle-btn")?.scrollIntoView({behavior:"smooth"}),300);}},
-    {icon:"ti-archive",label:"Ver arquivados",fn:()=>{setInboxMainTab("replies");setInboxFilter("archived");menu.remove();},id:"opt-archived"},
+    {icon:"ti-archive",label:"Ver arquivados",fn:()=>{setInboxMainTab("all");setInboxFilter("archived");menu.remove();},id:"opt-archived"},
   ];
   menu.innerHTML=items.map((it,i)=>`<button id="${it.id||""}" style="display:flex;align-items:center;gap:9px;padding:11px 16px;border:none;background:none;width:100%;text-align:left;cursor:pointer;font-family:inherit;font-size:13px;color:var(--text);${i>0?"border-top:1px solid var(--border)":""}" onmouseover="this.style.background='var(--sf2)'" onmouseout="this.style.background='none'" onclick="${"__menu_fn_"+i}()"><i class="ti ${it.icon}" style="font-size:15px;color:var(--t2)"></i>${it.label}</button>`).join("");
   items.forEach((it,i)=>{window["__menu_fn_"+i]=it.fn;});
@@ -7359,7 +6883,7 @@ async function requestPushPermission(){
     playPlaneSound();
     toast("🔔 Notificações ativadas! Você será avisado de novas respostas.","g");
     // Testa notificação imediatamente
-    try{new Notification("✅ H2BApply",{body:"Notificações ativadas! Você será avisado de novas respostas.",icon:"/apple-touch-icon.png",tag:"h2b-test"});}catch{}
+    try{new Notification("✅ H2BApply",{body:"Notificações ativadas! Você será avisado de novas respostas.",icon:"/icon-192.png",tag:"h2b-test"});}catch{}
   }else if(p==="denied"){
     toast("Permissão negada. Ative manualmente nas configurações do navegador.","r");
   }
@@ -8150,11 +7674,8 @@ function sendEmailReply(){
     .finally(()=>{if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-send"></i> Enviar pelo app';}});
 }
 
-
+// ── Render Home ───────────────────────────────────────────
 function renderHome(){
-  _welcome();
-
-
   // Saudação por hora
   const hr=new Date().getHours();
   const gr=hr>=6&&hr<12?"☀️ Bom dia":hr>=12&&hr<18?"🌤️ Boa tarde":hr>=18?"🌙 Boa noite":"🌙 Madrugada";
@@ -8434,7 +7955,7 @@ async function checkInboxNotif(){
         try{
           const notif=new Notification("✈️ H2BApply — Nova resposta!",{
             body:`Você recebeu ${diff} nova${diff>1?"s":""} resposta${diff>1?"s":""}! Clique para abrir.`,
-            icon:"/apple-touch-icon.png",tag:"h2b-inbox",requireInteraction:true
+            icon:"/icon-192.png",tag:"h2b-inbox",requireInteraction:true
           });
           notif.onclick=()=>{window.focus();sv("respostas");notif.close();};
         }catch{}
@@ -8554,7 +8075,7 @@ async function toggleNotifications() {
     }
     _notifEnabled = true; try { localStorage.setItem("h2b-notif", "1"); } catch {}
     playPlaneSound(); toast("🛫 Notificações ativadas!", "g");
-    try { new Notification("✅ H2BApply", { body: "Notificações ativadas! Você será avisado de novas respostas.", icon: "/apple-touch-icon.png", tag: "h2b-test" }); } catch {}
+    try { new Notification("✅ H2BApply", { body: "Notificações ativadas! Você será avisado de novas respostas.", icon: "/icon-192.png", tag: "h2b-test" }); } catch {}
     dismissNotifBanner();
     // Registra Web Push VAPID para notificações com app fechado
     _registerPushSubscription().catch(() => {});
@@ -8574,7 +8095,7 @@ async function toggleNotificationsInbox() {
     }
     _notifEnabled = true; try { localStorage.setItem("h2b-notif", "1"); } catch {}
     playPlaneSound(); toast("🛫 Notificações ativadas!", "g");
-    try { new Notification("✅ H2BApply", { body: "Você será avisado de novas respostas!", icon: "/apple-touch-icon.png", tag: "h2b-test" }); } catch {}
+    try { new Notification("✅ H2BApply", { body: "Você será avisado de novas respostas!", icon: "/icon-192.png", tag: "h2b-test" }); } catch {}
     dismissNotifBanner();
     _registerPushSubscription().catch(() => {});
   } else {
@@ -9738,7 +9259,7 @@ strong,b{font-weight:700;color:inherit}
                 <span>Ranking e métricas em tempo real</span>
               </div>
             </div>
-            <button class="ln-cta-btn" onclick="showGoogleWarnModal()" style="font-size:14px;padding:12px 20px;width:100%">
+            <button class="ln-cta-btn" onclick="location.href=_getOAuthURL()" style="font-size:14px;padding:12px 20px;width:100%">
               <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
               Ativar o automático agora
             </button>
@@ -9924,12 +9445,12 @@ console.log('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas');
       <div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:8px;color:var(--navy)">Complete seu Perfil</div>
       <div style="font-size:13px;color:var(--t2);text-align:center;margin-bottom:20px;line-height:1.6">Estas informações serão usadas automaticamente nos seus e-mails de candidatura.</div>
       <div class="field-row" style="margin-bottom:10px">
-        <div class="field"><label>Nome completo * <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Nome completo</strong><br>Aparece automaticamente em todos os e-mails enviados. Use exatamente como no passaporte.')">?</span></label><input class="input" id="ob-name" type="text" placeholder="Seu nome completo"></div>
-        <div class="field"><label>WhatsApp <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>WhatsApp</strong><br>Seu número com DDI. Ex: +55 85 99999-9999.<br>Aparece na assinatura dos e-mails para empregadores te ligarem diretamente.')">?</span></label><input class="input" id="ob-phone" type="tel" inputmode="tel" placeholder="+55 11 99999-9999"></div>
+        <div class="field"><label>Nome completo *</label><input class="input" id="ob-name" type="text" placeholder="Seu nome completo"></div>
+        <div class="field"><label>WhatsApp</label><input class="input" id="ob-phone" type="tel" inputmode="tel" placeholder="+55 11 99999-9999"></div>
       </div>
       <div class="field-row" style="margin-bottom:10px">
         <div class="field"><label>Cidade</label><input class="input" id="ob-city" type="text" placeholder="Sua cidade"></div>
-        <div class="field"><label>País <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>País de origem</strong><br>Usado no modelo de e-mail. Escreva em inglês: <strong>Brazil</strong>')">?</span></label><input class="input" id="ob-country" type="text" placeholder="Brazil" value="Brazil"></div>
+        <div class="field"><label>País</label><input class="input" id="ob-country" type="text" placeholder="Brazil" value="Brazil"></div>
       </div>
       
       <button onclick="obSavePersonal()" class="btn btn-primary w100" style="padding:13px;font-size:14px">Continuar →</button>
@@ -10006,7 +9527,6 @@ Best regards,
     </div>
   </div>
 </div>
-
 <div id="gwm" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px">
   <div style="background:#fff;border-radius:20px;max-width:420px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)">
     <div style="text-align:center;margin-bottom:16px">
@@ -10015,8 +9535,8 @@ Best regards,
     </div>
     <div style="background:#f8fafc;border-radius:10px;padding:14px;font-size:13px;color:#374151;line-height:1.6;margin-bottom:14px">
       <p style="margin-bottom:8px">O sistema está em <strong>verificação oficial pelo Google</strong>. Pode aparecer um aviso de segurança.</p>
-      <p style="margin-bottom:10px;color:#059669;font-weight:600">✅ O site é confiável e usado pela comunidade H2B.</p>
-      <p style="margin-bottom:6px;font-size:12px;color:#6b7280">Dúvidas? YouTube: <strong>Diego H2B</strong> ou <strong>Canal Diego Cardoso</strong></p>
+      <p style="margin-bottom:10px;color:#059669;font-weight:600">O site é confiável e usado pela comunidade H2B.</p>
+      <p style="margin-bottom:6px;font-size:12px">Dúvidas? YouTube: <strong>Diego H2B</strong></p>
       <div style="border-top:1px solid #e2e8f0;padding-top:10px;margin-top:10px;font-size:12px">
         <p style="font-weight:700;margin-bottom:6px">Nos próximos passos do Google:</p>
         <p>1. Clique em <strong>"Avançado"</strong></p>
@@ -10026,121 +9546,19 @@ Best regards,
     </div>
     <div style="display:flex;gap:8px">
       <button onclick="document.getElementById('gwm').style.display='none'" style="flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#6b7280;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancelar</button>
-      <button id="gwm-ok" style="flex:2;padding:10px;border:none;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Entendi, Continuar →</button>
+      <button id="gwm-ok" style="flex:2;padding:10px;border:none;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Entendi, Continuar</button>
     </div>
   </div>
 </div>
 <script>
 function showGoogleWarnModal(){
-  // Pré-aquecer o servidor ANTES do usuário clicar em continuar
-  // O Render Free hiberna — o code OAuth expira em 60s enquanto servidor acorda
-  fetch('/api/status',{credentials:'include'}).catch(function(){});
-  
-  var m=document.getElementById('gwm');
-  m.style.display='flex';
-  document.getElementById('gwm-ok').onclick=function(){
-    m.style.display='none';
-    // Garantir que servidor está acordado antes de redirecionar
-    var btn=document.getElementById('gwm-ok');
-    fetch('/api/status',{credentials:'include'}).finally(function(){
-      location.href=_getOAuthURL();
-    });
+  fetch("/api/warmup",{credentials:"include"}).catch(function(){});
+  var m=document.getElementById("gwm");
+  m.style.display="flex";
+  document.getElementById("gwm-ok").onclick=function(){
+    m.style.display="none";
+    location.href=_getOAuthURL();
   };
-}
-</script>
-
-
-<!-- ══ PAINEL DIAGNÓSTICO ADMIN ══ -->
-<div id="diag-overlay" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.92);padding:16px;overflow-y:auto">
-  <div style="max-width:800px;margin:0 auto;color:#fff;font-family:monospace">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <div style="font-size:18px;font-weight:800;color:#60a5fa">🔍 H2BApply Diagnóstico</div>
-      <button onclick="document.getElementById('diag-overlay').style.display='none'" style="background:#ef4444;border:none;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:700">✕ Fechar</button>
-    </div>
-    <div id="diag-content" style="font-size:12px;line-height:1.7">
-      <div style="color:#94a3b8">Carregando...</div>
-    </div>
-  </div>
-</div>
-
-<script>
-function openDiag(){
-  var ov=document.getElementById('diag-overlay');
-  ov.style.display='block';
-  var el=document.getElementById('diag-content');
-  el.innerHTML='<div style="color:#94a3b8">Carregando diagnóstico...</div>';
-  fetch('/api/diag',{credentials:'include'})
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d.error){el.innerHTML='<div style="color:#ef4444">'+d.error+'</div>';return;}
-      
-      var sections=[
-        {title:'🖥️ SERVIDOR',color:'#60a5fa',items:[
-          ['Status','✅ Online'],
-          ['Uptime',d.uptime_human],
-          ['Memória',d.memory_mb+' MB'],
-          ['Node',d.node_version],
-          ['Produção',d.is_prod?'✅ Sim':'❌ Não'],
-          ['Disco /data',d.disk?'✅ Disponível':'❌ Sem disco (dados em /tmp)'],
-          ['Data dir',d.data_dir],
-        ]},
-        {title:'🔐 OAUTH',color:'#a78bfa',items:[
-          ['APP_URL',d.app_url],
-          ['Redirect URI',d.redirect_uri],
-          ['Client ID',d.client_id_prefix],
-          ['Client Secret len',d.client_secret_len+' chars — '+d.client_secret_preview],
-          ['Sessões ativas',d.sessions_count],
-          ['Usuários',d.users_count],
-        ]},
-      ];
-      
-      var html='';
-      sections.forEach(function(sec){
-        html+='<div style="background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:14px;margin-bottom:12px">';
-        html+='<div style="font-size:13px;font-weight:800;color:'+sec.color+';margin-bottom:10px">'+sec.title+'</div>';
-        sec.items.forEach(function(item){
-          html+='<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #1e293b22">';
-          html+='<span style="color:#64748b;min-width:140px;flex-shrink:0">'+item[0]+'</span>';
-          html+='<span style="color:#e2e8f0;word-break:break-all">'+item[1]+'</span></div>';
-        });
-        html+='</div>';
-      });
-      
-      // OAuth attempts
-      if(d.recent_oauth&&d.recent_oauth.length){
-        html+='<div style="background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:14px;margin-bottom:12px">';
-        html+='<div style="font-size:13px;font-weight:800;color:#f59e0b;margin-bottom:10px">🔑 TENTATIVAS DE LOGIN ('+d.recent_oauth.length+')</div>';
-        d.recent_oauth.forEach(function(e){
-          var ok=e.result==='SUCCESS';
-          var color=ok?'#4ade80':e.result==='ERROR'?'#f87171':'#94a3b8';
-          html+='<div style="padding:6px;border-bottom:1px solid #1e293b;font-size:11px">';
-          html+='<span style="color:'+color+';font-weight:700">'+(e.result||'ATTEMPT')+'</span> ';
-          html+='<span style="color:#94a3b8">'+new Date(e.ts).toLocaleTimeString('pt-BR')+'</span> ';
-          if(e.error)html+='<span style="color:#f87171">'+e.error+': '+( e.desc||'')+'</span> ';
-          if(e.email)html+='<span style="color:#60a5fa">'+e.email+'</span> ';
-          if(e.client_secret_len)html+='<span style="color:#a78bfa">secret:'+e.client_secret_len+'chars '+e.client_secret_preview+'</span> ';
-          if(e.uptime_s!==undefined)html+='<span style="color:#64748b">uptime:'+e.uptime_s+'s</span>';
-          html+='</div>';
-        });
-        html+='</div>';
-      }
-      
-      // Errors
-      if(d.recent_errors&&d.recent_errors.length){
-        html+='<div style="background:#0f172a;border:1px solid #7f1d1d;border-radius:10px;padding:14px;margin-bottom:12px">';
-        html+='<div style="font-size:13px;font-weight:800;color:#ef4444;margin-bottom:10px">❌ ERROS RECENTES ('+d.recent_errors.length+')</div>';
-        d.recent_errors.slice(0,10).forEach(function(e){
-          html+='<div style="padding:4px;border-bottom:1px solid #1e293b;font-size:11px;color:#fca5a5">';
-          html+=new Date(e.ts).toLocaleTimeString('pt-BR')+' — '+e.msg+'</div>';
-        });
-        html+='</div>';
-      }
-      
-      el.innerHTML=html;
-    })
-    .catch(function(e){
-      el.innerHTML='<div style="color:#ef4444">Erro ao carregar: '+e.message+'</div>';
-    });
 }
 </script>
 
@@ -12098,7 +11516,7 @@ function applyLang(){
   });
   // Inbox tabs
   _sTabBtn('imtab-replies',t('responses'),'ti-arrow-back-up');
-  // imtab-all removido — aba "Todos" excluída
+  _sTabBtn('imtab-all',t('all_inbox'),'ti-inbox');
   _sTabBtn('imtab-pipeline','Pipeline','ti-layout-kanban');
   // Inbox filters
   _sBtnText('ibf-all',t('all'));

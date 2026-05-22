@@ -37,7 +37,6 @@ const PORT          = parseInt(process.env.PORT || "3000", 10);
 const IS_PROD       = APP_URL.startsWith("https://");
 const CONFIGURED    = !!(CLIENT_ID && CLIENT_SECRET);
 const ADMIN_EMAIL   = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-// Admin secundário via env — ADMIN_EMAIL_2=outro@gmail.com (sem hardcode no código)
 const ADMIN_EMAIL_2 = (process.env.ADMIN_EMAIL_2 || "").trim().toLowerCase();
 const ADMIN_EMAILS  = new Set([ADMIN_EMAIL, ADMIN_EMAIL_2].filter(Boolean));
 const isAdminEmail  = (e) => ADMIN_EMAILS.has((e||"").trim().toLowerCase());
@@ -47,7 +46,7 @@ const isAdminEmail  = (e) => ADMIN_EMAILS.has((e||"").trim().toLowerCase());
 // Configure as variáveis de ambiente VAPID_PUBLIC_KEY e VAPID_PRIVATE_KEY
 const VAPID_PUBLIC_KEY  = (process.env.VAPID_PUBLIC_KEY  || "").trim();
 const VAPID_PRIVATE_KEY = (process.env.VAPID_PRIVATE_KEY || "").trim();
-const VAPID_SUBJECT     = (process.env.VAPID_SUBJECT || (ADMIN_EMAIL ? `mailto:${ADMIN_EMAIL}` : "")).trim();
+const VAPID_SUBJECT     = process.env.VAPID_SUBJECT || `mailto:${ADMIN_EMAIL}`;
 const PUSH_ENABLED      = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
 console.log(`[boot] Push VAPID: ${PUSH_ENABLED?"✅ configurado":"⚠️  desativado (configure VAPID_PUBLIC_KEY e VAPID_PRIVATE_KEY)"}`);
 
@@ -680,8 +679,8 @@ async function serverPushPoll() {
           body: linkedHint
             ? `Você recebeu uma resposta para a vaga em ${linkedHint}.`
             : `Você recebeu ${diff} nova${diff > 1 ? "s" : ""} resposta${diff > 1 ? "s" : ""}. Toque para abrir.`,
-          icon: "/apple-touch-icon.png",
-          badge: "/favicon-32.png",
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
           tag: "h2b-inbox",
           url: linkedAppId ? `/?tab=respostas&app=${linkedAppId}` : "/?tab=respostas",
           appId: linkedAppId || null,
@@ -1582,34 +1581,6 @@ function reactivateAutoJobs(){
 //  SESSION
 // ══════════════════════════════════════════════════════════
 const sessions=Object.create(null);
-
-// ══════════════════════════════════════════════════════
-// SISTEMA DE DIAGNÓSTICO INTERNO — só admins veem
-// ══════════════════════════════════════════════════════
-const _diag = {
-  requests: [],      // últimas 200 requisições
-  oauth:    [],      // tentativas de login
-  errors:   [],      // erros capturados
-  perf:     [],      // tempos de resposta
-  maxLen:   200
-};
-
-function _diagLog(type, data) {
-  const entry = { ts: Date.now(), t: new Date().toISOString(), ...data };
-  if (!_diag[type]) _diag[type] = [];
-  _diag[type].unshift(entry);
-  if (_diag[type].length > _diag.maxLen) _diag[type].pop();
-}
-
-// Wrapper para logar todos os requests
-const _origLog = console.log.bind(console);
-const _origError = console.error.bind(console);
-console.error = function(...args) {
-  _diagLog('errors', { msg: args.map(a=>String(a)).join(' '), level:'error' });
-  _origError(...args);
-};
-
-
 const rateMap  =Object.create(null);
 const SESS_TTL =7*24*60*60*1000;
 
@@ -1904,9 +1875,8 @@ async function gmailFetchInbox(sid,maxResults=50){
       body:body.slice(0,3000), // Limita tamanho
       snippet:snippet.slice(0,300),
       isRead,
-      // isReply: apenas quando há In-Reply-To ou References no header.
-      // threadId removido — todo email do Gmail tem threadId, inclusive emails novos,
-      // o que causava falsos positivos: e-mails não relacionados apareciam como "Resposta".
+      // FIX: isReply expandido — inclui emails com In-Reply-To/References OU que estão em threads
+      // onde o usuário enviou (threadId presente = parte de conversa iniciada por nós)
       isReply:!!(inReplyTo||references),
       inReplyTo: inReplyTo || "",      // v13: necessário para vincular candidatura
       references: references || "",    // v13
@@ -1936,19 +1906,7 @@ async function genCover({name,country,phone,job,company,city,state,wage}){return
 // ══════════════════════════════════════════════════════════
 const server=http.createServer(async(req,res)=>{
   let u,pathname;try{u=new URL(req.url,"http://x");pathname=u.pathname;}catch{res.writeHead(400);return res.end();}
-  // Log silencioso de requests (só rotas relevantes)
-  const _reqStart=Date.now();
-  if(!pathname.startsWith('/api/warmup')&&!pathname.startsWith('/api/status')){
-    _diagLog('requests',{method:req.method,path:pathname,ip:(req.headers['x-forwarded-for']||'').split(',')[0].trim()||'local'});
-  }
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "SAMEORIGIN");
-  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-  // HSTS apenas em produção HTTPS
-  if (IS_PROD) res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains");
-  // CSP: permite inline scripts/styles (necessário para o HTML monolítico atual) mas bloqueia frames externos e objects
-  res.setHeader("Content-Security-Policy", "default-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'");
+  res.setHeader("X-Content-Type-Options","nosniff");res.setHeader("X-Frame-Options","SAMEORIGIN");
   const org=req.headers.origin||"";const ao=(org===APP_URL||/^https?:\/\/localhost/.test(org))?org:APP_URL;
   res.setHeader("Access-Control-Allow-Origin",ao);res.setHeader("Access-Control-Allow-Credentials","true");res.setHeader("Access-Control-Allow-Methods","GET,POST,DELETE,PATCH,OPTIONS");res.setHeader("Access-Control-Allow-Headers","Content-Type");
   if(req.method==="OPTIONS"){res.writeHead(204);return res.end();}
@@ -1966,126 +1924,30 @@ const server=http.createServer(async(req,res)=>{
     try{const sw=fs.readFileSync(path.join(__dirname,"sw.js"),"utf8");res.writeHead(200,{"Content-Type":"application/javascript","Cache-Control":"no-cache, no-store, must-revalidate","Service-Worker-Allowed":"/"});return res.end(sw);}
     catch{res.writeHead(404);return res.end("sw.js não encontrado");}
   }
-  // ── Ícones PWA / Favicon / Apple Touch ──────────────────
-  // Todos os tamanhos servidos como arquivos estáticos (icon-512.png, icon-192.png, apple-touch-icon.png, favicon-32.png)
-  const ICON_MAP = {
-    "/icon-192.png":         "icon-192.png",
-    "/icon-512.png":         "icon-512.png",
-    "/apple-touch-icon.png": "apple-touch-icon.png",
-    "/favicon-32.png":       "favicon-32.png",
-    "/favicon.ico":          "favicon-32.png",
-  };
+  // Ícones PWA — serve PNG se existir, senão gera SVG inline como fallback
+  const ICON_MAP={"/icon-192.png":"icon-192.png","/icon-512.png":"icon-512.png","/apple-touch-icon.png":"apple-touch-icon.png","/favicon-32.png":"favicon-32.png","/favicon.ico":"favicon-32.png"};
   if(ICON_MAP[pathname]){
-    const iconPath=path.join(__dirname, ICON_MAP[pathname]);
-    if(fs.existsSync(iconPath)){
-      const data=fs.readFileSync(iconPath);
-      res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=604800, immutable"});
-      return res.end(data);
+    const iconPath=path.join(__dirname,ICON_MAP[pathname]);
+    if(fs.existsSync(iconPath)){const data=fs.readFileSync(iconPath);res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=604800, immutable"});return res.end(data);}
+  }
+  if(pathname==="/icon-192.png"||pathname==="/icon-512.png"){
+    const size=pathname==="/icon-192.png"?192:512;
+    const pngPath=path.join(__dirname,pathname.slice(1));
+    if(fs.existsSync(pngPath)){
+      res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=604800"});
+      return res.end(fs.readFileSync(pngPath));
     }
-    // Fallback procedural se arquivo não existir em disco
-    try{
-      const size=pathname.includes("512")?512:192;
-      const png=generateIconPNG(size);
-      res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=3600"});
+    // Fallback: gera PNG real (sem dependências externas) compatível com PWA/iOS/push
+    try {
+      const png = generateIconPNG(size);
+      res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=604800"});
       return res.end(png);
-    }catch(e){ res.writeHead(404); return res.end("icon not found"); }
-  }
-
-
-
-
-
-  // /api/diag — Diagnóstico completo (só admin)
-  if(pathname==="/api/diag"&&req.method==="GET"){
-    const sd=getSess(req);
-    if(!sd?.user_email||!isAdminEmail(sd.user_email))return json(res,403,{error:"Acesso negado."});
-    return json(res,200,{
-      uptime_s: Math.round(process.uptime()),
-      uptime_human: (()=>{const u=Math.round(process.uptime());const h=Math.floor(u/3600);const m=Math.floor((u%3600)/60);const s2=u%60;return `${h}h ${m}m ${s2}s`})(),
-      memory_mb: Math.round(process.memoryUsage().heapUsed/1024/1024),
-      sessions_count: Object.keys(sessions).length,
-      users_count: Object.keys(DB_USERS).length,
-      app_url: APP_URL,
-      redirect_uri: REDIRECT_URI,
-      client_id_prefix: CLIENT_ID.slice(0,30)+"...",
-      client_secret_len: CLIENT_SECRET.length,
-      client_secret_preview: CLIENT_SECRET.slice(0,8)+"..."+CLIENT_SECRET.slice(-4),
-      disk: fs.existsSync("/data"),
-      data_dir: DATA_DIR,
-      is_prod: IS_PROD,
-      node_version: process.version,
-      recent_oauth: _diag.oauth.slice(0,10),
-      recent_errors: _diag.errors.slice(0,20),
-      recent_requests: _diag.requests.slice(0,30),
-    });
-  }
-
-  // /api/warmup — mantém servidor acordado (evita invalid_grant no OAuth)
-  if(pathname==="/api/warmup"){
-    res.writeHead(200,{"Content-Type":"application/json","Cache-Control":"no-cache"});
-    return res.end(JSON.stringify({ok:true,ts:Date.now(),uptime:process.uptime()}));
-  }
-
-  // /api/accept-terms — Registra aceite dos termos com timestamp
-  if(pathname==="/api/accept-terms"&&req.method==="POST"){
-    try{
-      const s2=getSess(req);
-      const d=JSON.parse(await readBody(req));
-      const email=s2?.user_email||"anonymous";
-      const record={
-        version:String(d.version||"2.0").slice(0,10),
-        ts:Date.now(),
-        date:new Date().toISOString(),
-        ip:req.headers["x-forwarded-for"]?.split(",")[0]?.trim()||req.socket?.remoteAddress||"unknown"
-      };
-      // Salvar no usuário se logado
-      if(s2?.user_email){
-        const u=getUser(s2.user_email);
-        if(u){setUser(s2.user_email,{termsAccepted:{...record,email:s2.user_email}});}
-      }
-      console.log("[terms] Aceite registrado:",email,record.version,record.date,record.ip);
-      return json(res,200,{ok:true,ts:record.ts});
-    }catch(e){return json(res,200,{ok:true});}
-  }
-
-  // /api/sent-ids — IDs de vagas já enviadas por fonte
-  if(pathname==="/api/sent-ids"&&req.method==="GET"){
-    const s2=getSess(req);if(!s2?.user_email)return json(res,401,{error:"Não autenticado."});
-    const hist=getHist(s2.user_email);
-    const sentJan=new Set(),sentJul=new Set(),sentSeasonal=new Set();
-    hist.forEach(h=>{
-      if(h.sheetSource==="jan2026"&&h.caseNum)sentJan.add(h.caseNum);
-      else if(h.sheetSource==="jul2025"&&h.caseNum)sentJul.add(h.caseNum);
-      else if(h.jobId)sentSeasonal.add(h.jobId);
-    });
-    return json(res,200,{jan2026:[...sentJan],jul2025:[...sentJul],seasonal:[...sentSeasonal]});
-  }
-
-
-  // ── /api/terms/accept — Registra aceite dos Termos de Uso ────────
-  if(pathname==="/api/terms/accept"&&req.method==="POST"){
-    try{
-      const s2=getSess(req);
-      const d=JSON.parse(await readBody(req));
-      const ip=(req.headers["x-forwarded-for"]||req.socket.remoteAddress||"").split(",")[0].trim();
-      const ua=(req.headers["user-agent"]||"").slice(0,200);
-      const record={
-        accepted:true,
-        version:d.version||"1.0",
-        ts:Date.now(),
-        date:new Date().toISOString(),
-        ip,
-        ua,
-        email:s2?.user_email||"guest",
-      };
-      // Salvar no usuário se logado
-      if(s2?.user_email){
-        setUser(s2.user_email,{termsAccepted:record});
-      }
-      // Log para auditoria
-      console.log("[terms] Aceite registrado:",record.email,"|",record.ip,"|",record.date);
-      return json(res,200,{ok:true,ts:record.ts});
-    }catch(e){return json(res,200,{ok:true});}
+    } catch(e) {
+      // Último recurso: SVG
+      const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect width="${size}" height="${size}" rx="${size*0.2}" fill="#1a56db"/><text x="50%" y="44%" font-family="system-ui,sans-serif" font-size="${size*0.28}" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">H2B</text></svg>`;
+      res.writeHead(200,{"Content-Type":"image/svg+xml","Cache-Control":"public, max-age=3600"});
+      return res.end(svg);
+    }
   }
 
   // ── /api/jobs ─────────────────────────────────────────
@@ -2221,7 +2083,6 @@ const server=http.createServer(async(req,res)=>{
   // ── REFERRAL FIX: salva o ?ref= na sessão pendente para recuperar no callback ──
   const refCodeParam=(u.searchParams.get("ref")||"").trim().toUpperCase().slice(0,16);
   sessions["__p__"+st]={pending:true,ts:Date.now(),...(refCodeParam?{refCode:refCodeParam}:{})};
-  console.log("[oauth] Iniciando | redirect_uri:",REDIRECT_URI,"| uptime:",Math.round(process.uptime())+"s");
   const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI,response_type:"code",scope:"https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",access_type:"offline",prompt:"consent select_account",state:st});res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();}
 
   if(pathname==="/oauth/callback"){
@@ -2230,29 +2091,9 @@ const server=http.createServer(async(req,res)=>{
     if(error)return fail(error==="access_denied"?"Login cancelado.":"Erro OAuth: "+error);
     if(!code)return fail("Código OAuth inválido.");
     try{
-      // Log para diagnóstico — mostra os primeiros/últimos chars das credenciais
-      const _oauthAttempt={
-        ts: new Date().toISOString(),
-        redirect_uri: REDIRECT_URI,
-        client_id_prefix: CLIENT_ID.slice(0,30),
-        client_secret_len: CLIENT_SECRET.length,
-        client_secret_preview: CLIENT_SECRET.slice(0,8)+"..."+CLIENT_SECRET.slice(-4),
-        code_len: code.length,
-        code_prefix: code.slice(0,20),
-        uptime_s: Math.round(process.uptime())
-      };
-      _diagLog('oauth', _oauthAttempt);
-      console.log("[oauth/callback] redirect_uri:",REDIRECT_URI);
-      console.log("[oauth/callback] client_secret len:",CLIENT_SECRET.length,"preview:",CLIENT_SECRET.slice(0,8)+"..."+CLIENT_SECRET.slice(-4));
-      console.log("[oauth/callback] uptime:",Math.round(process.uptime())+"s");
       const tb=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:REDIRECT_URI,grant_type:"authorization_code"}).toString();
       const{body:tk}=await httpsReq({hostname:"oauth2.googleapis.com",path:"/token",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(tb)}},tb);
-      if(tk.error){
-      _diagLog('oauth',{result:'ERROR',error:tk.error,desc:tk.error_description,redirect_uri:REDIRECT_URI,secret_len:CLIENT_SECRET.length});
-      console.error("[oauth] ERRO:",tk.error,"|",tk.error_description);
-      return fail((tk.error_description||tk.error)+(" ["+tk.error+"]"));
-    }
-    if(!tk.access_token)return fail("Token não recebido do Google.");
+      if(tk.error)return fail(tk.error_description||tk.error);if(!tk.access_token)return fail("Token não recebido.");
       const{body:ui}=await httpsReq({hostname:"www.googleapis.com",path:"/oauth2/v2/userinfo",method:"GET",headers:{"Authorization":"Bearer "+tk.access_token}});
       if(!ui.email)return fail("E-mail não obtido.");
       const sid="sess_"+crypto.randomBytes(24).toString("hex");
@@ -2310,8 +2151,7 @@ const server=http.createServer(async(req,res)=>{
         const vipStillActive = isVipActive(ex);
         const vipDowngrade = ex.vip?.active && !vipStillActive ? {vip:{...ex.vip,active:false},plan:"free"} : {};
         setUser(ui.email,{...tokenData,picture:ui.picture||ex.picture,isAdmin:isAdminEmail(ui.email),...vipDowngrade});
-        _diagLog('oauth',{result:'SUCCESS',email:ui.email});
-      console.log("[oauth] Login:",ui.email,"| refresh_token salvo:",!!tokenData.refresh_token,"| vip:",vipStillActive?"ativo":"inativo","| Total:",Object.keys(DB_USERS).length);
+        console.log("[oauth] Login:",ui.email,"| refresh_token salvo:",!!tokenData.refresh_token,"| vip:",vipStillActive?"ativo":"inativo","| Total:",Object.keys(DB_USERS).length);
       }
       const cookieStr=makeCookieStr(sid);const page=makeCallbackPage(sid);
       res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Content-Length":Buffer.byteLength(page),"Set-Cookie":cookieStr,"Cache-Control":"no-cache, no-store"});
@@ -2457,6 +2297,38 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     }catch(e){_manualSendInFlight.delete(dedupKey);console.error("[send]",e.message);return json(res,500,{error:e.message});}
   }
 
+
+  if(pathname==="/api/sent-ids"&&req.method==="GET"){
+    const s2=getSess(req);if(!s2?.user_email)return json(res,401,{error:"Não autenticado."});
+    const hist=getHist(s2.user_email);
+    const sentJan=new Set(),sentJul=new Set(),sentSeasonal=new Set();
+    hist.forEach(h=>{
+      if(h.sheetSource==="jan2026"&&h.caseNum)sentJan.add(h.caseNum);
+      else if(h.sheetSource==="jul2025"&&h.caseNum)sentJul.add(h.caseNum);
+      else if(h.jobId)sentSeasonal.add(h.jobId);
+    });
+    return json(res,200,{jan2026:[...sentJan],jul2025:[...sentJul],seasonal:[...sentSeasonal]});
+  }
+
+
+  if(pathname==="/api/diag"&&req.method==="GET"){
+    const sd=getSess(req);if(!sd?.user_email||!isAdminEmail(sd.user_email))return json(res,403,{error:"Acesso negado."});
+    return json(res,200,{
+      uptime_s:Math.round(process.uptime()),
+      memory_mb:Math.round(process.memoryUsage().heapUsed/1024/1024),
+      sessions_count:Object.keys(sessions).length,
+      users_count:Object.keys(DB_USERS).length,
+      app_url:APP_URL,redirect_uri:REDIRECT_URI,
+      client_id_prefix:CLIENT_ID.slice(0,30)+"...",
+      client_secret_len:CLIENT_SECRET.length,
+      client_secret_preview:CLIENT_SECRET.slice(0,8)+"..."+CLIENT_SECRET.slice(-4),
+      disk:fs.existsSync("/data"),data_dir:DATA_DIR,is_prod:IS_PROD,
+      node_version:process.version
+    });
+  }
+
+  if(pathname==="/api/warmup"){res.writeHead(200,{"Content-Type":"application/json"});return res.end(JSON.stringify({ok:true,ts:Date.now()}));}
+
   if(pathname==="/api/history"&&req.method==="GET"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});return json(res,200,{history:getHist(s.user_email)});}
 
   // ── PUSH NOTIFICATIONS ────────────────────────────────────
@@ -2486,7 +2358,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
           type:"test",
           title:"✅ H2BApply — Notificações ativas!",
           body:"Você será notificado de novas respostas mesmo com o app fechado.",
-          icon:"/apple-touch-icon.png",badge:"/favicon-32.png",tag:"h2b-test",url:"/"
+          icon:"/icon-192.png",badge:"/icon-192.png",tag:"h2b-test",url:"/"
         });
       }catch(e){console.warn("[push] Teste push falhou:",e.message);}
       return json(res,200,{ok:true,devices:DB_PUSH[s.user_email].length});
@@ -2515,7 +2387,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       await pushToUser(s.user_email,{
         type:"test",title:"🛫 H2BApply — Teste OK!",
         body:"Push notification funcionando! Você receberá alertas em tempo real.",
-        icon:"/apple-touch-icon.png",badge:"/favicon-32.png",tag:"h2b-test",url:"/"
+        icon:"/icon-192.png",badge:"/icon-192.png",tag:"h2b-test",url:"/"
       });
       return json(res,200,{ok:true,devices:subs.length});
     }catch(e){return json(res,500,{error:e.message});}
@@ -3132,19 +3004,18 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
     if(pathname==="/api/admin/ranking/hide"&&req.method==="POST"){
       try{const d=JSON.parse(await readBody(req));if(!d.email)return json(res,400,{error:"email obrigatório"});
         if(d.hide){DB_RANK_HIDDEN[d.email]=Date.now();}else{delete DB_RANK_HIDDEN[d.email];}
-        persistRankHidden();invalidateRankCache();console.log(`[admin] Ranking hide=${d.hide} → ${d.email}`);return json(res,200,{ok:true});
+        persistRankHidden();console.log(`[admin] Ranking hide=${d.hide} → ${d.email}`);return json(res,200,{ok:true});
       }catch(e){return json(res,500,{error:e.message});}
     }
     if(pathname==="/api/admin/ranking/badge"&&req.method==="POST"){
       try{const d=JSON.parse(await readBody(req));if(!d.email)return json(res,400,{error:"email obrigatório"});
         if(d.badge){DB_RANK_BADGES[d.email]=String(d.badge).slice(0,20);}else{delete DB_RANK_BADGES[d.email];}
-        persistRankBadges();invalidateRankCache();return json(res,200,{ok:true});
+        persistRankBadges();return json(res,200,{ok:true});
       }catch(e){return json(res,500,{error:e.message});}
     }
     if(pathname==="/api/admin/ranking/reset"&&req.method==="POST"){
       try{const d=JSON.parse(await readBody(req));const period=d.period||"day";
         ["sends","responses","active"].forEach(cat=>{delete rankPosCache[`${period}_${cat}`];});
-        invalidateRankCache(); // limpa cache de resultado também
         console.log(`[admin] Ranking ${period} reset por ${s.user_email}`);return json(res,200,{ok:true,period});
       }catch(e){return json(res,500,{error:e.message});}
     }
@@ -3629,41 +3500,14 @@ function last7Days(h) {
 function inRankPeriod(e, period) {
   if (period === "all") return true;
   if (period === "day") return e.dateStr === todayStr();
-  // Para week/month: resolve timestamp. Usa sentAt se disponível,
-  // senão reconstrói a partir de dateStr (dd/mm/yyyy BRT) para não
-  // excluir entradas antigas que não possuem sentAt.
-  let ts = 0;
-  if (e.sentAt) {
-    ts = new Date(e.sentAt).getTime();
-  } else if (e.dateStr) {
-    const [d, m, y] = e.dateStr.split("/");
-    if (d && m && y) ts = Date.UTC(Number(y), Number(m) - 1, Number(d));
-  }
-  if (!ts) return false;
-  const now = Date.now();
-  if (period === "week")  return ts >= now - 7  * 86400_000;
-  if (period === "month") return ts >= now - 30 * 86400_000;
+  const ts = e.sentAt ? new Date(e.sentAt).getTime() : 0;
+  if (period === "week")  return ts >= Date.now() - 7  * 86400_000;
+  if (period === "month") return ts >= Date.now() - 30 * 86400_000;
   return false;
-}
-
-// Cache de resultado do ranking — evita recalcular O(n) em cada request
-// Invalidado automaticamente após RANKING_CACHE_TTL ms ou reset via admin
-const _rankCache = {};
-const RANKING_CACHE_TTL = 60_000; // 60s
-
-function invalidateRankCache() {
-  for (const k of Object.keys(_rankCache)) delete _rankCache[k];
 }
 
 // Calcula ranking de usuários por período e categoria
 function calcRanking(period, category, myEmail) {
-  const cacheKey = `${period}_${category}`;
-
-  // Serve do cache se ainda válido (exceto quando precisamos de myPos)
-  if (!myEmail && _rankCache[cacheKey] && Date.now() - _rankCache[cacheKey].ts < RANKING_CACHE_TTL) {
-    return _rankCache[cacheKey].data;
-  }
-
   const rows = [];
   for (const [email, user] of Object.entries(DB_USERS)) {
     if (DB_RANK_HIDDEN[email]) continue;
@@ -3678,30 +3522,20 @@ function calcRanking(period, category, myEmail) {
     const score    = category === "responses" ? replies : category === "active" ? sends + replies * 2 : sends;
     if (score === 0 && period !== "all") continue;
     if (totS + totR === 0 && period === "all") continue;
-
-    // Tiebreaker: usa epoch ms para comparação determinística.
-    // Usuários sem created_at ficam no final (Infinity = mais recente = menor prioridade no tiebreaker).
-    const createdTs = user.created_at ? new Date(user.created_at).getTime() : Infinity;
-
     rows.push({
       email, name: user.name || "Usuário", picture: user.picture || "",
       plan: getPlan(user), sends, responses: replies, totalSends: totS,
       totalResponses: totR, responseRate: respRate, score,
       isOnline: isOnlineUser(email), adminBadge: DB_RANK_BADGES[email] || null,
-      createdTs,
-      // uid computado uma vez por linha (não dentro do .map)
-      uid: crypto.createHash("sha256").update(email).digest("hex").slice(0, 16),
+      createdAt: user.created_at || "2024-01-01"
     });
   }
-
-  // Ordena: maior score primeiro; empate → quem entrou antes (menor createdTs)
-  rows.sort((a, b) => b.score !== a.score ? b.score - a.score : a.createdTs - b.createdTs);
-
+  rows.sort((a, b) => b.score !== a.score ? b.score - a.score : new Date(a.createdAt) - new Date(b.createdAt));
+  const cacheKey = `${period}_${category}`;
   const prev = rankPosCache[cacheKey] || {};
   const newPos = {};
-  rows.forEach((r, i) => { newPos[r.email] = i + 1; });
+  rows.forEach((r, i) => newPos[r.email] = i + 1);
   rankPosCache[cacheKey] = newPos;
-
   const list = rows.slice(0, 50).map((r, i) => {
     const pos = i + 1, pp = prev[r.email];
     const change = pp !== undefined ? pp - pos : null;
@@ -3709,32 +3543,20 @@ function calcRanking(period, category, myEmail) {
       pos, name: r.name, picture: r.picture, plan: r.plan,
       sends: r.sends, responses: r.responses, totalSends: r.totalSends,
       responseRate: r.responseRate, score: r.score, isOnline: r.isOnline,
-      change, adminBadge: r.adminBadge, uid: r.uid,
+      change, adminBadge: r.adminBadge,
+      uid: crypto.createHash("sha256").update(r.email).digest("hex").slice(0, 16),
       isMe: myEmail ? r.email === myEmail : false
     };
   });
-
   let myPos = null;
   if (myEmail) {
     const mi = rows.findIndex(r => r.email === myEmail);
     if (mi >= 0) {
       const me = rows[mi];
-      myPos = {
-        pos: mi + 1, sends: me.sends, responses: me.responses,
-        score: me.score, total: rows.length,
-        badge: me.adminBadge || null,
-      };
+      myPos = { pos: mi + 1, sends: me.sends, responses: me.responses, score: me.score, total: rows.length };
     }
   }
-
-  const result = { list, myPos, total: rows.length };
-
-  // Armazena no cache apenas quando não há myEmail (resultado genérico)
-  if (!myEmail) {
-    _rankCache[cacheKey] = { data: result, ts: Date.now() };
-  }
-
-  return result;
+  return { list, myPos, total: rows.length };
 }
 
 // ── BOOT ─────────────────────────────────────────────────
