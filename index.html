@@ -1337,9 +1337,359 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
   .ln-nav-logo{font-size:15px}
 }
 
+
+/* ══ TERMOS DE USO ══ */
+#terms-overlay{position:fixed;inset:0;z-index:99997;background:rgba(10,14,30,.85);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:16px}
+#terms-box{background:#fff;border-radius:20px;max-width:520px;width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.4);overflow:hidden}
+#terms-header{background:linear-gradient(135deg,#0d1b4b,#1e3a8a);padding:20px 24px;flex-shrink:0}
+#terms-header h2{color:#fff;font-family:'Sora',sans-serif;font-size:18px;font-weight:800;margin:0 0 4px}
+#terms-header p{color:rgba(255,255,255,.7);font-size:12px;margin:0}
+#terms-body{overflow-y:auto;padding:20px 24px;flex:1;font-size:13px;color:#374151;line-height:1.65}
+#terms-body h3{font-size:12px;font-weight:800;color:#0d1b4b;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 6px;padding-bottom:4px;border-bottom:1.5px solid #e5e7eb}
+#terms-body h3:first-child{margin-top:0}
+#terms-body p{margin-bottom:8px}
+#terms-body ul{margin:6px 0 10px 16px;padding:0}
+#terms-body ul li{margin-bottom:4px}
+#terms-body .terms-warning{background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:#991b1b;font-weight:600;text-align:center}
+#terms-body .terms-highlight{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;color:#1e40af}
+#terms-footer{padding:16px 24px;border-top:1.5px solid #e5e7eb;flex-shrink:0;background:#f9fafb}
+#terms-check-row{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;cursor:pointer}
+#terms-check-row input[type=checkbox]{width:18px;height:18px;margin-top:1px;flex-shrink:0;accent-color:#4f46e5;cursor:pointer}
+#terms-check-label{font-size:12px;color:#374151;line-height:1.5;cursor:pointer;user-select:none}
+#terms-check-label strong{color:#0d1b4b}
+#terms-btns{display:flex;gap:10px}
+#terms-decline{flex:1;padding:11px;border:1.5px solid #e5e7eb;border-radius:10px;background:#fff;color:#6b7280;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s}
+#terms-decline:hover{background:#f3f4f6}
+#terms-accept{flex:2;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;opacity:.5;pointer-events:none}
+#terms-accept.active{opacity:1;pointer-events:all}
+#terms-accept.active:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(79,70,229,.4)}
+.terms-scroll-hint{font-size:11px;color:#9ca3af;text-align:center;margin-bottom:10px}
+
 </style>
 </head>
 <body>
+
+<!-- ══ TERMOS DE USO ══ -->
+<div id="terms-overlay">
+  <div id="terms-box">
+    <div id="terms-header">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="ti ti-file-certificate" style="font-size:24px;color:#fff"></i>
+        </div>
+        <div>
+          <h2>Termos de Uso</h2>
+          <p>Leia atentamente antes de continuar · Versão 2.0 · 22/05/2026</p>
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;font-size:11px;color:rgba(255,255,255,.85);display:flex;align-items:center;gap:8px">
+        <i class="ti ti-lock" style="font-size:14px;flex-shrink:0"></i>
+        Seu aceite será registrado com data, hora e identificador de acesso para fins legais.
+      </div>
+    </div>
+
+    <div id="terms-body">
+
+      <div class="terms-warning">
+        ⚠️ LEIA INTEGRALMENTE ANTES DE CONTINUAR. O ACEITE CONSTITUI CONTRATO LEGALMENTE VINCULANTE.
+      </div>
+
+      <div class="terms-highlight">
+        <strong>📋 Resumo executivo:</strong> A H2BApply é uma plataforma de <strong>tecnologia para automação de candidaturas</strong>. Não somos agência de empregos, escritório de advocacia, consultoria migratória nem garantimos qualquer resultado. Você utiliza a plataforma sob sua inteira responsabilidade.
+      </div>
+
+      <h3>1. Identificação e Natureza Jurídica da Plataforma</h3>
+      <p>A <strong>H2BApply</strong> é uma plataforma tecnológica privada que fornece ferramentas de automação para organização e envio de candidaturas de trabalho temporário, incluindo programas H-2B e H-2A dos Estados Unidos da América.</p>
+      <p>A H2BApply expressamente declara que <strong>NÃO é e NÃO representa</strong>, sob nenhuma hipótese:</p>
+      <ul>
+        <li>Agência governamental, órgão público ou entidade oficial de qualquer natureza</li>
+        <li>Escritório de advocacia, consultório jurídico ou prestadora de aconselhamento legal</li>
+        <li>Consultoria migratória credenciada perante qualquer autoridade</li>
+        <li>Empregadora, recrutadora ou intermediária de mão de obra</li>
+        <li>Patrocinadora, requerente ou facilitadora de vistos de qualquer categoria</li>
+        <li>Representante, agente ou parceira do USCIS, Department of Labor (DOL), Department of State (DOS), U.S. Customs and Border Protection (CBP), Embaixada Americana ou qualquer autoridade migratória</li>
+        <li>Garantidora de emprego, visto, entrada ou permanência nos Estados Unidos</li>
+      </ul>
+      <p>Toda informação disponibilizada na Plataforma tem caráter meramente informativo e tecnológico, <strong>não constituindo aconselhamento jurídico, migratório ou trabalhista</strong>.</p>
+
+      <h3>2. Elegibilidade, Capacidade Legal e Declarações do Usuário</h3>
+      <p>Ao acessar ou utilizar a Plataforma, você declara, sob pena de responsabilidade civil e criminal, que:</p>
+      <ul>
+        <li>Possui ao menos <strong>18 (dezoito) anos de idade</strong> completos</li>
+        <li>Possui plena capacidade civil e legal para contratar nos termos do Código Civil Brasileiro</li>
+        <li>Utilizará a Plataforma <strong>exclusivamente para fins lícitos</strong>, em conformidade com as leis brasileiras e americanas</li>
+        <li>Fornecerá apenas informações <strong>verdadeiras, completas, atualizadas e não enganosas</strong></li>
+        <li>Não utilizará identidade falsa, documentos fraudulentos ou dados de terceiros sem autorização</li>
+        <li>Não está proibido de utilizar serviços digitais por decisão judicial ou administrativa</li>
+        <li>Compreende que enviar candidaturas falsas ou com dados incorretos pode configurar crime</li>
+      </ul>
+
+      <h3>3. Descrição dos Serviços</h3>
+      <p>A H2BApply poderá disponibilizar, conforme o plano contratado:</p>
+      <ul>
+        <li>Criação e gestão de perfil profissional</li>
+        <li>Armazenamento e gestão de currículo e documentos</li>
+        <li>Organização, filtragem e monitoramento de vagas</li>
+        <li>Automação parcial ou integral de envio de candidaturas por e-mail</li>
+        <li>Geração de conteúdo assistida por inteligência artificial</li>
+        <li>Sistema de ranking e competição entre usuários</li>
+        <li>Notificações push e alertas de respostas</li>
+        <li>Integração com Gmail via OAuth 2.0 do Google</li>
+      </ul>
+      <p>Os serviços são fornecidos <strong>"no estado em que se encontram"</strong> (as-is), sem garantia de disponibilidade, continuidade ou ausência de erros.</p>
+
+      <h3>4. Ausência Absoluta de Garantias de Resultado</h3>
+      <p>A H2BApply <strong>NÃO garante, NÃO assegura e NÃO promete</strong>, sob nenhuma circunstância:</p>
+      <ul>
+        <li>Contratação, entrevista, oferta de emprego ou qualquer retorno de empregadores</li>
+        <li>Aprovação, emissão, renovação ou manutenção de visto de qualquer categoria</li>
+        <li>Autorização de entrada, permanência legal ou documentação nos EUA</li>
+        <li>Sucesso financeiro, retorno sobre investimento ou compensação de qualquer natureza</li>
+        <li>Número mínimo de respostas, entrevistas ou propostas recebidas</li>
+        <li>Que os envios automáticos serão recebidos ou lidos pelos empregadores</li>
+      </ul>
+      <p><strong>Toda decisão de contratação, concessão de visto ou autorização migratória depende exclusivamente</strong> de empregadores privados, consulados, USCIS, CBP e outras autoridades governamentais, sobre as quais a H2BApply não possui influência, acesso ou relacionamento.</p>
+
+      <h3>5. Autorização Expressa para Automação — Uso do Gmail</h3>
+      <p>Ao conectar sua conta Gmail e ativar funcionalidades automáticas, você <strong>expressamente autoriza e reconhece</strong> que:</p>
+      <ul>
+        <li>A Plataforma enviará e-mails automatizados em seu nome para empregadores terceiros</li>
+        <li>Os e-mails partirão do seu endereço Gmail pessoal, podendo afetar sua reputação de remetente</li>
+        <li>Podem ocorrer falhas técnicas, atrasos, bloqueios ou erros nos envios</li>
+        <li>O Google ou provedores de e-mail terceiros podem bloquear sua conta por volume de envios</li>
+        <li>A H2BApply não se responsabiliza por suspensões da conta Gmail decorrentes do uso da Plataforma</li>
+        <li>Você assume integral responsabilidade pelo conteúdo dos e-mails enviados automaticamente</li>
+        <li>O sistema aplica proteções anti-spam e anti-duplicata, mas não pode garantir entrega ou leitura</li>
+        <li>A revogação do acesso ao Gmail pode ser feita a qualquer momento nas configurações do Google</li>
+      </ul>
+
+      <h3>6. Responsabilidade Exclusiva e Condutas Proibidas</h3>
+      <p>Você é <strong>integralmente e exclusivamente responsável</strong> por todas as informações, documentos, currículos e dados transmitidos por meio da Plataforma. São <strong>expressamente proibidas</strong> as seguintes condutas, sujeitando o infrator às sanções civis, criminais e administrativas cabíveis:</p>
+      <ul>
+        <li>Utilizar, enviar ou apresentar documentos falsos, adulterados ou de terceiros</li>
+        <li>Praticar fraude migratória, trabalhista ou documental de qualquer espécie</li>
+        <li>Fazer declarações falsas a empregadores, consulados ou autoridades</li>
+        <li>Enviar spam, comunicações em massa não autorizadas ou conteúdo ilegal</li>
+        <li>Utilizar identidade, dados ou documentos de terceiros sem autorização formal</li>
+        <li>Burlar, hackear, explorar ou comprometer sistemas de segurança da Plataforma</li>
+        <li>Realizar engenharia reversa, descompilar ou extrair código-fonte da Plataforma</li>
+        <li>Usar a Plataforma para fins comerciais, revenda ou benefício de terceiros sem autorização</li>
+        <li>Violar leis brasileiras, norte-americanas ou tratados internacionais aplicáveis</li>
+      </ul>
+
+      <h3>7. Vagas e Empregadores Terceiros</h3>
+      <p>As vagas disponibilizadas na Plataforma são provenientes de fontes públicas, incluindo dados do U.S. Department of Labor (DOL). A H2BApply:</p>
+      <ul>
+        <li>Não valida individualmente a autenticidade, legitimidade ou disponibilidade de cada vaga</li>
+        <li>Não garante que os empregadores listados estão ativamente recrutando</li>
+        <li>Não verifica a idoneidade, capacidade financeira ou intenção dos empregadores</li>
+        <li>Não se responsabiliza por golpes, fraudes ou condutas ilícitas praticadas por terceiros</li>
+        <li>Recomenda ao usuário verificar independentemente a legitimidade de qualquer empregador antes de fornecer dados pessoais adicionais</li>
+      </ul>
+
+      <h3>8. Privacidade, LGPD e Tratamento de Dados</h3>
+      <p>Em conformidade com a <strong>Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018)</strong>, a Plataforma coleta e processa os seguintes dados pessoais:</p>
+      <ul>
+        <li><strong>Dados de identificação:</strong> nome completo, e-mail, fotografia de perfil</li>
+        <li><strong>Dados profissionais:</strong> currículo, experiências, habilidades</li>
+        <li><strong>Dados de uso:</strong> histórico de candidaturas, vagas visualizadas, configurações</li>
+        <li><strong>Dados técnicos:</strong> endereço IP, dados de acesso, identificadores de sessão</li>
+        <li><strong>Dados do Gmail:</strong> acesso para envio de e-mails (escopo restrito ao envio e leitura de respostas)</li>
+      </ul>
+      <p><strong>Finalidades do tratamento:</strong> prestação dos serviços contratados, prevenção à fraude, segurança da Plataforma, cumprimento de obrigações legais e melhoria dos serviços. <strong>Os dados NÃO são vendidos a terceiros.</strong></p>
+      <p>O usuário tem direito à confirmação, acesso, correção, anonimização, portabilidade e eliminação dos seus dados, nos termos da LGPD. Solicitações devem ser enviadas aos canais oficiais da H2BApply.</p>
+
+      <h3>9. Limitação de Responsabilidade e Exclusões</h3>
+      <p>Na máxima extensão permitida pela legislação aplicável, a H2BApply <strong>não será responsabilizada</strong>, em nenhuma hipótese, por:</p>
+      <ul>
+        <li>Deportação, detenção, recusa de entrada ou cancelamento de visto</li>
+        <li>Prejuízos financeiros, danos emergentes ou lucros cessantes de qualquer natureza</li>
+        <li>Danos indiretos, incidentais, especiais ou punitivos</li>
+        <li>Suspensão ou bloqueio de contas Gmail ou outros serviços de terceiros</li>
+        <li>Decisões de autoridades migratórias, consulares ou trabalhistas</li>
+        <li>Fraudes praticadas por empregadores ou terceiros</li>
+        <li>Interrupções, falhas, erros ou indisponibilidade da Plataforma</li>
+        <li>Alterações nas políticas ou requisitos do programa H-2B/H-2A pelo governo americano</li>
+      </ul>
+      <p>A responsabilidade total e agregada da H2BApply perante o usuário fica <strong>limitada ao valor efetivamente pago</strong> pelo usuário à H2BApply nos <strong>12 (doze) meses anteriores</strong> ao evento gerador do dano.</p>
+
+      <h3>10. Planos, Pagamentos e Política de Reembolso</h3>
+      <p>A H2BApply oferece planos gratuitos e pagos. Para planos pagos:</p>
+      <ul>
+        <li>Os valores são informados no ato da contratação e podem ser alterados com aviso prévio de 30 dias</li>
+        <li>Não há reembolso por período já utilizado do plano</li>
+        <li>A suspensão da conta por violação destes Termos não gera direito a reembolso</li>
+        <li>Planos promocionais ou cortesias não geram direito adquirido de continuidade</li>
+      </ul>
+
+      <h3>11. Suspensão, Bloqueio e Encerramento de Conta</h3>
+      <p>A H2BApply reserva-se o direito de suspender, bloquear, limitar ou encerrar permanentemente o acesso de qualquer usuário, a qualquer momento e sem aviso prévio, em caso de:</p>
+      <ul>
+        <li>Fraude, falsificação de documentos ou identidade</li>
+        <li>Violação de qualquer disposição destes Termos</li>
+        <li>Suspeita fundamentada de atividade ilegal</li>
+        <li>Abuso das funcionalidades da Plataforma</li>
+        <li>Determinação judicial ou administrativa</li>
+        <li>Risco à segurança da Plataforma ou de outros usuários</li>
+      </ul>
+      <p>O encerramento por justa causa não gera direito a reembolso ou indenização de qualquer natureza.</p>
+
+      <h3>12. Propriedade Intelectual</h3>
+      <p>Todo o conteúdo, código-fonte, marcas, logos, interfaces, algoritmos, bases de dados, documentação e sistemas da Plataforma são de <strong>propriedade exclusiva da H2BApply</strong>, protegidos pela Lei nº 9.610/1998 (Lei de Direitos Autorais), Lei nº 9.279/1996 (Lei de Propriedade Industrial) e tratados internacionais.</p>
+      <p>É <strong>expressamente proibido</strong>, sem autorização prévia e por escrito: copiar, reproduzir, modificar, adaptar, traduzir, distribuir, sublicenciar, revender, criar obras derivadas, realizar engenharia reversa ou explorar comercialmente qualquer elemento da Plataforma.</p>
+
+      <h3>13. Indenização pelo Usuário</h3>
+      <p>O usuário concorda em <strong>defender, indenizar e isentar</strong> a H2BApply, seus sócios, colaboradores, parceiros e representantes de quaisquer reclamações, ações judiciais, danos, perdas, custos e despesas (incluindo honorários advocatícios razoáveis) decorrentes de: (i) uso indevido da Plataforma; (ii) violação destes Termos; (iii) violação de direitos de terceiros; (iv) informações falsas fornecidas à Plataforma.</p>
+
+      <h3>14. Modificações dos Termos</h3>
+      <p>A H2BApply poderá modificar estes Termos a qualquer momento. Alterações substanciais serão comunicadas com antecedência mínima de <strong>7 (sete) dias</strong> por e-mail ou notificação na Plataforma. O uso contínuo da Plataforma após o prazo de notificação constitui aceitação automática das alterações. Caso não concorde, o usuário deverá encerrar sua conta.</p>
+
+      <h3>15. Força Maior e Caso Fortuito</h3>
+      <p>A H2BApply não será responsável por descumprimento de obrigações decorrente de eventos de força maior ou caso fortuito, incluindo falhas de infraestrutura de internet, ataques cibernéticos, alterações regulatórias, pandemias, desastres naturais ou qualquer outro evento fora do controle razoável da Plataforma.</p>
+
+      <h3>16. Legislação Aplicável e Foro</h3>
+      <p>Estes Termos são regidos pela <strong>legislação da República Federativa do Brasil</strong>. Fica eleito o foro da <strong>comarca do domicílio do usuário</strong> para resolução de conflitos, sem prejuízo da aplicação subsidiária da legislação americana nas relações com empregadores dos EUA. As partes concordam em tentar resolver disputas amigavelmente antes de recorrer ao Judiciário.</p>
+
+      <h3>17. Disposições Gerais</h3>
+      <ul>
+        <li><strong>Integralidade:</strong> Estes Termos constituem o acordo completo entre as partes quanto ao seu objeto</li>
+        <li><strong>Separabilidade:</strong> A invalidade de qualquer cláusula não afeta as demais</li>
+        <li><strong>Renúncia:</strong> A não exigência de qualquer direito não constitui renúncia ao mesmo</li>
+        <li><strong>Cessão:</strong> O usuário não pode ceder sua conta ou direitos decorrentes destes Termos sem autorização escrita da H2BApply</li>
+        <li><strong>Idioma:</strong> Em caso de conflito entre versões em idiomas distintos, prevalece a versão em português do Brasil</li>
+      </ul>
+
+      <h3>18. Contato e Canal Oficial</h3>
+      <p>Para comunicações legais, exercício de direitos LGPD, dúvidas ou notificações formais, utilize exclusivamente os canais oficiais disponibilizados pela H2BApply: Instagram <strong>@andrio.k</strong> e <strong>@diego.cardoso_oficial</strong>.</p>
+
+      <div class="terms-highlight" style="margin-top:16px;border-color:#d1fae5;background:#f0fdf4">
+        <strong style="color:#065f46">✅ Última atualização: 22 de maio de 2026 · Versão 2.0</strong><br>
+        <span style="color:#047857;font-size:11px">Seu aceite é registrado com timestamp, versão e identificador único para fins legais e comprobatórios.</span>
+      </div>
+
+    </div>
+
+    <div id="terms-footer">
+      <p class="terms-scroll-hint" id="terms-scroll-hint">↕ Role até o final para habilitar o aceite</p>
+      <div id="terms-check-row" class="terms-check-row" onclick="termsToggleCheck()">
+        <input type="checkbox" id="terms-checkbox" onclick="event.stopPropagation();termsToggleCheck()">
+        <label id="terms-check-label" class="terms-check-label">
+          Li integralmente, compreendi e <strong>aceito todas as cláusulas</strong> dos Termos de Uso da H2BApply (v2.0), incluindo: ausência de garantias de emprego ou visto, autorização para envio automatizado via Gmail, limitação de responsabilidade e minha responsabilidade exclusiva pelos dados enviados. Declaro ter ao menos 18 anos e capacidade legal para contratar.
+        </label>
+      </div>
+      <div id="terms-btns">
+        <button id="terms-decline" onclick="termsDecline()">Não aceito</button>
+        <button id="terms-accept" onclick="termsAccept()" style="position:relative">
+          <i class="ti ti-shield-check"></i> Aceito os Termos e Continuar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var _termsChecked=false;
+var _termsScrolled=false;
+var _termsCallback=null;
+
+function showTerms(callback){
+  // Se já aceitou antes, prosseguir direto
+  try{
+    var accepted=localStorage.getItem('h2b_terms_v2');
+    if(accepted){var d=JSON.parse(accepted);if(d.accepted&&d.ts&&(Date.now()-d.ts)<365*86400000){if(callback)callback();return;}}
+  }catch(e){}
+  _termsCallback=callback||null;
+  _termsChecked=false;
+  _termsScrolled=false;
+  var chk=document.getElementById('terms-checkbox');
+  if(chk)chk.checked=false;
+  var btn=document.getElementById('terms-accept');
+  if(btn)btn.classList.remove('active');
+  var hint=document.getElementById('terms-scroll-hint');
+  if(hint)hint.style.display='';
+  var overlay=document.getElementById('terms-overlay');
+  if(overlay)overlay.style.display='flex';
+  // Detectar scroll até o final
+  var body=document.getElementById('terms-body');
+  if(body){
+    body.scrollTop=0;
+    body.onscroll=function(){
+      if(!_termsScrolled&&body.scrollTop+body.clientHeight>=body.scrollHeight-30){
+        _termsScrolled=true;
+        var h=document.getElementById('terms-scroll-hint');
+        if(h)h.style.display='none';
+        // Habilita o checkbox após ler
+        var row=document.getElementById('terms-check-row');
+        if(row)row.style.opacity='1';
+      }
+    };
+    // Começa desabilitado
+    var row=document.getElementById('terms-check-row');
+    if(row)row.style.opacity='.5';
+  }
+}
+
+function termsToggleCheck(){
+  if(!_termsScrolled){
+    // Força rolar até o final
+    var body=document.getElementById('terms-body');
+    if(body)body.scrollTo({top:body.scrollHeight,behavior:'smooth'});
+    return;
+  }
+  _termsChecked=!_termsChecked;
+  var chk=document.getElementById('terms-checkbox');
+  if(chk)chk.checked=_termsChecked;
+  var btn=document.getElementById('terms-accept');
+  if(btn){
+    if(_termsChecked)btn.classList.add('active');
+    else btn.classList.remove('active');
+  }
+}
+
+function termsAccept(){
+  if(!_termsChecked)return;
+  // Registrar aceite localmente com timestamp, UA e dados probatórios
+  try{
+    var acceptData={
+      accepted:true,
+      ts:Date.now(),
+      date:new Date().toISOString(),
+      version:'2.0',
+      ua:navigator.userAgent.slice(0,200),
+      lang:navigator.language||'',
+      tz:Intl.DateTimeFormat().resolvedOptions().timeZone||'',
+      screen:screen.width+'x'+screen.height
+    };
+    localStorage.setItem('h2b_terms_v2',JSON.stringify(acceptData));
+    // Enviar aceite ao servidor para registro permanente
+    fetch('/api/accept-terms',{method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({version:'2.0',ts:acceptData.ts})
+    }).catch(function(){});
+  }catch(e){}
+  var overlay=document.getElementById('terms-overlay');
+  if(overlay)overlay.style.display='none';
+  if(_termsCallback)_termsCallback();
+  _termsCallback=null;
+}
+
+function termsDecline(){
+  var overlay=document.getElementById('terms-overlay');
+  if(overlay)overlay.style.display='none';
+  _termsCallback=null;
+  // Mostrar mensagem de que precisa aceitar para usar
+  if(typeof toast==='function')toast('Você precisa aceitar os Termos de Uso para usar a H2BApply.','r');
+}
+
+// Interceptar showGoogleWarnModal para mostrar termos primeiro
+var _origShowGoogleWarn=window.showGoogleWarnModal;
+window.showGoogleWarnModal=function(){
+  showTerms(function(){
+    if(_origShowGoogleWarn)_origShowGoogleWarn();
+    else location.href='/oauth/start';
+  });
+};
+</script>
 <div id="h2b-splash" style="position:fixed;inset:0;z-index:99999;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .4s ease;pointer-events:none">
   <img src="/apple-touch-icon.png?v=2" alt="H2BApply" style="width:96px;height:96px;border-radius:22px;box-shadow:0 8px 32px rgba(13,27,75,.2)">
   <div style="text-align:center">

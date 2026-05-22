@@ -893,27 +893,22 @@ function searchSheet(arr, q, state, category, skip, top, sort) {
     }
 
     if(impliedCat && (!category||category==="all")){
-      // BUSCA POR RELEVÂNCIA:
-      // Tier 1: título da vaga contém exatamente a query (ex: "Bartender" no título)
-      // Tier 2: cargo/ocupação contém a query
-      // Tier 3: empresa contém a query
-      // Tier 4: categoria relacionada (food para bartender) — sem título direto
-      const tier1=arr.filter(r=>(r.t||"").toLowerCase().includes(ql));
-      const tier1ids=new Set(tier1.map(r=>r.c));
-      const tier2=arr.filter(r=>!tier1ids.has(r.c)&&(r.oc||"").toLowerCase().includes(ql));
-      const tier2ids=new Set([...tier1ids,...tier2.map(r=>r.c)]);
-      const tier3=arr.filter(r=>!tier2ids.has(r.c)&&(r.n||"").toLowerCase().includes(ql));
-      const tier3ids=new Set([...tier2ids,...tier3.map(r=>r.c)]);
-      const tier4=arr.filter(r=>!tier3ids.has(r.c)&&(r.k||"other")===impliedCat);
-      list=[...tier1,...tier2,...tier3,...tier4];
+      // PRIORITY SEARCH:
+      // Tier 1: exact company name contains query (e.g. "bartender" in company name)
+      // Tier 2: category matches (food service companies for bartender)
+      const tier1=arr.filter(r=>(r.n||"").toLowerCase().includes(ql)||(r.e||"").toLowerCase().includes(ql)||(r.c||"").toLowerCase().includes(ql));
+      const tier2=arr.filter(r=>(r.k||"other")===impliedCat&&!(r.n||"").toLowerCase().includes(ql)&&!(r.c||"").toLowerCase().includes(ql));
+      // Merge: tier1 first (exact matches), then tier2 (similar category), dedup by case number
+      const seen=new Set(tier1.map(r=>r.c));
+      list=[...tier1,...tier2.filter(r=>!seen.has(r.c))];
     } else {
-      // Busca geral: título > empresa > estado > email
-      const t1=list.filter(r=>(r.t||"").toLowerCase().includes(ql));
-      const t1ids=new Set(t1.map(r=>r.c));
-      const t2=list.filter(r=>!t1ids.has(r.c)&&((r.oc||"").toLowerCase().includes(ql)||(r.n||"").toLowerCase().includes(ql)));
-      const t2ids=new Set([...t1ids,...t2.map(r=>r.c)]);
-      const t3=list.filter(r=>!t2ids.has(r.c)&&((r.e||"").toLowerCase().includes(ql)||(r.s||"").toLowerCase().includes(ql)));
-      list=[...t1,...t2,...t3];
+      // Regular search: company name, state, case number, email only
+      list = list.filter(r =>
+        (r.n  || "").toLowerCase().includes(ql) ||  // company name
+        (r.c  || "").toLowerCase().includes(ql) ||  // ETA case number
+        (r.e  || "").toLowerCase().includes(ql) ||  // email
+        (r.s  || "").toLowerCase().includes(ql)     // state name
+      );
     }
   }
   if (state)    list=list.filter(r=>(r.s||"").toUpperCase()===state.toUpperCase());
@@ -1587,24 +1582,6 @@ function reactivateAutoJobs(){
 //  SESSION
 // ══════════════════════════════════════════════════════════
 const sessions=Object.create(null);
-// Carregar sessões persistidas do arquivo (sobrevive restarts)
-try{
-  if(fs.existsSync(SESSION_FILE)){
-    const saved=JSON.parse(fs.readFileSync(SESSION_FILE,"utf8"));
-    const now=Date.now();
-    // Só carrega sessões não expiradas (válidas por 7 dias)
-    Object.entries(saved).forEach(([k,v])=>{
-      if(v.created_at && now - v.created_at < 7*86400_000) sessions[k]=v;
-    });
-    console.log("[boot] Sessões restauradas:",Object.keys(sessions).length);
-  }
-}catch(e){console.warn("[boot] Erro ao carregar sessões:",e.message);}
-
-// Salvar sessões periodicamente a cada 60s
-function persistSessions(){
-  try{persist(SESSION_FILE, sessions);}catch(e){}
-}
-setInterval(persistSessions, 60_000);
 const rateMap  =Object.create(null);
 const SESS_TTL =7*24*60*60*1000;
 
@@ -1612,25 +1589,10 @@ function rateLimit(k,max,ms){const n=Date.now();if(!rateMap[k]||rateMap[k].r<n)r
 const makeCookieStr=id=>{const b=`h2b_session=${id}; Path=/; HttpOnly; Max-Age=${7*86400}`;return IS_PROD?b+"; Secure; SameSite=Lax":b+"; SameSite=Lax";};
 const clearCookieStr=()=>{const b="h2b_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT";return IS_PROD?b+"; Secure; SameSite=Lax":b;};
 const getSessId=req=>{const m=(req.headers.cookie||"").match(/(?:^|;\s*)h2b_session=([^;]+)/);return m?m[1]:null;};
-const getSess=req=>{
-  const id=getSessId(req);
-  if(!id)return null;
-  if(sessions[id])return sessions[id];
-  // Sessão sumiu (restart do servidor) — tenta recriar a partir do DB_USERS
-  // Busca pelo sid no DB para reconectar o cookie ao usuário
-  for(const [email,u] of Object.entries(DB_USERS)){
-    if(u._lastSid===id && u.cached_access_token && u.cached_token_expiry && Date.now()<u.cached_token_expiry){
-      // Recria a sessão em memória
-      sessions[id]={access_token:u.cached_access_token,refresh_token:u.refresh_token||null,expires_at:u.cached_token_expiry,user_email:email,user_name:u.name||email,picture:u.picture||"",created_at:u._sidCreated||Date.now()};
-      console.log("[session] Sessão recriada para:",email);
-      return sessions[id];
-    }
-  }
-  return null;
-};
+const getSess  =req=>{const id=getSessId(req);return id?sessions[id]:null;};
 
 function makeCallbackPage(sessId){
-  return`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Entrando...</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;font-family:sans-serif;color:#fff}.box{text-align:center}.spin{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="box"><div class="spin"></div><div style="font-size:18px;font-weight:600">Entrando na sua conta...</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:8px">Aguarde um momento</div></div><script>setTimeout(function(){window.location.replace('/')},800);</script></body></html>`;
+  return`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Entrando...</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;font-family:sans-serif;color:#fff}.box{text-align:center}.spin{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="box"><div class="spin"></div><div style="font-size:18px;font-weight:600">Entrando na sua conta...</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:8px">Aguarde um momento</div></div><script>setTimeout(function(){window.location.replace('/')},150);</script></body></html>`;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1997,22 +1959,67 @@ const server=http.createServer(async(req,res)=>{
   }
 
 
-  // ── /api/sent-ids — IDs enviados por fonte ────────────
-  // Usado para filtrar vagas já enviadas no manual e no auto
+
+  // /api/accept-terms — Registra aceite dos termos com timestamp
+  if(pathname==="/api/accept-terms"&&req.method==="POST"){
+    try{
+      const s2=getSess(req);
+      const d=JSON.parse(await readBody(req));
+      const email=s2?.user_email||"anonymous";
+      const record={
+        version:String(d.version||"2.0").slice(0,10),
+        ts:Date.now(),
+        date:new Date().toISOString(),
+        ip:req.headers["x-forwarded-for"]?.split(",")[0]?.trim()||req.socket?.remoteAddress||"unknown"
+      };
+      // Salvar no usuário se logado
+      if(s2?.user_email){
+        const u=getUser(s2.user_email);
+        if(u){setUser(s2.user_email,{termsAccepted:{...record,email:s2.user_email}});}
+      }
+      console.log("[terms] Aceite registrado:",email,record.version,record.date,record.ip);
+      return json(res,200,{ok:true,ts:record.ts});
+    }catch(e){return json(res,200,{ok:true});}
+  }
+
+  // /api/sent-ids — IDs de vagas já enviadas por fonte
   if(pathname==="/api/sent-ids"&&req.method==="GET"){
     const s2=getSess(req);if(!s2?.user_email)return json(res,401,{error:"Não autenticado."});
     const hist=getHist(s2.user_email);
-    const sentJan=new Set();const sentJul=new Set();const sentSeasonal=new Set();
+    const sentJan=new Set(),sentJul=new Set(),sentSeasonal=new Set();
     hist.forEach(h=>{
       if(h.sheetSource==="jan2026"&&h.caseNum)sentJan.add(h.caseNum);
       else if(h.sheetSource==="jul2025"&&h.caseNum)sentJul.add(h.caseNum);
       else if(h.jobId)sentSeasonal.add(h.jobId);
     });
-    return json(res,200,{
-      jan2026:[...sentJan],
-      jul2025:[...sentJul],
-      seasonal:[...sentSeasonal]
-    });
+    return json(res,200,{jan2026:[...sentJan],jul2025:[...sentJul],seasonal:[...sentSeasonal]});
+  }
+
+
+  // ── /api/terms/accept — Registra aceite dos Termos de Uso ────────
+  if(pathname==="/api/terms/accept"&&req.method==="POST"){
+    try{
+      const s2=getSess(req);
+      const d=JSON.parse(await readBody(req));
+      const ip=(req.headers["x-forwarded-for"]||req.socket.remoteAddress||"").split(",")[0].trim();
+      const ua=(req.headers["user-agent"]||"").slice(0,200);
+      const record={
+        accepted:true,
+        version:d.version||"1.0",
+        ts:Date.now(),
+        date:new Date().toISOString(),
+        ip,
+        ua,
+        email:s2?.user_email||"guest",
+      };
+      // Salvar no usuário se logado
+      if(s2?.user_email){
+        setUser(s2.user_email,{termsAccepted:record});
+      }
+      // Log para auditoria
+      console.log("[terms] Aceite registrado:",record.email,"|",record.ip,"|",record.date);
+      return json(res,200,{ok:true,ts:record.ts});
+    }catch(e){return json(res,200,{ok:true});}
   }
 
   // ── /api/jobs ─────────────────────────────────────────
@@ -2024,18 +2031,7 @@ const server=http.createServer(async(req,res)=>{
     catch(e){
       let src=jobsCache.length?[...jobsCache]:[...FALLBACK_JOBS];
       const{query:q,state,jobType,jobStatus,beginDate}=opts;
-      if(q){
-        const ql=q.toLowerCase();
-        // Tier 1: título exato
-        const dt1=src.filter(j=>j.title.toLowerCase().includes(ql));
-        const dt1ids=new Set(dt1.map(j=>j.id));
-        // Tier 2: empresa ou categoria
-        const dt2=src.filter(j=>!dt1ids.has(j.id)&&(j.company.toLowerCase().includes(ql)||(j.category||"").toLowerCase().includes(ql)));
-        const dt2ids=new Set([...dt1ids,...dt2.map(j=>j.id)]);
-        // Tier 3: descrição (menor relevância)
-        const dt3=src.filter(j=>!dt2ids.has(j.id)&&(j.desc||"").toLowerCase().includes(ql));
-        src=[...dt1,...dt2,...dt3];
-      }
+      if(q){const ql=q.toLowerCase();src=src.filter(j=>j.title.toLowerCase().includes(ql)||j.company.toLowerCase().includes(ql)||j.state.toLowerCase().includes(ql)||j.desc.toLowerCase().includes(ql));}
       if(state)src=src.filter(j=>j.state.toUpperCase()===state.toUpperCase());
       if(jobType==="agricultural")src=src.filter(j=>j.visa==="H-2A");if(jobType==="non-agricultural")src=src.filter(j=>j.visa==="H-2B");
       if(jobStatus==="active")src=src.filter(j=>j.active);if(jobStatus==="inactive")src=src.filter(j=>!j.active);
@@ -2174,8 +2170,6 @@ const server=http.createServer(async(req,res)=>{
       if(!ui.email)return fail("E-mail não obtido.");
       const sid="sess_"+crypto.randomBytes(24).toString("hex");
       sessions[sid]={access_token:tk.access_token,refresh_token:tk.refresh_token||null,expires_at:Date.now()+(tk.expires_in||3600)*1000,user_email:ui.email,user_name:ui.name||ui.email,picture:ui.picture||"",created_at:Date.now()};
-      // Salva o sid no usuário para recriar sessão após restart
-      if(DB_USERS[ui.email]){DB_USERS[ui.email]._lastSid=sid;DB_USERS[ui.email]._sidCreated=Date.now();}
       // Salva refresh_token e access_token no banco para uso pelo automático sem sessão
       const tokenData={cached_access_token:tk.access_token,cached_token_expiry:Date.now()+(tk.expires_in||3600)*1000};
       if(tk.refresh_token)tokenData.refresh_token=tk.refresh_token;
@@ -2232,8 +2226,6 @@ const server=http.createServer(async(req,res)=>{
         console.log("[oauth] Login:",ui.email,"| refresh_token salvo:",!!tokenData.refresh_token,"| vip:",vipStillActive?"ativo":"inativo","| Total:",Object.keys(DB_USERS).length);
       }
       const cookieStr=makeCookieStr(sid);const page=makeCallbackPage(sid);
-      // Persistir sessão imediatamente após login
-      persistSessions();
       res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Content-Length":Buffer.byteLength(page),"Set-Cookie":cookieStr,"Cache-Control":"no-cache, no-store"});
       return res.end(page);
     }catch(e){return fail("Erro: "+e.message);}
