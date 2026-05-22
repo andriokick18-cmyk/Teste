@@ -6208,8 +6208,8 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
 async function pauseAuto(){try{await fetch("/api/auto/pause",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:false,status:"paused"};updateAutoUI();updateLimChip();toast("Pausado","au");}catch(e){toast("Erro","r");}}
 async function resumeAuto(){try{await fetch("/api/auto/resume",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:true,status:"resuming"};updateAutoUI();updateLimChip();startAutoPolling();toast("Retomado ✓","g");}catch(e){toast("Erro","r");}}
 async function stopAuto(){
-  setTimeout(async()=>{await _loadSentIds();if(tab!=="seasonal")loadSheetMeta(true);},600);
-if(!confirm("Parar o envio completamente?"))return;try{await fetch("/api/auto/stop",{method:"POST",credentials:"include"});U.autoJob=null;_autoQueueIds=new Set();_syncAutoQueueVisibility();clearInterval(autoInterval);autoInterval=null;if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado","r");// Recarrega perfis do servidor para garantir que não sumiram
+  if(!confirm("Parar o envio completamente?"))return;try{await fetch("/api/auto/stop",{method:"POST",credentials:"include"});U.autoJob=null;_autoQueueIds=new Set();_syncAutoQueueVisibility();clearInterval(autoInterval);autoInterval=null;
+      setTimeout(async()=>{await _loadSentIds();if(tab!=="seasonal")loadSheetMeta(true);},600);if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado","r");// Recarrega perfis do servidor para garantir que não sumiram
 try{const pr=await fetch("/api/profiles",{credentials:"include"}).then(r=>r.json());UPROFILES=pr.profiles||[];if(U)U.profiles=UPROFILES;}catch{}
 }catch(e){toast("Erro","r");}}
 
@@ -6427,7 +6427,7 @@ function doRedeemCode(){
     .finally(()=>{if(btn)btn.disabled=false;});
 }
 
-function redeemCode(){
+async function redeemCode(){
   const inp=g("#reward-code-input");
   const msg=g("#reward-msg");
   const btn=g("#reward-btn");
@@ -7770,28 +7770,10 @@ function sendEmailReply(){
     .finally(()=>{if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-send"></i> Enviar pelo app';}});
 }
 
-// ── Render Home ───────────────────────────────────────────
-
-function _welcome(){
-  try{if(localStorage.getItem('h2b_ok'))return;}catch(e){}
-  var hdr=document.querySelector('.home-header');
-  if(!hdr||document.getElementById('h2b-welcome'))return;
-  var b=document.createElement('div');
-  b.id='h2b-welcome';
-  b.style.cssText='margin:12px 14px 0;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:14px;padding:16px;position:relative';
-  b.innerHTML='<button onclick="this.parentElement.remove();try{localStorage.setItem('h2b_ok','1');}catch(e){}" style="position:absolute;top:8px;right:10px;background:none;border:none;color:rgba(255,255,255,.8);font-size:20px;cursor:pointer;padding:0;line-height:1">×</button>'+
-    '<div style="font-size:15px;font-weight:800;margin-bottom:10px">🚀 Bem-vindo ao H2BApply!</div>'+
-    '<div style="display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.55">'+
-    '<div style="display:flex;gap:8px"><span style="background:rgba(255,255,255,.25);border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">1</span><span>Vá em <strong>Perfil → Perfis de Email</strong> e configure seu currículo</span></div>'+
-    '<div style="display:flex;gap:8px"><span style="background:rgba(255,255,255,.25);border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">2</span><span>Acesse <strong>Envio Manual</strong> para escolher vagas e candidatar</span></div>'+
-    '<div style="display:flex;gap:8px"><span style="background:rgba(255,255,255,.25);border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">3</span><span>Ative o <strong>Envio Automático</strong> para candidaturas no piloto automático 24h</span></div>'+
-    '<div style="display:flex;gap:8px"><span style="background:rgba(255,255,255,.25);border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">4</span><span>Acompanhe as <strong>Respostas</strong> quando empresas americanas te responderem</span></div>'+
-    '</div>';
-  hdr.insertAdjacentElement('afterend',b);
-}
 
 function renderHome(){
   _welcome();
+
 
   // Saudação por hora
   const hr=new Date().getHours();
