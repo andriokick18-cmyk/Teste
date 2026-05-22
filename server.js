@@ -2171,6 +2171,11 @@ const server=http.createServer(async(req,res)=>{
     if(error)return fail(error==="access_denied"?"Login cancelado.":"Erro OAuth: "+error);
     if(!code)return fail("Código OAuth inválido.");
     try{
+      // Log para diagnóstico — mostra os primeiros/últimos chars das credenciais
+      console.log("[oauth/callback] redirect_uri:",REDIRECT_URI);
+      console.log("[oauth/callback] client_id:",CLIENT_ID.slice(0,30)+"...");
+      console.log("[oauth/callback] client_secret:",CLIENT_SECRET.slice(0,8)+"..."+CLIENT_SECRET.slice(-4),"len:",CLIENT_SECRET.length);
+      console.log("[oauth/callback] code len:",code.length,"code prefix:",code.slice(0,20));
       const tb=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:REDIRECT_URI,grant_type:"authorization_code"}).toString();
       const{body:tk}=await httpsReq({hostname:"oauth2.googleapis.com",path:"/token",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(tb)}},tb);
       if(tk.error){
