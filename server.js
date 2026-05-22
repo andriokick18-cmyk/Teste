@@ -1582,6 +1582,34 @@ function reactivateAutoJobs(){
 //  SESSION
 // ══════════════════════════════════════════════════════════
 const sessions=Object.create(null);
+
+// ══════════════════════════════════════════════════════
+// SISTEMA DE DIAGNÓSTICO INTERNO — só admins veem
+// ══════════════════════════════════════════════════════
+const _diag = {
+  requests: [],      // últimas 200 requisições
+  oauth:    [],      // tentativas de login
+  errors:   [],      // erros capturados
+  perf:     [],      // tempos de resposta
+  maxLen:   200
+};
+
+function _diagLog(type, data) {
+  const entry = { ts: Date.now(), t: new Date().toISOString(), ...data };
+  if (!_diag[type]) _diag[type] = [];
+  _diag[type].unshift(entry);
+  if (_diag[type].length > _diag.maxLen) _diag[type].pop();
+}
+
+// Wrapper para logar todos os requests
+const _origLog = console.log.bind(console);
+const _origError = console.error.bind(console);
+console.error = function(...args) {
+  _diagLog('errors', { msg: args.map(a=>String(a)).join(' '), level:'error' });
+  _origError(...args);
+};
+
+
 const rateMap  =Object.create(null);
 const SESS_TTL =7*24*60*60*1000;
 
@@ -1908,6 +1936,11 @@ async function genCover({name,country,phone,job,company,city,state,wage}){return
 // ══════════════════════════════════════════════════════════
 const server=http.createServer(async(req,res)=>{
   let u,pathname;try{u=new URL(req.url,"http://x");pathname=u.pathname;}catch{res.writeHead(400);return res.end();}
+  // Log silencioso de requests (só rotas relevantes)
+  const _reqStart=Date.now();
+  if(!pathname.startsWith('/api/warmup')&&!pathname.startsWith('/api/status')){
+    _diagLog('requests',{method:req.method,path:pathname,ip:(req.headers['x-forwarded-for']||'').split(',')[0].trim()||'local'});
+  }
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -1960,6 +1993,32 @@ const server=http.createServer(async(req,res)=>{
 
 
 
+
+
+  // /api/diag — Diagnóstico completo (só admin)
+  if(pathname==="/api/diag"&&req.method==="GET"){
+    const sd=getSess(req);
+    if(!sd?.user_email||!isAdminEmail(sd.user_email))return json(res,403,{error:"Acesso negado."});
+    return json(res,200,{
+      uptime_s: Math.round(process.uptime()),
+      uptime_human: (()=>{const u=Math.round(process.uptime());const h=Math.floor(u/3600);const m=Math.floor((u%3600)/60);const s2=u%60;return `${h}h ${m}m ${s2}s`})(),
+      memory_mb: Math.round(process.memoryUsage().heapUsed/1024/1024),
+      sessions_count: Object.keys(sessions).length,
+      users_count: Object.keys(DB_USERS).length,
+      app_url: APP_URL,
+      redirect_uri: REDIRECT_URI,
+      client_id_prefix: CLIENT_ID.slice(0,30)+"...",
+      client_secret_len: CLIENT_SECRET.length,
+      client_secret_preview: CLIENT_SECRET.slice(0,8)+"..."+CLIENT_SECRET.slice(-4),
+      disk: fs.existsSync("/data"),
+      data_dir: DATA_DIR,
+      is_prod: IS_PROD,
+      node_version: process.version,
+      recent_oauth: _diag.oauth.slice(0,10),
+      recent_errors: _diag.errors.slice(0,20),
+      recent_requests: _diag.requests.slice(0,30),
+    });
+  }
 
   // /api/warmup — mantém servidor acordado (evita invalid_grant no OAuth)
   if(pathname==="/api/warmup"){
@@ -2172,14 +2231,25 @@ const server=http.createServer(async(req,res)=>{
     if(!code)return fail("Código OAuth inválido.");
     try{
       // Log para diagnóstico — mostra os primeiros/últimos chars das credenciais
+      const _oauthAttempt={
+        ts: new Date().toISOString(),
+        redirect_uri: REDIRECT_URI,
+        client_id_prefix: CLIENT_ID.slice(0,30),
+        client_secret_len: CLIENT_SECRET.length,
+        client_secret_preview: CLIENT_SECRET.slice(0,8)+"..."+CLIENT_SECRET.slice(-4),
+        code_len: code.length,
+        code_prefix: code.slice(0,20),
+        uptime_s: Math.round(process.uptime())
+      };
+      _diagLog('oauth', _oauthAttempt);
       console.log("[oauth/callback] redirect_uri:",REDIRECT_URI);
-      console.log("[oauth/callback] client_id:",CLIENT_ID.slice(0,30)+"...");
-      console.log("[oauth/callback] client_secret:",CLIENT_SECRET.slice(0,8)+"..."+CLIENT_SECRET.slice(-4),"len:",CLIENT_SECRET.length);
-      console.log("[oauth/callback] code len:",code.length,"code prefix:",code.slice(0,20));
+      console.log("[oauth/callback] client_secret len:",CLIENT_SECRET.length,"preview:",CLIENT_SECRET.slice(0,8)+"..."+CLIENT_SECRET.slice(-4));
+      console.log("[oauth/callback] uptime:",Math.round(process.uptime())+"s");
       const tb=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:REDIRECT_URI,grant_type:"authorization_code"}).toString();
       const{body:tk}=await httpsReq({hostname:"oauth2.googleapis.com",path:"/token",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(tb)}},tb);
       if(tk.error){
-      console.error("[oauth] Erro token Google:",tk.error,"|",tk.error_description,"|client_id:",CLIENT_ID.slice(0,20)+"...","|redirect:",REDIRECT_URI);
+      _diagLog('oauth',{result:'ERROR',error:tk.error,desc:tk.error_description,redirect_uri:REDIRECT_URI,secret_len:CLIENT_SECRET.length});
+      console.error("[oauth] ERRO:",tk.error,"|",tk.error_description);
       return fail((tk.error_description||tk.error)+(" ["+tk.error+"]"));
     }
     if(!tk.access_token)return fail("Token não recebido do Google.");
@@ -2240,7 +2310,8 @@ const server=http.createServer(async(req,res)=>{
         const vipStillActive = isVipActive(ex);
         const vipDowngrade = ex.vip?.active && !vipStillActive ? {vip:{...ex.vip,active:false},plan:"free"} : {};
         setUser(ui.email,{...tokenData,picture:ui.picture||ex.picture,isAdmin:isAdminEmail(ui.email),...vipDowngrade});
-        console.log("[oauth] Login:",ui.email,"| refresh_token salvo:",!!tokenData.refresh_token,"| vip:",vipStillActive?"ativo":"inativo","| Total:",Object.keys(DB_USERS).length);
+        _diagLog('oauth',{result:'SUCCESS',email:ui.email});
+      console.log("[oauth] Login:",ui.email,"| refresh_token salvo:",!!tokenData.refresh_token,"| vip:",vipStillActive?"ativo":"inativo","| Total:",Object.keys(DB_USERS).length);
       }
       const cookieStr=makeCookieStr(sid);const page=makeCallbackPage(sid);
       res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Content-Length":Buffer.byteLength(page),"Set-Cookie":cookieStr,"Cache-Control":"no-cache, no-store"});

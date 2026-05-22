@@ -10049,6 +10049,101 @@ function showGoogleWarnModal(){
 }
 </script>
 
+
+<!-- ══ PAINEL DIAGNÓSTICO ADMIN ══ -->
+<div id="diag-overlay" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.92);padding:16px;overflow-y:auto">
+  <div style="max-width:800px;margin:0 auto;color:#fff;font-family:monospace">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:18px;font-weight:800;color:#60a5fa">🔍 H2BApply Diagnóstico</div>
+      <button onclick="document.getElementById('diag-overlay').style.display='none'" style="background:#ef4444;border:none;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:700">✕ Fechar</button>
+    </div>
+    <div id="diag-content" style="font-size:12px;line-height:1.7">
+      <div style="color:#94a3b8">Carregando...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function openDiag(){
+  var ov=document.getElementById('diag-overlay');
+  ov.style.display='block';
+  var el=document.getElementById('diag-content');
+  el.innerHTML='<div style="color:#94a3b8">Carregando diagnóstico...</div>';
+  fetch('/api/diag',{credentials:'include'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.error){el.innerHTML='<div style="color:#ef4444">'+d.error+'</div>';return;}
+      
+      var sections=[
+        {title:'🖥️ SERVIDOR',color:'#60a5fa',items:[
+          ['Status','✅ Online'],
+          ['Uptime',d.uptime_human],
+          ['Memória',d.memory_mb+' MB'],
+          ['Node',d.node_version],
+          ['Produção',d.is_prod?'✅ Sim':'❌ Não'],
+          ['Disco /data',d.disk?'✅ Disponível':'❌ Sem disco (dados em /tmp)'],
+          ['Data dir',d.data_dir],
+        ]},
+        {title:'🔐 OAUTH',color:'#a78bfa',items:[
+          ['APP_URL',d.app_url],
+          ['Redirect URI',d.redirect_uri],
+          ['Client ID',d.client_id_prefix],
+          ['Client Secret len',d.client_secret_len+' chars — '+d.client_secret_preview],
+          ['Sessões ativas',d.sessions_count],
+          ['Usuários',d.users_count],
+        ]},
+      ];
+      
+      var html='';
+      sections.forEach(function(sec){
+        html+='<div style="background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:14px;margin-bottom:12px">';
+        html+='<div style="font-size:13px;font-weight:800;color:'+sec.color+';margin-bottom:10px">'+sec.title+'</div>';
+        sec.items.forEach(function(item){
+          html+='<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid #1e293b22">';
+          html+='<span style="color:#64748b;min-width:140px;flex-shrink:0">'+item[0]+'</span>';
+          html+='<span style="color:#e2e8f0;word-break:break-all">'+item[1]+'</span></div>';
+        });
+        html+='</div>';
+      });
+      
+      // OAuth attempts
+      if(d.recent_oauth&&d.recent_oauth.length){
+        html+='<div style="background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:14px;margin-bottom:12px">';
+        html+='<div style="font-size:13px;font-weight:800;color:#f59e0b;margin-bottom:10px">🔑 TENTATIVAS DE LOGIN ('+d.recent_oauth.length+')</div>';
+        d.recent_oauth.forEach(function(e){
+          var ok=e.result==='SUCCESS';
+          var color=ok?'#4ade80':e.result==='ERROR'?'#f87171':'#94a3b8';
+          html+='<div style="padding:6px;border-bottom:1px solid #1e293b;font-size:11px">';
+          html+='<span style="color:'+color+';font-weight:700">'+(e.result||'ATTEMPT')+'</span> ';
+          html+='<span style="color:#94a3b8">'+new Date(e.ts).toLocaleTimeString('pt-BR')+'</span> ';
+          if(e.error)html+='<span style="color:#f87171">'+e.error+': '+( e.desc||'')+'</span> ';
+          if(e.email)html+='<span style="color:#60a5fa">'+e.email+'</span> ';
+          if(e.client_secret_len)html+='<span style="color:#a78bfa">secret:'+e.client_secret_len+'chars '+e.client_secret_preview+'</span> ';
+          if(e.uptime_s!==undefined)html+='<span style="color:#64748b">uptime:'+e.uptime_s+'s</span>';
+          html+='</div>';
+        });
+        html+='</div>';
+      }
+      
+      // Errors
+      if(d.recent_errors&&d.recent_errors.length){
+        html+='<div style="background:#0f172a;border:1px solid #7f1d1d;border-radius:10px;padding:14px;margin-bottom:12px">';
+        html+='<div style="font-size:13px;font-weight:800;color:#ef4444;margin-bottom:10px">❌ ERROS RECENTES ('+d.recent_errors.length+')</div>';
+        d.recent_errors.slice(0,10).forEach(function(e){
+          html+='<div style="padding:4px;border-bottom:1px solid #1e293b;font-size:11px;color:#fca5a5">';
+          html+=new Date(e.ts).toLocaleTimeString('pt-BR')+' — '+e.msg+'</div>';
+        });
+        html+='</div>';
+      }
+      
+      el.innerHTML=html;
+    })
+    .catch(function(e){
+      el.innerHTML='<div style="color:#ef4444">Erro ao carregar: '+e.message+'</div>';
+    });
+}
+</script>
+
 </body>
 <script>
 // ════════════════════════════════════════════════════
