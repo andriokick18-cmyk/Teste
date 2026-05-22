@@ -192,7 +192,7 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 
 /* ══════════ LANDING ══════════ */
-#landing{flex-direction:column;min-height:100dvh;background:#0e1428}
+#landing{flex-direction:column;min-height:100dvh;background:#0e1428;overflow-x:hidden;width:100%}
 
 /* USA stars background for landing */
 #landing::before{
@@ -984,9 +984,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .btn-google-sm:hover{opacity:.9;transform:translateY(-1px)}
 
 /* Hero */
-.ln-hero{position:relative;padding:50px 20px 0;max-width:1100px;margin:0 auto}
+.ln-hero{position:relative;padding:32px 16px 0;max-width:1100px;margin:0 auto;width:100%;box-sizing:border-box}
 .ln-hero-inner{display:grid;grid-template-columns:1fr 340px;gap:40px;align-items:start}
-@media(max-width:760px){.ln-hero-inner{grid-template-columns:1fr}}
+@media(max-width:860px){.ln-hero-inner{grid-template-columns:1fr;gap:24px}}
+@media(max-width:860px){.ln-rank-card{display:none}}
 .ln-vip-pill{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(251,191,36,.18),rgba(245,158,11,.12));border:1.5px solid rgba(251,191,36,.4);color:#fbbf24;font-size:13px;font-weight:800;padding:6px 14px;border-radius:30px;margin-bottom:18px;animation:pulse-slow 3s ease-in-out infinite}
 @keyframes pulse-slow{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,.3)}50%{box-shadow:0 0 0 8px rgba(251,191,36,0)}}
 .ln-hero-title{font-family:'Sora',sans-serif;font-size:clamp(32px,6vw,54px);font-weight:800;line-height:1.1;color:#fff;margin-bottom:16px}
@@ -1311,20 +1312,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .ed-open-job-btn:hover{background:linear-gradient(135deg,rgba(59,130,246,.25),rgba(99,102,241,.2));color:#3730a3}
 
 
-@media(max-width:480px){
-  .ln-hero{padding:20px 14px 0!important}
-  .ln-hero-title{font-size:24px!important}
-  .ln-hero-sub{font-size:13px!important}
-  .ln-cta-btn{padding:14px 18px!important;font-size:15px!important}
-  .ln-feats{gap:6px!important}
-  .ln-stats-bar{padding:10px 10px!important;margin:16px 0 20px!important}
-  #landing{overflow-x:hidden!important}
-}
-@media(max-width:760px){
-  .ln-hero-inner{grid-template-columns:1fr!important;gap:20px!important}
-  .ln-rank-card{display:none!important}
-}
-
 
 /* ══ TUTORIAIS ══ */
 .tip-icon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:rgba(139,92,246,.15);color:#7c3aed;font-size:10px;font-weight:800;cursor:pointer;border:1.5px solid rgba(139,92,246,.3);flex-shrink:0;transition:all .18s;vertical-align:middle;margin-left:4px;line-height:1}
@@ -1332,6 +1319,23 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .tip-box{position:fixed;z-index:9990;background:#1e1b4b;color:#fff;border-radius:12px;padding:12px 14px;font-size:12px;line-height:1.6;max-width:260px;box-shadow:0 8px 32px rgba(0,0,0,.35);animation:tipIn .18s ease both}
 .tip-box strong{color:#a78bfa}
 @keyframes tipIn{0%{opacity:0;transform:scale(.92)}100%{opacity:1;transform:scale(1)}}
+
+
+/* ══ LANDING MOBILE ══ */
+@media(max-width:600px){
+  .ln-hero{padding:20px 14px 0}
+  .ln-hero-title{font-size:clamp(22px,8vw,38px)}
+  .ln-hero-sub{font-size:13px;line-height:1.55}
+  .ln-feats{gap:6px;margin-bottom:14px}
+  .ln-feat{font-size:11px;padding:5px 9px}
+  .ln-cta-btn{font-size:15px;padding:14px 20px}
+  .ln-trust-row{font-size:11px;gap:10px;flex-wrap:wrap;justify-content:center}
+  .ln-stats-bar{padding:10px 12px;margin:16px 0}
+  .ln-stat-num{font-size:20px}
+  .ln-stat-lbl{font-size:9px}
+  .ln-vip-pill{font-size:11px;padding:5px 10px}
+  .ln-nav-logo{font-size:15px}
+}
 
 </style>
 </head>

@@ -1587,6 +1587,24 @@ function reactivateAutoJobs(){
 //  SESSION
 // ══════════════════════════════════════════════════════════
 const sessions=Object.create(null);
+// Carregar sessões persistidas do arquivo (sobrevive restarts)
+try{
+  if(fs.existsSync(SESSION_FILE)){
+    const saved=JSON.parse(fs.readFileSync(SESSION_FILE,"utf8"));
+    const now=Date.now();
+    // Só carrega sessões não expiradas (válidas por 7 dias)
+    Object.entries(saved).forEach(([k,v])=>{
+      if(v.created_at && now - v.created_at < 7*86400_000) sessions[k]=v;
+    });
+    console.log("[boot] Sessões restauradas:",Object.keys(sessions).length);
+  }
+}catch(e){console.warn("[boot] Erro ao carregar sessões:",e.message);}
+
+// Salvar sessões periodicamente a cada 60s
+function persistSessions(){
+  try{persist(SESSION_FILE, sessions);}catch(e){}
+}
+setInterval(persistSessions, 60_000);
 const rateMap  =Object.create(null);
 const SESS_TTL =7*24*60*60*1000;
 
@@ -2197,6 +2215,8 @@ const server=http.createServer(async(req,res)=>{
         console.log("[oauth] Login:",ui.email,"| refresh_token salvo:",!!tokenData.refresh_token,"| vip:",vipStillActive?"ativo":"inativo","| Total:",Object.keys(DB_USERS).length);
       }
       const cookieStr=makeCookieStr(sid);const page=makeCallbackPage(sid);
+      // Persistir sessão imediatamente após login
+      persistSessions();
       res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Content-Length":Buffer.byteLength(page),"Set-Cookie":cookieStr,"Cache-Control":"no-cache, no-store"});
       return res.end(page);
     }catch(e){return fail("Erro: "+e.message);}
