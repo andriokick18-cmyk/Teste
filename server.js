@@ -1960,6 +1960,13 @@ const server=http.createServer(async(req,res)=>{
 
 
 
+
+  // /api/warmup — mantém servidor acordado (evita invalid_grant no OAuth)
+  if(pathname==="/api/warmup"){
+    res.writeHead(200,{"Content-Type":"application/json","Cache-Control":"no-cache"});
+    return res.end(JSON.stringify({ok:true,ts:Date.now(),uptime:process.uptime()}));
+  }
+
   // /api/accept-terms — Registra aceite dos termos com timestamp
   if(pathname==="/api/accept-terms"&&req.method==="POST"){
     try{
@@ -2155,7 +2162,7 @@ const server=http.createServer(async(req,res)=>{
   // ── REFERRAL FIX: salva o ?ref= na sessão pendente para recuperar no callback ──
   const refCodeParam=(u.searchParams.get("ref")||"").trim().toUpperCase().slice(0,16);
   sessions["__p__"+st]={pending:true,ts:Date.now(),...(refCodeParam?{refCode:refCodeParam}:{})};
-  console.log("[oauth] Iniciando OAuth | redirect_uri:",REDIRECT_URI,"| client_id:",CLIENT_ID.slice(0,20)+"...");
+  console.log("[oauth] Iniciando | redirect_uri:",REDIRECT_URI,"| uptime:",Math.round(process.uptime())+"s");
   const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI,response_type:"code",scope:"https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",access_type:"offline",prompt:"consent select_account",state:st});res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();}
 
   if(pathname==="/oauth/callback"){

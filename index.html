@@ -3773,6 +3773,10 @@ addEventListener("DOMContentLoaded",async()=>{
   if(err){const el=g("#login-err");if(el){el.style.display="block";el.textContent=err;}}
   if(ps.get("ok"))history.replaceState({},"","/");
   await checkStatus();
+  // Manter servidor acordado com ping a cada 4 minutos (Render hiberna após 15min)
+  setInterval(function(){
+    fetch('/api/status',{credentials:'include'}).catch(function(){});
+  }, 4*60*1000);
 });
 
 async function checkStatus(){
@@ -10028,11 +10032,19 @@ Best regards,
 </div>
 <script>
 function showGoogleWarnModal(){
+  // Pré-aquecer o servidor ANTES do usuário clicar em continuar
+  // O Render Free hiberna — o code OAuth expira em 60s enquanto servidor acorda
+  fetch('/api/status',{credentials:'include'}).catch(function(){});
+  
   var m=document.getElementById('gwm');
   m.style.display='flex';
   document.getElementById('gwm-ok').onclick=function(){
     m.style.display='none';
-    location.href=_getOAuthURL();
+    // Garantir que servidor está acordado antes de redirecionar
+    var btn=document.getElementById('gwm-ok');
+    fetch('/api/status',{credentials:'include'}).finally(function(){
+      location.href=_getOAuthURL();
+    });
   };
 }
 </script>
