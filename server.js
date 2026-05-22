@@ -2299,6 +2299,30 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
 
 
 
+
+  // /api/cv/delete — Remove PDF da conta do usuário
+  if(pathname==="/api/cv/delete"&&req.method==="POST"){
+    const sd=getSess(req);if(!sd?.user_email)return json(res,401,{error:"Não autenticado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const idx=parseInt(d.idx,10);
+      if(!idx)return json(res,400,{error:"idx inválido."});
+      const u=getUser(sd.user_email);
+      if(!u)return json(res,404,{error:"Usuário não encontrado."});
+      const cvs=(u.cvs||[]).filter(c=>c.idx!==idx);
+      // Remover referência de perfis que usavam esse PDF
+      const profiles=(u.profiles||[]).map(p=>{
+        const np={...p};
+        if(np.resumeIdx===idx){delete np.resumeIdx;delete np.pdfName;delete np.pdfSize;}
+        if(np.coverIdx===idx){delete np.coverIdx;}
+        return np;
+      });
+      setUser(sd.user_email,{cvs,profiles});
+      console.log("[cv/delete]",sd.user_email,"idx:",idx);
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
   if(pathname==="/api/accept-terms"&&req.method==="POST"){
     try{
       const s2=getSess(req);

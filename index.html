@@ -1550,6 +1550,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       </button>
       <div class="sb-sec">
         <div class="sb-lbl">Navegação</div>
+        <button class="sb-item" id="si-tutorial" onclick="sv('tutorial')" style="background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.07));border:1.5px solid rgba(16,185,129,.3);border-radius:10px;font-weight:800;color:#059669;margin-bottom:4px"><i class="ti ti-book-2" style="font-size:15px;color:#059669"></i>Tutorial — Como Usar <span style="margin-left:auto;font-size:9px;background:#059669;color:#fff;padding:1px 6px;border-radius:99px;font-weight:800">GUIA</span></button>
         <button class="sb-item active" id="si-home" onclick="sv('home')"><i class="ti ti-home-2"></i>Home</button>
         <button class="sb-item" id="si-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i>Envio Manual<span class="sb-badge sb-badge-b" id="sib-jobs" style="display:none"></span></button>
         <button class="sb-item" id="si-pesquisa" onclick="sv('pesquisa')"><i class="ti ti-search"></i>Pesquisar Vagas<span class="sb-badge sb-badge-b" id="sib-pesquisa" style="display:none"></span></button>
@@ -2442,7 +2443,21 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <!-- Explicação de como os perfis serão usados -->
             <div id="pf-profiles-info" style="background:var(--bluel);border:1.5px solid var(--blueb);border-radius:var(--r);padding:11px 13px;margin-bottom:10px;font-size:12px;color:#1e3a8a">
               <div style="font-weight:700;margin-bottom:5px">🎯 Como seus perfis serão usados:</div>
-              <div id="pf-profiles-list" style="display:flex;flex-direction:column;gap:4px"></div>
+              <div style="background:linear-gradient(135deg,#eff6ff,#f0f9ff);border:1.5px solid #bfdbfe;border-radius:14px;padding:16px;margin-bottom:14px">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+    <i class="ti ti-school" style="font-size:20px;color:#1e40af"></i>
+    <div style="font-size:14px;font-weight:800;color:#1e40af">Como configurar seu Perfil de E-mail</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.6">
+    <div style="background:#fff;border-radius:10px;padding:11px;border:1px solid #bfdbfe"><span style="font-weight:800;color:#1e40af">① Nome do Perfil</span><br><span style="color:#374151">Dê um nome para identificar. Ex: <strong>"Landscape"</strong> ou <strong>"Geral"</strong>. O perfil Geral é usado como padrão para todas as vagas sem perfil específico.</span></div>
+    <div style="background:#fff;border-radius:10px;padding:11px;border:1px solid #bfdbfe"><span style="font-weight:800;color:#1e40af">② Categorias</span><br><span style="color:#374151">Selecione os tipos de vaga para este perfil. Deixe vazio para usar como perfil padrão.</span></div>
+    <div style="background:#fef2f2;border-radius:10px;padding:11px;border:1px solid #fca5a5"><span style="font-weight:800;color:#ef4444">③ Currículo PDF — OBRIGATÓRIO</span><br><span style="color:#374151">Faça upload do currículo em PDF. Será anexado em todos os e-mails. <strong>Sem currículo o perfil não pode ser salvo.</strong></span></div>
+    <div style="background:#fff;border-radius:10px;padding:11px;border:1px solid #bfdbfe"><span style="font-weight:800;color:#7c3aed">④ Cover Letter — opcional</span><br><span style="color:#374151">Carta de apresentação em PDF. Não obrigatória, mas aumenta as chances de resposta.</span></div>
+    <div style="background:#fff;border-radius:10px;padding:11px;border:1px solid #bfdbfe"><span style="font-weight:800;color:#059669">⑤ Assuntos e Corpo do E-mail</span><br><span style="color:#374151">Adicione mínimo <strong>3 variações</strong> de cada. Use: <strong>{nome}</strong>, <strong>{vaga}</strong>, <strong>{empresa}</strong>. O sistema rotaciona para evitar spam.</span></div>
+    <div style="background:#fef3c7;border-radius:10px;padding:9px 11px;border:1px solid #fde68a"><span style="color:#92400e;font-weight:600">💡 Para excluir um PDF da conta, clique no ícone 🗑️ ao lado do arquivo.</span></div>
+  </div>
+</div>
+<div id="pf-profiles-list" style="display:flex;flex-direction:column;gap:4px"></div>
             </div>
 
             <!-- Servidor continua mesmo offline -->
@@ -2617,6 +2632,314 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         </div>
       </div></div>
 
+
+      <!-- ══ TUTORIAL COMPLETO ══ -->
+      <div class="view gone" id="v-tutorial"><div class="view-scroll" style="padding:0 0 80px">
+
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#064e3b,#065f46,#047857);color:#fff;padding:24px 20px;text-align:center">
+          <div style="width:64px;height:64px;border-radius:20px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">
+            <i class="ti ti-book-2" style="font-size:32px"></i>
+          </div>
+          <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px">Tutorial H2BApply</div>
+          <div style="font-size:13px;opacity:.85">Aprenda a usar o sistema do zero, passo a passo</div>
+        </div>
+
+        <!-- Índice rápido -->
+        <div style="padding:16px 16px 0">
+          <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:14px">
+            <div style="font-size:13px;font-weight:800;color:#065f46;margin-bottom:10px">📋 O que você vai aprender:</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;color:#047857">
+              <div onclick="document.getElementById('tut-step1').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border-radius:8px;border:1px solid #bbf7d0">
+                <span style="font-size:16px">1️⃣</span><span>Configurar Perfil</span>
+              </div>
+              <div onclick="document.getElementById('tut-step2').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border-radius:8px;border:1px solid #bbf7d0">
+                <span style="font-size:16px">2️⃣</span><span>Envio Manual</span>
+              </div>
+              <div onclick="document.getElementById('tut-step3').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border-radius:8px;border:1px solid #bbf7d0">
+                <span style="font-size:16px">3️⃣</span><span>Envio Automático</span>
+              </div>
+              <div onclick="document.getElementById('tut-step4').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border-radius:8px;border:1px solid #bbf7d0">
+                <span style="font-size:16px">4️⃣</span><span>Ver Respostas</span>
+              </div>
+              <div onclick="document.getElementById('tut-step5').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border-radius:8px;border:1px solid #bbf7d0">
+                <span style="font-size:16px">5️⃣</span><span>Planos e VIP</span>
+              </div>
+              <div onclick="document.getElementById('tut-step6').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border-radius:8px;border:1px solid #bbf7d0">
+                <span style="font-size:16px">6️⃣</span><span>Dúvidas Comuns</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
+
+          <!-- PASSO 1: PERFIL -->
+          <div id="tut-step1" style="background:#fff;border:2px solid #4f46e5;border-radius:16px;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:14px 16px;display:flex;align-items:center;gap:10px">
+              <span style="background:rgba(255,255,255,.25);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0">1</span>
+              <div>
+                <div style="color:#fff;font-size:15px;font-weight:800">Configurar seu Perfil</div>
+                <div style="color:rgba(255,255,255,.8);font-size:11px">Faça isso ANTES de enviar qualquer candidatura</div>
+              </div>
+              <button onclick="sv('profile')" style="margin-left:auto;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit">Ir ao Perfil →</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;font-size:13px;color:#374151">
+
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:28px;height:28px;border-radius:8px;background:#ede9fe;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">👤</div>
+                <div><strong style="color:#1e1b4b">Aba "Eu" — Seus dados pessoais</strong><br>Preencha seu <strong>nome completo</strong> (igual ao passaporte), <strong>país</strong> (escreva "Brazil" em inglês), <strong>WhatsApp</strong> com código do país (+55 85 99999-9999) e <strong>cidade</strong>. Esses dados aparecem automaticamente em todos os e-mails.</div>
+              </div>
+
+              <div style="background:#fef9c3;border-radius:10px;padding:10px 12px;border:1px solid #fde68a">
+                <strong style="color:#92400e">⚠️ IMPORTANTE:</strong> <span style="color:#78350f">Escreva seu nome exatamente como está no passaporte. Se o nome estiver errado, pode causar problemas com o empregador.</span>
+              </div>
+
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:28px;height:28px;border-radius:8px;background:#fef2f2;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">📄</div>
+                <div><strong style="color:#1e1b4b">Aba "Perfis de E-mail" — Configurar currículo e modelo</strong><br>Clique em <strong>"+ Novo Perfil"</strong> e:<br>
+                  <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
+                    <div style="display:flex;gap:8px;align-items:flex-start;background:#f8fafc;border-radius:8px;padding:8px">
+                      <span style="background:#4f46e5;color:#fff;border-radius:50%;width:18px;height:18px;min-width:18px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;margin-top:1px">a</span>
+                      <span>Dê um <strong>nome</strong> para o perfil. Ex: "Meu Perfil Principal" ou "Landscape"</span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:flex-start;background:#f8fafc;border-radius:8px;padding:8px">
+                      <span style="background:#ef4444;color:#fff;border-radius:50%;width:18px;height:18px;min-width:18px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;margin-top:1px">b</span>
+                      <span>Faça <strong>upload do seu currículo em PDF</strong> (obrigatório). Clique na área pontilhada ou arraste o arquivo. <strong>Sem currículo, o perfil não é salvo.</strong></span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:flex-start;background:#f8fafc;border-radius:8px;padding:8px">
+                      <span style="background:#059669;color:#fff;border-radius:50%;width:18px;height:18px;min-width:18px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;margin-top:1px">c</span>
+                      <span>Os <strong>assuntos e corpos de e-mail</strong> já vêm com modelos prontos. Você pode usar assim mesmo ou personalizar. <strong>Mínimo 3 de cada.</strong></span>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:flex-start;background:#f8fafc;border-radius:8px;padding:8px">
+                      <span style="background:#7c3aed;color:#fff;border-radius:50%;width:18px;height:18px;min-width:18px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;margin-top:1px">d</span>
+                      <span>Clique em <strong>"Salvar Perfil"</strong> no final da tela.</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background:#f0fdf4;border-radius:10px;padding:10px 12px;border:1px solid #86efac">
+                <strong style="color:#065f46">✅ Pronto!</strong> <span style="color:#047857">Seu perfil está configurado. Agora você pode enviar candidaturas.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- PASSO 2: ENVIO MANUAL -->
+          <div id="tut-step2" style="background:#fff;border:2px solid #2563eb;border-radius:16px;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#1e40af,#2563eb);padding:14px 16px;display:flex;align-items:center;gap:10px">
+              <span style="background:rgba(255,255,255,.25);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0">2</span>
+              <div>
+                <div style="color:#fff;font-size:15px;font-weight:800">Envio Manual de Candidaturas</div>
+                <div style="color:rgba(255,255,255,.8);font-size:11px">Você escolhe cada vaga e envia uma por uma</div>
+              </div>
+              <button onclick="sv('jobs')" style="margin-left:auto;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit">Ir ao Manual →</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;font-size:13px;color:#374151">
+
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:28px;height:28px;border-radius:8px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">📋</div>
+                <div><strong style="color:#1e3a8a">Escolha a planilha de vagas</strong><br>No topo da tela de Envio Manual você vê 3 abas:<br>
+                  <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;font-size:12px">
+                    <div style="background:#fef9c3;border-radius:6px;padding:6px 8px;border:1px solid #fde68a"><strong>☀️ Jan 2026</strong> — Vagas de Verão nos EUA (temporada principal H-2B). <strong>Mais vagas disponíveis.</strong></div>
+                    <div style="background:#e0f2fe;border-radius:6px;padding:6px 8px;border:1px solid #bae6fd"><strong>❄️ Jul 2025</strong> — Vagas de Inverno. Menos vagas, mas ainda válidas.</div>
+                    <div style="background:#f0fdf4;border-radius:6px;padding:6px 8px;border:1px solid #bbf7d0"><strong>🌿 Seasonal</strong> — Vagas H-2A (agricultura) e outras temporadas.</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:28px;height:28px;border-radius:8px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">🔍</div>
+                <div><strong style="color:#1e3a8a">Como encontrar vagas para você</strong><br>Use os filtros no topo: <strong>pesquise por cargo</strong> (ex: "Landscaper", "Housekeeper"), <strong>filtre por estado</strong> americano, ou <strong>filtre por categoria</strong> (Landscape, Food Service, etc).</div>
+              </div>
+
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:28px;height:28px;border-radius:8px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">📨</div>
+                <div><strong style="color:#1e3a8a">Como enviar uma candidatura</strong><br>
+                  <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;font-size:12px">
+                    <div style="display:flex;gap:6px"><span style="background:#2563eb;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">1</span><span>Clique em uma vaga para ver os detalhes</span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#2563eb;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">2</span><span>Veja o e-mail da empresa e as informações da vaga</span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#2563eb;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">3</span><span>Clique no botão verde <strong>"Candidatar"</strong></span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#2563eb;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">4</span><span>O e-mail com seu currículo é enviado automaticamente!</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background:#fef3c7;border-radius:10px;padding:10px 12px;border:1px solid #fde68a">
+                <strong style="color:#92400e">💡 Dica:</strong> <span style="color:#78350f">Vagas já enviadas <strong>somem da lista</strong> automaticamente. Vagas que você colocou no automático também somem do manual — assim você nunca envia duas vezes para a mesma empresa.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- PASSO 3: AUTOMÁTICO -->
+          <div id="tut-step3" style="background:#fff;border:2px solid #7c3aed;border-radius:16px;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#5b21b6,#7c3aed);padding:14px 16px;display:flex;align-items:center;gap:10px">
+              <span style="background:rgba(255,255,255,.25);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0">3</span>
+              <div>
+                <div style="color:#fff;font-size:15px;font-weight:800">Envio Automático 24h</div>
+                <div style="color:rgba(255,255,255,.8);font-size:11px">O sistema envia enquanto você dorme</div>
+              </div>
+              <button onclick="sv('auto')" style="margin-left:auto;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit">Ir ao Auto →</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;font-size:13px;color:#374151">
+
+              <div style="background:#f5f3ff;border-radius:10px;padding:12px;border:1px solid #ddd6fe">
+                <strong style="color:#5b21b6">🤖 O que é o Envio Automático?</strong><br>
+                <span style="color:#374151">É como um robô que trabalha por você. Você configura uma vez e ele fica enviando candidaturas sozinho, mesmo com seu celular desligado.</span>
+              </div>
+
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:28px;height:28px;border-radius:8px;background:#ede9fe;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">⚙️</div>
+                <div><strong style="color:#5b21b6">Como configurar</strong><br>
+                  <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;font-size:12px">
+                    <div style="display:flex;gap:6px"><span style="background:#7c3aed;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">1</span><span>Clique em <strong>"Envio Automático"</strong> na Home ou no menu</span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#7c3aed;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">2</span><span>Escolha a <strong>planilha</strong> (Jan 2026 ou Jul 2025)</span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#7c3aed;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">3</span><span>Escolha a <strong>quantidade de vagas</strong> que quer colocar no automático</span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#7c3aed;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">4</span><span>Clique em <strong>"Iniciar Automático"</strong> e pronto!</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background:#fef3c7;border-radius:10px;padding:10px 12px;border:1px solid #fde68a">
+                <strong style="color:#92400e">⚠️ Atenção:</strong> <span style="color:#78350f">As vagas que você coloca no automático <strong>somem do envio manual</strong>. Isso é correto — evita enviar duas vezes para a mesma empresa. Se cancelar o automático, as vagas não enviadas voltam para o manual automaticamente.</span>
+              </div>
+
+              <div style="background:#f0fdf4;border-radius:10px;padding:10px 12px;border:1px solid #86efac">
+                <strong style="color:#065f46">✅ Plano VIP e Pro:</strong> <span style="color:#047857">O automático envia mais e-mails por dia. No plano gratuito são 10 por dia. Com VIP Pro são até 200 por dia.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- PASSO 4: RESPOSTAS -->
+          <div id="tut-step4" style="background:#fff;border:2px solid #059669;border-radius:16px;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#064e3b,#059669);padding:14px 16px;display:flex;align-items:center;gap:10px">
+              <span style="background:rgba(255,255,255,.25);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0">4</span>
+              <div>
+                <div style="color:#fff;font-size:15px;font-weight:800">Ver e Responder Empresas</div>
+                <div style="color:rgba(255,255,255,.8);font-size:11px">Quando uma empresa te responde</div>
+              </div>
+              <button onclick="sv('respostas')" style="margin-left:auto;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit">Ver Respostas →</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;font-size:13px;color:#374151">
+
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:28px;height:28px;border-radius:8px;background:#d1fae5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">🔔</div>
+                <div><strong style="color:#065f46">Como saber quando receber resposta</strong><br>Ative as <strong>notificações push</strong> na aba de Notificações. Quando uma empresa americanas responder seu e-mail, você recebe um alerta no celular imediatamente — mesmo com o app fechado.</div>
+              </div>
+
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:28px;height:28px;border-radius:8px;background:#d1fae5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">💬</div>
+                <div><strong style="color:#065f46">Como responder uma empresa</strong><br>
+                  <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;font-size:12px">
+                    <div style="display:flex;gap:6px"><span style="background:#059669;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">1</span><span>Vá na aba <strong>"Respostas"</strong></span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#059669;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">2</span><span>Toque no e-mail da empresa</span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#059669;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">3</span><span>Leia a mensagem e toque em <strong>"Responder"</strong></span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#059669;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">4</span><span>Digite sua resposta em inglês e envie</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background:#fef9c3;border-radius:10px;padding:10px 12px;border:1px solid #fde68a">
+                <strong style="color:#92400e">💡 Dica de resposta rápida:</strong> <span style="color:#78350f">Se a empresa perguntar sobre disponibilidade, responda algo como: <em>"I am available to start on the requested date. Please let me know the next steps."</em></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- PASSO 5: PLANOS -->
+          <div id="tut-step5" style="background:#fff;border:2px solid #f59e0b;border-radius:16px;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#92400e,#d97706);padding:14px 16px;display:flex;align-items:center;gap:10px">
+              <span style="background:rgba(255,255,255,.25);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0">5</span>
+              <div>
+                <div style="color:#fff;font-size:15px;font-weight:800">Planos e Como Ganhar VIP</div>
+                <div style="color:rgba(255,255,255,.8);font-size:11px">Envie mais candidaturas por dia</div>
+              </div>
+              <button onclick="sv('plans')" style="margin-left:auto;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit">Ver Planos →</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:10px;font-size:13px;color:#374151">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div style="background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px;text-align:center">
+                  <div style="font-size:18px;margin-bottom:4px">🆓</div>
+                  <div style="font-weight:800;color:#374151;font-size:12px">Grátis</div>
+                  <div style="font-size:11px;color:#6b7280;margin-top:4px">20 manuais/dia<br>10 automáticos/dia</div>
+                </div>
+                <div style="background:#fef9c3;border:1.5px solid #fde68a;border-radius:10px;padding:10px;text-align:center">
+                  <div style="font-size:18px;margin-bottom:4px">⭐</div>
+                  <div style="font-weight:800;color:#92400e;font-size:12px">VIP R$49/mês</div>
+                  <div style="font-size:11px;color:#78350f;margin-top:4px">400 manuais/dia<br>10 automáticos/dia</div>
+                </div>
+                <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:10px;text-align:center">
+                  <div style="font-size:18px;margin-bottom:4px">🤖</div>
+                  <div style="font-weight:800;color:#1e40af;font-size:12px">Pro R$119/mês</div>
+                  <div style="font-size:11px;color:#1e3a8a;margin-top:4px">20 manuais/dia<br>200 automáticos/dia</div>
+                </div>
+                <div style="background:#fdf4ff;border:1.5px solid #e9d5ff;border-radius:10px;padding:10px;text-align:center">
+                  <div style="font-size:18px;margin-bottom:4px">💎</div>
+                  <div style="font-weight:800;color:#7c3aed;font-size:12px">VIPro R$149/mês</div>
+                  <div style="font-size:11px;color:#6d28d9;margin-top:4px">400 manuais/dia<br>200 automáticos/dia</div>
+                </div>
+              </div>
+              <div style="background:#f0fdf4;border-radius:10px;padding:10px 12px;border:1px solid #86efac">
+                <strong style="color:#065f46">🎁 Como ganhar VIP grátis:</strong><br>
+                <div style="color:#047857;font-size:12px;margin-top:4px;display:flex;flex-direction:column;gap:4px">
+                  <div>• <strong>5 dias VIP</strong> ao se cadastrar (automático)</div>
+                  <div>• <strong>5 dias VIP</strong> por cada amigo que você indicar</div>
+                  <div>• <strong>Códigos promocionais</strong> no Instagram @andrio.k e no YouTube Diego H2B</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PASSO 6: DÚVIDAS -->
+          <div id="tut-step6" style="background:#fff;border:2px solid #6b7280;border-radius:16px;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#374151,#4b5563);padding:14px 16px;display:flex;align-items:center;gap:10px">
+              <span style="background:rgba(255,255,255,.25);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0">6</span>
+              <div>
+                <div style="color:#fff;font-size:15px;font-weight:800">Dúvidas Frequentes</div>
+                <div style="color:rgba(255,255,255,.8);font-size:11px">Respostas rápidas para perguntas comuns</div>
+              </div>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:10px;font-size:13px">
+
+              <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+                <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i>Por que minhas vagas sumiram do manual?</summary>
+                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Vagas somem do manual em dois casos: (1) você já enviou candidatura para aquela empresa, ou (2) aquela vaga está na fila do automático. Isso é correto — evita enviar duas vezes para a mesma empresa.</div>
+              </details>
+
+              <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+                <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i>O automático parou. O que faço?</summary>
+                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Verifique na aba Home se o automático ainda aparece como ativo. Se parou, pode ter atingido o limite diário do seu plano — ele reinicia automaticamente no dia seguinte à meia-noite.</div>
+              </details>
+
+              <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+                <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i>Recebi um e-mail em inglês. O que faço?</summary>
+                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Vá na aba <strong>Respostas</strong>, clique no e-mail e leia. Se a empresa perguntar se você está disponível, responda: <em>"Yes, I am available to start on the requested date."</em> Se pedir documentos, entre em contato com um despachante de vistos.</div>
+              </details>
+
+              <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+                <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i>Quantos e-mails devo enviar por dia?</summary>
+                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Quanto mais melhor — mas com qualidade. O sistema tem proteção anti-spam. No plano gratuito são 20 manuais + 10 automáticos por dia. Com VIPro são 400 + 200 por dia. Enviar para muitas empresas aumenta suas chances.</div>
+              </details>
+
+              <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+                <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i>O site garante que vou conseguir o visto?</summary>
+                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6"><strong>Não.</strong> O H2BApply é uma ferramenta que envia e-mails para você. A decisão de te contratar é do empregador. A decisão do visto é do consulado americano. Quanto mais candidaturas você enviar, maiores as chances de receber uma oferta.</div>
+              </details>
+
+              <div style="background:#eff6ff;border-radius:10px;padding:12px;border:1.5px solid #bfdbfe;text-align:center">
+                <div style="font-size:13px;font-weight:800;color:#1e40af;margin-bottom:8px">Ainda com dúvidas?</div>
+                <div style="font-size:12px;color:#1e3a8a;margin-bottom:10px">Assista aos vídeos explicativos no YouTube ou fale pelo Instagram</div>
+                <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+                  <a href="https://youtube.com/@diegoh2b" target="_blank" style="background:#ef4444;color:#fff;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="ti ti-brand-youtube"></i> Diego H2B</a>
+                  <a href="https://instagram.com/andrio.k" target="_blank" style="background:linear-gradient(135deg,#e1306c,#833ab4);color:#fff;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="ti ti-brand-instagram"></i> @andrio.k</a>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div></div>
+
       <!-- ══ v16: INDICAR AMIGOS ══ -->
       <div class="view gone" id="v-indicar"><div class="view-scroll" style="padding:0 0 80px">
         <div style="background:linear-gradient(135deg,#064e3b,#065f46,#059669);color:#fff;padding:16px;margin-bottom:0">
@@ -2679,6 +3002,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
   </div><!-- /app-body --><!-- Bottom Nav -->
   <nav class="bottom-nav">
     <button class="bn active" id="bn-home" onclick="sv('home')"><i class="ti ti-home-2"></i><span>Home</span></button>
+    <button class="bn" id="bn-tutorial" onclick="sv('tutorial')"><i class="ti ti-book-2" style="font-size:20px;color:#059669"></i><span style="color:#059669;font-weight:700;font-size:9px">Tutorial</span></button>
     <button class="bn" id="bn-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i><span>Manual</span></button>
     <button class="bn" id="bn-pesquisa" onclick="sv('pesquisa')"><i class="ti ti-search"></i><span>Pesquisar</span></button>
     <!-- AUTO — CTA central destacado -->
@@ -3007,7 +3331,8 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         </div>
 
         <!-- ── COVER LETTER ── -->
-        <div style="font-size:11px;font-weight:700;color:var(--t2);margin-top:16px;margin-bottom:8px">📝 Cover Letter <span style="font-weight:400;color:var(--t3)">(opcional)</span></div>
+        <div style="font-size:11px;font-weight:700;color:var(--t2);margin-top:16px;margin-bottom:6px;display:flex;align-items:center;gap:6px">📝 Cover Letter <span style="font-size:10px;background:#f3f4f6;color:#6b7280;padding:2px 8px;border-radius:99px;font-weight:600;border:1px solid #e5e7eb">OPCIONAL</span></div>
+<div style="font-size:11px;color:var(--t3);margin-bottom:8px">Carta de apresentação — não obrigatória, mas aumenta as chances de resposta.</div>
 
         <!-- Card: Cover Letter atual vinculada via coverIdx -->
         <div id="pe-cover-active-card" style="display:none;align-items:center;gap:10px;background:var(--purplel);border:1.5px solid var(--purpleb);border-radius:10px;padding:10px 13px;margin-bottom:10px">
@@ -3580,7 +3905,7 @@ function renderDrawer(){
 // ═══════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════
-const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","indicar","notificacoes","redeem"];
+const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","indicar","notificacoes","redeem","tutorial"];
 function sv(v,...args){
   // ── "auto" abre modal em vez da view ──
   if(v==="auto"){if(typeof openAutoModal==="function"){openAutoModal();return;}}
@@ -3594,6 +3919,7 @@ function sv(v,...args){
   if(v==="home")renderHome();
   if(v==="ranking"){loadRanking(true);startRankTimer();}else{stopRankTimer();}
   if(v==="pesquisa"){initPesquisaView();}
+  if(v==="tutorial"){/*view própria*/}
   if(v==="redeem"){/*view própria*/}
   if(v==="indicar"){loadReferralView();}
   if(v==="notificacoes"){loadNotifView();}
@@ -5118,7 +5444,7 @@ function openProfileEditor(id){
     else{
       resSlots.innerHTML=[
         `<label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 8px;border-radius:7px;border:1.5px solid var(--border);background:var(--sf2)"><input type="radio" name="pe-res" value="" style="accent-color:var(--purple)"> <span style="color:var(--t2)">Nenhum</span></label>`,
-        ...res.map(c=>`<label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 8px;border-radius:7px;border:1.5px solid var(--border);background:var(--sf2)"><input type="radio" name="pe-res" value="${c.idx}" style="accent-color:var(--blue)"><i class="ti ti-file-type-pdf" style="color:var(--red)"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)}</span></label>`)
+        ...res.map(c=>`<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:7px;border:1.5px solid var(--border);background:var(--sf2)"><label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;flex:1;min-width:0"><input type="radio" name="pe-res" value="${c.idx}" style="accent-color:var(--blue)"><i class="ti ti-file-type-pdf" style="color:var(--red);flex-shrink:0"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)}</span></label><button onclick="deleteCvFromAccount(${c.idx},'resume')" title="Excluir PDF" style="background:#fee2e2;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:4px 6px;font-size:11px;cursor:pointer;flex-shrink:0;line-height:1"><i class='ti ti-trash'></i></button></div>`)
       ].join("");
       // Marca o selecionado atual
       const curVal=_peResIdx!=null?String(_peResIdx):"";
@@ -5156,7 +5482,7 @@ function openProfileEditor(id){
     else{
       coverSlots.innerHTML=[
         `<label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 8px;border-radius:7px;border:1.5px solid var(--border);background:var(--sf2)"><input type="radio" name="pe-cover" value="" style="accent-color:var(--purple)"> <span style="color:var(--t2)">Nenhuma</span></label>`,
-        ...covers.map(c=>`<label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 8px;border-radius:7px;border:1.5px solid var(--border);background:var(--sf2)"><input type="radio" name="pe-cover" value="${c.idx}" style="accent-color:var(--purple)"><i class="ti ti-file-description" style="color:var(--purple)"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)}</span></label>`)
+        ...covers.map(c=>`<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:7px;border:1.5px solid var(--border);background:var(--sf2)"><label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;flex:1;min-width:0"><input type="radio" name="pe-cover" value="${c.idx}" style="accent-color:var(--purple)"><i class="ti ti-file-description" style="color:var(--purple);flex-shrink:0"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)}</span></label><button onclick="deleteCvFromAccount(${c.idx},'cover')" title="Excluir PDF" style="background:#fee2e2;border:1.5px solid #fca5a5;color:#dc2626;border-radius:6px;padding:4px 6px;font-size:11px;cursor:pointer;flex-shrink:0;line-height:1"><i class='ti ti-trash'></i></button></div>`)
       ].join("");
       const curCovVal=_peCoverIdx!=null?String(_peCoverIdx):"";
       coverSlots.querySelectorAll('input[name="pe-cover"]').forEach(r=>{
@@ -5198,6 +5524,28 @@ function closeProfileEditor(){
 }
 
 // ── SALVAR PERFIL ────────────────────────────────
+
+async function deleteCvFromAccount(idx, cvType){
+  var label=cvType==="resume"?"currículo":"cover letter";
+  if(!confirm("Excluir este "+label+" da conta? Esta ação não pode ser desfeita."))return;
+  try{
+    var r=await fetch("/api/cv/delete",{method:"POST",credentials:"include",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({idx:idx})});
+    var d=await r.json();
+    if(d.ok){
+      toast("PDF excluído com sucesso","g");
+      // Recarregar lista de PDFs
+      var cvs=(U.cvs||[]).filter(function(c){return c.idx!==idx;});
+      U.cvs=cvs;
+      peRenderResumeSlots(cvs, null);
+      peRenderCoverSlots(cvs, null);
+    } else {
+      toast(d.error||"Erro ao excluir PDF","r");
+    }
+  }catch(e){toast("Erro de conexão","r");}
+}
+
 async function saveProfileFromEditor(){
   const name=g("#pe-name")?.value?.trim();
   if(!name){toast("Nome obrigatório","r");return;}
@@ -5232,6 +5580,19 @@ async function saveProfileFromEditor(){
   const sheets=[...document.querySelectorAll('input[name="pe-sheet"]:checked')].map(cb=>cb.value);
   const selRes=document.querySelector('input[name="pe-res"]:checked');
   const resumeIdx=_peResIdx!=null?_peResIdx:(selRes?.value?parseInt(selRes.value,10):null);
+  // VALIDAÇÃO: Currículo obrigatório
+  const hasResumePdf=profilePdfBase64&&profilePdfBase64!=="__none__";
+  const hasResumeLinked=resumeIdx!=null;
+  if(!hasResumePdf&&!hasResumeLinked){
+    toast("⚠️ Adicione um Currículo (PDF) antes de salvar o perfil!","r");
+    // Destacar a área de upload
+    const drop=document.getElementById("pe-pdf-drop");
+    if(drop){drop.style.borderColor="#ef4444";drop.style.background="#fef2f2";setTimeout(()=>{drop.style.borderColor="";drop.style.background="";},3000);}
+    // Scroll até o campo
+    const wrap=document.getElementById("pe-res-upload-wrap");
+    if(wrap)wrap.scrollIntoView({behavior:"smooth",block:"center"});
+    return;
+  }
   const selCover=document.querySelector('input[name="pe-cover"]:checked');
   const coverIdx=_peCoverIdx!=null?_peCoverIdx:(selCover?.value?parseInt(selCover.value,10):null);
 
