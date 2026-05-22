@@ -3824,16 +3824,36 @@ function stopRankTimer(){if(_rankTimer){clearInterval(_rankTimer);_rankTimer=nul
 // ═══════════════════════════════════════════
 function setTab(t){
   tab=t;fCat="all";
-  // Reset sort para aleatório ao trocar aba — cada usuário verá ordem diferente
   if(t!=="seasonal"&&fSort!=="random"){fSort="random";g("#so-rand")?.classList.add("on");g("#so-desc")?.classList.remove("on");g("#so-asc")?.classList.remove("on");}
   ["seasonal","jan2026","jul2025"].forEach(x=>{g("#stab-"+x)?.classList.toggle("active",x===t);});
-  // Show/hide seasonal-only filters
   const isSheet=t!=="seasonal";
   ["ft-all","ft-agri","ft-nonag","fs-all","fs-active","f-wage","f-workers"].forEach(id=>{const el=g("#"+id);if(el)el.style.display=isSheet?"none":"";});
   g("#jlist").innerHTML="";g("#lmore").innerHTML="";
+  const _existing=document.getElementById("sheet-filter-warn");if(_existing)_existing.remove();
   g("#jd-empty")?.classList.remove("gone");g("#jd-content").style.display="none";closeMobDetail();
-  if(t==="seasonal"){g("#cat-chips-jobs").innerHTML="";loadJobs(true);}
-  else{sSkip=0;sTotal=0;sDone=false;sJobs=[];sLoading=false;g("#jlist").innerHTML=mkSkels(6);loadSheetCategories(t);loadSheetMeta(true);}
+  if(t==="seasonal"){
+    g("#cat-chips-jobs").innerHTML="";
+    loadJobs(true);
+  } else {
+    sSkip=0;sTotal=0;sDone=false;sJobs=[];sLoading=false;
+    g("#jlist").innerHTML=mkSkels(6);
+    loadSheetCategories(t);
+    // Sincronizar autoQueueIds e sentIds ANTES de carregar vagas
+    var _doLoad=function(){loadSheetMeta(true);};
+    var _pending=2;
+    var _done=function(){if(--_pending===0)_doLoad();};
+    // Carregar IDs do automático
+    if(U&&U.autoJob&&U.autoJob.active){
+      fetch("/api/auto/status",{credentials:"include"})
+        .then(function(r){return r.json();})
+        .then(function(d){_autoQueueIds=new Set(d.autoQueueIds||[]);_done();})
+        .catch(_done);
+    } else {_autoQueueIds=new Set();_done();}
+    // Carregar IDs enviados
+    if(!_sentLoaded){
+      _loadSentIds().then(_done).catch(_done);
+    } else {_done();}
+  }
 }
 
 async function loadSheetCategories(sheet){
