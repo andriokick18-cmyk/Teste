@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#4f46e5">
+<meta name="google-site-verification" content="380652ea59ad95e1">
+<link rel="privacy-policy" href="https://h2bapply.com/privacidade">
+<link rel="terms-of-service" href="https://h2bapply.com/termos">
 <title>H2BApply — Vagas H-2B & H-2A</title>
 
 <!-- ══ Acessibilidade ══ -->
@@ -1259,7 +1262,27 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .home-auto-card.inactive{background:var(--sf2);border:1.5px solid var(--border)}
 .home-auto-card.inactive:hover{background:var(--sf3);border-color:var(--border2)}
 
-/* ══ PESQUISAR VAGAS ══ */
+/* ══ IA CHAT GEMINI ══ */
+.ia-msg{display:flex;flex-direction:column;max-width:85%;}
+.ia-msg-user{align-self:flex-end;align-items:flex-end;}
+.ia-msg-bot{align-self:flex-start;align-items:flex-start;}
+.ia-bubble{padding:10px 14px;border-radius:16px;font-size:13px;line-height:1.65;word-break:break-word;white-space:pre-wrap;}
+.ia-bubble-user{background:linear-gradient(135deg,#0891b2,#06b6d4);color:#fff;border-bottom-right-radius:4px;}
+.ia-bubble-bot{background:#fff;border:1px solid var(--border);border-bottom-left-radius:4px;color:var(--text);}
+.ia-bubble-bot strong{color:var(--navy);}
+.ia-chip{flex-shrink:0;background:var(--sf3);border:1.5px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:11px;font-weight:600;color:var(--t2);cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .14s;}
+.ia-chip:hover{background:#e0f2fe;border-color:#0891b2;color:#0891b2;}
+#ia-messages::-webkit-scrollbar{width:3px;}
+/* ══ SUGESTÕES ══ */
+.sug-cat-btn{display:inline-flex;align-items:center;padding:6px 12px;border:1.5px solid var(--border2);border-radius:20px;background:var(--sf2);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .14s;}
+.sug-cat-btn:hover{border-color:var(--purple);color:var(--purple);}
+.sug-cat-btn.active{background:var(--purplel);border-color:var(--purple);color:var(--purple);font-weight:700;}
+.sug-status-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;}
+.sug-pending{background:#fef3c7;color:#92400e;border:1px solid #fde68a;}
+.sug-reviewed{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;}
+.sug-done{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;}
+.sug-rejected{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;}
+
 .pesq-src-chip{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;border:1.5px solid var(--border2);background:var(--sf2);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .14s;white-space:nowrap}
 .pesq-src-chip.active{background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(99,102,241,.1));border-color:rgba(59,130,246,.35);color:var(--blue);font-weight:700}
 .pesq-src-chip:hover{background:var(--sf3);color:var(--text)}
@@ -1570,6 +1593,8 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <button class="sb-item" id="si-indicar" onclick="sv('indicar')"><i class="ti ti-users-group"></i>Indicar Amigos<span class="sb-badge" id="sib-indicar" style="display:none;background:var(--green);color:#fff"></span></button>
         <button class="sb-item" id="si-redeem" onclick="sv('redeem')" style="background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(109,40,217,.06));border:1.5px solid rgba(139,92,246,.25);border-radius:10px;font-weight:800;color:#7c3aed"><i class="ti ti-ticket" style="font-size:15px;color:#7c3aed"></i>Resgatar Código<span style="margin-left:auto;font-size:9px;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:99px">NOVO</span></button>
         <button class="sb-item" id="si-notificacoes" onclick="sv('notificacoes')"><i class="ti ti-bell"></i>Notificações<span class="sb-badge" id="sib-notificacoes" style="display:none;background:#7c3aed;color:#fff"></span></button>
+        <button class="sb-item" id="si-iaChat" onclick="sv('iaChat')" style="background:linear-gradient(135deg,rgba(8,145,178,.1),rgba(6,182,212,.06));border:1.5px solid rgba(8,145,178,.25);border-radius:10px;font-weight:800;color:#0891b2"><i class="ti ti-brain" style="font-size:15px;color:#0891b2"></i>IA Chat H2B<span style="margin-left:auto;font-size:9px;background:#0891b2;color:#fff;padding:1px 6px;border-radius:99px">IA</span></button>
+        <button class="sb-item" id="si-sugestoes" onclick="sv('sugestoes')" style="background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(109,40,217,.05));border:1.5px solid rgba(124,58,237,.2);border-radius:10px;font-weight:700;color:#7c3aed"><i class="ti ti-bulb" style="font-size:15px;color:#7c3aed"></i>Sugestões para Devs</button>
       </div>
       <div class="sb-sec" id="sb-admin-sec" style="display:none">
         <div class="sb-lbl">Admin</div>
@@ -2998,6 +3023,148 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div style="text-align:center;color:var(--t3);font-size:12px;padding:30px">Carregando...</div>
         </div>
       </div></div>
+
+      <!-- ══ IA CHAT (Gemini) ══ -->
+      <div class="view gone" id="v-iaChat" style="display:flex;flex-direction:column;overflow:hidden">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#0c4a6e,#0891b2,#06b6d4);color:#fff;padding:12px 16px 10px;flex-shrink:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px"><i class="ti ti-brain"></i> IA Chat H2B</div>
+              <div style="font-size:11px;opacity:.8;margin-top:1px">Treinado com todo o conhecimento do H2BApply</div>
+            </div>
+            <button onclick="clearIaChat()" style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit"><i class="ti ti-trash" style="font-size:12px"></i> Limpar</button>
+          </div>
+          <!-- Contador global de mensagens -->
+          <div id="ia-limit-bar" style="margin-top:10px;background:rgba(255,255,255,.1);border-radius:10px;padding:7px 12px;font-size:11px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="opacity:.85">🌐 Limite diário global (todos os usuários)</span>
+              <span id="ia-count-text" style="font-weight:800">carregando...</span>
+            </div>
+            <div style="height:4px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden">
+              <div id="ia-count-bar" style="height:100%;background:#fff;border-radius:2px;width:0%;transition:width .5s"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Aviso se API não configurada -->
+        <div id="ia-not-configured" style="display:none;margin:14px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:14px">
+          <div style="font-size:14px;font-weight:800;color:#dc2626;margin-bottom:6px">⚠️ Gemini API não configurada</div>
+          <div style="font-size:12px;color:#7f1d1d;line-height:1.6">Adicione <code style="background:#fee2e2;padding:1px 5px;border-radius:4px">GEMINI_API_KEY</code> nas variáveis do servidor Railway para ativar.</div>
+        </div>
+
+        <!-- Mensagens -->
+        <div id="ia-messages" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 14px 6px;display:flex;flex-direction:column;gap:10px;background:#eef2ff">
+          <div class="ia-msg ia-msg-bot">
+            <div class="ia-bubble ia-bubble-bot">
+              👋 Olá! Sou o assistente de IA do <strong>H2BApply</strong>, feito com Google Gemini.<br><br>
+              Conheço tudo sobre o app: planos, envio automático, perfis, vistos H-2B/H-2A, e posso até escrever emails em inglês pra você!<br><br>
+              O que posso te ajudar hoje?
+            </div>
+            <div style="font-size:10px;color:var(--t3);margin-top:3px">Gemini AI · Treinado para o H2BApply</div>
+          </div>
+        </div>
+
+        <!-- Chips de sugestões contextuais -->
+        <div id="ia-suggestions" style="padding:7px 10px;background:#fff;border-top:1px solid var(--border);display:flex;gap:5px;overflow-x:auto;flex-shrink:0;scrollbar-width:none;-webkit-overflow-scrolling:touch">
+          <button onclick="sendIaSuggestion('Como funciona o visto H-2B? Quais empresas posso me candidatar?')" class="ia-chip">🇺🇸 Visto H-2B</button>
+          <button onclick="sendIaSuggestion('Qual a diferença entre H-2B e H-2A?')" class="ia-chip">🌾 H-2B vs H-2A</button>
+          <button onclick="sendIaSuggestion('Recebi um email de uma empresa americana em inglês. Me ajude a entender e responder.')" class="ia-chip">📧 Recebi resposta</button>
+          <button onclick="sendIaSuggestion('Escreva um email em inglês de candidatura para uma vaga de Landscaper')" class="ia-chip">✉️ Email inglês</button>
+          <button onclick="sendIaSuggestion('Como configurar o Envio Automático do H2BApply? Quais passos seguir?')" class="ia-chip">🤖 Envio Automático</button>
+          <button onclick="sendIaSuggestion('Explique os planos do H2BApply: Free, VIP, Pro e VIPro. Qual compensa mais para mim?')" class="ia-chip">💎 Planos e preços</button>
+          <button onclick="sendIaSuggestion('Quais documentos preciso ter para conseguir o visto H-2B?')" class="ia-chip">📋 Documentos</button>
+          <button onclick="sendIaSuggestion('Como criar um bom perfil de email no H2BApply? O que colocar no currículo?')" class="ia-chip">📄 Criar perfil</button>
+          <button onclick="sendIaSuggestion('O que fazer se o Gmail bloquear minha conta por muitos envios?')" class="ia-chip">🚫 Gmail bloqueou</button>
+          <button onclick="sendIaSuggestion('Como indicar amigos e ganhar dias VIP grátis?')" class="ia-chip">🎁 Ganhar VIP grátis</button>
+        </div>
+
+        <!-- Input -->
+        <div style="padding:8px 12px 10px;background:#fff;border-top:1px solid var(--border);flex-shrink:0">
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <textarea id="ia-input" class="input" rows="2"
+              placeholder="Pergunte sobre H-2B, vistos, como usar o app, emails em inglês..."
+              style="flex:1;min-height:42px;max-height:100px;font-size:13px;resize:none;border-radius:12px;padding:9px 13px;line-height:1.5;background:#f5f7ff"></textarea>
+            <button id="ia-send-btn" onclick="sendIaMessage()"
+              style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#0891b2,#06b6d4);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(8,145,178,.3)">
+              <i class="ti ti-send" style="font-size:16px"></i>
+            </button>
+          </div>
+          <div style="font-size:10px;color:var(--t4);margin-top:4px;text-align:center">Google Gemini 1.5 Flash · Grátis · Sabe tudo do H2BApply</div>
+        </div>
+      </div>
+
+      <!-- ══ SUGESTÕES PARA OS DEVS ══ -->
+      <div class="view gone" id="v-sugestoes" style="display:flex;flex-direction:column;overflow:hidden">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#1a1040,#2d1b69,#7c3aed);color:#fff;padding:16px 16px 14px;flex-shrink:0">
+          <div style="font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:4px"><i class="ti ti-bulb"></i> Sugestões para os Devs</div>
+          <div style="font-size:12px;opacity:.8">Sua ideia pode virar uma funcionalidade! Mande sua sugestão para a equipe do H2BApply.</div>
+        </div>
+
+        <!-- Formulário de envio -->
+        <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;gap:14px">
+
+          <!-- Card de envio -->
+          <div style="background:#fff;border:1.5px solid var(--border);border-radius:16px;padding:18px">
+            <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px"><i class="ti ti-edit" style="color:#7c3aed"></i> Nova Sugestão</div>
+
+            <!-- Categoria -->
+            <div class="field" style="margin-bottom:12px">
+              <label style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px;display:block">Categoria</label>
+              <div style="display:flex;gap:6px;flex-wrap:wrap" id="sug-cat-chips">
+                <button class="sug-cat-btn active" data-cat="funcionalidade" onclick="selectSugCat('funcionalidade',this)">⚡ Funcionalidade nova</button>
+                <button class="sug-cat-btn" data-cat="melhoria" onclick="selectSugCat('melhoria',this)">✨ Melhoria</button>
+                <button class="sug-cat-btn" data-cat="bug" onclick="selectSugCat('bug',this)">🐛 Bug / Erro</button>
+                <button class="sug-cat-btn" data-cat="vagas" onclick="selectSugCat('vagas',this)">💼 Sobre as vagas</button>
+                <button class="sug-cat-btn" data-cat="outro" onclick="selectSugCat('outro',this)">💬 Outro</button>
+              </div>
+              <input type="hidden" id="sug-cat" value="funcionalidade">
+            </div>
+
+            <!-- Texto da sugestão -->
+            <div class="field" style="margin-bottom:14px">
+              <label style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px;display:block">Sua sugestão <span style="color:var(--red)">*</span></label>
+              <textarea id="sug-text" class="input" rows="5"
+                placeholder="Descreva sua ideia com o máximo de detalhes possível. Quanto mais clara for a sugestão, mais fácil para a equipe implementar!&#10;&#10;Ex: Seria legal ter um botão para filtrar vagas por salário mínimo de $18/hora diretamente na tela de busca..."
+                style="resize:vertical;min-height:120px;font-size:13px;line-height:1.6"
+                oninput="updateSugCount(this)"></textarea>
+              <div style="display:flex;justify-content:space-between;margin-top:4px">
+                <span id="sug-char-count" style="font-size:11px;color:var(--t3)">0 / 1000 caracteres</span>
+                <span style="font-size:11px;color:var(--t3)">mínimo 10 caracteres</span>
+              </div>
+            </div>
+
+            <!-- Botão enviar -->
+            <button id="sug-send-btn" onclick="sendSugestao()" class="btn btn-primary w100" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:13px;font-size:14px">
+              <i class="ti ti-send"></i> Enviar Sugestão para os Devs
+            </button>
+
+            <!-- Feedback de envio -->
+            <div id="sug-feedback" style="display:none;margin-top:12px"></div>
+          </div>
+
+          <!-- Informações -->
+          <div style="background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(99,102,241,.05));border:1.5px solid rgba(124,58,237,.2);border-radius:12px;padding:14px">
+            <div style="font-size:13px;font-weight:800;color:#5b21b6;margin-bottom:8px">💡 Como funciona?</div>
+            <div style="font-size:12px;color:#6d28d9;line-height:1.65;display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;gap:8px;align-items:flex-start"><span>1️⃣</span><span>Escreva sua sugestão e clique em enviar</span></div>
+              <div style="display:flex;gap:8px;align-items:flex-start"><span>2️⃣</span><span>A equipe recebe e analisa todas as sugestões</span></div>
+              <div style="display:flex;gap:8px;align-items:flex-start"><span>3️⃣</span><span>As mais pedidas viram funcionalidades nas próximas atualizações</span></div>
+              <div style="display:flex;gap:8px;align-items:flex-start"><span>📣</span><span>Fique de olho no <a href="https://instagram.com/andrio.k" target="_blank" style="color:#7c3aed;font-weight:700">@andrio.k</a> para novidades!</span></div>
+            </div>
+          </div>
+
+          <!-- Histórico das próprias sugestões -->
+          <div>
+            <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:10px">📋 Suas sugestões enviadas</div>
+            <div id="sug-history" style="display:flex;flex-direction:column;gap:8px">
+              <div style="text-align:center;color:var(--t3);font-size:12px;padding:20px"><span class="spin spin-sm"></span> Carregando...</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div><!-- /main-area -->
   </div><!-- /app-body --><!-- Bottom Nav -->
   <nav class="bottom-nav">
@@ -3023,6 +3190,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <button class="bn" id="bn-ranking" onclick="sv('ranking')" style="position:relative">
       <i class="ti ti-trophy" style="color:#f59e0b;font-size:21px"></i>
       <span style="color:#d97706;font-weight:700">Ranking</span>
+    </button>
+    <button class="bn" id="bn-iaChat" onclick="sv('iaChat')" style="position:relative">
+      <i class="ti ti-brain" style="color:#0891b2;font-size:20px"></i>
+      <span style="color:#0891b2;font-weight:700;font-size:9px">IA Chat</span>
     </button>
   </nav>
 </div>
@@ -3588,7 +3759,8 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <div style="font-size:20px;font-weight:800;margin-bottom:6px">Enviado!</div>
     <div style="font-size:13px;color:var(--t2);margin-bottom:4px" id="suc-sub"></div>
     <div style="font-size:12px;color:var(--t3);margin-bottom:20px" id="suc-rem"></div>
-    <button class="btn btn-primary w100" onclick="g('#success-overlay').style.display='none'"><i class="ti ti-check"></i> Ótimo!</button>
+    <button class="btn btn-primary w100" onclick="g('#success-overlay').style.display='none';closeModal();closeMobDetail();"><i class="ti ti-check"></i> Ótimo!</button>
+    <button class="btn btn-secondary w100" style="margin-top:8px" onclick="g('#success-overlay').style.display='none';closeModal();closeMobDetail();sv('hist')"><i class="ti ti-history"></i> Ver candidaturas</button>
   </div>
 </div>
 
@@ -3905,7 +4077,7 @@ function renderDrawer(){
 // ═══════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════
-const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","indicar","notificacoes","redeem","tutorial"];
+const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","indicar","notificacoes","redeem","tutorial","iaChat","sugestoes"];
 function sv(v,...args){
   // ── "auto" abre modal em vez da view ──
   if(v==="auto"){if(typeof openAutoModal==="function"){openAutoModal();return;}}
@@ -12563,6 +12735,338 @@ document.addEventListener('DOMContentLoaded',()=>{ setTimeout(applyLang, 300); }
 if(document.readyState!=='loading') setTimeout(applyLang,400);
 
 console.log("[v19] Language system (PT/EN/ES) loaded");
+
+// ══════════════════════════════════════════════════════════
+//  IA CHAT — Gemini 1.5 Flash (v20)
+//  Limite global de 1500 mensagens/dia compartilhado
+// ══════════════════════════════════════════════════════════
+(function(){
+  "use strict";
+
+  let _iaHistory = []; // { role: "user"|"model", text: string }
+  let _iaSending = false;
+
+  // Registra "iaChat" como view válida
+  const _origViews = window.VIEWS;
+  if(Array.isArray(_origViews) && !_origViews.includes("iaChat")) _origViews.push("iaChat");
+
+  // Override sv() para inicializar chat quando abrir a aba
+  const _origSv = window.sv;
+  window.sv = function(v, ...args){
+    const r = _origSv(v, ...args);
+    if(v === "iaChat") { _initIaChat(); }
+    return r;
+  };
+
+  async function _initIaChat(){
+    await _loadIaStatus();
+    // Enter key envia mensagem
+    const inp = document.getElementById("ia-input");
+    if(inp && !inp._iaKeyAdded){
+      inp._iaKeyAdded = true;
+      inp.addEventListener("keydown", (e)=>{
+        if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); sendIaMessage(); }
+      });
+    }
+  }
+
+  async function _loadIaStatus(){
+    try{
+      const r = await fetch("/api/gemini/status", {credentials:"include"});
+      const d = await r.json();
+      if(!d.configured){
+        const nc = document.getElementById("ia-not-configured");
+        if(nc) nc.style.display = "block";
+      }
+      _updateIaLimitBar(d.used||0, d.total||1500);
+    }catch(e){ console.warn("[ia] status error:", e.message); }
+  }
+
+  function _updateIaLimitBar(used, total){
+    const txt = document.getElementById("ia-count-text");
+    const bar = document.getElementById("ia-count-bar");
+    if(txt) txt.textContent = `${used.toLocaleString("pt-BR")} / ${total.toLocaleString("pt-BR")}`;
+    const pct = Math.min(100, Math.round((used/total)*100));
+    if(bar){
+      bar.style.width = pct+"%";
+      bar.style.background = pct>=90?"#fca5a5":pct>=70?"#fde68a":"#fff";
+    }
+  }
+
+  function _appendMsg(role, text){
+    _iaHistory.push({role, text});
+    const container = document.getElementById("ia-messages");
+    if(!container) return;
+    const isUser = role==="user";
+    const div = document.createElement("div");
+    div.className = "ia-msg " + (isUser?"ia-msg-user":"ia-msg-bot");
+    // Formata texto com suporte a markdown simples
+    const formatted = text
+      .replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>")
+      .replace(/\*(.*?)\*/g,"<em>$1</em>")
+      .replace(/`(.*?)`/g,"<code style=\"background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:11px\">$1</code>");
+    div.innerHTML = `
+      <div class="ia-bubble ${isUser?"ia-bubble-user":"ia-bubble-bot"}">${formatted}</div>
+      <div style="font-size:10px;color:var(--t3);margin-top:3px">${isUser?"Você":"Gemini AI"}</div>`;
+    container.appendChild(div);
+    div.scrollIntoView({behavior:"smooth",block:"end"});
+  }
+
+  function _setTyping(show){
+    const container = document.getElementById("ia-messages");
+    if(!container) return;
+    const existing = document.getElementById("ia-typing-indicator");
+    if(show && !existing){
+      const div = document.createElement("div");
+      div.id = "ia-typing-indicator";
+      div.className = "ia-msg ia-msg-bot";
+      div.innerHTML = `<div class="ia-bubble ia-bubble-bot" style="display:flex;align-items:center;gap:6px;padding:12px 16px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#0891b2;animation:chatDot 1.2s infinite"></span>
+        <span style="width:8px;height:8px;border-radius:50%;background:#0891b2;animation:chatDot 1.2s infinite .2s"></span>
+        <span style="width:8px;height:8px;border-radius:50%;background:#0891b2;animation:chatDot 1.2s infinite .4s"></span>
+        <span style="font-size:11px;color:var(--t2);margin-left:4px">Gemini está digitando...</span>
+      </div>`;
+      container.appendChild(div);
+      div.scrollIntoView({behavior:"smooth",block:"end"});
+    } else if(!show && existing){
+      existing.remove();
+    }
+    const btn = document.getElementById("ia-send-btn");
+    if(btn){
+      btn.disabled = show;
+      btn.innerHTML = show
+        ? '<span class="spin spin-sm" style="border-color:rgba(255,255,255,.3);border-top-color:#fff"></span>'
+        : '<i class="ti ti-send" style="font-size:16px"></i>';
+    }
+    _iaSending = show;
+  }
+
+  window.sendIaMessage = async function(){
+    if(_iaSending) return;
+    const inp = document.getElementById("ia-input");
+    const text = (inp?.value||"").trim();
+    if(!text) return;
+    inp.value = "";
+    inp.style.height = "auto";
+
+    // Oculta sugestões após primeira mensagem
+    const sugg = document.getElementById("ia-suggestions");
+    if(sugg && _iaHistory.length === 0) sugg.style.display = "none";
+
+    _appendMsg("user", text);
+    _setTyping(true);
+
+    try{
+      const r = await fetch("/api/gemini/chat", {
+        method:"POST", credentials:"include",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({messages:[..._iaHistory]})
+      });
+      const d = await r.json();
+      _setTyping(false);
+
+      if(!d.ok){
+        const isLimit = d.limitReached||r.status===429;
+        _appendMsg("model", isLimit
+          ? "⏳ "+d.error
+          : "❌ Erro: "+(d.error||"Falha na comunicação com a IA."));
+        if(!isLimit) console.warn("[ia] error:", d.error);
+      } else {
+        _appendMsg("model", d.text);
+        _updateIaLimitBar(d.used||0, d.total||1500);
+      }
+    }catch(e){
+      _setTyping(false);
+      _appendMsg("model", "❌ Erro de conexão. Verifique sua internet e tente novamente.");
+      console.error("[ia] fetch error:", e.message);
+    }
+  };
+
+  window.sendIaSuggestion = function(text){
+    const inp = document.getElementById("ia-input");
+    if(inp) inp.value = text;
+    sendIaMessage();
+  };
+
+  window.clearIaChat = function(){
+    _iaHistory = [];
+    const container = document.getElementById("ia-messages");
+    if(!container) return;
+    container.innerHTML = `
+      <div class="ia-msg ia-msg-bot">
+        <div class="ia-bubble ia-bubble-bot">
+          👋 Chat reiniciado! Como posso te ajudar com H-2B/H-2A?
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-top:4px">Gemini AI</div>
+      </div>`;
+    const sugg = document.getElementById("ia-suggestions");
+    if(sugg) sugg.style.display = "flex";
+    _loadIaStatus();
+  };
+
+  console.log("[v20] IA Chat Gemini carregado");
+})();
+
+// ══════════════════════════════════════════════════════════
+//  SUGESTÕES PARA OS DEVS (v20)
+// ══════════════════════════════════════════════════════════
+(function(){
+  "use strict";
+
+  let _sugCat = "funcionalidade";
+
+  // Registra view
+  if(Array.isArray(window.VIEWS) && !window.VIEWS.includes("sugestoes")) window.VIEWS.push("sugestoes");
+
+  // Override sv para carregar histórico ao abrir
+  const _origSv2 = window.sv;
+  window.sv = function(v, ...args){
+    const r = _origSv2(v, ...args);
+    if(v === "sugestoes") _loadSugHistory();
+    return r;
+  };
+
+  window.selectSugCat = function(cat, btn){
+    _sugCat = cat;
+    document.querySelectorAll(".sug-cat-btn").forEach(b => b.classList.remove("active"));
+    if(btn) btn.classList.add("active");
+    document.getElementById("sug-cat").value = cat;
+  };
+
+  window.updateSugCount = function(el){
+    const len = el.value.length;
+    const counter = document.getElementById("sug-char-count");
+    if(counter){
+      counter.textContent = `${len} / 1000 caracteres`;
+      counter.style.color = len>900?"var(--red)":len>700?"var(--amber)":"var(--t3)";
+    }
+  };
+
+  window.sendSugestao = async function(){
+    const textEl = document.getElementById("sug-text");
+    const feedbackEl = document.getElementById("sug-feedback");
+    const btn = document.getElementById("sug-send-btn");
+    const text = (textEl?.value||"").trim();
+
+    if(text.length < 10){
+      _showSugFeedback("error", "⚠️ Escreva pelo menos 10 caracteres na sua sugestão.");
+      textEl?.focus();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin spin-sm"></span> Enviando...';
+
+    try{
+      const r = await fetch("/api/suggestions", {
+        method:"POST", credentials:"include",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ text, category: _sugCat })
+      });
+      const d = await r.json();
+      if(d.ok){
+        _showSugFeedback("success", "🎉 Sugestão enviada com sucesso! A equipe vai analisar. Obrigado!");
+        textEl.value = "";
+        updateSugCount(textEl);
+        _loadSugHistory();
+        // Toca um som de sucesso
+        try{
+          const ctx = new(window.AudioContext||window.webkitAudioContext)();
+          const now = ctx.currentTime;
+          [523.3,659.3,783.9].forEach((f,i)=>{
+            const o=ctx.createOscillator(), g=ctx.createGain();
+            o.connect(g); g.connect(ctx.destination);
+            o.type="sine"; o.frequency.value=f;
+            g.gain.setValueAtTime(0.1,now+i*.15); g.gain.exponentialRampToValueAtTime(0.001,now+i*.15+.4);
+            o.start(now+i*.15); o.stop(now+i*.15+.4);
+          });
+        }catch{}
+      } else {
+        _showSugFeedback("error", "❌ " + (d.error||"Erro ao enviar. Tente novamente."));
+      }
+    }catch(e){
+      _showSugFeedback("error", "❌ Erro de conexão. Verifique sua internet.");
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-send"></i> Enviar Sugestão para os Devs';
+  };
+
+  function _showSugFeedback(type, msg){
+    const el = document.getElementById("sug-feedback");
+    if(!el) return;
+    const colors = {
+      success: {bg:"#f0fdf4",border:"#86efac",color:"#065f46"},
+      error:   {bg:"#fef2f2",border:"#fca5a5",color:"#dc2626"}
+    };
+    const c = colors[type]||colors.error;
+    el.style.display = "block";
+    el.innerHTML = `<div style="background:${c.bg};border:1.5px solid ${c.border};border-radius:10px;padding:11px 14px;font-size:13px;font-weight:600;color:${c.color}">${msg}</div>`;
+    el.scrollIntoView({behavior:"smooth",block:"nearest"});
+    if(type==="success") setTimeout(()=>{ el.style.display="none"; }, 5000);
+  }
+
+  async function _loadSugHistory(){
+    const el = document.getElementById("sug-history");
+    if(!el) return;
+    try{
+      const r = await fetch("/api/suggestions", {credentials:"include"});
+      const d = await r.json();
+      const list = d.suggestions||[];
+      if(!list.length){
+        el.innerHTML = `<div style="text-align:center;color:var(--t3);font-size:12px;padding:20px;background:var(--sf2);border-radius:10px;border:1px dashed var(--border2)">
+          <i class="ti ti-bulb" style="font-size:28px;opacity:.3;display:block;margin-bottom:8px"></i>
+          Você ainda não enviou nenhuma sugestão.<br>Seja o primeiro a ajudar a melhorar o app!
+        </div>`;
+        return;
+      }
+      const statusMap = {
+        pending:  {label:"Aguardando análise", cls:"sug-pending", icon:"⏳"},
+        reviewed: {label:"Em análise", cls:"sug-reviewed", icon:"👀"},
+        done:     {label:"Implementada!", cls:"sug-done", icon:"✅"},
+        rejected: {label:"Não implementada", cls:"sug-rejected", icon:"❌"}
+      };
+      const catIcons = {funcionalidade:"⚡",melhoria:"✨",bug:"🐛",vagas:"💼",outro:"💬"};
+      el.innerHTML = list.map(s=>{
+        const st = statusMap[s.status||"pending"]||statusMap.pending;
+        const date = new Date(s.createdAt).toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
+        return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:13px 14px;transition:border-color .14s">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span style="font-size:11px;background:var(--purplel);color:var(--purple);border-radius:20px;padding:2px 8px;font-weight:700">${catIcons[s.category]||"💬"} ${s.category||"geral"}</span>
+              <span class="sug-status-badge ${st.cls}">${st.icon} ${st.label}</span>
+            </div>
+            <span style="font-size:10px;color:var(--t4);white-space:nowrap;flex-shrink:0">${date}</span>
+          </div>
+          <div style="font-size:13px;color:var(--text);line-height:1.6">${esc(s.text.slice(0,200)+(s.text.length>200?"...":""))}</div>
+          ${s.adminReply?`<div style="margin-top:8px;background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(99,102,241,.05));border:1px solid rgba(124,58,237,.2);border-radius:8px;padding:9px 11px;font-size:12px;color:#5b21b6;line-height:1.55"><strong>💬 Resposta da equipe:</strong> ${esc(s.adminReply)}</div>`:""}
+        </div>`;
+      }).join("");
+    }catch(e){
+      el.innerHTML = `<div style="text-align:center;color:var(--red);font-size:12px;padding:16px">Erro ao carregar: ${e.message}</div>`;
+    }
+  }
+
+  // Também adiciona botão de Sugestões ao drawer
+  const _origDrawer = window.renderDrawer;
+  window.renderDrawer = function(){
+    if(_origDrawer) _origDrawer();
+    const drawer = document.getElementById("drawer");
+    if(!drawer) return;
+    if(drawer.querySelector("[data-sug-btn]")) return; // já adicionado
+    const btn = document.createElement("button");
+    btn.className = "d-item";
+    btn.dataset.sugBtn = "1";
+    btn.innerHTML = '<i class="ti ti-bulb" style="font-size:17px;color:#7c3aed"></i>Sugestões para os Devs';
+    btn.onclick = ()=>{ closeDrawer && closeDrawer(); sv("sugestoes"); };
+    const logoutDiv = drawer.querySelector("button[onclick*='doLogout']")?.closest("div");
+    if(logoutDiv) logoutDiv.parentNode.insertBefore(btn, logoutDiv);
+  };
+
+  console.log("[v20] Sugestões para Devs carregado");
+})();
+
+
 
 
 

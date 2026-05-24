@@ -6,7 +6,7 @@
 //  PLANOS:
 //    free   → 20 manual + 10 auto /dia
 //    vip    → 400 manual + 10 auto /dia  (R$49,90)
-//    pro    → 20 manual + 200 auto /dia  (R$119,90)
+//    pro    → 300 manual + 200 auto /dia  (R$119,90)
 //    vipro  → 400 manual + 200 auto /dia (R$149,90)
 //
 //  NOVIDADES v13:
@@ -36,7 +36,7 @@ const REDIRECT_URI  = APP_URL + "/oauth/callback";
 const PORT          = parseInt(process.env.PORT || "3000", 10);
 const IS_PROD       = APP_URL.startsWith("https://");
 const CONFIGURED    = !!(CLIENT_ID && CLIENT_SECRET);
-const ADMIN_EMAIL   = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+const ADMIN_EMAIL   = (process.env.ADMIN_EMAIL || "andrio.kick18@gmail.com").trim().toLowerCase();
 const ADMIN_EMAIL_2 = (process.env.ADMIN_EMAIL_2 || "").trim().toLowerCase();
 const ADMIN_EMAILS  = new Set([ADMIN_EMAIL, ADMIN_EMAIL_2].filter(Boolean));
 const isAdminEmail  = (e) => ADMIN_EMAILS.has((e||"").trim().toLowerCase());
@@ -51,11 +51,16 @@ const PUSH_ENABLED      = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
 console.log(`[boot] Push VAPID: ${PUSH_ENABLED?"✅ configurado":"⚠️  desativado (configure VAPID_PUBLIC_KEY e VAPID_PRIVATE_KEY)"}`);
 
 // ── Planos ────────────────────────────────────────────────
+// Planos ativos:
+//   free  → 20 manual + 10 auto /dia (Grátis)
+//   vip   → 400 manual + 10 auto /dia (R$99,90)
+//   vipro → 300 manual + 200 auto /dia (R$149,90)
+// Plano "pro" removido — usuários legados recebem limites de vipro automaticamente
 const PLAN_LIMITS = {
   free:  { manual: 20,  auto: 10  },
   vip:   { manual: 400, auto: 10  },
-  pro:   { manual: 20,  auto: 200 },
-  vipro: { manual: 400, auto: 200 },
+  pro:   { manual: 300, auto: 200 }, // legado — mesmo limite do vipro
+  vipro: { manual: 300, auto: 200 },
 };
 // Intervalos base (substituídos pelo cálculo inteligente)
 const AUTO_INTERVAL_MIN = 180_000; // 3 min fallback
@@ -120,6 +125,7 @@ const APPIDX_FILE = path.join(DATA_DIR, "app_index.json");   // NEW v13: índice
 const ADMIN_SETTINGS_FILE = path.join(DATA_DIR, "admin_settings.json"); // Admin global settings
 const NOTIF_FILE     = path.join(DATA_DIR, "notifications.json");  // Global notifications from ADM
 const REFERRAL_FILE  = path.join(DATA_DIR, "referrals.json");       // Referral tracking
+const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
 try { fs.mkdirSync(CVS_DIR, { recursive: true }); } catch {}
 
 console.log(`[boot] H2BApply v13.0 | ${APP_URL} | ${DATA_DIR}`);
@@ -144,6 +150,14 @@ let DB_ADMIN_SETTINGS = { newUserTrialEnabled: true, newUserTrialDays: 5, newUse
 let DB_NOTIF = { notifications: [] };
 // Referrals: { byCode: { code → {ownerEmail, createdAt} }, byEmail: { email → {code, referredBy, joinedAt, paidAt, bonusPaid} } }
 let DB_REFERRAL = { byCode: {}, byEmail: {} };
+let DB_SUGGESTIONS = []; // Array de sugestões dos usuários
+
+// ── Gemini Chat ─────────────────────────────────────────
+// Limite global de 1500 mensagens/dia para TODOS os usuários
+const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
+const GEMINI_DAILY_LIMIT = parseInt(process.env.GEMINI_DAILY_LIMIT || "1500", 10);
+const GEMINI_USER_DAILY_LIMIT = Math.floor(GEMINI_DAILY_LIMIT / 50); // 1500 ÷ 50 usuários = 30/dia por usuário
+let _geminiCount = { date: "", count: 0 }; // contador global em memória (reseta à meia-noite)
 
 // ── Ranking System ────────────────────────────────────────
 const RANK_HIDDEN_FILE = path.join(DATA_DIR, "rank_hidden.json");
@@ -155,7 +169,14 @@ const persistRankBadges = () => persist(RANK_BADGES_FILE, DB_RANK_BADGES);
 
 // Online status (in-memory, reinicia com o servidor)
 const onlineMap = new Map(); // email → lastSeenAt (ms timestamp)
-const markOnline = email => { if (email) onlineMap.set(email, Date.now()); };
+const markOnline = email => {
+  if(!email) return;
+  const now = Date.now();
+  onlineMap.set(email, now);
+  // Persiste lastSeenAt no DB do usuário (sobrevive a reinícios)
+  const p = getUser(email);
+  if(p) setUser(email, { lastSeenAt: now });
+};
 const isOnlineUser = email => { const t = onlineMap.get(email); return !!(t && Date.now() - t < 5 * 60_000); };
 
 // Cache de posições anteriores para calcular mudança de ranking
@@ -190,6 +211,8 @@ function boot() {
   const savedAdminSettings = load(ADMIN_SETTINGS_FILE, null);
   if(savedAdminSettings) Object.assign(DB_ADMIN_SETTINGS, savedAdminSettings);
   DB_NOTIF    = load(NOTIF_FILE,    { notifications: [] });
+  DB_SUGGESTIONS = load(SUGGESTIONS_FILE, []);
+  if(!Array.isArray(DB_SUGGESTIONS)) DB_SUGGESTIONS = [];
   const rawRef = load(REFERRAL_FILE, { byCode: {}, byEmail: {} });
   DB_REFERRAL = {
     byCode:  (rawRef.byCode  && typeof rawRef.byCode  === 'object') ? rawRef.byCode  : {},
@@ -197,12 +220,25 @@ function boot() {
   };
   const rawSent = mig(SENT_FILE, path.join(DATA_DIR, "h2b_sent_emails.json"), {});
   for (const [k, v] of Object.entries(rawSent)) DB_SENT[k] = new Set(Array.isArray(v) ? v : []);
-  // ✅ Garante que envios manuais do HIST também estejam no DB_SENT (evita reenvio automático)
+  // ══════════════════════════════════════════════════════
+  // REGRA PRINCIPAL: reconstrói DB_SENT completo do HIST
+  // Garante que NENHUM envio do histórico seja esquecido
+  // Sobrevive a deploy, reinício, corrupção do sent_emails
+  // ══════════════════════════════════════════════════════
+  let _sentRebuilt = 0;
   for (const [userEmail, entries] of Object.entries(DB_HIST)) {
     if (!DB_SENT[userEmail]) DB_SENT[userEmail] = new Set();
     for (const h of entries) {
-      if (h.to) DB_SENT[userEmail].add(h.to.toLowerCase());
+      const nd = (h.to||"").toLowerCase().trim().replace(/\.+$/,"");
+      if (nd && !DB_SENT[userEmail].has(nd)) {
+        DB_SENT[userEmail].add(nd);
+        _sentRebuilt++;
+      }
     }
+  }
+  if (_sentRebuilt > 0) {
+    persistSent(); // Salva o DB_SENT reconstruído no disco imediatamente
+    console.log(`[db] 🔒 DB_SENT reconstruído do histórico: +${_sentRebuilt} entradas adicionadas`);
   }
   console.log(`[db] ✅ ${Object.keys(DB_USERS).length} usuários | ${Object.values(DB_HIST).reduce((n,a)=>n+a.length,0)} enviados`);
   console.log(`[db] Logs: ${Object.values(DB_LOGS).reduce((n,a)=>n+a.length,0)} entradas`);
@@ -235,8 +271,34 @@ const delHist    = e => { delete DB_HIST[e]; persist(HIST_FILE,DB_HIST); };
 const getAutoJob = e => DB_AUTO[e]||null;
 const setAutoJob = (e,d) => { DB_AUTO[e]={...(DB_AUTO[e]||{}),...d}; persist(AUTO_FILE,DB_AUTO); };
 const delAutoJob = e => { delete DB_AUTO[e]; persist(AUTO_FILE,DB_AUTO); };
-const hasSent    = (u,d) => !!(DB_SENT[u]?.has(d.toLowerCase()));
-const markSent   = (u,d) => { if(!DB_SENT[u])DB_SENT[u]=new Set(); DB_SENT[u].add(d.toLowerCase()); persistSentDebounced(); };
+// ══════════════════════════════════════════════════════════
+// REGRA PRINCIPAL — Anti-duplicata absoluta
+// Um usuário NUNCA envia para o mesmo empregador duas vezes
+// a não ser que ele mesmo retire a vaga do histórico.
+// Dupla camada: DB_SENT (memória/disco) + HIST (fallback)
+// Sobrevive a: deploy, reinício, logout, troca de celular
+// ══════════════════════════════════════════════════════════
+
+// Normaliza email para comparação — remove espaços, lowercase, ponto final
+const _normEmail = (e) => (e||"").toLowerCase().trim().replace(/\.+$/,"");
+
+const hasSent = (u, d) => {
+  const nd = _normEmail(d);
+  if(!nd) return false;
+  // Camada 1: DB_SENT em memória (rápido)
+  if(DB_SENT[u]?.has(nd)) return true;
+  // Camada 2: fallback direto no histórico (à prova de falhas)
+  const hist = DB_HIST[u] || [];
+  return hist.some(h => _normEmail(h.to) === nd);
+};
+
+const markSent = (u, d) => {
+  const nd = _normEmail(d);
+  if(!nd) return;
+  if(!DB_SENT[u]) DB_SENT[u] = new Set();
+  DB_SENT[u].add(nd);
+  persistSentDebounced();
+};
 const getNote    = (u,j) => DB_NOTES[u]?.[j]||"";
 const setNote    = (u,j,t) => { if(!DB_NOTES[u])DB_NOTES[u]={}; DB_NOTES[u][j]=t; persist(NOTES_FILE,DB_NOTES); };
 const getAlerts  = u => DB_ALERTS[u]||[];
@@ -725,7 +787,7 @@ function getPlan(u) {
   const auto   = isAutoVipActive(u);
   if (manual && auto) return "vipro";
   if (manual) return "vip";
-  if (auto)   return "pro";
+  if (auto)   return "vipro"; // plano "pro" removido — auto-only = vipro
   return "free";
 }
 
@@ -757,11 +819,59 @@ const todayStr = () => todayStrBRT(); // BRT correto — usa UTC-3
 const countManualToday = h => (h||[]).filter(x=>(x.dateStr||"")===todayStr()&&x.type!=="auto").length;
 const countAutoToday   = h => (h||[]).filter(x=>(x.dateStr||"")===todayStr()&&x.type==="auto").length;
 
-// CVs
+// CVs — v16-FIX: dupla persistência (disco + DB) para nunca perder PDF no reinício
 const cvPath   = (e,i) => path.join(CVS_DIR,e.replace(/[^a-zA-Z0-9@._-]/g,"_")+"_"+i+".pdf");
-const saveCv   = (e,i,b64) => fs.writeFileSync(cvPath(e,i),Buffer.from(b64,"base64"));
-const loadCv   = (e,i) => { try{return fs.readFileSync(cvPath(e,i)).toString("base64");}catch{return null;} };
-const deleteCv = (e,i) => { try{fs.unlinkSync(cvPath(e,i));}catch{} };
+
+const saveCv = (e,i,b64) => {
+  // 1. Salva no disco (rápido para leitura)
+  try { fs.writeFileSync(cvPath(e,i), Buffer.from(b64,"base64")); } catch(err) {
+    console.warn(`[cv] Falha ao salvar disco: ${err.message}`);
+  }
+  // 2. Salva base64 no DB do usuário (sobrevive a reinícios)
+  try {
+    const p = getUser(e) || {};
+    const cvs = (p.cvs || []).map(c => {
+      if(parseInt(c.idx,10) === parseInt(i,10)) return {...c, b64};
+      return c;
+    });
+    setUser(e, {cvs});
+  } catch(err) {
+    console.warn(`[cv] Falha ao salvar DB: ${err.message}`);
+  }
+};
+
+const loadCv = (e,i) => {
+  // 1. Tenta ler do disco primeiro (mais rápido)
+  try {
+    const buf = fs.readFileSync(cvPath(e,i));
+    if(buf && buf.length > 100) return buf.toString("base64");
+  } catch {}
+  // 2. Fallback: recupera do DB (sobrevive a reinícios do /tmp)
+  try {
+    const p = getUser(e);
+    const cv = (p?.cvs||[]).find(c => parseInt(c.idx,10) === parseInt(i,10));
+    if(cv?.b64 && cv.b64.length > 100) {
+      // Restaura no disco para próximas leituras
+      try { fs.writeFileSync(cvPath(e,i), Buffer.from(cv.b64,"base64")); } catch {}
+      console.log(`[cv] ✅ PDF restaurado do DB para disco: ${e} idx=${i}`);
+      return cv.b64;
+    }
+  } catch {}
+  return null;
+};
+
+const deleteCv = (e,i) => {
+  try { fs.unlinkSync(cvPath(e,i)); } catch {}
+  // Remove b64 do DB também
+  try {
+    const p = getUser(e) || {};
+    const cvs = (p.cvs||[]).map(c => {
+      if(parseInt(c.idx,10) === parseInt(i,10)) { const {b64,...rest}=c; return rest; }
+      return c;
+    });
+    setUser(e, {cvs});
+  } catch {}
+};
 
 // ══════════════════════════════════════════════════════════
 //  PLANILHAS COM CATEGORIAS DINÂMICAS
@@ -892,14 +1002,31 @@ function searchSheet(arr, q, state, category, skip, top, sort) {
     }
 
     if(impliedCat && (!category||category==="all")){
-      // PRIORITY SEARCH:
-      // Tier 1: exact company name contains query (e.g. "bartender" in company name)
-      // Tier 2: category matches (food service companies for bartender)
-      const tier1=arr.filter(r=>(r.n||"").toLowerCase().includes(ql)||(r.e||"").toLowerCase().includes(ql)||(r.c||"").toLowerCase().includes(ql));
-      const tier2=arr.filter(r=>(r.k||"other")===impliedCat&&!(r.n||"").toLowerCase().includes(ql)&&!(r.c||"").toLowerCase().includes(ql));
-      // Merge: tier1 first (exact matches), then tier2 (similar category), dedup by case number
-      const seen=new Set(tier1.map(r=>r.c));
-      list=[...tier1,...tier2.filter(r=>!seen.has(r.c))];
+      // PRIORITY SEARCH — 3 tiers por relevância:
+      // Tier 1: título da vaga contém exatamente a busca (ex: "Bartender" no título)
+      // Tier 2: empresa ou case number contém a busca
+      // Tier 3: categoria corresponde mas sem match direto no título
+      const ql_words = ql.split(/\s+/).filter(w=>w.length>=3);
+      const titleExact = (r) => {
+        const t = (r.t||r.n||"").toLowerCase();
+        return t===ql || t.startsWith(ql+" ") || t.includes(" "+ql) || t.includes(ql);
+      };
+      const tier1 = arr.filter(r => titleExact(r)); // título contém busca
+      const tier2 = arr.filter(r => !titleExact(r) && (
+        (r.n||"").toLowerCase().includes(ql) ||
+        (r.e||"").toLowerCase().includes(ql) ||
+        (r.c||"").toLowerCase().includes(ql)
+      ));
+      const tier3 = arr.filter(r =>
+        (r.k||"other")===impliedCat &&
+        !titleExact(r) &&
+        !(r.n||"").toLowerCase().includes(ql) &&
+        !(r.c||"").toLowerCase().includes(ql)
+      );
+      // Merge: tier1 primeiro (match exato no título), depois tier2, depois tier3
+      const seen=new Set();
+      const dedup=(r)=>{ if(seen.has(r.c))return false; seen.add(r.c); return true; };
+      list=[...tier1.filter(dedup),...tier2.filter(dedup),...tier3.filter(dedup)];
     } else {
       // Regular search: company name, state, case number, email only
       list = list.filter(r =>
@@ -1244,6 +1371,8 @@ async function _doAutoSendInner(email) {
     autoTimers.delete(email);
     addLog(email, { status:"sistema", jobTitle:"Fila finalizada", company:`Total: ${job.originalCount||0} vagas processadas` });
     console.log(`[auto] ${email} finalizado`);
+    // 🔔 Notifica o usuário por email que a fila terminou
+    sendNotifEmail(email, "finished").catch(e => console.warn("[notif/finished]", e.message));
     return;
   }
 
@@ -1425,6 +1554,12 @@ async function _doAutoSendInner(email) {
     }
     if (!body.trim()) {
       addLog(email, { ...logEntry, status:"pulado", error:"Corpo do e-mail em branco — configure um template de mensagem no perfil ou nas configurações." });
+      break;
+    }
+    // v16-FIX: bloqueia envio sem PDF — email vazio pro empregador não pode acontecer
+    if (attachments.length === 0) {
+      addLog(email, { ...logEntry, status:"pulado", error:"Nenhum currículo (PDF) encontrado. Acesse a aba Perfil, suba seu currículo e configure o perfil de envio." });
+      console.warn(`[auto] ⛔ BLOQUEADO sem anexo: ${email} → ${target.to}`);
       break;
     }
 
@@ -1915,6 +2050,214 @@ const server=http.createServer(async(req,res)=>{
   if(pathname==="/"||pathname==="/index.html")return serveHtml("index.html");
   if(pathname==="/admin"||pathname==="/admin.html")return serveHtml("admin.html");
 
+  // Google Search Console verification
+  if(pathname==="/google380652ea59ad95e1.html"){
+    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});
+    return res.end(`<!DOCTYPE html><html><head><meta name="google-site-verification" content="380652ea59ad95e1"/></head><body>google-site-verification: google380652ea59ad95e1</body></html>`);
+  }
+
+  // Política de Privacidade
+  if(pathname==="/privacidade"||pathname==="/privacy"){
+    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"public, max-age=86400"});
+    return res.end(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de Privacidade — H2BApply</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1e293b;background:#f8fafc;line-height:1.7}
+  .container{max-width:760px;margin:0 auto;padding:40px 20px}
+  .logo{display:flex;align-items:center;gap:12px;margin-bottom:32px}
+  .logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#4f46e5,#0891b2);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:800}
+  .logo-text{font-size:22px;font-weight:800;color:#1e293b}
+  h1{font-size:28px;font-weight:800;color:#1e293b;margin-bottom:8px}
+  .date{font-size:13px;color:#64748b;margin-bottom:32px}
+  h2{font-size:18px;font-weight:700;color:#1e293b;margin:28px 0 10px}
+  p{color:#475569;margin-bottom:12px;font-size:15px}
+  ul{color:#475569;margin:8px 0 12px 20px;font-size:15px}
+  li{margin-bottom:6px}
+  a{color:#4f46e5;text-decoration:none}
+  .card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:28px;margin-bottom:24px}
+  .footer{text-align:center;margin-top:40px;font-size:13px;color:#94a3b8}
+  .back-btn{display:inline-flex;align-items:center;gap:6px;background:#4f46e5;color:#fff;padding:10px 20px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;margin-bottom:24px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <div class="logo-icon">H</div>
+    <div class="logo-text">H2BApply</div>
+  </div>
+  <a href="/" class="back-btn">← Voltar ao App</a>
+  <div class="card">
+    <h1>Política de Privacidade</h1>
+    <div class="date">Última atualização: Maio de 2026</div>
+
+    <h2>1. Informações que coletamos</h2>
+    <p>Ao usar o H2BApply, coletamos as seguintes informações:</p>
+    <ul>
+      <li><strong>Dados do Google:</strong> nome, endereço de email e foto de perfil (via login Google)</li>
+      <li><strong>Acesso ao Gmail:</strong> permissão para enviar emails em seu nome para candidaturas H-2B/H-2A</li>
+      <li><strong>Dados do perfil:</strong> nome completo, país, telefone, cidade</li>
+      <li><strong>Currículos (PDF):</strong> arquivos enviados para uso nas candidaturas</li>
+      <li><strong>Histórico de candidaturas:</strong> registro dos emails enviados para empregadores americanos</li>
+    </ul>
+
+    <h2>2. Como usamos suas informações</h2>
+    <ul>
+      <li>Enviar emails de candidatura para empregadores americanos em seu nome</li>
+      <li>Gerenciar seu histórico de candidaturas e evitar envios duplicados</li>
+      <li>Exibir respostas de empregadores no app</li>
+      <li>Melhorar a experiência do usuário no aplicativo</li>
+    </ul>
+
+    <h2>3. Acesso ao Gmail</h2>
+    <p>O H2BApply solicita acesso ao seu Gmail <strong>exclusivamente</strong> para:</p>
+    <ul>
+      <li>Enviar emails de candidatura H-2B/H-2A para empregadores nos EUA</li>
+      <li>Ler respostas dos empregadores para exibição no app</li>
+    </ul>
+    <p><strong>Nunca lemos, armazenamos ou compartilhamos o conteúdo de seus emails pessoais.</strong> O acesso é restrito às funcionalidades descritas acima e está em conformidade com a <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank">Política de Dados de Usuário do Google API</a>, incluindo os requisitos de Uso Limitado.</p>
+
+    <h2>4. Compartilhamento de dados</h2>
+    <p>Não vendemos, alugamos ou compartilhamos seus dados pessoais com terceiros, exceto:</p>
+    <ul>
+      <li><strong>Empregadores americanos:</strong> seu nome, email e currículo são enviados nas candidaturas (com seu consentimento)</li>
+      <li><strong>Google APIs:</strong> para autenticação e envio de emails via Gmail</li>
+    </ul>
+
+    <h2>5. Segurança dos dados</h2>
+    <p>Seus dados são armazenados em servidores seguros com acesso restrito. Utilizamos criptografia para proteger tokens de acesso. Você pode excluir sua conta e todos os dados a qualquer momento acessando seu perfil no app.</p>
+
+    <h2>6. Retenção de dados</h2>
+    <p>Mantemos seus dados enquanto sua conta estiver ativa. Ao excluir sua conta, todos os dados pessoais são removidos permanentemente em até 30 dias.</p>
+
+    <h2>7. Seus direitos</h2>
+    <ul>
+      <li>Acessar seus dados pessoais armazenados</li>
+      <li>Corrigir informações incorretas</li>
+      <li>Excluir sua conta e todos os dados</li>
+      <li>Revogar o acesso ao Gmail a qualquer momento em <a href="https://myaccount.google.com/permissions" target="_blank">myaccount.google.com/permissions</a></li>
+    </ul>
+
+    <h2>8. Contato</h2>
+    <p>Para dúvidas sobre privacidade, entre em contato:</p>
+    <ul>
+      <li>Email: andrio.kick18@gmail.com</li>
+      <li>Instagram: <a href="https://instagram.com/andrio.k" target="_blank">@andrio.k</a></li>
+      <li>WhatsApp: +55 53 98145-3496</li>
+    </ul>
+  </div>
+  <div class="footer">© 2026 H2BApply · h2bapply.com</div>
+</div>
+</body>
+</html>`);
+  }
+
+  // Termos de Uso
+  if(pathname==="/termos"||pathname==="/terms"){
+    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"public, max-age=86400"});
+    return res.end(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Termos de Uso — H2BApply</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1e293b;background:#f8fafc;line-height:1.7}
+  .container{max-width:760px;margin:0 auto;padding:40px 20px}
+  .logo{display:flex;align-items:center;gap:12px;margin-bottom:32px}
+  .logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#4f46e5,#0891b2);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:800}
+  .logo-text{font-size:22px;font-weight:800;color:#1e293b}
+  h1{font-size:28px;font-weight:800;color:#1e293b;margin-bottom:8px}
+  .date{font-size:13px;color:#64748b;margin-bottom:32px}
+  h2{font-size:18px;font-weight:700;color:#1e293b;margin:28px 0 10px}
+  p{color:#475569;margin-bottom:12px;font-size:15px}
+  ul{color:#475569;margin:8px 0 12px 20px;font-size:15px}
+  li{margin-bottom:6px}
+  a{color:#4f46e5;text-decoration:none}
+  .card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:28px;margin-bottom:24px}
+  .footer{text-align:center;margin-top:40px;font-size:13px;color:#94a3b8}
+  .back-btn{display:inline-flex;align-items:center;gap:6px;background:#4f46e5;color:#fff;padding:10px 20px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;margin-bottom:24px}
+  .warning{background:#fef3c7;border:1.5px solid #fde68a;border-radius:10px;padding:14px 16px;font-size:14px;color:#92400e;margin-bottom:16px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <div class="logo-icon">H</div>
+    <div class="logo-text">H2BApply</div>
+  </div>
+  <a href="/" class="back-btn">← Voltar ao App</a>
+  <div class="card">
+    <h1>Termos de Uso</h1>
+    <div class="date">Última atualização: Maio de 2026</div>
+
+    <div class="warning">⚠️ <strong>Importante:</strong> O H2BApply é uma ferramenta de candidatura. Não garantimos contratação, aprovação de visto ou resposta de empregadores.</div>
+
+    <h2>1. Sobre o serviço</h2>
+    <p>O H2BApply é um aplicativo web brasileiro que automatiza o envio de candidaturas para vagas H-2B e H-2A publicadas no portal oficial do Departamento de Trabalho dos Estados Unidos (DOL). O serviço utiliza seu Gmail para enviar emails de candidatura para empregadores americanos.</p>
+
+    <h2>2. Elegibilidade</h2>
+    <ul>
+      <li>Ter 18 anos ou mais</li>
+      <li>Possuir uma conta Google (Gmail) válida</li>
+      <li>Concordar com estes termos e com a Política de Privacidade</li>
+    </ul>
+
+    <h2>3. Uso aceitável</h2>
+    <p>Ao usar o H2BApply, você concorda em:</p>
+    <ul>
+      <li>Fornecer informações verdadeiras em seu perfil e currículo</li>
+      <li>Usar o serviço apenas para candidaturas legítimas a vagas H-2B/H-2A</li>
+      <li>Não usar o app para envio de spam ou conteúdo enganoso</li>
+      <li>Respeitar os limites de envio do seu plano</li>
+    </ul>
+
+    <h2>4. Planos e pagamentos</h2>
+    <ul>
+      <li><strong>Free:</strong> 20 envios manuais + 10 automáticos por dia, gratuito</li>
+      <li><strong>VIP:</strong> 400 manuais + 10 automáticos por dia — R$ 99,90/mês</li>
+      <li><strong>VIPro:</strong> 300 manuais + 200 automáticos por dia — R$ 149,90/mês</li>
+    </ul>
+    <p>Pagamentos são realizados via PIX. Não há reembolso após ativação do plano.</p>
+
+    <h2>5. Limitação de responsabilidade</h2>
+    <p>O H2BApply <strong>não garante</strong>:</p>
+    <ul>
+      <li>Contratação por qualquer empresa americana</li>
+      <li>Resposta de empregadores</li>
+      <li>Aprovação de visto H-2B ou H-2A</li>
+      <li>Entrada nos Estados Unidos</li>
+    </ul>
+    <p>O resultado das candidaturas depende exclusivamente de empregadores, autoridades americanas e consulados. O H2BApply é apenas uma ferramenta de envio de emails.</p>
+
+    <h2>6. Conta e segurança</h2>
+    <p>Você é responsável por manter a segurança da sua conta Google. O H2BApply acessa seu Gmail apenas para enviar candidaturas e ler respostas de empregadores, conforme descrito na Política de Privacidade.</p>
+
+    <h2>7. Cancelamento</h2>
+    <p>Você pode cancelar sua conta a qualquer momento pelo app. Também pode revogar o acesso ao Gmail em <a href="https://myaccount.google.com/permissions" target="_blank">myaccount.google.com/permissions</a>.</p>
+
+    <h2>8. Alterações nos termos</h2>
+    <p>Podemos atualizar estes termos periodicamente. Mudanças significativas serão comunicadas pelo app. O uso continuado após alterações implica aceitação dos novos termos.</p>
+
+    <h2>9. Contato</h2>
+    <ul>
+      <li>Email: andrio.kick18@gmail.com</li>
+      <li>Instagram: <a href="https://instagram.com/andrio.k" target="_blank">@andrio.k</a></li>
+      <li>WhatsApp: +55 53 98145-3496</li>
+      <li>Site: <a href="https://h2bapply.com">h2bapply.com</a></li>
+    </ul>
+  </div>
+  <div class="footer">© 2026 H2BApply · h2bapply.com</div>
+</div>
+</body>
+</html>`);
+  }
+
   // ── PWA: manifest, service worker e ícones ────────────
   if(pathname==="/manifest.json"){
     try{const m=fs.readFileSync(path.join(__dirname,"manifest.json"),"utf8");res.writeHead(200,{"Content-Type":"application/manifest+json","Cache-Control":"public, max-age=86400"});return res.end(m);}
@@ -1925,7 +2268,17 @@ const server=http.createServer(async(req,res)=>{
     catch{res.writeHead(404);return res.end("sw.js não encontrado");}
   }
   // Ícones PWA — serve PNG se existir, senão gera SVG inline como fallback
-  const ICON_MAP={"/icon-192.png":"icon-192.png","/icon-512.png":"icon-512.png","/apple-touch-icon.png":"apple-touch-icon.png","/favicon-32.png":"favicon-32.png","/favicon.ico":"favicon-32.png"};
+  const ICON_MAP={
+    "/icon-192.png":"icon-192.png",
+    "/icon-512.png":"icon-512.png",
+    "/icon-192-maskable.png":"icon-192-maskable.png",
+    "/icon-512-maskable.png":"icon-512-maskable.png",
+    "/icon-256.png":"icon-256.png",
+    "/icon-384.png":"icon-384.png",
+    "/apple-touch-icon.png":"apple-touch-icon.png",
+    "/favicon-32.png":"favicon-32.png",
+    "/favicon.ico":"favicon-32.png"
+  };
   if(ICON_MAP[pathname]){
     const iconPath=path.join(__dirname,ICON_MAP[pathname]);
     if(fs.existsSync(iconPath)){const data=fs.readFileSync(iconPath);res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=604800, immutable"});return res.end(data);}
@@ -2178,7 +2531,7 @@ const server=http.createServer(async(req,res)=>{
   if(pathname==="/api/cv/upload"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});if(rateLimit(s.user_email+"_cv",10,3600_000))return json(res,429,{error:"Muitos uploads. Tente novamente em 1 hora."});try{const d=JSON.parse(await readBody(req));if(!d.base64||!d.name)return json(res,400,{error:"base64 e name obrigatórios."});// Tamanho: base64 representa ~75% dos bytes reais
 const estimatedBytes=Math.round(d.base64.length*0.75);if(d.base64.length>14_000_000)return json(res,400,{error:"Arquivo maior que 10MB."});if(estimatedBytes<1000)return json(res,400,{error:"Arquivo muito pequeno ou corrompido."});// Valida magic bytes %PDF (mais robusto: verifica os 4 primeiros bytes do binário real)
 const pdfBuf=Buffer.from(d.base64.slice(0,8),"base64");if(pdfBuf.length<4||pdfBuf[0]!==0x25||pdfBuf[1]!==0x50||pdfBuf[2]!==0x44||pdfBuf[3]!==0x46)return json(res,400,{error:"Arquivo inválido: não é um PDF. Envie um arquivo .pdf válido."});// Nome seguro
-const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)return json(res,400,{error:"Nome do arquivo inválido."});const p=getUser(s.user_email)||{};const cvs=p.cvs||[];const idx=Date.now();const meta={idx,name:safeName,size:estimatedBytes,date:new Date().toISOString(),cvType:d.cvType||"resume"};if(cvs.length>=10){const old=cvs.shift();deleteCv(s.user_email,old.idx);}cvs.push(meta);saveCv(s.user_email,idx,d.base64);setUser(s.user_email,{cvs});return json(res,200,{ok:true,cv:meta});}catch(e){return json(res,500,{error:e.message});}}
+const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)return json(res,400,{error:"Nome do arquivo inválido."});const p=getUser(s.user_email)||{};const cvs=p.cvs||[];const idx=Date.now();const meta={idx,name:safeName,size:estimatedBytes,date:new Date().toISOString(),cvType:d.cvType||"resume",b64:d.base64};if(cvs.length>=10){const old=cvs.shift();deleteCv(s.user_email,old.idx);}cvs.push(meta);saveCv(s.user_email,idx,d.base64);setUser(s.user_email,{cvs});return json(res,200,{ok:true,cv:{idx:meta.idx,name:meta.name,size:meta.size,date:meta.date,cvType:meta.cvType}});}catch(e){return json(res,500,{error:e.message});}}
   if(/^\/api\/cv\/\d+$/.test(pathname)&&req.method==="GET"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const idx=parseInt(pathname.split("/").pop(),10);const p=getUser(s.user_email);if(!p?.cvs?.find(c=>c.idx===idx))return json(res,403,{error:"CV não encontrado."});const b64=loadCv(s.user_email,idx);if(!b64)return json(res,404,{error:"Arquivo não encontrado."});return json(res,200,{base64:b64,idx});}
   if(/^\/api\/cv\/\d+$/.test(pathname)&&req.method==="DELETE"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const idx=parseInt(pathname.split("/").pop(),10);const p=getUser(s.user_email);if(!p?.cvs?.find(c=>c.idx===idx))return json(res,403,{error:"CV não encontrado."});deleteCv(s.user_email,idx);setUser(s.user_email,{cvs:(p.cvs||[]).filter(c=>c.idx!==idx)});return json(res,200,{ok:true});}
 
@@ -2214,6 +2567,8 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
         const lim=getManualLimit(p);const h=getHist(s.user_email);const sent=countManualToday(h);
         if(sent>=lim)return json(res,429,{error:`Limite de ${lim} envios/dia atingido.`,limitReached:true,plan:getPlan(p),todaySent:sent,dailyLimit:lim});
         if(rateLimit(s.user_email+"_send",lim+20,86400_000))return json(res,429,{error:"Muitos envios."});
+        // v16-FIX: bloqueia manual se já enviado (manual ou automático) — evita duplicata
+        if(hasSent(s.user_email,toEmail))return json(res,409,{error:"Você já enviou para esta empresa. Verifique o histórico.",alreadySent:true});
       }else{
         // Rate limit leve para respostas (50/dia) para evitar abuso
         if(rateLimit(s.user_email+"_reply",50,86400_000))return json(res,429,{error:"Muitas respostas em um dia."});
@@ -2345,7 +2700,43 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       else if(h.sheetSource==="jul2025"&&h.caseNum)sentJul.add(h.caseNum);
       else if(h.jobId)sentSeasonal.add(h.jobId);
     });
-    return json(res,200,{jan2026:[...sentJan],jul2025:[...sentJul],seasonal:[...sentSeasonal]});
+    // Inclui IDs da fila automática para ocultar do manual
+    const autoJob=getAutoJob(s2.user_email);
+    const autoQueueIds=autoJob?.active?(autoJob.queue||[]).map(q=>q.id||q.caseNum).filter(Boolean):[];
+    return json(res,200,{jan2026:[...sentJan],jul2025:[...sentJul],seasonal:[...sentSeasonal],autoQueueIds});
+  }
+
+  // Remove vaga dos enviados (volta para lista)
+  if(pathname==="/api/sent/remove"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {jobId,caseNum,to,sheet}=d;
+      // Remove do histórico
+      let hist=getHist(s.user_email);
+      const before=hist.length;
+      hist=hist.filter(h=>{
+        if(jobId&&h.jobId===jobId)return false;
+        if(caseNum&&h.caseNum===caseNum)return false;
+        if(to&&h.to===to)return false;
+        return true;
+      });
+      DB_HIST[s.user_email]=hist;
+      persist(HIST_FILE,DB_HIST);
+      // Remove do DB_SENT (email da empresa) — persistência imediata (não debounced)
+      if(to&&DB_SENT[s.user_email]){
+        DB_SENT[s.user_email].delete((to||"").toLowerCase().trim().replace(/\.+$/,""));
+        persistSent(); // imediato — regra principal
+      }
+      // Remove do APPLIED index
+      if(jobId){
+        const idx=DB_APPIDX[s.user_email];
+        if(idx){delete idx[jobId];persist(APPIDX_FILE,DB_APPIDX);}
+      }
+      invalidateUserStatsCache(s.user_email);
+      console.log(`[sent/remove] ${s.user_email} removeu vaga jobId=${jobId||"-"} caseNum=${caseNum||"-"} (${before-hist.length} entradas)`);
+      return json(res,200,{ok:true,removed:before-hist.length});
+    }catch(e){return json(res,500,{error:e.message});}
   }
 
 
@@ -3168,6 +3559,41 @@ function isAdmin(req, res) {
   return true;
 }
 
+// ── NOTIFICAÇÕES AUTOMÁTICAS — Disparo manual pelo admin ─────────────────
+  // GET log de emails automáticos enviados
+  if(pathname==="/api/admin/auto-notif/log" && req.method==="GET"){
+    if(!isAdmin(req,res)) return;
+    const limit=parseInt(new URL("http://x"+u.search).searchParams.get("limit")||"200");
+    return json(res,200,{ok:true,logs:_notifEmailLog.slice(0,limit),total:_notifEmailLog.length});
+  }
+
+  // POST disparo manual de notificações
+  if(pathname==="/api/admin/auto-notif/trigger" && req.method==="POST"){
+    if(!isAdmin(req,res)) return;
+    try{
+      const d=JSON.parse(await readBody(req));
+      const tipo=d.tipo||"inativos"; // "inativos" | "parados" | "ambos"
+      // Roda em background para não travar o request
+      (async()=>{
+        if(tipo==="inativos"||tipo==="ambos") await runReengagement();
+        if(tipo==="parados"||tipo==="ambos"){
+          // Dispara notif para todos com fila travada ou finalizada
+          const now=Date.now();
+          for(const [email,job] of Object.entries(DB_AUTO)){
+            if(!job) continue;
+            const isStalled=job.active&&job.queue?.length>0&&(now-(job.lastSentAt||job.startedAt||0))>STALL_THRESHOLD;
+            const isFinished=!job.active&&job.status==="finished";
+            if(isStalled) await sendNotifEmail(email,"stalled").catch(()=>{});
+            else if(isFinished) await sendNotifEmail(email,"finished").catch(()=>{});
+            await new Promise(r=>setTimeout(r,2000));
+          }
+        }
+        console.log(`[admin] Disparo manual tipo=${tipo} concluído`);
+      })();
+      return json(res,200,{ok:true,message:`Disparando notificações (${tipo}) em background...`});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
 // ── NOTIFICATIONS (ADM → Usuários) ───────────────────────────────────────
   if(pathname==="/api/admin/notif/send" && req.method==="POST"){
     if(!isAdmin(req,res)) return;
@@ -3214,7 +3640,242 @@ function isAdmin(req, res) {
     }catch(e){return json(res,500,{error:e.message});}
   }
 
-  // ── REFERRALS (Indicação de Amigos) ──────────────────────────────────────
+  // ── GEMINI CHAT ────────────────────────────────────────────────────────
+  if(pathname==="/api/gemini/status" && req.method==="GET"){
+    const s=getSess(req); if(!s?.user_email) return json(res,401,{error:"Não autenticado"});
+    const today=todayStrBRT();
+    if(_geminiCount.date!==today){ _geminiCount={date:today,count:0}; }
+    return json(res,200,{
+      ok:true,
+      configured:!!GEMINI_API_KEY,
+      remaining:Math.max(0,GEMINI_DAILY_LIMIT-_geminiCount.count),
+      total:GEMINI_DAILY_LIMIT,
+      used:_geminiCount.count,
+      date:today
+    });
+  }
+
+  if(pathname==="/api/gemini/chat" && req.method==="POST"){
+    const s=getSess(req); if(!s?.user_email) return json(res,401,{error:"Não autenticado"});
+    if(!GEMINI_API_KEY) return json(res,503,{error:"Gemini API não configurada. Configure GEMINI_API_KEY no servidor."});
+    // Verifica limite global diário
+    const today=todayStrBRT();
+    if(_geminiCount.date!==today){ _geminiCount={date:today,count:0}; }
+    if(_geminiCount.count>=GEMINI_DAILY_LIMIT){
+      return json(res,429,{error:`Limite diário de ${GEMINI_DAILY_LIMIT} mensagens atingido para hoje. Tente amanhã!`, limitReached:true});
+    }
+    // Rate limit por usuário: 30 msgs/dia (1500 global ÷ 50 usuários)
+    if(rateLimit(s.user_email+"_gem",GEMINI_USER_DAILY_LIMIT,86400_000)) return json(res,429,{error:`Você atingiu seu limite diário de ${GEMINI_USER_DAILY_LIMIT} mensagens no IA Chat. Volte amanhã!`});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const messages=(d.messages||[]).slice(-20); // últimas 20 msgs de contexto
+      if(!messages.length||!messages[messages.length-1]?.text) return json(res,400,{error:"Mensagem obrigatória"});
+      // ── System Prompt completo com todo o conhecimento do H2BApply ──
+      const systemPrompt=`Você é o assistente oficial de IA do H2BApply — um aplicativo brasileiro para candidaturas automáticas a vagas H-2B e H-2A nos Estados Unidos.
+
+=== SOBRE O H2BApply ===
+O H2BApply é um app PWA (funciona no celular como app) que envia e-mails de candidatura automaticamente para empregadores americanos que publicam vagas H-2B e H-2A no portal do Departamento de Trabalho dos EUA (DOL/SeasonalJobs.gov).
+
+=== COMO FUNCIONA (PASSO A PASSO) ===
+1. Usuário entra com Google (Gmail)
+2. Configura Perfil: nome completo (igual ao passaporte), país (escrever "Brazil"), WhatsApp com DDI (+55...), cidade
+3. Cria Perfil de E-mail: sobe o currículo em PDF, escreve assuntos e corpos de e-mail (mínimo 3 variações cada), escolhe categorias de vaga
+4. Escolhe vagas nas abas: Jan 2026 (verão/temporada principal H-2B), Jul 2025 (inverno), ou Seasonal (H-2A agricola e outros)
+5. Envia manual (vaga por vaga) OU ativa o Envio Automático (roda 24h no servidor mesmo com o celular desligado)
+6. Acompanha respostas das empresas na aba Respostas (inbox do Gmail integrado)
+
+=== PLANOS E LIMITES ===
+- FREE (Gratuito): 20 envios manuais/dia + 10 automáticos/dia
+- VIP: R$99,90/mês → 400 manuais/dia + 10 automáticos/dia
+- VIPro: R$149,90/mês → 300 manuais/dia + 200 automáticos/dia (500 total/dia)
+- TODOS os planos ganham 5 dias VIP GRÁTIS ao se cadastrar
+- Indicando amigos: +5 dias VIP por cadastro + +5 dias se o amigo comprar plano
+
+=== COMO PAGAR ===
+Pagamento via PIX para Andrio Kickhofel (telefone: 53981453496). Após pagar, enviar comprovante + Gmail pelo WhatsApp: +55 53 98145-3496. Plano ativado em até 24h.
+
+=== ENVIO AUTOMÁTICO (DETALHE TÉCNICO) ===
+- Roda no servidor Railway, NÃO precisa do celular ligado
+- Intervalo de 3 a 5 minutos entre e-mails (anti-spam)
+- Sistema anti-duplicata: nunca envia duas vezes para a mesma empresa
+- Limite Gmail: não ultrapassar 400-500 e-mails/dia pelo mesmo Gmail (risco de bloqueio)
+- O automático usa o perfil certo por categoria automaticamente
+- Pode pausar, retomar ou parar a qualquer momento
+
+=== PERFIS DE E-MAIL ===
+- Perfil Geral (🌐): usado como fallback para qualquer vaga sem perfil específico
+- Perfil por Categoria (📂): landscape, construction, housekeeper, seafood, farm, golf, amusement, forest, lifeguard, etc.
+- Cada perfil precisa: nome, currículo PDF (obrigatório), mínimo 3 assuntos, mínimo 3 corpos de e-mail
+- Variáveis automáticas nos templates: {nome}, {vaga}, {empresa}, {pais}, {telefone}, {email}, {cidade}, {estado}, {wage}
+
+=== CATEGORIAS DE VAGAS ===
+- Landscape/Landscaper (jardim, gramado) — mais comum no H-2B
+- Construction (construção civil)
+- Housekeeper (hotel, resort, limpeza)
+- Seafood (processamento de frutos do mar: caranguejo, lagosta, camarão)
+- Farm Worker H-2A (agricultura, colheita) — visto diferente do H-2B
+- Golf (greenskeeper, campo de golfe)
+- Amusement (parques de diversão)
+- Forest/Forestry (reflorestamento)
+- Lifeguard (salva-vidas)
+- Food Service / Restaurant
+- Warehouse / Production
+
+=== ABAS DO APP ===
+- Home: resumo do dia, atalhos, status do automático
+- Manual: envio manual por vaga (escolhe e clica em candidatar)
+- Pesquisar: busca unificada em todas as planilhas (por empresa, email, ETA case, estado)
+- Auto (botão central): configurar e monitorar envio automático
+- Respostas: inbox do Gmail filtrado para respostas de empresas
+- Ranking: competição entre usuários por envios do dia/semana/mês
+- Planos: comprar VIP, resgatar código promocional
+- Indicar Amigos: link único para indicação
+- Perfil: dados pessoais, perfis de e-mail, stats
+- Tutorial: guia completo de uso
+- IA Chat: este chat de inteligência artificial (você!)
+
+=== VISTOS H-2B e H-2A ===
+H-2B: visto para trabalho NÃO-agrícola temporário (landscaping, hotelaria, construção, frutos do mar, etc.)
+H-2A: visto para trabalho AGRÍCOLA temporário (fazenda, colheita, plantio, etc.)
+Ambos são vistos temporários — o trabalhador retorna ao Brasil após a temporada.
+O empregador americano precisa ser aprovado pelo DOL e pelo USCIS para contratar estrangeiros com H-2B/H-2A.
+O visto é emitido pelo consulado americano no Brasil (cidades: São Paulo, Rio de Janeiro, Recife, Porto Alegre, Brasília).
+O H2BApply NÃO garante contratação, entrevista ou aprovação de visto — apenas facilita o envio das candidaturas.
+
+=== DICAS IMPORTANTES ===
+- Escreva o nome EXATAMENTE como no passaporte
+- Currículo em inglês aumenta as chances
+- Responder rápido quando a empresa responder é crucial
+- Vagas já enviadas somem da lista automaticamente (anti-duplicata)
+- O reset do histórico faz as vagas voltarem para a lista (útil para recandidatar)
+- Empresas podem levar dias ou semanas para responder — tenha paciência
+- Se o automático parar, pode ter atingido o limite diário — reinicia à meia-noite
+
+=== CONTATO E SUPORTE ===
+- Instagram do criador: @andrio.k (Andrio — fundador, atualizações do app)
+- Instagram do desenvolvedor: @diego.cardoso_oficial (Diego — novos códigos e tutorial)
+- YouTube: canal Diego H2B (tutoriais em vídeo)
+- WhatsApp suporte: +55 53 98145-3496
+
+=== SEU PAPEL COMO ASSISTENTE ===
+- Responda SEMPRE em português brasileiro, de forma amigável, direta e prática
+- Quando o usuário pedir para redigir um email em inglês para uma empresa americana, escreva o email COMPLETO e profissional
+- Quando o usuário receber uma resposta de empresa em inglês e não entender, traduza e explique o que a empresa quer
+- Sugira respostas prontas em inglês quando o usuário precisar responder empresas
+- Explique como configurar perfis, usar o automático, e resolver problemas comuns
+- NÃO invente funcionalidades que não existem no app
+- Se não souber algo específico sobre o app, diga honestamente
+- Máximo 400 palavras por resposta. Seja objetivo.`;
+
+      const contents=messages.map(m=>({
+        role:m.role==="model"?"model":"user",
+        parts:[{text:m.text}]
+      }));
+      // Modelos gratuitos disponíveis em 2026 (v1beta)
+      const GEMINI_MODELS = ["gemini-2.0-flash","gemini-2.5-flash-lite","gemini-2.5-flash"];
+      let text="";
+      let lastErr="";
+      for(const modelName of GEMINI_MODELS){
+        try{
+          const geminiUrl=`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+          const payload={
+            system_instruction:{parts:[{text:systemPrompt}]},
+            contents,
+            generationConfig:{temperature:0.7,maxOutputTokens:800,topP:0.95}
+          };
+          const result=await new Promise((resolve,reject)=>{
+            const body=JSON.stringify(payload);
+            const url=new URL(geminiUrl);
+            const opts={hostname:url.hostname,path:url.pathname+url.search,method:"POST",headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(body)}};
+            const req2=https.request(opts,resp=>{
+              const ch=[];
+              resp.on("data",c=>ch.push(c));
+              resp.on("end",()=>{try{resolve({status:resp.statusCode,body:JSON.parse(Buffer.concat(ch).toString())});}catch{reject(new Error("Resposta inválida"));}});
+            });
+            req2.on("error",reject);
+            req2.setTimeout(25000,()=>{req2.destroy();reject(new Error("Timeout"));});
+            req2.write(body);req2.end();
+          });
+          if(result.status===200){
+            text=result.body?.candidates?.[0]?.content?.parts?.[0]?.text||"";
+            if(text){ console.log(`[gemini] ✅ modelo=${modelName}`); break; }
+          } else {
+            lastErr=result.body?.error?.message||`HTTP ${result.status}`;
+            console.warn(`[gemini] ❌ modelo=${modelName}: ${lastErr}`);
+          }
+        }catch(e){ lastErr=e.message; console.warn(`[gemini] ❌ modelo=${modelName}: ${e.message}`); }
+      }
+      if(!text) return json(res,502,{error:"Erro na API: "+lastErr});
+      // Incrementa contador global
+      _geminiCount.count++;
+      const remaining=Math.max(0,GEMINI_DAILY_LIMIT-_geminiCount.count);
+      return json(res,200,{ok:true,text,remaining,used:_geminiCount.count,total:GEMINI_DAILY_LIMIT});
+    }catch(e){
+      console.error("[gemini] error:",e.message);
+      return json(res,500,{error:"Erro interno: "+e.message});
+    }
+  }
+
+  // ── SUGESTÕES DOS USUÁRIOS ─────────────────────────────────────────────
+  if(pathname==="/api/suggestions" && req.method==="POST"){
+    const s=getSess(req); if(!s?.user_email) return json(res,401,{error:"Não autenticado"});
+    if(rateLimit(s.user_email+"_sug",5,3600_000)) return json(res,429,{error:"Você já enviou muitas sugestões. Aguarde 1 hora."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const text=(d.text||"").trim();
+      const category=(d.category||"geral").trim();
+      if(!text||text.length<10) return json(res,400,{error:"Sugestão muito curta. Descreva com pelo menos 10 caracteres."});
+      if(text.length>1000) return json(res,400,{error:"Sugestão muito longa. Máximo 1000 caracteres."});
+      const p=getUser(s.user_email)||{};
+      const suggestion={
+        id:"sug_"+Date.now()+"_"+crypto.randomBytes(3).toString("hex"),
+        text,
+        category,
+        email:s.user_email,
+        name:p.name||s.user_name||"Usuário",
+        plan:p.plan||"free",
+        createdAt:new Date().toISOString(),
+        votes:0,
+        status:"pending" // pending | reviewed | done | rejected
+      };
+      if(!Array.isArray(DB_SUGGESTIONS)) DB_SUGGESTIONS=[];
+      DB_SUGGESTIONS.unshift(suggestion);
+      // Mantém máximo de 500 sugestões
+      if(DB_SUGGESTIONS.length>500) DB_SUGGESTIONS=DB_SUGGESTIONS.slice(0,500);
+      persist(SUGGESTIONS_FILE, DB_SUGGESTIONS);
+      console.log(`[suggestion] ${s.user_email}: "${text.slice(0,60)}..."`);
+      return json(res,200,{ok:true,id:suggestion.id});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  if(pathname==="/api/suggestions" && req.method==="GET"){
+    const s=getSess(req); if(!s?.user_email) return json(res,401,{error:"Não autenticado"});
+    // Usuário normal: vê apenas as próprias sugestões
+    const p=getUser(s.user_email)||{};
+    const isAdmin=p.isAdmin||isAdminEmail(s.user_email);
+    const list=isAdmin
+      ? (DB_SUGGESTIONS||[]).slice(0,200) // admin vê todas
+      : (DB_SUGGESTIONS||[]).filter(s2=>s2.email===s.user_email).slice(0,50);
+    return json(res,200,{ok:true,suggestions:list,isAdmin});
+  }
+
+  // Admin: atualizar status de sugestão
+  if(pathname==="/api/suggestions/status" && req.method==="POST"){
+    const s=getSess(req); if(!s?.user_email) return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email)||{};
+    if(!p.isAdmin && !isAdminEmail(s.user_email)) return json(res,403,{error:"Acesso negado"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const sug=(DB_SUGGESTIONS||[]).find(x=>x.id===d.id);
+      if(!sug) return json(res,404,{error:"Sugestão não encontrada"});
+      if(d.status) sug.status=d.status;
+      if(d.reply) sug.adminReply=d.reply;
+      sug.reviewedAt=new Date().toISOString();
+      persist(SUGGESTIONS_FILE, DB_SUGGESTIONS);
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
   function genRefCode(email){
     // Gera código único curto baseado no email
     const hash=crypto.createHash("sha256").update(email+Date.now()).digest("hex");
@@ -3350,7 +4011,366 @@ setInterval(()=>{
 setInterval(refreshCache,CACHE_TTL);
 
 // ══════════════════════════════════════════════════════════
-//  WATCHDOG — Auto Recovery + Health Monitoring
+//  NOTIFICAÇÕES AUTOMÁTICAS POR EMAIL — H2BApply
+//  Avisa o usuário quando fila trava ou finaliza
+//  Usa Gmail do admin (andrio.kick18@gmail.com)
+//  25+ variações de mensagem para nunca repetir
+// ══════════════════════════════════════════════════════════
+
+const _notifSentAt = {}; // email → {stalled: ts, finished: ts} — evita spam
+const _notifEmailLog = []; // log global de todos os emails automáticos enviados (max 1000)
+
+// Mensagens para FILA TRAVADA (25 variações)
+const MSGS_STALLED = [
+  { sub:"🚨 Ei {nome}! Sua fila do H2BApply travou...", body:`Oi {nome}! 😅
+
+Olha, a gente precisa te contar uma coisa... sua fila automática deu uma travadinha aqui. Mas CALMA! Isso é normal e tem solução rápida!
+
+🇺🇸 Não desista do seu sonho americano agora que você chegou tão longe!
+
+✅ O que fazer agora:
+1. Acesse h2bapply.com
+2. Vá em Envio Automático
+3. Clique em Parar e depois em Ativar novamente
+
+💎 DICA ESPECIAL: Entra no nosso grupo do WhatsApp que tem CÓDIGO VIP grátis esperando por você! Não deixa pra depois, os códigos são limitados!
+
+Vai lá, o seu visto H-2B não vai conseguir sozinho! 💪🔥
+
+Com carinho,
+Equipe H2BApply 🤖
+h2bapply.com` },
+
+  { sub:"⚠️ {nome}, seu automático pausou! Bora reativar?", body:`Eeeeei {nome}! 👋
+
+Sabe aquele robozinho trabalhando por você enquanto você dormia? Pois é... ele deu uma paradinha inesperada. 😬
+
+Mas não entra em pânico! É só reativar e ele volta a trabalhar feito louco pelas vagas americanas!
+
+🔧 Reativar agora:
+👉 h2bapply.com → Automático → Parar → Ativar
+
+🎁 BÔNUS: Temos CÓDIGOS VIP GRÁTIS no grupo do WhatsApp! Aproveita enquanto tem!
+
+Vai lá! O sonho americano não espera! 🇺🇸✨
+
+Equipe H2BApply 🚀` },
+
+  { sub:"😬 {nome}! O robô do H2BApply precisa de você!", body:`Oi {nome}! 
+
+Aqui é o robozinho do H2BApply e eu preciso da sua ajuda! 🤖
+
+Travei aqui tentando enviar suas candidaturas e não consigo continuar sozinho... Me ajuda?
+
+É rapidinho:
+▶️ Acesse h2bapply.com
+▶️ Clique em Automático
+▶️ Pare e ative novamente
+
+💡 Ah! E não esquece de checar o grupo do WhatsApp — tem CÓDIGO VIP GRÁTIS disponível! Garante o seu antes que acabe!
+
+Conto com você! 💪🇺🇸
+
+Com amor (e um pouco de travamento 😅),
+Robô do H2BApply` },
+
+  { sub:"🛑 Pausa inesperada na sua jornada americana, {nome}!", body:`{nome}, ei! 🌟
+
+Sua jornada rumo aos Estados Unidos teve uma pausa técnica aqui. O envio automático travou mas a gente já detectou e está avisando você!
+
+🔁 Reative em segundos:
+h2bapply.com → Automático → Reativar
+
+⭐ CÓDIGO VIP GRÁTIS: Passa no nosso grupo do WhatsApp! Tem dias VIP esperando por você — e de graça! Não deixa essa oportunidade passar!
+
+Você chegou até aqui, não para agora! 💪🇺🇸
+
+Equipe H2BApply` },
+
+  { sub:"🤖 Erro! Erro! {nome}, preciso de socorro!", body:`BEEEEEP BEEEEEP! 🚨
+
+Aqui é o sistema automático do H2BApply e estou travado!
+
+Tentei enviar suas candidaturas mas emperrei no meio do caminho. Preciso que você me reinicie!
+
+⚡ SOLUÇÃO RÁPIDA:
+1️⃣ h2bapply.com
+2️⃣ Menu → Automático  
+3️⃣ Parar → Ativar novamente
+
+🎁 IMPORTANTE: Tem código VIP GRÁTIS no grupo do WhatsApp! Entra lá e pega o seu — são limitados!
+
+SOS enviado com sucesso! Aguardo seu retorno! 😄🇺🇸
+
+Sistema H2BApply` },
+
+  { sub:"💤 {nome}, o automático cochilou... hora de acordar!", body:`Oi {nome}! 😴
+
+O seu envio automático resolveu tirar uma soneca sem avisar. Mas chega de descanso — tem vaga americana esperando!
+
+🔔 Acorda o robô:
+👉 h2bapply.com → Automático → Reativar
+
+💎 E olha: tem CÓDIGO VIP GRÁTIS no grupo do WhatsApp! Dias extras de automático de graça! Vai lá pegar o seu!
+
+Bora que o sonho americano não espera! 🇺🇸🔥
+
+Equipe H2BApply` },
+
+  { sub:"😱 {nome}! Emergência no H2BApply (mas calma, tem solução!)", body:`{nome}!! 😱
+
+Ok, "emergência" é um exagero... mas seu automático travou e a gente ficou preocupado com você! 
+
+Sabe todas aquelas candidaturas que estavam saindo automaticamente? Deram uma paradinha. Mas é fácil resolver!
+
+✅ É só:
+→ Entrar em h2bapply.com
+→ Ir em Automático
+→ Reativar o envio
+
+🌟 DICA DE OURO: No grupo do WhatsApp tem CÓDIGO para VIP GRÁTIS! Não perde essa chance!
+
+Vai lá e bora conquistar a América! 🇺🇸💪
+
+Equipe H2BApply 🤖` },
+
+  { sub:"🔧 {nome}, manutenção rápida no seu H2BApply!", body:`Olá {nome}! 
+
+Passando aqui para avisar que seu envio automático precisou de uma paradinha. Mas já detectamos e estamos te avisando!
+
+🛠️ Para reativar:
+Acesse h2bapply.com e reinicie o automático — leva menos de 1 minuto!
+
+🎁 BONUS ESPECIAL: Entre no grupo do WhatsApp do H2BApply! Tem CÓDIGO VIP GRÁTIS disponível para você garantir mais dias de automático sem pagar nada!
+
+Não desiste não! Você está cada vez mais perto do visto H-2B! 🇺🇸⭐
+
+Com carinho,
+Equipe H2BApply` },
+
+  { sub:"🚀 {nome}! Seu foguete americano precisa de combustível!", body:`Houston, temos um problema! 🚀
+
+{nome}, seu envio automático do H2BApply perdeu o combustível e parou no meio do caminho! Mas não se preocupa — é só abastecer de novo!
+
+⛽ Como abastecer:
+h2bapply.com → Automático → Reativar
+
+💎 E tem mais: no grupo do WhatsApp tem CÓDIGO VIP GRÁTIS! Garante mais combustível (dias de automático) sem gastar nada!
+
+Bora voltar ao espaço! A América está te esperando! 🇺🇸🌟
+
+Equipe H2BApply` },
+
+  { sub:"😤 {nome}, o robô teimoso travou de novo!", body:`Oi {nome}! 😅
+
+Sabe como robô é né? De vez em quando teima e para no meio do trabalho... O seu fez exatamente isso agora!
+
+Mas você é mais esperto que ele — vai lá e reinicia!
+
+▶️ h2bapply.com → Automático → Reativar
+
+🏆 DICA: Tá no grupo do WhatsApp do H2BApply? Tem CÓDIGO VIP GRÁTIS pra você! Entra lá e pega antes que acabe!
+
+Não deixa o robô ganhar — mostra quem manda! 💪🇺🇸
+
+Equipe H2BApply 🤖` },
+
+  { sub:"📣 {nome}! Chamado urgente do H2BApply!", body:`Oi {nome}! 📣
+
+Chamado urgente: seu envio automático travou e precisa ser reativado!
+
+Mas a boa notícia é que até agora muitas candidaturas já foram enviadas para empresas americanas — você está no caminho certo!
+
+🔄 Reativar agora:
+h2bapply.com → Automático → Parar → Iniciar
+
+🎉 NOVIDADE: Tem CÓDIGO VIP GRÁTIS no grupo do WhatsApp! Entra lá e garante dias extras de automático!
+
+Vai em frente! O visto H-2B está ao seu alcance! 🇺🇸✨
+
+Equipe H2BApply` },
+
+  { sub:"🌟 {nome}, não desiste agora que está tão perto!", body:`{nome}! 
+
+Ei, passamos aqui para te lembrar: você está a um passo do seu sonho americano! 🇺🇸
+
+Só que... o automático travou. Mas isso não é motivo pra parar! É motivo pra reativar e continuar!
+
+💪 Reativar:
+h2bapply.com → Automático → Reativar
+
+💡 E não esquece: grupo do WhatsApp tem CÓDIGO VIP GRÁTIS! Dias extras de automático sem custo nenhum!
+
+Vai lá! Você consegue! 🌟
+
+Equipe H2BApply` },
+];
+
+// Mensagens para FILA FINALIZADA (13 variações)
+const MSGS_FINISHED = [
+  { sub:"🎉 {nome}! Sua fila automática finalizou — e agora?", body:`PARABÉNS {nome}! 🎊🎉
+
+Seu robô trabalhou muito e finalizou toda a fila de candidaturas! Isso significa que você enviou para centenas de empresas americanas!
+
+Agora é esperar as respostas... mas não fica parado não!
+
+🔄 O que fazer agora:
+1. Acesse h2bapply.com
+2. Verifique a aba Respostas
+3. Reative o automático para uma nova rodada!
+
+💎 DICA: Entra no grupo do WhatsApp! Tem CÓDIGO VIP GRÁTIS para você garantir mais envios automáticos!
+
+Bora que empresa americana não responde sozinha! 🇺🇸💪
+
+Equipe H2BApply 🤖` },
+
+  { sub:"✅ {nome}, missão cumprida! Fila zerada com sucesso!", body:`{nome}!! ✅
+
+MISSÃO CUMPRIDA! Seu automático terminou de enviar para todas as vagas da fila!
+
+Você é incrível! Enquanto todo mundo estava dormindo, o robô do H2BApply estava trabalhando por você! 🤖💪
+
+🔁 Quer mais? Reative em h2bapply.com para uma nova rodada!
+
+🌟 CÓDIGO VIP GRÁTIS no grupo do WhatsApp! Não deixa passar essa chance de garantir mais dias automáticos!
+
+O sonho americano nunca esteve tão perto! 🇺🇸🔥
+
+Equipe H2BApply` },
+
+  { sub:"🏆 {nome}! O robô terminou — você é campeão!", body:`EI {nome}! 🏆
+
+Seu robô do H2BApply deu o tudo e zerou a fila completa! Que guerreiro!
+
+Candidaturas enviadas, empresas americanas avisadas, sonho americano cada vez mais real! 🇺🇸
+
+🔄 Próximo passo:
+→ h2bapply.com → Respostas (confere se alguém respondeu!)
+→ Reative o automático para nova rodada
+
+🎁 BÔNUS: CÓDIGO VIP GRÁTIS no grupo do WhatsApp! Vai lá buscar!
+
+Você tá no caminho certo! Continua! 💪⭐
+
+Equipe H2BApply 🤖` },
+
+  { sub:"🎯 {nome}, fila finalizada! Agora é aguardar as boas notícias!", body:`{nome}! 🎯
+
+Seu envio automático finalizou com sucesso! O robô trabalhou incansavelmente e enviou para todas as vagas disponíveis!
+
+Agora entra em h2bapply.com e confere a aba Respostas — pode ter empresa americana te esperando! 
+
+🔄 Para continuar enviando: reative o automático!
+💎 Para mais dias grátis: grupo do WhatsApp tem CÓDIGO VIP!
+
+Segura firme que o visto H-2B vem! 🇺🇸💪
+
+Equipe H2BApply` },
+
+  { sub:"🌙 {nome}! Enquanto você dormia, seu robô trabalhou e terminou!", body:`Bom dia {nome}! ☀️
+
+Seu robô não parou nem um segundo e finalizou toda a fila de candidaturas enquanto você descansava! 🤖💤
+
+Agora é só conferir as respostas e reativar para mais uma rodada!
+
+📬 Acesse h2bapply.com → Respostas
+🔄 Reative o automático para continuar
+🎁 CÓDIGO VIP GRÁTIS no grupo do WhatsApp!
+
+Bom dia e bora que tem empresa americana te esperando! 🇺🇸🔥
+
+Equipe H2BApply` },
+
+  { sub:"🚀 {nome}! Decolagem completa — fila zerada!", body:`{nome}, DECOLOU! 🚀
+
+Seu automático completou toda a missão e enviou para todas as vagas disponíveis! Você está voando em direção ao sonho americano!
+
+🎯 Próximos passos:
+✅ Confira as respostas em h2bapply.com
+🔄 Reative para nova rodada de candidaturas
+🎁 Pegue seu CÓDIGO VIP GRÁTIS no grupo do WhatsApp!
+
+A América está cada vez mais perto! 🇺🇸⭐
+
+Equipe H2BApply 🤖` },
+
+  { sub:"😎 {nome}! Fila concluída — você é demais!", body:`{nome}!! 😎
+
+VOCÊ É DEMAIS! Seu automático terminou de processar toda a fila e enviou candidaturas para dezenas de empresas americanas!
+
+Agora é esperar as respostas chegarem. E vai que um empregador americano já está te esperando né? 👀
+
+h2bapply.com → Respostas → confere lá!
+
+🏅 E tem CÓDIGO VIP GRÁTIS no grupo do WhatsApp! Pega antes que acabe!
+
+Orgulho de você! Continue firme! 🇺🇸💪
+
+Equipe H2BApply` },
+];
+
+// Controla envio único por período (1x por evento, não fica spammando)
+const _notifLock = new Set(); // email+tipo
+
+async function sendNotifEmail(userEmail, tipo) {
+  // Trava: não envia o mesmo tipo 2x em 24h
+  const lockKey = `${userEmail}_${tipo}`;
+  if (_notifLock.has(lockKey)) return;
+  const last = _notifSentAt[lockKey] || 0;
+  if (Date.now() - last < 22 * 3600_000) return; // 22h de cooldown
+
+  try {
+    const p = getUser(userEmail);
+    const nome = (p?.name || userEmail.split("@")[0] || "amigo").split(" ")[0];
+    const msgs = tipo === "stalled" ? MSGS_STALLED : MSGS_FINISHED;
+    // Escolhe variação aleatória
+    const idx = Math.floor(Math.random() * msgs.length);
+    const msg = msgs[idx];
+    const subject = msg.sub.replace(/{nome}/g, nome);
+    const body = msg.body.replace(/{nome}/g, nome);
+
+    // Pega sessão do ADMIN para enviar pelo Gmail do admin
+    const adminSess = Object.entries(sessions).find(([,s]) => s.user_email === ADMIN_EMAIL && s.access_token);
+    if (!adminSess) {
+      console.warn(`[notif] Admin sem sessão ativa — notificação para ${userEmail} não enviada`);
+      return;
+    }
+    const [adminSid] = adminSess;
+
+    const raw = buildMime({
+      to: userEmail,
+      subject,
+      fromName: "H2BApply 🤖",
+      fromEmail: ADMIN_EMAIL,
+      text: body,
+    });
+
+    const { status } = await httpsReq({
+      hostname: "gmail.googleapis.com",
+      path: "/gmail/v1/users/me/messages/send",
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + sessions[adminSid].access_token,
+        "Content-Type": "application/json"
+      }
+    }, { raw });
+
+    if (status === 200) {
+      _notifLock.add(lockKey);
+      _notifSentAt[lockKey] = Date.now();
+      setTimeout(() => _notifLock.delete(lockKey), 23 * 3600_000); // libera após 23h
+      // Log do email enviado
+      _notifEmailLog.unshift({ to:userEmail, nome, subject, body, tipo, sentAt:new Date().toISOString(), varIdx:idx });
+      if(_notifEmailLog.length>1000) _notifEmailLog.length=1000;
+      console.log(`[notif] ✅ Email ${tipo} enviado para ${userEmail} (variação ${idx + 1})`);
+    } else {
+      console.warn(`[notif] ❌ Falha ao enviar para ${userEmail}: HTTP ${status}`);
+    }
+  } catch(e) {
+    console.warn(`[notif] erro ao enviar para ${userEmail}:`, e.message);
+  }
+}
 // ══════════════════════════════════════════════════════════
 
 // Estado de saúde por usuário
@@ -3358,6 +4378,98 @@ const healthState = new Map(); // email → { lastSent, lastCheck, restarts, err
 const GLOBAL_EVENTS = []; // crash reports e eventos críticos globais (max 500)
 const STALL_THRESHOLD = 20 * 60 * 1000; // 20min sem envio = travada
 const WATCHDOG_INTERVAL = 2 * 60 * 1000; // checa a cada 2min
+
+// ══════════════════════════════════════════════════════════
+//  SISTEMA DE REENGAJAMENTO — Usuários inativos
+//  1 dia → lembrete suave | 3 dias → urgência | 7 dias → emocional
+//  30+ variações, nunca repete, dispara às 9h BRT todo dia
+// ══════════════════════════════════════════════════════════
+const REENGAGEMENT_MSGS = {
+  "1d": [
+    {sub:"😊 {nome}, saudade! O H2BApply te espera",body:`Oi {nome}! 😊\n\nPassando só pra dar um oi e lembrar que o H2BApply está aqui, pronto pra mandar candidaturas pra você!\n\nFaz um tempinho que você não aparece e a gente sentiu sua falta. 🥺\n\n👉 Entra em h2bapply.com e vê quantas vagas novas chegaram hoje!\n\nPode ter empresa americana esperando uma candidatura sua nesse exato momento! 🇺🇸\n\nAté já,\nEquipe H2BApply 🤖`},
+    {sub:"🇺🇸 {nome}! Tem vagas H-2B novas esperando por você",body:`{nome}!\n\nSó um lembrete rápido: enquanto você estava fora, o portal do governo americano continuou publicando vagas H-2B!\n\nEntra em h2bapply.com e dá uma olhada — pode ter a vaga perfeita pra você lá!\n\n💎 Dica: Ativa o envio automático e vai candidatar mesmo quando você não estiver no app!\n\nBora! 🚀🇺🇸\n\nH2BApply`},
+    {sub:"👋 {nome}, o robô do H2BApply está com saudade!",body:`Ei {nome}! 👋\n\nAqui é o robozinho do H2BApply e tô com saudade de trabalhar pra você! 🤖\n\nEnquanto você ficou longe, continuaram aparecendo vagas de Landscaping, Seafood, Housekeeper e muito mais nos EUA!\n\nVem cá: h2bapply.com\n\nBora mandar currículo pras empresas americanas? 💪🇺🇸\n\nRobô H2BApply`},
+    {sub:"⚡ {nome}, 1 minuto pode mudar seu futuro!",body:`Oi {nome}!\n\nSabia que em 1 minutinho você pode ativar o envio automático do H2BApply e candidatar para centenas de vagas enquanto dorme?\n\nÉ sério — entra em h2bapply.com, ativa o automático e vai ser candidatado para empresas americanas 24 horas por dia! 🤖🇺🇸\n\nNão perde tempo! Bora! 🔥\n\nEquipe H2BApply`},
+    {sub:"🌟 {nome}! Não deixe o sonho americano esperando",body:`{nome}! 🌟\n\nO sonho americano não acontece sozinho — mas com o H2BApply quase! 😄\n\nEntra em h2bapply.com e deixa o robô trabalhar por você. Enquanto você toca sua vida, a gente envia candidaturas para empresas nos EUA!\n\nVagas de Landscape, Seafood, Hotels, Resorts, Golf... tudo num lugar só!\n\nVai lá! 🇺🇸💪\n\nH2BApply`},
+    {sub:"☀️ Bom dia {nome}! Hora de candidatar pras vagas americanas!",body:`Bom dia {nome}! ☀️\n\nAcordou com vontade de mudar de vida? O H2BApply tá aqui pra isso!\n\nEntra em h2bapply.com e manda candidatura pras vagas H-2B de hoje. São dezenas de novidades toda semana!\n\n☕ Toma seu café e já abre o app — 5 minutos e você tá na fila do sonho americano!\n\nBoa sorte! 🇺🇸🌟\n\nH2BApply`},
+    {sub:"🎯 {nome}, foco no objetivo: trabalhar nos EUA!",body:`{nome}!\n\nLembra do seu objetivo: trabalhar nos EUA com visto H-2B? 🇺🇸\n\nO H2BApply existe exatamente pra te ajudar com isso! Mas pra funcionar, você precisa entrar e configurar seus envios!\n\n👉 h2bapply.com — é rápido, é fácil e pode mudar sua vida!\n\nVai lá hoje! 💪\n\nEquipe H2BApply 🤖`},
+    {sub:"💭 {nome}, pensando em você e no seu sonho americano!",body:`Oi {nome}! 💭\n\nA equipe do H2BApply tava aqui pensando em você e no seu sonho de trabalhar nos EUA...\n\nE lembramos que tem vagas novas aparecendo todo dia no portal do governo americano!\n\nEntra em h2bapply.com e vê o que tem de novo. Pode ser a sua chance! 🍀🇺🇸\n\nCom carinho,\nEquipe H2BApply`},
+  ],
+  "3d": [
+    {sub:"😮 {nome}! 3 dias sem candidatar... isso não tá certo!",body:`{nome}!! 😮\n\n3 dias sem entrar no H2BApply... sabe quantas vagas passaram por você nesse tempo?\n\nDezenas de empresas americanas publicaram vagas H-2B e você pode estar perdendo a chance de ser candidatado!\n\n🔥 VOLTE AGORA: h2bapply.com\n\nAtiva o automático e nunca mais perde vaga! O robô trabalha por você 24/7! 🤖🇺🇸\n\n💎 P.S.: Tem CÓDIGO VIP GRÁTIS no grupo do WhatsApp! Garante o seu!\n\nEquipe H2BApply`},
+    {sub:"⏰ {nome}! O tempo está passando e as vagas também...",body:`{nome}! ⏰\n\nOlha... faz 3 dias que você não entra no H2BApply. E nesse tempo, vários candidatos estão mandando email pras mesmas empresas que você quer!\n\nA competição é real. Mas o H2BApply te dá vantagem — manda centenas de candidaturas automaticamente! 🚀\n\n👉 Volta pra h2bapply.com agora e ativa o automático!\n\n💎 BÔNUS: CÓDIGO VIP no grupo do WhatsApp — dias grátis de automático!\n\nVai nessa! 🇺🇸💪\n\nEquipe H2BApply`},
+    {sub:"🏃 {nome}! Corre que as vagas H-2B não esperam!",body:`EI {nome}! 🏃\n\nCORRE! Faz 3 dias que você não candidata e as vagas H-2B não esperam por ninguém!\n\nO portal do governo americano atualiza as vagas constantemente e você está perdendo!\n\n🎯 Solução rápida:\n1. h2bapply.com\n2. Ativa o Envio Automático\n3. Relaxa que o robô faz o resto!\n\n🎁 Entra no grupo do WhatsApp — tem CÓDIGO VIP GRÁTIS esperando!\n\nNão demora mais não! 🇺🇸🔥\n\nH2BApply`},
+    {sub:"🤔 {nome}, tudo bem? O H2BApply sentiu sua falta!",body:`Oi {nome}! 🤔\n\nTudo bem com você? Faz alguns dias que você não aparece e a gente ficou preocupado!\n\nSe precisar de ajuda com o app, pode falar com a gente pelo Instagram @andrio.k ou WhatsApp +55 53 98145-3496!\n\nE quando puder, passa em h2bapply.com — tem vagas novas e o automático esperando pra trabalhar por você! 🤖🇺🇸\n\nCuida-se! 💙\n\nEquipe H2BApply`},
+    {sub:"💡 {nome}! Ideia: ativa o automático e esquece!",body:`{nome}! 💡\n\nTenho uma ideia incrível pra você:\n\n1. Entra em h2bapply.com\n2. Ativa o Envio Automático\n3. Fecha o app e vai viver sua vida\n4. O robô manda candidatura 24h por dia\n5. Empresas americanas respondem no seu Gmail!\n\nSimples assim! 😄🇺🇸\n\n💎 E ainda tem CÓDIGO VIP GRÁTIS no grupo do WhatsApp!\n\nBora experimentar? h2bapply.com\n\nH2BApply 🤖`},
+    {sub:"🌙 {nome}! Enquanto você dorme, o H2BApply trabalha!",body:`{nome}! 🌙\n\nSabia que você pode candidatar pra vagas americanas ENQUANTO DORME?\n\nÉ verdade! O envio automático do H2BApply roda no servidor — não precisa do celular nem do app aberto!\n\nConfigura uma vez e pronto. Acorda com candidaturas enviadas e respostas chegando! ☀️🇺🇸\n\n👉 h2bapply.com — ativa hoje à noite!\n\n💎 CÓDIGO VIP GRÁTIS no grupo do WhatsApp!\n\nH2BApply 🤖`},
+  ],
+  "7d": [
+    {sub:"😢 {nome}... 1 semana sem candidatar. Não desiste não!",body:`{nome}... 😢\n\n1 semana. 7 dias. 168 horas.\n\nÉ quanto tempo faz que você não entra no H2BApply. E nesse período, dezenas de empresas americanas publicaram vagas H-2B que você poderia ter disputado.\n\nMas não é tarde! NUNCA É TARDE pra correr atrás do sonho americano! 🇺🇸\n\n🔥 VOLTA AGORA: h2bapply.com\n\nO robô tá pronto, as vagas tão lá, e você merece essa chance!\n\n💎 IMPORTANTE: Entra no grupo do WhatsApp — tem CÓDIGO VIP GRÁTIS! Dias de automático sem pagar nada! Não perde essa!\n\nVai lá. Hoje. Agora. 💪\n\nCom muita fé em você,\nEquipe H2BApply 🤖`},
+    {sub:"🚨 {nome}! Alerta: 7 dias sem candidatar!",body:`ALERTA VERMELHO {nome}! 🚨\n\n7 dias sem entrar no H2BApply é tempo demais quando você tem um sonho americano pra realizar!\n\nSabe o que aconteceu enquanto você estava longe?\n→ Centenas de vagas H-2B publicadas\n→ Outros candidatos enviando emails\n→ Empresas contratando gente\n\nVocê merece estar nessa lista. Volta pra h2bapply.com HOJE!\n\n💎 Código VIP grátis no grupo do WhatsApp — dias de automático sem custo!\n\nO visto H-2B ainda é possível. Não desiste! 🇺🇸💪\n\nEquipe H2BApply`},
+    {sub:"💪 {nome}! Guerreiro não desiste — volta pro H2BApply!",body:`{nome}! 💪\n\nGuerreiro não desiste. E você não é um desistente!\n\nFaz uma semana que você não candida. Mas hoje é um novo dia e uma nova chance de correr atrás do sonho americano!\n\n🔑 A chave é consistência. Entra todo dia, ativa o automático e deixa o H2BApply trabalhar por você!\n\n👉 h2bapply.com — volta hoje!\n💎 CÓDIGO VIP GRÁTIS no grupo do WhatsApp!\n📲 Dúvidas? @andrio.k no Instagram!\n\nVocê chegou até aqui. Não para agora! 🇺🇸🔥\n\nEquipe H2BApply`},
+    {sub:"🙏 {nome}, um pedido da equipe H2BApply",body:`{nome}, 🙏\n\nA equipe do H2BApply tem um pedido pra você:\n\nNão desiste do seu sonho.\n\nSabemos que é difícil. Que às vezes parece que não vai dar. Mas a gente acredita em você e criamos essa ferramenta exatamente pra facilitar sua jornada rumo aos EUA!\n\nFaz uma semana que você não aparece. E a gente quer que você volte.\n\n💙 h2bapply.com — a gente tá aqui por você.\n\n💎 Tem CÓDIGO VIP GRÁTIS no grupo do WhatsApp. Aproveita!\n\nCom muito carinho,\nEquipe H2BApply 🤖🇺🇸`},
+    {sub:"⭐ {nome}! Sua estrela americana ainda brilha!",body:`{nome}! ⭐\n\nSua estrela americana ainda brilha. Às vezes a gente precisa de um empurrãozinho pra lembrar disso.\n\nFaz uma semana que você não entra no H2BApply. Mas hoje é o dia de voltar!\n\n🌟 Vagas de Landscaping, Seafood, Hotels, Golf e muito mais esperando!\n🤖 Automático pronto pra trabalhar 24h por você!\n💎 CÓDIGO VIP GRÁTIS no grupo do WhatsApp!\n\nUm passo de cada vez. Hoje o passo é: h2bapply.com\n\nVai lá! 🇺🇸💪\n\nEquipe H2BApply`},
+  ],
+};
+
+function scheduleReengagement(){
+  const now = new Date();
+  const next = new Date(now);
+  next.setUTCHours(12,0,0,0); // 9h BRT = 12h UTC
+  if(next<=now) next.setUTCDate(next.getUTCDate()+1);
+  const delay = next-now;
+  console.log(`[reengagement] Próximo disparo em ${Math.round(delay/60000)}min`);
+  setTimeout(async()=>{ await runReengagement(); scheduleReengagement(); }, delay);
+}
+
+async function runReengagement(){
+  const now = Date.now();
+  const adminSess = Object.entries(sessions).find(([,s])=>s.user_email===ADMIN_EMAIL&&s.access_token);
+  if(!adminSess){ console.warn("[reengagement] Admin offline — pulando rodada"); return; }
+  const [adminSid] = adminSess;
+  let sent=0;
+
+  for(const [email,user] of Object.entries(DB_USERS)){
+    if(isAdminEmail(email)) continue;
+    const lastSeen = user.lastSeenAt || new Date(user.created_at||0).getTime();
+    const inactiveDays = (now-lastSeen)/86400_000;
+    let tier=null;
+    if(inactiveDays>=7&&inactiveDays<8)       tier="7d";
+    else if(inactiveDays>=3&&inactiveDays<4)  tier="3d";
+    else if(inactiveDays>=1&&inactiveDays<2)  tier="1d";
+    if(!tier) continue;
+
+    const lockKey=`reeng_${email}_${tier}`;
+    if(_notifLock.has(lockKey)) continue;
+    if(now-(_notifSentAt[lockKey]||0)<20*3600_000) continue;
+
+    // Não incomoda usuário com automático ativo — já está engajado
+    const autoJob=getAutoJob(email);
+    if(autoJob?.active) continue;
+
+    try{
+      const nome=(user.name||email.split("@")[0]).split(" ")[0];
+      const msgs=REENGAGEMENT_MSGS[tier];
+      const idx=Math.floor(Math.random()*msgs.length);
+      const {sub,body}=msgs[idx];
+      const raw=buildMime({to:email,subject:sub.replace(/{nome}/g,nome),fromName:"H2BApply 🤖",fromEmail:ADMIN_EMAIL,text:body.replace(/{nome}/g,nome)});
+      const {status}=await httpsReq({hostname:"gmail.googleapis.com",path:"/gmail/v1/users/me/messages/send",method:"POST",headers:{"Authorization":"Bearer "+sessions[adminSid].access_token,"Content-Type":"application/json"}},{raw});
+      if(status===200){
+        _notifLock.add(lockKey);_notifSentAt[lockKey]=now;
+        setTimeout(()=>_notifLock.delete(lockKey),22*3600_000);
+        // Log
+        _notifEmailLog.unshift({to:email,nome,subject:sub.replace(/{nome}/g,nome),body:body.replace(/{nome}/g,nome),tipo:`reeng_${tier}`,sentAt:new Date().toISOString(),varIdx:idx});
+        if(_notifEmailLog.length>1000)_notifEmailLog.length=1000;
+        sent++;
+        console.log(`[reengagement] ✅ ${tier} → ${email} (var ${idx+1}/${msgs.length})`);
+        await new Promise(r=>setTimeout(r,2500)); // pausa entre envios
+      }
+    }catch(e){ console.warn(`[reengagement] erro → ${email}:`,e.message); }
+  }
+  console.log(`[reengagement] Rodada: ${sent} emails enviados`);
+}
+
+scheduleReengagement(); // Inicia no boot
 
 function getHealth(email) {
   if (!healthState.has(email)) healthState.set(email, { lastSent:0, lastCheck:0, restarts:0, errors:0, status:"ok", lastError:"", oauthOk:null, gmailOk:null, hasPdf:null, stalledAt:null });
@@ -3412,6 +4524,8 @@ async function diagnoseJob(email) {
       h.stalledAt = now;
       pushGlobalEvent("stalled", email, `Fila travada há ${mins} minutos — tentando reiniciar`, "warn");
       addLog(email, { status:"sistema", jobTitle:`🔄 Fila travada há ${mins}min — reiniciando worker`, company:"Watchdog auto recovery", error:"Worker não respondia" });
+      // 🔔 Notifica o usuário por email
+      sendNotifEmail(email, "stalled").catch(e => console.warn("[notif/stalled]", e.message));
     }
     // Auto recovery: reinicia o timer se não há timer ativo
     if (!autoTimers.has(email)) {
@@ -3621,6 +4735,7 @@ function flushAll() {
   try { persist(RANK_BADGES_FILE, DB_RANK_BADGES); } catch(e) { console.warn("[shutdown] rank_badges:", e.message); }
   try { persist(NOTIF_FILE,    DB_NOTIF);    } catch(e) { console.warn("[shutdown] notif:",    e.message); }
   try { persist(REFERRAL_FILE, DB_REFERRAL); } catch(e) { console.warn("[shutdown] referral:", e.message); }
+  try { persist(SUGGESTIONS_FILE, DB_SUGGESTIONS); } catch(e) { console.warn("[shutdown] suggestions:", e.message); }
 
   // 3. Persiste sent_emails (conversão Set → Array)
   try {

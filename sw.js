@@ -24,7 +24,7 @@
 //  v2.4 — Bump de versão para forçar reinstalação limpa em todos os clientes.
 //    Nenhuma mudança lógica; apenas limpeza de código e documentação.
 //
-const CACHE_NAME = "h2bapply-v4";
+const CACHE_NAME = "h2bapply-v6";
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
