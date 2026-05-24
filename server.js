@@ -56,12 +56,10 @@ console.log(`[boot] Push VAPID: ${PUSH_ENABLED?"✅ configurado":"⚠️  desati
 //   vip   → 400 manual + 10 auto /dia (R$99,90)
 //   vipro → 300 manual + 200 auto /dia (R$149,90)
 // Plano "pro" removido — usuários legados recebem limites de vipro automaticamente
-// Planos ativos: free | vip (R$99,90) | vipro (R$149,90)
-// "pro" mantido como legado com mesmos limites do vipro
 const PLAN_LIMITS = {
   free:  { manual: 20,  auto: 10  },
   vip:   { manual: 400, auto: 10  },
-  pro:   { manual: 300, auto: 200 }, // legado = vipro
+  pro:   { manual: 300, auto: 200 }, // legado — mesmo limite do vipro
   vipro: { manual: 300, auto: 200 },
 };
 // Intervalos base (substituídos pelo cálculo inteligente)
@@ -885,25 +883,31 @@ const SHEET_TTL  = 60*60*1000;
 // Mapa de categorias para labels em português
 // ── Grupos de categorias semelhantes (para envio inteligente) ──
 const CATEGORY_GROUPS = [
-  { key:"outdoor",    label:"🌿 Ao Ar Livre",     cats:["landscape","forest","golf","farm"],     color:"#10b981" },
-  { key:"hospitality",label:"🏨 Hospitalidade",   cats:["housekeeper","amusement"],              color:"#8b5cf6" },
-  { key:"labor",      label:"🏗️ Trabalho Braçal", cats:["construction","seafood"],              color:"#f59e0b" },
-  { key:"water",      label:"🌊 Aquático",         cats:["lifeguard","seafood"],                  color:"#3b82f6" },
+  { key:"outdoor",    label:"🌿 Ao Ar Livre",     cats:["landscape","forest","golf","farm"],              color:"#10b981" },
+  { key:"hospitality",label:"🏨 Hospitalidade",   cats:["housekeeper","amusement","ski"],                color:"#8b5cf6" },
+  { key:"labor",      label:"🏗️ Trabalho Braçal", cats:["construction","seafood","warehouse"],           color:"#f59e0b" },
+  { key:"water",      label:"🌊 Aquático",         cats:["lifeguard","seafood"],                          color:"#3b82f6" },
+  { key:"food",       label:"🍽️ Food & Bar",       cats:["food"],                                        color:"#ef4444" },
+  { key:"driver",     label:"🚛 Driver",            cats:["driver"],                                      color:"#6366f1" },
+  { key:"cleaning",   label:"🧹 Cleaning",          cats:["cleaning"],                                    color:"#06b6d4" },
 ];
 
 const CATEGORY_LABELS = {
-  landscape:    { label:"🌿 Landscape / Jardim",    en:"Landscape" },
-  construction: { label:"🏗️ Construction / Obra",   en:"Construction" },
-  housekeeper:  { label:"🏨 Housekeeper / Hotel",   en:"Housekeeper" },
-  seafood:      { label:"🦞 Seafood / Frutos do Mar",en:"Seafood" },
-  farm:         { label:"🌾 Farm / Fazenda",         en:"Farm" },
-  golf:         { label:"⛳ Golf Course",             en:"Golf" },
-  amusement:    { label:"🎡 Amusement / Parque",     en:"Amusement" },
-  forest:       { label:"🌲 Forest / Florestal",     en:"Forest" },
-  lifeguard:    { label:"🏊 Lifeguard / Piscina",    en:"Lifeguard" },
-  food:         { label:"🍽️ Food Service / Bar",    en:"Food & Bar" },
-  ski:          { label:"⛷️ Ski / Winter Resort",    en:"Ski Resort" },
-  other:        { label:"📋 Outros",                  en:"Other" },
+  driver:       { label:"🚛 Driver / Motorista",      en:"Driver" },
+  landscape:    { label:"🌿 Landscape / Jardim",      en:"Landscape" },
+  construction: { label:"🏗️ Construction / Obra",    en:"Construction" },
+  housekeeper:  { label:"🏨 Housekeeper / Hotel",    en:"Housekeeper" },
+  food:         { label:"🍽️ Food Service / Bar",     en:"Food & Bar" },
+  cleaning:     { label:"🧹 Cleaning / Limpeza",      en:"Cleaning" },
+  warehouse:    { label:"📦 Warehouse / Armazém",     en:"Warehouse" },
+  seafood:      { label:"🦞 Seafood / Frutos do Mar", en:"Seafood" },
+  farm:         { label:"🌾 Farm / Fazenda (H-2A)",   en:"Farm" },
+  golf:         { label:"⛳ Golf Course",              en:"Golf" },
+  amusement:    { label:"🎡 Amusement / Parque",      en:"Amusement" },
+  forest:       { label:"🌲 Forest / Florestal",      en:"Forest" },
+  lifeguard:    { label:"🏊 Lifeguard / Piscina",     en:"Lifeguard" },
+  ski:          { label:"⛷️ Ski / Winter Resort",     en:"Ski Resort" },
+  other:        { label:"📋 Outros",                   en:"Other" },
 };
 
 function loadSheets() {
@@ -911,8 +915,8 @@ function loadSheets() {
     const p=path.join(__dirname,file);
     if(fs.existsSync(p)){
       try{const d=JSON.parse(fs.readFileSync(p,"utf8"));if(key==="jan")SHEET_JAN=d;else SHEET_JUL=d;
-        // Garante campo 'k' (categoria) em todos os registros
-        (key==="jan"?SHEET_JAN:SHEET_JUL).forEach(r=>{if(!r.k)r.k=detectCategory(r.n||"");});
+        // Garante campo 'k' (categoria) em todos os registros — usa título real se disponível
+        (key==="jan"?SHEET_JAN:SHEET_JUL).forEach(r=>{if(!r.k)r.k=detectCategoryBest(r.t||"",r.n||"");});
         console.log(`[sheet] ✅ ${key}: ${d.length}`);}
       catch(e){console.warn("[sheet]",e.message);}
     }else console.warn("[sheet] ⚠️",file,"não encontrado");
@@ -920,23 +924,40 @@ function loadSheets() {
 }
 
 const CATEGORY_KEYWORDS = {
-  landscape:    ['landscape','lawn','turf','grass','grounds','mowing','garden','tree','arborist','nursery','sod','irrigation','mulch','shrub'],
-  construction: ['construction','concrete','masonry','roofing','gutter','excavat','paving','asphalt','electrical','plumb','hvac','demolit','contractor','builders'],
-  housekeeper:  ['hotel','resort','hospitality','inn','lodge','motel','housekeeper','cleaning','laundry','maid'],
-  seafood:      ['seafood','fish','crab','lobster','oyster','shrimp','vessel','marine','aqua','shellfish'],
-  farm:         ['farm','agri','crop','harvest','orchard','ranch','dairy','livestock','poultry'],
-  golf:         ['golf','country club'],
-  amusement:    ['amusement','carnival','fair','theme park','waterpark','camp'],
-  forest:       ['forest','timber','logging','reforestation'],
-  lifeguard:    ['lifeguard','pool','aquatic','swim'],
-  food:         ['restaurant','grill','tavern','cantina','bistro','brewpub','cafeteria','diner','foodservice','food service','food prep','bartend'],
-  ski:          ['ski ','snowboard','winter resort','mountain resort'],
+  driver:       ["trucking","transport","delivery","logistics","courier","freight","shipping","cdl","moving company","express","transit","haul"],
+  landscape:    ["landscape","lawn","turf","grass","grounds","mowing","garden","tree","arborist","nursery","sod","irrigation","mulch","shrub"],
+  construction: ["construction","concrete","masonry","roofing","gutter","excavat","paving","asphalt","electrical","plumb","hvac","demolit","contractor","builders"],
+  housekeeper:  ["hotel","resort","hospitality","inn","lodge","motel","housekeeper","laundry","maid"],
+  food:         ["restaurant","grill","tavern","cantina","bistro","brewpub","cafeteria","diner","foodservice","food service","food prep","bartend","catering","pizz","steakhouse","sushi","bbq","taqueria"],
+  cleaning:     ["cleaning service","janitorial","custodial","sanitation","housecleaning","clean solutions","maid service","spotless","sparkling"],
+  warehouse:    ["warehouse","distribution","fulfillment","logistics center","storage center","distribution center","pack center"],
+  seafood:      ["seafood","fish","crab","lobster","oyster","shrimp","vessel","marine","aqua","shellfish"],
+  farm:         ["farm","agri","crop","harvest","orchard","ranch","dairy","livestock","poultry"],
+  golf:         ["golf","country club"],
+  amusement:    ["amusement","carnival","fair","theme park","waterpark","camp"],
+  forest:       ["forest","timber","logging","reforestation"],
+  lifeguard:    ["lifeguard","pool","aquatic","swim"],
+  ski:          ["ski ","snowboard","winter resort","mountain resort"],
 };
 
 function detectCategory(name) {
   const n = (name||"").toLowerCase();
   for(const[cat,kws]of Object.entries(CATEGORY_KEYWORDS)){if(kws.some(k=>n.includes(k)))return cat;}
   return "other";
+}
+
+function detectCategoryFromTitle(title) {
+  if (!title) return null;
+  const t = title.toLowerCase().trim();
+  if (JOB_TITLE_TO_CAT[t]) return JOB_TITLE_TO_CAT[t];
+  for (const [kw, cat] of Object.entries(JOB_TITLE_TO_CAT)) {
+    if (t.includes(kw) || (kw.length >= 5 && kw.includes(t))) return cat;
+  }
+  return null;
+}
+
+function detectCategoryBest(title, employer) {
+  return detectCategoryFromTitle(title) || detectCategory(employer) || "other";
 }
 
 function getSheet(n) { return n==="jan2026"?SHEET_JAN:n==="jul2025"?SHEET_JUL:[]; }
@@ -962,20 +983,79 @@ function shuffleArray(arr) {
 
 // Maps job title keywords → category
 const JOB_TITLE_TO_CAT = {
-  bartender:"food",barman:"food",barmaid:"food",cook:"food","line cook":"food",
-  "prep cook":"food",chef:"food",dishwasher:"food",waiter:"food",waitress:"food",
-  "food server":"food",barista:"food",baker:"food","food service":"food",
-  landscaper:"landscape","lawn care":"landscape",groundskeeper:"landscape",
-  gardener:"landscape","landscape worker":"landscape",
-  carpenter:"construction",electrician:"construction",plumber:"construction",
-  welder:"construction",roofer:"construction",mason:"construction",laborer:"construction",
-  painter:"construction","general laborer":"construction",
-  housekeeper:"housekeeper",maid:"housekeeper",cleaner:"housekeeper",
-  janitor:"housekeeper","room attendant":"housekeeper",
-  "seafood processor":"seafood","fish processor":"seafood","crab picker":"seafood",
-  "farm worker":"farm",farmhand:"farm","field worker":"farm",harvester:"farm",
-  greenskeeper:"golf",caddie:"golf","golf course":"golf",
+  // Food & Bar
+  bartender:"food",barman:"food",barmaid:"food","bar back":"food",barback:"food",
+  cook:"food","line cook":"food","prep cook":"food","head cook":"food","lead cook":"food",
+  chef:"food","sous chef":"food","executive chef":"food","pastry chef":"food",
+  dishwasher:"food","dish washer":"food",
+  waiter:"food",waitress:"food",server:"food","food server":"food",
+  busser:"food",busperson:"food",
+  barista:"food",baker:"food",
+  "food service":"food","food prep":"food","food preparation":"food",
+  "kitchen helper":"food","kitchen worker":"food","kitchen staff":"food",
+  host:"food",hostess:"food","counter attendant":"food",
+  // Driver
+  driver:"driver","truck driver":"driver","cdl driver":"driver",
+  "delivery driver":"driver","bus driver":"driver","van driver":"driver",
+  chauffeur:"driver",courier:"driver",
+  "forklift operator":"driver","forklift driver":"driver","forklift":"driver",
+  "equipment operator":"driver","heavy equipment operator":"driver",
+  // Landscape
+  landscaper:"landscape","landscape worker":"landscape","landscape laborer":"landscape",
+  "lawn care":"landscape","lawn worker":"landscape",
+  groundskeeper:"landscape","grounds keeper":"landscape","grounds maintenance":"landscape",
+  gardener:"landscape","irrigation technician":"landscape",
+  "tree trimmer":"landscape",arborist:"landscape",
+  "sod installer":"landscape",mulcher:"landscape","plant care":"landscape",
+  // Construction
+  carpenter:"construction",electrician:"construction",
+  plumber:"construction",welder:"construction",
+  roofer:"construction",mason:"construction",
+  laborer:"construction","general laborer":"construction","construction laborer":"construction",
+  painter:"construction",drywaller:"construction",
+  "concrete worker":"construction","paving worker":"construction",
+  "hvac technician":"construction","hvac worker":"construction",
+  // Housekeeper / Hotel
+  housekeeper:"housekeeper",maid:"housekeeper",
+  "room attendant":"housekeeper","hotel cleaner":"housekeeper",
+  "front desk":"housekeeper",bellman:"housekeeper","bell person":"housekeeper",
+  "night auditor":"housekeeper","laundry attendant":"housekeeper","linen attendant":"housekeeper",
+  "hotel worker":"housekeeper","resort worker":"housekeeper",
+  // Cleaning (distinct from housekeeper)
+  janitor:"cleaning",custodian:"cleaning",
+  "office cleaner":"cleaning","building cleaner":"cleaning",
+  "sanitation worker":"cleaning","janitorial worker":"cleaning",
+  "commercial cleaner":"cleaning","floor technician":"cleaning",
+  // Warehouse
+  "warehouse worker":"warehouse",picker:"warehouse",
+  packer:"warehouse","picker packer":"warehouse","pick and pack":"warehouse",
+  "shipping clerk":"warehouse","receiving clerk":"warehouse",
+  "order picker":"warehouse","stock clerk":"warehouse","stocking":"warehouse",
+  "warehouse associate":"warehouse","warehouse laborer":"warehouse",
+  // Seafood
+  "seafood processor":"seafood","fish processor":"seafood",
+  "crab picker":"seafood","oyster shucker":"seafood",
+  "shrimp peeler":"seafood","fish cutter":"seafood","seafood worker":"seafood",
+  // Farm / H-2A
+  "farm worker":"farm",farmhand:"farm","field worker":"farm",
+  harvester:"farm","harvest worker":"farm","crop worker":"farm",
+  "greenhouse worker":"farm","dairy worker":"farm",
+  "poultry worker":"farm","agricultural worker":"farm",
+  // Golf
+  greenskeeper:"golf","golf course worker":"golf","golf attendant":"golf",
+  caddie:"golf","golf laborer":"golf",
+  // Lifeguard / Pool
   lifeguard:"lifeguard","pool attendant":"lifeguard",
+  "aquatic staff":"lifeguard","swim instructor":"lifeguard","pool worker":"lifeguard",
+  // Amusement
+  "ride operator":"amusement","camp counselor":"amusement",
+  "carnival worker":"amusement","recreation worker":"amusement","park worker":"amusement",
+  // Forest
+  "timber worker":"forest","tree planter":"forest",
+  "reforestation worker":"forest","logging worker":"forest","forestry worker":"forest",
+  // Ski
+  "ski instructor":"ski","lift operator":"ski","ski lift operator":"ski",
+  "snow groomer":"ski","ski patrol":"ski","snowboard instructor":"ski","ski technician":"ski",
 };
 const CAT_OCC_LABELS = {
   food:"Food Service Bartender Cook Waiter",landscape:"Landscape Grounds Lawn",
@@ -1219,32 +1299,26 @@ function selectProfile(profiles, target, sheet) {
   const jobCat     = (target.category || "other").toLowerCase();
   const jobSheet   = sheet || "";
 
-  // 0. H-2A: se vaga for agrícola, prioriza perfil com visaType=h2a
-  const jobVisa = (target.visa || "").toUpperCase();
-  const isH2AJob = jobVisa === "H-2A" || target.jobType === "agricultural";
-  if (isH2AJob) {
-    const h2aP = active.filter(pr => {
-      if (pr.isGeneral) return false;
-      const n = (pr.name || "").toLowerCase();
-      return pr.visaType === "h2a" || n.includes("h2a") || n.includes("h-2a") ||
-             n.includes("farm") || (pr.categories || []).includes("farm");
-    });
-    if (h2aP.length) {
-      const ws = h2aP.filter(pr => pr.sheets && pr.sheets.includes(jobSheet));
-      return ws.length ? ws[0] : h2aP[0];
-    }
-  }
-
   // 1. Perfil específico: nome do perfil contém a categoria ou título da vaga
   //    E o perfil tem essa categoria configurada (não isGeneral)
+  // H-2A: usa perfil específico h2a
+  const jobVisa = (target.visa || "").toUpperCase();
+  const isH2A   = jobVisa === "H-2A" || target.jobType === "agricultural";
+  if (isH2A) {
+    const h2aP = active.filter(pr => {
+      if(pr.isGeneral) return false;
+      const n=(pr.name||"").toLowerCase();
+      return pr.visaType==="h2a"||n.includes("h2a")||n.includes("h-2a")||n.includes("farm")||(pr.categories||[]).includes("farm");
+    });
+    if(h2aP.length){ const ws=h2aP.filter(pr=>pr.sheets&&pr.sheets.includes(jobSheet)); return ws.length?ws[0]:h2aP[0]; }
+  }
+
   const specific = active.filter(pr => {
     if (pr.isGeneral) return false;
     const prName = (pr.name || "").toLowerCase();
-    // Match por categoria configurada no perfil
     if (pr.categories && pr.categories.length) {
       if (pr.categories.includes(jobCat)) return true;
     }
-    // Match por nome do perfil ~ categoria ou título
     if (jobCat && prName.includes(jobCat)) return true;
     if (jobTitle && jobTitle.split(/\s+/).some(w => w.length > 3 && prName.includes(w))) return true;
     return false;
@@ -2067,16 +2141,16 @@ const server=http.createServer(async(req,res)=>{
   const serveHtml=f=>{try{const h=fs.readFileSync(path.join(__dirname,f),"utf8");res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-cache"});return res.end(h);}catch{res.writeHead(404);return res.end(f+" não encontrado");}};
   if(pathname==="/"||pathname==="/index.html")return serveHtml("index.html");
   if(pathname==="/admin"||pathname==="/admin.html")return serveHtml("admin.html");
-  // Google Search Console domain verification
-  if(pathname==="/google380652ea59ad95e1.html"){
-    res.writeHead(200,{"Content-Type":"text/html"});
-    return res.end("google-site-verification: google380652ea59ad95e1");
-  }
+  if(pathname==="/google380652ea59ad95e1.html"){res.writeHead(200,{"Content-Type":"text/html"});return res.end("google-site-verification: google380652ea59ad95e1");}
 
-  // Google Search Console verification
-  if(pathname==="/google380652ea59ad95e1.html"){
-    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"});
-    return res.end(`<!DOCTYPE html><html><head><meta name="google-site-verification" content="380652ea59ad95e1"/></head><body>google-site-verification: google380652ea59ad95e1</body></html>`);
+  // ── Google OAuth Verification & Legal Pages ──────────────────────────────
+  // Rota de verificação Google Search Console (adicione o token do seu Search Console aqui)
+  if(pathname.startsWith("/google") && pathname.endsWith(".html")){
+    const token=pathname.replace("/","").replace(".html","");
+    if(/^google[a-z0-9]+$/.test(token)){
+      res.writeHead(200,{"Content-Type":"text/html"});
+      return res.end(`google-site-verification: ${token}.html`);
+    }
   }
 
   // Política de Privacidade
@@ -2345,67 +2419,6 @@ const server=http.createServer(async(req,res)=>{
   }
 
   // ── Sheet routes com categorias dinâmicas ─────────────
-
-  // ══════════════════════════════════════════════════════════
-  // /api/sheet-search — Busca por job title na API DOL
-  // Quando usuário busca "bartender", busca na API real do DOL
-  // com $search para retornar vagas com job_title correto
-  // Cruza com cases da planilha para mostrar só casos elegíveis
-  // ══════════════════════════════════════════════════════════
-  if(pathname==="/api/sheet-search" && req.method==="GET"){
-    const s2=getSess(req);if(!s2?.user_email)return json(res,401,{error:"Não autenticado."});
-    const q=(u.searchParams.get("q")||"").trim();
-    const sheet=u.searchParams.get("sheet")||"jan2026";
-    const state=(u.searchParams.get("state")||"").trim();
-    const top=Math.min(50,parseInt(u.searchParams.get("top")||"25"));
-    const skip=Math.max(0,parseInt(u.searchParams.get("skip")||"0"));
-    const jobType=u.searchParams.get("jobType")||"all";
-
-    if(!q) return json(res,400,{error:"q obrigatório"});
-
-    try{
-      // Busca na API DOL com $search pelo job title
-      const opts={query:q,jobType,sort:"desc"};
-      if(state) opts.state=state;
-      const {jobs,total}=await fetchDOL(skip,top,opts);
-
-      // Filtra para mostrar só vagas que existem na planilha selecionada
-      // (assim mantemos o contexto da planilha escolhida pelo usuário)
-      const sheetArr=getSheet(sheet);
-      const sheetCases=new Set(sheetArr.map(r=>r.c.toUpperCase()));
-
-      // Vagas que existem na planilha: marcadas como "fromSheet"
-      // Vagas da API mas não na planilha: ainda mostradas mas marcadas
-      const enriched=jobs.map(j=>({
-        ...j,
-        fromSheet: sheetCases.has((j.caseNum||"").toUpperCase()),
-        sheet
-      }));
-
-      return json(res,200,{jobs:enriched,total,query:q,fromDOL:true,sheet});
-    }catch(e){
-      console.error("[sheet-search]",e.message);
-      // Fallback: busca local nas planilhas por nome de empresa
-      const arr=getSheet(sheet);
-      const ql=q.toLowerCase();
-      const fallback=arr.filter(r=>
-        (r.n||"").toLowerCase().includes(ql)||
-        (r.c||"").toLowerCase().includes(ql)
-      ).slice(skip,skip+top);
-      return json(res,200,{
-        jobs:fallback.map(r=>({
-          id:r.c,caseNum:r.c,company:r.n||"–",state:r.s||"–",
-          start:r.d||"–",fromSheet:true,sheet,
-          title:"Seasonal Worker",visa:"H-2B",active:true
-        })),
-        total:fallback.length,
-        query:q,
-        fromDOL:false,
-        fallback:true
-      });
-    }
-  }
-
   if(pathname==="/api/sheet-meta"){
     const sheet=u.searchParams.get("sheet")||"";const arr=getSheet(sheet);
     const skip=Math.max(0,parseInt(u.searchParams.get("skip")||"0",10));const top=Math.min(50,Math.max(1,parseInt(u.searchParams.get("top")||"25",10)));
@@ -2420,28 +2433,36 @@ const server=http.createServer(async(req,res)=>{
     // Instead we show all available jobs (sent ones are hidden via HIST in frontend)
     const baseArr=arr; // No server-side sent filtering (would break search)
     const{total,items}=searchSheet(baseArr,q,state,category,skip,top,sort);
-    const catTitles={landscape:"Landscape Worker",construction:"Construction Worker",
+    const catTitles={
+      driver:"Driver / Motorista",landscape:"Landscape Worker",construction:"Construction Worker",
       housekeeper:"Housekeeper",seafood:"Seafood Processor",farm:"Farm Worker",
       golf:"Golf Course Worker",amusement:"Amusement Park Worker",
       forest:"Forestry Worker",lifeguard:"Lifeguard",
-      food:"Food Service / Bartender",ski:"Ski Resort Worker",other:"Seasonal Worker"};
+      food:"Food Service / Bartender",cleaning:"Cleaning Worker",
+      warehouse:"Warehouse Worker",ski:"Ski Resort Worker",other:"Seasonal Worker"};
     const parseW=w=>{if(!w)return 0;const m=String(w).match(/[0-9.]+/);return m?parseFloat(m[0]):0;};
-    // Apply all additional filters
-    let filtered=items;
+    // ── FILTROS OBRIGATÓRIOS DE QUALIDADE (v35) ────────────────────────────
+    // REGRA 1: Vagas com URL = descartadas (só aplicam pelo site, não por email)
+    let filtered=items.filter(r=>!r.u);
+    // REGRA 2: Vagas sem email = descartadas (impossível aplicar)
+    filtered=filtered.filter(r=>r.e&&r.e.includes("@"));
+    // ── FILTROS OPCIONAIS DO USUÁRIO ──────────────────────────────────────
     if(minWage>0) filtered=filtered.filter(r=>parseW(r.w)>=minWage);
     if(minWorkers>0) filtered=filtered.filter(r=>(r.wk||0)>=minWorkers);
-    if(filterVisa) filtered=filtered.filter(r=>(r.st||"").toUpperCase().includes(filterVisa));
+    if(filterVisa) filtered=filtered.filter(r=>(r.visa||r.st||"").toUpperCase().includes(filterVisa));
     if(filterHasEmail==="1") filtered=filtered.filter(r=>r.e&&r.e.includes("@"));
     if(filterHasEmail==="0") filtered=filtered.filter(r=>!r.e);
     if(filterJobStatus==="active") filtered=filtered.filter(r=>{const st=(r.st||"").toUpperCase();return !st.includes("WITHDRAWN")&&!st.includes("DENIED")&&!st.includes("EXPIRED");});
     if(filterJobStatus==="inactive") filtered=filtered.filter(r=>{const st=(r.st||"").toUpperCase();return st.includes("WITHDRAWN")||st.includes("DENIED")||st.includes("EXPIRED");});
     return json(res,200,{jobs:filtered.map(r=>{
       const st=(r.st||"").toUpperCase();
-      const visa=st.includes("H-2A")?"H-2A":"H-2B";
+      const visa=r.visa||(st.includes("H-2A")?"H-2A":"H-2B");
       const active=!st.includes("WITHDRAWN")&&!st.includes("DENIED")&&!st.includes("EXPIRED")&&!st.includes("INVALIDATED");
       const cat=r.k||"other";
-      const occupation=catTitles[cat]||"Seasonal Worker";
-      return{id:r.c,caseNum:r.c,company:r.n||"–",state:r.s||"–",start:r.d||"–",status:r.st||"–",category:cat,visa,active,title:occupation,occupation,wage:r.w||null,workers:r.wk||null,email:null,hasEmail:null,fromSheet:true};
+      // v35: título REAL da vaga (r.t) em vez do genérico da categoria
+      const title=r.t||catTitles[cat]||"Seasonal Worker";
+      const wageStr=r.w?`$${r.w}/${r.wunit||"h"}`:null;
+      return{id:r.c,caseNum:r.c,company:r.n||"–",state:r.s||"–",start:r.d||"–",status:r.st||"–",category:cat,visa,active,title,occupation:title,wage:wageStr,workers:r.wk||null,email:r.e,hasEmail:true,fromSheet:true};
     }),total,remainingTotal:baseArr.length,skip,sheet});
   }
 
@@ -2924,7 +2945,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     const rawBodies=Array.isArray(d.emailBodies)?d.emailBodies:[];
     const emailBodies=rawBodies.map(b=>String(b).trim()).filter(Boolean);
     // Normalize categories (only known keys)
-    const KNOWN_CATS=["landscape","construction","housekeeper","seafood","farm","golf","amusement","forest","lifeguard","other"];
+    const KNOWN_CATS=["driver","landscape","construction","housekeeper","food","cleaning","warehouse","seafood","farm","golf","amusement","forest","lifeguard","ski","other"];
     const categories=Array.isArray(d.categories)?d.categories.filter(c=>KNOWN_CATS.includes(c)):[];
     // Normalize sheets
     const KNOWN_SHEETS=["jan2026","jul2025","dol"];
@@ -3120,34 +3141,19 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
 
       // ✅ Embaralha a fila no servidor — cada usuário terá ordem diferente
       // Evita que múltiplos usuários simultâneos enviem para as mesmas empresas ao mesmo tempo
-      // ═══════════════════════════════════════════════════════════
-      // REGRA PRINCIPAL: Remove da fila emails já enviados ANTES do shuffle
-      // Garante que o contador de fila reflita vagas novas reais
-      // ═══════════════════════════════════════════════════════════
-      const _beforeDedup = queue.length;
-      queue = queue.filter(j => !hasSent(s.user_email, j.to));
-      const _removed = _beforeDedup - queue.length;
-      if (_removed > 0) {
-        console.log(`[auto/dedup] ${s.user_email}: ${_removed} removidas (já enviadas) → ${queue.length} novas`);
+      // H-2A: filtra por data/estado/salário
+      if(d.h2aMode && d.visaType==="h2a"){
+        if(d.dateFrom){const from=new Date(d.dateFrom);queue=queue.filter(j=>!j.start||new Date(j.start)>=from);}
+        if(d.dateTo){const to=new Date(d.dateTo);queue=queue.filter(j=>!j.end||new Date(j.end)<=to);}
+        if(d.state){queue=queue.filter(j=>(j.state||"").toUpperCase()===d.state.toUpperCase());}
+        if(d.minWage>0){queue=queue.filter(j=>parseFloat(j.wage||0)>=d.minWage);}
+        queue.sort((a,b)=>new Date(a.start||"9999")-new Date(b.start||"9999"));
       }
-      if (!queue.length) {
-        return json(res, 400, {
-          error: `Todas as ${_beforeDedup} vagas desta planilha já foram enviadas! Tente a outra planilha ou aguarde novas vagas do governo.`,
-          allSent: true,
-          totalPrevSent: _beforeDedup
-        });
-      }
-
-      // H-2A mode: filtros adicionais por data/estado/salário
-      if (d.h2aMode && d.visaType === "h2a") {
-        if (d.dateFrom) { const from = new Date(d.dateFrom); queue = queue.filter(j => !j.start || new Date(j.start) >= from); }
-        if (d.dateTo)   { const to   = new Date(d.dateTo);   queue = queue.filter(j => !j.end   || new Date(j.end)   <= to);   }
-        if (d.state)    { queue = queue.filter(j => (j.state||"").toUpperCase() === d.state.toUpperCase()); }
-        if (d.minWage > 0) { queue = queue.filter(j => parseFloat(j.wage||0) >= d.minWage); }
-        queue.sort((a,b) => new Date(a.start||"9999") - new Date(b.start||"9999"));
-        console.log(`[auto/h2a] ${s.user_email}: ${queue.length} vagas H-2A após filtros`);
-        if (!queue.length) return json(res, 400, { error: "Nenhuma vaga H-2A encontrada com esses filtros. Tente ampliar as datas ou remover o filtro de estado.", allSent: false });
-      }
+      // REGRA PRINCIPAL: remove da fila emails já enviados
+      const _bdq=queue.length;
+      queue=queue.filter(j=>!hasSent(s.user_email,j.to));
+      if(_bdq-queue.length>0)console.log(`[auto] ${s.user_email}: ${_bdq-queue.length} removidas (já enviadas) → ${queue.length} novas`);
+      if(!queue.length)return json(res,400,{error:`Todas as ${_bdq} vagas já foram enviadas! Tente outra planilha.`,allSent:true});
 
       queue = shuffleArray(queue);
       const _mode = (d.mode==="now") ? "now" : "schedule"; // "now" = 24/7 até zerar; "schedule" = janela diária
