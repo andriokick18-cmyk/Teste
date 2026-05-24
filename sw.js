@@ -46,7 +46,6 @@ self.addEventListener("install", (e) => {
       );
     })
   );
-  // Ativa imediatamente sem esperar tabs antigas fecharem
   self.skipWaiting();
 });
 
@@ -73,12 +72,9 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
 
-  // Só intercepta GET
   if (e.request.method !== "GET") return;
-  // Ignora extensões do Chrome
   if (url.protocol === "chrome-extension:") return;
 
-  // ── APIs, OAuth e proxy → sempre network, sem interceptar ──
   if (
     url.pathname.startsWith("/api/") ||
     url.pathname.startsWith("/oauth/") ||
@@ -87,10 +83,6 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // ── HTML → sempre network, NUNCA cacheia ──
-  // Cookie h2b_session é definido via Set-Cookie no /oauth/callback.
-  // Se o SW devolver o HTML do cache, o cookie não acompanha a requisição
-  // de /api/status → app considera deslogado → loop de login.
   if (
     url.pathname === "/" ||
     url.pathname === "/index.html" ||
@@ -98,7 +90,6 @@ self.addEventListener("fetch", (e) => {
   ) {
     e.respondWith(
       fetch(e.request).catch(() =>
-        // Fallback offline: tenta cache como último recurso
         caches
           .match("/index.html")
           .then((r) => r || new Response("Offline", { status: 503 }))
@@ -107,8 +98,6 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // ── Fontes e ícones CDN → Stale-while-revalidate ──
-  // Serve do cache imediatamente (fast), revalida em background.
   if (
     url.hostname.includes("fonts.googleapis.com") ||
     url.hostname.includes("fonts.gstatic.com") ||
@@ -130,14 +119,12 @@ self.addEventListener("fetch", (e) => {
                 statusText: "Service Unavailable",
               })
           );
-        // Retorna cache imediato se disponível, caso contrário aguarda rede
         return cached || fetchPromise;
       })
     );
     return;
   }
 
-  // ── Demais recursos estáticos → Network-first com fallback para cache ──
   e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });
 
@@ -184,7 +171,6 @@ self.addEventListener("notificationclick", (e) => {
     clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientList) => {
-        // Se já há uma aba do app aberta: foca e navega
         for (const client of clientList) {
           try {
             const clientUrl = new URL(client.url);
@@ -200,7 +186,6 @@ self.addEventListener("notificationclick", (e) => {
             /* client.url pode ser opaco em alguns contextos */
           }
         }
-        // Nenhuma aba aberta → abre nova
         if (clients.openWindow) {
           return clients.openWindow(targetUrl);
         }
@@ -212,13 +197,11 @@ self.addEventListener("notificationclick", (e) => {
 self.addEventListener("message", (e) => {
   if (!e.data) return;
 
-  // Força atualização imediata: postMessage({ type: "SKIP_WAITING" })
   if (e.data.type === "SKIP_WAITING") {
     self.skipWaiting();
     return;
   }
 
-  // Health check do frontend: postMessage({ type: "PING" })
   if (e.data.type === "PING") {
     e.source?.postMessage({ type: "PONG", cacheName: CACHE_NAME });
     return;
