@@ -56,10 +56,12 @@ console.log(`[boot] Push VAPID: ${PUSH_ENABLED?"✅ configurado":"⚠️  desati
 //   vip   → 400 manual + 10 auto /dia (R$99,90)
 //   vipro → 300 manual + 200 auto /dia (R$149,90)
 // Plano "pro" removido — usuários legados recebem limites de vipro automaticamente
+// Planos ativos: free | vip (R$99,90) | vipro (R$149,90)
+// "pro" mantido como legado com mesmos limites do vipro
 const PLAN_LIMITS = {
   free:  { manual: 20,  auto: 10  },
   vip:   { manual: 400, auto: 10  },
-  pro:   { manual: 300, auto: 200 }, // legado — mesmo limite do vipro
+  pro:   { manual: 300, auto: 200 }, // legado = vipro
   vipro: { manual: 300, auto: 200 },
 };
 // Intervalos base (substituídos pelo cálculo inteligente)
@@ -1217,6 +1219,22 @@ function selectProfile(profiles, target, sheet) {
   const jobCat     = (target.category || "other").toLowerCase();
   const jobSheet   = sheet || "";
 
+  // 0. H-2A: se vaga for agrícola, prioriza perfil com visaType=h2a
+  const jobVisa = (target.visa || "").toUpperCase();
+  const isH2AJob = jobVisa === "H-2A" || target.jobType === "agricultural";
+  if (isH2AJob) {
+    const h2aP = active.filter(pr => {
+      if (pr.isGeneral) return false;
+      const n = (pr.name || "").toLowerCase();
+      return pr.visaType === "h2a" || n.includes("h2a") || n.includes("h-2a") ||
+             n.includes("farm") || (pr.categories || []).includes("farm");
+    });
+    if (h2aP.length) {
+      const ws = h2aP.filter(pr => pr.sheets && pr.sheets.includes(jobSheet));
+      return ws.length ? ws[0] : h2aP[0];
+    }
+  }
+
   // 1. Perfil específico: nome do perfil contém a categoria ou título da vaga
   //    E o perfil tem essa categoria configurada (não isGeneral)
   const specific = active.filter(pr => {
@@ -2049,6 +2067,11 @@ const server=http.createServer(async(req,res)=>{
   const serveHtml=f=>{try{const h=fs.readFileSync(path.join(__dirname,f),"utf8");res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-cache"});return res.end(h);}catch{res.writeHead(404);return res.end(f+" não encontrado");}};
   if(pathname==="/"||pathname==="/index.html")return serveHtml("index.html");
   if(pathname==="/admin"||pathname==="/admin.html")return serveHtml("admin.html");
+  // Google Search Console domain verification
+  if(pathname==="/google380652ea59ad95e1.html"){
+    res.writeHead(200,{"Content-Type":"text/html"});
+    return res.end("google-site-verification: google380652ea59ad95e1");
+  }
 
   // Google Search Console verification
   if(pathname==="/google380652ea59ad95e1.html"){
@@ -2322,6 +2345,67 @@ const server=http.createServer(async(req,res)=>{
   }
 
   // ── Sheet routes com categorias dinâmicas ─────────────
+
+  // ══════════════════════════════════════════════════════════
+  // /api/sheet-search — Busca por job title na API DOL
+  // Quando usuário busca "bartender", busca na API real do DOL
+  // com $search para retornar vagas com job_title correto
+  // Cruza com cases da planilha para mostrar só casos elegíveis
+  // ══════════════════════════════════════════════════════════
+  if(pathname==="/api/sheet-search" && req.method==="GET"){
+    const s2=getSess(req);if(!s2?.user_email)return json(res,401,{error:"Não autenticado."});
+    const q=(u.searchParams.get("q")||"").trim();
+    const sheet=u.searchParams.get("sheet")||"jan2026";
+    const state=(u.searchParams.get("state")||"").trim();
+    const top=Math.min(50,parseInt(u.searchParams.get("top")||"25"));
+    const skip=Math.max(0,parseInt(u.searchParams.get("skip")||"0"));
+    const jobType=u.searchParams.get("jobType")||"all";
+
+    if(!q) return json(res,400,{error:"q obrigatório"});
+
+    try{
+      // Busca na API DOL com $search pelo job title
+      const opts={query:q,jobType,sort:"desc"};
+      if(state) opts.state=state;
+      const {jobs,total}=await fetchDOL(skip,top,opts);
+
+      // Filtra para mostrar só vagas que existem na planilha selecionada
+      // (assim mantemos o contexto da planilha escolhida pelo usuário)
+      const sheetArr=getSheet(sheet);
+      const sheetCases=new Set(sheetArr.map(r=>r.c.toUpperCase()));
+
+      // Vagas que existem na planilha: marcadas como "fromSheet"
+      // Vagas da API mas não na planilha: ainda mostradas mas marcadas
+      const enriched=jobs.map(j=>({
+        ...j,
+        fromSheet: sheetCases.has((j.caseNum||"").toUpperCase()),
+        sheet
+      }));
+
+      return json(res,200,{jobs:enriched,total,query:q,fromDOL:true,sheet});
+    }catch(e){
+      console.error("[sheet-search]",e.message);
+      // Fallback: busca local nas planilhas por nome de empresa
+      const arr=getSheet(sheet);
+      const ql=q.toLowerCase();
+      const fallback=arr.filter(r=>
+        (r.n||"").toLowerCase().includes(ql)||
+        (r.c||"").toLowerCase().includes(ql)
+      ).slice(skip,skip+top);
+      return json(res,200,{
+        jobs:fallback.map(r=>({
+          id:r.c,caseNum:r.c,company:r.n||"–",state:r.s||"–",
+          start:r.d||"–",fromSheet:true,sheet,
+          title:"Seasonal Worker",visa:"H-2B",active:true
+        })),
+        total:fallback.length,
+        query:q,
+        fromDOL:false,
+        fallback:true
+      });
+    }
+  }
+
   if(pathname==="/api/sheet-meta"){
     const sheet=u.searchParams.get("sheet")||"";const arr=getSheet(sheet);
     const skip=Math.max(0,parseInt(u.searchParams.get("skip")||"0",10));const top=Math.min(50,Math.max(1,parseInt(u.searchParams.get("top")||"25",10)));
@@ -2845,7 +2929,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     // Normalize sheets
     const KNOWN_SHEETS=["jan2026","jul2025","dol"];
     const sheets=Array.isArray(d.sheets)?d.sheets.filter(s=>KNOWN_SHEETS.includes(s)):[];
-    const prf={id:d.id||crypto.randomUUID(),name:String(d.name).slice(0,80),desc:String(d.desc||"").slice(0,200),active:d.active!==false,isGeneral:!!d.isGeneral,subjects,emailBodies,subject:subjects[0]||String(d.subject||"").slice(0,200),body:emailBodies[0]||String(d.body||"").slice(0,5000),categories,sheets,resumeIdx:d.resumeIdx??null,pdfName:d.pdfName?String(d.pdfName).slice(0,200):undefined,pdfSize:d.pdfSize||0,coverIdx:d.coverIdx??null,state:String(d.state||"").slice(0,40),updatedAt:new Date().toISOString(),createdAt:d.createdAt||new Date().toISOString()};if(idx>=0)prfs[idx]=prf;else{if(prfs.length>=20)return json(res,429,{error:"Limite de 20 perfis atingido"});prfs.unshift(prf);}setUser(s.user_email,{profiles:prfs});return json(res,200,{ok:true,profile:prf});}catch(e){return json(res,500,{error:e.message});}}
+    const prf={id:d.id||crypto.randomUUID(),name:String(d.name).slice(0,80),desc:String(d.desc||"").slice(0,200),active:d.active!==false,isGeneral:!!d.isGeneral,visaType:d.visaType||"h2b",subjects,emailBodies,subject:subjects[0]||String(d.subject||"").slice(0,200),body:emailBodies[0]||String(d.body||"").slice(0,5000),categories,sheets,resumeIdx:d.resumeIdx??null,pdfName:d.pdfName?String(d.pdfName).slice(0,200):undefined,pdfSize:d.pdfSize||0,coverIdx:d.coverIdx??null,state:String(d.state||"").slice(0,40),updatedAt:new Date().toISOString(),createdAt:d.createdAt||new Date().toISOString()};if(idx>=0)prfs[idx]=prf;else{if(prfs.length>=20)return json(res,429,{error:"Limite de 20 perfis atingido"});prfs.unshift(prf);}setUser(s.user_email,{profiles:prfs});return json(res,200,{ok:true,profile:prf});}catch(e){return json(res,500,{error:e.message});}}
   if(pathname==="/api/profiles/delete"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});try{const d=JSON.parse(await readBody(req));if(!d.id)return json(res,400,{error:"id obrigatório"});const p=getUser(s.user_email)||{};setUser(s.user_email,{profiles:(p.profiles||[]).filter(pr=>pr.id!==d.id)});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
 
   if(pathname==="/api/debug/export"){const s=getSess(req);if(!s?.user_email||(getUser(s.user_email)||{}).isAdmin!==true)return json(res,403,{error:"Acesso negado."});return json(res,200,{ts:new Date().toISOString(),users:DB_USERS,totalUsers:Object.keys(DB_USERS).length,dataDir:DATA_DIR,disk:fs.existsSync("/data")});}
@@ -3036,6 +3120,35 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
 
       // ✅ Embaralha a fila no servidor — cada usuário terá ordem diferente
       // Evita que múltiplos usuários simultâneos enviem para as mesmas empresas ao mesmo tempo
+      // ═══════════════════════════════════════════════════════════
+      // REGRA PRINCIPAL: Remove da fila emails já enviados ANTES do shuffle
+      // Garante que o contador de fila reflita vagas novas reais
+      // ═══════════════════════════════════════════════════════════
+      const _beforeDedup = queue.length;
+      queue = queue.filter(j => !hasSent(s.user_email, j.to));
+      const _removed = _beforeDedup - queue.length;
+      if (_removed > 0) {
+        console.log(`[auto/dedup] ${s.user_email}: ${_removed} removidas (já enviadas) → ${queue.length} novas`);
+      }
+      if (!queue.length) {
+        return json(res, 400, {
+          error: `Todas as ${_beforeDedup} vagas desta planilha já foram enviadas! Tente a outra planilha ou aguarde novas vagas do governo.`,
+          allSent: true,
+          totalPrevSent: _beforeDedup
+        });
+      }
+
+      // H-2A mode: filtros adicionais por data/estado/salário
+      if (d.h2aMode && d.visaType === "h2a") {
+        if (d.dateFrom) { const from = new Date(d.dateFrom); queue = queue.filter(j => !j.start || new Date(j.start) >= from); }
+        if (d.dateTo)   { const to   = new Date(d.dateTo);   queue = queue.filter(j => !j.end   || new Date(j.end)   <= to);   }
+        if (d.state)    { queue = queue.filter(j => (j.state||"").toUpperCase() === d.state.toUpperCase()); }
+        if (d.minWage > 0) { queue = queue.filter(j => parseFloat(j.wage||0) >= d.minWage); }
+        queue.sort((a,b) => new Date(a.start||"9999") - new Date(b.start||"9999"));
+        console.log(`[auto/h2a] ${s.user_email}: ${queue.length} vagas H-2A após filtros`);
+        if (!queue.length) return json(res, 400, { error: "Nenhuma vaga H-2A encontrada com esses filtros. Tente ampliar as datas ou remover o filtro de estado.", allSent: false });
+      }
+
       queue = shuffleArray(queue);
       const _mode = (d.mode==="now") ? "now" : "schedule"; // "now" = 24/7 até zerar; "schedule" = janela diária
 const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,filteredCount:queue.length,resumeIdx:jobResumeIdx,coverIdx:jobCoverIdx,bodyTemplate:d.bodyTemplate||p.settings?.body||"",subjects:Array.isArray(d.subjects)&&d.subjects.length?d.subjects:null,emailBodies:Array.isArray(d.emailBodies)&&d.emailBodies.length?d.emailBodies:null,status:"starting",lastSentAt:null,finishedAt:null,source:d.source||"manual",category:d.category||"all",mode:_mode,startH,endH,filters:d.filters||{},queueFingerprint,rotState:{lastSubjIdx:-1,lastBodyIdx:-1}};

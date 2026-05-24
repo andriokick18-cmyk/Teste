@@ -1716,45 +1716,107 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         </div>
         <div class="search-bar">
           <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="Cargo, empresa, estado..." oninput="onSearch()" autocomplete="off" inputmode="search"></div>
-          <div class="filters-row" id="filters-row">
-            <select class="fsel" id="f-state" onchange="applyF()">
-              <option value="">Todos estados</option>
-              <option>ALABAMA</option><option>ALASKA</option><option>ARIZONA</option><option>ARKANSAS</option>
-              <option>CALIFORNIA</option><option>COLORADO</option><option>CONNECTICUT</option><option>DELAWARE</option>
-              <option>FLORIDA</option><option>GEORGIA</option><option>HAWAII</option><option>IDAHO</option>
-              <option>ILLINOIS</option><option>INDIANA</option><option>IOWA</option><option>KANSAS</option>
-              <option>KENTUCKY</option><option>LOUISIANA</option><option>MAINE</option><option>MARYLAND</option>
-              <option>MASSACHUSETTS</option><option>MICHIGAN</option><option>MINNESOTA</option><option>MISSISSIPPI</option>
-              <option>MISSOURI</option><option>MONTANA</option><option>NEBRASKA</option><option>NEVADA</option>
-              <option>NEW HAMPSHIRE</option><option>NEW JERSEY</option><option>NEW MEXICO</option><option>NEW YORK</option>
-              <option>NORTH CAROLINA</option><option>NORTH DAKOTA</option><option>OHIO</option><option>OKLAHOMA</option>
-              <option>OREGON</option><option>PENNSYLVANIA</option><option>RHODE ISLAND</option><option>SOUTH CAROLINA</option>
-              <option>SOUTH DAKOTA</option><option>TENNESSEE</option><option>TEXAS</option><option>UTAH</option>
-              <option>VERMONT</option><option>VIRGINIA</option><option>WASHINGTON</option><option>WEST VIRGINIA</option>
-              <option>WISCONSIN</option><option>WYOMING</option>
-            </select>
-            <!-- Dynamic category chips inserted here by JS -->
-            <div id="cat-chips-jobs" style="display:contents"></div>
-            <!-- Seasonal-only filters -->
-            <button class="fbtn on" id="ft-all"    onclick="setType('all')" style="display:none">Todos</button>
-            <button class="fbtn"    id="ft-agri"   onclick="setType('agricultural')" style="display:none">🌾 H-2A</button>
-            <button class="fbtn"    id="ft-nonag"  onclick="setType('non-agricultural')" style="display:none">🔧 H-2B</button>
-            <button class="fbtn on" id="fs-all"    onclick="setStat('all')" style="display:none">Todas</button>
-            <button class="fbtn"    id="fs-active" onclick="setStat('active')" style="display:none">✅ Ativas</button>
-            <select class="fsel" id="f-wage" onchange="applyF()" title="Salário mínimo" style="display:none">
-              <option value="">Salário</option>
-              <option value="10">$10+/h</option><option value="14">$14+/h</option>
-              <option value="16">$16+/h</option><option value="18">$18+/h</option><option value="20">$20+/h</option>
-            </select>
-            <select class="fsel" id="f-workers" onchange="applyF()" title="Qtd vagas" style="display:none">
-              <option value="">Qtd vagas</option>
-              <option value="2">2+</option><option value="5">5+</option>
-              <option value="10">10+</option><option value="20">20+</option>
-            </select>
-            <button class="fbtn on" id="so-rand" onclick="setSort('random')">🔀 Aleatório</button>
-            <button class="fbtn"    id="so-desc" onclick="setSort('desc')">Recentes</button>
-            <button class="fbtn"    id="so-asc"  onclick="setSort('asc')">Antigas</button>
+          <!-- ══ BOTÃO FILTROS RECOLHÍVEL ══ -->
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 12px 6px;border-top:1px solid var(--border)">
+            <button id="filter-toggle-btn" onclick="toggleFilters()"
+              style="display:flex;align-items:center;gap:6px;background:var(--sf2);border:1.5px solid var(--border2);border-radius:10px;padding:7px 14px;font-size:12px;font-weight:700;color:var(--t2);cursor:pointer;font-family:inherit;transition:all .14s;flex-shrink:0">
+              <i class="ti ti-adjustments-horizontal" style="font-size:15px"></i> Filtros
+              <span id="filter-active-count" style="display:none;background:var(--blue);color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;font-weight:800;margin-left:2px">0</span>
+            </button>
+            <div id="active-filter-tags" style="display:flex;gap:5px;flex-wrap:wrap;flex:1;overflow:hidden;min-width:0"></div>
+            <button id="filter-clear-btn" onclick="clearAllFilters()"
+              style="display:none;font-size:11px;color:var(--red);background:none;border:none;cursor:pointer;font-family:inherit;font-weight:700;white-space:nowrap;flex-shrink:0">
+              <i class="ti ti-x"></i> Limpar
+            </button>
           </div>
+
+          <!-- PAINEL DE FILTROS (fechado por padrão) -->
+          <div id="filters-panel" style="display:none;background:var(--sf2);border-top:1px solid var(--border);padding:14px 14px 16px">
+
+            <!-- Categoria (chips dinâmicos inseridos pelo JS) -->
+            <div style="margin-bottom:14px">
+              <div style="font-size:10px;font-weight:800;color:var(--t3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em">📂 Categoria</div>
+              <div id="cat-chips-jobs" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+            </div>
+
+            <!-- Estado -->
+            <div style="margin-bottom:14px">
+              <div style="font-size:10px;font-weight:800;color:var(--t3);margin-bottom:7px;text-transform:uppercase;letter-spacing:.06em">📍 Estado</div>
+              <select class="fsel" id="f-state" onchange="applyF()" style="width:100%;font-size:13px">
+                <option value="">Todos os estados</option>
+                <option>ALABAMA</option><option>ALASKA</option><option>ARIZONA</option><option>ARKANSAS</option>
+                <option>CALIFORNIA</option><option>COLORADO</option><option>CONNECTICUT</option><option>DELAWARE</option>
+                <option>FLORIDA</option><option>GEORGIA</option><option>HAWAII</option><option>IDAHO</option>
+                <option>ILLINOIS</option><option>INDIANA</option><option>IOWA</option><option>KANSAS</option>
+                <option>KENTUCKY</option><option>LOUISIANA</option><option>MAINE</option><option>MARYLAND</option>
+                <option>MASSACHUSETTS</option><option>MICHIGAN</option><option>MINNESOTA</option><option>MISSISSIPPI</option>
+                <option>MISSOURI</option><option>MONTANA</option><option>NEBRASKA</option><option>NEVADA</option>
+                <option>NEW HAMPSHIRE</option><option>NEW JERSEY</option><option>NEW MEXICO</option><option>NEW YORK</option>
+                <option>NORTH CAROLINA</option><option>NORTH DAKOTA</option><option>OHIO</option><option>OKLAHOMA</option>
+                <option>OREGON</option><option>PENNSYLVANIA</option><option>RHODE ISLAND</option><option>SOUTH CAROLINA</option>
+                <option>SOUTH DAKOTA</option><option>TENNESSEE</option><option>TEXAS</option><option>UTAH</option>
+                <option>VERMONT</option><option>VIRGINIA</option><option>WASHINGTON</option><option>WEST VIRGINIA</option>
+                <option>WISCONSIN</option><option>WYOMING</option>
+              </select>
+            </div>
+
+            <!-- Salário e Qtd Vagas em grid -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+              <div>
+                <div style="font-size:10px;font-weight:800;color:var(--t3);margin-bottom:7px;text-transform:uppercase;letter-spacing:.06em">💰 Salário mín.</div>
+                <select class="fsel" id="f-wage" onchange="applyF()" style="width:100%;font-size:13px">
+                  <option value="">Qualquer</option>
+                  <option value="10">$10+/h</option>
+                  <option value="14">$14+/h</option>
+                  <option value="16">$16+/h</option>
+                  <option value="18">$18+/h</option>
+                  <option value="20">$20+/h</option>
+                  <option value="25">$25+/h</option>
+                </select>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:800;color:var(--t3);margin-bottom:7px;text-transform:uppercase;letter-spacing:.06em">👥 Qtd vagas</div>
+                <select class="fsel" id="f-workers" onchange="applyF()" style="width:100%;font-size:13px">
+                  <option value="">Qualquer</option>
+                  <option value="2">2+</option>
+                  <option value="5">5+</option>
+                  <option value="10">10+</option>
+                  <option value="20">20+</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Tipo de visto (Seasonal only) -->
+            <div id="filter-type-row" style="display:none;margin-bottom:14px">
+              <div style="font-size:10px;font-weight:800;color:var(--t3);margin-bottom:7px;text-transform:uppercase;letter-spacing:.06em">🛂 Tipo de visto</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="fbtn on" id="ft-all"   onclick="setType('all')">Todos</button>
+                <button class="fbtn"    id="ft-agri"  onclick="setType('agricultural')">🌾 H-2A</button>
+                <button class="fbtn"    id="ft-nonag" onclick="setType('non-agricultural')">🔧 H-2B</button>
+              </div>
+            </div>
+
+            <!-- Status (Seasonal only) -->
+            <div id="filter-stat-row" style="display:none;margin-bottom:14px">
+              <div style="font-size:10px;font-weight:800;color:var(--t3);margin-bottom:7px;text-transform:uppercase;letter-spacing:.06em">✅ Status</div>
+              <div style="display:flex;gap:6px">
+                <button class="fbtn on" id="fs-all"    onclick="setStat('all')">Todas</button>
+                <button class="fbtn"    id="fs-active" onclick="setStat('active')">✅ Ativas</button>
+              </div>
+            </div>
+
+            <!-- Ordenação -->
+            <div>
+              <div style="font-size:10px;font-weight:800;color:var(--t3);margin-bottom:7px;text-transform:uppercase;letter-spacing:.06em">🔀 Ordenação</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="fbtn on" id="so-rand" onclick="setSort('random')">🔀 Aleatório</button>
+                <button class="fbtn"    id="so-desc" onclick="setSort('desc')">Recentes</button>
+                <button class="fbtn"    id="so-asc"  onclick="setSort('asc')">Antigas</button>
+              </div>
+            </div>
+          </div>
+          <!-- hidden legacy row (mantida para compatibilidade com JS existente) -->
+          <div class="filters-row" id="filters-row" style="display:none"></div>
         </div>
         <div class="jobs-view">
           <div class="jlist-panel" id="jlist-panel">
@@ -2353,6 +2415,93 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                   <div class="source-btn-label"><strong>Jul 2025</strong> — Inverno</div>
                   <div class="source-btn-count" id="src-jul-cnt">–</div>
                 </button>
+                <button class="source-btn" data-src="h2a" onclick="selectSource('h2a')"
+                  style="border-color:rgba(5,150,105,.35);background:linear-gradient(135deg,rgba(5,150,105,.07),rgba(16,185,129,.03))">
+                  <div class="source-btn-icon">🌾</div>
+                  <div class="source-btn-label"><strong>H-2A</strong> — Agrícola</div>
+                  <div class="source-btn-count" id="src-h2a-cnt" style="color:#059669">vagas agrícolas</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- ══ FILTROS H-2A (visível só quando H-2A selecionado) ══ -->
+            <div id="ws-h2a-filters" style="display:none">
+              <div class="wizard-step" style="border-left-color:#059669">
+                <div class="wizard-step-hdr">
+                  <div class="wizard-step-n active" style="background:#059669">🌾</div>
+                  <div>
+                    <div class="wizard-step-title">Configurar H-2A — Trabalho Agrícola</div>
+                    <div class="wizard-step-sub">Selecione perfil e filtros para vagas agrícolas</div>
+                  </div>
+                </div>
+
+                <!-- Perfil H-2A -->
+                <div class="field" style="margin-bottom:14px">
+                  <label style="font-size:12px;font-weight:700;color:var(--t2)">🌾 Perfil H-2A</label>
+                  <select class="input" id="h2a-profile-select">
+                    <option value="">Selecione um perfil H-2A...</option>
+                  </select>
+                  <div id="h2a-no-profile-warn" style="display:none;margin-top:8px;background:#fef3c7;border:1.5px solid #fde68a;border-radius:8px;padding:10px;font-size:12px;color:#92400e">
+                    ⚠️ Você não tem perfil H-2A ainda.
+                    <button onclick="sv('profile')" style="background:none;border:none;color:#059669;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:underline">Criar agora</button>
+                  </div>
+                </div>
+
+                <!-- Datas de disponibilidade -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+                  <div class="field">
+                    <label style="font-size:12px;font-weight:700;color:var(--t2)">📅 Disponível de</label>
+                    <input type="date" class="input" id="h2a-date-from" style="font-size:13px">
+                    <div style="font-size:10px;color:var(--t3);margin-top:3px">Início mínimo da vaga</div>
+                  </div>
+                  <div class="field">
+                    <label style="font-size:12px;font-weight:700;color:var(--t2)">📅 Disponível até</label>
+                    <input type="date" class="input" id="h2a-date-to" style="font-size:13px">
+                    <div style="font-size:10px;color:var(--t3);margin-top:3px">Fim máximo da vaga</div>
+                  </div>
+                </div>
+
+                <!-- Estado -->
+                <div class="field" style="margin-bottom:14px">
+                  <label style="font-size:12px;font-weight:700;color:var(--t2)">📍 Estado preferencial</label>
+                  <select class="input" id="h2a-state">
+                    <option value="">Todos os estados</option>
+                    <option>ALABAMA</option><option>ALASKA</option><option>ARIZONA</option><option>ARKANSAS</option>
+                    <option>CALIFORNIA</option><option>COLORADO</option><option>FLORIDA</option><option>GEORGIA</option>
+                    <option>HAWAII</option><option>IDAHO</option><option>ILLINOIS</option><option>INDIANA</option>
+                    <option>IOWA</option><option>KANSAS</option><option>KENTUCKY</option><option>LOUISIANA</option>
+                    <option>MAINE</option><option>MARYLAND</option><option>MASSACHUSETTS</option><option>MICHIGAN</option>
+                    <option>MINNESOTA</option><option>MISSISSIPPI</option><option>MISSOURI</option><option>MONTANA</option>
+                    <option>NEBRASKA</option><option>NEVADA</option><option>NEW HAMPSHIRE</option><option>NEW JERSEY</option>
+                    <option>NEW MEXICO</option><option>NEW YORK</option><option>NORTH CAROLINA</option><option>NORTH DAKOTA</option>
+                    <option>OHIO</option><option>OKLAHOMA</option><option>OREGON</option><option>PENNSYLVANIA</option>
+                    <option>SOUTH CAROLINA</option><option>TENNESSEE</option><option>TEXAS</option><option>UTAH</option>
+                    <option>VERMONT</option><option>VIRGINIA</option><option>WASHINGTON</option><option>WEST VIRGINIA</option>
+                    <option>WISCONSIN</option><option>WYOMING</option>
+                  </select>
+                </div>
+
+                <!-- Salário mínimo -->
+                <div class="field" style="margin-bottom:14px">
+                  <label style="font-size:12px;font-weight:700;color:var(--t2)">💰 Salário mínimo (USD/hora)</label>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+                    <button onclick="setH2AWage(0)"  class="fbtn on" id="h2aw-0">Qualquer</button>
+                    <button onclick="setH2AWage(14)" class="fbtn"    id="h2aw-14">$14+/h</button>
+                    <button onclick="setH2AWage(16)" class="fbtn"    id="h2aw-16">$16+/h</button>
+                    <button onclick="setH2AWage(18)" class="fbtn"    id="h2aw-18">$18+/h</button>
+                    <button onclick="setH2AWage(20)" class="fbtn"    id="h2aw-20">$20+/h</button>
+                  </div>
+                  <input class="input" id="h2a-min-wage" type="number" min="0" step="0.5" placeholder="ex: 15.00" inputmode="decimal" style="max-width:130px;font-size:13px">
+                </div>
+
+                <button id="h2a-start-btn" onclick="startH2AAuto()"
+                  class="btn w100"
+                  style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;padding:14px;font-size:15px;font-weight:800;border-radius:12px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px">
+                  <i class="ti ti-robot"></i> Ativar Automático H-2A 🌾
+                </button>
+                <div style="font-size:11px;color:var(--t3);text-align:center;margin-top:8px;line-height:1.6">
+                  O sistema vai candidatar apenas para vagas H-2A compatíveis com suas datas e preferências
+                </div>
               </div>
             </div>
 
@@ -3379,6 +3528,37 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <input class="input" id="pe-desc" placeholder="Ex: Perfil para vagas de paisagismo no verão">
         </div>
 
+        <!-- Tipo de visto: H-2B ou H-2A -->
+        <div class="field">
+          <label>Tipo de visto</label>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <label id="pe-visa-h2b-lbl" onclick="peOnVisaChange('h2b')"
+              style="display:flex;align-items:center;gap:8px;padding:11px 14px;border:2.5px solid var(--blue);border-radius:12px;cursor:pointer;font-size:13px;font-weight:700;background:var(--bluel);color:var(--blue);flex:1;transition:all .15s">
+              <input type="radio" name="pe-visa" value="h2b" id="pe-visa-h2b" checked style="accent-color:var(--blue)">
+              🔧 H-2B <span style="font-size:11px;font-weight:400;opacity:.75">não agrícola</span>
+            </label>
+            <label id="pe-visa-h2a-lbl" onclick="peOnVisaChange('h2a')"
+              style="display:flex;align-items:center;gap:8px;padding:11px 14px;border:2.5px solid var(--border2);border-radius:12px;cursor:pointer;font-size:13px;font-weight:700;background:var(--sf2);color:var(--t2);flex:1;transition:all .15s">
+              <input type="radio" name="pe-visa" value="h2a" id="pe-visa-h2a" style="accent-color:#059669">
+              🌾 H-2A <span style="font-size:11px;font-weight:400;opacity:.75">agrícola</span>
+            </label>
+          </div>
+          <div id="pe-visa-hint"
+            style="font-size:11px;color:var(--t2);padding:8px 12px;background:var(--bluel);border-radius:8px;border-left:3px solid var(--blue);line-height:1.6">
+            🔧 <strong>H-2B:</strong> Vagas não agrícolas — landscaping, hotelaria, seafood, construção, etc.
+          </div>
+        </div>
+
+        <!-- Info H-2A (visível só quando H-2A selecionado) -->
+        <div id="pe-h2a-info" style="display:none;background:rgba(5,150,105,.08);border:1.5px solid rgba(5,150,105,.25);border-radius:12px;padding:14px;margin-bottom:4px;font-size:12px;color:#065f46;line-height:1.65">
+          🌾 <strong>Perfil H-2A — Trabalho Agrícola</strong><br>
+          Usado automaticamente para vagas H-2A no Seasonal Jobs.<br>
+          Não precisa selecionar categorias — H-2A é um visto específico.<br>
+          <strong>Este perfil não será usado no automático H-2B.</strong>
+        </div>
+
+        <!-- Seção tipo/categorias: esconde para H-2A -->
+        <div id="pe-h2b-section">
         <div class="field">
           <label>Tipo do perfil</label>
           <div style="display:flex;gap:7px;flex-wrap:wrap">
@@ -13069,6 +13249,346 @@ console.log("[v19] Language system (PT/EN/ES) loaded");
 
 
 
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SISTEMA H-2A + FILTROS RECOLHÍVEIS + BUSCA POR JOB TITLE
+// ═══════════════════════════════════════════════════════════════
+
+// ── Filtros recolhíveis ──────────────────────────────────────
+function toggleFilters() {
+  const panel = g("#filters-panel");
+  const btn   = g("#filter-toggle-btn");
+  if (!panel) return;
+  const opening = panel.style.display === "none";
+  panel.style.display = opening ? "block" : "none";
+  // Mostra filtros tipo/status só no seasonal
+  const isSeasonal = (tab === "seasonal");
+  const typeRow = g("#filter-type-row");
+  const statRow = g("#filter-stat-row");
+  if (typeRow) typeRow.style.display = isSeasonal ? "block" : "none";
+  if (statRow) statRow.style.display = isSeasonal ? "block" : "none";
+  // Estilo do botão
+  if (btn) {
+    btn.style.background  = opening ? "var(--blue)"    : "var(--sf2)";
+    btn.style.color       = opening ? "#fff"           : "var(--t2)";
+    btn.style.borderColor = opening ? "var(--blue)"    : "var(--border2)";
+  }
+}
+
+function updateFilterBadge() {
+  let count = 0;
+  if (fState)  count++;
+  if (fWage > 0) count++;
+  if (fWorkers > 0) count++;
+  if (fCat && fCat !== "all") count++;
+  if (fType && fType !== "all") count++;
+  if (fStat && fStat !== "all") count++;
+  const badge   = g("#filter-active-count");
+  const clearBtn= g("#filter-clear-btn");
+  const btn     = g("#filter-toggle-btn");
+  if (badge)   { badge.style.display = count > 0 ? "" : "none"; badge.textContent = count; }
+  if (clearBtn){ clearBtn.style.display = count > 0 ? "" : "none"; }
+  if (btn && g("#filters-panel")?.style.display === "none") {
+    btn.style.background  = count > 0 ? "rgba(37,99,235,.1)" : "var(--sf2)";
+    btn.style.borderColor = count > 0 ? "var(--blue)"        : "var(--border2)";
+    btn.style.color       = count > 0 ? "var(--blue)"        : "var(--t2)";
+  }
+}
+
+function clearAllFilters() {
+  fState = ""; fWage = 0; fWorkers = 0; fCat = "all"; fType = "all"; fStat = "all"; fSort = "random";
+  const fs = g("#f-state");  if (fs) fs.value = "";
+  const fw = g("#f-wage");   if (fw) fw.value = "";
+  const fwk= g("#f-workers");if (fwk)fwk.value = "";
+  document.querySelectorAll("#cat-chips-jobs .cat-chip").forEach(b => b.classList.toggle("on", b.dataset.cat === "all"));
+  ["ft-all","ft-agri","ft-nonag"].forEach((id,i) => { const b=g("#"+id); if(b) b.classList.toggle("on", i===0); });
+  ["fs-all","fs-active"].forEach((id,i)          => { const b=g("#"+id); if(b) b.classList.toggle("on", i===0); });
+  ["so-rand","so-desc","so-asc"].forEach((id,i)  => { const b=g("#"+id); if(b) b.classList.toggle("on", i===0); });
+  updateFilterBadge();
+  if (tab === "seasonal") loadJobs(true);
+  else { sSkip = 0; sDone = false; sJobs = []; loadSheetMeta(true); }
+}
+
+// Wrap applyF to also update badge
+const _origApplyF = window.applyF;
+window.applyF = function() {
+  fState   = g("#f-state")?.value   || "";
+  fWage    = parseFloat(g("#f-wage")?.value    || 0);
+  fWorkers = parseInt(g("#f-workers")?.value   || 0);
+  updateFilterBadge();
+  if (tab === "seasonal") loadJobs(true);
+  else { sSkip = 0; sDone = false; sJobs = []; loadSheetMeta(true); }
+};
+
+// ── Busca por job title na API DOL ──────────────────────────
+// Quando usuário digita algo como "bartender", detectamos se é
+// um job title e buscamos na API DOL em vez de filtrar localmente
+let _sheetSearchTimer = null;
+let _isSearchingDOL = false;
+
+function isJobTitleSearch(q) {
+  if (!q || q.length < 3) return false;
+  // Lista de palavras que são claramente job titles
+  const jobTitleWords = [
+    "bartender","barman","cook","chef","housekeeper","landscaper","gardener",
+    "welder","carpenter","plumber","electrician","roofer","laborer","painter",
+    "server","waiter","waitress","dishwasher","baker","barista","cashier",
+    "cleaner","janitor","maid","attendant","lifeguard","groundskeeper",
+    "harvester","farmhand","picker","grader","pruner","irrigator",
+    "greenskeeper","caddie","mechanic","driver","operator","supervisor",
+    "manager","helper","worker","technician","specialist","assistant"
+  ];
+  const ql = q.toLowerCase();
+  return jobTitleWords.some(w => ql.includes(w) || w.startsWith(ql));
+}
+
+// Override onSearch to use DOL API for job title searches
+const _origOnSearch = window.onSearch;
+window.onSearch = function() {
+  const q = (g("#q")?.value || "").trim();
+
+  // Se tab é planilha E a busca parece um job title → usa API DOL
+  if ((tab === "jan2026" || tab === "jul2025") && isJobTitleSearch(q)) {
+    clearTimeout(_sheetSearchTimer);
+    _sheetSearchTimer = setTimeout(() => doSheetTitleSearch(q), 500);
+    return;
+  }
+
+  // Busca normal
+  if (_origOnSearch) _origOnSearch();
+};
+
+async function doSheetTitleSearch(q) {
+  if (_isSearchingDOL) return;
+  _isSearchingDOL = true;
+
+  // Mostra loading
+  const listEl = g("#jlist") || g(".jlist-panel .jlist");
+  const loadingHtml = `
+    <div style="text-align:center;padding:40px 20px;color:var(--t2)">
+      <div class="spin" style="width:36px;height:36px;border:3px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 14px"></div>
+      <div style="font-size:14px;font-weight:700">Buscando vagas de <strong>${q}</strong>...</div>
+      <div style="font-size:12px;color:var(--t3);margin-top:6px">Consultando portal do governo americano</div>
+    </div>`;
+  if (listEl) listEl.innerHTML = loadingHtml;
+
+  try {
+    const params = new URLSearchParams({ q, sheet: tab, top: 50, skip: 0 });
+    if (fState) params.set("state", fState);
+
+    const r = await fetch(`/api/sheet-search?${params}`, { credentials: "include" });
+    const d = await r.json();
+
+    if (!d.jobs || !d.jobs.length) {
+      if (listEl) listEl.innerHTML = `
+        <div style="text-align:center;padding:40px 20px;color:var(--t3)">
+          <i class="ti ti-search-off" style="font-size:36px;opacity:.3;display:block;margin-bottom:12px"></i>
+          <div style="font-size:14px;font-weight:700;color:var(--t2)">Nenhuma vaga encontrada para "${q}"</div>
+          <div style="font-size:12px;margin-top:6px">Tente um termo diferente ou limpe a busca</div>
+        </div>`;
+      _isSearchingDOL = false;
+      return;
+    }
+
+    // Injeta resultados na lista
+    sJobs = d.jobs;
+    sDone = true;
+    renderSheetJobs(d.jobs, d.total, true, d.fromDOL, q);
+
+  } catch(e) {
+    console.error("[sheet-search]", e);
+    // Fallback para busca local
+    if (_origOnSearch) _origOnSearch();
+  }
+  _isSearchingDOL = false;
+}
+
+function renderSheetJobs(jobs, total, reset, fromDOL, query) {
+  const listEl = g("#jlist") || g(".jlist-panel");
+  if (!listEl) return;
+
+  let html = "";
+  if (fromDOL) {
+    html += `<div style="padding:8px 12px 4px;font-size:11px;color:var(--t3);border-bottom:1px solid var(--border)">
+      <i class="ti ti-search" style="color:var(--blue)"></i>
+      <strong>${total}</strong> vagas com "<strong>${query}</strong>" no portal do governo
+    </div>`;
+  }
+
+  jobs.forEach(j => {
+    const active = j.active !== false;
+    const h2a    = j.visa === "H-2A";
+    html += `<div class="jcard${active ? "" : " jcard-inactive"}"
+      style="${h2a ? "border-left:3px solid #059669" : ""}"
+      onclick="openJobDetail('${j.caseNum || j.id}', ${JSON.stringify({...j}).replace(/"/g,'&quot;')})">
+      <div class="jcard-cat">
+        ${h2a ? "🌾 H-2A Agrícola" : `<i class="ti ti-briefcase"></i> ${j.soc || j.title || "Seasonal"}`}
+      </div>
+      <div class="jcard-title">${j.title || j.company}</div>
+      <div class="jcard-sub">
+        <i class="ti ti-building"></i> ${j.company || "–"} &nbsp;·&nbsp;
+        <i class="ti ti-map-pin"></i> ${j.state || "–"}
+      </div>
+      <div class="jcard-tags">
+        ${active ? '' : '<span class="tag tag-red"><i class="ti ti-x"></i> Inativa</span>'}
+        <span class="tag tag-blue">${j.visa || "H-2B"}</span>
+        ${j.wage ? `<span class="tag tag-green">$${j.wage}/h</span>` : ""}
+        ${j.state ? `<span class="tag"><i class="ti ti-map-pin"></i> ${j.state}</span>` : ""}
+        ${j.workers ? `<span class="tag">${j.workers}×</span>` : ""}
+        ${j.start && j.start !== "–" ? `<span class="tag tag-date"><i class="ti ti-calendar"></i> ${j.start}</span>` : ""}
+      </div>
+    </div>`;
+  });
+
+  listEl.innerHTML = html;
+}
+
+// ── H-2A sistema ─────────────────────────────────────────────
+window.peOnVisaChange = function(visa) {
+  const isH2A   = visa === "h2a";
+  const h2bLbl  = g("#pe-visa-h2b-lbl");
+  const h2aLbl  = g("#pe-visa-h2a-lbl");
+  const h2bSec  = g("#pe-h2b-section");
+  const h2aInfo = g("#pe-h2a-info");
+  const hint    = g("#pe-visa-hint");
+
+  if (h2bLbl) {
+    h2bLbl.style.borderColor = isH2A ? "var(--border2)" : "var(--blue)";
+    h2bLbl.style.background  = isH2A ? "var(--sf2)"     : "var(--bluel)";
+    h2bLbl.style.color       = isH2A ? "var(--t2)"      : "var(--blue)";
+  }
+  if (h2aLbl) {
+    h2aLbl.style.borderColor = isH2A ? "#059669"              : "var(--border2)";
+    h2aLbl.style.background  = isH2A ? "rgba(5,150,105,.08)"  : "var(--sf2)";
+    h2aLbl.style.color       = isH2A ? "#059669"              : "var(--t2)";
+  }
+  if (h2bSec)  h2bSec.style.display  = isH2A ? "none" : "";
+  if (h2aInfo) h2aInfo.style.display = isH2A ? ""     : "none";
+  if (hint) {
+    hint.style.borderLeftColor = isH2A ? "#059669"             : "var(--blue)";
+    hint.style.background      = isH2A ? "rgba(5,150,105,.08)" : "var(--bluel)";
+    hint.innerHTML = isH2A
+      ? "🌾 <strong>H-2A:</strong> Vagas agrícolas — colheita, plantio, pecuária. Não precisa de categorias. Usado só nas vagas H-2A do Seasonal Jobs."
+      : "🔧 <strong>H-2B:</strong> Vagas não agrícolas — landscaping, hotelaria, seafood, construção, etc.";
+  }
+};
+
+// selectSource override para H-2A
+(function(){
+  const _origSS = window.selectSource;
+  window.selectSource = function(src) {
+    const h2af = g("#ws-h2a-filters");
+    const ws2  = g("#ws-2");
+    const ws3  = g("#ws-3");
+
+    if (src === "h2a") {
+      if (h2af) h2af.style.display = "";
+      if (ws2)  ws2.style.display  = "none";
+      if (ws3)  ws3.style.display  = "none";
+      populateH2AProfiles();
+      const df = g("#h2a-date-from");
+      if (df && !df.value) df.value = new Date().toISOString().split("T")[0];
+    } else {
+      if (h2af) h2af.style.display = "none";
+      if (ws2)  ws2.style.display  = "";
+      if (ws3)  ws3.style.display  = "";
+    }
+
+    // Estiliza botões
+    document.querySelectorAll(".source-btn").forEach(b => {
+      const sel = b.dataset.src === src;
+      b.style.borderColor = sel ? (src === "h2a" ? "#059669" : "var(--blue)") : "";
+      b.style.background  = sel ? (src === "h2a" ? "rgba(5,150,105,.12)" : "") : "";
+    });
+
+    if (_origSS && src !== "h2a") _origSS(src);
+    else if (src === "h2a") window._autoSource = "h2a";
+  };
+
+  function populateH2AProfiles() {
+    const sel  = g("#h2a-profile-select");
+    const warn = g("#h2a-no-profile-warn");
+    if (!sel) return;
+    const profs = (typeof U !== "undefined" ? U.profiles || [] : []).filter(p =>
+      p.active !== false && (
+        p.visaType === "h2a" ||
+        (p.name || "").toLowerCase().includes("h2a") ||
+        (p.name || "").toLowerCase().includes("h-2a") ||
+        (p.name || "").toLowerCase().includes("farm") ||
+        (p.categories || []).includes("farm")
+      )
+    );
+    sel.innerHTML = profs.length
+      ? '<option value="">Selecione...</option>' + profs.map(p =>
+          `<option value="${p.id || p.name}">${(p.name || "").replace(/</g, "&lt;")}</option>`
+        ).join("")
+      : '<option value="">Nenhum perfil H-2A encontrado</option>';
+    if (warn) warn.style.display = profs.length ? "none" : "";
+    if (profs.length === 1) sel.value = profs[0].id || profs[0].name;
+  }
+
+  window.setH2AWage = function(val) {
+    const inp = g("#h2a-min-wage");
+    if (inp) inp.value = val > 0 ? val : "";
+    ["0","14","16","18","20"].forEach(v => {
+      const b = g("#h2aw-" + v);
+      if (b) b.classList.toggle("on", String(val) === v);
+    });
+  };
+
+  window.startH2AAuto = async function() {
+    const profileVal = g("#h2a-profile-select")?.value;
+    if (!profileVal) {
+      if (typeof toast === "function") toast("⚠️ Selecione um perfil H-2A para continuar", "r");
+      return;
+    }
+    const dateFrom = g("#h2a-date-from")?.value  || "";
+    const dateTo   = g("#h2a-date-to")?.value    || "";
+    const state    = g("#h2a-state")?.value       || "";
+    const minWage  = parseFloat(g("#h2a-min-wage")?.value || 0);
+
+    const btn = g("#h2a-start-btn");
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin spin-sm"></span> Iniciando...'; }
+
+    try {
+      const r = await fetch("/api/auto/start", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "seasonal", visaType: "h2a", jobType: "agricultural",
+          profileIdx: profileVal, dateFrom, dateTo, state,
+          minWage: minWage || 0, h2aMode: true
+        })
+      });
+      const d = await r.json();
+      if (d.ok) {
+        if (typeof toast === "function") toast("🌾 Automático H-2A iniciado!", "g");
+        if (typeof closeAutoModal === "function") closeAutoModal();
+        if (typeof syncData === "function") syncData();
+      } else {
+        if (typeof toast === "function") toast("Erro: " + (d.error || "falha"), "r");
+      }
+    } catch(e) {
+      if (typeof toast === "function") toast("Erro: " + e.message, "r");
+    }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-robot"></i> Ativar Automático H-2A 🌾'; }
+  };
+
+  // Intercepta saveProfile para injetar visaType
+  const _origSP = window.saveProfile;
+  if (_origSP) {
+    window.saveProfile = async function() {
+      const visa = document.querySelector('input[name="pe-visa"]:checked')?.value || "h2b";
+      window._peVisaTypeOverride = visa;
+      if (visa === "h2a") {
+        const gr = document.querySelector('input[name="pe-type"][value="general"]');
+        if (gr) gr.checked = true;
+      }
+      return _origSP.apply(this, arguments);
+    };
+  }
+})();
 
 </script>
 </html>
