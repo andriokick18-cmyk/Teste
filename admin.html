@@ -268,7 +268,6 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       <button class="sb-item" onclick="showView('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
       <button class="sb-item" onclick="showView('notificacoes')"><i class="ti ti-bell"></i>Notificações</button>
       <button class="sb-item" onclick="showView('indicacoes')"><i class="ti ti-users-group"></i>Indicações</button>
-      <button class="sb-item" onclick="showView('sugestoes');loadSugestoes()"><i class="ti ti-bulb"></i>Sugestões<span class="sb-badge sb-badge-a" id="sb-sugestoes" style="display:none">0</span></button>
       <button class="sb-item" onclick="showView('settings')"><i class="ti ti-settings"></i>Configurações</button>
     </div>
     <div class="sb-bottom">
@@ -394,7 +393,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
                 <option value="">Todos planos</option>
                 <option value="vipro">VIPro</option>
                 <option value="vip">VIP</option>
-                <option value="pro">VIPro (Auto)</option>
+                <option value="pro">Pro</option>
                 <option value="free">Free</option>
               </select>
               <select class="filter-sel" id="u-filter-auto" onchange="filterUsers()">
@@ -436,7 +435,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
                 <select class="form-inp" id="vip-plan">
                   <option value="vipro">⭐🤖 VIPro (Manual + Auto)</option>
                   <option value="vip">⭐ VIP (só Manual)</option>
-                  <option value="pro">💥 VIPro (só Auto)</option>
+                  <option value="pro">🤖 Pro (só Auto)</option>
                 </select>
               </div>
               <div class="form-group"><label class="form-label">Nota interna (opcional)</label><input class="form-inp" id="vip-note" placeholder="Ex: Pagamento PIX #1234"></div>
@@ -537,42 +536,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
               <div id="notif-send-result" style="font-size:12px;margin-top:4px"></div>
             </div>
           </div>
-
-          <!-- ══ NOTIFICAÇÕES AUTOMÁTICAS ══ -->
-          <div class="section-hdr" style="margin-top:28px">
-            <i class="ti ti-robot" style="color:#0891b2"></i>
-            <div class="section-title">Notificações Automáticas por Email</div>
-            <button class="btn btn-ghost btn-sm" onclick="loadAutoNotifLog()"><i class="ti ti-refresh"></i></button>
-          </div>
-
-          <!-- Botões de disparo manual -->
-          <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:18px;margin-bottom:16px">
-            <div style="font-size:12px;font-weight:800;color:var(--t2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em">⚡ Disparo Manual</div>
-            <div style="font-size:12px;color:var(--t3);margin-bottom:14px;line-height:1.6">
-              O sistema dispara automaticamente às 9h todo dia. Use os botões abaixo para forçar um disparo agora sem esperar.
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button onclick="triggerAutoNotif('inativos')" id="btn-notif-inativos"
-                style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#0c4a6e,#0891b2);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
-                <i class="ti ti-user-off"></i> Usuários Inativos
-              </button>
-              <button onclick="triggerAutoNotif('parados')" id="btn-notif-parados"
-                style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#7c2d12,#ea580c);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
-                <i class="ti ti-player-stop"></i> Filas Travadas/Paradas
-              </button>
-              <button onclick="triggerAutoNotif('ambos')" id="btn-notif-ambos"
-                style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#1a1040,#7c3aed);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
-                <i class="ti ti-send"></i> Enviar Tudo
-              </button>
-            </div>
-            <div id="auto-notif-trigger-result" style="font-size:12px;margin-top:10px;display:none"></div>
-          </div>
-
-          <!-- Log de emails automáticos -->
-          <div style="font-size:12px;font-weight:800;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em">📋 Histórico de Emails Automáticos</div>
-          <div id="auto-notif-log"><div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div></div>
-
-          <div class="section-hdr" style="margin-top:28px"><i class="ti ti-history" style="color:var(--t2)"></i><div class="section-title">Histórico de Notificações Push</div><button class="btn btn-ghost btn-sm" onclick="loadAdminNotifs()"><i class="ti ti-refresh"></i></button></div>
+          <div class="section-hdr"><i class="ti ti-history" style="color:var(--t2)"></i><div class="section-title">Histórico de Notificações</div><button class="btn btn-ghost btn-sm" onclick="loadAdminNotifs()"><i class="ti ti-refresh"></i></button></div>
           <div id="admin-notif-list"><div class="empty-state">Carregando...</div></div>
         </div>
       </div>
@@ -583,38 +547,6 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
           <div class="section-hdr"><i class="ti ti-users-group" style="color:#059669"></i><div class="section-title">Sistema de Indicações</div><button class="btn btn-ghost btn-sm" onclick="loadAdminReferrals()"><i class="ti ti-refresh"></i></button></div>
           <div id="admin-referral-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px"></div>
           <div id="admin-referral-list"><div class="empty-state">Carregando...</div></div>
-        </div>
-      </div>
-
-      <!-- SUGESTÕES -->
-      <div class="view" id="view-sugestoes">
-        <div style="max-width:900px">
-          <div class="section-hdr">
-            <i class="ti ti-bulb" style="color:#7c3aed"></i>
-            <div class="section-title">Sugestões dos Usuários</div>
-            <div class="section-actions">
-              <select id="sug-filter-status" onchange="loadSugestoes()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--text)">
-                <option value="">Todas</option>
-                <option value="pending">⏳ Aguardando</option>
-                <option value="reviewed">👀 Em análise</option>
-                <option value="done">✅ Implementadas</option>
-                <option value="rejected">❌ Rejeitadas</option>
-              </select>
-              <select id="sug-filter-cat" onchange="loadSugestoes()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--text)">
-                <option value="">Todas categorias</option>
-                <option value="funcionalidade">⚡ Funcionalidade</option>
-                <option value="melhoria">✨ Melhoria</option>
-                <option value="bug">🐛 Bug</option>
-                <option value="vagas">💼 Vagas</option>
-                <option value="outro">💬 Outro</option>
-              </select>
-              <button class="btn btn-ghost btn-sm" onclick="loadSugestoes()"><i class="ti ti-refresh"></i></button>
-            </div>
-          </div>
-          <!-- Stats rápidos -->
-          <div id="sug-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px"></div>
-          <!-- Lista -->
-          <div id="sug-list"><div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div></div>
         </div>
       </div>
 
@@ -724,7 +656,7 @@ function showView(name) {
   if(name==='codes') loadCodes();
   if(name==='ranking') loadRankingAdmin();
   if(name==='settings') loadSettings();
-  if(name==='notificacoes'){ loadAdminNotifs(); loadAutoNotifLog(); }
+  if(name==='notificacoes') loadAdminNotifs();
   if(name==='indicacoes') loadAdminReferrals();
   if(name==='vip') {} // static
 }
@@ -1691,7 +1623,7 @@ function renderModalEdit(d,u){
       <div style="display:flex;flex-direction:column;gap:8px">
         <button class="btn btn-amber" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'vip')"><i class="ti ti-diamond"></i> Ativar VIP 30 dias (manual)</button>
         <button class="btn btn-purple" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'vipro')"><i class="ti ti-diamond"></i> Ativar VIPro 30 dias</button>
-        <button class="btn btn-success" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'pro')"><i class="ti ti-robot"></i> Ativar VIPro 30 dias</button>
+        <button class="btn btn-success" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'pro')"><i class="ti ti-robot"></i> Ativar Pro Auto 30 dias</button>
         <button class="btn btn-ghost" style="justify-content:center" onclick="adminClearSentUser('${esc(email)}')"><i class="ti ti-refresh"></i> Limpar histórico de enviados</button>
         <div style="border-top:1px solid var(--border);margin:4px 0"></div>
         <button class="btn btn-danger" style="justify-content:center" onclick="deleteUser('${esc(email)}')"><i class="ti ti-trash"></i> Excluir usuário permanentemente</button>
@@ -2013,7 +1945,7 @@ async function loadSettings(){
         <select class="form-inp" id="cfg-trial-plan">
           <option value="vip" ${(s.newUserTrialPlan||'vip')==='vip'?'selected':''}>VIP (só manual)</option>
           <option value="vipro" ${s.newUserTrialPlan==='vipro'?'selected':''}>VIPro (manual + auto)</option>
-          <option value="pro" ${s.newUserTrialPlan==='pro'?'selected':''}>VIPro (só auto)</option>
+          <option value="pro" ${s.newUserTrialPlan==='pro'?'selected':''}>Pro (só auto)</option>
         </select>
       </div>
       <button class="btn btn-primary" style="justify-content:center" onclick="saveSettings()"><i class="ti ti-check"></i> Salvar configurações</button>
@@ -2254,178 +2186,6 @@ function openEmailChat(idx){
       </div>
     </div>
     ${snap.company?`<div style="text-align:center;font-size:10px;color:var(--t3);margin-top:8px">Enviado para <strong>${esc(snap.company)}</strong> em ${esc(h.dateStr||'–')}</div>`:''}`;
-}
-
-// ══ SUGESTÕES DOS USUÁRIOS ══
-async function loadSugestoes(){
-  const listEl = document.getElementById('sug-list');
-  const statsEl = document.getElementById('sug-stats');
-  if(!listEl) return;
-  listEl.innerHTML = '<div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div>';
-  try{
-    const r = await fetch('/api/suggestions', {credentials:'include'});
-    const d = await r.json();
-    const all = d.suggestions || [];
-
-    // Filtros
-    const fStatus = document.getElementById('sug-filter-status')?.value || '';
-    const fCat = document.getElementById('sug-filter-cat')?.value || '';
-    const filtered = all.filter(s =>
-      (!fStatus || s.status === fStatus) &&
-      (!fCat || s.category === fCat)
-    );
-
-    // Stats
-    const counts = {pending:0, reviewed:0, done:0, rejected:0};
-    all.forEach(s => { if(counts[s.status]!==undefined) counts[s.status]++; });
-    statsEl.innerHTML = `
-      <div class="stat-card stat-amber" style="padding:12px;cursor:pointer" onclick="document.getElementById('sug-filter-status').value='pending';loadSugestoes()">
-        <div class="stat-val">${counts.pending}</div><div class="stat-lbl">⏳ Aguardando</div>
-      </div>
-      <div class="stat-card stat-blue" style="padding:12px;cursor:pointer" onclick="document.getElementById('sug-filter-status').value='reviewed';loadSugestoes()">
-        <div class="stat-val">${counts.reviewed}</div><div class="stat-lbl">👀 Em análise</div>
-      </div>
-      <div class="stat-card stat-green" style="padding:12px;cursor:pointer" onclick="document.getElementById('sug-filter-status').value='done';loadSugestoes()">
-        <div class="stat-val">${counts.done}</div><div class="stat-lbl">✅ Implementadas</div>
-      </div>
-      <div class="stat-card stat-red" style="padding:12px;cursor:pointer" onclick="document.getElementById('sug-filter-status').value='rejected';loadSugestoes()">
-        <div class="stat-val">${counts.rejected}</div><div class="stat-lbl">❌ Rejeitadas</div>
-      </div>`;
-
-    // Atualiza badge no sidebar
-    const badge = document.getElementById('sb-sugestoes');
-    if(badge){ badge.textContent = counts.pending; badge.style.display = counts.pending>0?'':'none'; }
-
-    if(!filtered.length){
-      listEl.innerHTML = '<div class="empty-state"><i class="ti ti-bulb"></i> Nenhuma sugestão encontrada</div>';
-      return;
-    }
-
-    const catIcons = {funcionalidade:'⚡',melhoria:'✨',bug:'🐛',vagas:'💼',outro:'💬'};
-    const statusMap = {
-      pending:  {label:'Aguardando',cls:'sb-badge-a'},
-      reviewed: {label:'Em análise',cls:'sb-badge-b'},
-      done:     {label:'Implementada',cls:'sb-badge-g'},
-      rejected: {label:'Rejeitada',cls:'sb-badge-r'}
-    };
-
-    listEl.innerHTML = filtered.map(s => {
-      const st = statusMap[s.status]||statusMap.pending;
-      const date = new Date(s.createdAt).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-      return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span style="font-size:11px;background:rgba(124,58,237,.12);color:#7c3aed;border-radius:20px;padding:2px 9px;font-weight:700">${catIcons[s.category]||'💬'} ${s.category||'geral'}</span>
-            <span class="sb-badge ${st.cls}">${st.label}</span>
-            <span style="font-size:11px;color:var(--t3)">${esc(s.name)} · ${esc(s.email)}</span>
-          </div>
-          <span style="font-size:10px;color:var(--t4);white-space:nowrap">${date}</span>
-        </div>
-        <div style="font-size:13px;color:var(--text);line-height:1.65;margin-bottom:12px">${esc(s.text)}</div>
-        ${s.adminReply?`<div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.2);border-radius:8px;padding:8px 12px;font-size:12px;color:#2563eb;margin-bottom:10px"><strong>Sua resposta:</strong> ${esc(s.adminReply)}</div>`:''}
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          <select onchange="updateSugStatus('${s.id}',this.value,null)" style="font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)">
-            <option value="pending" ${s.status==='pending'?'selected':''}>⏳ Aguardando</option>
-            <option value="reviewed" ${s.status==='reviewed'?'selected':''}>👀 Em análise</option>
-            <option value="done" ${s.status==='done'?'selected':''}>✅ Implementada</option>
-            <option value="rejected" ${s.status==='rejected'?'selected':''}>❌ Rejeitada</option>
-          </select>
-          <input type="text" id="reply-${s.id}" placeholder="Resposta para o usuário (opcional)" value="${esc(s.adminReply||'')}"
-            style="flex:1;min-width:160px;font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)">
-          <button class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none" onclick="updateSugStatus('${s.id}',null,document.getElementById('reply-${s.id}').value)">
-            <i class="ti ti-send"></i> Salvar
-          </button>
-        </div>
-      </div>`;
-    }).join('');
-  }catch(e){
-    listEl.innerHTML = `<div class="empty-state" style="color:var(--red)">Erro: ${e.message}</div>`;
-  }
-}
-
-async function updateSugStatus(id, status, reply){
-  const body = {id};
-  if(status) body.status = status;
-  if(reply !== null) body.reply = reply;
-  try{
-    const r = await fetch('/api/suggestions/status',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const d = await r.json();
-    if(d.ok){ toast('✅ Sugestão atualizada!'); loadSugestoes(); }
-    else toast('Erro: '+(d.error||'falha'),'err');
-  }catch(e){ toast('Erro: '+e.message,'err'); }
-}
-
-// ══ NOTIFICAÇÕES AUTOMÁTICAS ══
-async function triggerAutoNotif(tipo){
-  const btnMap={inativos:"btn-notif-inativos",parados:"btn-notif-parados",ambos:"btn-notif-ambos"};
-  const labels={inativos:"Usuários Inativos",parados:"Filas Travadas/Paradas",ambos:"Todos"};
-  const btn=document.getElementById(btnMap[tipo]);
-  const res=document.getElementById("auto-notif-trigger-result");
-  if(btn){btn.disabled=true;btn.innerHTML=`<span class="spin spin-sm"></span> Disparando...`;}
-  if(res){res.style.display="block";res.innerHTML=`<span style="color:var(--t2)">⏳ Enviando notificações (${labels[tipo]})... pode levar alguns minutos.</span>`;}
-  try{
-    const r=await fetch("/api/admin/auto-notif/trigger",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo})});
-    const d=await r.json();
-    if(d.ok){
-      if(res){res.innerHTML=`<span style="color:var(--green)">✅ ${d.message}</span>`;}
-      toast("✅ Notificações disparadas em background!");
-      setTimeout(loadAutoNotifLog,5000); // recarrega o log após 5s
-    } else {
-      if(res){res.innerHTML=`<span style="color:var(--red)">❌ ${d.error}</span>`;}
-    }
-  }catch(e){
-    if(res){res.innerHTML=`<span style="color:var(--red)">❌ Erro: ${e.message}</span>`;}
-  }
-  if(btn){
-    btn.disabled=false;
-    const icons={inativos:"ti-user-off",parados:"ti-player-stop",ambos:"ti-send"};
-    btn.innerHTML=`<i class="ti ${icons[tipo]}"></i> ${labels[tipo]}`;
-  }
-}
-
-async function loadAutoNotifLog(){
-  const el=document.getElementById("auto-notif-log");
-  if(!el) return;
-  try{
-    const r=await fetch("/api/admin/auto-notif/log?limit=200",{credentials:"include"});
-    const d=await r.json();
-    const logs=d.logs||[];
-    if(!logs.length){
-      el.innerHTML=`<div class="empty-state"><i class="ti ti-mail-off"></i> Nenhum email automático enviado ainda</div>`;
-      return;
-    }
-    const tipoLabels={
-      stalled:"🔴 Fila Travada",finished:"✅ Fila Finalizada",
-      reeng_1d:"💤 Inativo 1 dia",reeng_3d:"⏰ Inativo 3 dias",reeng_7d:"😢 Inativo 7 dias"
-    };
-    const tipoColors={
-      stalled:"#dc2626",finished:"#059669",
-      reeng_1d:"#0891b2",reeng_3d:"#d97706",reeng_7d:"#7c3aed"
-    };
-    el.innerHTML=`
-      <div style="margin-bottom:10px;font-size:12px;color:var(--t3)">${d.total} emails enviados no total</div>
-      ${logs.map(l=>{
-        const date=new Date(l.sentAt).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
-        const cor=tipoColors[l.tipo]||"#64748b";
-        const label=tipoLabels[l.tipo]||l.tipo;
-        return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:11px;font-weight:800;background:${cor}18;color:${cor};border:1px solid ${cor}30;border-radius:20px;padding:2px 10px">${label}</span>
-              <span style="font-size:12px;font-weight:700;color:var(--text)">${esc(l.nome||"")}</span>
-              <span style="font-size:11px;color:var(--t3)">${esc(l.to)}</span>
-            </div>
-            <span style="font-size:10px;color:var(--t4);white-space:nowrap">${date}</span>
-          </div>
-          <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:5px">${esc(l.subject||"")}</div>
-          <div style="font-size:11px;color:var(--t3);line-height:1.6;white-space:pre-wrap;max-height:80px;overflow:hidden;cursor:pointer;border-top:1px solid var(--border);padding-top:8px"
-            onclick="this.style.maxHeight=this.style.maxHeight==='none'?'80px':'none'"
-          >${esc((l.body||"").slice(0,300)+(l.body?.length>300?"...":""))}<span style="color:var(--blue);font-size:10px"> (toque para ${`expandir`})</span></div>
-        </div>`;
-      }).join("")}`;
-  }catch(e){
-    el.innerHTML=`<div class="empty-state" style="color:var(--red)">Erro: ${e.message}</div>`;
-  }
 }
 
 </script>

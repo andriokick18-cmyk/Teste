@@ -1,15 +1,21 @@
 {
   "name": "H2BApply — Vagas H-2B & H-2A",
   "short_name": "H2BApply",
-  "description": "Candidate-se automaticamente a vagas H-2B e H-2A nos EUA",
+  "description": "Encontre e candidate-se a vagas H-2B e H-2A automaticamente",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a56db",
-  "theme_color": "#1a56db",
+  "background_color": "#ffffff",
+  "theme_color": "#0d1b4b",
   "orientation": "portrait-primary",
   "lang": "pt-BR",
   "scope": "/",
   "icons": [
+    {
+      "src": "/favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
@@ -17,22 +23,16 @@
       "purpose": "any"
     },
     {
-      "src": "/icon-192-maskable.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icon-256.png",
-      "sizes": "256x256",
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
       "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/icon-384.png",
-      "sizes": "384x384",
-      "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
@@ -41,27 +41,43 @@
       "purpose": "any"
     },
     {
-      "src": "/icon-512-maskable.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
   ],
-  "categories": ["business", "productivity"],
+  "screenshots": [],
+  "categories": [
+    "business",
+    "productivity"
+  ],
   "shortcuts": [
     {
       "name": "Vagas H-2B",
       "short_name": "H-2B",
       "description": "Ver vagas H-2B disponíveis",
       "url": "/?tab=seasonal",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "Envio Automático",
       "short_name": "Auto",
       "description": "Configurar envio automático",
       "url": "/?tab=auto",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
