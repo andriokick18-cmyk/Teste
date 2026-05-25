@@ -9,8 +9,6 @@
 <link rel="terms-of-service" href="https://h2bapply.com/termos">
 <title>H2BApply — Vagas H-2B & H-2A</title>
 
-<!-- ══ Acessibilidade ══ -->
-
 <!-- ══ PWA ══ -->
 <link rel="manifest" href="/manifest.json">
 <meta name="mobile-web-app-capable" content="yes">
@@ -303,7 +301,7 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .lc-a{background:linear-gradient(90deg,#7c3aed,#4f46e5);color:#fff}
 .av-btn{width:32px;height:32px;border-radius:50%;overflow:hidden;border:2px solid rgba(99,102,241,.3);cursor:pointer;flex-shrink:0;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff}
 /* App body */
-.app-body{flex:1;display:flex;overflow:hidden;min-height:0;gap:0}
+.app-body{flex:1;display:flex;overflow:hidden;min-height:0}
 /* Sidebar */
 .sidebar{display:none}
 @media(min-width:768px){
@@ -1396,7 +1394,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 
   <!-- ── NAVBAR LANDING ── -->
   <div class="ln-nav">
-    <div class="ln-nav-logo"><i class="ti ti-briefcase-2"></i> H2BApply</div>
+    <div class="ln-nav-logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:#3b82f6"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+      H2BApply
+    </div>
     <div class="ln-nav-actions">
       <span class="ln-live-badge"><span class="live-dot"></span> Ao vivo</span>
       <a href="/oauth/start" class="btn-google-sm" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px" onclick="event.preventDefault();showGoogleWarnModal()">
@@ -1510,6 +1511,138 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════════════════════
+       SEÇÃO EDUCATIVA H2B/H2A — PENSANDO COMO APLICANTE
+       ══════════════════════════════════════════════════ -->
+
+  <!-- O QUE É O VISTO H2B? -->
+  <div class="ln-section" style="background:rgba(255,255,255,.015);border-top:1px solid rgba(255,255,255,.06)">
+    <div class="ln-section-inner">
+      <div class="ln-sec-label">📚 Entenda o processo</div>
+      <h2 class="ln-sec-title">O que é o Visto H-2B e H-2A?</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:32px">
+        <div style="background:#0d1635;border:1px solid rgba(59,130,246,.3);border-radius:16px;padding:20px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <div style="width:42px;height:42px;background:rgba(59,130,246,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🔧</div>
+            <div><div style="font-size:16px;font-weight:800;color:#93c5fd">H-2B</div><div style="font-size:11px;color:rgba(255,255,255,.5)">Não Agrícola</div></div>
+          </div>
+          <div style="font-size:13px;color:rgba(255,255,255,.75);line-height:1.7">Landscaping, hotelaria, seafood, construção, parques, golfe e mais. <strong style="color:#fff">66.000 vistos/ano</strong> disponíveis.</div>
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:5px">
+            <div style="font-size:11px;color:rgba(255,255,255,.6);display:flex;align-items:center;gap:6px"><span style="color:#4ade80">✓</span> Duração: 6 meses a 3 anos</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.6);display:flex;align-items:center;gap:6px"><span style="color:#4ade80">✓</span> Exige oferta de emprego válida</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.6);display:flex;align-items:center;gap:6px"><span style="color:#4ade80">✓</span> Salário: $14–$22/hora</div>
+          </div>
+        </div>
+        <div style="background:#0d1635;border:1px solid rgba(16,185,129,.3);border-radius:16px;padding:20px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <div style="width:42px;height:42px;background:rgba(16,185,129,.15);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🌾</div>
+            <div><div style="font-size:16px;font-weight:800;color:#34d399">H-2A</div><div style="font-size:11px;color:rgba(255,255,255,.5)">Agrícola</div></div>
+          </div>
+          <div style="font-size:13px;color:rgba(255,255,255,.75);line-height:1.7">Colheita, plantio, fazendas. Moradia e transporte <strong style="color:#34d399">gratuitos por lei</strong>. Sem limite anual.</div>
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:5px">
+            <div style="font-size:11px;color:rgba(255,255,255,.6);display:flex;align-items:center;gap:6px"><span style="color:#34d399">✓</span> Sem limite anual de vistos</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.6);display:flex;align-items:center;gap=6px"><span style="color:#34d399">✓</span> Moradia e transporte inclusos</div>
+            <div style="font-size:11px;color:rgba(255,255,255,.6);display:flex;align-items:center;gap:6px"><span style="color:#34d399">✓</span> Salário mínimo garantido por lei</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- JORNADA DO APLICANTE -->
+      <div class="ln-sec-label">🗺️ Jornada completa do aplicante</div>
+      <h2 class="ln-sec-title">Do primeiro e-mail à chegada nos EUA</h2>
+      <div style="display:flex;flex-direction:column;gap:0;position:relative;padding-left:8px">
+        <div style="position:absolute;left:28px;top:28px;bottom:28px;width:2px;background:linear-gradient(180deg,#3b82f6,#8b5cf6,#f59e0b,#10b981);opacity:.25;border-radius:2px"></div>
+
+        <div style="display:flex;gap:16px;padding:12px 0">
+          <div style="width:40px;height:40px;min-width:40px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;border:3px solid #0d1635;z-index:1;box-shadow:0 0 0 2px rgba(59,130,246,.4)">1</div>
+          <div style="padding-top:8px"><div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:3px">📧 H2BApply envia candidaturas automáticas</div><div style="font-size:12px;color:rgba(255,255,255,.55);line-height:1.6">Você configura seu perfil, sobe o currículo e ativa o automático. O sistema envia até 400 e-mails/dia para empresas certificadas pelo DOL.</div></div>
+        </div>
+
+        <div style="display:flex;gap:16px;padding:12px 0">
+          <div style="width:40px;height:40px;min-width:40px;background:linear-gradient(135deg,#7c3aed,#6d28d9);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;border:3px solid #0d1635;z-index:1;box-shadow:0 0 0 2px rgba(124,58,237,.4)">2</div>
+          <div style="padding-top:8px"><div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:3px">✉️ Empresa responde com interesse</div><div style="font-size:12px;color:rgba(255,255,255,.55);line-height:1.6">A aba "Respostas" notifica em tempo real. Você confirma disponibilidade e envia documentos básicos. A empresa pede seu passaporte e informações pessoais.</div></div>
+        </div>
+
+        <div style="display:flex;gap:16px;padding:12px 0">
+          <div style="width:40px;height:40px;min-width:40px;background:linear-gradient(135deg,#0891b2,#06b6d4);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;border:3px solid #0d1635;z-index:1;box-shadow:0 0 0 2px rgba(8,145,178,.4)">3</div>
+          <div style="padding-top:8px"><div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:3px">📋 Empresa obtém aprovação DOL + USCIS</div><div style="font-size:12px;color:rgba(255,255,255,.55);line-height:1.6">O empregador envia o I-129 ao USCIS. Após aprovação, você recebe o formulário I-797. Este passo é feito pela empresa — não por você.</div></div>
+        </div>
+
+        <div style="display:flex;gap:16px;padding:12px 0">
+          <div style="width:40px;height:40px;min-width:40px;background:linear-gradient(135deg,#d97706,#f59e0b);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;border:3px solid #0d1635;z-index:1;box-shadow:0 0 0 2px rgba(217,119,6,.4)">4</div>
+          <div style="padding-top:8px"><div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:3px">📝 Você preenche o DS-160 e agenda entrevista</div><div style="font-size:12px;color:rgba(255,255,255,.55);line-height:1.6">Formulário online em ceac.state.gov. Use nome idêntico ao passaporte. Agende a entrevista consular. Pague a taxa MRV (aprox. R$880).</div></div>
+        </div>
+
+        <div style="display:flex;gap:16px;padding:12px 0">
+          <div style="width:40px;height:40px;min-width:40px;background:linear-gradient(135deg,#dc2626,#ef4444);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff;border:3px solid #0d1635;z-index:1;box-shadow:0 0 0 2px rgba(220,38,38,.4)">5</div>
+          <div style="padding-top:8px"><div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:3px">🏛️ Entrevista consular</div><div style="font-size:12px;color:rgba(255,255,255,.55);line-height:1.6">Leve todos os documentos. O cônsul quer saber que você vai trabalhar e <strong style="color:#fca5a5">voltará para o Brasil</strong>. Mostre vínculos: família, conta bancária, histórico de retornos.</div></div>
+        </div>
+
+        <div style="display:flex;gap:16px;padding:12px 0">
+          <div style="width:40px;height:40px;min-width:40px;background:linear-gradient(135deg,#059669,#10b981);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;border:3px solid #0d1635;z-index:1;box-shadow:0 0 0 2px rgba(5,150,105,.4)">✈️</div>
+          <div style="padding-top:8px"><div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:3px">🇺🇸 Chegada nos EUA e início do trabalho!</div><div style="font-size:12px;color:rgba(255,255,255,.55);line-height:1.6">Visto aprovado no passaporte. Você voa, é recebido pelo empregador e começa a trabalhar. Salário em dólar, depositado diretamente.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOCUMENTOS + FAQ -->
+  <div class="ln-section">
+    <div class="ln-section-inner">
+      <div class="ln-sec-label">📄 Prepare-se</div>
+      <h2 class="ln-sec-title">Documentos para a entrevista consular</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:32px">
+        <div style="background:#0d1635;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;display:flex;align-items:flex-start;gap:10px"><span style="font-size:18px;flex-shrink:0">🛂</span><div><div style="font-size:13px;font-weight:700;color:#fff">Passaporte válido</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">Mín. 6 meses de validade</div></div></div>
+        <div style="background:#0d1635;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;display:flex;align-items:flex-start;gap:10px"><span style="font-size:18px;flex-shrink:0">📋</span><div><div style="font-size:13px;font-weight:700;color:#fff">DS-160 confirmação</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">Formulário de visto impresso</div></div></div>
+        <div style="background:#0d1635;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;display:flex;align-items:flex-start;gap:10px"><span style="font-size:18px;flex-shrink:0">📄</span><div><div style="font-size:13px;font-weight:700;color:#fff">Formulário I-797</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">Aprovação do I-129 pelo USCIS</div></div></div>
+        <div style="background:#0d1635;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;display:flex;align-items:flex-start;gap:10px"><span style="font-size:18px;flex-shrink:0">✉️</span><div><div style="font-size:13px;font-weight:700;color:#fff">Carta de oferta</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">Job offer assinada pela empresa</div></div></div>
+        <div style="background:#0d1635;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;display:flex;align-items:flex-start;gap:10px"><span style="font-size:18px;flex-shrink:0">💰</span><div><div style="font-size:13px;font-weight:700;color:#fff">Extrato bancário</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">3 meses — vínculos no Brasil</div></div></div>
+        <div style="background:#0d1635;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;display:flex;align-items:flex-start;gap:10px"><span style="font-size:18px;flex-shrink:0">🏠</span><div><div style="font-size:13px;font-weight:700;color:#fff">Vínculos no Brasil</div><div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:2px">Família, imóvel, emprego</div></div></div>
+      </div>
+
+      <div style="background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(217,119,6,.06));border:1.5px solid rgba(245,158,11,.3);border-radius:16px;padding:20px;margin-bottom:32px">
+        <div style="font-size:15px;font-weight:800;color:#fbbf24;margin-bottom:8px">💡 Dica de ouro para a entrevista</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.8);line-height:1.7">O cônsul quer saber <strong style="color:#fde68a">uma coisa</strong>: você vai trabalhar e <strong style="color:#fde68a">voltará para o Brasil</strong>? Seja direto e honesto. Conheça sua vaga — cargo, empresa, estado, data de início. Responda só o que for perguntado. Mostre vínculos fortes com o Brasil.</div>
+      </div>
+
+      <div class="ln-sec-label">❓ Perguntas frequentes</div>
+      <h2 class="ln-sec-title">O que todo aplicante precisa saber</h2>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <details style="background:#0d1635;border:1px solid rgba(255,255,255,.09);border-radius:12px;overflow:hidden">
+          <summary style="padding:14px 16px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px">O H2BApply garante que vou conseguir o visto? <i class="ti ti-chevron-down" style="color:rgba(255,255,255,.4);flex-shrink:0"></i></summary>
+          <div style="padding:0 16px 14px;font-size:12px;color:rgba(255,255,255,.6);line-height:1.7">Não. O H2BApply automatiza o envio de candidaturas. A contratação é decisão do empregador. O visto é decisão do consulado. Mais candidaturas = mais chances de receber oferta = processo do visto começa.</div>
+        </details>
+        <details style="background:#0d1635;border:1px solid rgba(255,255,255,.09);border-radius:12px;overflow:hidden">
+          <summary style="padding:14px 16px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px">Preciso falar inglês? <i class="ti ti-chevron-down" style="color:rgba(255,255,255,.4);flex-shrink:0"></i></summary>
+          <div style="padding:0 16px 14px;font-size:12px;color:rgba(255,255,255,.6);line-height:1.7">Inglês básico ajuda muito. Para landscaping, seafood e farm, muitas empresas aceitam inglês limitado. O H2BApply envia e-mails em inglês profissional por você.</div>
+        </details>
+        <details style="background:#0d1635;border:1px solid rgba(255,255,255,.09);border-radius:12px;overflow:hidden">
+          <summary style="padding:14px 16px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px">Quanto tempo leva o processo? <i class="ti ti-chevron-down" style="color:rgba(255,255,255,.4);flex-shrink:0"></i></summary>
+          <div style="padding:0 16px 14px;font-size:12px;color:rgba(255,255,255,.6);line-height:1.7">Em média 3–6 meses do primeiro contato até chegar nos EUA. O empregador precisa de mínimo 75 dias para aprovação do DOL. Candidates hoje para a temporada do próximo verão americano.</div>
+        </details>
+        <details style="background:#0d1635;border:1px solid rgba(255,255,255,.09);border-radius:12px;overflow:hidden">
+          <summary style="padding:14px 16px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px">Quanto vou ganhar? <i class="ti ti-chevron-down" style="color:rgba(255,255,255,.4);flex-shrink:0"></i></summary>
+          <div style="padding:0 16px 14px;font-size:12px;color:rgba(255,255,255,.6);line-height:1.7">Varia por função e estado. Em geral: <strong style="color:#4ade80">$14–$22/hora</strong>. Landscaping: ~$15-18/h. Seafood: ~$14-16/h. Golf: ~$15-20/h. Filtre por salário dentro do H2BApply.</div>
+        </details>
+        <details style="background:#0d1635;border:1px solid rgba(255,255,255,.09);border-radius:12px;overflow:hidden">
+          <summary style="padding:14px 16px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px">É seguro? Cuidado com golpes! <i class="ti ti-chevron-down" style="color:rgba(255,255,255,.4);flex-shrink:0"></i></summary>
+          <div style="padding:0 16px 14px;font-size:12px;color:rgba(255,255,255,.6);line-height:1.7">O H2B é 100% legal — é um programa do governo americano. As vagas no H2BApply são de empregadores <strong style="color:#fff">certificados pelo DOL</strong>. <span style="color:#fca5a5;font-weight:700">Nunca pague para garantir uma vaga.</span> O processo legítimo começa com a empresa te contactando, não com você pagando intermediários.</div>
+        </details>
+      </div>
+
+      <!-- CTA FINAL -->
+      <div style="text-align:center;margin-top:40px;padding:32px 24px;background:linear-gradient(135deg,rgba(59,130,246,.08),rgba(139,92,246,.06));border:1px solid rgba(255,255,255,.1);border-radius:20px">
+        <div style="font-size:12px;font-weight:800;color:#60a5fa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">🎁 5 dias VIP grátis para novos usuários</div>
+        <div style="font-family:'Sora',sans-serif;font-size:clamp(20px,4vw,28px);font-weight:800;color:#fff;margin-bottom:10px;line-height:1.2">Pronto para começar sua jornada?</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.55);margin-bottom:24px;line-height:1.6">Configure seu perfil, suba o currículo e ative o automático. O sistema trabalha por você 24h.</div>
+        <button class="ln-cta-btn" onclick="showGoogleWarnModal()" style="margin:0 auto;max-width:320px">
+          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+          Começar Grátis com Google
+        </button>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /landing -->
 
 <!-- ══ MODAL OPCIONAL: Convite para seguir no Instagram (NÃO bloqueia login) ══ -->
@@ -1533,7 +1666,9 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 
 <div id="app" style="display:none">
   <div class="app-hdr">
-    <div class="app-logo-icon"><i class="ti ti-briefcase"></i></div>
+    <div class="app-logo-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>
+    </div>
     <span class="app-logo-text">H2BApply</span>
     <div class="hdr-right">
       <button id="lang-btn" onclick="toggleLangMenu()" title="Idioma / Language" style="background:var(--sf2);border:1.5px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;flex-shrink:0"><i class="ti ti-language" style="font-size:13px"></i><span id="lang-label">PT</span></button>
@@ -1584,6 +1719,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <button class="sb-item" id="si-respostas" onclick="sv('respostas')" style="color:var(--green);font-weight:700"><i class="ti ti-mail-opened" style="color:var(--green)"></i>Respostas<span class="sb-badge" id="sib-respostas" style="display:none;background:var(--green);color:#fff"></span></button>
         <button class="sb-item" id="si-hist" onclick="sv('hist')"><i class="ti ti-send"></i>Enviadas<span class="sb-badge sb-badge-g" id="sib-hist" style="display:none"></span></button>
         <button class="sb-item" id="si-ranking" onclick="sv('ranking')" style="color:#d97706;font-weight:700"><i class="ti ti-trophy" style="color:#f59e0b"></i>Ranking <span class="sb-badge" style="margin-left:auto;font-size:10px;font-weight:800;padding:1px 7px;border-radius:20px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff">🔥</span></button>
+        <button class="sb-item" onclick="sv('tutorial');setTimeout(()=>document.getElementById('tut-step7')?.scrollIntoView({behavior:'smooth'}),400)" style="background:linear-gradient(135deg,rgba(29,78,216,.12),rgba(37,99,235,.07));border:1.5px solid rgba(29,78,216,.3);border-radius:10px;font-weight:800;color:#1d4ed8"><i class="ti ti-plane-departure" style="font-size:15px;color:#1d4ed8"></i>Recebi uma Oferta!<span style="margin-left:auto;font-size:9px;background:#1d4ed8;color:#fff;padding:1px 6px;border-radius:99px">🎉</span></button>
       </div>
       <div class="sb-sec">
         <div class="sb-lbl">Conta</div>
@@ -1680,6 +1816,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <button class="home-shortcut" onclick="sv('plans')">
               <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#eff6ff,#dbeafe)"><i class="ti ti-diamond" style="color:#4f46e5"></i></div>
               <div class="home-shortcut-label">💎 Planos</div>
+            </button>
+            <button class="home-shortcut" onclick="sv('tutorial');setTimeout(()=>document.getElementById('tut-step7')?.scrollIntoView({behavior:'smooth'}),400)">
+              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#dbeafe,#e0e7ff)"><i class="ti ti-plane-departure" style="color:#1d4ed8"></i></div>
+              <div class="home-shortcut-label">🎉 Oferta!</div>
             </button>
             <button class="home-shortcut" onclick="sv('hist')">
               <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#f8fafc,#f1f5f9)"><i class="ti ti-history" style="color:#64748b"></i></div>
@@ -2422,6 +2562,99 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                   <div class="source-btn-label"><strong>Jul 2025</strong> — Inverno</div>
                   <div class="source-btn-count" id="src-jul-cnt">–</div>
                 </button>
+                <button class="source-btn" data-src="h2a" onclick="selectSource('h2a')" style="border-color:rgba(5,150,105,.3);background:linear-gradient(135deg,rgba(5,150,105,.06),rgba(16,185,129,.03))">
+                  <div class="source-btn-icon">🌾</div>
+                  <div class="source-btn-label"><strong>H-2A</strong> — Agrícola</div>
+                  <div class="source-btn-count" id="src-h2a-cnt" style="color:#059669">vagas agrícolas</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- H-2A specific filters (shown only when h2a selected) -->
+            <div id="ws-h2a-filters" style="display:none">
+              <div class="wizard-step" style="border-left-color:#059669">
+                <div class="wizard-step-hdr">
+                  <div class="wizard-step-n active" style="background:#059669">🌾</div>
+                  <div><div class="wizard-step-title">Filtros H-2A — Agrícola</div><div class="wizard-step-sub">Configure os filtros específicos para vagas agrícolas</div></div>
+                </div>
+
+                <!-- Perfil H-2A -->
+                <div class="field" style="margin-bottom:14px">
+                  <label style="font-size:12px;font-weight:700;color:var(--t2)">🌾 Perfil H-2A</label>
+                  <select class="input" id="h2a-profile-select">
+                    <option value="">Selecione um perfil H-2A...</option>
+                  </select>
+                  <div id="h2a-no-profile-warn" style="display:none;margin-top:8px;background:#fef3c7;border:1.5px solid #fde68a;border-radius:8px;padding:10px;font-size:12px;color:#92400e">
+                    ⚠️ Você ainda não tem um perfil H-2A. <button onclick="openProfileEditor({visaType:'h2a'})" style="background:none;border:none;color:#059669;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:underline">Criar agora</button>
+                  </div>
+                </div>
+
+                <!-- Data de disponibilidade -->
+                <div class="field-row" style="margin-bottom:14px">
+                  <div class="field">
+                    <label style="font-size:12px;font-weight:700;color:var(--t2)">📅 Disponível a partir de</label>
+                    <input type="date" class="input" id="h2a-date-from" style="font-size:13px">
+                    <div style="font-size:10px;color:var(--t3);margin-top:3px">Só candidata vagas que começam após esta data</div>
+                  </div>
+                  <div class="field">
+                    <label style="font-size:12px;font-weight:700;color:var(--t2)">📅 Disponível até</label>
+                    <input type="date" class="input" id="h2a-date-to" style="font-size:13px">
+                    <div style="font-size:10px;color:var(--t3);margin-top:3px">Não candidata vagas que terminam depois</div>
+                  </div>
+                </div>
+
+                <!-- Estado preferencial -->
+                <div class="field" style="margin-bottom:14px">
+                  <label style="font-size:12px;font-weight:700;color:var(--t2)">📍 Estado preferencial (opcional)</label>
+                  <select class="input" id="h2a-state">
+                    <option value="">Todos os estados</option>
+                    <option>ALABAMA</option><option>ALASKA</option><option>ARIZONA</option><option>ARKANSAS</option>
+                    <option>CALIFORNIA</option><option>COLORADO</option><option>CONNECTICUT</option><option>FLORIDA</option>
+                    <option>GEORGIA</option><option>HAWAII</option><option>IDAHO</option><option>ILLINOIS</option>
+                    <option>INDIANA</option><option>IOWA</option><option>KANSAS</option><option>KENTUCKY</option>
+                    <option>LOUISIANA</option><option>MAINE</option><option>MARYLAND</option><option>MASSACHUSETTS</option>
+                    <option>MICHIGAN</option><option>MINNESOTA</option><option>MISSISSIPPI</option><option>MISSOURI</option>
+                    <option>MONTANA</option><option>NEBRASKA</option><option>NEVADA</option><option>NEW HAMPSHIRE</option>
+                    <option>NEW JERSEY</option><option>NEW MEXICO</option><option>NEW YORK</option><option>NORTH CAROLINA</option>
+                    <option>NORTH DAKOTA</option><option>OHIO</option><option>OKLAHOMA</option><option>OREGON</option>
+                    <option>PENNSYLVANIA</option><option>SOUTH CAROLINA</option><option>TENNESSEE</option><option>TEXAS</option>
+                    <option>UTAH</option><option>VERMONT</option><option>VIRGINIA</option><option>WASHINGTON</option>
+                    <option>WEST VIRGINIA</option><option>WISCONSIN</option><option>WYOMING</option>
+                  </select>
+                </div>
+
+                <!-- Salário mínimo H-2A -->
+                <div class="field" style="margin-bottom:14px">
+                  <label style="font-size:12px;font-weight:700;color:var(--t2)">💰 Salário mínimo (USD/hora)</label>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+                    <button onclick="setH2AWage(0)" class="fbtn" id="h2aw-0">Qualquer</button>
+                    <button onclick="setH2AWage(14)" class="fbtn" id="h2aw-14">+$14/h</button>
+                    <button onclick="setH2AWage(16)" class="fbtn" id="h2aw-16">+$16/h</button>
+                    <button onclick="setH2AWage(18)" class="fbtn" id="h2aw-18">+$18/h</button>
+                    <button onclick="setH2AWage(20)" class="fbtn" id="h2aw-20">+$20/h</button>
+                  </div>
+                  <input class="input" id="h2a-min-wage" type="number" min="0" max="100" placeholder="ex: 15.00" inputmode="decimal" step="0.5" style="max-width:140px">
+                </div>
+
+                <!-- Tipo de trabalho agrícola -->
+                <div class="field" style="margin-bottom:14px">
+                  <label style="font-size:12px;font-weight:700;color:var(--t2)">🌱 Tipo de trabalho (opcional)</label>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <button class="fbtn on" id="h2a-work-all" onclick="setH2AWork('all')">🌾 Todos</button>
+                    <button class="fbtn" id="h2a-work-harvest" onclick="setH2AWork('harvest')">🍎 Colheita</button>
+                    <button class="fbtn" id="h2a-work-plant" onclick="setH2AWork('plant')">🌱 Plantio</button>
+                    <button class="fbtn" id="h2a-work-livestock" onclick="setH2AWork('livestock')">🐄 Pecuária</button>
+                    <button class="fbtn" id="h2a-work-general" onclick="setH2AWork('general')">👨‍🌾 Geral</button>
+                  </div>
+                </div>
+
+                <!-- Botão ativar H-2A -->
+                <button id="h2a-start-btn" onclick="startH2AAuto()" class="btn btn-primary w100" style="background:linear-gradient(135deg,#059669,#10b981);border:none;padding:14px;font-size:15px;font-weight:800;margin-top:8px">
+                  <i class="ti ti-robot"></i> Ativar Automático H-2A 🌾
+                </button>
+                <div style="font-size:11px;color:var(--t3);text-align:center;margin-top:8px;line-height:1.6">
+                  O sistema vai candidatar apenas para vagas H-2A compatíveis com suas datas e preferências
+                </div>
               </div>
             </div>
 
@@ -2437,8 +2670,8 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                   <button class="cat-chip-sel sel" data-cat="all" onclick="selectCat('all')">Todos</button>
                 </div>
               </div>
-              <div class="field">
-                <label>Estado (opcional)</label>
+              <div class="field-row">
+                <div class="field"><label>Estado (opcional)</label>
                   <select class="input" id="af-state" onchange="updateFilterCount()">
                     <option value="">Todos</option>
                     <option>FLORIDA</option><option>CALIFORNIA</option><option>TEXAS</option><option>NEW YORK</option>
@@ -2447,6 +2680,14 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                     <option>COLORADO</option><option>ARIZONA</option><option>MINNESOTA</option><option>MAINE</option>
                     <option>WYOMING</option><option>UTAH</option><option>MASSACHUSETTS</option><option>NEW JERSEY</option>
                   </select>
+                </div>
+                <div class="field">
+                  <label>Somente vagas com e-mail</label>
+                  <select class="input" id="af-has-email" onchange="updateFilterCount()">
+                    <option value="">Todas</option>
+                    <option value="yes">Só com e-mail</option>
+                  </select>
+                </div>
               </div>
               <!-- Filtro de salário mínimo com contador dinâmico -->
               <div style="background:var(--sf2);border:1.5px solid var(--border2);border-radius:var(--r);padding:12px 14px;margin-top:4px">
@@ -2754,6 +2995,9 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <div onclick="document.getElementById('tut-step6').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border-radius:8px;border:1px solid #bbf7d0">
                 <span style="font-size:16px">6️⃣</span><span>Dúvidas Comuns</span>
               </div>
+              <div onclick="document.getElementById('tut-step7').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;background:linear-gradient(135deg,#dbeafe,#e0e7ff);border-radius:8px;border:2px solid #3b82f6;grid-column:1/-1">
+                <span style="font-size:16px">🎉</span><span style="font-weight:800;color:#1e40af">Recebi Oferta! E agora? 🇺🇸</span>
+              </div>
             </div>
           </div>
         </div>
@@ -3018,6 +3262,99 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                   <a href="https://youtube.com/@diegoh2b" target="_blank" style="background:#ef4444;color:#fff;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="ti ti-brand-youtube"></i> Diego H2B</a>
                   <a href="https://instagram.com/andrio.k" target="_blank" style="background:linear-gradient(135deg,#e1306c,#833ab4);color:#fff;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;text-decoration:none;display:flex;align-items:center;gap:5px"><i class="ti ti-brand-instagram"></i> @andrio.k</a>
                 </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ══ PASSO 7: RECEBI UMA OFERTA! E AGORA? (NOVO) ══ -->
+          <div id="tut-step7" style="background:#fff;border:2px solid #1d4ed8;border-radius:16px;overflow:hidden">
+            <div style="background:linear-gradient(135deg,#0f172a,#1e3a8a,#1d4ed8);padding:14px 16px;display:flex;align-items:center;gap:10px">
+              <span style="font-size:28px;flex-shrink:0">🎉</span>
+              <div>
+                <div style="color:#fff;font-size:15px;font-weight:800">Recebi uma oferta! E agora?</div>
+                <div style="color:rgba(255,255,255,.8);font-size:11px">Os próximos passos para chegar nos EUA</div>
+              </div>
+              <div style="margin-left:auto;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:4px 10px;font-size:10px;font-weight:800;flex-shrink:0">🇺🇸 NOVO</div>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;font-size:13px;color:#374151">
+
+              <div style="background:#dbeafe;border-radius:10px;padding:12px;border:1.5px solid #93c5fd">
+                <div style="font-size:14px;font-weight:800;color:#1e40af;margin-bottom:6px">✅ Parabéns! Você recebeu interesse de uma empresa americana.</div>
+                <div style="font-size:12px;color:#1e3a8a;line-height:1.6">Agora o processo real começa. Siga cada etapa com cuidado — qualquer inconsistência pode afetar seu visto.</div>
+              </div>
+
+              <!-- Etapa A -->
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:32px;height:32px;min-width:32px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff">A</div>
+                <div>
+                  <strong style="color:#1e40af;font-size:13px">Responda confirmando interesse e disponibilidade</strong>
+                  <div style="font-size:12px;color:#374151;margin-top:4px;line-height:1.6">Use a aba Respostas do H2BApply. Responda em inglês, de forma clara e profissional. Exemplo: <em style="background:#f0f9ff;padding:2px 6px;border-radius:4px;color:#0369a1">"Thank you for your interest. I am available and very interested in this position. Please let me know the next steps."</em></div>
+                </div>
+              </div>
+
+              <!-- Etapa B -->
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:32px;height:32px;min-width:32px;background:linear-gradient(135deg,#7c3aed,#6d28d9);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff">B</div>
+                <div>
+                  <strong style="color:#5b21b6;font-size:13px">Envie seus documentos pessoais para a empresa</strong>
+                  <div style="font-size:12px;color:#374151;margin-top:4px;line-height:1.6">A empresa vai pedir: cópia do passaporte, foto, informações pessoais (endereço, telefone, habilidades). Envie em PDF, tudo legível. Não envie senha ou dados bancários.</div>
+                </div>
+              </div>
+
+              <!-- Etapa C -->
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:32px;height:32px;min-width:32px;background:linear-gradient(135deg,#0891b2,#06b6d4);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff">C</div>
+                <div>
+                  <strong style="color:#0369a1;font-size:13px">A empresa obtém a aprovação do DOL e USCIS</strong>
+                  <div style="font-size:12px;color:#374151;margin-top:4px;line-height:1.6">Este passo é feito pelo empregador — não por você. Ele submete o I-129 ao USCIS. Após aprovação, você recebe o número do formulário I-797 para usar na entrevista.</div>
+                </div>
+              </div>
+
+              <!-- Etapa D -->
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:32px;height:32px;min-width:32px;background:linear-gradient(135deg,#d97706,#f59e0b);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff">D</div>
+                <div>
+                  <strong style="color:#92400e;font-size:13px">Preencha o DS-160 em ceac.state.gov</strong>
+                  <div style="font-size:12px;color:#374151;margin-top:4px;line-height:1.6">Formulário online do governo americano. Use nome <strong>exatamente como no passaporte</strong>. Salve o número de confirmação (começa com AA). Leva cerca de 1 hora para preencher.</div>
+                  <div style="margin-top:6px;background:#fef3c7;border-radius:6px;padding:7px 10px;font-size:11px;color:#92400e;border:1px solid #fde68a">
+                    ⚠️ Erros no DS-160 podem causar recusa do visto. Se tiver dúvida, consulte um despachante.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Etapa E -->
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:32px;height:32px;min-width:32px;background:linear-gradient(135deg,#dc2626,#ef4444);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff">E</div>
+                <div>
+                  <strong style="color:#991b1b;font-size:13px">Agende e vá à entrevista consular</strong>
+                  <div style="font-size:12px;color:#374151;margin-top:4px;line-height:1.6">Consulados do Brasil: São Paulo, Rio de Janeiro, Recife, Porto Alegre, Belo Horizonte. Leve todos os documentos originais. Vista-se bem. Seja direto e honesto.</div>
+                  <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:11px">
+                      <div style="font-weight:700;color:#374151;margin-bottom:4px">✅ Leve sempre:</div>
+                      <div style="color:#6b7280;line-height:1.6">• Passaporte original<br>• DS-160 impresso<br>• I-797 (do empregador)<br>• Carta de oferta<br>• Extrato bancário<br>• Comprovante pagamento taxa</div>
+                    </div>
+                    <div style="background:#fef0f0;border:1px solid #fecaca;border-radius:8px;padding:8px;font-size:11px">
+                      <div style="font-weight:700;color:#dc2626;margin-bottom:4px">❌ Nunca diga:</div>
+                      <div style="color:#6b7280;line-height:1.6">• "Quero morar nos EUA"<br>• "Vou procurar outro emprego lá"<br>• "Não sei quando volto"<br>• Informações diferentes do DS-160</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Etapa F -->
+              <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:32px;height:32px;min-width:32px;background:linear-gradient(135deg,#059669,#10b981);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px">✈️</div>
+                <div>
+                  <strong style="color:#065f46;font-size:13px">Visto aprovado → você vai para os EUA!</strong>
+                  <div style="font-size:12px;color:#374151;margin-top:4px;line-height:1.6">O visto H2B vai carimbado no seu passaporte. Guarde o I-94 na chegada. Trabalhe apenas com o empregador que te patrocinou. O salário é em dólar, depositado semanalmente ou quinzenalmente.</div>
+                </div>
+              </div>
+
+              <!-- Aviso fraude -->
+              <div style="background:#fef0f0;border:1.5px solid #fecaca;border-radius:10px;padding:12px">
+                <div style="font-size:13px;font-weight:800;color:#dc2626;margin-bottom:6px">🚨 Atenção a golpes</div>
+                <div style="font-size:12px;color:#7f1d1d;line-height:1.6">Nunca pague a nenhum intermediário para "garantir" uma vaga ou o visto. O processo legítimo do H2B <strong>não exige</strong> que você pague para ter a vaga aprovada. Desconfie de qualquer pessoa que cobrar R$500, R$1.000 ou mais por isso.</div>
               </div>
 
             </div>
@@ -3429,10 +3766,27 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <input class="input" id="pe-desc" placeholder="Ex: Perfil para vagas de paisagismo no verão">
         </div>
 
+        <!-- TIPO DE VISTO — H-2B ou H-2A -->
         <div class="field">
+          <label>Tipo de visto</label>
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <label id="pe-visa-h2b-lbl" onclick="peOnVisaChange('h2b')" style="display:flex;align-items:center;gap:8px;padding:12px 16px;border:2.5px solid var(--blue);border-radius:12px;cursor:pointer;font-size:13px;font-weight:700;background:var(--bluel);color:var(--blue);flex:1;transition:all .15s">
+              <input type="radio" name="pe-visa" value="h2b" id="pe-visa-h2b" checked style="accent-color:var(--blue)">
+              🔧 H-2B <span style="font-size:11px;font-weight:400;opacity:.8">— Não agrícola</span>
+            </label>
+            <label id="pe-visa-h2a-lbl" onclick="peOnVisaChange('h2a')" style="display:flex;align-items:center;gap:8px;padding:12px 16px;border:2.5px solid var(--border2);border-radius:12px;cursor:pointer;font-size:13px;font-weight:700;background:var(--sf2);color:var(--t2);flex:1;transition:all .15s">
+              <input type="radio" name="pe-visa" value="h2a" id="pe-visa-h2a" style="accent-color:#059669">
+              🌾 H-2A <span style="font-size:11px;font-weight:400;opacity:.8">— Agrícola</span>
+            </label>
+          </div>
+          <div id="pe-visa-hint" style="font-size:11px;color:var(--t2);padding:8px 12px;background:var(--bluel);border-radius:8px;border-left:3px solid var(--blue);line-height:1.6">
+            🔧 <strong>H-2B:</strong> Vagas não agrícolas — landscaping, hotelaria, seafood, construção, etc.
+          </div>
+        </div>
+
+        <div class="field" id="pe-h2b-section">
           <label>Tipo do perfil</label>
           <div style="display:flex;gap:7px;flex-wrap:wrap">
-<!-- type specific removed -->
             <label id="pe-type-category-lbl" style="display:flex;align-items:center;gap:6px;padding:8px 12px;border:2px solid var(--border2);border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;background:var(--sf2);transition:all .15s">
               <input type="radio" name="pe-type" value="category" id="pe-type-category" style="accent-color:var(--blue)" onchange="peOnTypeChange()"> 📂 Por Categoria
             </label>
@@ -3443,7 +3797,42 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div id="pe-type-hint" style="margin-top:7px;font-size:11px;color:var(--t2);line-height:1.5;padding:7px 10px;background:var(--sf2);border-radius:8px;border-left:3px solid var(--blue)"></div>
         </div>
 
-        <div style="display:flex;gap:14px;margin-top:4px">
+        <!-- H-2A section — aparece só quando H-2A selecionado -->
+        <div id="pe-h2a-section" style="display:none">
+          <!-- Info principal H2A -->
+          <div style="background:linear-gradient(135deg,rgba(5,150,105,.1),rgba(16,185,129,.05));border:1.5px solid rgba(5,150,105,.3);border-radius:12px;padding:16px;margin-bottom:12px">
+            <div style="font-size:14px;font-weight:800;color:#059669;margin-bottom:8px;display:flex;align-items:center;gap:8px">
+              <span style="font-size:20px">🌾</span> Perfil H-2A — Trabalho Agrícola
+            </div>
+            <div style="font-size:12px;color:#065f46;line-height:1.7;margin-bottom:10px">
+              Este perfil é usado para candidaturas a vagas agrícolas (colheita, plantio, fazendas) na aba <strong>Seasonal Jobs</strong>. As empresas recebem seu e-mail com seu currículo em PDF.
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#065f46;background:rgba(5,150,105,.08);border-radius:8px;padding:7px 10px">
+                <span>✅</span><span><strong>Moradia e transporte gratuitos</strong> — garantidos por lei no H-2A</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#065f46;background:rgba(5,150,105,.08);border-radius:8px;padding:7px 10px">
+                <span>✅</span><span><strong>Sem limite anual</strong> de vistos — mais fácil de conseguir oferta</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#92400e;background:rgba(245,158,11,.08);border-radius:8px;padding:7px 10px;border:1px solid rgba(245,158,11,.2)">
+                <span>⚠️</span><span><strong>Automático não disponível</strong> para H-2A — candidaturas são manuais pela aba Seasonal Jobs</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dicas de corpo do e-mail para H2A -->
+          <div style="background:var(--sf2);border:1.5px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:4px">
+            <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">💡 Dicas para o corpo do e-mail H-2A</div>
+            <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--t2);line-height:1.6">
+              <div>• Mencione experiência com trabalho agrícola (mesmo que seja básica)</div>
+              <div>• Informe sua disponibilidade de datas (início e fim do período)</div>
+              <div>• Diga que está disposto a trabalhar em equipe e em campo aberto</div>
+              <div>• Use variáveis: <code style="background:var(--sf3);padding:1px 5px;border-radius:4px;font-size:11px">{nome}</code>, <code style="background:var(--sf3);padding:1px 5px;border-radius:4px;font-size:11px">{vaga}</code>, <code style="background:var(--sf3);padding:1px 5px;border-radius:4px;font-size:11px">{empresa}</code></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:14px;margin-top:4px;flex-wrap:wrap">
           <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="pe-active" checked style="width:16px;height:16px;accent-color:var(--green)">
             <span style="font-weight:600">✅ Ativo</span>
@@ -3452,11 +3841,11 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <input type="checkbox" id="pe-favorite" style="width:16px;height:16px;accent-color:var(--amber)">
             <span style="font-weight:600">⭐ Favorito</span>
           </label>
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+          <label id="pe-allow-manual-lbl" style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="pe-allow-manual" checked style="width:16px;height:16px;accent-color:var(--blue)">
             <span style="font-weight:600">✋ Envio Manual</span>
           </label>
-          <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
+          <label id="pe-allow-auto-lbl" style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="pe-allow-auto" checked style="width:16px;height:16px;accent-color:var(--purple)">
             <span style="font-weight:600">🤖 Envio Auto</span>
           </label>
@@ -3464,10 +3853,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       </div>
 
       <!-- ══ SEÇÃO: COMPATIBILIDADE ══ -->
-      <div style="padding:16px 18px 12px;border-bottom:1px solid var(--border)">
+      <div style="padding:16px 18px 12px;border-bottom:1px solid var(--border)" id="pe-compat-section">
         <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">② Compatibilidade</div>
 
-        <div class="field">
+        <div class="field" id="pe-sheets-section">
           <label>Planilhas compatíveis <span style="color:var(--t3);font-weight:400">(vazio = todas)</span></label>
           <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:4px">
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="jan2026" style="accent-color:var(--blue)"> ☀️ Jan/2026</label>
@@ -6677,7 +7066,7 @@ async function updateFilterCount(){
     try{
       const state=document.getElementById('af-state')?.value||'';
       const cat=window.autoSelectedCat||'all';
-      const hasEmail='yes'; // Sempre filtra apenas vagas com e-mail
+      const hasEmail=document.getElementById('af-has-email')?.value||'';
       const r=await fetch('/api/count-jobs?sheet='+window.autoSelectedSrc+'&minWage='+minWage+'&state='+encodeURIComponent(state)+'&category='+cat+'&hasEmail='+hasEmail,{credentials:'include'});
       const d=await r.json();
       const total=d.total||0;const filtered=d.filtered||0;
@@ -6822,7 +7211,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
   const state=g("#af-state")?.value||"";
   const keyword=g("#af-kw")?.value.trim()||"";
   const minWage=parseFloat(g("#af-min-wage")?.value||"0")||0;
-  const hasEmail="yes"; // Sempre filtra apenas vagas com e-mail — links e telefones são ignorados
+  const hasEmail=g("#af-has-email")?.value||"";
   // startH/endH: vindos do modal preflight ou do wizard
   const startH=overrideStartH!==undefined?overrideStartH:parseInt(g("#af-start-h")?.value||8,10);
   const endH  =overrideEndH  !==undefined?overrideEndH  :parseInt(g("#af-end-h")?.value||20,10);
@@ -9752,32 +10141,7 @@ strong,b{font-weight:700;color:inherit}
 .sidebar{
   background:#ffffff !important;
   border-right:1px solid rgba(124,58,237,.08) !important;
-  box-shadow: none;
-}
-
-/* BUG-FIX: no desktop, stabs e search-bar devem alinhar com jlist-panel (mesma largura)
-   para evitar faixa branca entre sidebar e lista de vagas */
-@media(min-width:768px){
-  #v-jobs > .stabs{
-    width:330px;
-    min-width:330px;
-    border-bottom:1px solid var(--border);
-    border-right:1px solid var(--border);
-  }
-  #v-jobs > .search-bar{
-    width:330px;
-    min-width:330px;
-    border-right:1px solid var(--border);
-    box-sizing:border-box;
-  }
-}
-@media(min-width:1100px){
-  #v-jobs > .stabs,
-  #v-jobs > .search-bar{ width:390px; min-width:390px; }
-}
-@media(min-width:1400px){
-  #v-jobs > .stabs,
-  #v-jobs > .search-bar{ width:440px; min-width:440px; }
+  box-shadow: 1px 0 24px rgba(37,99,235,.04);
 }
 
 /* ══════════════════════════════════════════
@@ -10028,6 +10392,17 @@ strong,b{font-weight:700;color:inherit}
     animation-iteration-count:1!important;
     transition-duration:.01ms!important;
   }
+}
+
+/* ══ MELHORIAS V15+ — SEÇÕES EDUCATIVAS H2B ══ */
+details summary{list-style:none}
+details summary::-webkit-details-marker{display:none}
+details[open] summary .ti-chevron-down{transform:rotate(180deg)}
+details summary .ti-chevron-down{transition:transform .2s}
+details{transition:all .2s}
+details:hover{border-color:rgba(37,99,235,.3)!important}
+@media(max-width:560px){
+  .ln-section-inner [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
 }
 
 </style>
@@ -12707,6 +13082,10 @@ function applyLang(){
     else if(txt.match(/Salário mínimo|Min salary|Salario mínimo/)) el.textContent='💰 '+t('min_salary');
   });
   document.querySelectorAll('#af-state option:first-child').forEach(el=>el.textContent=t('all'));
+  document.querySelectorAll('#af-has-email option').forEach((el,i)=>{
+    if(i===0) el.textContent=t('all_f');
+    else if(i===1) el.textContent=t('with_email_only');
+  });
   // Wage buttons
   _sBtnText('wq-0',t('any_salary'));
   // Start section
@@ -13295,6 +13674,100 @@ console.log("[v19] Language system (PT/EN/ES) loaded");
 })();
 
 
+
+// ══════════════════════════════════════════════════════════
+//  H-2A SISTEMA COMPLETO
+// ══════════════════════════════════════════════════════════
+(function(){
+  "use strict";
+
+  window.peOnVisaChange = function(visa){
+    const h2bSection=g("#pe-h2b-section"),h2aSection=g("#pe-h2a-section"),catsSection=g("#pe-cats-section"),hint=g("#pe-visa-hint"),h2bLbl=g("#pe-visa-h2b-lbl"),h2aLbl=g("#pe-visa-h2a-lbl");
+    const isH2A=visa==="h2a";
+    // Visuais dos botões de seleção
+    if(h2bLbl){h2bLbl.style.borderColor=isH2A?"var(--border2)":"var(--blue)";h2bLbl.style.background=isH2A?"var(--sf2)":"var(--bluel)";h2bLbl.style.color=isH2A?"var(--t2)":"var(--blue)";}
+    if(h2aLbl){h2aLbl.style.borderColor=isH2A?"#059669":"var(--border2)";h2aLbl.style.background=isH2A?"rgba(5,150,105,.08)":"var(--sf2)";h2aLbl.style.color=isH2A?"#059669":"var(--t2)";}
+    // Seções H2B-only → esconder quando H2A
+    if(h2bSection)h2bSection.style.display=isH2A?"none":"";
+    if(h2aSection)h2aSection.style.display=isH2A?"":"none";
+    if(catsSection)catsSection.style.display=isH2A?"none":"";
+    // Esconder planilhas e seção inteira de compatibilidade quando H2A
+    const sheetsSection=g("#pe-sheets-section");
+    if(sheetsSection)sheetsSection.style.display=isH2A?"none":"";
+    const compatSection=g("#pe-compat-section");
+    if(compatSection)compatSection.style.display=isH2A?"none":"";
+    // Esconder checkboxes de auto quando H2A (não tem automático H2A)
+    const allowAutoLabel=g("#pe-allow-auto-lbl");
+    if(allowAutoLabel)allowAutoLabel.style.display=isH2A?"none":"";
+    // Desmarcar auto quando H2A para não confundir o backend
+    const allowAutoChk=g("#pe-allow-auto");
+    if(allowAutoChk&&isH2A){allowAutoChk.checked=false;}
+    // Dica de visto
+    if(hint){hint.style.borderLeftColor=isH2A?"#059669":"var(--blue)";hint.style.background=isH2A?"rgba(5,150,105,.08)":"var(--bluel)";hint.innerHTML=isH2A?"🌾 <strong>H-2A:</strong> Vagas agrícolas — colheita, plantio, pecuária. As candidaturas são manuais. Configure seu PDF e corpo do e-mail abaixo.":"🔧 <strong>H-2B:</strong> Vagas não agrícolas — landscaping, hotelaria, seafood, construção, etc.";}
+  };
+
+  const _origSS=window.selectSource;
+  window.selectSource=function(src){
+    const h2af=g("#ws-h2a-filters"),ws2=g("#ws-2"),ws3=g("#ws-3");
+    if(src==="h2a"){
+      if(h2af)h2af.style.display="";if(ws2)ws2.style.display="none";if(ws3)ws3.style.display="none";
+      _populateH2AProfiles();
+      const df=g("#h2a-date-from");if(df&&!df.value)df.value=new Date().toISOString().split("T")[0];
+    } else {
+      if(h2af)h2af.style.display="none";if(ws2)ws2.style.display="";if(ws3)ws3.style.display="";
+    }
+    document.querySelectorAll(".source-btn").forEach(b=>{
+      const sel=b.dataset.src===src;
+      b.style.borderColor=sel?(src==="h2a"?"#059669":"var(--blue)"):"";
+      b.style.background=sel?(src==="h2a"?"rgba(5,150,105,.12)"):"":"";
+    });
+    if(_origSS&&src!=="h2a")_origSS(src);else if(src==="h2a")window._autoSource="h2a";
+  };
+
+  function _populateH2AProfiles(){
+    const sel=g("#h2a-profile-select"),warn=g("#h2a-no-profile-warn");if(!sel)return;
+    const profs=(U?.profiles||[]).filter(p=>p.active!==false&&(p.visaType==="h2a"||(p.name||"").toLowerCase().includes("h2a")||(p.name||"").toLowerCase().includes("h-2a")||(p.name||"").toLowerCase().includes("farm")||(p.categories||[]).includes("farm")));
+    sel.innerHTML=profs.length?'<option value="">Selecione...</option>'+profs.map(p=>`<option value="${p.idx||p.name}">${esc(p.name)}</option>`).join(""):'<option value="">Nenhum perfil H-2A encontrado</option>';
+    if(warn)warn.style.display=profs.length?"":"";
+    if(profs.length===1)sel.value=profs[0].idx||profs[0].name;
+  }
+
+  window.setH2AWage=function(val){
+    const inp=g("#h2a-min-wage");if(inp)inp.value=val>0?val:"";
+    ["0","14","16","18","20"].forEach(v=>{const btn=g(`#h2aw-${v}`);if(btn)btn.classList.toggle("on",String(val)===v);});
+  };
+
+  let _h2aWorkType="all";
+  window.setH2AWork=function(type){
+    _h2aWorkType=type;
+    ["all","harvest","plant","livestock","general"].forEach(t=>{const btn=g(`#h2a-work-${t}`);if(btn)btn.classList.toggle("on",t===type);});
+  };
+
+  window.startH2AAuto=async function(){
+    const profileVal=g("#h2a-profile-select")?.value;
+    if(!profileVal){toast("⚠️ Selecione um perfil H-2A antes de continuar","r");return;}
+    const dateFrom=g("#h2a-date-from")?.value||"",dateTo=g("#h2a-date-to")?.value||"",state=g("#h2a-state")?.value||"",minWage=parseFloat(g("#h2a-min-wage")?.value||0);
+    const btn=g("#h2a-start-btn");if(btn){btn.disabled=true;btn.innerHTML='<span class="spin spin-sm"></span> Iniciando...';}
+    try{
+      const r=await fetch("/api/auto/start",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:"seasonal",visaType:"h2a",jobType:"agricultural",profileIdx:profileVal,dateFrom,dateTo,state,minWage:minWage||0,workType:_h2aWorkType,h2aMode:true})});
+      const d=await r.json();
+      if(d.ok){toast("🌾 Automático H-2A iniciado!","g");closeAutoModal();syncData();}
+      else toast("Erro: "+(d.error||"falha"),"r");
+    }catch(e){toast("Erro: "+e.message,"r");}
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-robot"></i> Ativar Automático H-2A 🌾';}
+  };
+
+  // Salva visaType no perfil junto com os outros dados
+  const _origSP=window.saveProfile;
+  window.saveProfile=async function(){
+    const visaType=document.querySelector('input[name="pe-visa"]:checked')?.value||"h2b";
+    if(visaType==="h2a"){const gr=document.querySelector('input[name="pe-type"][value="general"]');if(gr)gr.checked=true;}
+    window._peVisaType=visaType;
+    if(_origSP)return _origSP();
+  };
+
+  console.log("[H-2A] Sistema carregado");
+})();
 
 
 
