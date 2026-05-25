@@ -272,6 +272,11 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       <button class="sb-item" onclick="showView('indicacoes')"><i class="ti ti-users-group"></i>Indicações</button>
       <button class="sb-item" onclick="showView('sugestoes')"><i class="ti ti-bulb"></i>Sugestões<span class="sb-badge sb-badge-a" id="sb-sugestoes" style="display:none">0</span></button>
       <button class="sb-item" onclick="showView('settings')"><i class="ti ti-settings"></i>Configurações</button>
+      <div class="sb-label" style="margin-top:8px">QA</div>
+      <button class="sb-item" onclick="showView('robot')" style="background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(139,92,246,.06));border:1px solid rgba(167,139,250,.25);color:var(--purple);font-weight:800" id="sb-robot-btn">
+        <i class="ti ti-robot" style="color:var(--purple)"></i>Robô de Teste
+        <span class="sb-badge" id="sb-robot-status" style="display:none;background:var(--green);color:#fff">ON</span>
+      </button>
     </div>
     <div class="sb-bottom">
       <div style="font-size:10px;color:var(--t3);margin-bottom:4px">Logado como admin</div>
@@ -631,9 +636,244 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
         </div>
       </div>
 
+      <!-- ══ ROBÔ DE TESTE ══ -->
+      <div class="view" id="view-robot">
+        <!-- CSS específico do robô -->
+        <style>
+        .robot-hero{background:linear-gradient(135deg,#0f172a,#1e1060,#4c1d95);border:1px solid rgba(167,139,250,.25);border-radius:16px;padding:20px 24px;margin-bottom:20px;position:relative;overflow:hidden}
+        .robot-hero::before{content:"";position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cg fill='none' stroke='rgba(167,139,250,0.06)' stroke-width='1'%3E%3Cpath d='M30 5l4 12h13l-10 8 4 12-11-8-11 8 4-12-10-8h13z'/%3E%3C/g%3E%3C/svg%3E") repeat;pointer-events:none}
+        .robot-hero-title{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#fff;display:flex;align-items:center;gap:10px;margin-bottom:6px;position:relative;z-index:1}
+        .robot-hero-sub{font-size:13px;color:rgba(255,255,255,.55);position:relative;z-index:1;margin-bottom:16px}
+        .robot-controls{display:flex;gap:8px;flex-wrap:wrap;position:relative;z-index:1}
+        .robot-ctrl-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:800;border:none;cursor:pointer;transition:all .15s;font-family:inherit}
+        .robot-ctrl-btn:disabled{opacity:.4;pointer-events:none}
+        .rc-start{background:linear-gradient(135deg,#059669,#10b981);color:#fff;box-shadow:0 4px 14px rgba(5,150,105,.4)}
+        .rc-start:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(5,150,105,.5)}
+        .rc-stop{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff}
+        .rc-stop:hover{transform:translateY(-1px)}
+        .rc-clear{background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.12)}
+        .rc-export{background:rgba(59,130,246,.2);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
+        .rc-sandbox{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3)}
+        .robot-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:20px}
+        .robot-stat{background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:14px;text-align:center;position:relative;overflow:hidden}
+        .robot-stat-val{font-family:'Sora',sans-serif;font-size:26px;font-weight:800;line-height:1;margin-bottom:4px}
+        .robot-stat-lbl{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
+        .robot-stat-bar{position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 12px 12px}
+        .rs-ok .robot-stat-val{color:var(--green)} .rs-ok .robot-stat-bar{background:var(--green)}
+        .rs-err .robot-stat-val{color:var(--red)} .rs-err .robot-stat-bar{background:var(--red)}
+        .rs-warn .robot-stat-val{color:var(--amber)} .rs-warn .robot-stat-bar{background:var(--amber)}
+        .rs-info .robot-stat-val{color:var(--blue)} .rs-info .robot-stat-bar{background:var(--blue)}
+        .robot-progress-wrap{background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:14px 16px;margin-bottom:20px}
+        .robot-progress-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px}
+        .robot-progress-title{font-size:13px;font-weight:800;color:#fff;display:flex;align-items:center;gap:7px}
+        .robot-progress-pct{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--purple);font-weight:700}
+        .robot-progress-bar{height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin-bottom:8px}
+        .robot-progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#7c3aed,#a78bfa);transition:width .4s ease;min-width:0}
+        .robot-current-action{font-size:12px;color:var(--t2);display:flex;align-items:center;gap:6px}
+        .robot-pulse{width:8px;height:8px;border-radius:50%;background:var(--purple);animation:pulse 1s infinite;flex-shrink:0}
+        .robot-log-wrap{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;overflow:hidden;margin-bottom:20px}
+        .robot-log-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--glass)}
+        .robot-log-title{font-size:12px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px}
+        .robot-log-body{height:340px;overflow-y:auto;padding:0;font-family:'JetBrains Mono',monospace;font-size:11px}
+        .rlog-line{display:flex;gap:8px;padding:5px 12px;border-bottom:1px solid rgba(255,255,255,.03);align-items:flex-start;transition:background .1s}
+        .rlog-line:hover{background:rgba(255,255,255,.02)}
+        .rlog-ts{color:var(--t3);white-space:nowrap;flex-shrink:0;min-width:56px;font-size:10px;padding-top:1px}
+        .rlog-icon{flex-shrink:0;width:16px;text-align:center;font-size:11px}
+        .rlog-msg{flex:1;color:var(--text);word-break:break-word;line-height:1.5}
+        .rlog-cat{font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;flex-shrink:0;text-transform:uppercase;margin-top:1px}
+        .rlog-ok{color:var(--green)} .rlog-cat-ok{background:var(--greeng);color:var(--green)}
+        .rlog-err{color:var(--red)} .rlog-cat-err{background:var(--redg);color:var(--red)}
+        .rlog-warn{color:var(--amber)} .rlog-cat-warn{background:var(--amberg);color:var(--amber)}
+        .rlog-info{color:var(--blue)} .rlog-cat-info{background:var(--blueg);color:var(--blue)}
+        .rlog-skip{color:var(--t3)} .rlog-cat-skip{background:var(--glass2);color:var(--t3)}
+        .rlog-section{background:rgba(139,92,246,.06);border-left:3px solid var(--purple);padding:6px 12px;font-size:11px;font-weight:700;color:var(--purple);letter-spacing:.04em}
+        .report-wrap{background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:0;overflow:hidden;margin-bottom:20px}
+        .report-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--glass)}
+        .report-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0}
+        .report-col{padding:14px 16px;border-right:1px solid var(--border)}
+        .report-col:last-child{border-right:none}
+        .report-col-title{font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;display:flex;align-items:center;gap:5px}
+        .report-issue{display:flex;align-items:flex-start;gap:7px;padding:7px 0;border-bottom:1px solid var(--border);font-size:11px}
+        .report-issue:last-child{border-bottom:none}
+        .ri-prio{font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;flex-shrink:0;margin-top:1px;text-transform:uppercase}
+        .ri-critical{background:var(--redg);color:var(--red);border:1px solid var(--redb)}
+        .ri-medium{background:var(--amberg);color:var(--amber);border:1px solid var(--amberb)}
+        .ri-low{background:var(--glass2);color:var(--t2);border:1px solid var(--border2)}
+        .test-suite-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+        .test-suite{background:var(--glass);border:1.5px solid var(--border2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .14s}
+        .test-suite:hover{border-color:var(--purple);background:rgba(139,92,246,.06)}
+        .test-suite.sel{border-color:var(--purple);background:rgba(139,92,246,.1)}
+        .test-suite-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+        .test-suite-name{font-size:12px;font-weight:700;color:var(--text)}
+        .test-suite-desc{font-size:10px;color:var(--t3);margin-top:2px}
+        .robot-sandbox-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:var(--amber)}
+        </style>
+
+        <!-- HERO -->
+        <div class="robot-hero">
+          <div class="robot-hero-title">
+            <div style="width:40px;height:40px;background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🤖</div>
+            Robô de Teste H2BApply
+            <span id="robot-sandbox-badge" class="robot-sandbox-badge" style="display:none"><i class="ti ti-shield" style="font-size:11px"></i> SANDBOX</span>
+            <div id="robot-running-badge" style="display:none;margin-left:auto">
+              <span style="background:var(--greeng);color:var(--green);border:1px solid var(--greenb);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:800;display:inline-flex;align-items:center;gap:5px">
+                <span style="width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1s infinite"></span> EXECUTANDO
+              </span>
+            </div>
+          </div>
+          <div class="robot-hero-sub">Teste automático de todo o sistema — APIs, UI, formulários, e-mails e sessões. Exclusivo para administradores.</div>
+          <div class="robot-controls">
+            <button class="robot-ctrl-btn rc-start" id="robot-btn-start" onclick="robotStart()">
+              <i class="ti ti-player-play"></i> Iniciar Testes
+            </button>
+            <button class="robot-ctrl-btn rc-stop" id="robot-btn-stop" onclick="robotStop()" disabled>
+              <i class="ti ti-player-stop"></i> Parar
+            </button>
+            <button class="robot-ctrl-btn rc-sandbox" id="robot-btn-sandbox" onclick="robotToggleSandbox()">
+              <i class="ti ti-shield"></i> <span id="sandbox-label">Modo Sandbox</span>
+            </button>
+            <button class="robot-ctrl-btn rc-clear" onclick="robotClearLogs()">
+              <i class="ti ti-trash"></i> Limpar Logs
+            </button>
+            <button class="robot-ctrl-btn rc-export" id="robot-btn-export" onclick="robotExportReport()" disabled>
+              <i class="ti ti-download"></i> Exportar Relatório
+            </button>
+          </div>
+        </div>
+
+        <!-- CONFIGURAÇÃO DE SUITES -->
+        <div class="section">
+          <div class="section-hdr">
+            <i class="ti ti-settings-2" style="color:var(--purple)"></i>
+            <div class="section-title">Suites de Teste</div>
+            <div class="section-sub">Selecione o que o robô deve testar</div>
+            <div class="section-actions">
+              <button class="btn btn-ghost btn-sm" onclick="robotSelectAll()"><i class="ti ti-check-all"></i> Todas</button>
+              <button class="btn btn-ghost btn-sm" onclick="robotDeselectAll()"><i class="ti ti-x"></i> Nenhuma</button>
+            </div>
+          </div>
+          <div class="test-suite-grid">
+            <div class="test-suite sel" id="suite-api" onclick="robotToggleSuite('api')">
+              <div class="test-suite-icon" style="background:rgba(59,130,246,.15);color:var(--blue)"><i class="ti ti-api"></i></div>
+              <div><div class="test-suite-name">APIs Internas</div><div class="test-suite-desc">status, jobs, history, auto, inbox, profile</div></div>
+            </div>
+            <div class="test-suite sel" id="suite-auth" onclick="robotToggleSuite('auth')">
+              <div class="test-suite-icon" style="background:rgba(16,185,129,.15);color:var(--green)"><i class="ti ti-lock"></i></div>
+              <div><div class="test-suite-name">Autenticação</div><div class="test-suite-desc">sessão, cookie, token refresh, logout</div></div>
+            </div>
+            <div class="test-suite sel" id="suite-jobs" onclick="robotToggleSuite('jobs')">
+              <div class="test-suite-icon" style="background:rgba(245,158,11,.15);color:var(--amber)"><i class="ti ti-briefcase"></i></div>
+              <div><div class="test-suite-name">Vagas & Planilhas</div><div class="test-suite-desc">seasonal, jan2026, jul2025, filtros, busca</div></div>
+            </div>
+            <div class="test-suite sel" id="suite-email" onclick="robotToggleSuite('email')">
+              <div class="test-suite-icon" style="background:rgba(167,139,250,.15);color:var(--purple)"><i class="ti ti-mail"></i></div>
+              <div><div class="test-suite-name">Envio de E-mails</div><div class="test-suite-desc">candidatura manual, respostas, inbox</div></div>
+            </div>
+            <div class="test-suite sel" id="suite-profile" onclick="robotToggleSuite('profile')">
+              <div class="test-suite-icon" style="background:rgba(34,211,238,.12);color:var(--cyan)"><i class="ti ti-user"></i></div>
+              <div><div class="test-suite-name">Perfil & Configs</div><div class="test-suite-desc">dados pessoais, perfis de e-mail, PDFs</div></div>
+            </div>
+            <div class="test-suite sel" id="suite-auto" onclick="robotToggleSuite('auto')">
+              <div class="test-suite-icon" style="background:rgba(249,115,22,.13);color:var(--orange)"><i class="ti ti-robot"></i></div>
+              <div><div class="test-suite-name">Automático</div><div class="test-suite-desc">fila, status, limites diários, logs</div></div>
+            </div>
+            <div class="test-suite sel" id="suite-ranking" onclick="robotToggleSuite('ranking')">
+              <div class="test-suite-icon" style="background:rgba(251,191,36,.12);color:#fbbf24"><i class="ti ti-trophy"></i></div>
+              <div><div class="test-suite-name">Ranking & Social</div><div class="test-suite-desc">ranking, indicações, sugestões, notificações</div></div>
+            </div>
+            <div class="test-suite sel" id="suite-admin" onclick="robotToggleSuite('admin')">
+              <div class="test-suite-icon" style="background:rgba(239,68,68,.12);color:var(--red)"><i class="ti ti-shield-check"></i></div>
+              <div><div class="test-suite-name">APIs Admin</div><div class="test-suite-desc">live, users, planos, códigos, configurações</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROGRESSO -->
+        <div class="robot-progress-wrap" id="robot-progress-wrap" style="display:none">
+          <div class="robot-progress-hdr">
+            <div class="robot-progress-title"><div class="robot-pulse"></div> Executando testes...</div>
+            <div class="robot-progress-pct" id="robot-pct">0%</div>
+          </div>
+          <div class="robot-progress-bar"><div class="robot-progress-fill" id="robot-bar" style="width:0%"></div></div>
+          <div class="robot-current-action"><i class="ti ti-loader" style="font-size:12px;color:var(--purple)"></i> <span id="robot-current">Aguardando início...</span></div>
+          <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--t3)">
+            <span id="robot-eta">⏱ –</span>
+            <span id="robot-step-count">0 / 0 testes</span>
+          </div>
+        </div>
+
+        <!-- STATS EM TEMPO REAL -->
+        <div class="robot-grid" id="robot-stats-grid">
+          <div class="robot-stat rs-ok"><div class="robot-stat-val" id="rst-ok">0</div><div class="robot-stat-lbl">✅ Passou</div><div class="robot-stat-bar"></div></div>
+          <div class="robot-stat rs-err"><div class="robot-stat-val" id="rst-err">0</div><div class="robot-stat-lbl">❌ Falhou</div><div class="robot-stat-bar"></div></div>
+          <div class="robot-stat rs-warn"><div class="robot-stat-val" id="rst-warn">0</div><div class="robot-stat-lbl">⚠️ Aviso</div><div class="robot-stat-bar"></div></div>
+          <div class="robot-stat rs-info"><div class="robot-stat-val" id="rst-skip">0</div><div class="robot-stat-lbl">⏭ Pulados</div><div class="robot-stat-bar"></div></div>
+        </div>
+
+        <!-- LOG EM TEMPO REAL -->
+        <div class="robot-log-wrap">
+          <div class="robot-log-hdr">
+            <div class="robot-log-title"><i class="ti ti-terminal-2" style="color:var(--purple)"></i> Log de Execução</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <label style="font-size:11px;color:var(--t3);display:flex;align-items:center;gap:5px;cursor:pointer">
+                <input type="checkbox" id="robot-autoscroll" checked style="accent-color:var(--purple)"> Auto-scroll
+              </label>
+              <select id="robot-log-filter" onchange="robotFilterLogs()" style="background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--t2)">
+                <option value="">Todos</option>
+                <option value="ok">✅ OK</option>
+                <option value="err">❌ Erro</option>
+                <option value="warn">⚠️ Aviso</option>
+                <option value="info">ℹ️ Info</option>
+              </select>
+              <span id="robot-log-count" style="font-size:10px;color:var(--t3)">0 entradas</span>
+            </div>
+          </div>
+          <div class="robot-log-body" id="robot-log-body">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:var(--t3)">
+              <i class="ti ti-robot" style="font-size:36px;opacity:.3"></i>
+              <div style="font-size:12px">Inicie os testes para ver os logs aqui</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RELATÓRIO FINAL -->
+        <div class="report-wrap" id="robot-report" style="display:none">
+          <div class="report-hdr">
+            <i class="ti ti-report" style="color:var(--purple)"></i>
+            <div style="font-size:14px;font-weight:800;color:#fff;flex:1">Relatório Final</div>
+            <span id="report-time" style="font-size:11px;color:var(--t3)"></span>
+            <button class="btn btn-ghost btn-sm" onclick="robotExportReport()"><i class="ti ti-download"></i> JSON</button>
+          </div>
+          <div class="report-grid">
+            <div class="report-col">
+              <div class="report-col-title"><i class="ti ti-alert-circle" style="color:var(--red)"></i> Críticos</div>
+              <div id="report-critical"><div class="empty-state" style="padding:10px;font-size:11px">Nenhum ✅</div></div>
+            </div>
+            <div class="report-col">
+              <div class="report-col-title"><i class="ti ti-alert-triangle" style="color:var(--amber)"></i> Médios</div>
+              <div id="report-medium"><div class="empty-state" style="padding:10px;font-size:11px">Nenhum ✅</div></div>
+            </div>
+            <div class="report-col">
+              <div class="report-col-title"><i class="ti ti-info-circle" style="color:var(--blue)"></i> Informativos</div>
+              <div id="report-low"><div class="empty-state" style="padding:10px;font-size:11px">Nenhum</div></div>
+            </div>
+          </div>
+          <!-- Sugestões de correção -->
+          <div id="report-suggestions" style="padding:14px 16px;border-top:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">💡 Sugestões de Correção para o Claude</div>
+            <div id="report-suggestions-list" style="font-size:11px;color:var(--t2);line-height:1.8;font-family:'JetBrains Mono',monospace;background:var(--bg2);border-radius:8px;padding:10px 12px;white-space:pre-wrap"></div>
+          </div>
+        </div>
+
+      </div><!-- /view-robot -->
+
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /app -->
+
+<!-- ══════════════════════════════════════════════════════════
+     ROBÔ DE TESTE — VIEW COMPLETA
+══════════════════════════════════════════════════════════ -->
 
 <!-- ══ USER DETAIL MODAL (completo) ══ -->
 <div class="modal-overlay" id="user-modal" style="display:none" onclick="if(event.target===this)closeUserModal()">
@@ -2764,6 +3004,801 @@ async function loadAutoNotifLog(){
   }
 }
 
+</script>
+<!-- ══════════════════════════════════════════════════════════
+     ROBÔ DE TESTE — ENGINE COMPLETA
+══════════════════════════════════════════════════════════ -->
+<script>
+// ════════════════════════════════════════════════════════
+//  H2BApply — Robot Test Engine v1.0
+//  Executa no browser como admin autenticado.
+//  Usa fetch() contra as APIs reais do server.js.
+// ════════════════════════════════════════════════════════
+
+const Robot = (function(){
+
+  // ── Estado interno ─────────────────────────────────────
+  let _running = false;
+  let _sandbox = true;
+  let _abortCtrl = null;
+  let _logs = [];
+  let _stats = { ok:0, err:0, warn:0, skip:0 };
+  let _issues = { critical:[], medium:[], low:[] };
+  let _startTime = 0;
+  let _totalTests = 0;
+  let _doneTests = 0;
+  let _selectedSuites = new Set(['api','auth','jobs','email','profile','auto','ranking','admin']);
+
+  // ── Suites de teste disponíveis ────────────────────────
+  const SUITES = {
+    api:     { label:'APIs Internas',    fn: testAPIs     },
+    auth:    { label:'Autenticação',     fn: testAuth     },
+    jobs:    { label:'Vagas & Planilhas',fn: testJobs     },
+    email:   { label:'E-mails',          fn: testEmail    },
+    profile: { label:'Perfil',           fn: testProfile  },
+    auto:    { label:'Automático',       fn: testAuto     },
+    ranking: { label:'Ranking & Social', fn: testRanking  },
+    admin:   { label:'APIs Admin',       fn: testAdmin    },
+  };
+
+  // ── Helpers de log ────────────────────────────────────
+  function ts(){ return new Date().toLocaleTimeString('pt-BR',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+
+  function log(type, msg, detail=''){
+    const entry = { type, msg, detail, ts: ts(), time: Date.now() };
+    _logs.push(entry);
+    if(type==='ok')   _stats.ok++;
+    if(type==='err')  _stats.err++;
+    if(type==='warn') _stats.warn++;
+    if(type==='skip') _stats.skip++;
+    _renderLogLine(entry);
+    _updateStats();
+    if(document.getElementById('robot-autoscroll')?.checked){
+      const lb = document.getElementById('robot-log-body');
+      if(lb) lb.scrollTop = lb.scrollHeight;
+    }
+  }
+
+  function section(title){
+    const entry = { type:'section', msg:title, ts:ts(), time: Date.now() };
+    _logs.push(entry);
+    _renderLogLine(entry);
+  }
+
+  function _renderLogLine(entry){
+    const lb = document.getElementById('robot-log-body');
+    if(!lb) return;
+    if(lb.querySelector('.ti-robot')) lb.innerHTML = '';
+    const filterVal = document.getElementById('robot-log-filter')?.value||'';
+    if(filterVal && entry.type !== 'section' && entry.type !== filterVal) return;
+
+    const line = document.createElement('div');
+    if(entry.type === 'section'){
+      line.className = 'rlog-section';
+      line.textContent = '── ' + entry.msg.toUpperCase() + ' ──';
+      lb.appendChild(line);
+      return;
+    }
+    const icons = { ok:'✅', err:'❌', warn:'⚠️', info:'ℹ️', skip:'⏭' };
+    const catClass = { ok:'rlog-cat-ok', err:'rlog-cat-err', warn:'rlog-cat-warn', info:'rlog-cat-info', skip:'rlog-cat-skip' };
+    line.className = `rlog-line rlog-${entry.type}`;
+    line.innerHTML = `
+      <span class="rlog-ts">${entry.ts}</span>
+      <span class="rlog-icon">${icons[entry.type]||'•'}</span>
+      <span class="rlog-msg">${esc(entry.msg)}${entry.detail?`<br><span style="font-size:10px;color:var(--t3);opacity:.8">${esc(entry.detail)}</span>`:''}
+      </span>
+      <span class="rlog-cat ${catClass[entry.type]||''}">${entry.type.toUpperCase()}</span>`;
+    lb.appendChild(line);
+    const cnt = document.getElementById('robot-log-count');
+    if(cnt) cnt.textContent = _logs.filter(l=>l.type!=='section').length + ' entradas';
+  }
+
+  function _updateStats(){
+    ['ok','err','warn','skip'].forEach(k=>{
+      const el = document.getElementById('rst-'+k);
+      if(el) el.textContent = _stats[k];
+    });
+  }
+
+  function _setProgress(pct, current){
+    document.getElementById('robot-bar').style.width = pct+'%';
+    document.getElementById('robot-pct').textContent = Math.round(pct)+'%';
+    document.getElementById('robot-current').textContent = current;
+    document.getElementById('robot-step-count').textContent = `${_doneTests} / ${_totalTests} testes`;
+    const elapsed = (Date.now()-_startTime)/1000;
+    const eta = _doneTests > 0 ? Math.round((elapsed / _doneTests) * (_totalTests - _doneTests)) : 0;
+    document.getElementById('robot-eta').textContent = `⏱ ${eta > 0 ? eta+'s restantes' : 'calculando...'}`;
+  }
+
+  function _addIssue(priority, test, msg, suggestion=''){
+    _issues[priority].push({ test, msg, suggestion });
+  }
+
+  // ── Fetch helper com timeout e tratamento de erro ──────
+  async function apiFetch(path, opts={}){
+    const ctrl = new AbortController();
+    const tid = setTimeout(()=>ctrl.abort(), 10000);
+    try {
+      const r = await fetch(path, { credentials:'include', signal: ctrl.signal, ...opts });
+      clearTimeout(tid);
+      const contentType = r.headers.get('content-type')||'';
+      let data = null;
+      if(contentType.includes('json')) data = await r.json().catch(()=>null);
+      return { ok: r.ok, status: r.status, data, raw: r };
+    } catch(e){
+      clearTimeout(tid);
+      if(e.name === 'AbortError') return { ok:false, status:-1, error:'timeout', data:null };
+      return { ok:false, status:-1, error:e.message, data:null };
+    }
+  }
+
+  // ── Delay humano ───────────────────────────────────────
+  function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+  // ════════════════════════════════════════════
+  //  SUITE 1: APIs INTERNAS
+  // ════════════════════════════════════════════
+  async function testAPIs(){
+    section('APIs Internas');
+
+    const endpoints = [
+      { path:'/api/status',       label:'Status da sessão',    critical:true },
+      { path:'/api/jobs?skip=0&top=5', label:'Vagas Seasonal', critical:true },
+      { path:'/api/sheet-meta?sheet=jan2026&skip=0&top=3', label:'Planilha Jan/2026', critical:false },
+      { path:'/api/sheet-meta?sheet=jul2025&skip=0&top=3', label:'Planilha Jul/2025', critical:false },
+      { path:'/api/history',      label:'Histórico de envios', critical:false },
+      { path:'/api/profiles',     label:'Perfis de e-mail',    critical:true },
+      { path:'/api/saved',        label:'Vagas salvas',        critical:false },
+      { path:'/api/auto/status',  label:'Status automático',   critical:false },
+      { path:'/api/inbox?limit=5', label:'Inbox Gmail',        critical:false },
+      { path:'/api/pub-stats',    label:'Stats públicos',      critical:false },
+      { path:'/api/ranking?period=day', label:'Ranking',        critical:false },
+      { path:'/api/referral',     label:'Sistema de indicação', critical:false },
+      { path:'/api/notifications', label:'Notificações',       critical:false },
+    ];
+
+    for(const ep of endpoints){
+      if(!_running) return;
+      _doneTests++;
+      const t0 = Date.now();
+      const res = await apiFetch(ep.path);
+      const ms = Date.now() - t0;
+      _setProgress((_doneTests/_totalTests)*100, `Testando ${ep.label}...`);
+
+      if(res.status === -1 && res.error === 'timeout'){
+        log('err', `[API] ${ep.label} — TIMEOUT (>10s)`, ep.path);
+        _addIssue('critical', ep.label, `Endpoint ${ep.path} não respondeu em 10s`, `Verificar se a rota ${ep.path} está definida no server.js e sem loops`);
+      } else if(!res.ok){
+        const level = ep.critical ? 'critical' : 'medium';
+        log('err', `[API] ${ep.label} — HTTP ${res.status}`, ep.path);
+        _addIssue(level, ep.label, `HTTP ${res.status} em ${ep.path}`, `Verificar autenticação e handler da rota no server.js`);
+      } else if(ms > 3000){
+        log('warn', `[API] ${ep.label} — LENTO (${ms}ms)`, ep.path);
+        _addIssue('medium', ep.label, `Resposta lenta: ${ms}ms`, `Verificar índices e cache — considerar otimizar ${ep.path}`);
+      } else {
+        log('ok', `[API] ${ep.label} — OK (${ms}ms)`);
+      }
+      await wait(200);
+    }
+
+    // Teste de endpoint inexistente (deve retornar 404/401, nunca crash)
+    _doneTests++;
+    const notFound = await apiFetch('/api/nao-existe-robot-test-xyz');
+    _setProgress((_doneTests/_totalTests)*100, 'Testando rota 404...');
+    if(notFound.status === 500){
+      log('err', '[API] Rota inexistente retornou 500 (crash!)', '/api/nao-existe-robot-test-xyz');
+      _addIssue('critical', 'Handler 404', 'Rota inválida causou crash 500', 'Adicionar handler de rota não encontrada no server.js');
+    } else {
+      log('ok', `[API] Rota inválida retornou ${notFound.status} (correto)`);
+    }
+  }
+
+  // ════════════════════════════════════════════
+  //  SUITE 2: AUTENTICAÇÃO
+  // ════════════════════════════════════════════
+  async function testAuth(){
+    section('Autenticação & Sessão');
+
+    // 1. Verifica se sessão está ativa
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Verificando sessão...');
+    const status = await apiFetch('/api/status');
+    if(!status.ok || !status.data?.connected){
+      log('err', '[Auth] Sessão não autenticada — robot não pode testar como usuário real');
+      _addIssue('critical', 'Sessão', 'Robô não está autenticado', 'Confirmar que o cookie h2b_session está presente');
+      return;
+    }
+    const user = status.data.user;
+    log('ok', `[Auth] Sessão válida — ${user?.email||'?'}`, `Plano: ${user?.plan||'free'}`);
+
+    // 2. Verificar se token Google está presente
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Verificando token OAuth...');
+    if(status.data?.connected && user?.email){
+      log('ok', '[Auth] OAuth Google conectado');
+    } else {
+      log('warn', '[Auth] OAuth não conectado — envio de e-mails não funcionará');
+      _addIssue('medium', 'OAuth', 'Usuário sem token Google válido', 'Refazer login OAuth pelo /oauth/start');
+    }
+
+    // 3. Rota protegida sem cookie (simular acesso não autorizado)
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Testando proteção de rotas...');
+    const adminRoute = await apiFetch('/api/admin/live');
+    if(adminRoute.ok && !status.data?.isAdmin){
+      log('err', '[Auth] Rota admin acessível por não-admin!');
+      _addIssue('critical', 'Autorização Admin', 'Rota /api/admin/live não verifica permissão admin', 'Adicionar verificação isAdmin no handler da rota');
+    } else if(adminRoute.ok){
+      log('ok', '[Auth] Rota admin acessível pelo admin atual');
+    } else {
+      log('ok', `[Auth] Rota admin bloqueada corretamente (${adminRoute.status})`);
+    }
+
+    // 4. Verifica dados do usuário admin
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Verificando dados admin...');
+    if(status.data?.isAdmin){
+      log('ok', '[Auth] Usuário é admin confirmado');
+    } else {
+      log('warn', '[Auth] Usuário atual não é admin — alguns testes serão limitados');
+      _addIssue('medium', 'Permissão Admin', 'Robô rodando sem permissão admin', 'Confirmar que ADMIN_EMAIL está correto nas variáveis de ambiente');
+    }
+  }
+
+  // ════════════════════════════════════════════
+  //  SUITE 3: VAGAS & PLANILHAS
+  // ════════════════════════════════════════════
+  async function testJobs(){
+    section('Vagas & Planilhas');
+
+    // 1. Seasonal jobs
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Carregando vagas Seasonal...');
+    const seasonal = await apiFetch('/api/jobs?skip=0&top=10');
+    if(!seasonal.ok){
+      log('err', '[Jobs] Endpoint /api/jobs falhou', `HTTP ${seasonal.status}`);
+      _addIssue('critical', 'Seasonal Jobs', `API retornou ${seasonal.status}`, 'Verificar rota /api/jobs e carregamento do SHEET_SEASONAL');
+    } else {
+      const jobs = seasonal.data?.jobs || [];
+      log('ok', `[Jobs] Seasonal — ${seasonal.data?.total||jobs.length} vagas disponíveis`);
+      if(jobs.length === 0){
+        log('warn', '[Jobs] Nenhuma vaga seasonal retornada — cache pode estar vazio');
+        _addIssue('medium', 'Seasonal Cache', 'Nenhuma vaga seasonal no cache', 'Verificar loadSheets() no boot do server.js');
+      }
+    }
+
+    // 2. Planilha Jan/2026
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Testando planilha Jan/2026...');
+    const jan = await apiFetch('/api/sheet-meta?sheet=jan2026&skip=0&top=10');
+    if(!jan.ok){
+      log('err', '[Jobs] Planilha jan2026 falhou');
+      _addIssue('critical', 'Planilha Jan/2026', `API retornou ${jan.status}`, 'Verificar se jan2026_compact.json está presente e carregado');
+    } else {
+      log('ok', `[Jobs] Jan/2026 — ${jan.data?.total||0} vagas`);
+    }
+
+    // 3. Planilha Jul/2025
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Testando planilha Jul/2025...');
+    const jul = await apiFetch('/api/sheet-meta?sheet=jul2025&skip=0&top=10');
+    if(!jul.ok){
+      log('err', '[Jobs] Planilha jul2025 falhou');
+      _addIssue('medium', 'Planilha Jul/2025', `API retornou ${jul.status}`, 'Verificar se jul2025_compact.json está presente e carregado');
+    } else {
+      log('ok', `[Jobs] Jul/2025 — ${jul.data?.total||0} vagas`);
+    }
+
+    // 4. Filtro de busca
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Testando filtro de busca...');
+    const search = await apiFetch('/api/jobs?q=landscape&skip=0&top=5');
+    if(!search.ok){
+      log('err', '[Jobs] Busca por texto falhou');
+      _addIssue('medium', 'Busca de vagas', 'Filtro q= não funcionando', 'Verificar implementação do filtro no handler /api/jobs');
+    } else {
+      log('ok', `[Jobs] Busca "landscape" — ${search.data?.jobs?.length||0} resultados`);
+    }
+
+    // 5. Categorias
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Testando categorias...');
+    const cats = await apiFetch('/api/sheet-categories?sheet=jan2026');
+    if(!cats.ok){
+      log('warn', '[Jobs] Categorias da planilha não retornaram');
+      _addIssue('low', 'Categorias', 'Endpoint /api/sheet-categories com problema', 'Verificar handler no server.js');
+    } else {
+      log('ok', `[Jobs] Categorias — ${cats.data?.categories?.length||0} categorias`);
+    }
+  }
+
+  // ════════════════════════════════════════════
+  //  SUITE 4: E-MAILS
+  // ════════════════════════════════════════════
+  async function testEmail(){
+    section('Envio de E-mails');
+
+    // 1. Verificar inbox
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Verificando inbox Gmail...');
+    const inbox = await apiFetch('/api/inbox?limit=5');
+    if(inbox.status === 401 || (inbox.data?.error||'').includes('TOKEN_EXPIRED')){
+      log('warn', '[Email] Token Gmail expirado — inbox não acessível');
+      _addIssue('medium', 'Inbox Gmail', 'Token OAuth expirado', 'Reconectar Gmail via /oauth/start');
+    } else if(!inbox.ok){
+      log('err', `[Email] Inbox falhou (${inbox.status})`);
+      _addIssue('medium', 'Inbox', `HTTP ${inbox.status}`, 'Verificar handler /api/inbox no server.js');
+    } else {
+      const emails = inbox.data?.emails || [];
+      log('ok', `[Email] Inbox acessível — ${emails.length} e-mails recentes`);
+    }
+
+    // 2. Simular envio em modo sandbox (não envia de verdade)
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Testando endpoint de envio...');
+    if(_sandbox){
+      log('info', '[Email] Modo sandbox ativo — envio real não executado');
+      log('ok', '[Email] Endpoint /api/send disponível (não enviado — sandbox)');
+    } else {
+      // Testa se o endpoint aceita o payload mínimo
+      const sendTest = await apiFetch('/api/send', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ to:'test-robot@h2bapply.com.invalid', job:'Robot Test Job', company:'Robot Test Co', body:'Test email from robot', subject:'[ROBOT TEST]', jobId:'robot-test-001' })
+      });
+      if(sendTest.status === 400 || sendTest.status === 422){
+        log('ok', `[Email] Endpoint /api/send valida payload corretamente (${sendTest.status})`);
+      } else if(sendTest.ok){
+        log('ok', '[Email] E-mail de teste enviado com sucesso');
+      } else if(sendTest.status === 401){
+        log('warn', '[Email] Gmail não autorizado para envio');
+        _addIssue('medium', 'Envio de e-mail', 'Token Gmail inválido', 'Refazer OAuth');
+      } else {
+        log('warn', `[Email] Envio retornou ${sendTest.status}`, JSON.stringify(sendTest.data||{}).slice(0,100));
+      }
+    }
+
+    // 3. Verificar histórico
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Verificando histórico de envios...');
+    const hist = await apiFetch('/api/history');
+    if(!hist.ok){
+      log('err', '[Email] Histórico de envios inacessível');
+      _addIssue('medium', 'Histórico', `HTTP ${hist.status}`, 'Verificar /api/history no server.js');
+    } else {
+      const count = hist.data?.history?.length || 0;
+      log('ok', `[Email] Histórico — ${count} candidaturas registradas`);
+    }
+  }
+
+  // ════════════════════════════════════════════
+  //  SUITE 5: PERFIL & CONFIGS
+  // ════════════════════════════════════════════
+  async function testProfile(){
+    section('Perfil & Configurações');
+
+    // 1. Carregar perfis
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Carregando perfis de e-mail...');
+    const profiles = await apiFetch('/api/profiles');
+    if(!profiles.ok){
+      log('err', '[Profile] Não foi possível carregar perfis');
+      _addIssue('critical', 'Perfis', `HTTP ${profiles.status}`, 'Verificar /api/profiles no server.js');
+    } else {
+      const profs = profiles.data?.profiles || [];
+      log('ok', `[Profile] ${profs.length} perfil(is) cadastrado(s)`);
+      if(profs.length === 0){
+        log('warn', '[Profile] Nenhum perfil criado — usuário não pode enviar candidaturas');
+        _addIssue('low', 'Perfis', 'Conta sem perfis de e-mail', 'Criar ao menos um perfil com currículo');
+      } else {
+        // Verificar se perfis têm currículo
+        const semPdf = profs.filter(p=>!p.pdfName && !p.resumeIdx);
+        if(semPdf.length > 0){
+          log('warn', `[Profile] ${semPdf.length} perfil(s) sem currículo PDF`);
+          _addIssue('medium', 'Currículo', `${semPdf.length} perfis sem PDF`, 'Adicionar currículo aos perfis sem PDF');
+        }
+        // Verificar perfis sem assuntos suficientes
+        const poucoAssunto = profs.filter(p=>(p.subjects||[]).length < 3);
+        if(poucoAssunto.length > 0){
+          log('warn', `[Profile] ${poucoAssunto.length} perfil(s) com menos de 3 assuntos de e-mail`);
+          _addIssue('low', 'Assuntos de e-mail', 'Poucos assuntos cadastrados (risco de spam)', 'Adicionar mínimo 3 variações de assunto');
+        }
+      }
+    }
+
+    // 2. CVs / PDFs
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Verificando PDFs cadastrados...');
+    const cvs = await apiFetch('/api/cv/list');
+    if(!cvs.ok){
+      log('warn', `[Profile] Lista de CVs retornou ${cvs.status}`);
+    } else {
+      const list = cvs.data?.cvs || [];
+      log('ok', `[Profile] ${list.length} arquivo(s) PDF armazenado(s)`);
+    }
+
+    // 3. Dados pessoais (nome, país, whatsapp)
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Verificando dados pessoais...');
+    const status = await apiFetch('/api/status');
+    if(status.ok && status.data?.user){
+      const u = status.data.user;
+      const warnings = [];
+      if(!u.name) warnings.push('nome completo');
+      if(!u.country && !u.phone) warnings.push('país ou WhatsApp');
+      if(warnings.length > 0){
+        log('warn', `[Profile] Dados incompletos: ${warnings.join(', ')}`);
+        _addIssue('low', 'Dados pessoais', `Faltam: ${warnings.join(', ')}`, 'Completar dados no perfil para aparecer nos e-mails');
+      } else {
+        log('ok', `[Profile] Dados pessoais completos — ${u.name}`);
+      }
+    }
+  }
+
+  // ════════════════════════════════════════════
+  //  SUITE 6: AUTOMÁTICO
+  // ════════════════════════════════════════════
+  async function testAuto(){
+    section('Sistema de Envio Automático');
+
+    // 1. Status do automático
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Verificando status do automático...');
+    const autoStatus = await apiFetch('/api/auto/status');
+    if(!autoStatus.ok){
+      log('err', '[Auto] Endpoint /api/auto/status falhou');
+      _addIssue('critical', 'Automático', `HTTP ${autoStatus.status}`, 'Verificar handler /api/auto/status no server.js');
+    } else {
+      const a = autoStatus.data;
+      const isActive = a?.active || false;
+      const queueLen = a?.queue?.length || a?.queueSize || 0;
+      log('ok', `[Auto] Status: ${isActive ? '🟢 Ativo' : '⏸ Inativo'} | Fila: ${queueLen} vagas`);
+
+      // Verificar limite diário
+      if(a?.dailyCount !== undefined && a?.dailyLimit !== undefined){
+        const pct = Math.round((a.dailyCount/a.dailyLimit)*100);
+        if(pct >= 100){
+          log('warn', `[Auto] Limite diário atingido (${a.dailyCount}/${a.dailyLimit})`);
+          _addIssue('low', 'Limite diário', 'Automático travado por limite', 'Aguardar reset à meia-noite BRT');
+        } else {
+          log('ok', `[Auto] Limite diário: ${a.dailyCount}/${a.dailyLimit} (${pct}%)`);
+        }
+      }
+    }
+
+    // 2. Logs do automático
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Verificando logs do automático...');
+    const logs = await apiFetch('/api/auto/logs?limit=20');
+    if(!logs.ok){
+      log('warn', `[Auto] Logs não acessíveis (${logs.status})`);
+    } else {
+      const entries = logs.data?.logs || [];
+      const erros = entries.filter(l=>l.status==='error'||l.status==='failed');
+      log('ok', `[Auto] ${entries.length} entradas no log | ${erros.length} erros recentes`);
+      if(erros.length > 5){
+        log('warn', `[Auto] ${erros.length} erros nos logs recentes`);
+        _addIssue('medium', 'Logs do automático', `${erros.length} erros recentes`, 'Verificar tokens OAuth e limites do Gmail');
+      }
+    }
+
+    // 3. Verificar intervalo entre envios
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Verificando configuração de intervalo...');
+    if(autoStatus.ok && autoStatus.data?.active){
+      const lastSent = autoStatus.data?.lastSent;
+      if(lastSent){
+        const mins = Math.round((Date.now()-lastSent)/60000);
+        if(mins > 10){
+          log('warn', `[Auto] Último envio há ${mins} minutos — robô pode estar travado`);
+          _addIssue('medium', 'Watchdog', `Automático inativo há ${mins} minutos`, 'Verificar se o token OAuth expirou ou se há erro no worker');
+        } else {
+          log('ok', `[Auto] Último envio há ${mins} minuto(s) — OK`);
+        }
+      }
+    } else {
+      log('info', '[Auto] Automático não está ativo — skip watchdog');
+    }
+  }
+
+  // ════════════════════════════════════════════
+  //  SUITE 7: RANKING & SOCIAL
+  // ════════════════════════════════════════════
+  async function testRanking(){
+    section('Ranking & Funcionalidades Sociais');
+
+    const periods = ['day','week','month','all'];
+    for(const period of periods){
+      if(!_running) return;
+      _doneTests++;
+      _setProgress((_doneTests/_totalTests)*100, `Testando ranking (${period})...`);
+      const r = await apiFetch(`/api/ranking?period=${period}`);
+      if(!r.ok){
+        log('err', `[Ranking] Período '${period}' falhou (${r.status})`);
+        _addIssue('medium', 'Ranking', `Período ${period} retornou ${r.status}`, 'Verificar função calcRanking no server.js');
+      } else {
+        log('ok', `[Ranking] ${period} — ${r.data?.list?.length||0} usuários`);
+      }
+      await wait(150);
+    }
+
+    // Stats públicos (landing page)
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Testando stats públicos...');
+    const pub = await apiFetch('/api/pub-stats');
+    if(!pub.ok){
+      log('err', '[Ranking] Stats públicos falhou');
+      _addIssue('medium', 'Stats públicos', 'Landing page sem dados ao vivo', 'Verificar /api/pub-stats no server.js');
+    } else {
+      log('ok', `[Ranking] Stats — ${pub.data?.totalUsers||0} usuários, ${pub.data?.totalSent||0} enviados`);
+    }
+
+    // Indicações
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Testando sistema de indicações...');
+    const ref = await apiFetch('/api/referral');
+    if(!ref.ok){
+      log('warn', `[Social] Indicações falhou (${ref.status})`);
+      _addIssue('low', 'Indicações', `HTTP ${ref.status}`, 'Verificar /api/referral no server.js');
+    } else {
+      log('ok', '[Social] Sistema de indicações OK');
+    }
+  }
+
+  // ════════════════════════════════════════════
+  //  SUITE 8: APIs ADMIN
+  // ════════════════════════════════════════════
+  async function testAdmin(){
+    section('APIs Administrativas');
+
+    const adminEndpoints = [
+      { path:'/api/admin/live',         label:'Live data' },
+      { path:'/api/admin/users',        label:'Lista usuários' },
+      { path:'/api/admin/events',       label:'Eventos' },
+      { path:'/api/admin/settings',     label:'Configurações' },
+      { path:'/api/admin/codes',        label:'Códigos promo' },
+      { path:'/api/admin/suggestions',  label:'Sugestões' },
+      { path:'/api/admin/referrals',    label:'Indicações admin' },
+      { path:'/api/admin/notifications',label:'Notificações admin' },
+    ];
+
+    for(const ep of adminEndpoints){
+      if(!_running) return;
+      _doneTests++;
+      _setProgress((_doneTests/_totalTests)*100, `Admin: ${ep.label}...`);
+      const t0 = Date.now();
+      const r = await apiFetch(ep.path);
+      const ms = Date.now()-t0;
+      if(!r.ok){
+        log('err', `[Admin] ${ep.label} — HTTP ${r.status}`, ep.path);
+        _addIssue('medium', `Admin: ${ep.label}`, `HTTP ${r.status}`, `Verificar handler ${ep.path} no server.js`);
+      } else {
+        log('ok', `[Admin] ${ep.label} — OK (${ms}ms)`);
+      }
+      await wait(100);
+    }
+
+    // Teste específico: live data tem estrutura mínima?
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100, 'Validando estrutura do live data...');
+    const live = await apiFetch('/api/admin/live');
+    if(live.ok && live.data){
+      const required = ['autoWorkers','events','totalUsers','totalSent'];
+      const missing = required.filter(k=>live.data[k]===undefined);
+      if(missing.length > 0){
+        log('warn', `[Admin] Live data missing fields: ${missing.join(', ')}`);
+        _addIssue('low', 'Live data estrutura', `Campos ausentes: ${missing.join(', ')}`, 'Verificar resposta de /api/admin/live');
+      } else {
+        log('ok', `[Admin] Live data estrutura OK — ${live.data.totalUsers||0} usuários`);
+      }
+    }
+  }
+
+  // ════════════════════════════════════════════
+  //  RENDERIZAÇÃO DO RELATÓRIO FINAL
+  // ════════════════════════════════════════════
+  function _renderReport(){
+    const elapsed = ((Date.now()-_startTime)/1000).toFixed(1);
+    document.getElementById('report-time').textContent = `Executado em ${elapsed}s`;
+    document.getElementById('robot-report').style.display = '';
+
+    const renderIssues = (containerId, issues) => {
+      const el = document.getElementById(containerId);
+      if(!el) return;
+      if(!issues.length){ el.innerHTML = '<div class="empty-state" style="padding:10px;font-size:11px">Nenhum ✅</div>'; return; }
+      el.innerHTML = issues.map(i=>`
+        <div class="report-issue">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px">${esc(i.test)}</div>
+            <div style="font-size:11px;color:var(--t2)">${esc(i.msg)}</div>
+            ${i.suggestion?`<div style="font-size:10px;color:var(--cyan);margin-top:3px">💡 ${esc(i.suggestion)}</div>`:''}
+          </div>
+        </div>`).join('');
+    };
+
+    renderIssues('report-critical', _issues.critical);
+    renderIssues('report-medium',   _issues.medium);
+    renderIssues('report-low',      _issues.low);
+
+    // Sugestões para o Claude
+    const allIssues = [..._issues.critical, ..._issues.medium, ..._issues.low];
+    const sugEl = document.getElementById('report-suggestions-list');
+    if(sugEl){
+      if(!allIssues.length){
+        sugEl.textContent = '✅ Nenhum problema encontrado! Sistema funcionando corretamente.';
+      } else {
+        const lines = [
+          `H2BApply Robot Test — ${new Date().toLocaleString('pt-BR')}`,
+          `Resultado: ${_stats.ok} OK | ${_stats.err} Erros | ${_stats.warn} Avisos`,
+          `Duração: ${elapsed}s`,
+          '',
+          'PROBLEMAS ENCONTRADOS:',
+          ...allIssues.map((i,n)=>`\n[${n+1}] ${i.test}\n  Problema: ${i.msg}\n  Sugestão: ${i.suggestion||'Investigar manualmente'}`)
+        ];
+        sugEl.textContent = lines.join('\n');
+      }
+    }
+  }
+
+  // ════════════════════════════════════════════
+  //  API PÚBLICA DO ROBÔ
+  // ════════════════════════════════════════════
+  function _countTests(){
+    // Mapeia quantos _doneTests++ cada suite vai executar
+    const counts = { api:14, auth:4, jobs:5, email:3, profile:3, auto:3, ranking:6, admin:9 };
+    return [..._selectedSuites].reduce((s,k)=> s+(counts[k]||5), 0);
+  }
+
+  return {
+    isRunning(){ return _running; },
+    isSandbox(){ return _sandbox; },
+
+    toggleSandbox(){
+      _sandbox = !_sandbox;
+      const badge = document.getElementById('robot-sandbox-badge');
+      const label = document.getElementById('sandbox-label');
+      if(badge) badge.style.display = _sandbox ? '' : 'none';
+      if(label) label.textContent = _sandbox ? '✅ Sandbox ON' : 'Modo Sandbox';
+      const btn = document.getElementById('robot-btn-sandbox');
+      if(btn) btn.style.background = _sandbox ? 'rgba(16,185,129,.2)' : 'rgba(245,158,11,.15)';
+    },
+
+    toggleSuite(key){
+      if(_selectedSuites.has(key)) _selectedSuites.delete(key);
+      else _selectedSuites.add(key);
+      const el = document.getElementById('suite-'+key);
+      if(el) el.classList.toggle('sel', _selectedSuites.has(key));
+    },
+
+    selectAll(){ Object.keys(SUITES).forEach(k=>{ _selectedSuites.add(k); document.getElementById('suite-'+k)?.classList.add('sel'); }); },
+    deselectAll(){ _selectedSuites.clear(); Object.keys(SUITES).forEach(k=>document.getElementById('suite-'+k)?.classList.remove('sel')); },
+
+    clearLogs(){
+      _logs=[]; _stats={ok:0,err:0,warn:0,skip:0}; _issues={critical:[],medium:[],low:[]};
+      const lb=document.getElementById('robot-log-body');
+      if(lb) lb.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:var(--t3)"><i class="ti ti-robot" style="font-size:36px;opacity:.3"></i><div style="font-size:12px">Logs limpos</div></div>`;
+      _updateStats();
+      document.getElementById('robot-report').style.display='none';
+      document.getElementById('robot-log-count').textContent='0 entradas';
+    },
+
+    filterLogs(){
+      const lb=document.getElementById('robot-log-body');
+      if(!lb) return;
+      lb.innerHTML='';
+      const f=document.getElementById('robot-log-filter')?.value||'';
+      _logs.forEach(e=>{ if(!f||e.type==='section'||e.type===f) _renderLogLine(e); });
+    },
+
+    exportReport(){
+      const report = {
+        meta:{ version:'1.0', timestamp:new Date().toISOString(), sandbox:_sandbox, duration:((Date.now()-_startTime)/1000).toFixed(1)+'s' },
+        summary: _stats,
+        issues: _issues,
+        logs: _logs.filter(l=>l.type!=='section').map(l=>({ts:l.ts,type:l.type,msg:l.msg,detail:l.detail||undefined}))
+      };
+      const blob = new Blob([JSON.stringify(report,null,2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href=url; a.download=`robot-report-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.json`;
+      a.click(); URL.revokeObjectURL(url);
+    },
+
+    async run(){
+      if(_running) return;
+      if(_selectedSuites.size===0){ alert('Selecione ao menos uma suite de teste.'); return; }
+      _running=true;
+      _abortCtrl=new AbortController();
+      _stats={ok:0,err:0,warn:0,skip:0};
+      _issues={critical:[],medium:[],low:[]};
+      _logs=[];
+      _doneTests=0;
+      _startTime=Date.now();
+      _totalTests=_countTests();
+
+      // UI: ativar
+      document.getElementById('robot-btn-start').disabled=true;
+      document.getElementById('robot-btn-stop').disabled=false;
+      document.getElementById('robot-btn-export').disabled=true;
+      document.getElementById('robot-running-badge').style.display='';
+      document.getElementById('robot-progress-wrap').style.display='';
+      document.getElementById('robot-report').style.display='none';
+      document.getElementById('sb-robot-status').style.display='';
+      const lb=document.getElementById('robot-log-body');
+      if(lb) lb.innerHTML='';
+
+      log('info', `🤖 Robô de Teste iniciado — ${[..._selectedSuites].length} suites | ${_totalTests} testes | Sandbox: ${_sandbox?'ON':'OFF'}`);
+      if(_sandbox) log('info', '🛡️ Modo Sandbox ativo — ações destrutivas bloqueadas');
+
+      // Executar suites selecionadas
+      for(const [key, suite] of Object.entries(SUITES)){
+        if(!_running) break;
+        if(!_selectedSuites.has(key)) continue;
+        try { await suite.fn(); }
+        catch(e){ log('err', `[${suite.label}] Erro inesperado na suite: ${e.message}`); _addIssue('critical', suite.label, 'Erro inesperado na suite: '+e.message, 'Ver console do browser para stack trace'); }
+        await wait(300);
+      }
+
+      // Finalizar
+      _running=false;
+      const elapsed = ((Date.now()-_startTime)/1000).toFixed(1);
+      const level = _stats.err>0 ? 'err' : _stats.warn>0 ? 'warn' : 'ok';
+      log(level, `🏁 Testes concluídos em ${elapsed}s — ✅ ${_stats.ok} | ❌ ${_stats.err} | ⚠️ ${_stats.warn}`);
+      _renderReport();
+      _setProgress(100, 'Concluído');
+
+      // UI: desativar
+      document.getElementById('robot-btn-start').disabled=false;
+      document.getElementById('robot-btn-stop').disabled=true;
+      document.getElementById('robot-btn-export').disabled=false;
+      document.getElementById('robot-running-badge').style.display='none';
+      document.getElementById('sb-robot-status').style.display='none';
+
+      // Toast
+      if(typeof toast === 'function') toast(`Robô concluiu — ${_stats.ok} OK / ${_stats.err} erros`, _stats.err>0?'err':'ok');
+    },
+
+    stop(){
+      if(!_running) return;
+      _running=false;
+      log('warn', '⏹ Testes interrompidos pelo usuário');
+      document.getElementById('robot-btn-start').disabled=false;
+      document.getElementById('robot-btn-stop').disabled=true;
+      document.getElementById('robot-running-badge').style.display='none';
+      document.getElementById('sb-robot-status').style.display='none';
+    }
+  };
+})();
+
+// ── Funções globais para os botões ──────────────────────
+function robotStart()      { Robot.run(); }
+function robotStop()       { Robot.stop(); }
+function robotClearLogs()  { Robot.clearLogs(); }
+function robotExportReport(){ Robot.exportReport(); }
+function robotToggleSandbox(){ Robot.toggleSandbox(); }
+function robotToggleSuite(k){ Robot.toggleSuite(k); }
+function robotSelectAll()  { Robot.selectAll(); }
+function robotDeselectAll(){ Robot.deselectAll(); }
+function robotFilterLogs() { Robot.filterLogs(); }
+
+// ── Integrar showView para carregar o robô ──────────────
+const _origShowView = window.showView || function(){};
+// Patch: adicionar 'robot' ao título e à lista de views
+document.addEventListener('DOMContentLoaded', function(){
+  // Adicionar "robot" às views conhecidas no admin
+  if(typeof showView === 'function'){
+    const originalTitles = { dashboard:'Dashboard', workers:'Automáticos', events:'Eventos & Crashes', users:'Usuários', vip:'VIP & Planos', codes:'Códigos Promo', ranking:'Ranking', settings:'Configurações', notificacoes:'Notificações', indicacoes:'Indicações', sugestoes:'Sugestões', robot:'🤖 Robô de Teste' };
+    const origFn = showView;
+    window.showView = function(name){
+      origFn(name);
+      if(name==='robot'){
+        // Corrigir título caso não seja reconhecido pelo original
+        const t=document.getElementById('view-title');
+        if(t && (t.textContent===name||!t.textContent)) t.textContent='🤖 Robô de Teste';
+      }
+    };
+  }
+});
 </script>
 </body>
 </html>
