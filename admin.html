@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>H2BApply — Admin Console v14</title>
+<title>H2BApply — Admin Console v15</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700;800&family=Sora:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css">
@@ -22,6 +22,7 @@ a{color:inherit;text-decoration:none}
   --green:#10b981;--greeng:rgba(16,185,129,.13);--greenb:rgba(16,185,129,.28);
   --red:#ef4444;--redg:rgba(239,68,68,.12);--redb:rgba(239,68,68,.28);
   --amber:#f59e0b;--amberg:rgba(245,158,11,.12);--amberb:rgba(245,158,11,.28);
+  --orange:#f97316;--orangeg:rgba(249,115,22,.12);--orangeb:rgba(249,115,22,.28);
   --purple:#a78bfa;--purpleg:rgba(167,139,250,.12);--purpleb:rgba(167,139,250,.28);
   --cyan:#22d3ee;--cyang:rgba(34,211,238,.1);
   --r:8px;--rl:12px;
@@ -32,7 +33,7 @@ a{color:inherit;text-decoration:none}
 .sidebar{width:224px;min-width:224px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .topbar{height:52px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 20px;flex-shrink:0}
-.content{flex:1;overflow-y:auto;padding:20px;background:var(--bg)}
+.content{flex:1;overflow-y:auto;padding:20px;background:var(--bg);min-height:calc(100vh - 52px)}
 .sb-logo{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
 .sb-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .sb-logo-text{font-family:'Sora',sans-serif;font-size:14px;font-weight:800;color:#fff}
@@ -56,6 +57,7 @@ a{color:inherit;text-decoration:none}
 .refresh-btn:hover{background:var(--glass3);color:var(--text)}
 .refresh-btn.spinning i{animation:spin .6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;border:2.5px solid rgba(255,255,255,.15);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
 .tb-time{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t3)}
 .tb-uptime{font-size:11px;color:var(--t3);padding:3px 8px;background:var(--glass);border:1px solid var(--border);border-radius:6px}
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:20px}
@@ -198,7 +200,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
 .pg-red{background:var(--red)}
 
 /* VIEW SYSTEM */
-.view{display:none}.view.active{display:block}
+.view{display:none}.view.active{display:block;min-height:400px}
 
 /* ALERT BANNER */
 .alert-banner{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r);margin-bottom:10px;font-size:12px}
@@ -252,7 +254,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       <div class="sb-logo-icon"><i class="ti ti-shield" style="color:#fff;font-size:16px"></i></div>
       <div>
         <div class="sb-logo-text">H2BApply</div>
-        <div class="sb-logo-sub">Admin Console v14</div>
+        <div class="sb-logo-sub">Admin Console v15</div>
       </div>
     </div>
     <div class="sb-nav">
@@ -268,6 +270,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       <button class="sb-item" onclick="showView('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
       <button class="sb-item" onclick="showView('notificacoes')"><i class="ti ti-bell"></i>Notificações</button>
       <button class="sb-item" onclick="showView('indicacoes')"><i class="ti ti-users-group"></i>Indicações</button>
+      <button class="sb-item" onclick="showView('sugestoes')"><i class="ti ti-bulb"></i>Sugestões<span class="sb-badge sb-badge-a" id="sb-sugestoes" style="display:none">0</span></button>
       <button class="sb-item" onclick="showView('settings')"><i class="ti ti-settings"></i>Configurações</button>
     </div>
     <div class="sb-bottom">
@@ -341,14 +344,25 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
               <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" id="w-search" placeholder="Buscar email..." oninput="filterWorkers()"></div>
               <select class="filter-sel" id="w-filter-status" onchange="filterWorkers()">
                 <option value="">Todos status</option>
-                <option value="active">Ativos</option>
-                <option value="stalled">Travados</option>
-                <option value="paused">Pausados</option>
+                <option value="running">✅ Rodando normalmente</option>
+                <option value="active">⚡ Ativos (todos)</option>
+                <option value="stalled">⚠️ Travados</option>
+                <option value="paused">⏸️ Pausados</option>
+                <option value="zombie">🧟 Ativo mas sem enviar (zombie)</option>
+                <option value="zero">📭 Ativo com 0 enviado</option>
+                <option value="finished">✅ Finalizados</option>
+                <option value="oauth">🔐 OAuth expirado</option>
+              </select>
+              <select class="filter-sel" id="w-filter-source" onchange="filterWorkers()">
+                <option value="">Qualquer fonte</option>
+                <option value="jan2026">Jan/2026</option>
+                <option value="jul2025">Jul/2025</option>
               </select>
               <button class="btn btn-ghost btn-sm" onclick="loadLive()"><i class="ti ti-refresh"></i> Atualizar</button>
+              <button class="btn btn-amber btn-sm" onclick="restartAllStalled()"><i class="ti ti-refresh-alert"></i> Reiniciar Todos Travados</button>
             </div>
             <div id="workers-table-body">
-              <div class="empty-state"><i class="ti ti-robot"></i>Nenhum worker encontrado</div>
+              <div class="empty-state"><div class="spin" style="width:20px;height:20px;border-width:2.5px;margin:0 auto 8px"></div>Carregando...</div>
             </div>
           </div>
         </div>
@@ -372,7 +386,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
           </div>
           <div class="tbl-wrap">
             <div class="event-list" id="events-list">
-              <div class="empty-state"><i class="ti ti-check"></i>Nenhum evento</div>
+              <div class="empty-state"><div class="spin" style="width:20px;height:20px;border-width:2.5px;margin:0 auto 8px"></div>Carregando...</div>
             </div>
           </div>
         </div>
@@ -393,7 +407,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
                 <option value="">Todos planos</option>
                 <option value="vipro">VIPro</option>
                 <option value="vip">VIP</option>
-                <option value="pro">Pro</option>
+                <option value="pro">VIPro (Auto)</option>
                 <option value="free">Free</option>
               </select>
               <select class="filter-sel" id="u-filter-auto" onchange="filterUsers()">
@@ -435,7 +449,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
                 <select class="form-inp" id="vip-plan">
                   <option value="vipro">⭐🤖 VIPro (Manual + Auto)</option>
                   <option value="vip">⭐ VIP (só Manual)</option>
-                  <option value="pro">🤖 Pro (só Auto)</option>
+                  <option value="pro">💥 VIPro (só Auto)</option>
                 </select>
               </div>
               <div class="form-group"><label class="form-label">Nota interna (opcional)</label><input class="form-inp" id="vip-note" placeholder="Ex: Pagamento PIX #1234"></div>
@@ -536,7 +550,42 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
               <div id="notif-send-result" style="font-size:12px;margin-top:4px"></div>
             </div>
           </div>
-          <div class="section-hdr"><i class="ti ti-history" style="color:var(--t2)"></i><div class="section-title">Histórico de Notificações</div><button class="btn btn-ghost btn-sm" onclick="loadAdminNotifs()"><i class="ti ti-refresh"></i></button></div>
+
+          <!-- ══ NOTIFICAÇÕES AUTOMÁTICAS ══ -->
+          <div class="section-hdr" style="margin-top:28px">
+            <i class="ti ti-robot" style="color:#0891b2"></i>
+            <div class="section-title">Notificações Automáticas por Email</div>
+            <button class="btn btn-ghost btn-sm" onclick="loadAutoNotifLog()"><i class="ti ti-refresh"></i></button>
+          </div>
+
+          <!-- Botões de disparo manual -->
+          <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:18px;margin-bottom:16px">
+            <div style="font-size:12px;font-weight:800;color:var(--t2);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em">⚡ Disparo Manual</div>
+            <div style="font-size:12px;color:var(--t3);margin-bottom:14px;line-height:1.6">
+              O sistema dispara automaticamente às 9h todo dia. Use os botões abaixo para forçar um disparo agora sem esperar.
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button onclick="triggerAutoNotif('inativos')" id="btn-notif-inativos"
+                style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#0c4a6e,#0891b2);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
+                <i class="ti ti-user-off"></i> Usuários Inativos
+              </button>
+              <button onclick="triggerAutoNotif('parados')" id="btn-notif-parados"
+                style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#7c2d12,#ea580c);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
+                <i class="ti ti-player-stop"></i> Filas Travadas/Paradas
+              </button>
+              <button onclick="triggerAutoNotif('ambos')" id="btn-notif-ambos"
+                style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#1a1040,#7c3aed);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
+                <i class="ti ti-send"></i> Enviar Tudo
+              </button>
+            </div>
+            <div id="auto-notif-trigger-result" style="font-size:12px;margin-top:10px;display:none"></div>
+          </div>
+
+          <!-- Log de emails automáticos -->
+          <div style="font-size:12px;font-weight:800;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em">📋 Histórico de Emails Automáticos</div>
+          <div id="auto-notif-log"><div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div></div>
+
+          <div class="section-hdr" style="margin-top:28px"><i class="ti ti-history" style="color:var(--t2)"></i><div class="section-title">Histórico de Notificações Push</div><button class="btn btn-ghost btn-sm" onclick="loadAdminNotifs()"><i class="ti ti-refresh"></i></button></div>
           <div id="admin-notif-list"><div class="empty-state">Carregando...</div></div>
         </div>
       </div>
@@ -547,6 +596,38 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
           <div class="section-hdr"><i class="ti ti-users-group" style="color:#059669"></i><div class="section-title">Sistema de Indicações</div><button class="btn btn-ghost btn-sm" onclick="loadAdminReferrals()"><i class="ti ti-refresh"></i></button></div>
           <div id="admin-referral-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px"></div>
           <div id="admin-referral-list"><div class="empty-state">Carregando...</div></div>
+        </div>
+      </div>
+
+      <!-- SUGESTÕES -->
+      <div class="view" id="view-sugestoes">
+        <div style="max-width:900px">
+          <div class="section-hdr">
+            <i class="ti ti-bulb" style="color:#7c3aed"></i>
+            <div class="section-title">Sugestões dos Usuários</div>
+            <div class="section-actions">
+              <select id="sug-filter-status" onchange="loadSugestoes()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--text)">
+                <option value="">Todas</option>
+                <option value="pending">⏳ Aguardando</option>
+                <option value="reviewed">👀 Em análise</option>
+                <option value="done">✅ Implementadas</option>
+                <option value="rejected">❌ Rejeitadas</option>
+              </select>
+              <select id="sug-filter-cat" onchange="loadSugestoes()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg2);color:var(--text)">
+                <option value="">Todas categorias</option>
+                <option value="funcionalidade">⚡ Funcionalidade</option>
+                <option value="melhoria">✨ Melhoria</option>
+                <option value="bug">🐛 Bug</option>
+                <option value="vagas">💼 Vagas</option>
+                <option value="outro">💬 Outro</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" onclick="loadSugestoes()"><i class="ti ti-refresh"></i></button>
+            </div>
+          </div>
+          <!-- Stats rápidos -->
+          <div id="sug-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px"></div>
+          <!-- Lista -->
+          <div id="sug-list"><div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div></div>
         </div>
       </div>
 
@@ -570,6 +651,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       <div class="tabs">
         <button class="tab-btn active" onclick="switchModalTab('overview')"><i class="ti ti-info-circle"></i> Visão Geral</button>
         <button class="tab-btn" onclick="switchModalTab('auto')"><i class="ti ti-robot"></i> Automático</button>
+        <button class="tab-btn" onclick="switchModalTab('admin-auto')" style="color:var(--amber)"><i class="ti ti-settings-bolt"></i> ⚙️ Config Auto</button>
         <button class="tab-btn" onclick="switchModalTab('pdfs')"><i class="ti ti-file-type-pdf"></i> PDFs</button>
         <button class="tab-btn" onclick="switchModalTab('profiles')"><i class="ti ti-id-badge"></i> Perfis</button>
         <button class="tab-btn" onclick="switchModalTab('logs')"><i class="ti ti-list"></i> Logs Auto</button>
@@ -580,6 +662,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       </div>
       <div class="tab-content active" id="modal-tab-overview"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
       <div class="tab-content" id="modal-tab-auto"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      <div class="tab-content" id="modal-tab-admin-auto"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
       <div class="tab-content" id="modal-tab-pdfs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
       <div class="tab-content" id="modal-tab-profiles"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
       <div class="tab-content" id="modal-tab-logs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
@@ -620,10 +703,33 @@ const AUTO_REFRESH_MS = 9000;
 // ══════════════════════════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Verificação de segurança: checa se usuário é admin antes de qualquer coisa
+  try {
+    const r = await fetch('/api/admin/stats', {credentials:'include'});
+    if(r.status===401){location.href='/';return;}
+    if(r.status===403){
+      document.body.innerHTML='<div style="position:fixed;inset:0;background:#040a14;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:sans-serif"><div style="font-size:48px">⛔</div><div style="font-size:22px;font-weight:800;color:#ef4444">Acesso Negado</div><div style="font-size:14px;color:#64748b">Esta área é restrita a administradores.</div><a href="/" style="margin-top:8px;background:#3b82f6;color:#fff;padding:10px 24px;border-radius:8px;font-weight:700;text-decoration:none">← Voltar ao App</a></div>';
+      return;
+    }
+  } catch(e) {
+    // Em caso de erro de rede, tenta carregar mesmo assim
+  }
   startClock();
   refreshAll();
   startAutoRefresh();
+  // Fallback: se liveData ainda for null após 5s, mostra banner de erro
+  setTimeout(()=>{
+    if(!liveData){
+      const banners=document.getElementById('alert-banners');
+      if(banners){
+        const div=document.createElement('div');
+        div.className='alert-banner ab-err';
+        div.innerHTML='<i class="ti ti-wifi-off"></i><strong>Falha ao carregar dados.</strong> O servidor demorou para responder. <button onclick="this.parentElement.remove();refreshAll()" style="margin-left:auto;background:var(--red);color:#fff;border:none;border-radius:5px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer"><i class="ti ti-refresh"></i> Tentar novamente</button>';
+        banners.appendChild(div);
+      }
+    }
+  }, 5000);
 });
 
 function startClock() {
@@ -647,23 +753,35 @@ function showView(name) {
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
   const v = document.getElementById('view-'+name);
   if(v) v.classList.add('active');
-  const titles={dashboard:'Dashboard',workers:'Automáticos',events:'Eventos & Crashes',users:'Usuários',vip:'VIP & Planos',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',indicacoes:'Indicações'};
+  const titles={dashboard:'Dashboard',workers:'Automáticos',events:'Eventos & Crashes',users:'Usuários',vip:'VIP & Planos',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',indicacoes:'Indicações',sugestoes:'Sugestões'};
   setText('view-title', titles[name]||name);
   document.querySelectorAll('.sb-item').forEach(b=>{if(b.getAttribute('onclick')?.includes(`'${name}'`))b.classList.add('active');});
+  // Se liveData ainda não carregou, busca primeiro e depois renderiza
+  const needsLive = ['users','workers','events'].includes(name);
+  if(needsLive && !liveData) {
+    refreshAll().then(()=>{ _renderView(name); });
+    return;
+  }
+  _renderView(name);
+}
+
+function _renderView(name) {
   if(name==='users') renderUsersTable();
   if(name==='workers') renderWorkersTable();
   if(name==='events') renderEventsView();
   if(name==='codes') loadCodes();
   if(name==='ranking') loadRankingAdmin();
   if(name==='settings') loadSettings();
-  if(name==='notificacoes') loadAdminNotifs();
+  if(name==='notificacoes'){ loadAdminNotifs(); loadAutoNotifLog(); }
   if(name==='indicacoes') loadAdminReferrals();
-  if(name==='vip') {} // static
+  if(name==='sugestoes') loadSugestoes();
 }
 
 // ══════════════════════════════════════════════════════════
 //  DATA FETCH
 // ══════════════════════════════════════════════════════════
+let _refreshRetries = 0;
+
 async function refreshAll() {
   const btn = document.getElementById('refresh-btn');
   if(btn) btn.classList.add('spinning');
@@ -674,14 +792,13 @@ async function refreshAll() {
     liveData = await r.json();
     allEvents = liveData.globalEvents||[];
     allUsers  = liveData.users||[];
+    _refreshRetries = 0;
 
     updateDashboard();
 
-    // Get admin email from live data
     const adminEl = document.getElementById('admin-email');
     if(adminEl) {
       const admin = allUsers.find(u=>u.email?.toLowerCase().includes('admin'))||null;
-      // Actually we derive from session, not user list
       adminEl.textContent = liveData.adminEmail || '(admin)';
     }
 
@@ -695,7 +812,6 @@ async function refreshAll() {
     if(currentView==='events')  renderEventsView();
     if(currentView==='users')   renderUsersTable();
 
-    // Live refresh modal if open
     if(currentModalEmail && currentModalData) {
       const u = allUsers.find(x=>x.email===currentModalEmail);
       if(u) updateModalWorkerStatus(u);
@@ -704,6 +820,10 @@ async function refreshAll() {
   } catch(e) {
     console.error(e);
     toast('Erro ao carregar: '+e.message,'err');
+    _refreshRetries++;
+    if(_refreshRetries < 3) {
+      setTimeout(()=>refreshAll(), 3000);
+    }
   }
   if(btn) btn.classList.remove('spinning');
 }
@@ -781,33 +901,53 @@ function renderDashEvents(){
 // ══════════════════════════════════════════════════════════
 //  WORKERS TABLE
 // ══════════════════════════════════════════════════════════
-function buildWorkersTable(workers){
+function buildWorkersTable(workers, isZombieFn){
   const now=Date.now();
+  const isZombie=isZombieFn||(()=>false);
   const rows=workers.map(u=>{
     const lastSentAgo=u.lastSentAt?fmtAgo(now-u.lastSentAt):'–';
-    const startedAgo=u.startedAt?fmtAgo(now-u.startedAt):'–';
     const progress=u.originalCount?Math.round((1-u.queueSize/u.originalCount)*100):0;
     const isStalled=u.jobStalled;
+    const zombie=isZombie(u);
     const rInfo=STOP_REASON_FULL[u.autoStatus]||null;
-    const tooltipTxt=isStalled?'⚠️ Fila travada há mais de 20min — reinicie o worker'
-      :rInfo?`${rInfo.icon} ${rInfo.titulo} | ${rInfo.admin_pode}`
-      :u.autoStatus||'';
+
+    // Diagnóstico de "ativo mas 0 enviado / parado"
+    let diagHtml='';
+    if(isStalled){
+      diagHtml=`<div style="font-size:11px;color:var(--amber);font-weight:700">⚠️ Fila travada</div><div style="font-size:10px;color:var(--t2)">Reinicie o worker</div>`;
+    } else if(zombie){
+      diagHtml=`<div style="font-size:11px;color:#f97316;font-weight:700">🧟 Ativo mas sem enviar</div><div style="font-size:10px;color:var(--t2)">Pode ser bug de timer — reinicie</div>`;
+    } else if(u.hasAuto&&(u.lastSentAt==null||u.todaySent===0)&&!['starting','resuming','waiting_hour','waiting_limit'].includes(u.autoStatus)){
+      diagHtml=`<div style="font-size:11px;color:var(--blue);font-weight:700">📭 Ativo mas 0 enviados</div><div style="font-size:10px;color:var(--t2)">${u.autoStatus==='waiting_interval'?'Aguardando intervalo inicial':u.autoStatus||'Verifique logs'}</div>`;
+    } else if(rInfo && !u.hasAuto){
+      diagHtml=`<div style="font-size:11px;color:${rInfo.voce_resolve?'var(--green)':'var(--red)'};font-weight:700">${rInfo.voce_resolve?'✅':'❌'} ${esc(rInfo.titulo)}</div><div style="font-size:10px;color:var(--t2);margin-top:2px">${esc((rInfo.admin_pode||'').slice(0,80))}${rInfo.admin_pode&&rInfo.admin_pode.length>80?'…':''}</div>`;
+    } else if(u.hasAuto){
+      diagHtml=`<div style="font-size:11px;color:var(--green)">✅ Rodando normalmente</div>`;
+    } else {
+      diagHtml=`<div style="font-size:11px;color:var(--t3)">–</div>`;
+    }
+
     const statusBadge=isStalled
-      ?`<span class="status-pill sp-warn" title="${esc(tooltipTxt)}"><span class="sp-dot"></span>⚠️ Travado</span>`
-      :u.hasAuto
-        ?`<span class="status-pill sp-ok" title="${esc(tooltipTxt)}"><span class="sp-dot"></span>${fmtStatus(u.autoStatus)}</span>`
-        :u.autoStatus
-          ?`<span class="status-pill sp-idle" title="${esc(tooltipTxt)}" style="cursor:help"><span class="sp-dot"></span>${fmtStatus(u.autoStatus)}</span>`
-          :`<span class="status-pill sp-idle"><span class="sp-dot"></span>Inativo</span>`;
+      ?`<span class="status-pill sp-warn"><span class="sp-dot"></span>⚠️ Travado</span>`
+      :zombie
+        ?`<span class="status-pill sp-warn" style="background:rgba(249,115,22,.12);color:#f97316;border-color:rgba(249,115,22,.3)"><span class="sp-dot" style="background:#f97316"></span>🧟 Zombie</span>`
+        :u.hasAuto
+          ?`<span class="status-pill sp-ok"><span class="sp-dot"></span>${fmtStatus(u.autoStatus)}</span>`
+          :u.autoStatus
+            ?`<span class="status-pill sp-idle"><span class="sp-dot"></span>${fmtStatus(u.autoStatus)}</span>`
+            :`<span class="status-pill sp-idle"><span class="sp-dot"></span>Inativo</span>`;
+
     const healthDots=`<div class="health-row">
       <span class="hi ${u.oauthOk===false?'hi-err':u.oauthOk===true?'hi-ok':'hi-unk'}" title="OAuth: ${u.oauthOk===false?'❌ Inválido':u.oauthOk===true?'✅ OK':'?'}"></span>
       <span class="hi ${u.hasPdf===false?'hi-err':u.hasPdf===true?'hi-ok':'hi-unk'}" title="PDF: ${u.hasPdf===false?'❌ Ausente':u.hasPdf===true?'✅ OK':'?'}"></span>
       <span class="hi ${u.timers?'hi-ok':'hi-warn'}" title="Timer: ${u.timers?'✅ Ativo':'⚠️ Sem timer'}"></span>
       ${u.errors>0?`<span class="hi hi-err" title="${u.errors} erros"></span>`:''}
       ${u.restarts>0?`<span style="font-size:9px;color:var(--amber)">↺${u.restarts}</span>`:''}
+      ${zombie?`<span style="font-size:9px;color:#f97316;font-weight:700">ZOMBIE</span>`:''}
     </div>`;
-    const nextTxt=u.nextSendAt&&u.nextSendAt>now?fmtAgo(u.nextSendAt-now)+'<br><span style="font-size:9px;color:var(--t3)">próximo</span>':'–';
-    return `<tr onclick="openUser('${esc(u.email)}')" style="${isStalled?'background:rgba(245,158,11,.05)':''}">
+
+    const rowBg=isStalled?'background:rgba(245,158,11,.05)':zombie?'background:rgba(249,115,22,.05)':'';
+    return `<tr onclick="openUser('${esc(u.email)}')" style="${rowBg}">
       <td>
         <div style="display:flex;align-items:center;gap:7px">
           ${u.picture?`<img src="${esc(u.picture)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover">`:avLetter(u.name||u.email)}
@@ -815,19 +955,10 @@ function buildWorkersTable(workers){
         </div>
       </td>
       <td>${statusBadge}</td>
-      <td style="max-width:200px">
-        ${isStalled
-          ? `<div style="font-size:11px;color:var(--amber);font-weight:700">⚠️ Fila travada</div><div style="font-size:10px;color:var(--t2)">Reinicie o worker</div>`
-          : rInfo && !u.hasAuto
-            ? `<div style="font-size:11px;color:${rInfo.voce_resolve?'var(--green)':'var(--red)'};font-weight:700">${rInfo.voce_resolve?'✅':'❌'} ${esc(rInfo.titulo)}</div><div style="font-size:10px;color:var(--t2);margin-top:2px">${esc((rInfo.admin_pode||'').slice(0,80))}${rInfo.admin_pode&&rInfo.admin_pode.length>80?'…':''}</div>`
-            : u.hasAuto
-              ? `<div style="font-size:11px;color:var(--green)">✅ Rodando normalmente</div>`
-              : `<div style="font-size:11px;color:var(--t3)">–</div>`
-        }
-      </td>
+      <td style="max-width:200px">${diagHtml}</td>
       <td>
         <div style="font-size:11px;margin-bottom:3px">${(u.queueSize||0).toLocaleString('pt-BR')} / ${(u.originalCount||0).toLocaleString('pt-BR')}</div>
-        <div class="prog-bg" style="width:80px"><div class="prog-fill ${isStalled?'pg-amber':'pg-green'}" style="width:${progress}%"></div></div>
+        <div class="prog-bg" style="width:80px"><div class="prog-fill ${isStalled?'pg-amber':zombie?'pg-amber':'pg-green'}" style="width:${progress}%"></div></div>
       </td>
       <td style="font-size:11px;color:var(--t2)">${lastSentAgo}</td>
       <td>${healthDots}</td>
@@ -839,7 +970,7 @@ function buildWorkersTable(workers){
     </tr>`;
   }).join('');
   return `<table><thead><tr>
-    <th>Usuário</th><th>Status</th><th>Por que parou / O que fazer</th><th>Fila</th><th>Último envio</th><th>Saúde</th><th>Ações</th>
+    <th>Usuário</th><th>Status</th><th>Diagnóstico</th><th>Fila</th><th>Último envio</th><th>Saúde</th><th>Ações</th>
   </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
@@ -849,16 +980,56 @@ function renderWorkersTable(){
   if(!el||!liveData) return;
   const q=(document.getElementById('w-search')?.value||'').toLowerCase();
   const sf=document.getElementById('w-filter-status')?.value||'';
-  let workers=(liveData.users||[]).filter(u=>u.hasAuto||u.autoStatus);
+  const srcf=document.getElementById('w-filter-source')?.value||'';
+  const now=Date.now();
+  let workers=(liveData.users||[]).filter(u=>u.hasAuto||u.autoStatus||u.jobStalled);
   if(q) workers=workers.filter(u=>(u.email||'').includes(q)||(u.name||'').toLowerCase().includes(q));
+  // Zombie: ativo (hasAuto=true), startedAt existe, mas lastSentAt é null ou >30min atrás e status não é waiting_*
+  const isZombie=u=>{
+    if(!u.hasAuto||u.jobStalled) return false;
+    const waitingStatuses=['waiting_interval','waiting_hour','waiting_limit','starting','resuming'];
+    if(waitingStatuses.includes(u.autoStatus)) return false;
+    const lastSent=u.lastSentAt;
+    if(!lastSent&&u.startedAt&&(now-u.startedAt)>1800000) return true; // 30min sem 1 envio
+    if(lastSent&&(now-lastSent)>2400000&&u.autoStatus==='waiting_interval') return true; // 40min em "aguardando"
+    return false;
+  };
+  if(sf==='running') workers=workers.filter(u=>u.hasAuto&&!u.jobStalled&&['sending','waiting_interval','waiting_hour','waiting_limit','starting','resuming'].includes(u.autoStatus));
   if(sf==='active') workers=workers.filter(u=>u.hasAuto&&!u.jobStalled);
   if(sf==='stalled') workers=workers.filter(u=>u.jobStalled);
-  if(sf==='paused') workers=workers.filter(u=>!u.hasAuto&&u.autoStatus);
+  if(sf==='paused') workers=workers.filter(u=>!u.hasAuto&&u.autoStatus&&!['finished','cancelled'].includes(u.autoStatus));
+  if(sf==='zombie') workers=workers.filter(u=>isZombie(u));
+  if(sf==='zero') workers=workers.filter(u=>u.hasAuto&&!u.jobStalled&&(u.lastSentAt==null||u.todaySent===0));
+  if(sf==='finished') workers=workers.filter(u=>u.autoStatus==='finished');
+  if(sf==='oauth') workers=workers.filter(u=>u.autoStatus==='paused_oauth_expired'||u.autoStatus==='paused_no_session'||u.oauthOk===false);
+  if(srcf) workers=workers.filter(u=>u.autoSource===srcf);
+  // Sort: stalled first, then zombie, then active, then paused
+  workers.sort((a,b)=>{
+    const score=u=>u.jobStalled?0:isZombie(u)?1:u.hasAuto?2:3;
+    return score(a)-score(b);
+  });
   if(lbl) lbl.textContent=`${workers.length} worker(s) encontrado(s)`;
-  if(!workers.length){el.innerHTML='<div class="empty-state"><i class="ti ti-robot"></i>Nenhum worker encontrado</div>';return;}
-  el.innerHTML=buildWorkersTable(workers);
+  if(!workers.length){el.innerHTML='<div class="empty-state"><i class="ti ti-robot"></i>Nenhum worker encontrado com esses filtros</div>';return;}
+  el.innerHTML=buildWorkersTable(workers,isZombie);
 }
 function filterWorkers(){renderWorkersTable();}
+
+async function restartAllStalled(){
+  if(!liveData) return;
+  const stalled=(liveData.users||[]).filter(u=>u.jobStalled);
+  if(!stalled.length){toast('Nenhum worker travado encontrado','warn');return;}
+  if(!confirm(`Reiniciar ${stalled.length} worker(s) travado(s)?`)) return;
+  let ok=0,err=0;
+  for(const u of stalled){
+    try{
+      const r=await fetch('/api/admin/force-restart',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:u.email})});
+      const d=await r.json();
+      if(d.ok) ok++; else err++;
+    }catch{err++;}
+  }
+  toast(`✅ ${ok} reiniciados${err?` · ❌ ${err} falhas`:''}`, ok>0?'ok':'err');
+  refreshAll();
+}
 
 // ══════════════════════════════════════════════════════════
 //  EVENTS VIEW
@@ -970,7 +1141,7 @@ async function openUser(email){
   document.getElementById('modal-name').textContent='…';
   document.getElementById('modal-email').textContent=email;
   // Reset tabs
-  ['overview','auto','pdfs','profiles','logs','history','enviados','health','edit'].forEach(t=>{
+  ['overview','auto','admin-auto','pdfs','profiles','logs','history','enviados','health','edit'].forEach(t=>{
     const el=document.getElementById('modal-tab-'+t);
     if(el) el.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>';
   });
@@ -1002,6 +1173,7 @@ async function openUser(email){
     currentModalData=d;
     renderModalOverview(d,u);
     renderModalAuto(d,u);
+    renderModalAdminAuto(d,u);
     renderModalPdfs(d,u);
     renderModalProfiles(d,u);
     renderModalLogs(d);
@@ -1396,6 +1568,238 @@ function renderModalAuto(d,u){
   el.innerHTML=html;
 }
 
+// ── TAB: ADMIN CONFIG AUTO (configurar automático como admin) ─────────────
+function renderModalAdminAuto(d,u){
+  const el=document.getElementById('modal-tab-admin-auto');
+  if(!el) return;
+  const job=d.job;
+  const user=d.user||{};
+  const email=user.email||currentModalEmail;
+  const cvs=(user.cvs||[]);
+  const profiles=(user.profiles||[]).filter(p=>p.active!==false);
+  const now=Date.now();
+
+  // Status atual em destaque
+  const isActive=job&&job.active;
+  const isStalled=u?.jobStalled;
+  let statusSummary='';
+  if(isStalled){
+    statusSummary=`<div class="alert-banner ab-warn" style="margin-bottom:12px"><i class="ti ti-alert-triangle"></i><strong>Worker travado!</strong> Use "Reiniciar Worker" para retomar do ponto onde parou.</div>`;
+  } else if(isActive){
+    const pct=job.originalCount?Math.round((1-(job.queue?.length||0)/job.originalCount)*100):0;
+    statusSummary=`<div class="alert-banner ab-ok" style="margin-bottom:12px"><i class="ti ti-check"></i><strong>Worker ativo (${fmtStatus(job.status)})</strong> · ${pct}% concluído · ${(job.queue?.length||0).toLocaleString()} restantes</div>`;
+  } else if(job){
+    statusSummary=`<div class="alert-banner" style="background:var(--glass2);border:1px solid var(--border2);margin-bottom:12px"><i class="ti ti-player-pause"></i><strong>Worker parado</strong> · Status: ${fmtStatus(job.status)} · ${(job.queue?.length||0).toLocaleString()} vagas restantes na fila</div>`;
+  } else {
+    statusSummary=`<div class="alert-banner" style="background:var(--glass2);border:1px solid var(--border2);margin-bottom:12px"><i class="ti ti-robot"></i><strong>Sem job ativo.</strong> Inicie um novo envio automático abaixo.</div>`;
+  }
+
+  // CV options
+  const cvOptions=cvs.map(c=>`<option value="${c.idx}">${esc(c.name||'PDF #'+c.idx)} (idx ${c.idx}${c.cvType==='cover'?' — Cover':' — Currículo'})</option>`).join('');
+  const profileOptions=profiles.map(p=>`<option value="${p.name}">${esc(p.name)}${p.resumeIdx!=null?' [PDF:'+p.resumeIdx+']':' [sem PDF]'}</option>`).join('');
+
+  el.innerHTML=`
+  ${statusSummary}
+
+  <!-- ══ SE JOB ATIVO: Editar configurações em tempo real ══ -->
+  ${isActive||isStalled?`
+  <div style="background:var(--glass);border:1.5px solid var(--amberb);border-radius:10px;padding:16px;margin-bottom:16px">
+    <div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">
+      <i class="ti ti-settings-bolt"></i> Editar Job em Andamento
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="form-group">
+        <label class="form-label">Horário início (BRT)</label>
+        <input class="form-inp" id="ae-startH" type="number" min="0" max="23" value="${job.startH??7}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Horário fim (BRT)</label>
+        <input class="form-inp" id="ae-endH" type="number" min="1" max="24" value="${job.endH??22}">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Modo de envio</label>
+      <select class="form-inp" id="ae-mode">
+        <option value="schedule" ${job.mode!=='now'?'selected':''}>📅 Horário (respeita janela diária)</option>
+        <option value="now" ${job.mode==='now'?'selected':''}>⚡ Agora (24/7 até zerar a fila)</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">PDF / Currículo em uso</label>
+      <select class="form-inp" id="ae-resumeIdx">
+        ${cvs.length?cvOptions:`<option value="">⚠️ Nenhum PDF cadastrado</option>`}
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-amber" onclick="adminUpdateJob('${esc(email)}')">
+        <i class="ti ti-check"></i> Salvar configurações do job
+      </button>
+      <button class="btn btn-success" onclick="forceRestart('${esc(email)}')">
+        <i class="ti ti-refresh"></i> Reiniciar worker
+      </button>
+      <button class="btn btn-danger btn-sm" onclick="forceStop('${esc(email)}')">
+        <i class="ti ti-player-stop"></i> Parar e zerar fila
+      </button>
+    </div>
+    <div id="ae-result" style="margin-top:8px;font-size:12px;display:none"></div>
+  </div>`:``}
+
+  <!-- ══ INICIAR NOVO AUTOMÁTICO COMO ADMIN ══ -->
+  <div style="background:var(--glass);border:1.5px solid var(--border2);border-radius:10px;padding:16px;margin-bottom:16px">
+    <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">
+      <i class="ti ti-player-play"></i> Iniciar Novo Envio Automático
+    </div>
+    <div style="font-size:11px;color:var(--t3);margin-bottom:12px">
+      Você está configurando o automático <strong>como se fosse o usuário</strong>. 
+      ${isActive?'<span style="color:var(--amber)">⚠️ Isso vai PARAR o job atual e iniciar um novo.</span>':''}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="form-group">
+        <label class="form-label">Planilha / Fonte</label>
+        <select class="form-inp" id="an-source">
+          <option value="jan2026">📋 Janeiro 2026 (H-2B)</option>
+          <option value="jul2025">📋 Julho 2025 (H-2B)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Categoria de vaga</label>
+        <select class="form-inp" id="an-category">
+          <option value="all">🌍 Todas</option>
+          <option value="landscaping">🌿 Landscaping</option>
+          <option value="construction">🏗️ Construction</option>
+          <option value="hospitality">🏨 Hospitality</option>
+          <option value="seafood">🦐 Seafood</option>
+          <option value="agriculture">🌾 Agriculture (H-2A)</option>
+          <option value="other">📦 Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div class="form-group">
+        <label class="form-label">Horário início (BRT)</label>
+        <input class="form-inp" id="an-startH" type="number" min="0" max="23" value="7">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Horário fim (BRT)</label>
+        <input class="form-inp" id="an-endH" type="number" min="1" max="24" value="22">
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Modo de envio</label>
+      <select class="form-inp" id="an-mode">
+        <option value="schedule">📅 Horário (respeita janela diária)</option>
+        <option value="now">⚡ Agora (envia 24/7 até zerar fila)</option>
+      </select>
+    </div>
+
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">PDF / Currículo</label>
+      <select class="form-inp" id="an-resumeIdx">
+        <option value="">🔄 Automático (usa perfil ou primeiro PDF)</option>
+        ${cvs.length?cvOptions:''}
+      </select>
+      ${!cvs.length?`<div style="font-size:10px;color:var(--red);margin-top:4px">⚠️ Usuário sem PDFs cadastrados — upload necessário antes.</div>`:''}
+    </div>
+
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Máx. vagas na fila (0 = sem limite)</label>
+      <input class="form-inp" id="an-maxQueue" type="number" min="1" max="1000" value="500">
+    </div>
+
+    <button class="btn btn-primary" style="justify-content:center;width:100%" onclick="adminStartAuto('${esc(email)}')">
+      <i class="ti ti-rocket"></i> 🚀 Iniciar Automático para este Usuário
+    </button>
+    <div id="an-result" style="margin-top:10px;font-size:12px;display:none"></div>
+  </div>
+
+  <!-- ══ INFO RÁPIDA ══ -->
+  <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:14px">
+    <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:10px">📊 Resumo do Usuário</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px">
+      <div><span style="color:var(--t3)">Plano: </span><strong>${esc(u?.plan||'free')}</strong></div>
+      <div><span style="color:var(--t3)">PDFs: </span><strong>${cvs.length}</strong></div>
+      <div><span style="color:var(--t3)">Perfis: </span><strong>${(user.profiles||[]).length}</strong></div>
+      <div><span style="color:var(--t3)">OAuth: </span><strong>${d.health?.oauthOk===false?'❌ Expirado':'✅ OK'}</strong></div>
+      <div><span style="color:var(--t3)">Hoje enviados: </span><strong>${(d.todayAuto||0)+(d.todayManual||0)}</strong></div>
+      <div><span style="color:var(--t3)">Timer ativo: </span><strong>${d.timers?'✅':'❌'}</strong></div>
+    </div>
+    ${profiles.length?`<div style="margin-top:10px;font-size:10px;color:var(--t3)"><strong>Perfis ativos:</strong> ${profiles.map(p=>`${esc(p.name)}${p.resumeIdx!=null?' ✅':' ⚠️'}`).join(' · ')}</div>`:
+      `<div style="margin-top:8px;font-size:11px;color:var(--amber)">⚠️ Sem perfis configurados — o automático vai usar configurações padrão.</div>`}
+  </div>`;
+
+  // Set current values if job exists
+  if(job&&document.getElementById('ae-resumeIdx')){
+    const ri=document.getElementById('ae-resumeIdx');
+    if(ri&&job.resumeIdx!=null) ri.value=job.resumeIdx;
+  }
+}
+
+async function adminStartAuto(email){
+  const source=document.getElementById('an-source')?.value||'jan2026';
+  const category=document.getElementById('an-category')?.value||'all';
+  const startH=parseInt(document.getElementById('an-startH')?.value)||7;
+  const endH=parseInt(document.getElementById('an-endH')?.value)||22;
+  const mode=document.getElementById('an-mode')?.value||'schedule';
+  const maxQueue=parseInt(document.getElementById('an-maxQueue')?.value)||500;
+  const ridxRaw=document.getElementById('an-resumeIdx')?.value;
+  const resumeIdx=ridxRaw?parseInt(ridxRaw):undefined;
+  const res=document.getElementById('an-result');
+  if(res){res.style.display='block';res.style.color='var(--t2)';res.textContent='⏳ Iniciando automático...';}
+  try{
+    const r=await fetch('/api/admin/force-start',{
+      method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,source,category,startH,endH,mode,maxQueue,resumeIdx})
+    });
+    const d=await r.json();
+    if(d.ok){
+      if(res){res.style.color='var(--green)';res.textContent=`✅ Automático iniciado! ${d.queueSize} vagas na fila. PDF idx: ${d.resumeIdx}. Fonte: ${d.source}. Cat: ${d.category}.`;}
+      toast(`✅ Automático iniciado para ${email} (${d.queueSize} vagas)`,'ok');
+      setTimeout(()=>refreshModal(),1500);
+      refreshAll();
+    }else{
+      if(res){res.style.color='var(--red)';res.textContent='❌ '+d.error;}
+      toast(d.error||'Erro ao iniciar','err');
+    }
+  }catch(e){
+    if(res){res.style.color='var(--red)';res.textContent='❌ '+e.message;}
+    toast(e.message,'err');
+  }
+}
+
+async function adminUpdateJob(email){
+  const startH=parseInt(document.getElementById('ae-startH')?.value);
+  const endH=parseInt(document.getElementById('ae-endH')?.value);
+  const mode=document.getElementById('ae-mode')?.value;
+  const ridxRaw=document.getElementById('ae-resumeIdx')?.value;
+  const resumeIdx=ridxRaw!=null&&ridxRaw!==''?parseInt(ridxRaw):undefined;
+  const res=document.getElementById('ae-result');
+  if(res){res.style.display='block';res.style.color='var(--t2)';res.textContent='⏳ Salvando...';}
+  try{
+    const body={email};
+    if(!isNaN(startH)) body.startH=startH;
+    if(!isNaN(endH)) body.endH=endH;
+    if(mode) body.mode=mode;
+    if(resumeIdx!=null) body.resumeIdx=resumeIdx;
+    const r=await fetch('/api/admin/force-update-job',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(d.ok){
+      if(res){res.style.color='var(--green)';res.textContent='✅ Configurações salvas: '+d.updated.join(', ');}
+      toast('✅ Job atualizado: '+d.updated.join(', '),'ok');
+      setTimeout(()=>refreshModal(),1200);
+    }else{
+      if(res){res.style.color='var(--red)';res.textContent='❌ '+d.error;}
+      toast(d.error||'Erro','err');
+    }
+  }catch(e){
+    if(res){res.style.color='var(--red)';res.textContent='❌ '+e.message;}
+    toast(e.message,'err');
+  }
+}
+
 // ── TAB: PDFs ─────────────────────────────────────────────
 function renderModalPdfs(d,u){
   const el=document.getElementById('modal-tab-pdfs');
@@ -1623,7 +2027,7 @@ function renderModalEdit(d,u){
       <div style="display:flex;flex-direction:column;gap:8px">
         <button class="btn btn-amber" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'vip')"><i class="ti ti-diamond"></i> Ativar VIP 30 dias (manual)</button>
         <button class="btn btn-purple" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'vipro')"><i class="ti ti-diamond"></i> Ativar VIPro 30 dias</button>
-        <button class="btn btn-success" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'pro')"><i class="ti ti-robot"></i> Ativar Pro Auto 30 dias</button>
+        <button class="btn btn-success" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'pro')"><i class="ti ti-robot"></i> Ativar VIPro 30 dias</button>
         <button class="btn btn-ghost" style="justify-content:center" onclick="adminClearSentUser('${esc(email)}')"><i class="ti ti-refresh"></i> Limpar histórico de enviados</button>
         <div style="border-top:1px solid var(--border);margin:4px 0"></div>
         <button class="btn btn-danger" style="justify-content:center" onclick="deleteUser('${esc(email)}')"><i class="ti ti-trash"></i> Excluir usuário permanentemente</button>
@@ -1945,7 +2349,7 @@ async function loadSettings(){
         <select class="form-inp" id="cfg-trial-plan">
           <option value="vip" ${(s.newUserTrialPlan||'vip')==='vip'?'selected':''}>VIP (só manual)</option>
           <option value="vipro" ${s.newUserTrialPlan==='vipro'?'selected':''}>VIPro (manual + auto)</option>
-          <option value="pro" ${s.newUserTrialPlan==='pro'?'selected':''}>Pro (só auto)</option>
+          <option value="pro" ${s.newUserTrialPlan==='pro'?'selected':''}>VIPro (só auto)</option>
         </select>
       </div>
       <button class="btn btn-primary" style="justify-content:center" onclick="saveSettings()"><i class="ti ti-check"></i> Salvar configurações</button>
@@ -2186,6 +2590,178 @@ function openEmailChat(idx){
       </div>
     </div>
     ${snap.company?`<div style="text-align:center;font-size:10px;color:var(--t3);margin-top:8px">Enviado para <strong>${esc(snap.company)}</strong> em ${esc(h.dateStr||'–')}</div>`:''}`;
+}
+
+// ══ SUGESTÕES DOS USUÁRIOS ══
+async function loadSugestoes(){
+  const listEl = document.getElementById('sug-list');
+  const statsEl = document.getElementById('sug-stats');
+  if(!listEl) return;
+  listEl.innerHTML = '<div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div>';
+  try{
+    const r = await fetch('/api/suggestions', {credentials:'include'});
+    const d = await r.json();
+    const all = d.suggestions || [];
+
+    // Filtros
+    const fStatus = document.getElementById('sug-filter-status')?.value || '';
+    const fCat = document.getElementById('sug-filter-cat')?.value || '';
+    const filtered = all.filter(s =>
+      (!fStatus || s.status === fStatus) &&
+      (!fCat || s.category === fCat)
+    );
+
+    // Stats
+    const counts = {pending:0, reviewed:0, done:0, rejected:0};
+    all.forEach(s => { if(counts[s.status]!==undefined) counts[s.status]++; });
+    statsEl.innerHTML = `
+      <div class="stat-card stat-amber" style="padding:12px;cursor:pointer" onclick="document.getElementById('sug-filter-status').value='pending';loadSugestoes()">
+        <div class="stat-val">${counts.pending}</div><div class="stat-lbl">⏳ Aguardando</div>
+      </div>
+      <div class="stat-card stat-blue" style="padding:12px;cursor:pointer" onclick="document.getElementById('sug-filter-status').value='reviewed';loadSugestoes()">
+        <div class="stat-val">${counts.reviewed}</div><div class="stat-lbl">👀 Em análise</div>
+      </div>
+      <div class="stat-card stat-green" style="padding:12px;cursor:pointer" onclick="document.getElementById('sug-filter-status').value='done';loadSugestoes()">
+        <div class="stat-val">${counts.done}</div><div class="stat-lbl">✅ Implementadas</div>
+      </div>
+      <div class="stat-card stat-red" style="padding:12px;cursor:pointer" onclick="document.getElementById('sug-filter-status').value='rejected';loadSugestoes()">
+        <div class="stat-val">${counts.rejected}</div><div class="stat-lbl">❌ Rejeitadas</div>
+      </div>`;
+
+    // Atualiza badge no sidebar
+    const badge = document.getElementById('sb-sugestoes');
+    if(badge){ badge.textContent = counts.pending; badge.style.display = counts.pending>0?'':'none'; }
+
+    if(!filtered.length){
+      listEl.innerHTML = '<div class="empty-state"><i class="ti ti-bulb"></i> Nenhuma sugestão encontrada</div>';
+      return;
+    }
+
+    const catIcons = {funcionalidade:'⚡',melhoria:'✨',bug:'🐛',vagas:'💼',outro:'💬'};
+    const statusMap = {
+      pending:  {label:'Aguardando',cls:'sb-badge-a'},
+      reviewed: {label:'Em análise',cls:'sb-badge-b'},
+      done:     {label:'Implementada',cls:'sb-badge-g'},
+      rejected: {label:'Rejeitada',cls:'sb-badge-r'}
+    };
+
+    listEl.innerHTML = filtered.map(s => {
+      const st = statusMap[s.status]||statusMap.pending;
+      const date = new Date(s.createdAt).toLocaleString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:11px;background:rgba(124,58,237,.12);color:#7c3aed;border-radius:20px;padding:2px 9px;font-weight:700">${catIcons[s.category]||'💬'} ${s.category||'geral'}</span>
+            <span class="sb-badge ${st.cls}">${st.label}</span>
+            <span style="font-size:11px;color:var(--t3)">${esc(s.name)} · ${esc(s.email)}</span>
+          </div>
+          <span style="font-size:10px;color:var(--t4);white-space:nowrap">${date}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text);line-height:1.65;margin-bottom:12px">${esc(s.text)}</div>
+        ${s.adminReply?`<div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.2);border-radius:8px;padding:8px 12px;font-size:12px;color:#2563eb;margin-bottom:10px"><strong>Sua resposta:</strong> ${esc(s.adminReply)}</div>`:''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <select onchange="updateSugStatus('${s.id}',this.value,null)" style="font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)">
+            <option value="pending" ${s.status==='pending'?'selected':''}>⏳ Aguardando</option>
+            <option value="reviewed" ${s.status==='reviewed'?'selected':''}>👀 Em análise</option>
+            <option value="done" ${s.status==='done'?'selected':''}>✅ Implementada</option>
+            <option value="rejected" ${s.status==='rejected'?'selected':''}>❌ Rejeitada</option>
+          </select>
+          <input type="text" id="reply-${s.id}" placeholder="Resposta para o usuário (opcional)" value="${esc(s.adminReply||'')}"
+            style="flex:1;min-width:160px;font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)">
+          <button class="btn btn-sm" style="background:#7c3aed;color:#fff;border:none" onclick="updateSugStatus('${s.id}',null,document.getElementById('reply-${s.id}').value)">
+            <i class="ti ti-send"></i> Salvar
+          </button>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    listEl.innerHTML = `<div class="empty-state" style="color:var(--red)">Erro: ${e.message}</div>`;
+  }
+}
+
+async function updateSugStatus(id, status, reply){
+  const body = {id};
+  if(status) body.status = status;
+  if(reply !== null) body.reply = reply;
+  try{
+    const r = await fetch('/api/suggestions/status',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await r.json();
+    if(d.ok){ toast('✅ Sugestão atualizada!'); loadSugestoes(); }
+    else toast('Erro: '+(d.error||'falha'),'err');
+  }catch(e){ toast('Erro: '+e.message,'err'); }
+}
+
+// ══ NOTIFICAÇÕES AUTOMÁTICAS ══
+async function triggerAutoNotif(tipo){
+  const btnMap={inativos:"btn-notif-inativos",parados:"btn-notif-parados",ambos:"btn-notif-ambos"};
+  const labels={inativos:"Usuários Inativos",parados:"Filas Travadas/Paradas",ambos:"Todos"};
+  const btn=document.getElementById(btnMap[tipo]);
+  const res=document.getElementById("auto-notif-trigger-result");
+  if(btn){btn.disabled=true;btn.innerHTML=`<span class="spin spin-sm"></span> Disparando...`;}
+  if(res){res.style.display="block";res.innerHTML=`<span style="color:var(--t2)">⏳ Enviando notificações (${labels[tipo]})... pode levar alguns minutos.</span>`;}
+  try{
+    const r=await fetch("/api/admin/auto-notif/trigger",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({tipo})});
+    const d=await r.json();
+    if(d.ok){
+      if(res){res.innerHTML=`<span style="color:var(--green)">✅ ${d.message}</span>`;}
+      toast("✅ Notificações disparadas em background!");
+      setTimeout(loadAutoNotifLog,5000); // recarrega o log após 5s
+    } else {
+      if(res){res.innerHTML=`<span style="color:var(--red)">❌ ${d.error}</span>`;}
+    }
+  }catch(e){
+    if(res){res.innerHTML=`<span style="color:var(--red)">❌ Erro: ${e.message}</span>`;}
+  }
+  if(btn){
+    btn.disabled=false;
+    const icons={inativos:"ti-user-off",parados:"ti-player-stop",ambos:"ti-send"};
+    btn.innerHTML=`<i class="ti ${icons[tipo]}"></i> ${labels[tipo]}`;
+  }
+}
+
+async function loadAutoNotifLog(){
+  const el=document.getElementById("auto-notif-log");
+  if(!el) return;
+  try{
+    const r=await fetch("/api/admin/auto-notif/log?limit=200",{credentials:"include"});
+    const d=await r.json();
+    const logs=d.logs||[];
+    if(!logs.length){
+      el.innerHTML=`<div class="empty-state"><i class="ti ti-mail-off"></i> Nenhum email automático enviado ainda</div>`;
+      return;
+    }
+    const tipoLabels={
+      stalled:"🔴 Fila Travada",finished:"✅ Fila Finalizada",
+      reeng_1d:"💤 Inativo 1 dia",reeng_3d:"⏰ Inativo 3 dias",reeng_7d:"😢 Inativo 7 dias"
+    };
+    const tipoColors={
+      stalled:"#dc2626",finished:"#059669",
+      reeng_1d:"#0891b2",reeng_3d:"#d97706",reeng_7d:"#7c3aed"
+    };
+    el.innerHTML=`
+      <div style="margin-bottom:10px;font-size:12px;color:var(--t3)">${d.total} emails enviados no total</div>
+      ${logs.map(l=>{
+        const date=new Date(l.sentAt).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"});
+        const cor=tipoColors[l.tipo]||"#64748b";
+        const label=tipoLabels[l.tipo]||l.tipo;
+        return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:11px;font-weight:800;background:${cor}18;color:${cor};border:1px solid ${cor}30;border-radius:20px;padding:2px 10px">${label}</span>
+              <span style="font-size:12px;font-weight:700;color:var(--text)">${esc(l.nome||"")}</span>
+              <span style="font-size:11px;color:var(--t3)">${esc(l.to)}</span>
+            </div>
+            <span style="font-size:10px;color:var(--t4);white-space:nowrap">${date}</span>
+          </div>
+          <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:5px">${esc(l.subject||"")}</div>
+          <div style="font-size:11px;color:var(--t3);line-height:1.6;white-space:pre-wrap;max-height:80px;overflow:hidden;cursor:pointer;border-top:1px solid var(--border);padding-top:8px"
+            onclick="this.style.maxHeight=this.style.maxHeight==='none'?'80px':'none'"
+          >${esc((l.body||"").slice(0,300)+(l.body?.length>300?"...":""))}<span style="color:var(--blue);font-size:10px"> (toque para ${`expandir`})</span></div>
+        </div>`;
+      }).join("")}`;
+  }catch(e){
+    el.innerHTML=`<div class="empty-state" style="color:var(--red)">Erro: ${e.message}</div>`;
+  }
 }
 
 </script>

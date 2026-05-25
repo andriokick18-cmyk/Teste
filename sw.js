@@ -137,24 +137,6 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // ── Ícones PWA → SEMPRE da rede, NUNCA do cache ──
-  // Garante que ícones atualizados (apple-touch-icon, icon-192, icon-512, favicon)
-  // apareçam imediatamente sem precisar limpar cache manualmente.
-  if (
-    url.pathname === "/icon-192.png" ||
-    url.pathname === "/icon-512.png" ||
-    url.pathname === "/apple-touch-icon.png" ||
-    url.pathname === "/favicon-32.png" ||
-    url.pathname === "/favicon.ico"
-  ) {
-    e.respondWith(
-      fetch(e.request, { cache: "no-store" }).catch(() =>
-        new Response("", { status: 503 })
-      )
-    );
-    return;
-  }
-
   // ── Demais recursos estáticos → Network-first com fallback para cache ──
   e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });
@@ -174,8 +156,8 @@ self.addEventListener("push", (e) => {
   const title = data.title || "✈️ H2BApply";
   const options = {
     body: data.body || "Você tem uma nova notificação.",
-    icon: data.icon || "/apple-touch-icon.png",
-    badge: data.badge || "/favicon-32.png",
+    icon: data.icon || "/icon-192.png",
+    badge: data.badge || "/icon-192.png",
     tag: data.tag || "h2b-notif",
     data: {
       url: data.url || "/?tab=respostas",
