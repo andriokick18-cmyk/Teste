@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>H2BApply — Admin Console v15</title>
+<title>H2BApply — Admin Console v14</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700;800&family=Sora:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css">
@@ -22,7 +22,6 @@ a{color:inherit;text-decoration:none}
   --green:#10b981;--greeng:rgba(16,185,129,.13);--greenb:rgba(16,185,129,.28);
   --red:#ef4444;--redg:rgba(239,68,68,.12);--redb:rgba(239,68,68,.28);
   --amber:#f59e0b;--amberg:rgba(245,158,11,.12);--amberb:rgba(245,158,11,.28);
-  --orange:#f97316;--orangeg:rgba(249,115,22,.12);--orangeb:rgba(249,115,22,.28);
   --purple:#a78bfa;--purpleg:rgba(167,139,250,.12);--purpleb:rgba(167,139,250,.28);
   --cyan:#22d3ee;--cyang:rgba(34,211,238,.1);
   --r:8px;--rl:12px;
@@ -33,7 +32,7 @@ a{color:inherit;text-decoration:none}
 .sidebar{width:224px;min-width:224px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .topbar{height:52px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 20px;flex-shrink:0}
-.content{flex:1;overflow-y:auto;padding:20px;background:var(--bg);min-height:calc(100vh - 52px)}
+.content{flex:1;overflow-y:auto;padding:20px;background:var(--bg)}
 .sb-logo{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
 .sb-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .sb-logo-text{font-family:'Sora',sans-serif;font-size:14px;font-weight:800;color:#fff}
@@ -57,7 +56,6 @@ a{color:inherit;text-decoration:none}
 .refresh-btn:hover{background:var(--glass3);color:var(--text)}
 .refresh-btn.spinning i{animation:spin .6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.spin{display:inline-block;border:2.5px solid rgba(255,255,255,.15);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
 .tb-time{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--t3)}
 .tb-uptime{font-size:11px;color:var(--t3);padding:3px 8px;background:var(--glass);border:1px solid var(--border);border-radius:6px}
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:20px}
@@ -200,7 +198,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
 .pg-red{background:var(--red)}
 
 /* VIEW SYSTEM */
-.view{display:none}.view.active{display:block;min-height:400px}
+.view{display:none}.view.active{display:block}
 
 /* ALERT BANNER */
 .alert-banner{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r);margin-bottom:10px;font-size:12px}
@@ -254,7 +252,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       <div class="sb-logo-icon"><i class="ti ti-shield" style="color:#fff;font-size:16px"></i></div>
       <div>
         <div class="sb-logo-text">H2BApply</div>
-        <div class="sb-logo-sub">Admin Console v15</div>
+        <div class="sb-logo-sub">Admin Console v14</div>
       </div>
     </div>
     <div class="sb-nav">
@@ -270,12 +268,12 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       <button class="sb-item" onclick="showView('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
       <button class="sb-item" onclick="showView('notificacoes')"><i class="ti ti-bell"></i>Notificações</button>
       <button class="sb-item" onclick="showView('indicacoes')"><i class="ti ti-users-group"></i>Indicações</button>
-      <button class="sb-item" onclick="showView('sugestoes')"><i class="ti ti-bulb"></i>Sugestões<span class="sb-badge sb-badge-a" id="sb-sugestoes" style="display:none">0</span></button>
+      <button class="sb-item" onclick="showView('sugestoes');loadSugestoes()"><i class="ti ti-bulb"></i>Sugestões<span class="sb-badge sb-badge-a" id="sb-sugestoes" style="display:none">0</span></button>
       <button class="sb-item" onclick="showView('settings')"><i class="ti ti-settings"></i>Configurações</button>
-      <div class="sb-label" style="margin-top:8px">QA</div>
-      <button class="sb-item" onclick="showView('robot')" style="background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(139,92,246,.06));border:1px solid rgba(167,139,250,.25);color:var(--purple);font-weight:800" id="sb-robot-btn">
-        <i class="ti ti-robot" style="color:var(--purple)"></i>Robô de Teste
-        <span class="sb-badge" id="sb-robot-status" style="display:none;background:var(--green);color:#fff">ON</span>
+      <div class="sb-label" style="margin-top:4px">🔬 QA</div>
+      <button class="sb-item" id="sb-robot-item" onclick="showView('robot')" style="background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(99,102,241,.08));border:1px solid rgba(167,139,250,.3);color:#a78bfa;font-weight:800">
+        <i class="ti ti-robot" style="color:#a78bfa"></i>Robô de Teste
+        <span id="sb-robot-live" style="display:none;width:7px;height:7px;border-radius:50%;background:#10b981;animation:pulse 1.5s infinite;margin-left:auto"></span>
       </button>
     </div>
     <div class="sb-bottom">
@@ -349,25 +347,14 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
               <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" id="w-search" placeholder="Buscar email..." oninput="filterWorkers()"></div>
               <select class="filter-sel" id="w-filter-status" onchange="filterWorkers()">
                 <option value="">Todos status</option>
-                <option value="running">✅ Rodando normalmente</option>
-                <option value="active">⚡ Ativos (todos)</option>
-                <option value="stalled">⚠️ Travados</option>
-                <option value="paused">⏸️ Pausados</option>
-                <option value="zombie">🧟 Ativo mas sem enviar (zombie)</option>
-                <option value="zero">📭 Ativo com 0 enviado</option>
-                <option value="finished">✅ Finalizados</option>
-                <option value="oauth">🔐 OAuth expirado</option>
-              </select>
-              <select class="filter-sel" id="w-filter-source" onchange="filterWorkers()">
-                <option value="">Qualquer fonte</option>
-                <option value="jan2026">Jan/2026</option>
-                <option value="jul2025">Jul/2025</option>
+                <option value="active">Ativos</option>
+                <option value="stalled">Travados</option>
+                <option value="paused">Pausados</option>
               </select>
               <button class="btn btn-ghost btn-sm" onclick="loadLive()"><i class="ti ti-refresh"></i> Atualizar</button>
-              <button class="btn btn-amber btn-sm" onclick="restartAllStalled()"><i class="ti ti-refresh-alert"></i> Reiniciar Todos Travados</button>
             </div>
             <div id="workers-table-body">
-              <div class="empty-state"><div class="spin" style="width:20px;height:20px;border-width:2.5px;margin:0 auto 8px"></div>Carregando...</div>
+              <div class="empty-state"><i class="ti ti-robot"></i>Nenhum worker encontrado</div>
             </div>
           </div>
         </div>
@@ -391,7 +378,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
           </div>
           <div class="tbl-wrap">
             <div class="event-list" id="events-list">
-              <div class="empty-state"><div class="spin" style="width:20px;height:20px;border-width:2.5px;margin:0 auto 8px"></div>Carregando...</div>
+              <div class="empty-state"><i class="ti ti-check"></i>Nenhum evento</div>
             </div>
           </div>
         </div>
@@ -636,244 +623,1318 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
         </div>
       </div>
 
-      <!-- ══ ROBÔ DE TESTE ══ -->
-      <div class="view" id="view-robot">
-        <!-- CSS específico do robô -->
-        <style>
-        .robot-hero{background:linear-gradient(135deg,#0f172a,#1e1060,#4c1d95);border:1px solid rgba(167,139,250,.25);border-radius:16px;padding:20px 24px;margin-bottom:20px;position:relative;overflow:hidden}
-        .robot-hero::before{content:"";position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cg fill='none' stroke='rgba(167,139,250,0.06)' stroke-width='1'%3E%3Cpath d='M30 5l4 12h13l-10 8 4 12-11-8-11 8 4-12-10-8h13z'/%3E%3C/g%3E%3C/svg%3E") repeat;pointer-events:none}
-        .robot-hero-title{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#fff;display:flex;align-items:center;gap:10px;margin-bottom:6px;position:relative;z-index:1}
-        .robot-hero-sub{font-size:13px;color:rgba(255,255,255,.55);position:relative;z-index:1;margin-bottom:16px}
-        .robot-controls{display:flex;gap:8px;flex-wrap:wrap;position:relative;z-index:1}
-        .robot-ctrl-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;font-size:13px;font-weight:800;border:none;cursor:pointer;transition:all .15s;font-family:inherit}
-        .robot-ctrl-btn:disabled{opacity:.4;pointer-events:none}
-        .rc-start{background:linear-gradient(135deg,#059669,#10b981);color:#fff;box-shadow:0 4px 14px rgba(5,150,105,.4)}
-        .rc-start:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(5,150,105,.5)}
-        .rc-stop{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff}
-        .rc-stop:hover{transform:translateY(-1px)}
-        .rc-clear{background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.12)}
-        .rc-export{background:rgba(59,130,246,.2);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
-        .rc-sandbox{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3)}
-        .robot-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:20px}
-        .robot-stat{background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:14px;text-align:center;position:relative;overflow:hidden}
-        .robot-stat-val{font-family:'Sora',sans-serif;font-size:26px;font-weight:800;line-height:1;margin-bottom:4px}
-        .robot-stat-lbl{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
-        .robot-stat-bar{position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 12px 12px}
-        .rs-ok .robot-stat-val{color:var(--green)} .rs-ok .robot-stat-bar{background:var(--green)}
-        .rs-err .robot-stat-val{color:var(--red)} .rs-err .robot-stat-bar{background:var(--red)}
-        .rs-warn .robot-stat-val{color:var(--amber)} .rs-warn .robot-stat-bar{background:var(--amber)}
-        .rs-info .robot-stat-val{color:var(--blue)} .rs-info .robot-stat-bar{background:var(--blue)}
-        .robot-progress-wrap{background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:14px 16px;margin-bottom:20px}
-        .robot-progress-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px}
-        .robot-progress-title{font-size:13px;font-weight:800;color:#fff;display:flex;align-items:center;gap:7px}
-        .robot-progress-pct{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--purple);font-weight:700}
-        .robot-progress-bar{height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin-bottom:8px}
-        .robot-progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#7c3aed,#a78bfa);transition:width .4s ease;min-width:0}
-        .robot-current-action{font-size:12px;color:var(--t2);display:flex;align-items:center;gap:6px}
-        .robot-pulse{width:8px;height:8px;border-radius:50%;background:var(--purple);animation:pulse 1s infinite;flex-shrink:0}
-        .robot-log-wrap{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;overflow:hidden;margin-bottom:20px}
-        .robot-log-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--glass)}
-        .robot-log-title{font-size:12px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px}
-        .robot-log-body{height:340px;overflow-y:auto;padding:0;font-family:'JetBrains Mono',monospace;font-size:11px}
-        .rlog-line{display:flex;gap:8px;padding:5px 12px;border-bottom:1px solid rgba(255,255,255,.03);align-items:flex-start;transition:background .1s}
-        .rlog-line:hover{background:rgba(255,255,255,.02)}
-        .rlog-ts{color:var(--t3);white-space:nowrap;flex-shrink:0;min-width:56px;font-size:10px;padding-top:1px}
-        .rlog-icon{flex-shrink:0;width:16px;text-align:center;font-size:11px}
-        .rlog-msg{flex:1;color:var(--text);word-break:break-word;line-height:1.5}
-        .rlog-cat{font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;flex-shrink:0;text-transform:uppercase;margin-top:1px}
-        .rlog-ok{color:var(--green)} .rlog-cat-ok{background:var(--greeng);color:var(--green)}
-        .rlog-err{color:var(--red)} .rlog-cat-err{background:var(--redg);color:var(--red)}
-        .rlog-warn{color:var(--amber)} .rlog-cat-warn{background:var(--amberg);color:var(--amber)}
-        .rlog-info{color:var(--blue)} .rlog-cat-info{background:var(--blueg);color:var(--blue)}
-        .rlog-skip{color:var(--t3)} .rlog-cat-skip{background:var(--glass2);color:var(--t3)}
-        .rlog-section{background:rgba(139,92,246,.06);border-left:3px solid var(--purple);padding:6px 12px;font-size:11px;font-weight:700;color:var(--purple);letter-spacing:.04em}
-        .report-wrap{background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:0;overflow:hidden;margin-bottom:20px}
-        .report-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--glass)}
-        .report-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0}
-        .report-col{padding:14px 16px;border-right:1px solid var(--border)}
-        .report-col:last-child{border-right:none}
-        .report-col-title{font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;display:flex;align-items:center;gap:5px}
-        .report-issue{display:flex;align-items:flex-start;gap:7px;padding:7px 0;border-bottom:1px solid var(--border);font-size:11px}
-        .report-issue:last-child{border-bottom:none}
-        .ri-prio{font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;flex-shrink:0;margin-top:1px;text-transform:uppercase}
-        .ri-critical{background:var(--redg);color:var(--red);border:1px solid var(--redb)}
-        .ri-medium{background:var(--amberg);color:var(--amber);border:1px solid var(--amberb)}
-        .ri-low{background:var(--glass2);color:var(--t2);border:1px solid var(--border2)}
-        .test-suite-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
-        .test-suite{background:var(--glass);border:1.5px solid var(--border2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .14s}
-        .test-suite:hover{border-color:var(--purple);background:rgba(139,92,246,.06)}
-        .test-suite.sel{border-color:var(--purple);background:rgba(139,92,246,.1)}
-        .test-suite-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
-        .test-suite-name{font-size:12px;font-weight:700;color:var(--text)}
-        .test-suite-desc{font-size:10px;color:var(--t3);margin-top:2px}
-        .robot-sandbox-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:var(--amber)}
-        </style>
-
-        <!-- HERO -->
-        <div class="robot-hero">
-          <div class="robot-hero-title">
-            <div style="width:40px;height:40px;background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🤖</div>
-            Robô de Teste H2BApply
-            <span id="robot-sandbox-badge" class="robot-sandbox-badge" style="display:none"><i class="ti ti-shield" style="font-size:11px"></i> SANDBOX</span>
-            <div id="robot-running-badge" style="display:none;margin-left:auto">
-              <span style="background:var(--greeng);color:var(--green);border:1px solid var(--greenb);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:800;display:inline-flex;align-items:center;gap:5px">
-                <span style="width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1s infinite"></span> EXECUTANDO
-              </span>
-            </div>
-          </div>
-          <div class="robot-hero-sub">Teste automático de todo o sistema — APIs, UI, formulários, e-mails e sessões. Exclusivo para administradores.</div>
-          <div class="robot-controls">
-            <button class="robot-ctrl-btn rc-start" id="robot-btn-start" onclick="robotStart()">
-              <i class="ti ti-player-play"></i> Iniciar Testes
-            </button>
-            <button class="robot-ctrl-btn rc-stop" id="robot-btn-stop" onclick="robotStop()" disabled>
-              <i class="ti ti-player-stop"></i> Parar
-            </button>
-            <button class="robot-ctrl-btn rc-sandbox" id="robot-btn-sandbox" onclick="robotToggleSandbox()">
-              <i class="ti ti-shield"></i> <span id="sandbox-label">Modo Sandbox</span>
-            </button>
-            <button class="robot-ctrl-btn rc-clear" onclick="robotClearLogs()">
-              <i class="ti ti-trash"></i> Limpar Logs
-            </button>
-            <button class="robot-ctrl-btn rc-export" id="robot-btn-export" onclick="robotExportReport()" disabled>
-              <i class="ti ti-download"></i> Exportar Relatório
-            </button>
-          </div>
-        </div>
-
-        <!-- CONFIGURAÇÃO DE SUITES -->
-        <div class="section">
-          <div class="section-hdr">
-            <i class="ti ti-settings-2" style="color:var(--purple)"></i>
-            <div class="section-title">Suites de Teste</div>
-            <div class="section-sub">Selecione o que o robô deve testar</div>
-            <div class="section-actions">
-              <button class="btn btn-ghost btn-sm" onclick="robotSelectAll()"><i class="ti ti-check-all"></i> Todas</button>
-              <button class="btn btn-ghost btn-sm" onclick="robotDeselectAll()"><i class="ti ti-x"></i> Nenhuma</button>
-            </div>
-          </div>
-          <div class="test-suite-grid">
-            <div class="test-suite sel" id="suite-api" onclick="robotToggleSuite('api')">
-              <div class="test-suite-icon" style="background:rgba(59,130,246,.15);color:var(--blue)"><i class="ti ti-api"></i></div>
-              <div><div class="test-suite-name">APIs Internas</div><div class="test-suite-desc">status, jobs, history, auto, inbox, profile</div></div>
-            </div>
-            <div class="test-suite sel" id="suite-auth" onclick="robotToggleSuite('auth')">
-              <div class="test-suite-icon" style="background:rgba(16,185,129,.15);color:var(--green)"><i class="ti ti-lock"></i></div>
-              <div><div class="test-suite-name">Autenticação</div><div class="test-suite-desc">sessão, cookie, token refresh, logout</div></div>
-            </div>
-            <div class="test-suite sel" id="suite-jobs" onclick="robotToggleSuite('jobs')">
-              <div class="test-suite-icon" style="background:rgba(245,158,11,.15);color:var(--amber)"><i class="ti ti-briefcase"></i></div>
-              <div><div class="test-suite-name">Vagas & Planilhas</div><div class="test-suite-desc">seasonal, jan2026, jul2025, filtros, busca</div></div>
-            </div>
-            <div class="test-suite sel" id="suite-email" onclick="robotToggleSuite('email')">
-              <div class="test-suite-icon" style="background:rgba(167,139,250,.15);color:var(--purple)"><i class="ti ti-mail"></i></div>
-              <div><div class="test-suite-name">Envio de E-mails</div><div class="test-suite-desc">candidatura manual, respostas, inbox</div></div>
-            </div>
-            <div class="test-suite sel" id="suite-profile" onclick="robotToggleSuite('profile')">
-              <div class="test-suite-icon" style="background:rgba(34,211,238,.12);color:var(--cyan)"><i class="ti ti-user"></i></div>
-              <div><div class="test-suite-name">Perfil & Configs</div><div class="test-suite-desc">dados pessoais, perfis de e-mail, PDFs</div></div>
-            </div>
-            <div class="test-suite sel" id="suite-auto" onclick="robotToggleSuite('auto')">
-              <div class="test-suite-icon" style="background:rgba(249,115,22,.13);color:var(--orange)"><i class="ti ti-robot"></i></div>
-              <div><div class="test-suite-name">Automático</div><div class="test-suite-desc">fila, status, limites diários, logs</div></div>
-            </div>
-            <div class="test-suite sel" id="suite-ranking" onclick="robotToggleSuite('ranking')">
-              <div class="test-suite-icon" style="background:rgba(251,191,36,.12);color:#fbbf24"><i class="ti ti-trophy"></i></div>
-              <div><div class="test-suite-name">Ranking & Social</div><div class="test-suite-desc">ranking, indicações, sugestões, notificações</div></div>
-            </div>
-            <div class="test-suite sel" id="suite-admin" onclick="robotToggleSuite('admin')">
-              <div class="test-suite-icon" style="background:rgba(239,68,68,.12);color:var(--red)"><i class="ti ti-shield-check"></i></div>
-              <div><div class="test-suite-name">APIs Admin</div><div class="test-suite-desc">live, users, planos, códigos, configurações</div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- PROGRESSO -->
-        <div class="robot-progress-wrap" id="robot-progress-wrap" style="display:none">
-          <div class="robot-progress-hdr">
-            <div class="robot-progress-title"><div class="robot-pulse"></div> Executando testes...</div>
-            <div class="robot-progress-pct" id="robot-pct">0%</div>
-          </div>
-          <div class="robot-progress-bar"><div class="robot-progress-fill" id="robot-bar" style="width:0%"></div></div>
-          <div class="robot-current-action"><i class="ti ti-loader" style="font-size:12px;color:var(--purple)"></i> <span id="robot-current">Aguardando início...</span></div>
-          <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--t3)">
-            <span id="robot-eta">⏱ –</span>
-            <span id="robot-step-count">0 / 0 testes</span>
-          </div>
-        </div>
-
-        <!-- STATS EM TEMPO REAL -->
-        <div class="robot-grid" id="robot-stats-grid">
-          <div class="robot-stat rs-ok"><div class="robot-stat-val" id="rst-ok">0</div><div class="robot-stat-lbl">✅ Passou</div><div class="robot-stat-bar"></div></div>
-          <div class="robot-stat rs-err"><div class="robot-stat-val" id="rst-err">0</div><div class="robot-stat-lbl">❌ Falhou</div><div class="robot-stat-bar"></div></div>
-          <div class="robot-stat rs-warn"><div class="robot-stat-val" id="rst-warn">0</div><div class="robot-stat-lbl">⚠️ Aviso</div><div class="robot-stat-bar"></div></div>
-          <div class="robot-stat rs-info"><div class="robot-stat-val" id="rst-skip">0</div><div class="robot-stat-lbl">⏭ Pulados</div><div class="robot-stat-bar"></div></div>
-        </div>
-
-        <!-- LOG EM TEMPO REAL -->
-        <div class="robot-log-wrap">
-          <div class="robot-log-hdr">
-            <div class="robot-log-title"><i class="ti ti-terminal-2" style="color:var(--purple)"></i> Log de Execução</div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <label style="font-size:11px;color:var(--t3);display:flex;align-items:center;gap:5px;cursor:pointer">
-                <input type="checkbox" id="robot-autoscroll" checked style="accent-color:var(--purple)"> Auto-scroll
-              </label>
-              <select id="robot-log-filter" onchange="robotFilterLogs()" style="background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--t2)">
-                <option value="">Todos</option>
-                <option value="ok">✅ OK</option>
-                <option value="err">❌ Erro</option>
-                <option value="warn">⚠️ Aviso</option>
-                <option value="info">ℹ️ Info</option>
-              </select>
-              <span id="robot-log-count" style="font-size:10px;color:var(--t3)">0 entradas</span>
-            </div>
-          </div>
-          <div class="robot-log-body" id="robot-log-body">
-            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:var(--t3)">
-              <i class="ti ti-robot" style="font-size:36px;opacity:.3"></i>
-              <div style="font-size:12px">Inicie os testes para ver os logs aqui</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- RELATÓRIO FINAL -->
-        <div class="report-wrap" id="robot-report" style="display:none">
-          <div class="report-hdr">
-            <i class="ti ti-report" style="color:var(--purple)"></i>
-            <div style="font-size:14px;font-weight:800;color:#fff;flex:1">Relatório Final</div>
-            <span id="report-time" style="font-size:11px;color:var(--t3)"></span>
-            <button class="btn btn-ghost btn-sm" onclick="robotExportReport()"><i class="ti ti-download"></i> JSON</button>
-          </div>
-          <div class="report-grid">
-            <div class="report-col">
-              <div class="report-col-title"><i class="ti ti-alert-circle" style="color:var(--red)"></i> Críticos</div>
-              <div id="report-critical"><div class="empty-state" style="padding:10px;font-size:11px">Nenhum ✅</div></div>
-            </div>
-            <div class="report-col">
-              <div class="report-col-title"><i class="ti ti-alert-triangle" style="color:var(--amber)"></i> Médios</div>
-              <div id="report-medium"><div class="empty-state" style="padding:10px;font-size:11px">Nenhum ✅</div></div>
-            </div>
-            <div class="report-col">
-              <div class="report-col-title"><i class="ti ti-info-circle" style="color:var(--blue)"></i> Informativos</div>
-              <div id="report-low"><div class="empty-state" style="padding:10px;font-size:11px">Nenhum</div></div>
-            </div>
-          </div>
-          <!-- Sugestões de correção -->
-          <div id="report-suggestions" style="padding:14px 16px;border-top:1px solid var(--border)">
-            <div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">💡 Sugestões de Correção para o Claude</div>
-            <div id="report-suggestions-list" style="font-size:11px;color:var(--t2);line-height:1.8;font-family:'JetBrains Mono',monospace;background:var(--bg2);border-radius:8px;padding:10px 12px;white-space:pre-wrap"></div>
-          </div>
-        </div>
-
-      </div><!-- /view-robot -->
-
     </div><!-- /content -->
   </div><!-- /main -->
 </div><!-- /app -->
 
-<!-- ══════════════════════════════════════════════════════════
-     ROBÔ DE TESTE — VIEW COMPLETA
-══════════════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════════════════
+     ROBÔ DE TESTE ULTRA — H2BApply QA Engine v2.0
+     Testa TUDO como um usuário real com permissão total
+════════════════════════════════════════════════════════ -->
+<style>
+/* ── Robot UI ── */
+.rb-hero{background:linear-gradient(135deg,#0a0520,#1a0555,#2d1080);border:1px solid rgba(167,139,250,.25);border-radius:14px;padding:20px 22px;margin-bottom:18px;position:relative;overflow:hidden}
+.rb-hero::before{content:"";position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cg fill='none' stroke='rgba(167,139,250,0.07)' stroke-width='1'%3E%3Cpath d='M20 2l3 9h9l-7 5 3 9-8-6-8 6 3-9-7-5h9z'/%3E%3C/g%3E%3C/svg%3E") repeat;pointer-events:none}
+.rb-title{font-family:'Sora',sans-serif;font-size:20px;font-weight:800;color:#fff;display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+.rb-sub{font-size:12px;color:rgba(255,255,255,.5);position:relative;z-index:1;margin-top:5px}
+.rb-btns{display:flex;gap:8px;flex-wrap:wrap;position:relative;z-index:1;margin-top:14px}
+.rb-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:800;border:none;cursor:pointer;font-family:inherit;transition:all .14s}
+.rb-btn:disabled{opacity:.35;pointer-events:none}
+.rb-start{background:linear-gradient(135deg,#059669,#10b981);color:#fff;box-shadow:0 3px 12px rgba(5,150,105,.4)}
+.rb-stop{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff}
+.rb-clean{background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.12)}
+.rb-export{background:rgba(99,102,241,.2);color:#a78bfa;border:1px solid rgba(99,102,241,.3)}
+.rb-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px}
+.rb-stat{background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:12px;text-align:center;position:relative;overflow:hidden}
+.rb-stat-val{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;line-height:1;margin-bottom:3px}
+.rb-stat-lbl{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
+.rb-stat-bar{position:absolute;bottom:0;left:0;right:0;height:2px}
+.rs-ok .rb-stat-val{color:var(--green)} .rs-ok .rb-stat-bar{background:var(--green)}
+.rs-err .rb-stat-val{color:var(--red)} .rs-err .rb-stat-bar{background:var(--red)}
+.rs-warn .rb-stat-val{color:var(--amber)} .rs-warn .rb-stat-bar{background:var(--amber)}
+.rs-info .rb-stat-val{color:var(--blue)} .rs-info .rb-stat-bar{background:var(--blue)}
+.rs-time .rb-stat-val{color:var(--purple)} .rs-time .rb-stat-bar{background:var(--purple)}
+.rb-progress{background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;margin-bottom:16px}
+.rb-prog-bar{height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin:8px 0 6px}
+.rb-prog-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#7c3aed,#a78bfa);transition:width .3s ease}
+.rb-current{font-size:11px;color:var(--t2);display:flex;align-items:center;gap:6px}
+.rb-pulse{width:7px;height:7px;border-radius:50%;background:#a78bfa;animation:pulse 1s infinite;flex-shrink:0}
+.rb-log{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.rb-log-hdr{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--glass)}
+.rb-log-body{height:380px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:10.5px}
+.rb-line{display:flex;gap:7px;padding:4px 10px;border-bottom:1px solid rgba(255,255,255,.02);align-items:flex-start}
+.rb-line:hover{background:rgba(255,255,255,.02)}
+.rb-ts{color:var(--t3);white-space:nowrap;flex-shrink:0;min-width:52px;font-size:9.5px;padding-top:1px}
+.rb-ico{flex-shrink:0;width:14px;text-align:center;font-size:10px}
+.rb-msg{flex:1;word-break:break-word;line-height:1.5}
+.rb-cat{font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:3px;flex-shrink:0;text-transform:uppercase;white-space:nowrap;margin-top:1px}
+.rl-ok{color:#4ade80} .rc-ok{background:rgba(74,222,128,.12);color:#4ade80}
+.rl-err{color:#f87171} .rc-err{background:rgba(248,113,113,.12);color:#f87171}
+.rl-warn{color:#fbbf24} .rc-warn{background:rgba(251,191,36,.12);color:#fbbf24}
+.rl-info{color:#60a5fa} .rc-info{background:rgba(96,165,250,.12);color:#60a5fa}
+.rl-send{color:#a78bfa} .rc-send{background:rgba(167,139,250,.12);color:#a78bfa}
+.rl-section{background:rgba(99,102,241,.08);border-left:3px solid #6366f1;padding:5px 10px;font-size:10px;font-weight:700;color:#818cf8;letter-spacing:.04em}
+.rb-report{background:var(--glass);border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.rb-rep-hdr{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--glass)}
+.rb-rep-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0}
+.rb-rep-col{padding:12px 14px;border-right:1px solid var(--border)}
+.rb-rep-col:last-child{border-right:none}
+.rb-rep-col-title{font-size:9px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;display:flex;align-items:center;gap:4px}
+.rb-issue{display:flex;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);font-size:10px}
+.rb-issue:last-child{border-bottom:none}
+.suite-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.suite-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;background:var(--glass2);border:1.5px solid var(--border2);border-radius:20px;font-size:11px;font-weight:700;color:var(--t2);cursor:pointer;font-family:inherit;transition:all .12s}
+.suite-chip:hover{border-color:var(--purple)}
+.suite-chip.on{background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.4);color:#a78bfa}
+.rb-email-cfg{background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+.rb-email-cfg-title{font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.email-tag{display:inline-flex;align-items:center;gap:4px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);border-radius:20px;padding:3px 9px;font-size:10px;font-weight:700;color:var(--green);margin:2px}
+.email-tag.used{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);color:var(--amber)}
+.email-tag.fail{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3);color:var(--red)}
+</style>
+
+<script>
+// ════════════════════════════════════════════════════════════════════
+//  H2BApply — ULTRA ROBOT TEST ENGINE v2.0
+//  Roda no browser como admin autenticado.
+//  Testa TUDO: APIs, perfis, upload PDF, envio manual, automático,
+//  com e-mails reais e logs completos de cada ação.
+// ════════════════════════════════════════════════════════════════════
+const RobotV2 = (function(){
+  'use strict';
+
+  // ── Configuração ────────────────────────────────────────────────
+  const TARGET_EMAILS = [
+    'ndrkick.2@gmail.com',
+    'ndrkick.3@gmail.com',
+    'ndrkick.5@gmail.com',
+    'ndrkick.6@gmail.com',
+    'andrio.kick18@gmail.com'
+  ];
+
+  // PDF mínimo válido em base64
+  const FAKE_PDF_B64 = 'JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCgoyIDAgb2JqCjw8IC9UeXBlIC9QYWdlcyAvS2lkcyBbMyAwIFJdIC9Db3VudCAxID4+CmVuZG9iagoKMyAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDYxMiA3OTJdCi9Db250ZW50cyA0IDAgUiAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA1IDAgUiA+PiA+PiA+PgplbmRvYmoKCjQgMCBvYmoKPDwgL0xlbmd0aCAxMjAgPj4Kc3RyZWFtCkJUCi9GMSAxNCBUZgo3MiA3MjAgVGQKKFJPQk9UIFRFU1QgQ1VSUklDVUxVTSAtIEgyQiBBUFBMWSBRQSkgVGoKMCAtMzAgVGQKKFRoaXMgaXMgYW4gYXV0b21hdGVkIHRlc3QgUERGIGdlbmVyYXRlZCBieSBIMkJBcHBseSBSb2JvdC4pIFRqCkVUCmVuZHN0cmVhbQplbmRvYmoKCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjY2IDAwMDAwIG4gCjAwMDAwMDA0MzggMDAwMDAgbiAKCnRyYWlsZXIKPDwgL1NpemUgNiAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNTEyCiUlRU9G';
+
+  // 3 variações de assunto para testar rotação
+  const TEST_SUBJECTS = [
+    'Application for {vaga} – Robot Test QA v2',
+    'H-2B {vaga} Position – Automated Test {empresa}',
+    'Job Inquiry: {vaga} at {empresa} – QA Robot'
+  ];
+
+  // 3 variações de corpo para testar rotação
+  const TEST_BODIES = [
+    `Dear Hiring Manager,\n\nThis is an AUTOMATED TEST from H2BApply QA Robot v2.0.\nPlease ignore this message.\n\nTesting: Email body variation 1/3\nTimestamp: {ts}\n\nBest regards,\nH2BApply Robot`,
+    `Dear {empresa} Team,\n\nThis is an AUTOMATED TEST from H2BApply QA Robot v2.0.\nPlease ignore this message.\n\nTesting: Email body variation 2/3 — checking rotation system\nTimestamp: {ts}\n\nBest regards,\nH2BApply Robot`,
+    `Hello,\n\nAUTOMATED QA TEST — H2BApply Robot v2.0\nVariation 3/3 — This tests that email bodies rotate correctly.\nTimestamp: {ts}\n\nRegards,\nH2BApply Robot`
+  ];
+
+  // ── Estado ──────────────────────────────────────────────────────
+  let _running = false;
+  let _logs = [];
+  let _stats = {ok:0, err:0, warn:0, send:0, skip:0};
+  let _issues = {critical:[], medium:[], low:[]};
+  let _startTime = 0;
+  let _totalTests = 0;
+  let _doneTests = 0;
+  let _emailResults = {}; // rastrea cada email de teste
+  let _createdProfileIds = []; // perfis criados pelo robô para limpar depois
+  let _uploadedCvIdxs = []; // CVs upados pelo robô para limpar depois
+  let _autoJobStarted = false;
+  let _selectedSuites = new Set(['apis','auth','perfil','pdf','manual','auto','ranking','admin','cleanup']);
+
+  const SUITE_CONFIG = {
+    apis:    {label:'APIs Core', icon:'🔌', tests:16},
+    auth:    {label:'Autenticação', icon:'🔐', tests:4},
+    perfil:  {label:'Perfil & Config', icon:'👤', tests:8},
+    pdf:     {label:'Upload PDF', icon:'📄', tests:4},
+    manual:  {label:'Envio Manual', icon:'✉️', tests:8},
+    auto:    {label:'Automático', icon:'🤖', tests:10},
+    ranking: {label:'Ranking & Social', icon:'🏆', tests:6},
+    admin:   {label:'APIs Admin', icon:'🛡️', tests:10},
+    cleanup: {label:'Limpeza', icon:'🧹', tests:4},
+  };
+
+  // ── Utils ────────────────────────────────────────────────────────
+  const ts = () => new Date().toLocaleTimeString('pt-BR',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const wait = ms => new Promise(r=>setTimeout(r,ms));
+  const fill = (tmpl,vars={}) => tmpl.replace(/\{(\w+)\}/g,(_,k)=>vars[k]||_);
+  const nowStr = () => new Date().toISOString();
+
+  async function apiFetch(path, opts={}, timeout=12000){
+    const ctrl = new AbortController();
+    const tid = setTimeout(()=>ctrl.abort(), timeout);
+    try {
+      const r = await fetch(path, {credentials:'include', signal:ctrl.signal, ...opts});
+      clearTimeout(tid);
+      const ct = r.headers.get('content-type')||'';
+      let data = null;
+      if(ct.includes('json')) data = await r.json().catch(()=>null);
+      return {ok:r.ok, status:r.status, data, headers:r.headers};
+    } catch(e) {
+      clearTimeout(tid);
+      if(e.name==='AbortError') return {ok:false, status:-1, error:'TIMEOUT', data:null};
+      return {ok:false, status:-1, error:e.message, data:null};
+    }
+  }
+
+  async function post(path, body, timeout=12000){
+    return apiFetch(path, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    }, timeout);
+  }
+
+  // ── Log ──────────────────────────────────────────────────────────
+  function log(type, msg, detail=''){
+    const e = {type, msg, detail, ts:ts(), time:Date.now()};
+    _logs.push(e);
+    if(type==='ok')   _stats.ok++;
+    if(type==='err')  _stats.err++;
+    if(type==='warn') _stats.warn++;
+    if(type==='send') _stats.send++;
+    _renderLine(e);
+    _updateStats();
+    const lb = document.getElementById('rb-log-body');
+    if(lb && document.getElementById('rb-autoscroll')?.checked) lb.scrollTop = lb.scrollHeight;
+  }
+
+  function section(title){
+    const e={type:'section',msg:title,ts:ts(),time:Date.now()};
+    _logs.push(e);
+    const lb=document.getElementById('rb-log-body');
+    if(!lb) return;
+    if(lb.querySelector('.rb-empty')) lb.innerHTML='';
+    const d=document.createElement('div');
+    d.className='rb-line rl-section';
+    d.textContent='── '+title.toUpperCase()+' ──';
+    lb.appendChild(d);
+  }
+
+  function _renderLine(e){
+    const lb=document.getElementById('rb-log-body');
+    if(!lb) return;
+    if(lb.querySelector('.rb-empty')) lb.innerHTML='';
+    const fv=document.getElementById('rb-filter')?.value||'';
+    if(fv && e.type!=='section' && e.type!==fv) return;
+    const icons={ok:'✅',err:'❌',warn:'⚠️',info:'ℹ️',send:'📨',skip:'⏭'};
+    const cc={ok:'rc-ok',err:'rc-err',warn:'rc-warn',info:'rc-info',send:'rc-send',skip:'rc-skip'};
+    const line=document.createElement('div');
+    line.className=`rb-line rl-${e.type}`;
+    line.innerHTML=`<span class="rb-ts">${e.ts}</span><span class="rb-ico">${icons[e.type]||'•'}</span><span class="rb-msg">${esc(e.msg)}${e.detail?`<br><span style="font-size:9px;color:var(--t3)">${esc(String(e.detail).slice(0,200))}</span>`:''}</span><span class="rb-cat ${cc[e.type]||''}">${e.type}</span>`;
+    lb.appendChild(line);
+    const cnt=document.getElementById('rb-log-count');
+    if(cnt) cnt.textContent=_logs.filter(l=>l.type!=='section').length+' logs';
+  }
+
+  function _updateStats(){
+    const el = id => document.getElementById(id);
+    if(el('rst-ok'))  el('rst-ok').textContent  = _stats.ok;
+    if(el('rst-err')) el('rst-err').textContent = _stats.err;
+    if(el('rst-warn'))el('rst-warn').textContent= _stats.warn;
+    if(el('rst-send'))el('rst-send').textContent= _stats.send;
+    if(el('rst-time'))el('rst-time').textContent= ((Date.now()-_startTime)/1000).toFixed(0)+'s';
+  }
+
+  function _setProgress(pct, current){
+    const bar=document.getElementById('rb-prog-fill');
+    const pctEl=document.getElementById('rb-pct');
+    const cur=document.getElementById('rb-current-action');
+    const steps=document.getElementById('rb-steps');
+    if(bar) bar.style.width=Math.min(100,pct)+'%';
+    if(pctEl) pctEl.textContent=Math.round(pct)+'%';
+    if(cur) cur.textContent=current;
+    if(steps) steps.textContent=`${_doneTests}/${_totalTests} testes`;
+  }
+
+  function addIssue(p, test, msg, sug=''){
+    _issues[p]?.push({test,msg,sug});
+  }
+
+  // ── Suite 1: APIs Core ───────────────────────────────────────────
+  async function suiteAPIs(){
+    section('APIs Core — Mapeamento Completo');
+    const endpoints = [
+      {p:'/api/status',                    l:'Status sessão',       critical:true},
+      {p:'/api/jobs?skip=0&top=3',         l:'Vagas Seasonal',      critical:true},
+      {p:'/api/sheet-meta?sheet=jan2026&skip=0&top=3', l:'Planilha Jan/2026', critical:true},
+      {p:'/api/sheet-meta?sheet=jul2025&skip=0&top=3', l:'Planilha Jul/2025', critical:true},
+      {p:'/api/sheet-categories?sheet=jan2026', l:'Categorias Jan',  critical:false},
+      {p:'/api/history',                   l:'Histórico envios',    critical:true},
+      {p:'/api/profiles',                  l:'Perfis de e-mail',    critical:true},
+      {p:'/api/saved',                     l:'Vagas salvas',        critical:false},
+      {p:'/api/auto/status',               l:'Status automático',   critical:true},
+      {p:'/api/auto-logs?limit=10',        l:'Logs automático',     critical:false},
+      {p:'/api/inbox?limit=5',             l:'Inbox Gmail',         critical:false},
+      {p:'/api/public-stats',              l:'Stats públicos',      critical:false},
+      {p:'/api/ranking?period=day',        l:'Ranking dia',         critical:false},
+      {p:'/api/ranking?period=all',        l:'Ranking geral',       critical:false},
+      {p:'/api/referral/info',             l:'Indicações',          critical:false},
+      {p:'/api/notif/pending',             l:'Notificações',        critical:false},
+    ];
+    for(const ep of endpoints){
+      if(!_running) return;
+      _doneTests++;
+      const t0=Date.now();
+      const r=await apiFetch(ep.p);
+      const ms=Date.now()-t0;
+      _setProgress((_doneTests/_totalTests)*100, `Testando ${ep.l}...`);
+      if(r.status===-1){
+        log('err',`[API] ${ep.l} — TIMEOUT`);
+        addIssue(ep.critical?'critical':'medium', ep.l, 'Timeout >12s', `Verificar rota ${ep.p}`);
+      } else if(!r.ok){
+        log('err',`[API] ${ep.l} — HTTP ${r.status}`, ep.p);
+        addIssue(ep.critical?'critical':'medium', ep.l, `HTTP ${r.status}`, `Rota ${ep.p} retornou erro`);
+      } else if(ms>3000){
+        log('warn',`[API] ${ep.l} — LENTO (${ms}ms)`, ep.p);
+        addIssue('low', ep.l, `${ms}ms (>3s)`, 'Otimizar cache ou query');
+      } else {
+        log('ok',`[API] ${ep.l} — OK (${ms}ms)`);
+      }
+      await wait(120);
+    }
+    // Rota inválida = nunca deve ser 500
+    _doneTests++;
+    const inv=await apiFetch('/api/__robot_nonexistent_xyz__');
+    _setProgress((_doneTests/_totalTests)*100,'Testando 404 handling...');
+    if(inv.status===500){
+      log('err','[API] Rota inválida retornou 500 (crash)');
+      addIssue('critical','404 Handler','Rota inválida = 500','Adicionar catch-all no server.js');
+    } else {
+      log('ok',`[API] 404 handler correto — retornou ${inv.status}`);
+    }
+  }
+
+  // ── Suite 2: Autenticação ────────────────────────────────────────
+  async function suiteAuth(){
+    section('Autenticação & Sessão');
+    // 1. Sessão válida
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Verificando sessão...');
+    const st=await apiFetch('/api/status');
+    if(!st.ok||!st.data?.connected){
+      log('err','[Auth] Sessão não autenticada — robô não pode continuar');
+      addIssue('critical','Sessão','Não autenticado','Refazer login');
+      return;
+    }
+    const user=st.data;
+    log('ok',`[Auth] Sessão válida — ${user.email}`, `Plano: ${user.plan} | Admin: ${user.isAdmin}`);
+
+    // 2. Token Google (necessário para envio)
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Verificando OAuth...');
+    if(user.connected && user.email){
+      const gmailTest=await apiFetch('/api/inbox?limit=1');
+      if(gmailTest.ok){
+        log('ok','[Auth] Token Gmail válido — inbox acessível');
+      } else {
+        log('warn','[Auth] Token Gmail expirado ou sem permissão','Envio de e-mails não funcionará');
+        addIssue('medium','Gmail OAuth','Token expirado','Refazer login OAuth');
+      }
+    }
+
+    // 3. Admin confirmado
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Verificando permissão admin...');
+    const adminTest=await apiFetch('/api/admin/live');
+    if(adminTest.ok){
+      log('ok',`[Auth] Admin confirmado — acesso total`);
+    } else {
+      log('err',`[Auth] Admin negado — HTTP ${adminTest.status}`);
+      addIssue('critical','Admin','Sem acesso admin','Verificar ADMIN_EMAIL no .env');
+    }
+
+    // 4. Proteção de rota crítica
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Testando proteção de rotas...');
+    const debugTest=await apiFetch('/api/debug/export');
+    if(debugTest.ok && user.isAdmin){
+      log('ok','[Auth] /api/debug/export acessível (admin OK)');
+    } else if(!debugTest.ok && !user.isAdmin){
+      log('ok',`[Auth] Rota sensível bloqueada para não-admin (correto)`);
+    } else {
+      log('warn',`[Auth] Rota debug retornou ${debugTest.status}`);
+    }
+  }
+
+  // ── Suite 3: Perfil & Configurações ─────────────────────────────
+  async function suitePerfil(){
+    section('Perfil & Configurações');
+
+    // 1. Salvar dados pessoais
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Salvando dados pessoais...');
+    const settingsR=await post('/api/settings',{
+      name:'Robot Test User QA',
+      country:'Brazil',
+      phone:'+55 11 99999-0000',
+      city:'Curitiba',
+      language:'pt-BR'
+    });
+    if(settingsR.ok){
+      log('ok','[Perfil] Dados pessoais salvos com sucesso');
+    } else {
+      log('err',`[Perfil] Falha ao salvar dados — HTTP ${settingsR.status}`,settingsR.data?.error);
+      addIssue('medium','Settings','Falha ao salvar dados pessoais','/api/settings POST');
+    }
+
+    // 2. Criar perfil H2B CATEGORIA Landscape
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Criando perfil H2B Landscape...');
+    const p1=await post('/api/profiles/save',{
+      name:'[ROBOT] H2B Landscape QA',
+      type:'category',
+      categories:['landscape'],
+      subjects: TEST_SUBJECTS,
+      emailBodies: TEST_BODIES.map(b=>fill(b,{ts:nowStr()})),
+      body: TEST_BODIES[0],
+      subject: TEST_SUBJECTS[0],
+      active:true,
+      isGeneral:false,
+      allowManual:true,
+      allowAuto:true,
+      visaType:'h2b',
+      rotateSubjects:true,
+      rotateBodies:true
+    });
+    if(p1.ok && p1.data?.profile?.id){
+      _createdProfileIds.push(p1.data.profile.id);
+      log('ok',`[Perfil] Perfil H2B Landscape criado — ID: ${p1.data.profile.id}`);
+    } else {
+      log('err',`[Perfil] Falha ao criar perfil Landscape`,p1.data?.error);
+      addIssue('critical','Perfil H2B','Falha ao criar perfil',p1.data?.error||'Verificar /api/profiles/save');
+    }
+
+    // 3. Criar perfil H2B GERAL (fallback)
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Criando perfil H2B Geral...');
+    const p2=await post('/api/profiles/save',{
+      name:'[ROBOT] H2B Geral QA',
+      type:'general',
+      categories:[],
+      subjects: TEST_SUBJECTS,
+      emailBodies: TEST_BODIES.map(b=>fill(b,{ts:nowStr()})),
+      body: TEST_BODIES[1],
+      subject: TEST_SUBJECTS[1],
+      active:true,
+      isGeneral:true,
+      allowManual:true,
+      allowAuto:true,
+      visaType:'h2b',
+      rotateSubjects:true,
+      rotateBodies:true
+    });
+    if(p2.ok && p2.data?.profile?.id){
+      _createdProfileIds.push(p2.data.profile.id);
+      log('ok',`[Perfil] Perfil H2B Geral criado — ID: ${p2.data.profile.id}`);
+    } else {
+      log('err',`[Perfil] Falha ao criar perfil Geral`,p2.data?.error);
+      addIssue('medium','Perfil Geral','Falha ao criar perfil geral',p2.data?.error);
+    }
+
+    // 4. Criar perfil H2A
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Criando perfil H2A...');
+    const p3=await post('/api/profiles/save',{
+      name:'[ROBOT] H2A Agrícola QA',
+      type:'general',
+      categories:['farm'],
+      subjects: TEST_SUBJECTS,
+      emailBodies: TEST_BODIES.map(b=>fill(b,{ts:nowStr()})),
+      body: TEST_BODIES[2],
+      subject: TEST_SUBJECTS[2],
+      active:true,
+      isGeneral:false,
+      allowManual:true,
+      allowAuto:false,
+      visaType:'h2a',
+      rotateSubjects:true,
+      rotateBodies:true
+    });
+    if(p3.ok && p3.data?.profile?.id){
+      _createdProfileIds.push(p3.data.profile.id);
+      log('ok',`[Perfil] Perfil H2A criado — ID: ${p3.data.profile.id}`);
+    } else {
+      log('warn',`[Perfil] Falha ao criar perfil H2A`,p3.data?.error);
+    }
+
+    // 5. Verificar templates
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Testando templates...');
+    const tplR=await apiFetch('/api/templates');
+    log(tplR.ok?'ok':'warn',`[Perfil] Templates — HTTP ${tplR.status}`,tplR.ok?`${tplR.data?.templates?.length||0} templates`:'');
+
+    // 6. Verificar perfis criados persistem
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Verificando persistência dos perfis...');
+    const listR=await apiFetch('/api/profiles');
+    if(listR.ok){
+      const robotProfiles=(listR.data?.profiles||[]).filter(p=>p.name?.includes('[ROBOT]'));
+      if(robotProfiles.length>0){
+        log('ok',`[Perfil] ${robotProfiles.length} perfil(is) de teste confirmados no servidor`);
+      } else {
+        log('warn','[Perfil] Perfis de teste não apareceram na lista');
+        addIssue('medium','Persistência','Perfis criados não aparecem na lista','/api/profiles GET');
+      }
+    }
+
+    // 7. Verificar rotação de assuntos
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Verificando rotação de assuntos...');
+    const profileData=listR.data?.profiles?.find(p=>p.name?.includes('Landscape'));
+    if(profileData){
+      const subjs=profileData.subjects||[];
+      if(subjs.length>=3){
+        log('ok',`[Perfil] Rotação OK — ${subjs.length} assuntos configurados`);
+        subjs.forEach((s,i)=>log('info',`  Assunto ${i+1}: ${s.slice(0,60)}...`));
+      } else {
+        log('warn',`[Perfil] Apenas ${subjs.length} assunto(s) — mínimo 3 para anti-spam`);
+        addIssue('low','Rotação','Menos de 3 assuntos no perfil','Adicionar mais variações');
+      }
+    }
+
+    // 8. Salvar vagas favoritas
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Testando vagas salvas...');
+    const savedR=await post('/api/saved',{saved:['robot-test-job-001','robot-test-job-002']});
+    log(savedR.ok?'ok':'warn',`[Perfil] Vagas salvas — HTTP ${savedR.status}`);
+  }
+
+  // ── Suite 4: Upload PDF ──────────────────────────────────────────
+  async function suitePDF(){
+    section('Upload de PDFs (Currículo & Cover Letter)');
+
+    // 1. Upload currículo 1
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Fazendo upload do Currículo 1 (Resume)...');
+    const cv1=await post('/api/cv/upload',{
+      base64: FAKE_PDF_B64,
+      name: 'Robot_Curriculo_Teste_1_QA.pdf',
+      cvType: 'resume'
+    });
+    if(cv1.ok && cv1.data?.cv?.idx!=null){
+      _uploadedCvIdxs.push({idx:cv1.data.cv.idx, type:'resume'});
+      log('ok',`[PDF] Currículo 1 upado — idx: ${cv1.data.cv.idx} | ${cv1.data.cv.name}`);
+    } else {
+      log('err',`[PDF] Falha upload Currículo 1`,cv1.data?.error);
+      addIssue('critical','PDF Upload','Falha ao upar currículo 1',cv1.data?.error||'Verificar /api/cv/upload');
+    }
+
+    // 2. Upload currículo 2
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Fazendo upload do Currículo 2 (Cover Letter)...');
+    const cv2=await post('/api/cv/upload',{
+      base64: FAKE_PDF_B64,
+      name: 'Robot_Cover_Letter_Teste_QA.pdf',
+      cvType: 'cover'
+    });
+    if(cv2.ok && cv2.data?.cv?.idx!=null){
+      _uploadedCvIdxs.push({idx:cv2.data.cv.idx, type:'cover'});
+      log('ok',`[PDF] Cover Letter upada — idx: ${cv2.data.cv.idx} | ${cv2.data.cv.name}`);
+    } else {
+      log('err',`[PDF] Falha upload Cover Letter`,cv2.data?.error);
+      addIssue('medium','PDF Cover','Falha ao upar cover letter',cv2.data?.error);
+    }
+
+    // 3. Vincular PDF ao perfil (se perfil e CV existirem)
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Vinculando PDF ao perfil...');
+    if(_createdProfileIds.length>0 && _uploadedCvIdxs.length>0){
+      const resumeIdx=_uploadedCvIdxs.find(c=>c.type==='resume')?.idx;
+      const coverIdx=_uploadedCvIdxs.find(c=>c.type==='cover')?.idx;
+      const updR=await post('/api/profiles/save',{
+        id: _createdProfileIds[0],
+        name:'[ROBOT] H2B Landscape QA',
+        subjects: TEST_SUBJECTS,
+        emailBodies: TEST_BODIES.map(b=>fill(b,{ts:nowStr()})),
+        body: TEST_BODIES[0],
+        subject: TEST_SUBJECTS[0],
+        active:true,
+        isGeneral:false,
+        allowManual:true,
+        allowAuto:true,
+        categories:['landscape'],
+        resumeIdx,
+        coverIdx,
+        pdfName:'Robot_Curriculo_Teste_1_QA.pdf',
+        rotateSubjects:true,
+        rotateBodies:true
+      });
+      if(updR.ok){
+        log('ok',`[PDF] PDF vinculado ao perfil — resumeIdx:${resumeIdx}, coverIdx:${coverIdx}`);
+      } else {
+        log('warn',`[PDF] Falha ao vincular PDF ao perfil`,updR.data?.error);
+      }
+    } else {
+      log('warn','[PDF] Sem perfil ou CV para vincular — pulando');
+    }
+
+    // 4. Verificar CVs na conta
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Verificando CVs na conta...');
+    const stR=await apiFetch('/api/status');
+    const cvs=stR.data?.cvs||[];
+    const robotCvs=cvs.filter(c=>c.name?.includes('Robot'));
+    if(robotCvs.length>=1){
+      log('ok',`[PDF] ${robotCvs.length} CV(s) do robô confirmados no servidor`);
+      robotCvs.forEach(c=>log('info',`  📄 ${c.name} (idx:${c.idx}, tipo:${c.cvType||'resume'})`));
+    } else {
+      log('warn','[PDF] CVs do robô não aparecem no /api/status');
+      addIssue('medium','PDF','CVs não aparecem no status','/api/status não retorna cvs');
+    }
+  }
+
+  // ── Suite 5: Envio Manual ────────────────────────────────────────
+  async function suiteManual(){
+    section('Envio Manual — Para Cada E-mail de Teste');
+    const resumeIdx=_uploadedCvIdxs.find(c=>c.type==='resume')?.idx||null;
+    const coverIdx=_uploadedCvIdxs.find(c=>c.type==='cover')?.idx||null;
+
+    // Buscar uma vaga real para usar
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Buscando vagas para usar no envio...');
+    const jobsR=await apiFetch('/api/jobs?skip=0&top=5');
+    const jobs=jobsR.data?.jobs||[];
+    const sheetR=await apiFetch('/api/sheet-meta?sheet=jan2026&skip=0&top=5');
+    const sheetJobs=sheetR.data?.jobs||[];
+    log('ok',`[Manual] ${jobs.length} vagas seasonal | ${sheetJobs.length} vagas planilha disponíveis`);
+
+    // Enviar para cada e-mail de teste com variações diferentes
+    for(let i=0; i<TARGET_EMAILS.length; i++){
+      if(!_running) return;
+      const email=TARGET_EMAILS[i];
+      const subjIdx=i%TEST_SUBJECTS.length;
+      const bodyIdx=i%TEST_BODIES.length;
+      const subj=fill(TEST_SUBJECTS[subjIdx],{
+        vaga:'Landscape Laborer QA Test',
+        empresa:'Robot Test Inc'
+      });
+      const body=fill(TEST_BODIES[bodyIdx],{ts:nowStr()});
+
+      _doneTests++;
+      _setProgress((_doneTests/_totalTests)*100,`Enviando manual para ${email}...`);
+      _emailResults[email]={attempted:true, manual:false, auto:false, errors:[]};
+
+      const sendPayload={
+        to: email,
+        subject: subj,
+        message: body,
+        job: 'Landscape Laborer — Robot QA Test',
+        company: 'Robot Test Inc — QA',
+        jobId: `robot-qa-manual-${i}-${Date.now()}`,
+        resumeIdx,
+        coverIdx,
+        fromName:'Robot QA H2BApply',
+        isReply:false
+      };
+
+      const t0=Date.now();
+      const r=await post('/api/send', sendPayload, 20000);
+      const ms=Date.now()-t0;
+      _stats.send++;
+      _updateStats();
+
+      if(r.ok){
+        _emailResults[email].manual=true;
+        log('send',`[Manual] ✉️ Enviado para ${email} (${ms}ms) — Assunto variação ${subjIdx+1}/${TEST_SUBJECTS.length}`,`PDF: ${resumeIdx!=null?'✅':'❌ sem PDF'}`);
+        _updateEmailTags();
+      } else if(r.status===429){
+        log('warn',`[Manual] Rate limit para ${email}`,r.data?.error||'Limite atingido');
+        _emailResults[email].errors.push('rate_limit');
+        addIssue('low','Rate Limit',`Limite ao enviar para ${email}`,r.data?.error);
+      } else if(r.status===409){
+        log('warn',`[Manual] ${email} já foi enviado antes (dedup OK)`,r.data?.error);
+        _emailResults[email].errors.push('already_sent');
+      } else if(r.status===401){
+        log('err',`[Manual] Token Gmail expirado — envio para ${email} falhou`);
+        _emailResults[email].errors.push('oauth_expired');
+        addIssue('critical','Gmail OAuth','Token expirado ao tentar enviar','Refazer login OAuth');
+      } else {
+        log('err',`[Manual] Falha ao enviar para ${email} — HTTP ${r.status}`,r.data?.error||'');
+        _emailResults[email].errors.push(`http_${r.status}`);
+        addIssue('medium','Envio Manual',`Falha para ${email}: HTTP ${r.status}`,r.data?.error||'');
+      }
+      await wait(800); // Pausa entre envios para não disparar rate limit
+    }
+
+    // Verificar histórico após envios
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Verificando histórico de envios...');
+    await wait(500);
+    const histR=await apiFetch('/api/history');
+    const hist=histR.data?.history||[];
+    const robotSent=hist.filter(h=>h.company?.includes('Robot')||h.job?.includes('Robot')||h.job?.includes('QA'));
+    log('ok',`[Manual] Histórico: ${hist.length} total | ${robotSent.length} do robô`);
+
+    // Verificar dedup (tentar reenviar para o primeiro e-mail)
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Testando anti-duplicata...');
+    if(TARGET_EMAILS.length>0){
+      const dupR=await post('/api/send',{
+        to:TARGET_EMAILS[0],
+        subject:'DUP TEST — Robot',
+        message:'This is a duplicate test',
+        job:'DUP Test',
+        company:'DUP Co',
+        jobId:'robot-dup-test',
+        isReply:false
+      });
+      if(dupR.status===409){
+        log('ok',`[Manual] Anti-duplicata funcionando — bloqueou reenvio para ${TARGET_EMAILS[0]}`);
+      } else if(dupR.ok){
+        log('warn',`[Manual] Anti-duplicata não bloqueou reenvio para ${TARGET_EMAILS[0]}`);
+        addIssue('medium','Anti-duplicata','Dedup não bloqueou reenvio','Verificar hasSent()');
+      } else {
+        log('info',`[Manual] Anti-duplicata retornou ${dupR.status}`,dupR.data?.error);
+      }
+    }
+  }
+
+  // ── Suite 6: Envio Automático ────────────────────────────────────
+  async function suiteAuto(){
+    section('Envio Automático — Start/Monitor/Stop');
+
+    const resumeIdx=_uploadedCvIdxs.find(c=>c.type==='resume')?.idx||null;
+
+    // 1. Verificar status antes
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Status automático antes do teste...');
+    const st0=await apiFetch('/api/auto/status');
+    log('ok',`[Auto] Status inicial: ${st0.data?.active?'🟢 Ativo':'⏸ Inativo'} | Fila: ${st0.data?.queue?.length||0}`);
+
+    // 2. Verificar limites
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Verificando limites do automático...');
+    const statusR=await apiFetch('/api/status');
+    const autoLimit=statusR.data?.autoLimit||10;
+    const autoSent=statusR.data?.todaySentAuto||0;
+    const autoRemaining=statusR.data?.autoRemaining||0;
+    log('ok',`[Auto] Limite: ${autoLimit}/dia | Enviados hoje: ${autoSent} | Restantes: ${autoRemaining}`);
+    if(autoRemaining<=0){
+      log('warn','[Auto] Limite diário atingido — teste de start retornará 429');
+      addIssue('low','Auto Limite','Limite diário atingido','Aguardar reset à meia-noite');
+    }
+
+    // 3. Montar fila com os e-mails de teste
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Montando fila de e-mails de teste...');
+    const queue=TARGET_EMAILS.map((email,i)=>({
+      id:`robot-auto-${i}-${Date.now()}`,
+      to:email,
+      title:'Landscape Laborer — Robot Auto QA',
+      company:`Robot Auto Test Co ${i+1}`,
+      category:'landscape',
+      state:'FLORIDA',
+      city:'Miami',
+      wage:'$18/h',
+      visa:'H-2B',
+      start:'2026-03-01',
+      end:'2026-11-30',
+      workers:5,
+      caseNum:`RAQA-${i+1}-2026`
+    }));
+    log('ok',`[Auto] Fila montada — ${queue.length} vagas para ${TARGET_EMAILS.length} e-mails`);
+
+    // 4. Iniciar automático
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Iniciando envio automático...');
+    const autoPayload={
+      queue,
+      resumeIdx,
+      subjects: TEST_SUBJECTS,
+      emailBodies: TEST_BODIES.map(b=>fill(b,{ts:nowStr()})),
+      startH:0,
+      endH:24
+    };
+
+    const startR=await post('/api/auto/start', autoPayload, 20000);
+    if(startR.ok){
+      _autoJobStarted=true;
+      log('ok',`[Auto] 🚀 Automático iniciado! Fila: ${startR.data?.queueSize||queue.length} vagas`);
+      _emailResults['__auto__']={attempted:true, queueSize:startR.data?.queueSize||queue.length};
+    } else if(startR.status===409){
+      log('warn','[Auto] Automático já estava rodando — testando stop/restart');
+      await post('/api/auto/stop');
+      await wait(1000);
+      const retry=await post('/api/auto/start', autoPayload, 20000);
+      if(retry.ok){
+        _autoJobStarted=true;
+        log('ok',`[Auto] Reiniciado após stop — Fila: ${retry.data?.queueSize||0}`);
+      } else {
+        log('err',`[Auto] Falha ao reiniciar — HTTP ${retry.status}`,retry.data?.error);
+        addIssue('critical','Auto Start','Falha ao iniciar automático',retry.data?.error);
+      }
+    } else if(startR.status===429){
+      log('warn',`[Auto] Limite diário atingido — não iniciou`,startR.data?.error);
+      addIssue('low','Auto Limite','Limite diário ao iniciar',startR.data?.error);
+    } else {
+      log('err',`[Auto] Falha ao iniciar — HTTP ${startR.status}`,startR.data?.error);
+      addIssue('critical','Auto Start',`HTTP ${startR.status}`,startR.data?.error||'');
+    }
+
+    // 5. Monitorar por 15 segundos
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Monitorando execução por 15s...');
+    const monitorStart=Date.now();
+    let lastSent=0;
+    let checks=0;
+    while(Date.now()-monitorStart<15000 && _running){
+      await wait(3000);
+      checks++;
+      const monR=await apiFetch('/api/auto/status');
+      if(!monR.ok) break;
+      const d=monR.data;
+      const sentNow=d?.totalSent||0;
+      const newSent=sentNow-lastSent;
+      lastSent=sentNow;
+      log('info',`[Auto] Check ${checks}: ${d?.active?'🟢 Ativo':'⏸ Inativo'} | Fila: ${d?.queue?.length||0} | Enviados: ${sentNow}${newSent>0?` (+${newSent})`:''}`,`Status: ${d?.status||'?'}`);
+      if(!d?.active && _autoJobStarted) {
+        log('ok','[Auto] Automático finalizou naturalmente');
+        break;
+      }
+    }
+
+    // 6. Verificar logs do automático
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Verificando logs do automático...');
+    const logsR=await apiFetch('/api/auto-logs?limit=20');
+    if(logsR.ok){
+      const logs=logsR.data?.logs||[];
+      const sent=logs.filter(l=>l.status==='enviado');
+      const errs=logs.filter(l=>l.status==='erro'||l.status==='failed');
+      log('ok',`[Auto] Logs: ${logs.length} entradas | ${sent.length} enviados | ${errs.length} erros`);
+      if(errs.length>0){
+        errs.slice(0,3).forEach(e=>log('warn',`[Auto] Erro no log: ${e.jobTitle||'?'}`,e.error||''));
+      }
+    } else {
+      log('warn',`[Auto] Logs inacessíveis — HTTP ${logsR.status}`);
+    }
+
+    // 7. Pause / Resume
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Testando pause/resume...');
+    if(_autoJobStarted){
+      const pauseR=await post('/api/auto/pause');
+      if(pauseR.ok){
+        log('ok','[Auto] Pause OK');
+        await wait(1000);
+        const resumeR=await post('/api/auto/resume');
+        if(resumeR.ok){
+          log('ok','[Auto] Resume OK');
+        } else {
+          log('warn',`[Auto] Resume falhou — HTTP ${resumeR.status}`);
+        }
+      } else if(pauseR.status===404){
+        log('info','[Auto] Pause — sem job ativo para pausar (OK se já finalizou)');
+      } else {
+        log('warn',`[Auto] Pause retornou ${pauseR.status}`);
+      }
+    } else {
+      log('skip','[Auto] Pause/Resume pulado — auto não iniciou');
+      _stats.skip++;
+    }
+
+    // 8. Verificar histórico pós-automático
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Verificando histórico pós-automático...');
+    const histR=await apiFetch('/api/history');
+    const autoHist=(histR.data?.history||[]).filter(h=>h.type==='auto');
+    log('ok',`[Auto] Histórico automático: ${autoHist.length} envios registrados`);
+
+    // 9. Stop definitivo
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Parando automático...');
+    const stopR=await post('/api/auto/stop');
+    if(stopR.ok){
+      log('ok','[Auto] Stop OK — automático encerrado');
+      _autoJobStarted=false;
+    } else {
+      log('info',`[Auto] Stop retornou ${stopR.status} (OK se já finalizou)`);
+    }
+
+    // 10. Status final
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Status final do automático...');
+    await wait(500);
+    const stF=await apiFetch('/api/auto/status');
+    log('ok',`[Auto] Status final: ${stF.data?.active?'🟢 Ainda ativo':'⏸ Parado'} | Enviados total: ${stF.data?.stats?.sent||0}`);
+  }
+
+  // ── Suite 7: Ranking & Social ────────────────────────────────────
+  async function suiteRanking(){
+    section('Ranking & Social');
+    const periods=['day','week','month','all'];
+    for(const p of periods){
+      if(!_running) return;
+      _doneTests++;
+      _setProgress((_doneTests/_totalTests)*100,`Ranking ${p}...`);
+      const r=await apiFetch(`/api/ranking?period=${p}`);
+      if(r.ok){
+        log('ok',`[Ranking] ${p}: ${r.data?.list?.length||0} usuários | Minha pos: ${r.data?.myPos?.pos||'?'}`);
+      } else {
+        log('err',`[Ranking] ${p} — HTTP ${r.status}`);
+        addIssue('medium',`Ranking ${p}`,`HTTP ${r.status}`,`/api/ranking?period=${p}`);
+      }
+      await wait(100);
+    }
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Stats públicos...');
+    const pubR=await apiFetch('/api/public-stats');
+    if(pubR.ok){
+      log('ok',`[Ranking] Stats: ${pubR.data?.totalUsers||0} usuários | ${pubR.data?.totalSent||0} enviados`);
+    } else {
+      log('err',`[Ranking] /api/public-stats — HTTP ${pubR.status}`);
+      addIssue('medium','Stats Públicos',`HTTP ${pubR.status}`,'/api/public-stats não existe (usar /api/public-stats)');
+    }
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Indicações...');
+    const refR=await apiFetch('/api/referral/info');
+    if(refR.ok){
+      log('ok',`[Social] Indicações: código ${refR.data?.code||'sem código'}`);
+    } else {
+      log('warn',`[Social] /api/referral/info — HTTP ${refR.status}`);
+      addIssue('low','Indicações',`HTTP ${refR.status}`,'/api/referral/info');
+    }
+  }
+
+  // ── Suite 8: APIs Admin ──────────────────────────────────────────
+  async function suiteAdmin(){
+    section('APIs Admin Completas');
+    const adminEps=[
+      {p:'/api/admin/live',             l:'Live data'},
+      {p:'/api/admin/users',            l:'Usuários'},
+      {p:'/api/admin/stats',            l:'Stats'},
+      {p:'/api/admin/settings',         l:'Configurações'},
+      {p:'/api/admin/codes',            l:'Códigos promo'},
+      {p:'/api/admin/ranking',          l:'Ranking admin'},
+      {p:'/api/admin/auto-notif/log',   l:'Notif automáticas log'},
+      {p:'/api/admin/notif/list',       l:'Notificações admin'},
+      {p:'/api/admin/ranking/stats',    l:'Ranking stats'},
+      {p:'/api/admin/crashes',          l:'Crashes/eventos'},
+    ];
+    for(const ep of adminEps){
+      if(!_running) return;
+      _doneTests++;
+      _setProgress((_doneTests/_totalTests)*100,`Admin: ${ep.l}...`);
+      const t0=Date.now();
+      const r=await apiFetch(ep.p);
+      const ms=Date.now()-t0;
+      if(r.ok){
+        log('ok',`[Admin] ${ep.l} — OK (${ms}ms)`);
+      } else {
+        log('err',`[Admin] ${ep.l} — HTTP ${r.status}`,ep.p);
+        addIssue('medium',`Admin: ${ep.l}`,`HTTP ${r.status}`,`Rota ${ep.p}`);
+      }
+      await wait(80);
+    }
+  }
+
+  // ── Suite 9: Limpeza ─────────────────────────────────────────────
+  async function suiteCleanup(){
+    section('Limpeza — Removendo dados de teste');
+
+    // Stop automático se ainda rodando
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Parando automático se ativo...');
+    if(_autoJobStarted){
+      await post('/api/auto/stop');
+      log('ok','[Cleanup] Automático parado');
+    } else {
+      log('info','[Cleanup] Automático não estava ativo');
+    }
+
+    // Deletar perfis criados pelo robô
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,`Deletando ${_createdProfileIds.length} perfil(is) de teste...`);
+    for(const id of _createdProfileIds){
+      const r=await post('/api/profiles/delete',{id});
+      log(r.ok?'ok':'warn',`[Cleanup] Perfil ${id} — ${r.ok?'deletado':'falha'}`);
+      await wait(100);
+    }
+    if(_createdProfileIds.length===0) log('info','[Cleanup] Nenhum perfil para deletar');
+
+    // Deletar CVs upados
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,`Deletando ${_uploadedCvIdxs.length} PDF(s) de teste...`);
+    for(const cv of _uploadedCvIdxs){
+      const r=await apiFetch(`/api/cv/${cv.idx}`,{method:'DELETE'});
+      log(r.ok?'ok':'warn',`[Cleanup] PDF idx:${cv.idx} (${cv.type}) — ${r.ok?'deletado':'falha'}`);
+      await wait(100);
+    }
+    if(_uploadedCvIdxs.length===0) log('info','[Cleanup] Nenhum PDF para deletar');
+
+    // Limpar histórico de testes (sent IDs)
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Limpando IDs de envio de teste...');
+    // Restaurar vagas salvas
+    await post('/api/saved',{saved:[]});
+    log('ok','[Cleanup] Vagas salvas limpas');
+
+    log('ok','[Cleanup] 🧹 Limpeza concluída — dados de teste removidos');
+  }
+
+  // ── Renderizar relatório final ───────────────────────────────────
+  function _renderReport(){
+    const elapsed=((Date.now()-_startTime)/1000).toFixed(1);
+    const el=id=>document.getElementById(id);
+    if(el('rb-rep-time')) el('rb-rep-time').textContent=`${elapsed}s | ${new Date().toLocaleString('pt-BR')}`;
+
+    // Issues
+    const renderIssues=(containerId, issues)=>{
+      const c=el(containerId);
+      if(!c) return;
+      if(!issues.length){c.innerHTML='<div style="font-size:11px;color:var(--t3);padding:8px">Nenhum ✅</div>';return;}
+      c.innerHTML=issues.map(i=>`<div class="rb-issue"><div><div style="font-size:11px;font-weight:700;color:var(--text)">${esc(i.test)}</div><div style="font-size:10px;color:var(--t2);margin-top:1px">${esc(i.msg)}</div>${i.sug?`<div style="font-size:10px;color:var(--cyan);margin-top:2px">💡 ${esc(i.sug)}</div>`:''}</div></div>`).join('');
+    };
+    renderIssues('rb-crit-list', _issues.critical);
+    renderIssues('rb-med-list',  _issues.medium);
+    renderIssues('rb-low-list',  _issues.low);
+
+    // E-mails enviados
+    const emailHtml=TARGET_EMAILS.map(email=>{
+      const r=_emailResults[email]||{};
+      const ok=r.manual||r.auto;
+      const cl=ok?'email-tag':r.errors?.length?'email-tag fail':'email-tag';
+      const icon=ok?'✅':r.errors?.length?'❌':'⏸';
+      return `<span class="${cl}">${icon} ${esc(email)}</span>`;
+    }).join('');
+    if(el('rb-email-results')) el('rb-email-results').innerHTML=emailHtml||'–';
+
+    // Sugestões Claude
+    const allIssues=[..._issues.critical,..._issues.medium,..._issues.low];
+    const sug=el('rb-suggestions');
+    if(sug){
+      if(!allIssues.length){
+        sug.textContent='✅ Sistema funcionando perfeitamente. Nenhum problema encontrado!';
+      } else {
+        sug.textContent=`H2BApply Robot Test v2.0 — ${new Date().toLocaleString('pt-BR')}\n`
+          +`Resultado: ✅${_stats.ok} ❌${_stats.err} ⚠️${_stats.warn} 📨${_stats.send}\nDuração: ${elapsed}s\n\n`
+          +`PROBLEMAS ENCONTRADOS:\n`
+          +allIssues.map((i,n)=>`[${n+1}] ${i.test}\n  Problema: ${i.msg}\n  Correção: ${i.sug||'Investigar manualmente'}`).join('\n\n');
+      }
+    }
+
+    // Mostrar relatório
+    const rep=el('rb-report');
+    if(rep) rep.style.display='';
+  }
+
+  function _updateEmailTags(){
+    const el=document.getElementById('rb-email-live');
+    if(!el) return;
+    el.innerHTML=TARGET_EMAILS.map(email=>{
+      const r=_emailResults[email]||{};
+      const cl=r.manual?'email-tag used':r.errors?.length?'email-tag fail':'email-tag';
+      return `<span class="${cl}">${esc(email)}</span>`;
+    }).join('');
+  }
+
+  // ── Contagem total de testes ─────────────────────────────────────
+  function _countTotal(){
+    const counts={apis:16, auth:4, perfil:8, pdf:4, manual:8, auto:10, ranking:6, admin:10, cleanup:4};
+    return [..._selectedSuites].reduce((s,k)=>s+(counts[k]||0),0);
+  }
+
+  // ── API pública ──────────────────────────────────────────────────
+  return {
+    isRunning(){ return _running; },
+
+    toggleSuite(k){
+      const safe=['cleanup']; // limpeza é sempre incluída
+      if(safe.includes(k) && _selectedSuites.has(k)) return; // não remove cleanup
+      if(_selectedSuites.has(k)) _selectedSuites.delete(k);
+      else _selectedSuites.add(k);
+      document.getElementById('sc-'+k)?.classList.toggle('on',_selectedSuites.has(k));
+    },
+
+    selectAll(){ Object.keys(SUITE_CONFIG).forEach(k=>{_selectedSuites.add(k);document.getElementById('sc-'+k)?.classList.add('on');}); },
+    deselectAll(){ Object.keys(SUITE_CONFIG).filter(k=>k!=='cleanup').forEach(k=>{_selectedSuites.delete(k);document.getElementById('sc-'+k)?.classList.remove('on');}); },
+
+    clearLogs(){
+      _logs=[]; _stats={ok:0,err:0,warn:0,send:0,skip:0}; _issues={critical:[],medium:[],low:[]};
+      _emailResults={}; _createdProfileIds=[]; _uploadedCvIdxs=[]; _autoJobStarted=false;
+      const lb=document.getElementById('rb-log-body');
+      if(lb) lb.innerHTML='<div class="rb-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:var(--t3)"><i class="ti ti-robot" style="font-size:32px;opacity:.3"></i><div style="font-size:11px">Logs limpos — pronto para novo teste</div></div>';
+      _updateStats();
+      const rep=document.getElementById('rb-report');
+      if(rep) rep.style.display='none';
+      document.getElementById('rb-log-count').textContent='0 logs';
+      _updateEmailTags();
+    },
+
+    filterLogs(){
+      const lb=document.getElementById('rb-log-body');
+      if(!lb) return;
+      lb.innerHTML='';
+      const f=document.getElementById('rb-filter')?.value||'';
+      _logs.forEach(e=>{
+        if(e.type==='section'){
+          const d=document.createElement('div');
+          d.className='rb-line rl-section';
+          d.textContent='── '+e.msg.toUpperCase()+' ──';
+          lb.appendChild(d);
+        } else if(!f||e.type===f){
+          _renderLine(e);
+        }
+      });
+    },
+
+    export(){
+      const report={
+        meta:{version:'2.0',timestamp:new Date().toISOString(),duration:((Date.now()-_startTime)/1000).toFixed(1)+'s',targetEmails:TARGET_EMAILS,suites:[..._selectedSuites]},
+        summary:_stats,
+        emailResults:_emailResults,
+        issues:_issues,
+        createdProfiles:_createdProfileIds,
+        uploadedCvs:_uploadedCvIdxs,
+        logs:_logs.filter(l=>l.type!=='section').map(l=>({ts:l.ts,type:l.type,msg:l.msg,detail:l.detail||undefined}))
+      };
+      const blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=`robot-v2-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+
+    async run(){
+      if(_running) return;
+      if(_selectedSuites.size===0){alert('Selecione ao menos uma suite.');return;}
+      _running=true;
+      _stats={ok:0,err:0,warn:0,send:0,skip:0};
+      _issues={critical:[],medium:[],low:[]};
+      _logs=[];
+      _emailResults={};
+      _createdProfileIds=[];
+      _uploadedCvIdxs=[];
+      _autoJobStarted=false;
+      _startTime=Date.now();
+      _doneTests=0;
+      _totalTests=_countTotal();
+
+      // UI: ativar
+      document.getElementById('rb-btn-start').disabled=true;
+      document.getElementById('rb-btn-stop').disabled=false;
+      document.getElementById('rb-btn-export').disabled=true;
+      document.getElementById('rb-prog-wrap').style.display='';
+      document.getElementById('rb-report').style.display='none';
+      document.getElementById('sb-robot-live').style.display='';
+      const lb=document.getElementById('rb-log-body');
+      if(lb) lb.innerHTML='';
+      _updateEmailTags();
+
+      log('info',`🤖 H2BApply Robot v2.0 INICIADO`,`${[..._selectedSuites].length} suites | ${_totalTests} testes | E-mails: ${TARGET_EMAILS.join(', ')}`);
+
+      const suiteMap={
+        apis:    suiteAPIs,
+        auth:    suiteAuth,
+        perfil:  suitePerfil,
+        pdf:     suitePDF,
+        manual:  suiteManual,
+        auto:    suiteAuto,
+        ranking: suiteRanking,
+        admin:   suiteAdmin,
+        cleanup: suiteCleanup,
+      };
+
+      for(const [key,fn] of Object.entries(suiteMap)){
+        if(!_running) break;
+        if(!_selectedSuites.has(key)) continue;
+        try{ await fn(); }
+        catch(e){
+          log('err',`[Suite ${key}] ERRO INESPERADO: ${e.message}`);
+          addIssue('critical',key,`Erro inesperado: ${e.message}`,'Ver console do browser');
+        }
+        await wait(300);
+      }
+
+      // Finalizar
+      _running=false;
+      const elapsed=((Date.now()-_startTime)/1000).toFixed(1);
+      const lvl=_stats.err>0?'err':_stats.warn>0?'warn':'ok';
+      log(lvl,`🏁 Robot v2.0 finalizado em ${elapsed}s`,`✅${_stats.ok} ❌${_stats.err} ⚠️${_stats.warn} 📨${_stats.send} ⏭${_stats.skip}`);
+      _renderReport();
+      _setProgress(100,'Concluído!');
+
+      document.getElementById('rb-btn-start').disabled=false;
+      document.getElementById('rb-btn-stop').disabled=true;
+      document.getElementById('rb-btn-export').disabled=false;
+      document.getElementById('sb-robot-live').style.display='none';
+      if(typeof toast==='function') toast(`Robot v2 finalizado — ✅${_stats.ok} ❌${_stats.err} 📨${_stats.send}`,_stats.err>0?'err':'ok');
+    },
+
+    stop(){
+      if(!_running) return;
+      _running=false;
+      log('warn','⏹ Testes interrompidos pelo usuário');
+      if(_autoJobStarted) post('/api/auto/stop').catch(()=>{});
+      document.getElementById('rb-btn-start').disabled=false;
+      document.getElementById('rb-btn-stop').disabled=true;
+      document.getElementById('sb-robot-live').style.display='none';
+    }
+  };
+})();
+
+// Funções globais
+function rbStart()     { RobotV2.run(); }
+function rbStop()      { RobotV2.stop(); }
+function rbClear()     { RobotV2.clearLogs(); }
+function rbExport()    { RobotV2.export(); }
+function rbSuite(k)    { RobotV2.toggleSuite(k); }
+function rbAll()       { RobotV2.selectAll(); }
+function rbNone()      { RobotV2.deselectAll(); }
+function rbFilter()    { RobotV2.filterLogs(); }
+
+// Integrar com showView do admin
+document.addEventListener('DOMContentLoaded',()=>{
+  const orig=window.showView;
+  window.showView=function(name){
+    orig?.(name);
+    if(name==='robot'){
+      const t=document.getElementById('view-title');
+      if(t) t.textContent='🤖 Robô de Teste v2.0';
+    }
+  };
+
+  // Ticker de tempo quando rodando
+  setInterval(()=>{ if(RobotV2.isRunning()){const el=document.getElementById('rst-time');if(el) el.textContent=((Date.now()-(window._robotStart||Date.now()))/1000).toFixed(0)+'s';}},1000);
+});
+</script>
+
+<!-- VIEW DO ROBÔ — injetar dentro do #content -->
+<script>
+(function(){
+  const content=document.getElementById('content');
+  if(!content) return;
+  const view=document.createElement('div');
+  view.className='view';
+  view.id='view-robot';
+  view.innerHTML=`
+  <div class="rb-hero">
+    <div class="rb-title">
+      <div style="width:38px;height:38px;background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🤖</div>
+      Robô de Teste v2.0
+      <span id="rb-running-badge" style="display:none;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:800;color:#10b981;display:none">● EXECUTANDO</span>
+    </div>
+    <div class="rb-sub">Testa TUDO como um usuário real: cria perfis, sobe PDFs, envia e-mails manuais e automáticos, e limpa tudo no final.</div>
+    <div class="rb-sub" style="margin-top:4px">📧 E-mails de teste: ${['ndrkick.2@gmail.com','ndrkick.3@gmail.com','ndrkick.5@gmail.com','ndrkick.6@gmail.com','andrio.kick18@gmail.com'].map(e=>`<code style="background:rgba(255,255,255,.1);padding:1px 6px;border-radius:4px;font-size:10px">${e}</code>`).join(' ')}</div>
+    <div class="rb-btns">
+      <button class="rb-btn rb-start" id="rb-btn-start" onclick="rbStart()"><i class="ti ti-player-play"></i> Iniciar Testes</button>
+      <button class="rb-btn rb-stop"  id="rb-btn-stop"  onclick="rbStop()"  disabled><i class="ti ti-player-stop"></i> Parar</button>
+      <button class="rb-btn rb-clean" onclick="rbClear()"><i class="ti ti-trash"></i> Limpar</button>
+      <button class="rb-btn rb-export" id="rb-btn-export" onclick="rbExport()" disabled><i class="ti ti-download"></i> Exportar JSON</button>
+      <button class="rb-btn rb-clean" onclick="rbAll()" style="font-size:11px">✅ Todos</button>
+      <button class="rb-btn rb-clean" onclick="rbNone()" style="font-size:11px">❌ Nenhum</button>
+    </div>
+  </div>
+
+  <!-- Suites -->
+  <div class="section-hdr" style="margin-bottom:8px"><i class="ti ti-checklist" style="color:var(--purple)"></i><div class="section-title">Suites de Teste</div></div>
+  <div class="suite-chips" id="rb-suite-chips">
+    <button class="suite-chip on" id="sc-apis"    onclick="rbSuite('apis')">🔌 APIs Core</button>
+    <button class="suite-chip on" id="sc-auth"    onclick="rbSuite('auth')">🔐 Autenticação</button>
+    <button class="suite-chip on" id="sc-perfil"  onclick="rbSuite('perfil')">👤 Perfil & Config</button>
+    <button class="suite-chip on" id="sc-pdf"     onclick="rbSuite('pdf')">📄 Upload PDF</button>
+    <button class="suite-chip on" id="sc-manual"  onclick="rbSuite('manual')">✉️ Envio Manual</button>
+    <button class="suite-chip on" id="sc-auto"    onclick="rbSuite('auto')">🤖 Automático</button>
+    <button class="suite-chip on" id="sc-ranking" onclick="rbSuite('ranking')">🏆 Ranking</button>
+    <button class="suite-chip on" id="sc-admin"   onclick="rbSuite('admin')">🛡️ Admin APIs</button>
+    <button class="suite-chip on" id="sc-cleanup" onclick="rbSuite('cleanup')" title="Sempre incluída">🧹 Limpeza</button>
+  </div>
+
+  <!-- E-mails ao vivo -->
+  <div class="rb-email-cfg">
+    <div class="rb-email-cfg-title">📧 Status E-mails de Teste (ao vivo)</div>
+    <div id="rb-email-live">
+      ${['ndrkick.2@gmail.com','ndrkick.3@gmail.com','ndrkick.5@gmail.com','ndrkick.6@gmail.com','andrio.kick18@gmail.com'].map(e=>`<span class="email-tag">${e}</span>`).join('')}
+    </div>
+    <div style="font-size:10px;color:var(--t3);margin-top:6px">🟢 Enviado &nbsp; 🟡 Tentando &nbsp; 🔴 Falhou &nbsp; ⚪ Pendente</div>
+  </div>
+
+  <!-- Progresso -->
+  <div class="rb-progress" id="rb-prog-wrap" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#fff"><div class="rb-pulse"></div> Executando...</div>
+      <div style="display:flex;gap:12px;font-size:11px;color:var(--t3)">
+        <span id="rb-steps">0/0</span>
+        <span id="rb-pct" style="color:var(--purple);font-weight:700">0%</span>
+      </div>
+    </div>
+    <div class="rb-prog-bar"><div class="rb-prog-fill" id="rb-prog-fill" style="width:0%"></div></div>
+    <div class="rb-current" id="rb-current-action">Aguardando...</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="rb-grid">
+    <div class="rb-stat rs-ok"><div class="rb-stat-val" id="rst-ok">0</div><div class="rb-stat-lbl">✅ Passou</div><div class="rb-stat-bar"></div></div>
+    <div class="rb-stat rs-err"><div class="rb-stat-val" id="rst-err">0</div><div class="rb-stat-lbl">❌ Falhou</div><div class="rb-stat-bar"></div></div>
+    <div class="rb-stat rs-warn"><div class="rb-stat-val" id="rst-warn">0</div><div class="rb-stat-lbl">⚠️ Aviso</div><div class="rb-stat-bar"></div></div>
+    <div class="rb-stat rs-info"><div class="rb-stat-val" id="rst-send">0</div><div class="rb-stat-lbl">📨 E-mails</div><div class="rb-stat-bar"></div></div>
+    <div class="rb-stat rs-time"><div class="rb-stat-val" id="rst-time">0s</div><div class="rb-stat-lbl">⏱ Tempo</div><div class="rb-stat-bar"></div></div>
+  </div>
+
+  <!-- Log -->
+  <div class="rb-log">
+    <div class="rb-log-hdr">
+      <div style="font-size:12px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px"><i class="ti ti-terminal-2" style="color:var(--purple)"></i> Log de Execução</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <label style="font-size:10px;color:var(--t3);display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" id="rb-autoscroll" checked style="accent-color:var(--purple)"> Scroll
+        </label>
+        <select id="rb-filter" onchange="rbFilter()" style="background:var(--glass2);border:1px solid var(--border2);border-radius:5px;padding:2px 6px;font-size:10px;color:var(--t2)">
+          <option value="">Todos</option>
+          <option value="ok">✅ OK</option>
+          <option value="err">❌ Erro</option>
+          <option value="warn">⚠️ Aviso</option>
+          <option value="send">📨 E-mail</option>
+          <option value="info">ℹ️ Info</option>
+        </select>
+        <span id="rb-log-count" style="font-size:10px;color:var(--t3)">0 logs</span>
+      </div>
+    </div>
+    <div class="rb-log-body" id="rb-log-body">
+      <div class="rb-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:var(--t3)">
+        <i class="ti ti-robot" style="font-size:32px;opacity:.3"></i>
+        <div style="font-size:11px">Inicie os testes para ver os logs</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Relatório Final -->
+  <div class="rb-report" id="rb-report" style="display:none">
+    <div class="rb-rep-hdr">
+      <i class="ti ti-report" style="color:var(--purple)"></i>
+      <div style="font-size:13px;font-weight:800;color:#fff;flex:1">Relatório Final</div>
+      <span id="rb-rep-time" style="font-size:10px;color:var(--t3)"></span>
+      <button class="btn btn-ghost btn-sm" onclick="rbExport()"><i class="ti ti-download"></i> JSON</button>
+    </div>
+    <!-- E-mails enviados -->
+    <div style="padding:10px 14px;border-bottom:1px solid var(--border)">
+      <div style="font-size:9px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">📧 Resultados por e-mail</div>
+      <div id="rb-email-results"></div>
+    </div>
+    <div class="rb-rep-cols">
+      <div class="rb-rep-col"><div class="rb-rep-col-title"><i class="ti ti-alert-circle" style="color:var(--red)"></i>Críticos</div><div id="rb-crit-list"></div></div>
+      <div class="rb-rep-col"><div class="rb-rep-col-title"><i class="ti ti-alert-triangle" style="color:var(--amber)"></i>Médios</div><div id="rb-med-list"></div></div>
+      <div class="rb-rep-col"><div class="rb-rep-col-title"><i class="ti ti-info-circle" style="color:var(--blue)"></i>Informativos</div><div id="rb-low-list"></div></div>
+    </div>
+    <div style="padding:12px 14px;border-top:1px solid var(--border)">
+      <div style="font-size:9px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">💡 Para o Claude corrigir</div>
+      <pre id="rb-suggestions" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t2);background:var(--bg2);border-radius:7px;padding:10px;white-space:pre-wrap;max-height:200px;overflow-y:auto"></pre>
+    </div>
+  </div>
+  `;
+  content.appendChild(view);
+
+  // Adicionar na função _renderView do admin
+  const orig=window._renderView;
+  window._renderView=function(name){
+    if(orig) orig(name);
+  };
+})();
+</script>
 
 <!-- ══ USER DETAIL MODAL (completo) ══ -->
 <div class="modal-overlay" id="user-modal" style="display:none" onclick="if(event.target===this)closeUserModal()">
@@ -891,7 +1952,6 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       <div class="tabs">
         <button class="tab-btn active" onclick="switchModalTab('overview')"><i class="ti ti-info-circle"></i> Visão Geral</button>
         <button class="tab-btn" onclick="switchModalTab('auto')"><i class="ti ti-robot"></i> Automático</button>
-        <button class="tab-btn" onclick="switchModalTab('admin-auto')" style="color:var(--amber)"><i class="ti ti-settings-bolt"></i> ⚙️ Config Auto</button>
         <button class="tab-btn" onclick="switchModalTab('pdfs')"><i class="ti ti-file-type-pdf"></i> PDFs</button>
         <button class="tab-btn" onclick="switchModalTab('profiles')"><i class="ti ti-id-badge"></i> Perfis</button>
         <button class="tab-btn" onclick="switchModalTab('logs')"><i class="ti ti-list"></i> Logs Auto</button>
@@ -902,7 +1962,6 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       </div>
       <div class="tab-content active" id="modal-tab-overview"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
       <div class="tab-content" id="modal-tab-auto"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
-      <div class="tab-content" id="modal-tab-admin-auto"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
       <div class="tab-content" id="modal-tab-pdfs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
       <div class="tab-content" id="modal-tab-profiles"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
       <div class="tab-content" id="modal-tab-logs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
@@ -943,33 +2002,10 @@ const AUTO_REFRESH_MS = 9000;
 // ══════════════════════════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded', async () => {
-  // Verificação de segurança: checa se usuário é admin antes de qualquer coisa
-  try {
-    const r = await fetch('/api/admin/stats', {credentials:'include'});
-    if(r.status===401){location.href='/';return;}
-    if(r.status===403){
-      document.body.innerHTML='<div style="position:fixed;inset:0;background:#040a14;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;font-family:sans-serif"><div style="font-size:48px">⛔</div><div style="font-size:22px;font-weight:800;color:#ef4444">Acesso Negado</div><div style="font-size:14px;color:#64748b">Esta área é restrita a administradores.</div><a href="/" style="margin-top:8px;background:#3b82f6;color:#fff;padding:10px 24px;border-radius:8px;font-weight:700;text-decoration:none">← Voltar ao App</a></div>';
-      return;
-    }
-  } catch(e) {
-    // Em caso de erro de rede, tenta carregar mesmo assim
-  }
+document.addEventListener('DOMContentLoaded', () => {
   startClock();
   refreshAll();
   startAutoRefresh();
-  // Fallback: se liveData ainda for null após 5s, mostra banner de erro
-  setTimeout(()=>{
-    if(!liveData){
-      const banners=document.getElementById('alert-banners');
-      if(banners){
-        const div=document.createElement('div');
-        div.className='alert-banner ab-err';
-        div.innerHTML='<i class="ti ti-wifi-off"></i><strong>Falha ao carregar dados.</strong> O servidor demorou para responder. <button onclick="this.parentElement.remove();refreshAll()" style="margin-left:auto;background:var(--red);color:#fff;border:none;border-radius:5px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer"><i class="ti ti-refresh"></i> Tentar novamente</button>';
-        banners.appendChild(div);
-      }
-    }
-  }, 5000);
 });
 
 function startClock() {
@@ -993,19 +2029,9 @@ function showView(name) {
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
   const v = document.getElementById('view-'+name);
   if(v) v.classList.add('active');
-  const titles={dashboard:'Dashboard',workers:'Automáticos',events:'Eventos & Crashes',users:'Usuários',vip:'VIP & Planos',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',indicacoes:'Indicações',sugestoes:'Sugestões'};
+  const titles={dashboard:'Dashboard',workers:'Automáticos',events:'Eventos & Crashes',users:'Usuários',vip:'VIP & Planos',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',indicacoes:'Indicações'};
   setText('view-title', titles[name]||name);
   document.querySelectorAll('.sb-item').forEach(b=>{if(b.getAttribute('onclick')?.includes(`'${name}'`))b.classList.add('active');});
-  // Se liveData ainda não carregou, busca primeiro e depois renderiza
-  const needsLive = ['users','workers','events'].includes(name);
-  if(needsLive && !liveData) {
-    refreshAll().then(()=>{ _renderView(name); });
-    return;
-  }
-  _renderView(name);
-}
-
-function _renderView(name) {
   if(name==='users') renderUsersTable();
   if(name==='workers') renderWorkersTable();
   if(name==='events') renderEventsView();
@@ -1014,14 +2040,12 @@ function _renderView(name) {
   if(name==='settings') loadSettings();
   if(name==='notificacoes'){ loadAdminNotifs(); loadAutoNotifLog(); }
   if(name==='indicacoes') loadAdminReferrals();
-  if(name==='sugestoes') loadSugestoes();
+  if(name==='vip') {} // static
 }
 
 // ══════════════════════════════════════════════════════════
 //  DATA FETCH
 // ══════════════════════════════════════════════════════════
-let _refreshRetries = 0;
-
 async function refreshAll() {
   const btn = document.getElementById('refresh-btn');
   if(btn) btn.classList.add('spinning');
@@ -1032,13 +2056,14 @@ async function refreshAll() {
     liveData = await r.json();
     allEvents = liveData.globalEvents||[];
     allUsers  = liveData.users||[];
-    _refreshRetries = 0;
 
     updateDashboard();
 
+    // Get admin email from live data
     const adminEl = document.getElementById('admin-email');
     if(adminEl) {
       const admin = allUsers.find(u=>u.email?.toLowerCase().includes('admin'))||null;
+      // Actually we derive from session, not user list
       adminEl.textContent = liveData.adminEmail || '(admin)';
     }
 
@@ -1052,6 +2077,7 @@ async function refreshAll() {
     if(currentView==='events')  renderEventsView();
     if(currentView==='users')   renderUsersTable();
 
+    // Live refresh modal if open
     if(currentModalEmail && currentModalData) {
       const u = allUsers.find(x=>x.email===currentModalEmail);
       if(u) updateModalWorkerStatus(u);
@@ -1060,10 +2086,6 @@ async function refreshAll() {
   } catch(e) {
     console.error(e);
     toast('Erro ao carregar: '+e.message,'err');
-    _refreshRetries++;
-    if(_refreshRetries < 3) {
-      setTimeout(()=>refreshAll(), 3000);
-    }
   }
   if(btn) btn.classList.remove('spinning');
 }
@@ -1141,53 +2163,33 @@ function renderDashEvents(){
 // ══════════════════════════════════════════════════════════
 //  WORKERS TABLE
 // ══════════════════════════════════════════════════════════
-function buildWorkersTable(workers, isZombieFn){
+function buildWorkersTable(workers){
   const now=Date.now();
-  const isZombie=isZombieFn||(()=>false);
   const rows=workers.map(u=>{
     const lastSentAgo=u.lastSentAt?fmtAgo(now-u.lastSentAt):'–';
+    const startedAgo=u.startedAt?fmtAgo(now-u.startedAt):'–';
     const progress=u.originalCount?Math.round((1-u.queueSize/u.originalCount)*100):0;
     const isStalled=u.jobStalled;
-    const zombie=isZombie(u);
     const rInfo=STOP_REASON_FULL[u.autoStatus]||null;
-
-    // Diagnóstico de "ativo mas 0 enviado / parado"
-    let diagHtml='';
-    if(isStalled){
-      diagHtml=`<div style="font-size:11px;color:var(--amber);font-weight:700">⚠️ Fila travada</div><div style="font-size:10px;color:var(--t2)">Reinicie o worker</div>`;
-    } else if(zombie){
-      diagHtml=`<div style="font-size:11px;color:#f97316;font-weight:700">🧟 Ativo mas sem enviar</div><div style="font-size:10px;color:var(--t2)">Pode ser bug de timer — reinicie</div>`;
-    } else if(u.hasAuto&&(u.lastSentAt==null||u.todaySent===0)&&!['starting','resuming','waiting_hour','waiting_limit'].includes(u.autoStatus)){
-      diagHtml=`<div style="font-size:11px;color:var(--blue);font-weight:700">📭 Ativo mas 0 enviados</div><div style="font-size:10px;color:var(--t2)">${u.autoStatus==='waiting_interval'?'Aguardando intervalo inicial':u.autoStatus||'Verifique logs'}</div>`;
-    } else if(rInfo && !u.hasAuto){
-      diagHtml=`<div style="font-size:11px;color:${rInfo.voce_resolve?'var(--green)':'var(--red)'};font-weight:700">${rInfo.voce_resolve?'✅':'❌'} ${esc(rInfo.titulo)}</div><div style="font-size:10px;color:var(--t2);margin-top:2px">${esc((rInfo.admin_pode||'').slice(0,80))}${rInfo.admin_pode&&rInfo.admin_pode.length>80?'…':''}</div>`;
-    } else if(u.hasAuto){
-      diagHtml=`<div style="font-size:11px;color:var(--green)">✅ Rodando normalmente</div>`;
-    } else {
-      diagHtml=`<div style="font-size:11px;color:var(--t3)">–</div>`;
-    }
-
+    const tooltipTxt=isStalled?'⚠️ Fila travada há mais de 20min — reinicie o worker'
+      :rInfo?`${rInfo.icon} ${rInfo.titulo} | ${rInfo.admin_pode}`
+      :u.autoStatus||'';
     const statusBadge=isStalled
-      ?`<span class="status-pill sp-warn"><span class="sp-dot"></span>⚠️ Travado</span>`
-      :zombie
-        ?`<span class="status-pill sp-warn" style="background:rgba(249,115,22,.12);color:#f97316;border-color:rgba(249,115,22,.3)"><span class="sp-dot" style="background:#f97316"></span>🧟 Zombie</span>`
-        :u.hasAuto
-          ?`<span class="status-pill sp-ok"><span class="sp-dot"></span>${fmtStatus(u.autoStatus)}</span>`
-          :u.autoStatus
-            ?`<span class="status-pill sp-idle"><span class="sp-dot"></span>${fmtStatus(u.autoStatus)}</span>`
-            :`<span class="status-pill sp-idle"><span class="sp-dot"></span>Inativo</span>`;
-
+      ?`<span class="status-pill sp-warn" title="${esc(tooltipTxt)}"><span class="sp-dot"></span>⚠️ Travado</span>`
+      :u.hasAuto
+        ?`<span class="status-pill sp-ok" title="${esc(tooltipTxt)}"><span class="sp-dot"></span>${fmtStatus(u.autoStatus)}</span>`
+        :u.autoStatus
+          ?`<span class="status-pill sp-idle" title="${esc(tooltipTxt)}" style="cursor:help"><span class="sp-dot"></span>${fmtStatus(u.autoStatus)}</span>`
+          :`<span class="status-pill sp-idle"><span class="sp-dot"></span>Inativo</span>`;
     const healthDots=`<div class="health-row">
       <span class="hi ${u.oauthOk===false?'hi-err':u.oauthOk===true?'hi-ok':'hi-unk'}" title="OAuth: ${u.oauthOk===false?'❌ Inválido':u.oauthOk===true?'✅ OK':'?'}"></span>
       <span class="hi ${u.hasPdf===false?'hi-err':u.hasPdf===true?'hi-ok':'hi-unk'}" title="PDF: ${u.hasPdf===false?'❌ Ausente':u.hasPdf===true?'✅ OK':'?'}"></span>
       <span class="hi ${u.timers?'hi-ok':'hi-warn'}" title="Timer: ${u.timers?'✅ Ativo':'⚠️ Sem timer'}"></span>
       ${u.errors>0?`<span class="hi hi-err" title="${u.errors} erros"></span>`:''}
       ${u.restarts>0?`<span style="font-size:9px;color:var(--amber)">↺${u.restarts}</span>`:''}
-      ${zombie?`<span style="font-size:9px;color:#f97316;font-weight:700">ZOMBIE</span>`:''}
     </div>`;
-
-    const rowBg=isStalled?'background:rgba(245,158,11,.05)':zombie?'background:rgba(249,115,22,.05)':'';
-    return `<tr onclick="openUser('${esc(u.email)}')" style="${rowBg}">
+    const nextTxt=u.nextSendAt&&u.nextSendAt>now?fmtAgo(u.nextSendAt-now)+'<br><span style="font-size:9px;color:var(--t3)">próximo</span>':'–';
+    return `<tr onclick="openUser('${esc(u.email)}')" style="${isStalled?'background:rgba(245,158,11,.05)':''}">
       <td>
         <div style="display:flex;align-items:center;gap:7px">
           ${u.picture?`<img src="${esc(u.picture)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover">`:avLetter(u.name||u.email)}
@@ -1195,10 +2197,19 @@ function buildWorkersTable(workers, isZombieFn){
         </div>
       </td>
       <td>${statusBadge}</td>
-      <td style="max-width:200px">${diagHtml}</td>
+      <td style="max-width:200px">
+        ${isStalled
+          ? `<div style="font-size:11px;color:var(--amber);font-weight:700">⚠️ Fila travada</div><div style="font-size:10px;color:var(--t2)">Reinicie o worker</div>`
+          : rInfo && !u.hasAuto
+            ? `<div style="font-size:11px;color:${rInfo.voce_resolve?'var(--green)':'var(--red)'};font-weight:700">${rInfo.voce_resolve?'✅':'❌'} ${esc(rInfo.titulo)}</div><div style="font-size:10px;color:var(--t2);margin-top:2px">${esc((rInfo.admin_pode||'').slice(0,80))}${rInfo.admin_pode&&rInfo.admin_pode.length>80?'…':''}</div>`
+            : u.hasAuto
+              ? `<div style="font-size:11px;color:var(--green)">✅ Rodando normalmente</div>`
+              : `<div style="font-size:11px;color:var(--t3)">–</div>`
+        }
+      </td>
       <td>
         <div style="font-size:11px;margin-bottom:3px">${(u.queueSize||0).toLocaleString('pt-BR')} / ${(u.originalCount||0).toLocaleString('pt-BR')}</div>
-        <div class="prog-bg" style="width:80px"><div class="prog-fill ${isStalled?'pg-amber':zombie?'pg-amber':'pg-green'}" style="width:${progress}%"></div></div>
+        <div class="prog-bg" style="width:80px"><div class="prog-fill ${isStalled?'pg-amber':'pg-green'}" style="width:${progress}%"></div></div>
       </td>
       <td style="font-size:11px;color:var(--t2)">${lastSentAgo}</td>
       <td>${healthDots}</td>
@@ -1210,7 +2221,7 @@ function buildWorkersTable(workers, isZombieFn){
     </tr>`;
   }).join('');
   return `<table><thead><tr>
-    <th>Usuário</th><th>Status</th><th>Diagnóstico</th><th>Fila</th><th>Último envio</th><th>Saúde</th><th>Ações</th>
+    <th>Usuário</th><th>Status</th><th>Por que parou / O que fazer</th><th>Fila</th><th>Último envio</th><th>Saúde</th><th>Ações</th>
   </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
@@ -1220,56 +2231,16 @@ function renderWorkersTable(){
   if(!el||!liveData) return;
   const q=(document.getElementById('w-search')?.value||'').toLowerCase();
   const sf=document.getElementById('w-filter-status')?.value||'';
-  const srcf=document.getElementById('w-filter-source')?.value||'';
-  const now=Date.now();
-  let workers=(liveData.users||[]).filter(u=>u.hasAuto||u.autoStatus||u.jobStalled);
+  let workers=(liveData.users||[]).filter(u=>u.hasAuto||u.autoStatus);
   if(q) workers=workers.filter(u=>(u.email||'').includes(q)||(u.name||'').toLowerCase().includes(q));
-  // Zombie: ativo (hasAuto=true), startedAt existe, mas lastSentAt é null ou >30min atrás e status não é waiting_*
-  const isZombie=u=>{
-    if(!u.hasAuto||u.jobStalled) return false;
-    const waitingStatuses=['waiting_interval','waiting_hour','waiting_limit','starting','resuming'];
-    if(waitingStatuses.includes(u.autoStatus)) return false;
-    const lastSent=u.lastSentAt;
-    if(!lastSent&&u.startedAt&&(now-u.startedAt)>1800000) return true; // 30min sem 1 envio
-    if(lastSent&&(now-lastSent)>2400000&&u.autoStatus==='waiting_interval') return true; // 40min em "aguardando"
-    return false;
-  };
-  if(sf==='running') workers=workers.filter(u=>u.hasAuto&&!u.jobStalled&&['sending','waiting_interval','waiting_hour','waiting_limit','starting','resuming'].includes(u.autoStatus));
   if(sf==='active') workers=workers.filter(u=>u.hasAuto&&!u.jobStalled);
   if(sf==='stalled') workers=workers.filter(u=>u.jobStalled);
-  if(sf==='paused') workers=workers.filter(u=>!u.hasAuto&&u.autoStatus&&!['finished','cancelled'].includes(u.autoStatus));
-  if(sf==='zombie') workers=workers.filter(u=>isZombie(u));
-  if(sf==='zero') workers=workers.filter(u=>u.hasAuto&&!u.jobStalled&&(u.lastSentAt==null||u.todaySent===0));
-  if(sf==='finished') workers=workers.filter(u=>u.autoStatus==='finished');
-  if(sf==='oauth') workers=workers.filter(u=>u.autoStatus==='paused_oauth_expired'||u.autoStatus==='paused_no_session'||u.oauthOk===false);
-  if(srcf) workers=workers.filter(u=>u.autoSource===srcf);
-  // Sort: stalled first, then zombie, then active, then paused
-  workers.sort((a,b)=>{
-    const score=u=>u.jobStalled?0:isZombie(u)?1:u.hasAuto?2:3;
-    return score(a)-score(b);
-  });
+  if(sf==='paused') workers=workers.filter(u=>!u.hasAuto&&u.autoStatus);
   if(lbl) lbl.textContent=`${workers.length} worker(s) encontrado(s)`;
-  if(!workers.length){el.innerHTML='<div class="empty-state"><i class="ti ti-robot"></i>Nenhum worker encontrado com esses filtros</div>';return;}
-  el.innerHTML=buildWorkersTable(workers,isZombie);
+  if(!workers.length){el.innerHTML='<div class="empty-state"><i class="ti ti-robot"></i>Nenhum worker encontrado</div>';return;}
+  el.innerHTML=buildWorkersTable(workers);
 }
 function filterWorkers(){renderWorkersTable();}
-
-async function restartAllStalled(){
-  if(!liveData) return;
-  const stalled=(liveData.users||[]).filter(u=>u.jobStalled);
-  if(!stalled.length){toast('Nenhum worker travado encontrado','warn');return;}
-  if(!confirm(`Reiniciar ${stalled.length} worker(s) travado(s)?`)) return;
-  let ok=0,err=0;
-  for(const u of stalled){
-    try{
-      const r=await fetch('/api/admin/force-restart',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:u.email})});
-      const d=await r.json();
-      if(d.ok) ok++; else err++;
-    }catch{err++;}
-  }
-  toast(`✅ ${ok} reiniciados${err?` · ❌ ${err} falhas`:''}`, ok>0?'ok':'err');
-  refreshAll();
-}
 
 // ══════════════════════════════════════════════════════════
 //  EVENTS VIEW
@@ -1381,7 +2352,7 @@ async function openUser(email){
   document.getElementById('modal-name').textContent='…';
   document.getElementById('modal-email').textContent=email;
   // Reset tabs
-  ['overview','auto','admin-auto','pdfs','profiles','logs','history','enviados','health','edit'].forEach(t=>{
+  ['overview','auto','pdfs','profiles','logs','history','enviados','health','edit'].forEach(t=>{
     const el=document.getElementById('modal-tab-'+t);
     if(el) el.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>';
   });
@@ -1413,7 +2384,6 @@ async function openUser(email){
     currentModalData=d;
     renderModalOverview(d,u);
     renderModalAuto(d,u);
-    renderModalAdminAuto(d,u);
     renderModalPdfs(d,u);
     renderModalProfiles(d,u);
     renderModalLogs(d);
@@ -1806,238 +2776,6 @@ function renderModalAuto(d,u){
   }
 
   el.innerHTML=html;
-}
-
-// ── TAB: ADMIN CONFIG AUTO (configurar automático como admin) ─────────────
-function renderModalAdminAuto(d,u){
-  const el=document.getElementById('modal-tab-admin-auto');
-  if(!el) return;
-  const job=d.job;
-  const user=d.user||{};
-  const email=user.email||currentModalEmail;
-  const cvs=(user.cvs||[]);
-  const profiles=(user.profiles||[]).filter(p=>p.active!==false);
-  const now=Date.now();
-
-  // Status atual em destaque
-  const isActive=job&&job.active;
-  const isStalled=u?.jobStalled;
-  let statusSummary='';
-  if(isStalled){
-    statusSummary=`<div class="alert-banner ab-warn" style="margin-bottom:12px"><i class="ti ti-alert-triangle"></i><strong>Worker travado!</strong> Use "Reiniciar Worker" para retomar do ponto onde parou.</div>`;
-  } else if(isActive){
-    const pct=job.originalCount?Math.round((1-(job.queue?.length||0)/job.originalCount)*100):0;
-    statusSummary=`<div class="alert-banner ab-ok" style="margin-bottom:12px"><i class="ti ti-check"></i><strong>Worker ativo (${fmtStatus(job.status)})</strong> · ${pct}% concluído · ${(job.queue?.length||0).toLocaleString()} restantes</div>`;
-  } else if(job){
-    statusSummary=`<div class="alert-banner" style="background:var(--glass2);border:1px solid var(--border2);margin-bottom:12px"><i class="ti ti-player-pause"></i><strong>Worker parado</strong> · Status: ${fmtStatus(job.status)} · ${(job.queue?.length||0).toLocaleString()} vagas restantes na fila</div>`;
-  } else {
-    statusSummary=`<div class="alert-banner" style="background:var(--glass2);border:1px solid var(--border2);margin-bottom:12px"><i class="ti ti-robot"></i><strong>Sem job ativo.</strong> Inicie um novo envio automático abaixo.</div>`;
-  }
-
-  // CV options
-  const cvOptions=cvs.map(c=>`<option value="${c.idx}">${esc(c.name||'PDF #'+c.idx)} (idx ${c.idx}${c.cvType==='cover'?' — Cover':' — Currículo'})</option>`).join('');
-  const profileOptions=profiles.map(p=>`<option value="${p.name}">${esc(p.name)}${p.resumeIdx!=null?' [PDF:'+p.resumeIdx+']':' [sem PDF]'}</option>`).join('');
-
-  el.innerHTML=`
-  ${statusSummary}
-
-  <!-- ══ SE JOB ATIVO: Editar configurações em tempo real ══ -->
-  ${isActive||isStalled?`
-  <div style="background:var(--glass);border:1.5px solid var(--amberb);border-radius:10px;padding:16px;margin-bottom:16px">
-    <div style="font-size:12px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px">
-      <i class="ti ti-settings-bolt"></i> Editar Job em Andamento
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div class="form-group">
-        <label class="form-label">Horário início (BRT)</label>
-        <input class="form-inp" id="ae-startH" type="number" min="0" max="23" value="${job.startH??7}">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Horário fim (BRT)</label>
-        <input class="form-inp" id="ae-endH" type="number" min="1" max="24" value="${job.endH??22}">
-      </div>
-    </div>
-    <div class="form-group" style="margin-bottom:12px">
-      <label class="form-label">Modo de envio</label>
-      <select class="form-inp" id="ae-mode">
-        <option value="schedule" ${job.mode!=='now'?'selected':''}>📅 Horário (respeita janela diária)</option>
-        <option value="now" ${job.mode==='now'?'selected':''}>⚡ Agora (24/7 até zerar a fila)</option>
-      </select>
-    </div>
-    <div class="form-group" style="margin-bottom:12px">
-      <label class="form-label">PDF / Currículo em uso</label>
-      <select class="form-inp" id="ae-resumeIdx">
-        ${cvs.length?cvOptions:`<option value="">⚠️ Nenhum PDF cadastrado</option>`}
-      </select>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-amber" onclick="adminUpdateJob('${esc(email)}')">
-        <i class="ti ti-check"></i> Salvar configurações do job
-      </button>
-      <button class="btn btn-success" onclick="forceRestart('${esc(email)}')">
-        <i class="ti ti-refresh"></i> Reiniciar worker
-      </button>
-      <button class="btn btn-danger btn-sm" onclick="forceStop('${esc(email)}')">
-        <i class="ti ti-player-stop"></i> Parar e zerar fila
-      </button>
-    </div>
-    <div id="ae-result" style="margin-top:8px;font-size:12px;display:none"></div>
-  </div>`:``}
-
-  <!-- ══ INICIAR NOVO AUTOMÁTICO COMO ADMIN ══ -->
-  <div style="background:var(--glass);border:1.5px solid var(--border2);border-radius:10px;padding:16px;margin-bottom:16px">
-    <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">
-      <i class="ti ti-player-play"></i> Iniciar Novo Envio Automático
-    </div>
-    <div style="font-size:11px;color:var(--t3);margin-bottom:12px">
-      Você está configurando o automático <strong>como se fosse o usuário</strong>. 
-      ${isActive?'<span style="color:var(--amber)">⚠️ Isso vai PARAR o job atual e iniciar um novo.</span>':''}
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div class="form-group">
-        <label class="form-label">Planilha / Fonte</label>
-        <select class="form-inp" id="an-source">
-          <option value="jan2026">📋 Janeiro 2026 (H-2B)</option>
-          <option value="jul2025">📋 Julho 2025 (H-2B)</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Categoria de vaga</label>
-        <select class="form-inp" id="an-category">
-          <option value="all">🌍 Todas</option>
-          <option value="landscaping">🌿 Landscaping</option>
-          <option value="construction">🏗️ Construction</option>
-          <option value="hospitality">🏨 Hospitality</option>
-          <option value="seafood">🦐 Seafood</option>
-          <option value="agriculture">🌾 Agriculture (H-2A)</option>
-          <option value="other">📦 Other</option>
-        </select>
-      </div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-      <div class="form-group">
-        <label class="form-label">Horário início (BRT)</label>
-        <input class="form-inp" id="an-startH" type="number" min="0" max="23" value="7">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Horário fim (BRT)</label>
-        <input class="form-inp" id="an-endH" type="number" min="1" max="24" value="22">
-      </div>
-    </div>
-
-    <div class="form-group" style="margin-bottom:12px">
-      <label class="form-label">Modo de envio</label>
-      <select class="form-inp" id="an-mode">
-        <option value="schedule">📅 Horário (respeita janela diária)</option>
-        <option value="now">⚡ Agora (envia 24/7 até zerar fila)</option>
-      </select>
-    </div>
-
-    <div class="form-group" style="margin-bottom:12px">
-      <label class="form-label">PDF / Currículo</label>
-      <select class="form-inp" id="an-resumeIdx">
-        <option value="">🔄 Automático (usa perfil ou primeiro PDF)</option>
-        ${cvs.length?cvOptions:''}
-      </select>
-      ${!cvs.length?`<div style="font-size:10px;color:var(--red);margin-top:4px">⚠️ Usuário sem PDFs cadastrados — upload necessário antes.</div>`:''}
-    </div>
-
-    <div class="form-group" style="margin-bottom:12px">
-      <label class="form-label">Máx. vagas na fila (0 = sem limite)</label>
-      <input class="form-inp" id="an-maxQueue" type="number" min="1" max="1000" value="500">
-    </div>
-
-    <button class="btn btn-primary" style="justify-content:center;width:100%" onclick="adminStartAuto('${esc(email)}')">
-      <i class="ti ti-rocket"></i> 🚀 Iniciar Automático para este Usuário
-    </button>
-    <div id="an-result" style="margin-top:10px;font-size:12px;display:none"></div>
-  </div>
-
-  <!-- ══ INFO RÁPIDA ══ -->
-  <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:14px">
-    <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:10px">📊 Resumo do Usuário</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:11px">
-      <div><span style="color:var(--t3)">Plano: </span><strong>${esc(u?.plan||'free')}</strong></div>
-      <div><span style="color:var(--t3)">PDFs: </span><strong>${cvs.length}</strong></div>
-      <div><span style="color:var(--t3)">Perfis: </span><strong>${(user.profiles||[]).length}</strong></div>
-      <div><span style="color:var(--t3)">OAuth: </span><strong>${d.health?.oauthOk===false?'❌ Expirado':'✅ OK'}</strong></div>
-      <div><span style="color:var(--t3)">Hoje enviados: </span><strong>${(d.todayAuto||0)+(d.todayManual||0)}</strong></div>
-      <div><span style="color:var(--t3)">Timer ativo: </span><strong>${d.timers?'✅':'❌'}</strong></div>
-    </div>
-    ${profiles.length?`<div style="margin-top:10px;font-size:10px;color:var(--t3)"><strong>Perfis ativos:</strong> ${profiles.map(p=>`${esc(p.name)}${p.resumeIdx!=null?' ✅':' ⚠️'}`).join(' · ')}</div>`:
-      `<div style="margin-top:8px;font-size:11px;color:var(--amber)">⚠️ Sem perfis configurados — o automático vai usar configurações padrão.</div>`}
-  </div>`;
-
-  // Set current values if job exists
-  if(job&&document.getElementById('ae-resumeIdx')){
-    const ri=document.getElementById('ae-resumeIdx');
-    if(ri&&job.resumeIdx!=null) ri.value=job.resumeIdx;
-  }
-}
-
-async function adminStartAuto(email){
-  const source=document.getElementById('an-source')?.value||'jan2026';
-  const category=document.getElementById('an-category')?.value||'all';
-  const startH=parseInt(document.getElementById('an-startH')?.value)||7;
-  const endH=parseInt(document.getElementById('an-endH')?.value)||22;
-  const mode=document.getElementById('an-mode')?.value||'schedule';
-  const maxQueue=parseInt(document.getElementById('an-maxQueue')?.value)||500;
-  const ridxRaw=document.getElementById('an-resumeIdx')?.value;
-  const resumeIdx=ridxRaw?parseInt(ridxRaw):undefined;
-  const res=document.getElementById('an-result');
-  if(res){res.style.display='block';res.style.color='var(--t2)';res.textContent='⏳ Iniciando automático...';}
-  try{
-    const r=await fetch('/api/admin/force-start',{
-      method:'POST',credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email,source,category,startH,endH,mode,maxQueue,resumeIdx})
-    });
-    const d=await r.json();
-    if(d.ok){
-      if(res){res.style.color='var(--green)';res.textContent=`✅ Automático iniciado! ${d.queueSize} vagas na fila. PDF idx: ${d.resumeIdx}. Fonte: ${d.source}. Cat: ${d.category}.`;}
-      toast(`✅ Automático iniciado para ${email} (${d.queueSize} vagas)`,'ok');
-      setTimeout(()=>refreshModal(),1500);
-      refreshAll();
-    }else{
-      if(res){res.style.color='var(--red)';res.textContent='❌ '+d.error;}
-      toast(d.error||'Erro ao iniciar','err');
-    }
-  }catch(e){
-    if(res){res.style.color='var(--red)';res.textContent='❌ '+e.message;}
-    toast(e.message,'err');
-  }
-}
-
-async function adminUpdateJob(email){
-  const startH=parseInt(document.getElementById('ae-startH')?.value);
-  const endH=parseInt(document.getElementById('ae-endH')?.value);
-  const mode=document.getElementById('ae-mode')?.value;
-  const ridxRaw=document.getElementById('ae-resumeIdx')?.value;
-  const resumeIdx=ridxRaw!=null&&ridxRaw!==''?parseInt(ridxRaw):undefined;
-  const res=document.getElementById('ae-result');
-  if(res){res.style.display='block';res.style.color='var(--t2)';res.textContent='⏳ Salvando...';}
-  try{
-    const body={email};
-    if(!isNaN(startH)) body.startH=startH;
-    if(!isNaN(endH)) body.endH=endH;
-    if(mode) body.mode=mode;
-    if(resumeIdx!=null) body.resumeIdx=resumeIdx;
-    const r=await fetch('/api/admin/force-update-job',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const d=await r.json();
-    if(d.ok){
-      if(res){res.style.color='var(--green)';res.textContent='✅ Configurações salvas: '+d.updated.join(', ');}
-      toast('✅ Job atualizado: '+d.updated.join(', '),'ok');
-      setTimeout(()=>refreshModal(),1200);
-    }else{
-      if(res){res.style.color='var(--red)';res.textContent='❌ '+d.error;}
-      toast(d.error||'Erro','err');
-    }
-  }catch(e){
-    if(res){res.style.color='var(--red)';res.textContent='❌ '+e.message;}
-    toast(e.message,'err');
-  }
 }
 
 // ── TAB: PDFs ─────────────────────────────────────────────
@@ -3004,801 +3742,6 @@ async function loadAutoNotifLog(){
   }
 }
 
-</script>
-<!-- ══════════════════════════════════════════════════════════
-     ROBÔ DE TESTE — ENGINE COMPLETA
-══════════════════════════════════════════════════════════ -->
-<script>
-// ════════════════════════════════════════════════════════
-//  H2BApply — Robot Test Engine v1.0
-//  Executa no browser como admin autenticado.
-//  Usa fetch() contra as APIs reais do server.js.
-// ════════════════════════════════════════════════════════
-
-const Robot = (function(){
-
-  // ── Estado interno ─────────────────────────────────────
-  let _running = false;
-  let _sandbox = true;
-  let _abortCtrl = null;
-  let _logs = [];
-  let _stats = { ok:0, err:0, warn:0, skip:0 };
-  let _issues = { critical:[], medium:[], low:[] };
-  let _startTime = 0;
-  let _totalTests = 0;
-  let _doneTests = 0;
-  let _selectedSuites = new Set(['api','auth','jobs','email','profile','auto','ranking','admin']);
-
-  // ── Suites de teste disponíveis ────────────────────────
-  const SUITES = {
-    api:     { label:'APIs Internas',    fn: testAPIs     },
-    auth:    { label:'Autenticação',     fn: testAuth     },
-    jobs:    { label:'Vagas & Planilhas',fn: testJobs     },
-    email:   { label:'E-mails',          fn: testEmail    },
-    profile: { label:'Perfil',           fn: testProfile  },
-    auto:    { label:'Automático',       fn: testAuto     },
-    ranking: { label:'Ranking & Social', fn: testRanking  },
-    admin:   { label:'APIs Admin',       fn: testAdmin    },
-  };
-
-  // ── Helpers de log ────────────────────────────────────
-  function ts(){ return new Date().toLocaleTimeString('pt-BR',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
-
-  function log(type, msg, detail=''){
-    const entry = { type, msg, detail, ts: ts(), time: Date.now() };
-    _logs.push(entry);
-    if(type==='ok')   _stats.ok++;
-    if(type==='err')  _stats.err++;
-    if(type==='warn') _stats.warn++;
-    if(type==='skip') _stats.skip++;
-    _renderLogLine(entry);
-    _updateStats();
-    if(document.getElementById('robot-autoscroll')?.checked){
-      const lb = document.getElementById('robot-log-body');
-      if(lb) lb.scrollTop = lb.scrollHeight;
-    }
-  }
-
-  function section(title){
-    const entry = { type:'section', msg:title, ts:ts(), time: Date.now() };
-    _logs.push(entry);
-    _renderLogLine(entry);
-  }
-
-  function _renderLogLine(entry){
-    const lb = document.getElementById('robot-log-body');
-    if(!lb) return;
-    if(lb.querySelector('.ti-robot')) lb.innerHTML = '';
-    const filterVal = document.getElementById('robot-log-filter')?.value||'';
-    if(filterVal && entry.type !== 'section' && entry.type !== filterVal) return;
-
-    const line = document.createElement('div');
-    if(entry.type === 'section'){
-      line.className = 'rlog-section';
-      line.textContent = '── ' + entry.msg.toUpperCase() + ' ──';
-      lb.appendChild(line);
-      return;
-    }
-    const icons = { ok:'✅', err:'❌', warn:'⚠️', info:'ℹ️', skip:'⏭' };
-    const catClass = { ok:'rlog-cat-ok', err:'rlog-cat-err', warn:'rlog-cat-warn', info:'rlog-cat-info', skip:'rlog-cat-skip' };
-    line.className = `rlog-line rlog-${entry.type}`;
-    line.innerHTML = `
-      <span class="rlog-ts">${entry.ts}</span>
-      <span class="rlog-icon">${icons[entry.type]||'•'}</span>
-      <span class="rlog-msg">${esc(entry.msg)}${entry.detail?`<br><span style="font-size:10px;color:var(--t3);opacity:.8">${esc(entry.detail)}</span>`:''}
-      </span>
-      <span class="rlog-cat ${catClass[entry.type]||''}">${entry.type.toUpperCase()}</span>`;
-    lb.appendChild(line);
-    const cnt = document.getElementById('robot-log-count');
-    if(cnt) cnt.textContent = _logs.filter(l=>l.type!=='section').length + ' entradas';
-  }
-
-  function _updateStats(){
-    ['ok','err','warn','skip'].forEach(k=>{
-      const el = document.getElementById('rst-'+k);
-      if(el) el.textContent = _stats[k];
-    });
-  }
-
-  function _setProgress(pct, current){
-    document.getElementById('robot-bar').style.width = pct+'%';
-    document.getElementById('robot-pct').textContent = Math.round(pct)+'%';
-    document.getElementById('robot-current').textContent = current;
-    document.getElementById('robot-step-count').textContent = `${_doneTests} / ${_totalTests} testes`;
-    const elapsed = (Date.now()-_startTime)/1000;
-    const eta = _doneTests > 0 ? Math.round((elapsed / _doneTests) * (_totalTests - _doneTests)) : 0;
-    document.getElementById('robot-eta').textContent = `⏱ ${eta > 0 ? eta+'s restantes' : 'calculando...'}`;
-  }
-
-  function _addIssue(priority, test, msg, suggestion=''){
-    _issues[priority].push({ test, msg, suggestion });
-  }
-
-  // ── Fetch helper com timeout e tratamento de erro ──────
-  async function apiFetch(path, opts={}){
-    const ctrl = new AbortController();
-    const tid = setTimeout(()=>ctrl.abort(), 10000);
-    try {
-      const r = await fetch(path, { credentials:'include', signal: ctrl.signal, ...opts });
-      clearTimeout(tid);
-      const contentType = r.headers.get('content-type')||'';
-      let data = null;
-      if(contentType.includes('json')) data = await r.json().catch(()=>null);
-      return { ok: r.ok, status: r.status, data, raw: r };
-    } catch(e){
-      clearTimeout(tid);
-      if(e.name === 'AbortError') return { ok:false, status:-1, error:'timeout', data:null };
-      return { ok:false, status:-1, error:e.message, data:null };
-    }
-  }
-
-  // ── Delay humano ───────────────────────────────────────
-  function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-  // ════════════════════════════════════════════
-  //  SUITE 1: APIs INTERNAS
-  // ════════════════════════════════════════════
-  async function testAPIs(){
-    section('APIs Internas');
-
-    const endpoints = [
-      { path:'/api/status',       label:'Status da sessão',    critical:true },
-      { path:'/api/jobs?skip=0&top=5', label:'Vagas Seasonal', critical:true },
-      { path:'/api/sheet-meta?sheet=jan2026&skip=0&top=3', label:'Planilha Jan/2026', critical:false },
-      { path:'/api/sheet-meta?sheet=jul2025&skip=0&top=3', label:'Planilha Jul/2025', critical:false },
-      { path:'/api/history',      label:'Histórico de envios', critical:false },
-      { path:'/api/profiles',     label:'Perfis de e-mail',    critical:true },
-      { path:'/api/saved',        label:'Vagas salvas',        critical:false },
-      { path:'/api/auto/status',  label:'Status automático',   critical:false },
-      { path:'/api/inbox?limit=5', label:'Inbox Gmail',        critical:false },
-      { path:'/api/pub-stats',    label:'Stats públicos',      critical:false },
-      { path:'/api/ranking?period=day', label:'Ranking',        critical:false },
-      { path:'/api/referral',     label:'Sistema de indicação', critical:false },
-      { path:'/api/notifications', label:'Notificações',       critical:false },
-    ];
-
-    for(const ep of endpoints){
-      if(!_running) return;
-      _doneTests++;
-      const t0 = Date.now();
-      const res = await apiFetch(ep.path);
-      const ms = Date.now() - t0;
-      _setProgress((_doneTests/_totalTests)*100, `Testando ${ep.label}...`);
-
-      if(res.status === -1 && res.error === 'timeout'){
-        log('err', `[API] ${ep.label} — TIMEOUT (>10s)`, ep.path);
-        _addIssue('critical', ep.label, `Endpoint ${ep.path} não respondeu em 10s`, `Verificar se a rota ${ep.path} está definida no server.js e sem loops`);
-      } else if(!res.ok){
-        const level = ep.critical ? 'critical' : 'medium';
-        log('err', `[API] ${ep.label} — HTTP ${res.status}`, ep.path);
-        _addIssue(level, ep.label, `HTTP ${res.status} em ${ep.path}`, `Verificar autenticação e handler da rota no server.js`);
-      } else if(ms > 3000){
-        log('warn', `[API] ${ep.label} — LENTO (${ms}ms)`, ep.path);
-        _addIssue('medium', ep.label, `Resposta lenta: ${ms}ms`, `Verificar índices e cache — considerar otimizar ${ep.path}`);
-      } else {
-        log('ok', `[API] ${ep.label} — OK (${ms}ms)`);
-      }
-      await wait(200);
-    }
-
-    // Teste de endpoint inexistente (deve retornar 404/401, nunca crash)
-    _doneTests++;
-    const notFound = await apiFetch('/api/nao-existe-robot-test-xyz');
-    _setProgress((_doneTests/_totalTests)*100, 'Testando rota 404...');
-    if(notFound.status === 500){
-      log('err', '[API] Rota inexistente retornou 500 (crash!)', '/api/nao-existe-robot-test-xyz');
-      _addIssue('critical', 'Handler 404', 'Rota inválida causou crash 500', 'Adicionar handler de rota não encontrada no server.js');
-    } else {
-      log('ok', `[API] Rota inválida retornou ${notFound.status} (correto)`);
-    }
-  }
-
-  // ════════════════════════════════════════════
-  //  SUITE 2: AUTENTICAÇÃO
-  // ════════════════════════════════════════════
-  async function testAuth(){
-    section('Autenticação & Sessão');
-
-    // 1. Verifica se sessão está ativa
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Verificando sessão...');
-    const status = await apiFetch('/api/status');
-    if(!status.ok || !status.data?.connected){
-      log('err', '[Auth] Sessão não autenticada — robot não pode testar como usuário real');
-      _addIssue('critical', 'Sessão', 'Robô não está autenticado', 'Confirmar que o cookie h2b_session está presente');
-      return;
-    }
-    const user = status.data.user;
-    log('ok', `[Auth] Sessão válida — ${user?.email||'?'}`, `Plano: ${user?.plan||'free'}`);
-
-    // 2. Verificar se token Google está presente
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Verificando token OAuth...');
-    if(status.data?.connected && user?.email){
-      log('ok', '[Auth] OAuth Google conectado');
-    } else {
-      log('warn', '[Auth] OAuth não conectado — envio de e-mails não funcionará');
-      _addIssue('medium', 'OAuth', 'Usuário sem token Google válido', 'Refazer login OAuth pelo /oauth/start');
-    }
-
-    // 3. Rota protegida sem cookie (simular acesso não autorizado)
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Testando proteção de rotas...');
-    const adminRoute = await apiFetch('/api/admin/live');
-    if(adminRoute.ok && !status.data?.isAdmin){
-      log('err', '[Auth] Rota admin acessível por não-admin!');
-      _addIssue('critical', 'Autorização Admin', 'Rota /api/admin/live não verifica permissão admin', 'Adicionar verificação isAdmin no handler da rota');
-    } else if(adminRoute.ok){
-      log('ok', '[Auth] Rota admin acessível pelo admin atual');
-    } else {
-      log('ok', `[Auth] Rota admin bloqueada corretamente (${adminRoute.status})`);
-    }
-
-    // 4. Verifica dados do usuário admin
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Verificando dados admin...');
-    if(status.data?.isAdmin){
-      log('ok', '[Auth] Usuário é admin confirmado');
-    } else {
-      log('warn', '[Auth] Usuário atual não é admin — alguns testes serão limitados');
-      _addIssue('medium', 'Permissão Admin', 'Robô rodando sem permissão admin', 'Confirmar que ADMIN_EMAIL está correto nas variáveis de ambiente');
-    }
-  }
-
-  // ════════════════════════════════════════════
-  //  SUITE 3: VAGAS & PLANILHAS
-  // ════════════════════════════════════════════
-  async function testJobs(){
-    section('Vagas & Planilhas');
-
-    // 1. Seasonal jobs
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Carregando vagas Seasonal...');
-    const seasonal = await apiFetch('/api/jobs?skip=0&top=10');
-    if(!seasonal.ok){
-      log('err', '[Jobs] Endpoint /api/jobs falhou', `HTTP ${seasonal.status}`);
-      _addIssue('critical', 'Seasonal Jobs', `API retornou ${seasonal.status}`, 'Verificar rota /api/jobs e carregamento do SHEET_SEASONAL');
-    } else {
-      const jobs = seasonal.data?.jobs || [];
-      log('ok', `[Jobs] Seasonal — ${seasonal.data?.total||jobs.length} vagas disponíveis`);
-      if(jobs.length === 0){
-        log('warn', '[Jobs] Nenhuma vaga seasonal retornada — cache pode estar vazio');
-        _addIssue('medium', 'Seasonal Cache', 'Nenhuma vaga seasonal no cache', 'Verificar loadSheets() no boot do server.js');
-      }
-    }
-
-    // 2. Planilha Jan/2026
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Testando planilha Jan/2026...');
-    const jan = await apiFetch('/api/sheet-meta?sheet=jan2026&skip=0&top=10');
-    if(!jan.ok){
-      log('err', '[Jobs] Planilha jan2026 falhou');
-      _addIssue('critical', 'Planilha Jan/2026', `API retornou ${jan.status}`, 'Verificar se jan2026_compact.json está presente e carregado');
-    } else {
-      log('ok', `[Jobs] Jan/2026 — ${jan.data?.total||0} vagas`);
-    }
-
-    // 3. Planilha Jul/2025
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Testando planilha Jul/2025...');
-    const jul = await apiFetch('/api/sheet-meta?sheet=jul2025&skip=0&top=10');
-    if(!jul.ok){
-      log('err', '[Jobs] Planilha jul2025 falhou');
-      _addIssue('medium', 'Planilha Jul/2025', `API retornou ${jul.status}`, 'Verificar se jul2025_compact.json está presente e carregado');
-    } else {
-      log('ok', `[Jobs] Jul/2025 — ${jul.data?.total||0} vagas`);
-    }
-
-    // 4. Filtro de busca
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Testando filtro de busca...');
-    const search = await apiFetch('/api/jobs?q=landscape&skip=0&top=5');
-    if(!search.ok){
-      log('err', '[Jobs] Busca por texto falhou');
-      _addIssue('medium', 'Busca de vagas', 'Filtro q= não funcionando', 'Verificar implementação do filtro no handler /api/jobs');
-    } else {
-      log('ok', `[Jobs] Busca "landscape" — ${search.data?.jobs?.length||0} resultados`);
-    }
-
-    // 5. Categorias
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Testando categorias...');
-    const cats = await apiFetch('/api/sheet-categories?sheet=jan2026');
-    if(!cats.ok){
-      log('warn', '[Jobs] Categorias da planilha não retornaram');
-      _addIssue('low', 'Categorias', 'Endpoint /api/sheet-categories com problema', 'Verificar handler no server.js');
-    } else {
-      log('ok', `[Jobs] Categorias — ${cats.data?.categories?.length||0} categorias`);
-    }
-  }
-
-  // ════════════════════════════════════════════
-  //  SUITE 4: E-MAILS
-  // ════════════════════════════════════════════
-  async function testEmail(){
-    section('Envio de E-mails');
-
-    // 1. Verificar inbox
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Verificando inbox Gmail...');
-    const inbox = await apiFetch('/api/inbox?limit=5');
-    if(inbox.status === 401 || (inbox.data?.error||'').includes('TOKEN_EXPIRED')){
-      log('warn', '[Email] Token Gmail expirado — inbox não acessível');
-      _addIssue('medium', 'Inbox Gmail', 'Token OAuth expirado', 'Reconectar Gmail via /oauth/start');
-    } else if(!inbox.ok){
-      log('err', `[Email] Inbox falhou (${inbox.status})`);
-      _addIssue('medium', 'Inbox', `HTTP ${inbox.status}`, 'Verificar handler /api/inbox no server.js');
-    } else {
-      const emails = inbox.data?.emails || [];
-      log('ok', `[Email] Inbox acessível — ${emails.length} e-mails recentes`);
-    }
-
-    // 2. Simular envio em modo sandbox (não envia de verdade)
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Testando endpoint de envio...');
-    if(_sandbox){
-      log('info', '[Email] Modo sandbox ativo — envio real não executado');
-      log('ok', '[Email] Endpoint /api/send disponível (não enviado — sandbox)');
-    } else {
-      // Testa se o endpoint aceita o payload mínimo
-      const sendTest = await apiFetch('/api/send', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ to:'test-robot@h2bapply.com.invalid', job:'Robot Test Job', company:'Robot Test Co', body:'Test email from robot', subject:'[ROBOT TEST]', jobId:'robot-test-001' })
-      });
-      if(sendTest.status === 400 || sendTest.status === 422){
-        log('ok', `[Email] Endpoint /api/send valida payload corretamente (${sendTest.status})`);
-      } else if(sendTest.ok){
-        log('ok', '[Email] E-mail de teste enviado com sucesso');
-      } else if(sendTest.status === 401){
-        log('warn', '[Email] Gmail não autorizado para envio');
-        _addIssue('medium', 'Envio de e-mail', 'Token Gmail inválido', 'Refazer OAuth');
-      } else {
-        log('warn', `[Email] Envio retornou ${sendTest.status}`, JSON.stringify(sendTest.data||{}).slice(0,100));
-      }
-    }
-
-    // 3. Verificar histórico
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Verificando histórico de envios...');
-    const hist = await apiFetch('/api/history');
-    if(!hist.ok){
-      log('err', '[Email] Histórico de envios inacessível');
-      _addIssue('medium', 'Histórico', `HTTP ${hist.status}`, 'Verificar /api/history no server.js');
-    } else {
-      const count = hist.data?.history?.length || 0;
-      log('ok', `[Email] Histórico — ${count} candidaturas registradas`);
-    }
-  }
-
-  // ════════════════════════════════════════════
-  //  SUITE 5: PERFIL & CONFIGS
-  // ════════════════════════════════════════════
-  async function testProfile(){
-    section('Perfil & Configurações');
-
-    // 1. Carregar perfis
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Carregando perfis de e-mail...');
-    const profiles = await apiFetch('/api/profiles');
-    if(!profiles.ok){
-      log('err', '[Profile] Não foi possível carregar perfis');
-      _addIssue('critical', 'Perfis', `HTTP ${profiles.status}`, 'Verificar /api/profiles no server.js');
-    } else {
-      const profs = profiles.data?.profiles || [];
-      log('ok', `[Profile] ${profs.length} perfil(is) cadastrado(s)`);
-      if(profs.length === 0){
-        log('warn', '[Profile] Nenhum perfil criado — usuário não pode enviar candidaturas');
-        _addIssue('low', 'Perfis', 'Conta sem perfis de e-mail', 'Criar ao menos um perfil com currículo');
-      } else {
-        // Verificar se perfis têm currículo
-        const semPdf = profs.filter(p=>!p.pdfName && !p.resumeIdx);
-        if(semPdf.length > 0){
-          log('warn', `[Profile] ${semPdf.length} perfil(s) sem currículo PDF`);
-          _addIssue('medium', 'Currículo', `${semPdf.length} perfis sem PDF`, 'Adicionar currículo aos perfis sem PDF');
-        }
-        // Verificar perfis sem assuntos suficientes
-        const poucoAssunto = profs.filter(p=>(p.subjects||[]).length < 3);
-        if(poucoAssunto.length > 0){
-          log('warn', `[Profile] ${poucoAssunto.length} perfil(s) com menos de 3 assuntos de e-mail`);
-          _addIssue('low', 'Assuntos de e-mail', 'Poucos assuntos cadastrados (risco de spam)', 'Adicionar mínimo 3 variações de assunto');
-        }
-      }
-    }
-
-    // 2. CVs / PDFs
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Verificando PDFs cadastrados...');
-    const cvs = await apiFetch('/api/cv/list');
-    if(!cvs.ok){
-      log('warn', `[Profile] Lista de CVs retornou ${cvs.status}`);
-    } else {
-      const list = cvs.data?.cvs || [];
-      log('ok', `[Profile] ${list.length} arquivo(s) PDF armazenado(s)`);
-    }
-
-    // 3. Dados pessoais (nome, país, whatsapp)
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Verificando dados pessoais...');
-    const status = await apiFetch('/api/status');
-    if(status.ok && status.data?.user){
-      const u = status.data.user;
-      const warnings = [];
-      if(!u.name) warnings.push('nome completo');
-      if(!u.country && !u.phone) warnings.push('país ou WhatsApp');
-      if(warnings.length > 0){
-        log('warn', `[Profile] Dados incompletos: ${warnings.join(', ')}`);
-        _addIssue('low', 'Dados pessoais', `Faltam: ${warnings.join(', ')}`, 'Completar dados no perfil para aparecer nos e-mails');
-      } else {
-        log('ok', `[Profile] Dados pessoais completos — ${u.name}`);
-      }
-    }
-  }
-
-  // ════════════════════════════════════════════
-  //  SUITE 6: AUTOMÁTICO
-  // ════════════════════════════════════════════
-  async function testAuto(){
-    section('Sistema de Envio Automático');
-
-    // 1. Status do automático
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Verificando status do automático...');
-    const autoStatus = await apiFetch('/api/auto/status');
-    if(!autoStatus.ok){
-      log('err', '[Auto] Endpoint /api/auto/status falhou');
-      _addIssue('critical', 'Automático', `HTTP ${autoStatus.status}`, 'Verificar handler /api/auto/status no server.js');
-    } else {
-      const a = autoStatus.data;
-      const isActive = a?.active || false;
-      const queueLen = a?.queue?.length || a?.queueSize || 0;
-      log('ok', `[Auto] Status: ${isActive ? '🟢 Ativo' : '⏸ Inativo'} | Fila: ${queueLen} vagas`);
-
-      // Verificar limite diário
-      if(a?.dailyCount !== undefined && a?.dailyLimit !== undefined){
-        const pct = Math.round((a.dailyCount/a.dailyLimit)*100);
-        if(pct >= 100){
-          log('warn', `[Auto] Limite diário atingido (${a.dailyCount}/${a.dailyLimit})`);
-          _addIssue('low', 'Limite diário', 'Automático travado por limite', 'Aguardar reset à meia-noite BRT');
-        } else {
-          log('ok', `[Auto] Limite diário: ${a.dailyCount}/${a.dailyLimit} (${pct}%)`);
-        }
-      }
-    }
-
-    // 2. Logs do automático
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Verificando logs do automático...');
-    const logs = await apiFetch('/api/auto/logs?limit=20');
-    if(!logs.ok){
-      log('warn', `[Auto] Logs não acessíveis (${logs.status})`);
-    } else {
-      const entries = logs.data?.logs || [];
-      const erros = entries.filter(l=>l.status==='error'||l.status==='failed');
-      log('ok', `[Auto] ${entries.length} entradas no log | ${erros.length} erros recentes`);
-      if(erros.length > 5){
-        log('warn', `[Auto] ${erros.length} erros nos logs recentes`);
-        _addIssue('medium', 'Logs do automático', `${erros.length} erros recentes`, 'Verificar tokens OAuth e limites do Gmail');
-      }
-    }
-
-    // 3. Verificar intervalo entre envios
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Verificando configuração de intervalo...');
-    if(autoStatus.ok && autoStatus.data?.active){
-      const lastSent = autoStatus.data?.lastSent;
-      if(lastSent){
-        const mins = Math.round((Date.now()-lastSent)/60000);
-        if(mins > 10){
-          log('warn', `[Auto] Último envio há ${mins} minutos — robô pode estar travado`);
-          _addIssue('medium', 'Watchdog', `Automático inativo há ${mins} minutos`, 'Verificar se o token OAuth expirou ou se há erro no worker');
-        } else {
-          log('ok', `[Auto] Último envio há ${mins} minuto(s) — OK`);
-        }
-      }
-    } else {
-      log('info', '[Auto] Automático não está ativo — skip watchdog');
-    }
-  }
-
-  // ════════════════════════════════════════════
-  //  SUITE 7: RANKING & SOCIAL
-  // ════════════════════════════════════════════
-  async function testRanking(){
-    section('Ranking & Funcionalidades Sociais');
-
-    const periods = ['day','week','month','all'];
-    for(const period of periods){
-      if(!_running) return;
-      _doneTests++;
-      _setProgress((_doneTests/_totalTests)*100, `Testando ranking (${period})...`);
-      const r = await apiFetch(`/api/ranking?period=${period}`);
-      if(!r.ok){
-        log('err', `[Ranking] Período '${period}' falhou (${r.status})`);
-        _addIssue('medium', 'Ranking', `Período ${period} retornou ${r.status}`, 'Verificar função calcRanking no server.js');
-      } else {
-        log('ok', `[Ranking] ${period} — ${r.data?.list?.length||0} usuários`);
-      }
-      await wait(150);
-    }
-
-    // Stats públicos (landing page)
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Testando stats públicos...');
-    const pub = await apiFetch('/api/pub-stats');
-    if(!pub.ok){
-      log('err', '[Ranking] Stats públicos falhou');
-      _addIssue('medium', 'Stats públicos', 'Landing page sem dados ao vivo', 'Verificar /api/pub-stats no server.js');
-    } else {
-      log('ok', `[Ranking] Stats — ${pub.data?.totalUsers||0} usuários, ${pub.data?.totalSent||0} enviados`);
-    }
-
-    // Indicações
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Testando sistema de indicações...');
-    const ref = await apiFetch('/api/referral');
-    if(!ref.ok){
-      log('warn', `[Social] Indicações falhou (${ref.status})`);
-      _addIssue('low', 'Indicações', `HTTP ${ref.status}`, 'Verificar /api/referral no server.js');
-    } else {
-      log('ok', '[Social] Sistema de indicações OK');
-    }
-  }
-
-  // ════════════════════════════════════════════
-  //  SUITE 8: APIs ADMIN
-  // ════════════════════════════════════════════
-  async function testAdmin(){
-    section('APIs Administrativas');
-
-    const adminEndpoints = [
-      { path:'/api/admin/live',         label:'Live data' },
-      { path:'/api/admin/users',        label:'Lista usuários' },
-      { path:'/api/admin/events',       label:'Eventos' },
-      { path:'/api/admin/settings',     label:'Configurações' },
-      { path:'/api/admin/codes',        label:'Códigos promo' },
-      { path:'/api/admin/suggestions',  label:'Sugestões' },
-      { path:'/api/admin/referrals',    label:'Indicações admin' },
-      { path:'/api/admin/notifications',label:'Notificações admin' },
-    ];
-
-    for(const ep of adminEndpoints){
-      if(!_running) return;
-      _doneTests++;
-      _setProgress((_doneTests/_totalTests)*100, `Admin: ${ep.label}...`);
-      const t0 = Date.now();
-      const r = await apiFetch(ep.path);
-      const ms = Date.now()-t0;
-      if(!r.ok){
-        log('err', `[Admin] ${ep.label} — HTTP ${r.status}`, ep.path);
-        _addIssue('medium', `Admin: ${ep.label}`, `HTTP ${r.status}`, `Verificar handler ${ep.path} no server.js`);
-      } else {
-        log('ok', `[Admin] ${ep.label} — OK (${ms}ms)`);
-      }
-      await wait(100);
-    }
-
-    // Teste específico: live data tem estrutura mínima?
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100, 'Validando estrutura do live data...');
-    const live = await apiFetch('/api/admin/live');
-    if(live.ok && live.data){
-      const required = ['autoWorkers','events','totalUsers','totalSent'];
-      const missing = required.filter(k=>live.data[k]===undefined);
-      if(missing.length > 0){
-        log('warn', `[Admin] Live data missing fields: ${missing.join(', ')}`);
-        _addIssue('low', 'Live data estrutura', `Campos ausentes: ${missing.join(', ')}`, 'Verificar resposta de /api/admin/live');
-      } else {
-        log('ok', `[Admin] Live data estrutura OK — ${live.data.totalUsers||0} usuários`);
-      }
-    }
-  }
-
-  // ════════════════════════════════════════════
-  //  RENDERIZAÇÃO DO RELATÓRIO FINAL
-  // ════════════════════════════════════════════
-  function _renderReport(){
-    const elapsed = ((Date.now()-_startTime)/1000).toFixed(1);
-    document.getElementById('report-time').textContent = `Executado em ${elapsed}s`;
-    document.getElementById('robot-report').style.display = '';
-
-    const renderIssues = (containerId, issues) => {
-      const el = document.getElementById(containerId);
-      if(!el) return;
-      if(!issues.length){ el.innerHTML = '<div class="empty-state" style="padding:10px;font-size:11px">Nenhum ✅</div>'; return; }
-      el.innerHTML = issues.map(i=>`
-        <div class="report-issue">
-          <div>
-            <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px">${esc(i.test)}</div>
-            <div style="font-size:11px;color:var(--t2)">${esc(i.msg)}</div>
-            ${i.suggestion?`<div style="font-size:10px;color:var(--cyan);margin-top:3px">💡 ${esc(i.suggestion)}</div>`:''}
-          </div>
-        </div>`).join('');
-    };
-
-    renderIssues('report-critical', _issues.critical);
-    renderIssues('report-medium',   _issues.medium);
-    renderIssues('report-low',      _issues.low);
-
-    // Sugestões para o Claude
-    const allIssues = [..._issues.critical, ..._issues.medium, ..._issues.low];
-    const sugEl = document.getElementById('report-suggestions-list');
-    if(sugEl){
-      if(!allIssues.length){
-        sugEl.textContent = '✅ Nenhum problema encontrado! Sistema funcionando corretamente.';
-      } else {
-        const lines = [
-          `H2BApply Robot Test — ${new Date().toLocaleString('pt-BR')}`,
-          `Resultado: ${_stats.ok} OK | ${_stats.err} Erros | ${_stats.warn} Avisos`,
-          `Duração: ${elapsed}s`,
-          '',
-          'PROBLEMAS ENCONTRADOS:',
-          ...allIssues.map((i,n)=>`\n[${n+1}] ${i.test}\n  Problema: ${i.msg}\n  Sugestão: ${i.suggestion||'Investigar manualmente'}`)
-        ];
-        sugEl.textContent = lines.join('\n');
-      }
-    }
-  }
-
-  // ════════════════════════════════════════════
-  //  API PÚBLICA DO ROBÔ
-  // ════════════════════════════════════════════
-  function _countTests(){
-    // Mapeia quantos _doneTests++ cada suite vai executar
-    const counts = { api:14, auth:4, jobs:5, email:3, profile:3, auto:3, ranking:6, admin:9 };
-    return [..._selectedSuites].reduce((s,k)=> s+(counts[k]||5), 0);
-  }
-
-  return {
-    isRunning(){ return _running; },
-    isSandbox(){ return _sandbox; },
-
-    toggleSandbox(){
-      _sandbox = !_sandbox;
-      const badge = document.getElementById('robot-sandbox-badge');
-      const label = document.getElementById('sandbox-label');
-      if(badge) badge.style.display = _sandbox ? '' : 'none';
-      if(label) label.textContent = _sandbox ? '✅ Sandbox ON' : 'Modo Sandbox';
-      const btn = document.getElementById('robot-btn-sandbox');
-      if(btn) btn.style.background = _sandbox ? 'rgba(16,185,129,.2)' : 'rgba(245,158,11,.15)';
-    },
-
-    toggleSuite(key){
-      if(_selectedSuites.has(key)) _selectedSuites.delete(key);
-      else _selectedSuites.add(key);
-      const el = document.getElementById('suite-'+key);
-      if(el) el.classList.toggle('sel', _selectedSuites.has(key));
-    },
-
-    selectAll(){ Object.keys(SUITES).forEach(k=>{ _selectedSuites.add(k); document.getElementById('suite-'+k)?.classList.add('sel'); }); },
-    deselectAll(){ _selectedSuites.clear(); Object.keys(SUITES).forEach(k=>document.getElementById('suite-'+k)?.classList.remove('sel')); },
-
-    clearLogs(){
-      _logs=[]; _stats={ok:0,err:0,warn:0,skip:0}; _issues={critical:[],medium:[],low:[]};
-      const lb=document.getElementById('robot-log-body');
-      if(lb) lb.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:var(--t3)"><i class="ti ti-robot" style="font-size:36px;opacity:.3"></i><div style="font-size:12px">Logs limpos</div></div>`;
-      _updateStats();
-      document.getElementById('robot-report').style.display='none';
-      document.getElementById('robot-log-count').textContent='0 entradas';
-    },
-
-    filterLogs(){
-      const lb=document.getElementById('robot-log-body');
-      if(!lb) return;
-      lb.innerHTML='';
-      const f=document.getElementById('robot-log-filter')?.value||'';
-      _logs.forEach(e=>{ if(!f||e.type==='section'||e.type===f) _renderLogLine(e); });
-    },
-
-    exportReport(){
-      const report = {
-        meta:{ version:'1.0', timestamp:new Date().toISOString(), sandbox:_sandbox, duration:((Date.now()-_startTime)/1000).toFixed(1)+'s' },
-        summary: _stats,
-        issues: _issues,
-        logs: _logs.filter(l=>l.type!=='section').map(l=>({ts:l.ts,type:l.type,msg:l.msg,detail:l.detail||undefined}))
-      };
-      const blob = new Blob([JSON.stringify(report,null,2)], {type:'application/json'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href=url; a.download=`robot-report-${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.json`;
-      a.click(); URL.revokeObjectURL(url);
-    },
-
-    async run(){
-      if(_running) return;
-      if(_selectedSuites.size===0){ alert('Selecione ao menos uma suite de teste.'); return; }
-      _running=true;
-      _abortCtrl=new AbortController();
-      _stats={ok:0,err:0,warn:0,skip:0};
-      _issues={critical:[],medium:[],low:[]};
-      _logs=[];
-      _doneTests=0;
-      _startTime=Date.now();
-      _totalTests=_countTests();
-
-      // UI: ativar
-      document.getElementById('robot-btn-start').disabled=true;
-      document.getElementById('robot-btn-stop').disabled=false;
-      document.getElementById('robot-btn-export').disabled=true;
-      document.getElementById('robot-running-badge').style.display='';
-      document.getElementById('robot-progress-wrap').style.display='';
-      document.getElementById('robot-report').style.display='none';
-      document.getElementById('sb-robot-status').style.display='';
-      const lb=document.getElementById('robot-log-body');
-      if(lb) lb.innerHTML='';
-
-      log('info', `🤖 Robô de Teste iniciado — ${[..._selectedSuites].length} suites | ${_totalTests} testes | Sandbox: ${_sandbox?'ON':'OFF'}`);
-      if(_sandbox) log('info', '🛡️ Modo Sandbox ativo — ações destrutivas bloqueadas');
-
-      // Executar suites selecionadas
-      for(const [key, suite] of Object.entries(SUITES)){
-        if(!_running) break;
-        if(!_selectedSuites.has(key)) continue;
-        try { await suite.fn(); }
-        catch(e){ log('err', `[${suite.label}] Erro inesperado na suite: ${e.message}`); _addIssue('critical', suite.label, 'Erro inesperado na suite: '+e.message, 'Ver console do browser para stack trace'); }
-        await wait(300);
-      }
-
-      // Finalizar
-      _running=false;
-      const elapsed = ((Date.now()-_startTime)/1000).toFixed(1);
-      const level = _stats.err>0 ? 'err' : _stats.warn>0 ? 'warn' : 'ok';
-      log(level, `🏁 Testes concluídos em ${elapsed}s — ✅ ${_stats.ok} | ❌ ${_stats.err} | ⚠️ ${_stats.warn}`);
-      _renderReport();
-      _setProgress(100, 'Concluído');
-
-      // UI: desativar
-      document.getElementById('robot-btn-start').disabled=false;
-      document.getElementById('robot-btn-stop').disabled=true;
-      document.getElementById('robot-btn-export').disabled=false;
-      document.getElementById('robot-running-badge').style.display='none';
-      document.getElementById('sb-robot-status').style.display='none';
-
-      // Toast
-      if(typeof toast === 'function') toast(`Robô concluiu — ${_stats.ok} OK / ${_stats.err} erros`, _stats.err>0?'err':'ok');
-    },
-
-    stop(){
-      if(!_running) return;
-      _running=false;
-      log('warn', '⏹ Testes interrompidos pelo usuário');
-      document.getElementById('robot-btn-start').disabled=false;
-      document.getElementById('robot-btn-stop').disabled=true;
-      document.getElementById('robot-running-badge').style.display='none';
-      document.getElementById('sb-robot-status').style.display='none';
-    }
-  };
-})();
-
-// ── Funções globais para os botões ──────────────────────
-function robotStart()      { Robot.run(); }
-function robotStop()       { Robot.stop(); }
-function robotClearLogs()  { Robot.clearLogs(); }
-function robotExportReport(){ Robot.exportReport(); }
-function robotToggleSandbox(){ Robot.toggleSandbox(); }
-function robotToggleSuite(k){ Robot.toggleSuite(k); }
-function robotSelectAll()  { Robot.selectAll(); }
-function robotDeselectAll(){ Robot.deselectAll(); }
-function robotFilterLogs() { Robot.filterLogs(); }
-
-// ── Integrar showView para carregar o robô ──────────────
-const _origShowView = window.showView || function(){};
-// Patch: adicionar 'robot' ao título e à lista de views
-document.addEventListener('DOMContentLoaded', function(){
-  // Adicionar "robot" às views conhecidas no admin
-  if(typeof showView === 'function'){
-    const originalTitles = { dashboard:'Dashboard', workers:'Automáticos', events:'Eventos & Crashes', users:'Usuários', vip:'VIP & Planos', codes:'Códigos Promo', ranking:'Ranking', settings:'Configurações', notificacoes:'Notificações', indicacoes:'Indicações', sugestoes:'Sugestões', robot:'🤖 Robô de Teste' };
-    const origFn = showView;
-    window.showView = function(name){
-      origFn(name);
-      if(name==='robot'){
-        // Corrigir título caso não seja reconhecido pelo original
-        const t=document.getElementById('view-title');
-        if(t && (t.textContent===name||!t.textContent)) t.textContent='🤖 Robô de Teste';
-      }
-    };
-  }
-});
 </script>
 </body>
 </html>

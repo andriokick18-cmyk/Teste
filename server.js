@@ -2065,13 +2065,7 @@ const server=http.createServer(async(req,res)=>{
 
   const serveHtml=f=>{try{const h=fs.readFileSync(path.join(__dirname,f),"utf8");res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-cache"});return res.end(h);}catch{res.writeHead(404);return res.end(f+" não encontrado");}};
   if(pathname==="/"||pathname==="/index.html")return serveHtml("index.html");
-  if(pathname==="/admin"||pathname==="/admin.html"){
-    const _as=getSess(req);
-    const _au=_as?.user_email?getUser(_as.user_email):null;
-    if(!_as?.user_email){res.writeHead(302,{Location:"/?err="+encodeURIComponent("Faça login para acessar o painel admin.")});return res.end();}
-    if(!_au?.isAdmin){res.writeHead(403,{"Content-Type":"text/html; charset=utf-8"});return res.end(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Acesso Negado</title><style>body{background:#040a14;color:#ef4444;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;flex-direction:column;gap:16px}h1{font-size:32px}p{color:#94a3b8;font-size:16px}a{color:#3b82f6;text-decoration:none}</style></head><body><h1>⛔ Acesso Negado</h1><p>Esta área é restrita a administradores.</p><a href="/">← Voltar ao App</a></body></html>`);}
-    return serveHtml("admin.html");
-  }
+  if(pathname==="/admin"||pathname==="/admin.html")return serveHtml("admin.html");
 
   // Google Search Console verification
   if(pathname==="/google380652ea59ad95e1.html"){
@@ -3332,100 +3326,6 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
         addLog(d.email,{status:"cancelado",jobTitle:"🛑 Job parado pelo admin",company:""});
         pushGlobalEvent("force_stop",d.email,"Job parado pelo admin","info");
         return json(res,200,{ok:true});
-      }catch(e){return json(res,500,{error:e.message});}
-    }
-
-    // ── ADMIN FORCE-START (inicia automático como se fosse o usuário) ──────────
-    if(pathname==="/api/admin/force-start"&&req.method==="POST"){
-      try{
-        const d=JSON.parse(await readBody(req));
-        if(!d.email)return json(res,400,{error:"email obrigatório."});
-        const target=getUser(d.email);
-        if(!target)return json(res,404,{error:"Usuário não encontrado."});
-        // Para job existente se houver
-        if(autoTimers.has(d.email)){clearTimeout(autoTimers.get(d.email));autoTimers.delete(d.email);}
-        // Monta fila a partir da planilha (igual ao /api/auto/start do usuário)
-        const source=d.source||"jan2026";
-        const category=d.category||"all";
-        const sheet=getSheet(source);
-        if(!sheet||!sheet.length)return json(res,400,{error:"Planilha não encontrada: "+source});
-        // Busca sent_emails do usuário para filtrar duplicados
-        const sentSet=new Set((DB_SENT[d.email]||[]));
-        let rows=sheet.filter(r=>{
-          if(!r.e||!isValidEmail(r.e))return false;
-          if(sentSet.has(r.e))return false;
-          if(category!=="all"&&r.k!==category)return false;
-          return true;
-        });
-        // Embaralha
-        for(let i=rows.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[rows[i],rows[j]]=[rows[j],rows[i]];}
-        const queue=rows.slice(0,d.maxQueue||500).map(r=>({
-          id:r.id||r.caseNum||"",
-          to:r.e,
-          title:r.t||r.title||"",
-          company:r.n||r.company||"",
-          category:r.k||category,
-          state:r.s||r.state||"",
-          caseNum:r.id||""
-        }));
-        if(!queue.length)return json(res,400,{error:"Nenhuma vaga disponível após filtros (já enviados ou sem email)."});
-        // Valida PDF
-        const p2=target;
-        const profiles2=(p2.profiles||[]).filter(pr=>pr.active!==false);
-        const _cvEx=(idx)=>{if(idx==null)return false;try{return fs.existsSync(cvPath(d.email,parseInt(idx,10)));}catch{return false;}};
-        let jobResumeIdx=d.resumeIdx!=null&&_cvEx(d.resumeIdx)?parseInt(d.resumeIdx,10):null;
-        if(jobResumeIdx==null){
-          for(const pr of profiles2){if(pr.resumeIdx!=null&&_cvEx(pr.resumeIdx)){jobResumeIdx=parseInt(pr.resumeIdx,10);break;}}
-        }
-        if(jobResumeIdx==null){
-          const anyCv=(p2.cvs||[]).find(c=>_cvEx(c.idx));
-          if(anyCv)jobResumeIdx=parseInt(anyCv.idx,10);
-        }
-        if(jobResumeIdx==null)return json(res,400,{error:"Nenhum PDF encontrado para este usuário. Faça upload de um PDF antes."});
-        let jobCoverIdx=d.coverIdx!=null&&_cvEx(d.coverIdx)?parseInt(d.coverIdx,10):null;
-        const startH=Number.isFinite(parseInt(d.startH,10))?Math.max(0,Math.min(23,parseInt(d.startH,10))):7;
-        const endH  =Number.isFinite(parseInt(d.endH,10))  ?Math.max(1,Math.min(24,parseInt(d.endH,10)))  :22;
-        const _mode=d.mode==="now"?"now":"schedule";
-        const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,filteredCount:queue.length,
-          resumeIdx:jobResumeIdx,coverIdx:jobCoverIdx,bodyTemplate:"",subjects:null,emailBodies:null,
-          status:"starting",lastSentAt:null,finishedAt:null,source,category,mode:_mode,startH,endH,filters:{},
-          queueFingerprint:crypto.createHash("md5").update(queue.map(i=>i.to).sort().join(",")).digest("hex"),
-          rotState:{lastSubjIdx:-1,lastBodyIdx:-1},startedByAdmin:s.user_email
-        };
-        setAutoJob(d.email,job);
-        autoStats.set(d.email,{sent:0,failed:0,skipped:0,startedAt:Date.now()});
-        addLog(d.email,{status:"sistema",jobTitle:`🛡️ Automático iniciado pelo admin (${queue.length} vagas)`,company:`Admin: ${s.user_email} | Fonte: ${source} | Cat: ${category}`});
-        pushGlobalEvent("force_restart",d.email,`Automático iniciado pelo admin ${s.user_email} (${queue.length} vagas, fonte: ${source})`, "info");
-        setTimeout(()=>scheduleAuto(d.email),200);
-        return json(res,200,{ok:true,queueSize:queue.length,resumeIdx:jobResumeIdx,source,category});
-      }catch(e){return json(res,500,{error:e.message});}
-    }
-
-    // ── ADMIN FORCE-UPDATE-JOB (edita config do job em andamento) ─────────────
-    if(pathname==="/api/admin/force-update-job"&&req.method==="POST"){
-      try{
-        const d=JSON.parse(await readBody(req));
-        if(!d.email)return json(res,400,{error:"email obrigatório."});
-        const job=getAutoJob(d.email);
-        if(!job)return json(res,404,{error:"Nenhum job ativo para este usuário."});
-        const updates={};
-        if(d.startH!=null)updates.startH=Math.max(0,Math.min(23,parseInt(d.startH,10)));
-        if(d.endH!=null)updates.endH=Math.max(1,Math.min(24,parseInt(d.endH,10)));
-        if(d.mode!=null)updates.mode=d.mode==="now"?"now":"schedule";
-        if(d.resumeIdx!=null){
-          const p2=getUser(d.email)||{};
-          const _cvEx=(idx)=>{try{return fs.existsSync(cvPath(d.email,parseInt(idx,10)));}catch{return false;}};
-          if(_cvEx(d.resumeIdx))updates.resumeIdx=parseInt(d.resumeIdx,10);
-          else return json(res,400,{error:"PDF (resumeIdx="+d.resumeIdx+") não encontrado no servidor."});
-        }
-        setAutoJob(d.email,{...job,...updates});
-        // Reagenda se estava ativo
-        if(job.active){
-          if(autoTimers.has(d.email)){clearTimeout(autoTimers.get(d.email));autoTimers.delete(d.email);}
-          setTimeout(()=>scheduleAuto(d.email),300);
-        }
-        addLog(d.email,{status:"sistema",jobTitle:"⚙️ Configuração do job atualizada pelo admin",company:`Admin: ${s.user_email}`});
-        return json(res,200,{ok:true,updated:Object.keys(updates)});
       }catch(e){return json(res,500,{error:e.message});}
     }
 
