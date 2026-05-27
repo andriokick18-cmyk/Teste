@@ -10813,34 +10813,19 @@ Best regards,
   </div>
 </div>
 <script>
-function _doOAuthRedirect(){
-  fetch("/api/warmup",{credentials:"include"}).catch(function(){});
-  location.href=_getOAuthURL();
-}
-function _openGwmModal(){
-  var m=document.getElementById("gwm");
-  if(!m)return _doOAuthRedirect();
-  m.style.display="flex";
-  var btn=document.getElementById("gwm-ok");
-  if(btn){
-    var nb=btn.cloneNode(true);
-    btn.parentNode.replaceChild(nb,btn);
-    nb.onclick=function(){
-      m.style.display="none";
-      _doOAuthRedirect();
-    };
-  }
-}
 function showGoogleWarnModal(){
-  var termsOk=false;
-  try{var t=localStorage.getItem("h2b_terms_v2");if(t){var d=JSON.parse(t);termsOk=!!(d.accepted&&d.ts&&(Date.now()-d.ts)<365*86400000);}}catch(e){}
-  if(termsOk){_openGwmModal();}
-  else{showTerms(function(){_openGwmModal();});}
+  fetch("/api/warmup",{credentials:"include"}).catch(function(){});
+  var m=document.getElementById("gwm");
+  m.style.display="flex";
+  document.getElementById("gwm-ok").onclick=function(){
+    m.style.display="none";
+    location.href=_getOAuthURL();
+  };
 }
 </script>
 
 
-<div id="terms-overlay" style="display:none">
+<div id="terms-overlay">
   <div id="terms-box">
     <div id="terms-header">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
@@ -10953,7 +10938,11 @@ function termsDecline(){
   _termsCallback=null;
   if(typeof toast==="function")toast("Você precisa aceitar os Termos para usar a H2BApply.","r");
 }
-// showGoogleWarnModal já integra verificação de termos (ver script #gwm acima)
+// Interceptar modal do Google para mostrar termos primeiro
+var _origGwm=window.showGoogleWarnModal;
+window.showGoogleWarnModal=function(){
+  showTerms(function(){if(_origGwm)_origGwm();else location.href="/oauth/start";});
+};
 </script>
 
 

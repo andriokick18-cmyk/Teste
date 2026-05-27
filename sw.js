@@ -24,7 +24,8 @@
 //  v2.4 — Bump de versão para forçar reinstalação limpa em todos os clientes.
 //    Nenhuma mudança lógica; apenas limpeza de código e documentação.
 //
-const CACHE_NAME = "h2bapply-v6";
+// FIX-LOOP-001: bump para v7 força reinstalação limpa em todos os clientes
+const CACHE_NAME = "h2bapply-v7";
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
@@ -87,18 +88,21 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // ── HTML → sempre network, NUNCA cacheia ──
-  // Cookie h2b_session é definido via Set-Cookie no /oauth/callback.
-  // Se o SW devolver o HTML do cache, o cookie não acompanha a requisição
-  // de /api/status → app considera deslogado → loop de login.
+  // ── HTML e URLs com query string → sempre network, NUNCA cacheia ──
+  // FIX-LOOP-001 (v2.5): Cookie h2b_session é definido via Set-Cookie no
+  // /oauth/callback. Se o SW devolver HTML do cache (inclusive /?_login=1,
+  // /?err=..., /?ref=...), o cookie não acompanha /api/status → loop infinito.
+  // SOLUÇÃO: qualquer pathname HTML OU qualquer URL com ?search é sempre network.
   if (
     url.pathname === "/" ||
     url.pathname === "/index.html" ||
+    url.pathname === "/admin" ||
+    url.pathname === "/admin.html" ||
+    url.search !== "" ||
     (e.request.headers.get("accept") || "").includes("text/html")
   ) {
     e.respondWith(
       fetch(e.request).catch(() =>
-        // Fallback offline: tenta cache como último recurso
         caches
           .match("/index.html")
           .then((r) => r || new Response("Offline", { status: 503 }))

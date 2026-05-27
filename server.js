@@ -1,23 +1,14 @@
 // ═══════════════════════════════════════════════════════════
-//  H2BApply v13.1 — Motor de envio automático profissional
-//  [REESTRUTURADO: calcStreak/last7Days/inRankPeriod/calcRanking
-//   movidas para escopo global; flushAll completo no shutdown]
+//  H2BApply v15 — Motor de envio automático para vagas H-2B/H-2A
 //
 //  PLANOS:
-//    free   → 20 manual + 10 auto /dia
-//    vip    → 400 manual + 10 auto /dia  (R$49,90)
-//    pro    → 300 manual + 200 auto /dia  (R$119,90)
-//    vipro  → 400 manual + 200 auto /dia (R$149,90)
+//    free  → 20 manual + 10 auto /dia   (Grátis)
+//    vip   → 300 manual + 50 auto /dia  (R$89,90)
+//    vipro → 300 manual + 200 auto /dia (R$149,90)
+//    pro   → igual vipro (legado — não vender mais)
 //
-//  NOVIDADES v13:
-//    • Envio automático STREAMING (começa imediatamente)
-//    • Logs completos com status detalhado
-//    • Filtros dinâmicos por categoria de serviço
-//    • Painel de logs profissional + exportação CSV
-//    • Dashboard em tempo real
-//    • Recuperação automática após queda
-//    • Migração automática de dados antigos
-//    • IDs únicos por candidatura (appId) + índice de vinculação
+//  TRIAL: 5 dias VIPro para novos usuários
+//  (permite testar o automático com 200 envios/dia)
 // ═══════════════════════════════════════════════════════════
 "use strict";
 const http   = require("http");
@@ -53,14 +44,14 @@ console.log(`[boot] Push VAPID: ${PUSH_ENABLED?"✅ configurado":"⚠️  desati
 // ── Planos ────────────────────────────────────────────────
 // Planos ativos:
 //   free  → 20 manual + 10 auto /dia (Grátis)
-//   vip   → 400 manual + 10 auto /dia (R$99,90)
+//   vip   → 300 manual + 50 auto /dia  (R$89,90)
 //   vipro → 300 manual + 200 auto /dia (R$149,90)
-// Plano "pro" removido — usuários legados recebem limites de vipro automaticamente
+// Plano "pro" = legado, mesmo limite do vipro. Não vender mais.
 const PLAN_LIMITS = {
-  free:  { manual: 20,  auto: 10  },
-  vip:   { manual: 400, auto: 10  },
-  pro:   { manual: 300, auto: 200 }, // legado — mesmo limite do vipro
-  vipro: { manual: 300, auto: 200 },
+  free:  { manual: 20,  auto: 10  },  // Grátis
+  vip:   { manual: 300, auto: 50  },  // R$89,90
+  pro:   { manual: 300, auto: 200 },  // Legado — mesmo do vipro
+  vipro: { manual: 300, auto: 200 },  // R$149,90 — completo
 };
 // Intervalos base (substituídos pelo cálculo inteligente)
 const AUTO_INTERVAL_MIN = 180_000; // 3 min fallback
@@ -127,10 +118,9 @@ const ADMIN_SETTINGS_FILE = path.join(DATA_DIR, "admin_settings.json"); // Admin
 const NOTIF_FILE     = path.join(DATA_DIR, "notifications.json");  // Global notifications from ADM
 const REFERRAL_FILE  = path.join(DATA_DIR, "referrals.json");       // Referral tracking
 const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
-const SESSIONS_FILE   = path.join(DATA_DIR, "sessions.json");        // Sessões persistidas (sobrevive a reinícios)
 try { fs.mkdirSync(CVS_DIR, { recursive: true }); } catch {}
 
-console.log(`[boot] H2BApply v13.0 | ${APP_URL} | ${DATA_DIR}`);
+console.log(`[boot] H2BApply v15.0 | ${APP_URL} | ${DATA_DIR} | Planos: free/vip/vipro`);
 console.log(`[boot] Disk: ${fs.existsSync("/data") ? "✅ /data" : "⚠️  /tmp"}`);
 
 // ══════════════════════════════════════════════════════════
@@ -148,7 +138,7 @@ let DB_CODES  = {};   // NEW: promo codes { code → { manualDays, autoDays, cre
 let DB_PUSH   = {};   // NEW: push subscriptions { userEmail → PushSubscription[] }
 // NEW v13: índice de candidaturas — { userEmail → { byThread:{tid:appId}, byMsgId:{mid:appId}, byTo:{email:[appId,...]} } }
 let DB_APP_INDEX = {};
-let DB_ADMIN_SETTINGS = { newUserTrialEnabled: true, newUserTrialDays: 5, newUserTrialPlan: "vip" };
+let DB_ADMIN_SETTINGS = { newUserTrialEnabled: true, newUserTrialDays: 5, newUserTrialPlan: "vipro" };
 // Notifications: { notifications: [{id, title, body, createdAt, createdBy, readBy:[email,...]}] }
 let DB_NOTIF = { notifications: [] };
 // Referrals: { byCode: { code → {ownerEmail, createdAt} }, byEmail: { email → {code, referredBy, joinedAt, paidAt, bonusPaid} } }
@@ -158,6 +148,7 @@ let DB_SUGGESTIONS = []; // Array de sugestões dos usuários
 // ── Gemini Chat ─────────────────────────────────────────
 // Limite global de 1500 mensagens/dia para TODOS os usuários
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
+console.log(`[boot] Gemini AI Chat: ${GEMINI_API_KEY?"✅ configurado":"⚠️  desativado (configure GEMINI_API_KEY para ativar o chat de IA)"}`);
 const GEMINI_DAILY_LIMIT = parseInt(process.env.GEMINI_DAILY_LIMIT || "1500", 10);
 const GEMINI_USER_DAILY_LIMIT = Math.floor(GEMINI_DAILY_LIMIT / 50); // 1500 ÷ 50 usuários = 30/dia por usuário
 let _geminiCount = { date: "", count: 0 }; // contador global em memória (reseta à meia-noite)
@@ -251,13 +242,27 @@ function boot() {
     rebuildAppIndex();
     console.log(`[db] 🔁 índice de candidaturas reconstruído (${Object.values(DB_APP_INDEX).reduce((n,x)=>n+Object.keys(x.byThread||{}).length+Object.keys(x.byMsgId||{}).length,0)} chaves)`);
   }
-  // Restaura sessões persistidas (usuários que estavam logados antes do reinício)
-  loadSessions();
 }
 
 function persist(file, data) {
+  // Escrita assíncrona para não bloquear o event loop
+  // Usa arquivo .tmp + rename para atomicidade
+  const json = JSON.stringify(data, null, 2);
+  const tmp = file + ".tmp";
+  fs.writeFile(tmp, json, "utf8", (err) => {
+    if(err){ console.warn("[db/write]", file, err.message); return; }
+    fs.rename(tmp, file, (err2) => {
+      if(err2){ console.warn("[db/rename]", file, err2.message);
+        // fallback: tentar escrever direto
+        fs.writeFile(file, json, "utf8", ()=>{});
+      }
+    });
+  });
+}
+function persistSync(file, data) {
+  // Usar APENAS no shutdown (SIGTERM/SIGINT) — nunca em path crítico
   try { const t=file+".tmp"; fs.writeFileSync(t,JSON.stringify(data,null,2),"utf8"); fs.renameSync(t,file); }
-  catch(e) { console.warn("[db]",e.message); try{fs.writeFileSync(file,JSON.stringify(data,null,2));}catch{} }
+  catch(e) { console.warn("[db/sync]",e.message); try{fs.writeFileSync(file,JSON.stringify(data,null,2));}catch{} }
 }
 function persistSent() {
   const out={};for(const[k,v]of Object.entries(DB_SENT))out[k]=[...v];persist(SENT_FILE,out);
@@ -275,7 +280,7 @@ const getHist    = e => DB_HIST[e]||[];
 const addHist    = (e,entry) => { if(!DB_HIST[e])DB_HIST[e]=[]; DB_HIST[e].unshift(entry); if(DB_HIST[e].length>2000)DB_HIST[e]=DB_HIST[e].slice(0,2000); invalidateUserStatsCache(e); persistDebounced(HIST_FILE,DB_HIST,1500); };
 const delHist    = e => { delete DB_HIST[e]; persist(HIST_FILE,DB_HIST); };
 const getAutoJob = e => DB_AUTO[e]||null;
-const setAutoJob = (e,d) => { DB_AUTO[e]={...(DB_AUTO[e]||{}),...d}; persist(AUTO_FILE,DB_AUTO); };
+const setAutoJob = (e,d) => { DB_AUTO[e]={...(DB_AUTO[e]||{}),...d}; persistDebounced(AUTO_FILE,DB_AUTO,800); };
 const delAutoJob = e => { delete DB_AUTO[e]; persist(AUTO_FILE,DB_AUTO); };
 // ══════════════════════════════════════════════════════════
 // REGRA PRINCIPAL — Anti-duplicata absoluta
@@ -1167,10 +1172,12 @@ function updateAutoStats(email, delta) {
   autoStats.set(email, { ...s, ...delta });
 }
 
+const _autoRunning = new Set(); // Guard contra execução paralela
+
 function scheduleAuto(email) {
   if(autoTimers.has(email))clearTimeout(autoTimers.get(email));
   const job=getAutoJob(email);
-  if(!job||!job.active||!job.queue?.length){autoTimers.delete(email);return;}
+  if(!job||!job.active||!job.queue?.length){autoTimers.delete(email);_autoRunning.delete(email);return;}
 
   const mode = job.mode || "schedule"; // "now" | "schedule"
   const startH = job.startH !== undefined ? job.startH : AUTO_START_H_DEFAULT;
@@ -1382,6 +1389,13 @@ async function doAutoSend(email) {
 }
 
 async function _doAutoSendInner(email) {
+  // Guard: evitar execução paralela do mesmo worker
+  if(_autoRunning.has(email)){
+    console.warn(`[auto/guard] ${email} já está executando — ignorando chamada dupla`);
+    return;
+  }
+  _autoRunning.add(email);
+  try {
   // Sempre relê o job do banco — nunca usa objeto em cache
   const job = getAutoJob(email);
   if (!job || !job.active) { autoTimers.delete(email); return; }
@@ -1414,6 +1428,7 @@ async function _doAutoSendInner(email) {
   if (!target || queue.length === 0) {
     setAutoJob(email, { ...job, active:false, queue:[], finishedAt:Date.now(), status:"finished" });
     autoTimers.delete(email);
+    _autoRunning.delete(email);
     addLog(email, { status:"sistema", jobTitle:"Fila finalizada", company:`Total: ${job.originalCount||0} vagas processadas` });
     console.log(`[auto] ${email} finalizado`);
     // 🔔 Notifica o usuário por email que a fila terminou
@@ -1709,8 +1724,6 @@ async function _doAutoSendInner(email) {
       updateAutoStats(email, { sent:(getAutoStats(email).sent||0)+1, startedAt:getAutoStats(email).startedAt||Date.now() });
       // ✅ Heartbeat: registra atividade para o watchdog
       { const h=getHealth(email); h.lastSent=Date.now(); h.errors=0; h.stalledAt=null; h.status="ok"; }
-      // Limpa _rl_* keys do job para o destinatário atual (evita crescimento infinito do objeto)
-      { const _cj=getAutoJob(email); if(_cj){ const _rlKey="_rl_"+(target.to||"").replace(/[^a-z0-9]/gi,""); if(_cj[_rlKey]){ const {[_rlKey]:_rm,..._rest}=_cj; setAutoJob(email,_rest); } } }
       console.log(`[auto] ✅ ${email} → ${target.to} anexos=${attachments.length} [${appId}]`);
       sendOk = true;
       break;
@@ -1767,6 +1780,22 @@ async function _doAutoSendInner(email) {
   const interval = calcSmartInterval();
   setAutoJob(email, { ...updJob, status:"waiting_interval", nextSendAt:Date.now()+interval });
   autoTimers.set(email, setTimeout(() => scheduleAuto(email), interval));
+  } catch(outerErr) {
+    // Erro NUNCA deve matar o engine silenciosamente
+    console.error(`[auto/FATAL] ${email}:`, outerErr.message, outerErr.stack?.split("\n")[1]||"");
+    addLog(email, { status:"falhou", jobTitle:"[ENGINE ERROR] " + outerErr.message.slice(0,100), company:"Sistema", error: outerErr.message });
+    trackJourney(email, 'auto_fail', { ok:false, error:outerErr.message, detail:"Erro fatal no engine — reagendando", critical:true });
+    // Reagendar para tentar recuperar — espera 2 min
+    const recoverMs = 2 * 60 * 1000;
+    const recJob = getAutoJob(email);
+    if(recJob && recJob.active) {
+      setAutoJob(email, { ...recJob, status:"recovering", nextSendAt:Date.now()+recoverMs });
+      autoTimers.set(email, setTimeout(() => scheduleAuto(email), recoverMs));
+      console.warn(`[auto/RECOVER] ${email} reagendado em 2min após erro fatal`);
+    }
+  } finally {
+    _autoRunning.delete(email); // sempre limpa o guard
+  }
 }
 
 const genSubject=title=>{const pfx=["Application for","Interest in","Applying for","H-2B Application:","Candidature for"];return`${pfx[Math.floor(Math.random()*pfx.length)]} ${title}`;};
@@ -1788,21 +1817,7 @@ const fillTpl=(tpl,v)=>(tpl||"")
   .replace(/{start}/g,      v.inicio||"");
 
 function reactivateAutoJobs(){
-  let n=0;
-  for(const[email,job]of Object.entries(DB_AUTO)){
-    if(!job.active||!job.queue?.length) continue;
-    const waitStatuses=new Set(["waiting_rate_limit","waiting_hour","waiting_limit","waiting_interval"]);
-    const hasNextSend = job.nextSendAt && job.nextSendAt > Date.now();
-    if(waitStatuses.has(job.status) && hasNextSend){
-      // Respeita o delay original — não dispara imediatamente
-      const delay = Math.max(1000, job.nextSendAt - Date.now());
-      console.log(`[auto] reativado com delay ${Math.round(delay/1000)}s para ${email} (status:${job.status})`);
-      autoTimers.set(email, setTimeout(()=>scheduleAuto(email), delay));
-    } else {
-      scheduleAuto(email);
-    }
-    n++;
-  }
+  let n=0;for(const[email,job]of Object.entries(DB_AUTO)){if(job.active&&job.queue?.length>0){scheduleAuto(email);n++;}}
   if(n)console.log(`[auto] ${n} job(s) reativados`);
 }
 
@@ -1810,35 +1825,6 @@ function reactivateAutoJobs(){
 //  SESSION
 // ══════════════════════════════════════════════════════════
 const sessions=Object.create(null);
-
-// ── Persistência de sessões (sobrevive a reinícios/deploys) ──────────────────
-// Salva sessões válidas em disco; exclui pendentes e expiradas
-function persistSessions(){
-  try{
-    const now=Date.now();
-    const out={};
-    for(const[k,s] of Object.entries(sessions)){
-      if(s.pending)continue; // não persiste sessões pendentes de OAuth
-      if((now-(s.created_at||0))>SESS_TTL)continue; // não persiste expiradas
-      out[k]=s;
-    }
-    persist(SESSIONS_FILE,out);
-  }catch(e){console.warn("[sessions] Erro ao persistir:",e.message);}
-}
-function loadSessions(){
-  try{
-    const now=Date.now();
-    const raw=load(SESSIONS_FILE,{});
-    let loaded=0;
-    for(const[k,s] of Object.entries(raw)){
-      if(!s.user_email||!s.access_token)continue;
-      if((now-(s.created_at||0))>SESS_TTL)continue; // descarta expiradas
-      sessions[k]=s;
-      loaded++;
-    }
-    if(loaded)console.log(`[sessions] ✅ ${loaded} sessão(ões) restaurada(s) do disco`);
-  }catch(e){console.warn("[sessions] Erro ao carregar:",e.message);}
-}
 const rateMap  =Object.create(null);
 const SESS_TTL =7*24*60*60*1000;
 
@@ -1849,7 +1835,7 @@ const getSessId=req=>{const m=(req.headers.cookie||"").match(/(?:^|;\s*)h2b_sess
 const getSess  =req=>{const id=getSessId(req);return id?sessions[id]:null;};
 
 function makeCallbackPage(sessId){
-  return`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Entrando...</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;font-family:sans-serif;color:#fff}.box{text-align:center}.spin{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="box"><div class="spin"></div><div style="font-size:18px;font-weight:600">Entrando na sua conta...</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:8px">Aguarde um momento</div></div><script>setTimeout(function(){window.location.replace('/?_login=1')},300);</script></body></html>`;
+  return`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Entrando...</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;font-family:sans-serif;color:#fff}.box{text-align:center}.spin{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="box"><div class="spin"></div><div style="font-size:18px;font-weight:600">Entrando na sua conta...</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:8px">Aguarde um momento</div></div><script>setTimeout(function(){window.location.replace('/')},150);</script></body></html>`;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1904,8 +1890,7 @@ function generateIconPNG(size) {
 }
 
 function httpsReq(opts,body){return new Promise((res,rej)=>{const p=body?(typeof body==="string"?body:JSON.stringify(body)):null;const r=https.request(opts,resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{const raw=Buffer.concat(ch).toString();try{res({status:resp.statusCode,body:JSON.parse(raw)});}catch{res({status:resp.statusCode,body:raw});}});});r.on("error",rej);r.setTimeout(15000,()=>{r.destroy();rej(new Error("Timeout"));});if(p)r.write(p);r.end();});}
-const MAX_BODY_SIZE = 50 * 1024 * 1024; // 50MB — suficiente para PDFs base64
-function readBody(req){return new Promise((res,rej)=>{const p=[];let sz=0;req.on("data",c=>{sz+=c.length;if(sz>MAX_BODY_SIZE){rej(new Error("Payload too large"));return;}p.push(c);});req.on("end",()=>res(Buffer.concat(p).toString()));req.on("error",rej);});}
+function readBody(req){return new Promise((res,rej)=>{const p=[];req.on("data",c=>p.push(c));req.on("end",()=>res(Buffer.concat(p).toString()));req.on("error",rej);});}
 function json(res,status,data){const b=JSON.stringify(data);res.writeHead(status,{"Content-Type":"application/json; charset=utf-8","Content-Length":Buffer.byteLength(b)});res.end(b);}
 
 // ══════════════════════════════════════════════════════════
@@ -1925,8 +1910,6 @@ async function refreshToken(sid){
     if(s?.user_email){setUser(s.user_email,{cached_access_token:r.access_token,cached_token_expiry:Date.now()+(r.expires_in||3600)*1000});}
     // Atualiza refresh_token se veio um novo
     if(r.refresh_token&&s?.user_email){setUser(s.user_email,{refresh_token:r.refresh_token});if(s)s.refresh_token=r.refresh_token;}
-    // Persiste sessão atualizada em disco
-    persistSessions();
   }
 }
 
@@ -2271,7 +2254,7 @@ const server=http.createServer(async(req,res)=>{
     <h2>8. Contato</h2>
     <p>Para dúvidas sobre privacidade, entre em contato:</p>
     <ul>
-      <li>Email: andrio.kick18@gmail.com</li>
+      <li>Contato: suporte@h2bapply.com</li>
       <li>Instagram: <a href="https://instagram.com/andrio.k" target="_blank">@andrio.k</a></li>
       <li>WhatsApp: +55 53 98145-3496</li>
     </ul>
@@ -2372,7 +2355,7 @@ const server=http.createServer(async(req,res)=>{
 
     <h2>9. Contato</h2>
     <ul>
-      <li>Email: andrio.kick18@gmail.com</li>
+      <li>Contato: suporte@h2bapply.com</li>
       <li>Instagram: <a href="https://instagram.com/andrio.k" target="_blank">@andrio.k</a></li>
       <li>WhatsApp: +55 53 98145-3496</li>
       <li>Site: <a href="https://h2bapply.com">h2bapply.com</a></li>
@@ -2635,7 +2618,6 @@ const server=http.createServer(async(req,res)=>{
         console.log("[oauth] Login:",ui.email,"| refresh_token salvo:",!!tokenData.refresh_token,"| vip:",vipStillActive?"ativo":"inativo","| Total:",Object.keys(DB_USERS).length);
       }
       const cookieStr=makeCookieStr(sid);const page=makeCallbackPage(sid);
-      persistSessions(); // persiste sessão nova em disco imediatamente
       res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Content-Length":Buffer.byteLength(page),"Set-Cookie":cookieStr,"Cache-Control":"no-cache, no-store"});
       return res.end(page);
     }catch(e){return fail("Erro: "+e.message);}
@@ -2860,8 +2842,8 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       }
       // Remove do APPLIED index
       if(jobId){
-        const idx=DB_APP_INDEX[s.user_email];
-        if(idx){delete idx[jobId];persist(APPIDX_FILE,DB_APP_INDEX);}
+        const idx=DB_APPIDX[s.user_email];
+        if(idx){delete idx[jobId];persist(APPIDX_FILE,DB_APPIDX);}
       }
       invalidateUserStatsCache(s.user_email);
       console.log(`[sent/remove] ${s.user_email} removeu vaga jobId=${jobId||"-"} caseNum=${caseNum||"-"} (${before-hist.length} entradas)`);
@@ -2953,7 +2935,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
   }
 
   if(pathname==="/api/saved"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});if(req.method==="GET")return json(res,200,{saved:(getUser(s.user_email)||{}).saved||[]});if(req.method==="POST"){try{const d=JSON.parse(await readBody(req));setUser(s.user_email,{saved:(d.saved||[]).slice(0,500)});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}}
-  if(pathname==="/api/disconnect"){const id=getSessId(req);if(id&&sessions[id])delete sessions[id];persistSessions();res.writeHead(200,{"Content-Type":"application/json","Set-Cookie":clearCookieStr()});return res.end('{"ok":true}');}
+  if(pathname==="/api/disconnect"){const id=getSessId(req);if(id&&sessions[id])delete sessions[id];res.writeHead(200,{"Content-Type":"application/json","Set-Cookie":clearCookieStr()});return res.end('{"ok":true}');}
 
   // ── TEMPLATES ─────────────────────────────────────────
   if(pathname==="/api/templates"&&req.method==="GET"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const p=getUser(s.user_email)||{};return json(res,200,{templates:p.templates||[]});}
@@ -3482,13 +3464,9 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
           : journey;
 
         // Erros recentes (últimas 24h)
-        // Erros recentes (últimas 24h) — exclui falhas de rate limit (são esperas normais)
         const recentErrors=logs.filter(l=>
           (l.status==="falhou"||l.status==="erro_anexo")&&
-          l.ts>(now-86400000)&&
-          !((l.error||"").toLowerCase().includes("rate limit")||
-            (l.error||"").toLowerCase().includes("ratelimit")||
-            (l.error||"").toLowerCase().includes("user-rate"))
+          l.ts>(now-86400000)
         );
 
         // Determinar se deve incluir este usuário
@@ -3689,6 +3667,31 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
       return res.end(jsonStr);
     }
 
+    // ── ENGINE HEALTH CHECK ──────────────────────────────────────────────────
+    if(pathname==="/api/admin/engine-health"&&req.method==="GET"){
+      const now=Date.now();
+      const workers=[];
+      for(const[email,job] of Object.entries(DB_AUTO)){
+        if(!job.active) continue;
+        workers.push({
+          email,
+          status:job.status||"?",
+          queueSize:job.queue?.length||0,
+          isRunning:_autoRunning.has(email),
+          hasTimer:autoTimers.has(email),
+          lastSentAgo:job.lastSentAt?Math.round((now-job.lastSentAt)/1000)+"s":null,
+          nextSendIn:job.nextSendAt&&job.nextSendAt>now?Math.round((job.nextSendAt-now)/1000)+"s":null,
+          healthy:autoTimers.has(email)||_autoRunning.has(email),
+        });
+      }
+      const healthy=workers.filter(w=>w.healthy).length;
+      const stuck=workers.filter(w=>!w.healthy).length;
+      return json(res,200,{
+        ts:now,workers,
+        summary:{total:workers.length,healthy,stuck},
+        engineOk:stuck===0
+      });
+    }
     if(pathname==="/api/admin/live"&&req.method==="GET"){
       const now=Date.now();
       const onlineSessions=Object.values(sessions).filter(s=>s.user_email&&!s.pending&&(now-(s.created_at||0))<SESS_TTL);
@@ -3993,7 +3996,7 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
     const totalAuto=allHist.reduce((n,a)=>n+a.filter(h=>h.type==="auto").length,0);
     // Preview do ranking diário para landing page (top 5 sem dados sensíveis)
     const { list: rankPreview } = calcRanking("day", "sends", null);
-    return json(res,200,{totalUsers,vipUsers,todaySent,todayAuto,totalSent,totalAuto,trialEnabled:true,trialDays:5,rankPreview:rankPreview.slice(0,5)});
+    return json(res,200,{totalUsers,vipUsers,todaySent,todayAuto,totalSent,totalAuto,trialEnabled:DB_ADMIN_SETTINGS.newUserTrialEnabled,trialDays:DB_ADMIN_SETTINGS.newUserTrialDays,trialPlan:DB_ADMIN_SETTINGS.newUserTrialPlan,rankPreview:rankPreview.slice(0,5)});
   }
 
   // ── RANKING API ───────────────────────────────────────────
@@ -4480,7 +4483,7 @@ O H2BApply NÃO garante contratação, entrevista ou aprovação de visto — ap
 });
 
 // ── Cleanup ───────────────────────────────────────────────
-setInterval(()=>{const n=Date.now();let c=0;Object.keys(sessions).forEach(k=>{const s=sessions[k],a=n-(s.ts||s.created_at||0);if((s.pending&&a>600_000)||(!s.pending&&a>SESS_TTL)){delete sessions[k];c++;}});if(c){console.log(`[cleanup] ${c} sessão(ões)`);persistSessions();}Object.keys(rateMap).forEach(k=>{if(rateMap[k].r<Date.now())delete rateMap[k];});// Limpa locks de send órfãos (>30s)
+setInterval(()=>{const n=Date.now();let c=0;Object.keys(sessions).forEach(k=>{const s=sessions[k],a=n-(s.ts||s.created_at||0);if((s.pending&&a>600_000)||(!s.pending&&a>SESS_TTL)){delete sessions[k];c++;}});if(c)console.log(`[cleanup] ${c} sessão(ões)`);Object.keys(rateMap).forEach(k=>{if(rateMap[k].r<Date.now())delete rateMap[k];});// Limpa locks de send órfãos (>30s)
 _manualSendInFlight.forEach((ts,k)=>{if(n-ts>30000)_manualSendInFlight.delete(k);});},300_000);
 // BUG-001 CORRIGIDO: cron VIP agora suporta schema novo (manualExpires/autoExpires) E schema legado (expiresAt)
 setInterval(()=>{
