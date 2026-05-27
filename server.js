@@ -127,6 +127,7 @@ const ADMIN_SETTINGS_FILE = path.join(DATA_DIR, "admin_settings.json"); // Admin
 const NOTIF_FILE     = path.join(DATA_DIR, "notifications.json");  // Global notifications from ADM
 const REFERRAL_FILE  = path.join(DATA_DIR, "referrals.json");       // Referral tracking
 const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
+const SESSIONS_FILE   = path.join(DATA_DIR, "sessions.json");        // Sessões persistidas (sobrevive a reinícios)
 try { fs.mkdirSync(CVS_DIR, { recursive: true }); } catch {}
 
 console.log(`[boot] H2BApply v13.0 | ${APP_URL} | ${DATA_DIR}`);
@@ -250,6 +251,8 @@ function boot() {
     rebuildAppIndex();
     console.log(`[db] 🔁 índice de candidaturas reconstruído (${Object.values(DB_APP_INDEX).reduce((n,x)=>n+Object.keys(x.byThread||{}).length+Object.keys(x.byMsgId||{}).length,0)} chaves)`);
   }
+  // Restaura sessões persistidas (usuários que estavam logados antes do reinício)
+  loadSessions();
 }
 
 function persist(file, data) {
@@ -1807,6 +1810,35 @@ function reactivateAutoJobs(){
 //  SESSION
 // ══════════════════════════════════════════════════════════
 const sessions=Object.create(null);
+
+// ── Persistência de sessões (sobrevive a reinícios/deploys) ──────────────────
+// Salva sessões válidas em disco; exclui pendentes e expiradas
+function persistSessions(){
+  try{
+    const now=Date.now();
+    const out={};
+    for(const[k,s] of Object.entries(sessions)){
+      if(s.pending)continue; // não persiste sessões pendentes de OAuth
+      if((now-(s.created_at||0))>SESS_TTL)continue; // não persiste expiradas
+      out[k]=s;
+    }
+    persist(SESSIONS_FILE,out);
+  }catch(e){console.warn("[sessions] Erro ao persistir:",e.message);}
+}
+function loadSessions(){
+  try{
+    const now=Date.now();
+    const raw=load(SESSIONS_FILE,{});
+    let loaded=0;
+    for(const[k,s] of Object.entries(raw)){
+      if(!s.user_email||!s.access_token)continue;
+      if((now-(s.created_at||0))>SESS_TTL)continue; // descarta expiradas
+      sessions[k]=s;
+      loaded++;
+    }
+    if(loaded)console.log(`[sessions] ✅ ${loaded} sessão(ões) restaurada(s) do disco`);
+  }catch(e){console.warn("[sessions] Erro ao carregar:",e.message);}
+}
 const rateMap  =Object.create(null);
 const SESS_TTL =7*24*60*60*1000;
 
@@ -1893,6 +1925,8 @@ async function refreshToken(sid){
     if(s?.user_email){setUser(s.user_email,{cached_access_token:r.access_token,cached_token_expiry:Date.now()+(r.expires_in||3600)*1000});}
     // Atualiza refresh_token se veio um novo
     if(r.refresh_token&&s?.user_email){setUser(s.user_email,{refresh_token:r.refresh_token});if(s)s.refresh_token=r.refresh_token;}
+    // Persiste sessão atualizada em disco
+    persistSessions();
   }
 }
 
@@ -2601,6 +2635,7 @@ const server=http.createServer(async(req,res)=>{
         console.log("[oauth] Login:",ui.email,"| refresh_token salvo:",!!tokenData.refresh_token,"| vip:",vipStillActive?"ativo":"inativo","| Total:",Object.keys(DB_USERS).length);
       }
       const cookieStr=makeCookieStr(sid);const page=makeCallbackPage(sid);
+      persistSessions(); // persiste sessão nova em disco imediatamente
       res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Content-Length":Buffer.byteLength(page),"Set-Cookie":cookieStr,"Cache-Control":"no-cache, no-store"});
       return res.end(page);
     }catch(e){return fail("Erro: "+e.message);}
@@ -2918,7 +2953,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
   }
 
   if(pathname==="/api/saved"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});if(req.method==="GET")return json(res,200,{saved:(getUser(s.user_email)||{}).saved||[]});if(req.method==="POST"){try{const d=JSON.parse(await readBody(req));setUser(s.user_email,{saved:(d.saved||[]).slice(0,500)});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}}
-  if(pathname==="/api/disconnect"){const id=getSessId(req);if(id&&sessions[id])delete sessions[id];res.writeHead(200,{"Content-Type":"application/json","Set-Cookie":clearCookieStr()});return res.end('{"ok":true}');}
+  if(pathname==="/api/disconnect"){const id=getSessId(req);if(id&&sessions[id])delete sessions[id];persistSessions();res.writeHead(200,{"Content-Type":"application/json","Set-Cookie":clearCookieStr()});return res.end('{"ok":true}');}
 
   // ── TEMPLATES ─────────────────────────────────────────
   if(pathname==="/api/templates"&&req.method==="GET"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const p=getUser(s.user_email)||{};return json(res,200,{templates:p.templates||[]});}
@@ -4445,7 +4480,7 @@ O H2BApply NÃO garante contratação, entrevista ou aprovação de visto — ap
 });
 
 // ── Cleanup ───────────────────────────────────────────────
-setInterval(()=>{const n=Date.now();let c=0;Object.keys(sessions).forEach(k=>{const s=sessions[k],a=n-(s.ts||s.created_at||0);if((s.pending&&a>600_000)||(!s.pending&&a>SESS_TTL)){delete sessions[k];c++;}});if(c)console.log(`[cleanup] ${c} sessão(ões)`);Object.keys(rateMap).forEach(k=>{if(rateMap[k].r<Date.now())delete rateMap[k];});// Limpa locks de send órfãos (>30s)
+setInterval(()=>{const n=Date.now();let c=0;Object.keys(sessions).forEach(k=>{const s=sessions[k],a=n-(s.ts||s.created_at||0);if((s.pending&&a>600_000)||(!s.pending&&a>SESS_TTL)){delete sessions[k];c++;}});if(c){console.log(`[cleanup] ${c} sessão(ões)`);persistSessions();}Object.keys(rateMap).forEach(k=>{if(rateMap[k].r<Date.now())delete rateMap[k];});// Limpa locks de send órfãos (>30s)
 _manualSendInFlight.forEach((ts,k)=>{if(n-ts>30000)_manualSendInFlight.delete(k);});},300_000);
 // BUG-001 CORRIGIDO: cron VIP agora suporta schema novo (manualExpires/autoExpires) E schema legado (expiresAt)
 setInterval(()=>{
