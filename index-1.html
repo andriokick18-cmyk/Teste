@@ -2018,20 +2018,15 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             </select>
             <select class="fsel" id="log-category" onchange="loadLogs()" style="height:34px">
               <option value="">Todas categorias</option>
-              <option value="driver">🚛 Driver</option>
               <option value="landscape">🌿 Landscape</option>
               <option value="construction">🏗️ Construction</option>
               <option value="housekeeper">🏨 Housekeeper</option>
-              <option value="food">🍽️ Food Service</option>
-              <option value="cleaning">🧹 Cleaning</option>
-              <option value="warehouse">📦 Warehouse</option>
               <option value="seafood">🦞 Seafood</option>
               <option value="farm">🌾 Farm</option>
               <option value="golf">⛳ Golf</option>
               <option value="amusement">🎡 Amusement</option>
               <option value="forest">🌲 Forest</option>
               <option value="lifeguard">🏊 Lifeguard</option>
-              <option value="ski">⛷️ Ski Resort</option>
               <option value="other">📋 Outros</option>
             </select>
             <button class="btn btn-secondary btn-sm" onclick="exportLogs()"><i class="ti ti-download"></i> CSV</button>
@@ -3296,7 +3291,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <button class="cat-chip" data-pcat="construction"    onclick="setPickerCat('construction')">Construção</button>
         <button class="cat-chip" data-pcat="landscape"       onclick="setPickerCat('landscape')">Jardim</button>
         <button class="cat-chip" data-pcat="cleaning"        onclick="setPickerCat('cleaning')">Limpeza</button>
-        <button class="cat-chip" data-pcat="food"           onclick="setPickerCat('food')">Food Service</button>
+        <button class="cat-chip" data-pcat="restaurant"      onclick="setPickerCat('restaurant')">Restaurante</button>
         <button class="cat-chip" data-pcat="warehouse"       onclick="setPickerCat('warehouse')">Depósito</button>
         <button class="cat-chip" data-pcat="farm"            onclick="setPickerCat('farm')">Fazenda</button>
       </div>
@@ -3432,20 +3427,18 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <label>Categorias de vaga <span style="color:var(--t3);font-weight:400">(vazio = todas)</span></label>
           <div style="font-size:11px;color:var(--t3);margin-bottom:7px">Selecione as categorias para as quais este perfil será usado automaticamente</div>
           <div id="pe-cats-grid" style="display:flex;flex-wrap:wrap;gap:6px">
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="driver" style="accent-color:var(--blue)"> 🚛 Driver</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="landscape" style="accent-color:var(--blue)"> 🌿 Landscape</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="construction" style="accent-color:var(--blue)"> 🏗️ Construction</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="housekeeper" style="accent-color:var(--blue)"> 🏨 Housekeeper</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="food" style="accent-color:var(--blue)"> 🍽️ Food Service</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="cleaning" style="accent-color:var(--blue)"> 🧹 Cleaning</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="warehouse" style="accent-color:var(--blue)"> 📦 Warehouse</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="seafood" style="accent-color:var(--blue)"> 🦞 Seafood</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="farm" style="accent-color:var(--blue)"> 🌾 Farm (H-2A)</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="farm" style="accent-color:var(--blue)"> 🌾 Farm</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="golf" style="accent-color:var(--blue)"> ⛳ Golf</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="amusement" style="accent-color:var(--blue)"> 🎡 Amusement</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="forest" style="accent-color:var(--blue)"> 🌲 Forest</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="restaurant" style="accent-color:var(--blue)"> 🍽️ Restaurant</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="cleaning" style="accent-color:var(--blue)"> 🧹 Cleaning</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="lifeguard" style="accent-color:var(--blue)"> 🏊 Lifeguard</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="ski" style="accent-color:var(--blue)"> ⛷️ Ski Resort</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="forest" style="accent-color:var(--blue)"> 🌲 Forest</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="warehouse" style="accent-color:var(--blue)"> 📦 Warehouse</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="other" style="accent-color:var(--blue)"> 📋 Outros</label>
           </div>
         </div>
@@ -4918,7 +4911,7 @@ const BUILTIN_TEMPLATES=[
   {id:"bt-construction",name:"Construction",category:"construction",subject:"Construction Worker Application – {nome}",body:`Dear Hiring Manager,\n\nI am applying for the {vaga} position at {empresa}. I am physically fit, experienced with construction tools and safety protocols, and ready to work hard from day one.\n\nAvailable for full season. References available upon request.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
   {id:"bt-landscape",name:"Landscape / Jardinagem",category:"landscape",subject:"Landscaping Application – {nome} – {vaga}",body:`Dear {empresa},\n\nI would like to apply for the {vaga} position. I have experience in lawn care, planting, irrigation, and general landscaping tasks. I am hardworking and comfortable with outdoor work in all conditions.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
   {id:"bt-cleaning",name:"Cleaning / Housekeeping",category:"cleaning",subject:"Cleaning Staff Application – {nome}",body:`Dear Hiring Manager,\n\nI am interested in the {vaga} position at {empresa}. I am thorough, efficient, and experienced in commercial and residential cleaning. I take pride in maintaining high standards of cleanliness.\n\nAvailable immediately.\n\n{nome}\n{telefone} | {email}`},
-  {id:"bt-restaurant",name:"Restaurant / Food Service",category:"food",subject:"Food Service Application – {nome} – {vaga}",body:`Dear {empresa} Team,\n\nI am applying for the {vaga} position. I have experience in food preparation, kitchen assistance, and customer service. I work well under pressure and thrive in fast-paced environments.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
+  {id:"bt-restaurant",name:"Restaurant / Food Service",category:"restaurant",subject:"Food Service Application – {nome} – {vaga}",body:`Dear {empresa} Team,\n\nI am applying for the {vaga} position. I have experience in food preparation, kitchen assistance, and customer service. I work well under pressure and thrive in fast-paced environments.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
   {id:"bt-warehouse",name:"Warehouse / Depósito",category:"warehouse",subject:"Warehouse Worker Application – {nome}",body:`Dear Hiring Manager,\n\nI am applying for the {vaga} role at {empresa}. I am experienced in warehouse operations including loading, unloading, inventory management, and forklift operation. I am reliable and physically capable.\n\n{nome}\n{telefone} | {email}`},
   {id:"bt-farm",name:"Farm / Agricultura",category:"farm",subject:"Farm Worker Application – {nome}",body:`Dear {empresa},\n\nI am interested in the {vaga} position. I have experience in agricultural work including planting, harvesting, and equipment operation. I am hardworking, dependable, and available for the full season.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
   {id:"bt-beginner",name:"Iniciante (sem experiência)",category:"general",subject:"Entry Level Application – {nome} – {vaga}",body:`Dear Hiring Manager,\n\nI am applying for the {vaga} position at {empresa}. Although I am new to this field, I am a fast learner, highly motivated, and committed to giving my best effort every single day.\n\nI am available immediately and willing to work any schedule.\n\nThank you,\n{nome}\n{telefone} | {email}`},
@@ -5003,7 +4996,7 @@ function renderTplList(){
   });
   const list=g("#tpl-list");if(!list)return;
   if(!filtered.length){list.innerHTML='<div class="empty-state"><i class="ti ti-template"></i><p>Nenhum modelo encontrado</p></div>';return;}
-  const catIcons={general:"✉️",driver:"🚛",hospitality:"🏨",construction:"🔨",landscape:"🌿",cleaning:"🧹",food:"🍽️",warehouse:"📦",seafood:"🦞",farm:"🌾",golf:"⛳",amusement:"🎡",forest:"🌲",lifeguard:"🏊",ski:"⛷️",housekeeper:"🏨",other:"📝"};
+  const catIcons={general:"✉️",hospitality:"🏨",construction:"🔨",landscape:"🌿",cleaning:"🧹",restaurant:"🍽️",warehouse:"📦",farm:"🌾",other:"📝"};
   list.innerHTML=filtered.map(t=>`
     <div class="tpl-card${t.id===tplCurId?" sel":""}${t._builtin?" builtin":""}" onclick="selectTpl('${t.id}',${t._builtin})">
       <div class="tpl-card-icon">${catIcons[t.category]||"✉️"}</div>

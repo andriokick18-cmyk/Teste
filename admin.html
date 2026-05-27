@@ -320,9 +320,6 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
           <button onclick="adminFixAuto()" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(79,70,229,.08));border:1.5px solid rgba(99,102,241,.35);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:#a78bfa;cursor:pointer;font-family:inherit;transition:all .14s" title="Diagnostica e repara automáticos travados de todos os usuários">
             <i class="ti ti-tool" style="font-size:15px"></i> 🔧 Fix Auto Geral
           </button>
-          <button onclick="checkEngineHealth()" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.3);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:var(--green);cursor:pointer;font-family:inherit" title="Verificar saúde de todos os workers agora">
-            <i class="ti ti-heartbeat" style="font-size:15px"></i> ⚡ Engine Health
-          </button>
           <button onclick="showView('robot')" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(139,92,246,.06));border:1.5px solid rgba(167,139,250,.25);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:#a78bfa;cursor:pointer;font-family:inherit">
             <i class="ti ti-robot" style="font-size:15px"></i> 🤖 Robô de Teste
           </button>
@@ -4455,31 +4452,6 @@ async function downloadLogs(fmt='claude', filter='all'){
     alert('Erro ao baixar: ' + e.message);
   } finally {
     if(btn){ btn.disabled=false; btn.style.opacity='1'; }
-  }
-}
-
-async function checkEngineHealth(){
-  try {
-    const r = await fetch('/api/admin/engine-health', {credentials:'include'});
-    const d = await r.json();
-    const {workers, summary} = d;
-    let msg = `⚡ ENGINE HEALTH\n\n`;
-    msg += `Total workers ativos: ${summary.total}\n`;
-    msg += `✅ Saudáveis: ${summary.healthy}\n`;
-    msg += `🚨 Travados: ${summary.stuck}\n\n`;
-    if(summary.stuck > 0){
-      const stuck = workers.filter(w=>!w.healthy);
-      msg += `WORKERS TRAVADOS:\n`;
-      stuck.forEach(w => msg += `• ${w.email}\n  Status: ${w.status} | Timer: ${w.hasTimer?'✅':'❌ MORTO'} | Running: ${w.isRunning?'✅':'❌'}\n`);
-    } else {
-      msg += `✅ Todos os workers estão funcionando corretamente!`;
-    }
-    alert(msg);
-    if(summary.stuck > 0 && confirm('Deseja executar Fix Auto para reparar os workers travados?')){
-      adminFixAuto();
-    }
-  } catch(e) {
-    alert('Erro: ' + e.message);
   }
 }
 

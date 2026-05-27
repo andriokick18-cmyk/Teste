@@ -1,14 +1,23 @@
 // ═══════════════════════════════════════════════════════════
-//  H2BApply v15 — Motor de envio automático para vagas H-2B/H-2A
+//  H2BApply v13.1 — Motor de envio automático profissional
+//  [REESTRUTURADO: calcStreak/last7Days/inRankPeriod/calcRanking
+//   movidas para escopo global; flushAll completo no shutdown]
 //
 //  PLANOS:
-//    free  → 20 manual + 10 auto /dia   (Grátis)
-//    vip   → 300 manual + 50 auto /dia  (R$89,90)
-//    vipro → 300 manual + 200 auto /dia (R$149,90)
-//    pro   → igual vipro (legado — não vender mais)
+//    free   → 20 manual + 10 auto /dia
+//    vip    → 400 manual + 10 auto /dia  (R$49,90)
+//    pro    → 300 manual + 200 auto /dia  (R$119,90)
+//    vipro  → 400 manual + 200 auto /dia (R$149,90)
 //
-//  TRIAL: 5 dias VIPro para novos usuários
-//  (permite testar o automático com 200 envios/dia)
+//  NOVIDADES v13:
+//    • Envio automático STREAMING (começa imediatamente)
+//    • Logs completos com status detalhado
+//    • Filtros dinâmicos por categoria de serviço
+//    • Painel de logs profissional + exportação CSV
+//    • Dashboard em tempo real
+//    • Recuperação automática após queda
+//    • Migração automática de dados antigos
+//    • IDs únicos por candidatura (appId) + índice de vinculação
 // ═══════════════════════════════════════════════════════════
 "use strict";
 const http   = require("http");
@@ -44,14 +53,14 @@ console.log(`[boot] Push VAPID: ${PUSH_ENABLED?"✅ configurado":"⚠️  desati
 // ── Planos ────────────────────────────────────────────────
 // Planos ativos:
 //   free  → 20 manual + 10 auto /dia (Grátis)
-//   vip   → 300 manual + 50 auto /dia  (R$89,90)
+//   vip   → 400 manual + 10 auto /dia (R$99,90)
 //   vipro → 300 manual + 200 auto /dia (R$149,90)
-// Plano "pro" = legado, mesmo limite do vipro. Não vender mais.
+// Plano "pro" removido — usuários legados recebem limites de vipro automaticamente
 const PLAN_LIMITS = {
-  free:  { manual: 20,  auto: 10  },  // Grátis
-  vip:   { manual: 300, auto: 50  },  // R$89,90
-  pro:   { manual: 300, auto: 200 },  // Legado — mesmo do vipro
-  vipro: { manual: 300, auto: 200 },  // R$149,90 — completo
+  free:  { manual: 20,  auto: 10  },
+  vip:   { manual: 400, auto: 10  },
+  pro:   { manual: 300, auto: 200 }, // legado — mesmo limite do vipro
+  vipro: { manual: 300, auto: 200 },
 };
 // Intervalos base (substituídos pelo cálculo inteligente)
 const AUTO_INTERVAL_MIN = 180_000; // 3 min fallback
@@ -118,9 +127,83 @@ const ADMIN_SETTINGS_FILE = path.join(DATA_DIR, "admin_settings.json"); // Admin
 const NOTIF_FILE     = path.join(DATA_DIR, "notifications.json");  // Global notifications from ADM
 const REFERRAL_FILE  = path.join(DATA_DIR, "referrals.json");       // Referral tracking
 const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
+const BAD_LEADS_FILE = path.join(DATA_DIR, "bad_leads.json");       // v14: banco global de leads ruins
 try { fs.mkdirSync(CVS_DIR, { recursive: true }); } catch {}
 
-console.log(`[boot] H2BApply v15.0 | ${APP_URL} | ${DATA_DIR} | Planos: free/vip/vipro`);
+// ══════════════════════════════════════════════════════════
+//  v14 — CLASSIFICADOR DE ERROS DE ENVIO
+//  Separa erros permanentes (hard bounce) de temporários
+//  Evita desperdiçar limite diário em leads ruins
+// ══════════════════════════════════════════════════════════
+
+// Padrões de ERRO PERMANENTE — nunca tentar novamente
+const PERM_ERROR_PATTERNS = [
+  /550.*user.*unknown/i, /550.*no.*such.*user/i, /550.*invalid.*recipient/i,
+  /550.*mailbox.*not.*found/i, /550.*does.*not.*exist/i, /550.*bad.*destination/i,
+  /551.*user.*not.*local/i, /553.*mailbox.*name.*not.*allowed/i,
+  /554.*delivery.*error/i, /554.*invalid.*address/i,
+  /user unknown/i, /no.*such.*user/i, /mailbox.*not.*found/i,
+  /invalid.*recipient/i, /recipient.*rejected/i, /address.*rejected/i,
+  /does.*not.*exist/i, /account.*does.*not.*exist/i, /account.*disabled/i,
+  /account.*suspended/i, /domain.*not.*found/i, /nxdomain/i,
+  /undeliverable.*address/i, /permanent.*failure/i, /hard.*bounce/i,
+  /technical details of permanent failure/i,
+  /The email account that you tried to reach does not exist/i,
+];
+
+// Padrões de ERRO TEMPORÁRIO — retry com backoff
+const TEMP_ERROR_PATTERNS = [
+  /rateLimitExceeded/i, /userRateLimitExceeded/i, /User-rate limit/i,
+  /Too Many Requests/i, /429/,
+  /Service Unavailable/i, /503/, /502/, /500/,
+  /Connection reset/i, /ECONNRESET/i, /ETIMEDOUT/i, /ENOTFOUND/i,
+  /timeout/i, /temporarily/i, /try again/i,
+  /Quota exceeded/i, /Daily.*limit/i,
+];
+
+/**
+ * Classifica um erro de envio em: "permanent" | "transient" | "unknown"
+ * permanent → nunca tentar novamente, não consome slot diário
+ * transient  → retry com backoff, não marca lead como ruim
+ * unknown   → retry limitado, log detalhado
+ */
+function classifyError(errMsg) {
+  const msg = String(errMsg || "");
+  if (PERM_ERROR_PATTERNS.some(p => p.test(msg))) return "permanent";
+  if (TEMP_ERROR_PATTERNS.some(p => p.test(msg)))  return "transient";
+  return "unknown";
+}
+
+// ══════════════════════════════════════════════════════════
+//  BANCO GLOBAL DE LEADS RUINS — persiste entre sessões
+//  Estrutura: { email → { status, failures, lastTry, errorType, firstFailAt } }
+// ══════════════════════════════════════════════════════════
+let DB_BAD_LEADS = {}; // carregado no boot
+
+function isBadLead(email) {
+  const rec = DB_BAD_LEADS[email];
+  if (!rec) return false;
+  // Considera ruim apenas se teve falha permanente OU 3+ falhas desconhecidas
+  return rec.status === "permanent" || (rec.failures >= 3 && rec.status === "unknown");
+}
+
+function markBadLead(email, errorType, errMsg) {
+  const now = Date.now();
+  const rec = DB_BAD_LEADS[email] || { failures: 0, firstFailAt: now };
+  DB_BAD_LEADS[email] = {
+    ...rec,
+    status:    errorType, // "permanent" | "unknown"
+    failures:  rec.failures + 1,
+    lastTry:   now,
+    lastError: String(errMsg || "").slice(0, 200),
+  };
+  persistDebounced(BAD_LEADS_FILE, DB_BAD_LEADS, 3000);
+  console.log(`[bad-leads] ⛔ ${email} marcado como ${errorType} (falhas: ${DB_BAD_LEADS[email].failures})`);
+}
+
+function persistBadLeads() { persist(BAD_LEADS_FILE, DB_BAD_LEADS); }
+
+console.log(`[boot] H2BApply v13.0 | ${APP_URL} | ${DATA_DIR}`);
 console.log(`[boot] Disk: ${fs.existsSync("/data") ? "✅ /data" : "⚠️  /tmp"}`);
 
 // ══════════════════════════════════════════════════════════
@@ -138,7 +221,7 @@ let DB_CODES  = {};   // NEW: promo codes { code → { manualDays, autoDays, cre
 let DB_PUSH   = {};   // NEW: push subscriptions { userEmail → PushSubscription[] }
 // NEW v13: índice de candidaturas — { userEmail → { byThread:{tid:appId}, byMsgId:{mid:appId}, byTo:{email:[appId,...]} } }
 let DB_APP_INDEX = {};
-let DB_ADMIN_SETTINGS = { newUserTrialEnabled: true, newUserTrialDays: 5, newUserTrialPlan: "vipro" };
+let DB_ADMIN_SETTINGS = { newUserTrialEnabled: true, newUserTrialDays: 5, newUserTrialPlan: "vip" };
 // Notifications: { notifications: [{id, title, body, createdAt, createdBy, readBy:[email,...]}] }
 let DB_NOTIF = { notifications: [] };
 // Referrals: { byCode: { code → {ownerEmail, createdAt} }, byEmail: { email → {code, referredBy, joinedAt, paidAt, bonusPaid} } }
@@ -148,7 +231,6 @@ let DB_SUGGESTIONS = []; // Array de sugestões dos usuários
 // ── Gemini Chat ─────────────────────────────────────────
 // Limite global de 1500 mensagens/dia para TODOS os usuários
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
-console.log(`[boot] Gemini AI Chat: ${GEMINI_API_KEY?"✅ configurado":"⚠️  desativado (configure GEMINI_API_KEY para ativar o chat de IA)"}`);
 const GEMINI_DAILY_LIMIT = parseInt(process.env.GEMINI_DAILY_LIMIT || "1500", 10);
 const GEMINI_USER_DAILY_LIMIT = Math.floor(GEMINI_DAILY_LIMIT / 50); // 1500 ÷ 50 usuários = 30/dia por usuário
 let _geminiCount = { date: "", count: 0 }; // contador global em memória (reseta à meia-noite)
@@ -198,7 +280,6 @@ function boot() {
   DB_ALERTS = load(ALERTS_FILE, {});
   DB_LOGS   = load(LOGS_FILE, {});
   DB_JOURNEY = load(JOURNEY_FILE, {});
-  loadSessions(); // restaurar sessões após crash/restart
   DB_CODES  = load(CODES_FILE, {});
   DB_PUSH   = load(PUSH_FILE, {});
   DB_APP_INDEX = load(APPIDX_FILE, {});
@@ -209,6 +290,8 @@ function boot() {
   DB_NOTIF    = load(NOTIF_FILE,    { notifications: [] });
   DB_SUGGESTIONS = load(SUGGESTIONS_FILE, []);
   if(!Array.isArray(DB_SUGGESTIONS)) DB_SUGGESTIONS = [];
+  // v14: banco de leads ruins
+  DB_BAD_LEADS = load(BAD_LEADS_FILE, {});
   const rawRef = load(REFERRAL_FILE, { byCode: {}, byEmail: {} });
   DB_REFERRAL = {
     byCode:  (rawRef.byCode  && typeof rawRef.byCode  === 'object') ? rawRef.byCode  : {},
@@ -246,24 +329,8 @@ function boot() {
 }
 
 function persist(file, data) {
-  // Escrita assíncrona para não bloquear o event loop
-  // Usa arquivo .tmp + rename para atomicidade
-  const json = JSON.stringify(data, null, 2);
-  const tmp = file + ".tmp";
-  fs.writeFile(tmp, json, "utf8", (err) => {
-    if(err){ console.warn("[db/write]", file, err.message); return; }
-    fs.rename(tmp, file, (err2) => {
-      if(err2){ console.warn("[db/rename]", file, err2.message);
-        // fallback: tentar escrever direto
-        fs.writeFile(file, json, "utf8", ()=>{});
-      }
-    });
-  });
-}
-function persistSync(file, data) {
-  // Usar APENAS no shutdown (SIGTERM/SIGINT) — nunca em path crítico
   try { const t=file+".tmp"; fs.writeFileSync(t,JSON.stringify(data,null,2),"utf8"); fs.renameSync(t,file); }
-  catch(e) { console.warn("[db/sync]",e.message); try{fs.writeFileSync(file,JSON.stringify(data,null,2));}catch{} }
+  catch(e) { console.warn("[db]",e.message); try{fs.writeFileSync(file,JSON.stringify(data,null,2));}catch{} }
 }
 function persistSent() {
   const out={};for(const[k,v]of Object.entries(DB_SENT))out[k]=[...v];persist(SENT_FILE,out);
@@ -281,7 +348,7 @@ const getHist    = e => DB_HIST[e]||[];
 const addHist    = (e,entry) => { if(!DB_HIST[e])DB_HIST[e]=[]; DB_HIST[e].unshift(entry); if(DB_HIST[e].length>2000)DB_HIST[e]=DB_HIST[e].slice(0,2000); invalidateUserStatsCache(e); persistDebounced(HIST_FILE,DB_HIST,1500); };
 const delHist    = e => { delete DB_HIST[e]; persist(HIST_FILE,DB_HIST); };
 const getAutoJob = e => DB_AUTO[e]||null;
-const setAutoJob = (e,d) => { DB_AUTO[e]={...(DB_AUTO[e]||{}),...d}; persistDebounced(AUTO_FILE,DB_AUTO,800); };
+const setAutoJob = (e,d) => { DB_AUTO[e]={...(DB_AUTO[e]||{}),...d}; persist(AUTO_FILE,DB_AUTO); };
 const delAutoJob = e => { delete DB_AUTO[e]; persist(AUTO_FILE,DB_AUTO); };
 // ══════════════════════════════════════════════════════════
 // REGRA PRINCIPAL — Anti-duplicata absoluta
@@ -1173,12 +1240,21 @@ function updateAutoStats(email, delta) {
   autoStats.set(email, { ...s, ...delta });
 }
 
-const _autoRunning = new Set(); // Guard contra execução paralela
-
 function scheduleAuto(email) {
+  // Guard: nunca deixar exceção matar o timer silenciosamente
+  try {
+    _scheduleAutoInner(email);
+  } catch(e) {
+    console.error(`[auto/sched] EXCEÇÃO em scheduleAuto(${email}):`, e.message);
+    // Reagenda em 5min para recuperar automaticamente
+    autoTimers.set(email, setTimeout(() => scheduleAuto(email), 5 * 60_000));
+  }
+}
+
+function _scheduleAutoInner(email) {
   if(autoTimers.has(email))clearTimeout(autoTimers.get(email));
   const job=getAutoJob(email);
-  if(!job||!job.active||!job.queue?.length){autoTimers.delete(email);_autoRunning.delete(email);return;}
+  if(!job||!job.active||!job.queue?.length){autoTimers.delete(email);return;}
 
   const mode = job.mode || "schedule"; // "now" | "schedule"
   const startH = job.startH !== undefined ? job.startH : AUTO_START_H_DEFAULT;
@@ -1390,13 +1466,6 @@ async function doAutoSend(email) {
 }
 
 async function _doAutoSendInner(email) {
-  // Guard: evitar execução paralela do mesmo worker
-  if(_autoRunning.has(email)){
-    console.warn(`[auto/guard] ${email} já está executando — ignorando chamada dupla`);
-    return;
-  }
-  _autoRunning.add(email);
-  try {
   // Sempre relê o job do banco — nunca usa objeto em cache
   const job = getAutoJob(email);
   if (!job || !job.active) { autoTimers.delete(email); return; }
@@ -1405,9 +1474,17 @@ async function _doAutoSendInner(email) {
   let queue = (job.queue || []).map(item => Object.assign({}, item)); // cópia profunda rasa
   let target = null;
 
-  // Pula duplicatas da fila
+  // Pula duplicatas e leads ruins da fila
   while (queue.length > 0) {
     const candidate = queue[0];
+
+    // v14: pula bad leads globais (hard bounce, domínio inexistente etc.)
+    // NÃO consome slot do limite diário
+    if (isBadLead((candidate.to||"").toLowerCase().trim())) {
+      addLog(email, { status:"pulado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:`Lead inválido (histórico global de bounce): "${candidate.to}"` });
+      queue.shift(); continue;
+    }
+
     if (!hasSent(email, candidate.to)) {
       // v15-SEC: auto dedup + validação robusta + self-send guard
       const _ce = parseEmail(candidate.to||"");
@@ -1427,14 +1504,20 @@ async function _doAutoSendInner(email) {
   }
 
   if (!target || queue.length === 0) {
-    setAutoJob(email, { ...job, active:false, queue:[], finishedAt:Date.now(), status:"finished" });
-    autoTimers.delete(email);
-    _autoRunning.delete(email);
-    addLog(email, { status:"sistema", jobTitle:"Fila finalizada", company:`Total: ${job.originalCount||0} vagas processadas` });
-    console.log(`[auto] ${email} finalizado`);
-    // 🔔 Notifica o usuário por email que a fila terminou
-    sendNotifEmail(email, "finished").catch(e => console.warn("[notif/finished]", e.message));
-    return;
+    // v14 FIX: fila vazia NÃO finaliza o job permanentemente.
+    // Mantém active=true e status="queue_empty".
+    // O watchdog pode reativar quando novas vagas forem adicionadas.
+    // O usuário pode religar manualmente a qualquer momento.
+    if (!target && queue.length === 0) {
+      setAutoJob(email, { ...job, active:false, queue:[], finishedAt:Date.now(), status:"finished" });
+      autoTimers.delete(email);
+      addLog(email, { status:"sistema", jobTitle:"Fila finalizada", company:`Total: ${job.originalCount||0} vagas processadas` });
+      console.log(`[auto] ${email} finalizado`);
+      // 🔔 Notifica o usuário por email que a fila terminou
+      sendNotifEmail(email, "finished").catch(e => console.warn("[notif/finished]", e.message));
+      return;
+    }
+    // target existe mas queue foi zerada — continua enviando o target normalmente
   }
 
   // Remove target da fila e salva ANTES de tentar envio (evita reprocessamento em crash)
@@ -1725,14 +1808,27 @@ async function _doAutoSendInner(email) {
       updateAutoStats(email, { sent:(getAutoStats(email).sent||0)+1, startedAt:getAutoStats(email).startedAt||Date.now() });
       // ✅ Heartbeat: registra atividade para o watchdog
       { const h=getHealth(email); h.lastSent=Date.now(); h.errors=0; h.stalledAt=null; h.status="ok"; }
+      // Limpa _rl_* keys do job para o destinatário atual (evita crescimento infinito do objeto)
+      { const _cj=getAutoJob(email); if(_cj){ const _rlKey="_rl_"+(target.to||"").replace(/[^a-z0-9]/gi,""); if(_cj[_rlKey]){ const {[_rlKey]:_rm,..._rest}=_cj; setAutoJob(email,_rest); } } }
       console.log(`[auto] ✅ ${email} → ${target.to} anexos=${attachments.length} [${appId}]`);
       sendOk = true;
       break;
 
     } catch(e) {
       const errMsg = String(e.message);
+      const errClass = classifyError(errMsg); // v14: "permanent" | "transient" | "unknown"
       const isRateLimit = errMsg.includes("rateLimitExceeded") || errMsg.includes("userRateLimitExceeded") || errMsg.includes("User-rate limit");
-      const isTransient = isRateLimit || errMsg.includes("500") || errMsg.includes("503") || errMsg.includes("Service Unavailable");
+      const isTransient = errClass === "transient" || isRateLimit || errMsg.includes("500") || errMsg.includes("503") || errMsg.includes("Service Unavailable");
+
+      // ── ERRO PERMANENTE: marca lead como ruim, NÃO consome retry nem limite ──
+      if (errClass === "permanent") {
+        markBadLead(target.to, "permanent", errMsg);
+        addLog(email, { ...logEntry, status:"bounce_permanente", error:`Hard bounce (${errMsg.slice(0,120)}) — lead marcado como inválido permanentemente`, profileUsed:selectedProfile?.name||"", attachCount:attachments.length, attempt:retryCount+1 });
+        trackJourney(email,'auto_fail',{ok:false,error:`Hard bounce: ${target?.to||"?"}`,detail:`Permanente: ${target?.company||"?"}`,meta:{to:target?.to}});
+        console.warn(`[auto] ⛔ Hard bounce ${email} → ${target.to}: ${errMsg.slice(0,80)}`);
+        // NÃO incrementa failed no stats (não foi "falha", foi lead ruim)
+        break; // sai do retry, avança para próxima vaga
+      }
 
       if (isRateLimit) {
         // ── RATE LIMIT GMAIL: respeitar o "Retry after" ─────────────────
@@ -1768,6 +1864,12 @@ async function _doAutoSendInner(email) {
         await new Promise(r => setTimeout(r, 8000 * retryCount));
         continue;
       }
+
+      // Erro desconhecido: acumula falhas no lead, mas permite retry posterior
+      if (errClass === "unknown") {
+        markBadLead(target.to, "unknown", errMsg);
+      }
+
       addLog(email, { ...logEntry, status:"falhou", error:errMsg, profileUsed:selectedProfile?.name||"", subjectUsed:(subject||"").slice(0,120), attachCount:attachments.length, attempt:retryCount+1 });
       trackJourney(email,'auto_fail',{ok:false,error:errMsg,detail:`Falha: ${target?.company||"?"} → ${target?.to||"?"}`,meta:{to:target?.to}});
       updateAutoStats(email, { failed:(getAutoStats(email).failed||0)+1 });
@@ -1781,22 +1883,6 @@ async function _doAutoSendInner(email) {
   const interval = calcSmartInterval();
   setAutoJob(email, { ...updJob, status:"waiting_interval", nextSendAt:Date.now()+interval });
   autoTimers.set(email, setTimeout(() => scheduleAuto(email), interval));
-  } catch(outerErr) {
-    // Erro NUNCA deve matar o engine silenciosamente
-    console.error(`[auto/FATAL] ${email}:`, outerErr.message, outerErr.stack?.split("\n")[1]||"");
-    addLog(email, { status:"falhou", jobTitle:"[ENGINE ERROR] " + outerErr.message.slice(0,100), company:"Sistema", error: outerErr.message });
-    trackJourney(email, 'auto_fail', { ok:false, error:outerErr.message, detail:"Erro fatal no engine — reagendando", critical:true });
-    // Reagendar para tentar recuperar — espera 2 min
-    const recoverMs = 2 * 60 * 1000;
-    const recJob = getAutoJob(email);
-    if(recJob && recJob.active) {
-      setAutoJob(email, { ...recJob, status:"recovering", nextSendAt:Date.now()+recoverMs });
-      autoTimers.set(email, setTimeout(() => scheduleAuto(email), recoverMs));
-      console.warn(`[auto/RECOVER] ${email} reagendado em 2min após erro fatal`);
-    }
-  } finally {
-    _autoRunning.delete(email); // sempre limpa o guard
-  }
 }
 
 const genSubject=title=>{const pfx=["Application for","Interest in","Applying for","H-2B Application:","Candidature for"];return`${pfx[Math.floor(Math.random()*pfx.length)]} ${title}`;};
@@ -1818,7 +1904,28 @@ const fillTpl=(tpl,v)=>(tpl||"")
   .replace(/{start}/g,      v.inicio||"");
 
 function reactivateAutoJobs(){
-  let n=0;for(const[email,job]of Object.entries(DB_AUTO)){if(job.active&&job.queue?.length>0){scheduleAuto(email);n++;}}
+  let n=0;
+  for(const[email,job]of Object.entries(DB_AUTO)){
+    if(!job.active||!job.queue?.length) continue;
+    const waitStatuses=new Set(["waiting_rate_limit","waiting_hour","waiting_limit","waiting_interval"]);
+    const hasNextSend = job.nextSendAt && job.nextSendAt > Date.now();
+    if(waitStatuses.has(job.status) && hasNextSend){
+      // Respeita o delay original — não dispara imediatamente
+      const delay = Math.max(1000, job.nextSendAt - Date.now());
+      console.log(`[auto] reativado com delay ${Math.round(delay/1000)}s para ${email} (status:${job.status})`);
+      autoTimers.set(email, setTimeout(()=>scheduleAuto(email), delay));
+    } else if(job.status === "sending") {
+      // v14: crash durante envio — limpa lock e reagenda imediatamente
+      // (o item já foi removido da fila antes do crash, então não haverá duplicata)
+      console.log(`[auto] reativado após crash-durante-envio para ${email}`);
+      autoSendLock.delete(email); // limpa qualquer lock residual
+      setAutoJob(email, { ...job, status:"waiting_interval" }); // normaliza status
+      autoTimers.set(email, setTimeout(()=>scheduleAuto(email), 10_000)); // aguarda 10s
+    } else {
+      scheduleAuto(email);
+    }
+    n++;
+  }
   if(n)console.log(`[auto] ${n} job(s) reativados`);
 }
 
@@ -1836,74 +1943,7 @@ const getSessId=req=>{const m=(req.headers.cookie||"").match(/(?:^|;\s*)h2b_sess
 const getSess  =req=>{const id=getSessId(req);return id?sessions[id]:null;};
 
 function makeCallbackPage(sessId){
-  // FIX-LOOP-001: confirma cookie via /api/status ANTES de redirecionar.
-  // Proteção contra loop: sessionStorage conta tentativas.
-  return`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Entrando...</title>
-<style>
-body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;font-family:sans-serif;color:#fff}
-.box{text-align:center;max-width:340px;padding:0 20px}
-.spin{width:44px;height:44px;border:3px solid rgba(255,255,255,.15);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 20px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.msg{font-size:17px;font-weight:600;margin-bottom:8px}
-.sub{font-size:13px;color:rgba(255,255,255,.45)}
-.err{background:#ef444420;border:1px solid #ef4444;border-radius:10px;padding:14px 16px;font-size:13px;color:#fca5a5;margin-top:20px;display:none;text-align:left;line-height:1.6}
-.btn{margin-top:16px;padding:10px 22px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:none}
-</style>
-</head><body>
-<div class="box">
-  <div class="spin" id="spin"></div>
-  <div class="msg" id="msg">Entrando na sua conta...</div>
-  <div class="sub" id="sub">Aguarde um momento</div>
-  <div class="err" id="err"></div>
-  <button class="btn" id="btn" onclick="window.location.href='/'">Ir para o app</button>
-</div>
-<script>
-(function(){
-  var LOOP_KEY = 'h2b_cb_attempts';
-  var MAX_ATTEMPTS = 3;
-  var attempts = parseInt(sessionStorage.getItem(LOOP_KEY) || '0', 10) + 1;
-  sessionStorage.setItem(LOOP_KEY, attempts);
-
-  if (attempts > MAX_ATTEMPTS) {
-    document.getElementById('spin').style.display = 'none';
-    document.getElementById('msg').textContent = 'Problema no login detectado';
-    document.getElementById('sub').textContent = '';
-    var errEl = document.getElementById('err');
-    errEl.innerHTML =
-      '<strong>⚠️ Não foi possível completar o login.</strong><br><br>' +
-      'Tente:<br>' +
-      '1. Limpar cookies do site e tentar novamente<br>' +
-      '2. Usar navegador em modo normal (não anônimo)<br>' +
-      '3. Desativar extensões de bloqueio de cookies';
-    errEl.style.display = 'block';
-    document.getElementById('btn').style.display = 'inline-block';
-    return;
-  }
-
-  function checkAndRedirect(retries) {
-    if (retries <= 0) {
-      sessionStorage.removeItem(LOOP_KEY);
-      window.location.replace('/');
-      return;
-    }
-    fetch('/api/status', { credentials: 'include', cache: 'no-store' })
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        if (d.connected) {
-          sessionStorage.removeItem(LOOP_KEY);
-          window.location.replace('/');
-        } else {
-          setTimeout(function(){ checkAndRedirect(retries - 1); }, 400);
-        }
-      })
-      .catch(function(){
-        setTimeout(function(){ checkAndRedirect(retries - 1); }, 600);
-      });
-  }
-
-  setTimeout(function(){ checkAndRedirect(6); }, 200);
-})();
-</script></body></html>`;
+  return`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Entrando...</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;font-family:sans-serif;color:#fff}.box{text-align:center}.spin{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="box"><div class="spin"></div><div style="font-size:18px;font-weight:600">Entrando na sua conta...</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:8px">Aguarde um momento</div></div><script>setTimeout(function(){window.location.replace('/')},150);</script></body></html>`;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1958,7 +1998,8 @@ function generateIconPNG(size) {
 }
 
 function httpsReq(opts,body){return new Promise((res,rej)=>{const p=body?(typeof body==="string"?body:JSON.stringify(body)):null;const r=https.request(opts,resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{const raw=Buffer.concat(ch).toString();try{res({status:resp.statusCode,body:JSON.parse(raw)});}catch{res({status:resp.statusCode,body:raw});}});});r.on("error",rej);r.setTimeout(15000,()=>{r.destroy();rej(new Error("Timeout"));});if(p)r.write(p);r.end();});}
-function readBody(req){return new Promise((res,rej)=>{const p=[];req.on("data",c=>p.push(c));req.on("end",()=>res(Buffer.concat(p).toString()));req.on("error",rej);});}
+const MAX_BODY_SIZE = 50 * 1024 * 1024; // 50MB — suficiente para PDFs base64
+function readBody(req){return new Promise((res,rej)=>{const p=[];let sz=0;req.on("data",c=>{sz+=c.length;if(sz>MAX_BODY_SIZE){rej(new Error("Payload too large"));return;}p.push(c);});req.on("end",()=>res(Buffer.concat(p).toString()));req.on("error",rej);});}
 function json(res,status,data){const b=JSON.stringify(data);res.writeHead(status,{"Content-Type":"application/json; charset=utf-8","Content-Length":Buffer.byteLength(b)});res.end(b);}
 
 // ══════════════════════════════════════════════════════════
@@ -2322,7 +2363,7 @@ const server=http.createServer(async(req,res)=>{
     <h2>8. Contato</h2>
     <p>Para dúvidas sobre privacidade, entre em contato:</p>
     <ul>
-      <li>Contato: suporte@h2bapply.com</li>
+      <li>Email: andrio.kick18@gmail.com</li>
       <li>Instagram: <a href="https://instagram.com/andrio.k" target="_blank">@andrio.k</a></li>
       <li>WhatsApp: +55 53 98145-3496</li>
     </ul>
@@ -2423,7 +2464,7 @@ const server=http.createServer(async(req,res)=>{
 
     <h2>9. Contato</h2>
     <ul>
-      <li>Contato: suporte@h2bapply.com</li>
+      <li>Email: andrio.kick18@gmail.com</li>
       <li>Instagram: <a href="https://instagram.com/andrio.k" target="_blank">@andrio.k</a></li>
       <li>WhatsApp: +55 53 98145-3496</li>
       <li>Site: <a href="https://h2bapply.com">h2bapply.com</a></li>
@@ -2628,7 +2669,6 @@ const server=http.createServer(async(req,res)=>{
       if(!ui.email)return fail("E-mail não obtido.");
       const sid="sess_"+crypto.randomBytes(24).toString("hex");
       sessions[sid]={access_token:tk.access_token,refresh_token:tk.refresh_token||null,expires_at:Date.now()+(tk.expires_in||3600)*1000,user_email:ui.email,user_name:ui.name||ui.email,picture:ui.picture||"",created_at:Date.now()};
-      persistSessions();
       // Salva refresh_token e access_token no banco para uso pelo automático sem sessão
       const tokenData={cached_access_token:tk.access_token,cached_token_expiry:Date.now()+(tk.expires_in||3600)*1000};
       if(tk.refresh_token)tokenData.refresh_token=tk.refresh_token;
@@ -2911,8 +2951,8 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       }
       // Remove do APPLIED index
       if(jobId){
-        const idx=DB_APPIDX[s.user_email];
-        if(idx){delete idx[jobId];persist(APPIDX_FILE,DB_APPIDX);}
+        const idx=DB_APP_INDEX[s.user_email];
+        if(idx){delete idx[jobId];persist(APPIDX_FILE,DB_APP_INDEX);}
       }
       invalidateUserStatsCache(s.user_email);
       console.log(`[sent/remove] ${s.user_email} removeu vaga jobId=${jobId||"-"} caseNum=${caseNum||"-"} (${before-hist.length} entradas)`);
@@ -3533,9 +3573,13 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
           : journey;
 
         // Erros recentes (últimas 24h)
+        // Erros recentes (últimas 24h) — exclui falhas de rate limit (são esperas normais)
         const recentErrors=logs.filter(l=>
           (l.status==="falhou"||l.status==="erro_anexo")&&
-          l.ts>(now-86400000)
+          l.ts>(now-86400000)&&
+          !((l.error||"").toLowerCase().includes("rate limit")||
+            (l.error||"").toLowerCase().includes("ratelimit")||
+            (l.error||"").toLowerCase().includes("user-rate"))
         );
 
         // Determinar se deve incluir este usuário
@@ -3736,31 +3780,6 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
       return res.end(jsonStr);
     }
 
-    // ── ENGINE HEALTH CHECK ──────────────────────────────────────────────────
-    if(pathname==="/api/admin/engine-health"&&req.method==="GET"){
-      const now=Date.now();
-      const workers=[];
-      for(const[email,job] of Object.entries(DB_AUTO)){
-        if(!job.active) continue;
-        workers.push({
-          email,
-          status:job.status||"?",
-          queueSize:job.queue?.length||0,
-          isRunning:_autoRunning.has(email),
-          hasTimer:autoTimers.has(email),
-          lastSentAgo:job.lastSentAt?Math.round((now-job.lastSentAt)/1000)+"s":null,
-          nextSendIn:job.nextSendAt&&job.nextSendAt>now?Math.round((job.nextSendAt-now)/1000)+"s":null,
-          healthy:autoTimers.has(email)||_autoRunning.has(email),
-        });
-      }
-      const healthy=workers.filter(w=>w.healthy).length;
-      const stuck=workers.filter(w=>!w.healthy).length;
-      return json(res,200,{
-        ts:now,workers,
-        summary:{total:workers.length,healthy,stuck},
-        engineOk:stuck===0
-      });
-    }
     if(pathname==="/api/admin/live"&&req.method==="GET"){
       const now=Date.now();
       const onlineSessions=Object.values(sessions).filter(s=>s.user_email&&!s.pending&&(now-(s.created_at||0))<SESS_TTL);
@@ -4065,7 +4084,7 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
     const totalAuto=allHist.reduce((n,a)=>n+a.filter(h=>h.type==="auto").length,0);
     // Preview do ranking diário para landing page (top 5 sem dados sensíveis)
     const { list: rankPreview } = calcRanking("day", "sends", null);
-    return json(res,200,{totalUsers,vipUsers,todaySent,todayAuto,totalSent,totalAuto,trialEnabled:DB_ADMIN_SETTINGS.newUserTrialEnabled,trialDays:DB_ADMIN_SETTINGS.newUserTrialDays,trialPlan:DB_ADMIN_SETTINGS.newUserTrialPlan,rankPreview:rankPreview.slice(0,5)});
+    return json(res,200,{totalUsers,vipUsers,todaySent,todayAuto,totalSent,totalAuto,trialEnabled:true,trialDays:5,rankPreview:rankPreview.slice(0,5)});
   }
 
   // ── RANKING API ───────────────────────────────────────────
@@ -4548,8 +4567,22 @@ O H2BApply NÃO garante contratação, entrevista ou aprovação de visto — ap
     return json(res,200,{referrals:rows,total:rows.length});
   }
 
+  // v14: rotas extras do admin (health scores, bad leads)
+  if (_adminExtraRoutes[pathname]) {
+    const s = getSess(req);
+    if (!s?.user_email) return json(res,401,{error:"Não autenticado"});
+    const pu = getUser(s.user_email)||{};
+    if (!pu.isAdmin && !isAdminEmail(s.user_email)) return json(res,403,{error:"Acesso negado"});
+    return _adminExtraRoutes[pathname](req, res);
+  }
+
   res.writeHead(404,{"Content-Type":"application/json"});res.end(JSON.stringify({error:"404"}));
 });
+
+// ── v14: injeta rotas extras do admin ────────────────────
+// health-scores e bad-leads disponíveis em /api/admin/health-scores e /api/admin/bad-leads
+// Autenticação exigida: isAdmin ou ADMIN_EMAIL
+
 
 // ── Cleanup ───────────────────────────────────────────────
 setInterval(()=>{const n=Date.now();let c=0;Object.keys(sessions).forEach(k=>{const s=sessions[k],a=n-(s.ts||s.created_at||0);if((s.pending&&a>600_000)||(!s.pending&&a>SESS_TTL)){delete sessions[k];c++;}});if(c)console.log(`[cleanup] ${c} sessão(ões)`);Object.keys(rateMap).forEach(k=>{if(rateMap[k].r<Date.now())delete rateMap[k];});// Limpa locks de send órfãos (>30s)
@@ -5038,10 +5071,66 @@ async function runReengagement(){
 scheduleReengagement(); // Inicia no boot
 
 function getHealth(email) {
-  if (!healthState.has(email)) healthState.set(email, { lastSent:0, lastCheck:0, restarts:0, errors:0, status:"ok", lastError:"", oauthOk:null, gmailOk:null, hasPdf:null, stalledAt:null });
+  if (!healthState.has(email)) healthState.set(email, {
+    lastSent:0, lastCheck:0, restarts:0, errors:0, status:"ok",
+    lastError:"", oauthOk:null, gmailOk:null, hasPdf:null, stalledAt:null,
+    // v14: métricas de throughput
+    sentLast1h:0, sentLast1hTs:Date.now(), throughputPerHour:0,
+  });
   return healthState.get(email);
 }
 function setHealth(email, patch) { const h=getHealth(email); Object.assign(h,patch); }
+
+// v14: calcula health score completo para o painel admin
+function calcHealthScore(email) {
+  const job = getAutoJob(email);
+  const h   = getHealth(email);
+  const stats = getAutoStats(email);
+  if (!job) return null;
+
+  const now = Date.now();
+  const queueLen   = (job.queue||[]).length;
+  const totalSent  = stats.sent || 0;
+  const totalFailed= stats.failed || 0;
+  const successRate= (totalSent+totalFailed) > 0
+    ? Math.round(totalSent / (totalSent+totalFailed) * 100) : 100;
+
+  // Previsão de conclusão baseada no intervalo médio (3–5min por envio)
+  const avgIntervalMs = 4 * 60_000; // 4min médio
+  const etaMs = queueLen * avgIntervalMs;
+  const etaStr = queueLen > 0
+    ? (etaMs < 3600_000
+        ? `~${Math.round(etaMs/60000)}min`
+        : `~${(etaMs/3600_000).toFixed(1)}h`)
+    : "concluído";
+
+  // Tempo sem envio
+  const silentMs = h.lastSent > 0 ? now - h.lastSent : 0;
+  const isStuck  = silentMs > STALL_THRESHOLD && job.active && queueLen > 0
+    && !["waiting_limit","waiting_hour","waiting_rate_limit"].includes(job.status);
+
+  // Contagem de bad leads na fila atual
+  const badLeadsInQueue = (job.queue||[]).filter(item => isBadLead((item.to||"").toLowerCase())).length;
+
+  return {
+    email,
+    active:      job.active,
+    status:      job.status || "unknown",
+    queueLen,
+    badLeadsInQueue,
+    totalSent,
+    totalFailed,
+    successRate,
+    silentMinutes: Math.round(silentMs / 60000),
+    isStuck,
+    restarts:    h.restarts,
+    oauthOk:     h.oauthOk,
+    hasPdf:      h.hasPdf,
+    eta:         etaStr,
+    nextSendAt:  job.nextSendAt || null,
+    lastError:   h.lastError || "",
+  };
+}
 
 function pushGlobalEvent(type, email, msg, level="warn") {
   GLOBAL_EVENTS.unshift({ ts:Date.now(), date:toLocaleBRT(Date.now()), type, email, msg, level });
@@ -5075,6 +5164,14 @@ async function diagnoseJob(email) {
     pushGlobalEvent("oauth_invalid", email, "Autenticação expirada — automático pausado", "error");
     setAutoJob(email, { ...job, active:false, status:"paused_oauth_expired" });
     autoTimers.delete(email);
+    // v14: Push imediato para o usuário saber que parou
+    pushToUser(email, {
+      type: "auto_paused",
+      title: "⚠️ H2BApply — Login necessário",
+      body: "Seu envio automático pausou pois sua autenticação expirou. Acesse o app para continuar.",
+      url: "/?tab=auto",
+      tag: "h2b-auth-expired",
+    }).catch(() => {});
     return;
   }
   h.oauthOk = true;
@@ -5284,6 +5381,31 @@ function calcRanking(period, category, myEmail) {
 // ── BOOT ─────────────────────────────────────────────────
 boot();loadSheets();
 
+// v14: expõe calcHealthScore e DB_BAD_LEADS via endpoint /api/admin/health-scores e /api/admin/bad-leads
+// (injetado dinamicamente no handler de /api/admin existente via flag)
+const _adminExtraRoutes = {
+  "/api/admin/health-scores": (req, res) => {
+    const scores = Object.keys(DB_AUTO)
+      .filter(e => DB_AUTO[e].active)
+      .map(e => calcHealthScore(e))
+      .filter(Boolean);
+    return json(res, 200, { scores, total: scores.length });
+  },
+  "/api/admin/bad-leads": (req, res) => {
+    const list = Object.entries(DB_BAD_LEADS)
+      .sort((a,b) => (b[1].lastTry||0) - (a[1].lastTry||0))
+      .slice(0, 500)
+      .map(([email, rec]) => ({ email, ...rec }));
+    return json(res, 200, { badLeads: list, total: list.length });
+  },
+  "/api/admin/bad-leads/clear": (req, res) => {
+    if (req.method !== "POST") { json(res,405,{error:"método inválido"}); return; }
+    DB_BAD_LEADS = {};
+    persistBadLeads();
+    return json(res, 200, { ok: true, msg: "Banco de leads ruins limpo." });
+  },
+};
+
 // ── Graceful shutdown: persiste TODOS os bancos ──────────
 function flushAll() {
   console.log("[shutdown] Persistindo dados...");
@@ -5306,6 +5428,8 @@ function flushAll() {
   try { persist(NOTIF_FILE,    DB_NOTIF);    } catch(e) { console.warn("[shutdown] notif:",    e.message); }
   try { persist(REFERRAL_FILE, DB_REFERRAL); } catch(e) { console.warn("[shutdown] referral:", e.message); }
   try { persist(SUGGESTIONS_FILE, DB_SUGGESTIONS); } catch(e) { console.warn("[shutdown] suggestions:", e.message); }
+  // v14: leads ruins
+  try { persistBadLeads(); } catch(e) { console.warn("[shutdown] bad_leads:", e.message); }
 
   // 3. Persiste sent_emails (conversão Set → Array)
   try {

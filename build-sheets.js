@@ -125,7 +125,9 @@ const CATEGORY_KEYWORDS = {
 function detectCategoryFromTitle(title) {
   if (!title) return null;
   const t = title.toLowerCase().trim();
+  // Exact match first
   if (JOB_TITLE_TO_CAT[t]) return JOB_TITLE_TO_CAT[t];
+  // Partial match
   for (const [kw, cat] of Object.entries(JOB_TITLE_TO_CAT)) {
     if (t.includes(kw) || kw.includes(t)) return cat;
   }
@@ -149,10 +151,13 @@ function detectCategoryBest(title, employer) {
 const DISCARD_STATUSES = ["denied","withdrawn","invalidated"];
 
 function shouldDiscard(rec) {
+  // Tem URL de aplicação → candidato só pode aplicar pelo site, não por email
   if (rec.apply_url && rec.apply_url.trim() && rec.apply_url !== "N/A") return true;
+  // Sem email nenhum → impossível aplicar
   const email = (rec.apply_email && rec.apply_email !== "N/A") ? rec.apply_email
               : (rec.employer_email && rec.employer_email !== "N/A") ? rec.employer_email : "";
   if (!email || !email.includes("@")) return true;
+  // Status descartável
   const st = (rec.case_status || "").toLowerCase();
   if (DISCARD_STATUSES.some(d => st.includes(d))) return true;
   return false;
@@ -212,10 +217,13 @@ function download(url) {
 async function downloadAndParse(url) {
   console.log(`  ↓ GET ${url}`);
   const buf = await download(url);
+  // Detect if gzip/zip
   let data;
   if (buf[0] === 0x1f && buf[1] === 0x8b) {
+    // gzip
     data = zlib.gunzipSync(buf);
   } else if (buf[0] === 0x50 && buf[1] === 0x4b) {
+    // ZIP — extrair primeiro arquivo JSON usando unzip nativo
     const tmpZip = path.join(os.tmpdir(), `dol_feed_${Date.now()}.zip`);
     fs.writeFileSync(tmpZip, buf);
     const { execSync } = require("child_process");
@@ -247,6 +255,7 @@ async function buildSheet(type, dateStr, outFile, label) {
     return false;
   }
 
+  // O feed pode ser um array diretamente ou ter propriedade com o array
   const records = Array.isArray(raw) ? raw
     : (raw.data || raw.results || raw.items || raw.cases || []);
 
@@ -261,6 +270,7 @@ async function buildSheet(type, dateStr, outFile, label) {
 
   console.log(`  ✅ ${compact.length} vagas válidas (${discarded} descartadas)`);
 
+  // Distribuição de categorias
   const catCount = {};
   compact.forEach(r => { catCount[r.k] = (catCount[r.k] || 0) + 1; });
   const sorted = Object.entries(catCount).sort((a, b) => b[1] - a[1]);
@@ -278,7 +288,9 @@ async function main() {
   console.log(`  ${new Date().toISOString()}`);
   console.log("═══════════════════════════════════════════");
 
+  // Data atual para o feed H-2B (NOA últimos 20 dias)
   const today = new Date().toISOString().slice(0, 10);
+  // Para H-2A, usa data atual também
   const julDate = today;
 
   let ok1 = await buildSheet("h2b", today, OUT_JAN, "H-2B jan2026");
