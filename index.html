@@ -4353,17 +4353,25 @@ addEventListener("DOMContentLoaded",async()=>{
 
 async function checkStatus(){
   try{
-    // Se veio do OAuth callback, tentar até 5x com delay crescente
-    const isPostLogin = location.search.includes('_login=1');
+    // Tentar /api/status com retry robusto
+    // No free tier do Render, o servidor pode demorar até 50s para acordar
     let d = null;
-    const tries = isPostLogin ? 5 : 1;
-    for(let i = 0; i < tries; i++){
-      if(i > 0) await new Promise(r => setTimeout(r, 400 * i));
+    const maxWait = 60000; // esperar até 60s pelo servidor acordar
+    const start = Date.now();
+    let attempt = 0;
+    while(!d?.connected && (Date.now()-start) < maxWait){
+      if(attempt > 0) await new Promise(r => setTimeout(r, Math.min(2000, 500*attempt)));
+      attempt++;
       try{
         const r = await fetch("/api/status", {credentials:"include", cache:"no-store"});
-        d = await r.json();
+        if(r.ok) d = await r.json();
         if(d && d.connected) break;
       }catch(_){}
+      // Se não conectou ainda, mostrar mensagem de carregando (não landing)
+      if(!d?.connected && attempt === 3){
+        const sp = document.getElementById('h2b-splash');
+        if(sp) sp.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:rgba(255,255,255,.6);font-family:sans-serif"><div style="width:36px;height:36px;border:3px solid rgba(255,255,255,.2);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite"></div><div style="font-size:13px">Conectando ao servidor...</div></div>';
+      }
     }
     if(d && d.connected){
       U={connected:true,email:d.email,name:d.name||d.email,picture:d.picture||"",isAdmin:!!d.isAdmin,plan:d.plan||"free",vip:d.vip||null,todaySentManual:d.todaySentManual||0,manualLimit:d.manualLimit||20,manualRemaining:d.manualRemaining||20,todaySentAuto:d.todaySentAuto||0,autoLimit:d.autoLimit||10,autoRemaining:d.autoRemaining||10,autoEnabled:true,autoJob:d.autoJob||null,autoStats:d.autoStats||{sent:0,failed:0},onboarded:!!d.onboarded,profiles:d.profiles||[]};

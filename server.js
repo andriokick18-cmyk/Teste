@@ -198,6 +198,7 @@ function boot() {
   DB_ALERTS = load(ALERTS_FILE, {});
   DB_LOGS   = load(LOGS_FILE, {});
   DB_JOURNEY = load(JOURNEY_FILE, {});
+  loadSessions(); // restaurar sessões após crash/restart
   DB_CODES  = load(CODES_FILE, {});
   DB_PUSH   = load(PUSH_FILE, {});
   DB_APP_INDEX = load(APPIDX_FILE, {});
@@ -2627,6 +2628,7 @@ const server=http.createServer(async(req,res)=>{
       if(!ui.email)return fail("E-mail não obtido.");
       const sid="sess_"+crypto.randomBytes(24).toString("hex");
       sessions[sid]={access_token:tk.access_token,refresh_token:tk.refresh_token||null,expires_at:Date.now()+(tk.expires_in||3600)*1000,user_email:ui.email,user_name:ui.name||ui.email,picture:ui.picture||"",created_at:Date.now()};
+      persistSessions();
       // Salva refresh_token e access_token no banco para uso pelo automático sem sessão
       const tokenData={cached_access_token:tk.access_token,cached_token_expiry:Date.now()+(tk.expires_in||3600)*1000};
       if(tk.refresh_token)tokenData.refresh_token=tk.refresh_token;
