@@ -10813,19 +10813,40 @@ Best regards,
   </div>
 </div>
 <script>
-function showGoogleWarnModal(){
+function _doOAuthRedirect(){
   fetch("/api/warmup",{credentials:"include"}).catch(function(){});
+  location.href=_getOAuthURL();
+}
+function _openGwmModal(){
   var m=document.getElementById("gwm");
+  if(!m)return _doOAuthRedirect();
   m.style.display="flex";
-  document.getElementById("gwm-ok").onclick=function(){
-    m.style.display="none";
-    location.href=_getOAuthURL();
-  };
+  var btn=document.getElementById("gwm-ok");
+  // Clona o botão para remover qualquer listener antigo e evitar duplo disparo
+  if(btn){
+    var nb=btn.cloneNode(true);
+    btn.parentNode.replaceChild(nb,btn);
+    nb.onclick=function(){
+      m.style.display="none";
+      _doOAuthRedirect();
+    };
+  }
+}
+function showGoogleWarnModal(){
+  // Verifica se termos já foram aceitos (evita mostrar termos toda vez)
+  var termsOk=false;
+  try{var t=localStorage.getItem("h2b_terms_v2");if(t){var d=JSON.parse(t);termsOk=!!(d.accepted&&d.ts&&(Date.now()-d.ts)<365*86400000);}}catch(e){}
+  if(termsOk){
+    _openGwmModal();
+  } else {
+    // Mostra termos primeiro; ao aceitar, abre o modal de aviso Google
+    showTerms(function(){_openGwmModal();});
+  }
 }
 </script>
 
 
-<div id="terms-overlay">
+<div id="terms-overlay" style="display:none">
   <div id="terms-box">
     <div id="terms-header">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
@@ -10938,11 +10959,7 @@ function termsDecline(){
   _termsCallback=null;
   if(typeof toast==="function")toast("Você precisa aceitar os Termos para usar a H2BApply.","r");
 }
-// Interceptar modal do Google para mostrar termos primeiro
-var _origGwm=window.showGoogleWarnModal;
-window.showGoogleWarnModal=function(){
-  showTerms(function(){if(_origGwm)_origGwm();else location.href="/oauth/start";});
-};
+// showGoogleWarnModal já integra verificação de termos (ver script #gwm acima)
 </script>
 
 
