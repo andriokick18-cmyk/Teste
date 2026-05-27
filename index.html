@@ -4353,25 +4353,17 @@ addEventListener("DOMContentLoaded",async()=>{
 
 async function checkStatus(){
   try{
-    // Tentar /api/status com retry robusto
-    // No free tier do Render, o servidor pode demorar até 50s para acordar
+    // Se veio do OAuth callback, tentar até 5x com delay crescente
+    const isPostLogin = location.search.includes('_login=1');
     let d = null;
-    const maxWait = 60000; // esperar até 60s pelo servidor acordar
-    const start = Date.now();
-    let attempt = 0;
-    while(!d?.connected && (Date.now()-start) < maxWait){
-      if(attempt > 0) await new Promise(r => setTimeout(r, Math.min(2000, 500*attempt)));
-      attempt++;
+    const tries = isPostLogin ? 5 : 1;
+    for(let i = 0; i < tries; i++){
+      if(i > 0) await new Promise(r => setTimeout(r, 400 * i));
       try{
         const r = await fetch("/api/status", {credentials:"include", cache:"no-store"});
-        if(r.ok) d = await r.json();
+        d = await r.json();
         if(d && d.connected) break;
       }catch(_){}
-      // Se não conectou ainda, mostrar mensagem de carregando (não landing)
-      if(!d?.connected && attempt === 3){
-        const sp = document.getElementById('h2b-splash');
-        if(sp) sp.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:rgba(255,255,255,.6);font-family:sans-serif"><div style="width:36px;height:36px;border:3px solid rgba(255,255,255,.2);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite"></div><div style="font-size:13px">Conectando ao servidor...</div></div>';
-      }
     }
     if(d && d.connected){
       U={connected:true,email:d.email,name:d.name||d.email,picture:d.picture||"",isAdmin:!!d.isAdmin,plan:d.plan||"free",vip:d.vip||null,todaySentManual:d.todaySentManual||0,manualLimit:d.manualLimit||20,manualRemaining:d.manualRemaining||20,todaySentAuto:d.todaySentAuto||0,autoLimit:d.autoLimit||10,autoRemaining:d.autoRemaining||10,autoEnabled:true,autoJob:d.autoJob||null,autoStats:d.autoStats||{sent:0,failed:0},onboarded:!!d.onboarded,profiles:d.profiles||[]};
@@ -10821,19 +10813,34 @@ Best regards,
   </div>
 </div>
 <script>
-function showGoogleWarnModal(){
+function _doOAuthRedirect(){
   fetch("/api/warmup",{credentials:"include"}).catch(function(){});
+  location.href=_getOAuthURL();
+}
+function _openGwmModal(){
   var m=document.getElementById("gwm");
+  if(!m)return _doOAuthRedirect();
   m.style.display="flex";
-  document.getElementById("gwm-ok").onclick=function(){
-    m.style.display="none";
-    location.href=_getOAuthURL();
-  };
+  var btn=document.getElementById("gwm-ok");
+  if(btn){
+    var nb=btn.cloneNode(true);
+    btn.parentNode.replaceChild(nb,btn);
+    nb.onclick=function(){
+      m.style.display="none";
+      _doOAuthRedirect();
+    };
+  }
+}
+function showGoogleWarnModal(){
+  var termsOk=false;
+  try{var t=localStorage.getItem("h2b_terms_v2");if(t){var d=JSON.parse(t);termsOk=!!(d.accepted&&d.ts&&(Date.now()-d.ts)<365*86400000);}}catch(e){}
+  if(termsOk){_openGwmModal();}
+  else{showTerms(function(){_openGwmModal();});}
 }
 </script>
 
 
-<div id="terms-overlay">
+<div id="terms-overlay" style="display:none">
   <div id="terms-box">
     <div id="terms-header">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
@@ -10946,11 +10953,7 @@ function termsDecline(){
   _termsCallback=null;
   if(typeof toast==="function")toast("Você precisa aceitar os Termos para usar a H2BApply.","r");
 }
-// Interceptar modal do Google para mostrar termos primeiro
-var _origGwm=window.showGoogleWarnModal;
-window.showGoogleWarnModal=function(){
-  showTerms(function(){if(_origGwm)_origGwm();else location.href="/oauth/start";});
-};
+// showGoogleWarnModal já integra verificação de termos (ver script #gwm acima)
 </script>
 
 
