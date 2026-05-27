@@ -271,6 +271,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       <button class="sb-item" onclick="showView('sugestoes');loadSugestoes()"><i class="ti ti-bulb"></i>Sugestões<span class="sb-badge sb-badge-a" id="sb-sugestoes" style="display:none">0</span></button>
       <button class="sb-item" onclick="showView('settings')"><i class="ti ti-settings"></i>Configurações</button>
       <div class="sb-label" style="margin-top:4px">🔬 QA</div>
+      <button class="sb-item" onclick="showView('logs-export')" style="font-size:11px"><i class="ti ti-download" style="color:var(--green)"></i>Logs & Export</button>
       <button class="sb-item" id="sb-robot-item" onclick="showView('robot')" style="background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(99,102,241,.08));border:1px solid rgba(167,139,250,.3);color:#a78bfa;font-weight:800">
         <i class="ti ti-robot" style="color:#a78bfa"></i>Robô de Teste
         <span id="sb-robot-live" style="display:none;width:7px;height:7px;border-radius:50%;background:#10b981;animation:pulse 1.5s infinite;margin-left:auto"></span>
@@ -311,6 +312,37 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
           <div class="stat-card stat-purple"><i class="ti ti-users stat-icon"></i><div class="stat-val" id="s-users">–</div><div class="stat-lbl">Total usuários</div><div class="stat-sub" id="s-vip">– planos ativos</div></div>
           <div class="stat-card stat-red"><i class="ti ti-server stat-icon"></i><div class="stat-val" id="s-mem">–</div><div class="stat-lbl">RAM usada</div><div class="stat-sub" id="s-cache">– vagas DOL</div></div>
         </div>
+        <!-- AÇÕES RÁPIDAS ADMIN -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+          <button onclick="adminResetDaily()" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.08));border:1.5px solid rgba(245,158,11,.35);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:var(--amber);cursor:pointer;font-family:inherit;transition:all .14s" title="Reseta os envios de hoje de TODOS os usuários — permite que todos enviem novamente">
+            <i class="ti ti-calendar-stats" style="font-size:15px"></i> ♻️ Resetar Diários
+          </button>
+          <button onclick="adminFixAuto()" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(79,70,229,.08));border:1.5px solid rgba(99,102,241,.35);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:#a78bfa;cursor:pointer;font-family:inherit;transition:all .14s" title="Diagnostica e repara automáticos travados de todos os usuários">
+            <i class="ti ti-tool" style="font-size:15px"></i> 🔧 Fix Auto Geral
+          </button>
+          <button onclick="checkEngineHealth()" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.3);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:var(--green);cursor:pointer;font-family:inherit" title="Verificar saúde de todos os workers agora">
+            <i class="ti ti-heartbeat" style="font-size:15px"></i> ⚡ Engine Health
+          </button>
+          <button onclick="showView('robot')" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(139,92,246,.06));border:1.5px solid rgba(167,139,250,.25);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:#a78bfa;cursor:pointer;font-family:inherit">
+            <i class="ti ti-robot" style="font-size:15px"></i> 🤖 Robô de Teste
+          </button>
+          <!-- DOWNLOADS DE LOGS -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button onclick="downloadLogs('claude')" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(5,150,105,.08));border:1.5px solid rgba(16,185,129,.35);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:var(--green);cursor:pointer;font-family:inherit" title="Baixar relatório formatado para colar no Claude">
+              <i class="ti ti-brand-openai" style="font-size:15px"></i> 📋 Logs para Claude
+            </button>
+            <button onclick="downloadLogs('json')" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(37,99,235,.06));border:1.5px solid rgba(59,130,246,.3);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:var(--blue);cursor:pointer;font-family:inherit" title="Export completo em JSON">
+              <i class="ti ti-file-type-json" style="font-size:15px"></i> JSON Completo
+            </button>
+            <button onclick="downloadLogs('csv')" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:var(--t2);cursor:pointer;font-family:inherit" title="Export resumido em CSV">
+              <i class="ti ti-table" style="font-size:15px"></i> CSV
+            </button>
+            <button onclick="downloadLogs('claude','errors')" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(220,38,38,.06));border:1.5px solid rgba(239,68,68,.3);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:var(--red);cursor:pointer;font-family:inherit" title="Só usuários com erros — mais compacto para diagnóstico">
+              <i class="ti ti-bug" style="font-size:15px"></i> Só Erros
+            </button>
+          </div>
+        </div>
+
         <div class="section">
           <div class="section-hdr">
             <i class="ti ti-robot" style="color:var(--green)"></i>
@@ -341,7 +373,14 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
             <i class="ti ti-robot" style="color:var(--green)"></i>
             <div class="section-title">Envios Automáticos</div>
             <div class="section-sub" id="workers-detail-lbl">–</div>
+            <div class="section-actions">
+              <button class="btn btn-ghost btn-sm" onclick="loadBulkStatus()" id="btn-bulk-refresh"><i class="ti ti-refresh"></i> Diagnóstico Completo</button>
+              <button class="btn btn-amber btn-sm" onclick="adminFixAuto()"><i class="ti ti-tool"></i> Fix Auto Geral</button>
+              <button class="btn btn-success btn-sm" onclick="adminResetDaily()"><i class="ti ti-calendar-stats"></i> Reset Diário</button>
+            </div>
           </div>
+          <!-- PAINEL DE DIAGNÓSTICO RÁPIDO -->
+          <div id="bulk-status-panel" style="display:none;margin-bottom:14px"></div>
           <div class="tbl-wrap">
             <div class="tbl-toolbar">
               <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" id="w-search" placeholder="Buscar email..." oninput="filterWorkers()"></div>
@@ -385,43 +424,227 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       </div>
 
       <!-- USERS -->
-      <div class="view" id="view-users">
+            <!-- LOGS & EXPORT VIEW -->
+      <div class="view" id="view-logs-export">
+        <div class="section-hdr" style="margin-bottom:16px">
+          <i class="ti ti-download" style="color:var(--green)"></i>
+          <div class="section-title">Logs & Export para Diagnóstico</div>
+          <div class="section-sub">Baixe os logs e cole no Claude para análise e correção automática</div>
+        </div>
+
+        <!-- Instruções -->
+        <div style="background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(5,150,105,.04));border:1.5px solid rgba(16,185,129,.25);border-radius:14px;padding:18px;margin-bottom:20px">
+          <div style="font-size:14px;font-weight:800;color:var(--green);margin-bottom:10px;display:flex;align-items:center;gap:8px">
+            <i class="ti ti-brand-openai"></i> Como usar o relatório com o Claude
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px">
+            <div style="background:rgba(0,0,0,.2);border-radius:8px;padding:12px">
+              <div style="font-weight:800;color:#fff;margin-bottom:6px">1. Baixe o relatório</div>
+              <div style="color:var(--t2);line-height:1.6">Clique em <strong style="color:var(--green)">"Logs para Claude"</strong> — gera um arquivo .txt compacto com todos os status, erros e logs de cada usuário.</div>
+            </div>
+            <div style="background:rgba(0,0,0,.2);border-radius:8px;padding:12px">
+              <div style="font-weight:800;color:#fff;margin-bottom:6px">2. Cole no Claude</div>
+              <div style="color:var(--t2);line-height:1.6">Abra o chat do Claude, cole o conteúdo do arquivo e diga: <em style="color:var(--cyan)">"Analise esses logs e me diga o que está errado e como corrigir."</em></div>
+            </div>
+            <div style="background:rgba(0,0,0,.2);border-radius:8px;padding:12px">
+              <div style="font-weight:800;color:#fff;margin-bottom:6px">3. Só Erros (mais rápido)</div>
+              <div style="color:var(--t2);line-height:1.6">Use <strong style="color:var(--red)">"Só Erros"</strong> para um relatório só com usuários que têm problemas — arquivo menor, mais focado.</div>
+            </div>
+            <div style="background:rgba(0,0,0,.2);border-radius:8px;padding:12px">
+              <div style="font-weight:800;color:#fff;margin-bottom:6px">4. JSON / CSV para análise</div>
+              <div style="color:var(--t2);line-height:1.6">Para análise detalhada em planilha ou por outro sistema, use o formato <strong style="color:var(--blue)">JSON</strong> ou <strong style="color:var(--t2)">CSV</strong>.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botões de Download -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:24px">
+          <button onclick="downloadLogs('claude','all')" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px;background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.06));border:2px solid rgba(16,185,129,.3);border-radius:12px;cursor:pointer;font-family:inherit;transition:all .14s;text-align:center">
+            <i class="ti ti-brand-openai" style="font-size:28px;color:var(--green)"></i>
+            <div style="font-size:13px;font-weight:800;color:#fff">📋 Logs para Claude</div>
+            <div style="font-size:10px;color:var(--t3)">Todos os usuários — formato otimizado</div>
+          </button>
+          <button onclick="downloadLogs('claude','errors')" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px;background:linear-gradient(135deg,rgba(239,68,68,.1),rgba(220,38,38,.05));border:2px solid rgba(239,68,68,.3);border-radius:12px;cursor:pointer;font-family:inherit;transition:all .14s;text-align:center">
+            <i class="ti ti-bug" style="font-size:28px;color:var(--red)"></i>
+            <div style="font-size:13px;font-weight:800;color:#fff">🚨 Só Erros</div>
+            <div style="font-size:10px;color:var(--t3)">Apenas usuários com problemas</div>
+          </button>
+          <button onclick="downloadLogs('claude','active')" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px;background:linear-gradient(135deg,rgba(6,182,212,.1),rgba(8,145,178,.05));border:2px solid rgba(6,182,212,.3);border-radius:12px;cursor:pointer;font-family:inherit;transition:all .14s;text-align:center">
+            <i class="ti ti-robot" style="font-size:28px;color:var(--cyan)"></i>
+            <div style="font-size:13px;font-weight:800;color:#fff">🤖 Automáticos Ativos</div>
+            <div style="font-size:10px;color:var(--t3)">Só quem tem auto rodando</div>
+          </button>
+          <button onclick="downloadLogs('json','all')" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px;background:linear-gradient(135deg,rgba(59,130,246,.1),rgba(37,99,235,.05));border:2px solid rgba(59,130,246,.25);border-radius:12px;cursor:pointer;font-family:inherit;transition:all .14s;text-align:center">
+            <i class="ti ti-file-type-json" style="font-size:28px;color:var(--blue)"></i>
+            <div style="font-size:13px;font-weight:800;color:#fff">JSON Completo</div>
+            <div style="font-size:10px;color:var(--t3)">Todos os dados — para análise técnica</div>
+          </button>
+          <button onclick="downloadLogs('csv','all')" style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px;background:rgba(255,255,255,.04);border:2px solid var(--border2);border-radius:12px;cursor:pointer;font-family:inherit;transition:all .14s;text-align:center">
+            <i class="ti ti-table" style="font-size:28px;color:var(--t2)"></i>
+            <div style="font-size:13px;font-weight:800;color:#fff">CSV — Planilha</div>
+            <div style="font-size:10px;color:var(--t3)">Resumo para Excel / Google Sheets</div>
+          </button>
+        </div>
+
+        <!-- Preview do que está nos logs -->
         <div class="section">
           <div class="section-hdr">
-            <i class="ti ti-users" style="color:var(--blue)"></i>
-            <div class="section-title">Todos os Usuários</div>
-            <div class="section-sub" id="users-count-lbl">–</div>
+            <i class="ti ti-list-details" style="color:var(--blue)"></i>
+            <div class="section-title">O que está nos logs</div>
+            <div class="section-sub">Campos incluídos em cada relatório</div>
           </div>
-          <div class="tbl-wrap">
-            <div class="tbl-toolbar">
-              <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" id="u-search" placeholder="Email, nome..." oninput="filterUsers()"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:11px">
+            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:12px">
+              <div style="font-weight:800;color:var(--cyan);margin-bottom:8px;font-size:12px">👤 Por usuário</div>
+              <div style="color:var(--t2);line-height:1.8">Email e nome<br>Plano (free/vip/vipro)<br>Status atual do automático<br>Problemas detectados<br>Data de cadastro</div>
+            </div>
+            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:12px">
+              <div style="font-weight:800;color:var(--green);margin-bottom:8px;font-size:12px">🤖 Automático</div>
+              <div style="color:var(--t2);line-height:1.8">Fila: X/Y vagas (Z%)<br>Dias estimados restantes<br>Enviados hoje / limite<br>Último envio<br>Próximo envio agendado</div>
+            </div>
+            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:12px">
+              <div style="font-weight:800;color:var(--red);margin-bottom:8px;font-size:12px">🚨 Erros & Saúde</div>
+              <div style="color:var(--t2);line-height:1.8">Token Gmail OK/expirado<br>PDF presente/ausente<br>Perfis configurados<br>Erros das últimas 24h<br>Últimos 5 logs detalhados</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview ao vivo -->
+        <div class="section">
+          <div class="section-hdr">
+            <i class="ti ti-eye" style="color:var(--amber)"></i>
+            <div class="section-title">Preview do Relatório</div>
+            <div class="section-actions">
+              <button class="btn btn-ghost btn-sm" onclick="loadLogsPreview()"><i class="ti ti-refresh"></i> Carregar</button>
+            </div>
+          </div>
+          <div id="logs-preview" style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:14px;font-family:monospace;font-size:10px;color:var(--t2);max-height:300px;overflow-y:auto;white-space:pre-wrap;line-height:1.6">
+            Clique em "Carregar" para ver um preview do relatório...
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════
+           VIEW: TODOS OS USUÁRIOS — PAINEL PREMIUM COMPLETO
+      ══════════════════════════════════════════════════════ -->
+      <div class="view" id="view-users">
+        <style>
+        .users-stats-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px}
+        .usb{background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:11px;text-align:center}
+        .usb-val{font-family:'Sora',sans-serif;font-size:18px;font-weight:800;line-height:1}
+        .usb-lbl{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-top:3px}
+        .user-card{background:var(--glass);border:1px solid var(--border2);border-radius:12px;overflow:hidden;margin-bottom:8px;transition:border-color .14s;cursor:pointer}
+        .user-card:hover{border-color:rgba(99,102,241,.4)}
+        .user-card.uc-problem{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.02)}
+        .user-card.uc-attention{border-color:rgba(245,158,11,.25)}
+        .user-card.uc-online{border-left:3px solid var(--green)}
+        .uc-header{display:flex;align-items:center;gap:10px;padding:10px 14px}
+        .uc-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0}
+        .uc-avatar-letter{width:36px;height:36px;border-radius:50%;background:var(--glass2);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--text);flex-shrink:0}
+        .uc-name{font-size:13px;font-weight:800;color:#fff}
+        .uc-email{font-size:10px;color:var(--t3);font-family:monospace}
+        .uc-badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px}
+        .uc-body{padding:0 14px 12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+        .uc-section{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px}
+        .uc-section-title{font-size:9px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+        .uc-row{display:flex;justify-content:space-between;align-items:center;font-size:10px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03)}
+        .uc-row:last-child{border-bottom:none}
+        .uc-key{color:var(--t3)}
+        .uc-val{font-weight:700;color:var(--text)}
+        .uc-val.ok{color:var(--green)} .uc-val.warn{color:var(--amber)} .uc-val.err{color:var(--red)}
+        .uc-log-mini{background:var(--bg2);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-top:6px}
+        .uc-log-row{display:flex;gap:5px;padding:3px 7px;font-size:9px;border-bottom:1px solid rgba(255,255,255,.02);font-family:monospace}
+        .uc-log-row:last-child{border-bottom:none}
+        .uc-actions{display:flex;gap:5px;padding:0 14px 10px;flex-wrap:wrap}
+        .uc-btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;border:1px solid;font-family:inherit;transition:all .12s}
+        .uc-btn-eye{background:var(--glass2);border-color:var(--border2);color:var(--t2)}
+        .uc-btn-restart{background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3);color:var(--green)}
+        .uc-btn-vip{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:#a78bfa}
+        .uc-btn-msg{background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.3);color:var(--blue)}
+        .uc-btn-fix{background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.3);color:#818cf8}
+        .uc-btn-stop{background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.3);color:var(--red)}
+        .journey-feed{background:var(--glass);border:1px solid var(--border2);border-radius:10px;overflow:hidden}
+        .jf-line{display:flex;gap:8px;padding:6px 12px;border-bottom:1px solid rgba(255,255,255,.03);font-size:10px;align-items:flex-start}
+        .jf-line:hover{background:rgba(255,255,255,.02)}
+        .jf-ts{color:var(--t3);flex-shrink:0;min-width:46px;font-family:monospace;font-size:9px;padding-top:1px}
+        .jf-action{flex-shrink:0;min-width:80px;font-weight:700}
+        .jf-who{color:var(--blue);flex-shrink:0;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .jf-detail{color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .jf-err{color:var(--red);font-size:9px}
+        </style>
+
+        <!-- Stats Bar -->
+        <div class="users-stats-bar" id="users-stats-bar">
+          <div class="usb"><div class="usb-val" id="usb-total">–</div><div class="usb-lbl">Total</div></div>
+          <div class="usb"><div class="usb-val" style="color:var(--green)" id="usb-online">–</div><div class="usb-lbl">🟢 Online</div></div>
+          <div class="usb"><div class="usb-val" style="color:var(--purple)" id="usb-vip">–</div><div class="usb-lbl">⭐ VIP+</div></div>
+          <div class="usb"><div class="usb-val" style="color:var(--cyan)" id="usb-auto">–</div><div class="usb-lbl">🤖 Auto</div></div>
+          <div class="usb"><div class="usb-val" style="color:var(--amber)" id="usb-today">–</div><div class="usb-lbl">📨 Hoje</div></div>
+          <div class="usb"><div class="usb-val" style="color:var(--red)" id="usb-problems">–</div><div class="usb-lbl">🚨 Problemas</div></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 360px;gap:14px;align-items:start">
+          <!-- Lista de usuários -->
+          <div>
+            <div class="section-hdr" style="margin-bottom:10px">
+              <i class="ti ti-users" style="color:var(--blue)"></i>
+              <div class="section-title">Todos os Usuários</div>
+              <div class="section-sub" id="users-count-lbl">–</div>
+              <div class="section-actions">
+                <select class="filter-sel" id="u-sort" onchange="filterUsers()" style="font-size:10px">
+                  <option value="recent">Mais recentes</option>
+                  <option value="today">Mais enviados hoje</option>
+                  <option value="total">Mais enviados total</option>
+                  <option value="problems">Problemas primeiro</option>
+                </select>
+              </div>
+            </div>
+            <!-- Filtros -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+              <div class="search-wrap" style="flex:1;min-width:160px"><i class="ti ti-search"></i><input class="search-inp" id="u-search" placeholder="Email, nome..." oninput="filterUsers()"></div>
               <select class="filter-sel" id="u-filter-plan" onchange="filterUsers()">
                 <option value="">Todos planos</option>
                 <option value="vipro">VIPro</option>
                 <option value="vip">VIP</option>
-                <option value="pro">VIPro (Auto)</option>
+                <option value="pro">Pro (Auto)</option>
                 <option value="free">Free</option>
               </select>
-              <select class="filter-sel" id="u-filter-auto" onchange="filterUsers()">
-                <option value="">Auto: todos</option>
-                <option value="yes">Com automático</option>
-                <option value="no">Sem automático</option>
-              </select>
-              <select class="filter-sel" id="u-filter-online" onchange="filterUsers()">
-                <option value="">Online: todos</option>
-                <option value="yes">Online agora</option>
-                <option value="no">Offline</option>
+              <select class="filter-sel" id="u-filter-status" onchange="filterUsers()">
+                <option value="">Todos status</option>
+                <option value="online">🟢 Online</option>
+                <option value="problem">🚨 Com problema</option>
+                <option value="auto">🤖 Com auto</option>
+                <option value="nopdf">📄 Sem PDF</option>
+                <option value="noauto">Sem auto</option>
               </select>
             </div>
-            <table>
-              <thead><tr>
-                <th>Usuário</th><th>Plano</th><th>Status</th><th>Automático</th>
-                <th>Hoje</th><th>Total</th><th>CVs</th><th>Saúde</th><th>Criado</th><th>Ações</th>
-              </tr></thead>
-              <tbody id="users-tbody">
-                <tr><td colspan="10" class="empty-state">Carregando...</td></tr>
-              </tbody>
-            </table>
+            <div id="users-cards-list">
+              <div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>
+            </div>
+          </div>
+
+          <!-- Feed de Jornada 24h -->
+          <div style="position:sticky;top:12px">
+            <div class="section-hdr" style="margin-bottom:10px">
+              <i class="ti ti-activity" style="color:var(--amber)"></i>
+              <div class="section-title" style="font-size:12px">Feed 24h — Ações ao Vivo</div>
+              <div class="section-actions">
+                <select id="jf-filter" onchange="loadJourneyFeed()" style="font-size:10px;background:var(--glass2);border:1px solid var(--border2);border-radius:5px;padding:3px 6px;color:var(--t2)">
+                  <option value="">Tudo</option>
+                  <option value="login">Logins</option>
+                  <option value="first_login">Novos</option>
+                  <option value="pdf_upload">PDFs</option>
+                  <option value="auto_start">Auto início</option>
+                  <option value="manual_send">Envios</option>
+                  <option value="auto_fail">Falhas</option>
+                  <option value="code_redeem">Códigos</option>
+                </select>
+                <button class="btn btn-ghost btn-sm" onclick="loadJourneyFeed()" style="font-size:10px"><i class="ti ti-refresh"></i></button>
+              </div>
+            </div>
+            <div class="journey-feed" id="journey-feed-wrap">
+              <div class="empty-state" style="font-size:11px"><i class="ti ti-loader"></i> Carregando...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -704,29 +927,37 @@ const RobotV2 = (function(){
   'use strict';
 
   // ── Configuração ────────────────────────────────────────────────
-  const TARGET_EMAILS = [
+  // ⚠️ ndrkick.3 É O EMAIL DO ADMIN LOGADO — removido para evitar self-send
+  // O robô detecta e remove automaticamente o próprio email na inicialização
+  const TARGET_EMAILS_RAW = [
     'ndrkick.2@gmail.com',
-    'ndrkick.3@gmail.com',
+    'ndrkick.3@gmail.com',   // será filtrado se for o email do admin
     'ndrkick.5@gmail.com',
     'ndrkick.6@gmail.com',
     'andrio.kick18@gmail.com'
   ];
 
-  // PDF mínimo válido em base64
-  const FAKE_PDF_B64 = 'JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCgoyIDAgb2JqCjw8IC9UeXBlIC9QYWdlcyAvS2lkcyBbMyAwIFJdIC9Db3VudCAxID4+CmVuZG9iagoKMyAwIG9iago8PCAvVHlwZSAvUGFnZSAvUGFyZW50IDIgMCBSIC9NZWRpYUJveCBbMCAwIDYxMiA3OTJdCi9Db250ZW50cyA0IDAgUiAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSA1IDAgUiA+PiA+PiA+PgplbmRvYmoKCjQgMCBvYmoKPDwgL0xlbmd0aCAxMjAgPj4Kc3RyZWFtCkJUCi9GMSAxNCBUZgo3MiA3MjAgVGQKKFJPQk9UIFRFU1QgQ1VSUklDVUxVTSAtIEgyQiBBUFBMWSBRQSkgVGoKMCAtMzAgVGQKKFRoaXMgaXMgYW4gYXV0b21hdGVkIHRlc3QgUERGIGdlbmVyYXRlZCBieSBIMkJBcHBseSBSb2JvdC4pIFRqCkVUCmVuZHN0cmVhbQplbmRvYmoKCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAwNTggMDAwMDAgbiAKMDAwMDAwMDExNSAwMDAwMCBuIAowMDAwMDAwMjY2IDAwMDAwIG4gCjAwMDAwMDA0MzggMDAwMDAgbiAKCnRyYWlsZXIKPDwgL1NpemUgNiAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNTEyCiUlRU9G';
+  // Será preenchido no boot após verificar qual é o email do admin
+  let TARGET_EMAILS = [...TARGET_EMAILS_RAW];
+  let _adminEmail = '';
 
-  // 3 variações de assunto para testar rotação
+  // PDF válido com >1000 bytes estimados (exigido pelo server.js)
+  // estimatedBytes = base64.length * 0.75 = 2032 * 0.75 = 1524 ✅
+  const FAKE_PDF_B64 = 'JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgNjEyIDc5Ml0vQ29udGVudHMgNCAwIFIvUmVzb3VyY2VzPDwvRm9udDw8L0YxIDUgMCBSPj4+Pj4+ZW5kb2JqCjQgMCBvYmo8PC9MZW5ndGggODAwPj4Kc3RyZWFtCkJUCi9GMSAxMiBUZgo1MCA3NTAgVGQKKEgyQkFQUExZIFJPQk9UIFRFU1QgLSBBVVRPTUFURUQgUUEgQ1VSUklDVUxVTSBWSVRBRSkgVGoKMCAtMjUgVGQKKE5hbWU6IFJvYm90IFRlc3QgVXNlciBRQSkgVGoKMCAtMjAgVGQKKEVtYWlsOiByb2JvdEBoMmJhcHBseS5jb20pIFRqCjAgLTIwIFRkCihQaG9uZTogKzU1IDExIDk5OTk5LTAwMDApIFRqCjAgLTIwIFRkCihMb2NhdGlvbjogQ3VyaXRpYmEsIFBhcmFuYSwgQnJhemlsKSBUagowIC0zMCBUZAooRVhQRVJJRU5DRSkgVGoKMCAtMjAgVGQKKEgyQiBBcHBsaWNhbnQgLSBMYW5kc2NhcGluZyAtIDIgeWVhcnMgZXhwZXJpZW5jZSkgVGoKMCAtMjAgVGQKKEZhcm0gV29ya2VyIC0gQWdyaWN1bHR1cmFsIC0gMSB5ZWFyIGV4cGVyaWVuY2UpIFRqCjAgLTIwIFRkCihIb3RlbCBTdGFmZiAtIEhvdXNla2VlcGluZyAtIDMgeWVhcnMgZXhwZXJpZW5jZSkgVGoKMCAtMzAgVGQKKFNLSUxMUykgVGoKMCAtMjAgVGQKKExhbmRzY2FwaW5nLCBMYXduIENhcmUsIFRyZWUgVHJpbW1pbmcsIElycmlnYXRpb24gU3lzdGVtcykgVGoKMCAtMjAgVGQKKFBoeXNpY2FsIExhYm9yLCBPdXRkb29yIFdvcmssIFRlYW0gQ29sbGFib3JhdGlvbikgVGoKMCAtMjAgVGQKKEJhc2ljIEVuZ2xpc2ggQ29tbXVuaWNhdGlvbiwgRHJpdmVyIExpY2Vuc2UpIFRqCjAgLTMwIFRkCihFRFVDQVRJT04pIFRqCjAgLTIwIFRkCihIaWdoIFNjaG9vbCBEaXBsb21hIC0gQ3VyaXRpYmEsIEJyYXppbCAtIDIwMTgpIFRqCjAgLTMwIFRkCihPQkpFQ1RJVkUpIFRqCjAgLTIwIFRkCihTZWVraW5nIEgtMkIgdGVtcG9yYXJ5IHdvcmsgdmlzYSBwb3NpdGlvbiBpbiB0aGUgVW5pdGVkIFN0YXRlcy4pIFRqCjAgLTIwIFRkCihBdmFpbGFibGUgaW1tZWRpYXRlbHkuIFdpbGxpbmcgdG8gcmVsb2NhdGUgYW55d2hlcmUgaW4gdGhlIFVTLikgVGoKMCAtMjAgVGQKKFRoaXMgaXMgYW4gYXV0b21hdGVkIHRlc3QgZG9jdW1lbnQgZ2VuZXJhdGVkIGJ5IEgyQkFwcGx5IFFBIFJvYm90IHYyLjAuKSBUagpFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmo8PC9UeXBlL0ZvbnQvU3VidHlwZS9UeXBlMS9CYXNlRm9udC9IZWx2ZXRpY2E+PmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTA4IDAwMDAwIG4gCjAwMDAwMDAyNTEgMDAwMDAgbiAKMDAwMDAwMTEwMyAwMDAwMCBuIAp0cmFpbGVyPDwvU2l6ZSA2L1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMTE3MgolJUVPRg==';
+
+  // 3 assuntos COM placeholders — o sistema substitui na hora do envio
+  // ⚠️ NÃO usar fill() aqui — manter {vaga} e {empresa} como template
   const TEST_SUBJECTS = [
-    'Application for {vaga} – Robot Test QA v2',
-    'H-2B {vaga} Position – Automated Test {empresa}',
-    'Job Inquiry: {vaga} at {empresa} – QA Robot'
+    'Application for Landscape Laborer – QA Robot Test v2',
+    'H-2B Position Interest – Automated QA Test – Robot Inc',
+    'Job Inquiry: Landscape Worker – H2BApply QA Robot'
   ];
 
-  // 3 variações de corpo para testar rotação
+  // 3 corpos COM timestamp fixo na criação — NÃO usar {ts} como placeholder pois o server não substitui
   const TEST_BODIES = [
-    `Dear Hiring Manager,\n\nThis is an AUTOMATED TEST from H2BApply QA Robot v2.0.\nPlease ignore this message.\n\nTesting: Email body variation 1/3\nTimestamp: {ts}\n\nBest regards,\nH2BApply Robot`,
-    `Dear {empresa} Team,\n\nThis is an AUTOMATED TEST from H2BApply QA Robot v2.0.\nPlease ignore this message.\n\nTesting: Email body variation 2/3 — checking rotation system\nTimestamp: {ts}\n\nBest regards,\nH2BApply Robot`,
-    `Hello,\n\nAUTOMATED QA TEST — H2BApply Robot v2.0\nVariation 3/3 — This tests that email bodies rotate correctly.\nTimestamp: {ts}\n\nRegards,\nH2BApply Robot`
+    `Dear Hiring Manager,\n\nThis is an AUTOMATED TEST from H2BApply QA Robot v2.0. Please ignore this message.\n\nTesting: Email body variation 1 of 3 — checking Gmail delivery.\nRobot run: ${new Date().toISOString()}\n\nBest regards,\nH2BApply QA Robot`,
+    `Dear Hiring Team,\n\nThis is an AUTOMATED TEST from H2BApply QA Robot v2.0. Please ignore this message.\n\nTesting: Email body variation 2 of 3 — checking subject rotation.\nRobot run: ${new Date().toISOString()}\n\nBest regards,\nH2BApply QA Robot`,
+    `Hello,\n\nAUTOMATED QA TEST — H2BApply Robot v2.0\nVariation 3 of 3 — testing body rotation system.\nRobot run: ${new Date().toISOString()}\n\nRegards,\nH2BApply QA Robot`
   ];
 
   // ── Estado ──────────────────────────────────────────────────────
@@ -753,6 +984,7 @@ const RobotV2 = (function(){
     ranking: {label:'Ranking & Social', icon:'🏆', tests:6},
     admin:   {label:'APIs Admin', icon:'🛡️', tests:10},
     cleanup: {label:'Limpeza', icon:'🧹', tests:4},
+    fixauto: {label:'Fix Auto', icon:'🔧', tests:6},
   };
 
   // ── Utils ────────────────────────────────────────────────────────
@@ -919,9 +1151,17 @@ const RobotV2 = (function(){
       return;
     }
     const user=st.data;
-    log('ok',`[Auth] Sessão válida — ${user.email}`, `Plano: ${user.plan} | Admin: ${user.isAdmin}`);
+    _adminEmail = (user.email||'').toLowerCase();
 
-    // 2. Token Google (necessário para envio)
+    // ── FILTRAR o próprio email da lista de destinos ──
+    TARGET_EMAILS = TARGET_EMAILS_RAW.filter(e=>e.toLowerCase()!==_adminEmail);
+    const removedSelf = TARGET_EMAILS_RAW.length - TARGET_EMAILS.length;
+    log('ok',`[Auth] Sessão válida — ${user.email}`, `Plano: ${user.plan} | Admin: ${user.isAdmin}`);
+    if(removedSelf>0){
+      log('info',`[Auth] ✂️ ${user.email} removido da lista de destinos (self-send bloqueado pelo server)`,`Lista final: ${TARGET_EMAILS.join(', ')}`);
+    }
+
+    // 2. Token Google
     _doneTests++;
     _setProgress((_doneTests/_totalTests)*100,'Verificando OAuth...');
     if(user.connected && user.email){
@@ -954,7 +1194,7 @@ const RobotV2 = (function(){
     } else if(!debugTest.ok && !user.isAdmin){
       log('ok',`[Auth] Rota sensível bloqueada para não-admin (correto)`);
     } else {
-      log('warn',`[Auth] Rota debug retornou ${debugTest.status}`);
+      log('info',`[Auth] /api/debug/export — HTTP ${debugTest.status}`);
     }
   }
 
@@ -1191,277 +1431,258 @@ const RobotV2 = (function(){
     const resumeIdx=_uploadedCvIdxs.find(c=>c.type==='resume')?.idx||null;
     const coverIdx=_uploadedCvIdxs.find(c=>c.type==='cover')?.idx||null;
 
-    // Buscar uma vaga real para usar
+    // 1. Buscar vagas
     _doneTests++;
     _setProgress((_doneTests/_totalTests)*100,'Buscando vagas para usar no envio...');
     const jobsR=await apiFetch('/api/jobs?skip=0&top=5');
-    const jobs=jobsR.data?.jobs||[];
     const sheetR=await apiFetch('/api/sheet-meta?sheet=jan2026&skip=0&top=5');
-    const sheetJobs=sheetR.data?.jobs||[];
-    log('ok',`[Manual] ${jobs.length} vagas seasonal | ${sheetJobs.length} vagas planilha disponíveis`);
+    log('ok',`[Manual] ${jobsR.data?.jobs?.length||0} vagas seasonal | ${sheetR.data?.jobs?.length||0} vagas planilha`);
 
-    // Enviar para cada e-mail de teste com variações diferentes
+    // 2. ── LIMPAR DEDUP antes de enviar ──
+    // O server.js usa hasSent() que verifica HISTÓRICO + DB_SENT
+    // Precisamos limpar ambos via /api/admin/clear-sent E /api/sent/remove
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Limpando dedup para e-mails de teste...');
+    let cleanedCount=0;
+    for(const email of TARGET_EMAILS){
+      // Limpa DB_SENT
+      const clearR=await post('/api/admin/clear-sent',{email:_adminEmail});
+      // Limpa histórico (remove entrada com to=email)
+      const removeR=await post('/api/sent/remove',{to:email});
+      if(removeR.ok && removeR.data?.removed>0){
+        cleanedCount+=removeR.data.removed;
+      }
+      await wait(80);
+    }
+    // Limpar clear-sent uma vez para o usuário logado
+    await post('/api/admin/clear-sent',{email:_adminEmail});
+    log('ok',`[Manual] Dedup limpo — ${cleanedCount} entradas removidas do histórico`,`Pronto para enviar para todos os ${TARGET_EMAILS.length} e-mails`);
+
+    // 3. Enviar para cada e-mail com variações diferentes
     for(let i=0; i<TARGET_EMAILS.length; i++){
       if(!_running) return;
       const email=TARGET_EMAILS[i];
       const subjIdx=i%TEST_SUBJECTS.length;
       const bodyIdx=i%TEST_BODIES.length;
-      const subj=fill(TEST_SUBJECTS[subjIdx],{
-        vaga:'Landscape Laborer QA Test',
-        empresa:'Robot Test Inc'
-      });
-      const body=fill(TEST_BODIES[bodyIdx],{ts:nowStr()});
 
       _doneTests++;
-      _setProgress((_doneTests/_totalTests)*100,`Enviando manual para ${email}...`);
+      _setProgress((_doneTests/_totalTests)*100,`Enviando manual ${i+1}/${TARGET_EMAILS.length} → ${email}...`);
       _emailResults[email]={attempted:true, manual:false, auto:false, errors:[]};
 
       const sendPayload={
         to: email,
-        subject: subj,
-        message: body,
+        subject: TEST_SUBJECTS[subjIdx],          // sem fill() — assunto direto
+        message: TEST_BODIES[bodyIdx],            // corpo já tem timestamp embutido
         job: 'Landscape Laborer — Robot QA Test',
-        company: 'Robot Test Inc — QA',
-        jobId: `robot-qa-manual-${i}-${Date.now()}`,
-        resumeIdx,
-        coverIdx,
-        fromName:'Robot QA H2BApply',
-        isReply:false
+        company: 'Robot Test Inc QA',
+        jobId: `robot-qa-${Date.now()}-${i}`,    // ID único por execução
+        fromName:'H2BApply QA Robot',
+        isReply:false,
+        ...(resumeIdx!=null ? {resumeIdx} : {}),
+        ...(coverIdx!=null  ? {coverIdx}  : {})
       };
 
       const t0=Date.now();
-      const r=await post('/api/send', sendPayload, 20000);
+      const r=await post('/api/send', sendPayload, 25000);
       const ms=Date.now()-t0;
       _stats.send++;
       _updateStats();
 
       if(r.ok){
         _emailResults[email].manual=true;
-        log('send',`[Manual] ✉️ Enviado para ${email} (${ms}ms) — Assunto variação ${subjIdx+1}/${TEST_SUBJECTS.length}`,`PDF: ${resumeIdx!=null?'✅':'❌ sem PDF'}`);
+        log('send',`[Manual] ✉️  ENVIADO → ${email} (${ms}ms) | Variação ${subjIdx+1}/3`,`Assunto: "${TEST_SUBJECTS[subjIdx]}" | PDF: ${resumeIdx!=null?'✅':'❌ sem PDF'}`);
         _updateEmailTags();
       } else if(r.status===429){
-        log('warn',`[Manual] Rate limit para ${email}`,r.data?.error||'Limite atingido');
+        log('warn',`[Manual] Rate limit → ${email}`,r.data?.error);
         _emailResults[email].errors.push('rate_limit');
         addIssue('low','Rate Limit',`Limite ao enviar para ${email}`,r.data?.error);
       } else if(r.status===409){
-        log('warn',`[Manual] ${email} já foi enviado antes (dedup OK)`,r.data?.error);
-        _emailResults[email].errors.push('already_sent');
+        // Dedup ainda bloqueou — pode ser que clear-sent não limpou o histórico
+        log('warn',`[Manual] Dedup ainda ativo → ${email}`,r.data?.error);
+        _emailResults[email].errors.push('still_dedup');
+        addIssue('medium','Dedup persistente',`${email} ainda bloqueado após clear`,'/api/sent/remove pode não ter limpado completamente');
       } else if(r.status===401){
-        log('err',`[Manual] Token Gmail expirado — envio para ${email} falhou`);
+        log('err',`[Manual] Token Gmail expirado → ${email} falhou`);
         _emailResults[email].errors.push('oauth_expired');
-        addIssue('critical','Gmail OAuth','Token expirado ao tentar enviar','Refazer login OAuth');
+        addIssue('critical','Gmail OAuth','Token expirado ao enviar','Refazer login OAuth');
       } else {
-        log('err',`[Manual] Falha ao enviar para ${email} — HTTP ${r.status}`,r.data?.error||'');
+        log('err',`[Manual] Falha → ${email} HTTP ${r.status}`,r.data?.error||'');
         _emailResults[email].errors.push(`http_${r.status}`);
         addIssue('medium','Envio Manual',`Falha para ${email}: HTTP ${r.status}`,r.data?.error||'');
       }
-      await wait(800); // Pausa entre envios para não disparar rate limit
+      await wait(1000); // Pausa entre envios
     }
 
-    // Verificar histórico após envios
+    // 4. Verificar histórico após envios
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Verificando histórico de envios...');
-    await wait(500);
+    _setProgress((_doneTests/_totalTests)*100,'Verificando histórico pós-envio...');
+    await wait(600);
     const histR=await apiFetch('/api/history');
     const hist=histR.data?.history||[];
-    const robotSent=hist.filter(h=>h.company?.includes('Robot')||h.job?.includes('Robot')||h.job?.includes('QA'));
-    log('ok',`[Manual] Histórico: ${hist.length} total | ${robotSent.length} do robô`);
+    const robotSent=hist.filter(h=>(h.company||'').includes('Robot')||(h.job||'').includes('Robot'));
+    const succeeded=TARGET_EMAILS.filter(e=>_emailResults[e]?.manual);
+    log('ok',`[Manual] Histórico: ${hist.length} total | ${robotSent.length} do robô | ${succeeded.length}/${TARGET_EMAILS.length} e-mails enviados com sucesso`);
+    if(succeeded.length===0){
+      addIssue('critical','Envio Manual','Nenhum e-mail foi enviado','Verificar token Gmail e dedup');
+    } else if(succeeded.length<TARGET_EMAILS.length){
+      addIssue('medium','Envio Parcial',`${TARGET_EMAILS.length-succeeded.length} e-mail(s) não enviados`,`Enviados: ${succeeded.join(', ')}`);
+    }
 
-    // Verificar dedup (tentar reenviar para o primeiro e-mail)
+    // 5. Testar anti-duplicata (depois de enviar, reenvio deve ser bloqueado)
     _doneTests++;
     _setProgress((_doneTests/_totalTests)*100,'Testando anti-duplicata...');
-    if(TARGET_EMAILS.length>0){
+    if(TARGET_EMAILS.length>0 && succeeded.length>0){
+      const testEmail=succeeded[0];
       const dupR=await post('/api/send',{
-        to:TARGET_EMAILS[0],
-        subject:'DUP TEST — Robot',
-        message:'This is a duplicate test',
-        job:'DUP Test',
-        company:'DUP Co',
-        jobId:'robot-dup-test',
-        isReply:false
+        to:testEmail,
+        subject:'[DUP TEST] Robot — Should be blocked',
+        message:'This is a duplicate test. Should return 409.',
+        job:'DUP Test',company:'DUP Co',jobId:'robot-dup-test',isReply:false
       });
       if(dupR.status===409){
-        log('ok',`[Manual] Anti-duplicata funcionando — bloqueou reenvio para ${TARGET_EMAILS[0]}`);
+        log('ok',`[Manual] ✅ Anti-duplicata OK — bloqueou reenvio para ${testEmail}`);
       } else if(dupR.ok){
-        log('warn',`[Manual] Anti-duplicata não bloqueou reenvio para ${TARGET_EMAILS[0]}`);
-        addIssue('medium','Anti-duplicata','Dedup não bloqueou reenvio','Verificar hasSent()');
+        log('warn',`[Manual] Anti-duplicata NÃO bloqueou reenvio para ${testEmail}`);
+        addIssue('medium','Anti-duplicata','Dedup não bloqueou reenvio','Verificar hasSent() no server.js');
       } else {
         log('info',`[Manual] Anti-duplicata retornou ${dupR.status}`,dupR.data?.error);
       }
+    } else {
+      log('skip','[Manual] Anti-duplicata pulada — nenhum envio bem-sucedido anterior');
+      _stats.skip++;
     }
   }
 
   // ── Suite 6: Envio Automático ────────────────────────────────────
   async function suiteAuto(){
     section('Envio Automático — Start/Monitor/Stop');
-
     const resumeIdx=_uploadedCvIdxs.find(c=>c.type==='resume')?.idx||null;
 
-    // 1. Verificar status antes
+    // 1. Status antes
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Status automático antes do teste...');
+    _setProgress((_doneTests/_totalTests)*100,'Status automático antes...');
     const st0=await apiFetch('/api/auto/status');
     log('ok',`[Auto] Status inicial: ${st0.data?.active?'🟢 Ativo':'⏸ Inativo'} | Fila: ${st0.data?.queue?.length||0}`);
+    if(st0.data?.active){log('info','[Auto] Já ativo — parando');await post('/api/auto/stop');await wait(500);}
 
-    // 2. Verificar limites
+    // 2. Limites
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Verificando limites do automático...');
+    _setProgress((_doneTests/_totalTests)*100,'Verificando limites...');
     const statusR=await apiFetch('/api/status');
     const autoLimit=statusR.data?.autoLimit||10;
     const autoSent=statusR.data?.todaySentAuto||0;
-    const autoRemaining=statusR.data?.autoRemaining||0;
-    log('ok',`[Auto] Limite: ${autoLimit}/dia | Enviados hoje: ${autoSent} | Restantes: ${autoRemaining}`);
-    if(autoRemaining<=0){
-      log('warn','[Auto] Limite diário atingido — teste de start retornará 429');
-      addIssue('low','Auto Limite','Limite diário atingido','Aguardar reset à meia-noite');
-    }
+    log('ok',`[Auto] Limite: ${autoLimit}/dia | Auto hoje: ${autoSent} | Restantes: ${autoLimit-autoSent}`);
 
-    // 3. Montar fila com os e-mails de teste
+    // 3. LIMPAR DEDUP — hasSent() checa histórico E DB_SENT, precisa limpar os dois
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Montando fila de e-mails de teste...');
+    _setProgress((_doneTests/_totalTests)*100,'Limpando dedup...');
+    let autoCleared=0;
+    for(const email of TARGET_EMAILS){
+      const r=await post('/api/sent/remove',{to:email});
+      if(r.ok&&r.data?.removed>0) autoCleared+=r.data.removed;
+      await wait(60);
+    }
+    await post('/api/admin/clear-sent',{email:_adminEmail});
+    log('ok',`[Auto] Dedup limpo — ${autoCleared} entradas | Fila livre: ${TARGET_EMAILS.length} e-mails`);
+
+    // 4. Montar fila com TARGET_EMAILS (sem o email do admin)
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Montando fila...');
     const queue=TARGET_EMAILS.map((email,i)=>({
-      id:`robot-auto-${i}-${Date.now()}`,
-      to:email,
+      id:`robot-auto-${i}-${Date.now()}`,to:email,
       title:'Landscape Laborer — Robot Auto QA',
       company:`Robot Auto Test Co ${i+1}`,
-      category:'landscape',
-      state:'FLORIDA',
-      city:'Miami',
-      wage:'$18/h',
-      visa:'H-2B',
-      start:'2026-03-01',
-      end:'2026-11-30',
-      workers:5,
-      caseNum:`RAQA-${i+1}-2026`
+      category:'landscape',state:'FLORIDA',city:'Miami',
+      wage:'$18/h',visa:'H-2B',start:'2026-03-01',end:'2026-11-30',
+      workers:5,caseNum:`RAQA-${i+1}-${Date.now()}`
     }));
-    log('ok',`[Auto] Fila montada — ${queue.length} vagas para ${TARGET_EMAILS.length} e-mails`);
+    log('ok',`[Auto] Fila: ${queue.length} itens → ${TARGET_EMAILS.join(', ')}`);
 
-    // 4. Iniciar automático
+    // 5. Iniciar
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Iniciando envio automático...');
-    const autoPayload={
-      queue,
-      resumeIdx,
-      subjects: TEST_SUBJECTS,
-      emailBodies: TEST_BODIES.map(b=>fill(b,{ts:nowStr()})),
-      startH:0,
-      endH:24
-    };
-
-    const startR=await post('/api/auto/start', autoPayload, 20000);
+    _setProgress((_doneTests/_totalTests)*100,'Iniciando automático...');
+    const autoPayload={queue,resumeIdx,subjects:TEST_SUBJECTS,emailBodies:TEST_BODIES,startH:0,endH:24};
+    const startR=await post('/api/auto/start',autoPayload,25000);
     if(startR.ok){
       _autoJobStarted=true;
-      log('ok',`[Auto] 🚀 Automático iniciado! Fila: ${startR.data?.queueSize||queue.length} vagas`);
-      _emailResults['__auto__']={attempted:true, queueSize:startR.data?.queueSize||queue.length};
+      log('ok',`[Auto] 🚀 Iniciado! Fila aceita: ${startR.data?.queueSize||queue.length}`);
+      if((startR.data?.queueSize||0)<queue.length) log('warn','[Auto] Fila reduzida — dedup ainda ativo para alguns');
     } else if(startR.status===409){
-      log('warn','[Auto] Automático já estava rodando — testando stop/restart');
-      await post('/api/auto/stop');
-      await wait(1000);
-      const retry=await post('/api/auto/start', autoPayload, 20000);
-      if(retry.ok){
-        _autoJobStarted=true;
-        log('ok',`[Auto] Reiniciado após stop — Fila: ${retry.data?.queueSize||0}`);
-      } else {
-        log('err',`[Auto] Falha ao reiniciar — HTTP ${retry.status}`,retry.data?.error);
-        addIssue('critical','Auto Start','Falha ao iniciar automático',retry.data?.error);
-      }
+      log('warn','[Auto] Já rodando — stop/restart');
+      await post('/api/auto/stop');await wait(1500);
+      const retry=await post('/api/auto/start',autoPayload,25000);
+      if(retry.ok){_autoJobStarted=true;log('ok',`[Auto] Reiniciado — Fila: ${retry.data?.queueSize||0}`);}
+      else{log('err',`[Auto] Falha — HTTP ${retry.status}`,retry.data?.error);addIssue('critical','Auto Start','Falha ao iniciar',retry.data?.error);}
     } else if(startR.status===429){
-      log('warn',`[Auto] Limite diário atingido — não iniciou`,startR.data?.error);
-      addIssue('low','Auto Limite','Limite diário ao iniciar',startR.data?.error);
+      log('warn',`[Auto] Limite diário`,startR.data?.error);
+      addIssue('low','Auto Limite','Limite atingido','Aguardar reset meia-noite');
     } else {
-      log('err',`[Auto] Falha ao iniciar — HTTP ${startR.status}`,startR.data?.error);
+      log('err',`[Auto] Falha HTTP ${startR.status}`,startR.data?.error);
       addIssue('critical','Auto Start',`HTTP ${startR.status}`,startR.data?.error||'');
     }
 
-    // 5. Monitorar por 15 segundos
+    // 6. Monitorar por até 20s
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Monitorando execução por 15s...');
-    const monitorStart=Date.now();
-    let lastSent=0;
-    let checks=0;
-    while(Date.now()-monitorStart<15000 && _running){
-      await wait(3000);
-      checks++;
-      const monR=await apiFetch('/api/auto/status');
-      if(!monR.ok) break;
-      const d=monR.data;
-      const sentNow=d?.totalSent||0;
-      const newSent=sentNow-lastSent;
-      lastSent=sentNow;
-      log('info',`[Auto] Check ${checks}: ${d?.active?'🟢 Ativo':'⏸ Inativo'} | Fila: ${d?.queue?.length||0} | Enviados: ${sentNow}${newSent>0?` (+${newSent})`:''}`,`Status: ${d?.status||'?'}`);
-      if(!d?.active && _autoJobStarted) {
-        log('ok','[Auto] Automático finalizou naturalmente');
-        break;
+    _setProgress((_doneTests/_totalTests)*100,'Monitorando...');
+    if(_autoJobStarted){
+      const tMon=Date.now();let checks=0;let lastQ=-1;
+      while(Date.now()-tMon<20000&&_running){
+        await wait(3000);checks++;
+        const monR=await apiFetch('/api/auto/status');if(!monR.ok)break;
+        const d=monR.data;const qLen=d?.queue?.length||0;const sent=d?.stats?.sent||0;
+        const chg=qLen!==lastQ?` (fila ${lastQ}→${qLen})`:'';lastQ=qLen;
+        log('info',`[Auto] Check ${checks}: ${d?.active?'🟢':'⏸'} | Fila: ${qLen}${chg} | Enviados: ${sent}`,`Status: ${d?.status||'?'}`);
+        if(!d?.active){
+          log('ok',`[Auto] Finalizou — ${d?.stats?.sent||0} e-mails enviados`);
+          if((d?.stats?.sent||0)>0){TARGET_EMAILS.forEach(e=>{if(_emailResults[e])_emailResults[e].auto=true;});_updateEmailTags();}
+          break;
+        }
       }
     }
 
-    // 6. Verificar logs do automático
+    // 7. Logs do automático
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Verificando logs do automático...');
-    const logsR=await apiFetch('/api/auto-logs?limit=20');
+    _setProgress((_doneTests/_totalTests)*100,'Verificando logs...');
+    const logsR=await apiFetch('/api/auto-logs?limit=30');
     if(logsR.ok){
       const logs=logsR.data?.logs||[];
       const sent=logs.filter(l=>l.status==='enviado');
+      const pulados=logs.filter(l=>l.status==='pulado');
       const errs=logs.filter(l=>l.status==='erro'||l.status==='failed');
-      log('ok',`[Auto] Logs: ${logs.length} entradas | ${sent.length} enviados | ${errs.length} erros`);
-      if(errs.length>0){
-        errs.slice(0,3).forEach(e=>log('warn',`[Auto] Erro no log: ${e.jobTitle||'?'}`,e.error||''));
-      }
-    } else {
-      log('warn',`[Auto] Logs inacessíveis — HTTP ${logsR.status}`);
-    }
+      log('ok',`[Auto] Logs: ${logs.length} | ✅ ${sent.length} enviados | ⏭ ${pulados.length} pulados | ❌ ${errs.length} erros`);
+      sent.slice(0,3).forEach(l=>log('send',`  📨 ${l.company||l.jobTitle||'?'} → ${l.to||'?'}`));
+      pulados.slice(0,2).forEach(l=>log('info',`  ⏭ ${l.company||'?'} — ${l.error||'?'}`));
+      errs.slice(0,2).forEach(l=>log('warn',`  ❌ ${l.jobTitle||'?'} — ${l.error||'?'}`));
+    } else {log('warn',`[Auto] Logs HTTP ${logsR.status}`);}
 
-    // 7. Pause / Resume
+    // 8. Pause/Resume
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Testando pause/resume...');
-    if(_autoJobStarted){
-      const pauseR=await post('/api/auto/pause');
-      if(pauseR.ok){
-        log('ok','[Auto] Pause OK');
-        await wait(1000);
-        const resumeR=await post('/api/auto/resume');
-        if(resumeR.ok){
-          log('ok','[Auto] Resume OK');
-        } else {
-          log('warn',`[Auto] Resume falhou — HTTP ${resumeR.status}`);
-        }
-      } else if(pauseR.status===404){
-        log('info','[Auto] Pause — sem job ativo para pausar (OK se já finalizou)');
-      } else {
-        log('warn',`[Auto] Pause retornou ${pauseR.status}`);
-      }
-    } else {
-      log('skip','[Auto] Pause/Resume pulado — auto não iniciou');
-      _stats.skip++;
-    }
+    _setProgress((_doneTests/_totalTests)*100,'Pause/Resume...');
+    const stChk=await apiFetch('/api/auto/status');
+    if(stChk.data?.active){
+      const pR=await post('/api/auto/pause');
+      if(pR.ok){log('ok','[Auto] Pause OK');await wait(800);const rR=await post('/api/auto/resume');log(rR.ok?'ok':'warn',`[Auto] Resume ${rR.ok?'OK':'falhou'}`);}
+      else{log('info',`[Auto] Pause ${pR.status} — pode já ter finalizado`);}
+    } else {log('info','[Auto] Sem job ativo para pause/resume');}
 
-    // 8. Verificar histórico pós-automático
+    // 9. Histórico
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Verificando histórico pós-automático...');
+    _setProgress((_doneTests/_totalTests)*100,'Histórico pós-automático...');
     const histR=await apiFetch('/api/history');
     const autoHist=(histR.data?.history||[]).filter(h=>h.type==='auto');
-    log('ok',`[Auto] Histórico automático: ${autoHist.length} envios registrados`);
+    log('ok',`[Auto] Histórico auto: ${autoHist.length} envios registrados`);
 
-    // 9. Stop definitivo
+    // 10. Stop final
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Parando automático...');
+    _setProgress((_doneTests/_totalTests)*100,'Stop final...');
     const stopR=await post('/api/auto/stop');
-    if(stopR.ok){
-      log('ok','[Auto] Stop OK — automático encerrado');
-      _autoJobStarted=false;
-    } else {
-      log('info',`[Auto] Stop retornou ${stopR.status} (OK se já finalizou)`);
-    }
-
-    // 10. Status final
-    _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Status final do automático...');
-    await wait(500);
+    _autoJobStarted=false;
+    log(stopR.ok?'ok':'info',`[Auto] Stop — ${stopR.ok?'OK':'job já finalizado'}`);
     const stF=await apiFetch('/api/auto/status');
-    log('ok',`[Auto] Status final: ${stF.data?.active?'🟢 Ainda ativo':'⏸ Parado'} | Enviados total: ${stF.data?.stats?.sent||0}`);
+    log('ok',`[Auto] Status final: ${stF.data?.active?'🟢':'⏸ Parado'} | Total: ${stF.data?.stats?.sent||0}`);
   }
 
-  // ── Suite 7: Ranking & Social ────────────────────────────────────
+    // ── Suite 7: Ranking & Social ────────────────────────────────────
   async function suiteRanking(){
     section('Ranking & Social');
     const periods=['day','week','month','all'];
@@ -1527,6 +1748,93 @@ const RobotV2 = (function(){
         addIssue('medium',`Admin: ${ep.l}`,`HTTP ${r.status}`,`Rota ${ep.p}`);
       }
       await wait(80);
+    }
+  }
+
+  // ── Suite 10: Fix Auto (Diagnóstico completo dos automáticos) ──────────────
+  async function suiteFixAuto(){
+    section('Diagnóstico & Reparo dos Automáticos');
+
+    // 1. Reset diário (para permitir novo envio após limites)
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Executando reset diário...');
+    const resetR = await post('/api/admin/reset-daily', {});
+    if(resetR.ok){
+      log('ok',`[FixAuto] ♻️ Reset diário OK — ${resetR.data?.totalRemoved||0} entradas removidas de ${resetR.data?.usersAffected||0} usuários`);
+    } else {
+      log('warn',`[FixAuto] Reset diário HTTP ${resetR.status}`, resetR.data?.error);
+    }
+
+    // 2. Verificar automáticos ativos antes do fix
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Listando automáticos antes do fix...');
+    const liveBefore = await apiFetch('/api/admin/live');
+    const workersBefore = liveBefore.data?.workers||liveBefore.data?.users||[];
+    const activeBefore = workersBefore.filter(u=>u.hasAuto||u.autoStatus);
+    log('ok',`[FixAuto] Automáticos antes: ${activeBefore.length} usuários com auto configurado`);
+    activeBefore.forEach(u=>log('info',`  ${u.email}: status=${u.autoStatus||'?'} fila=${u.queueSize||0} timer=${u.timers?'✅':'❌'} stalled=${u.jobStalled?'⚠️':'OK'}`));
+
+    // 3. Executar fix-auto global
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Executando fix-auto global...');
+    const fixR = await post('/api/admin/fix-auto', {});
+    if(fixR.ok){
+      const {fixed, total, results} = fixR.data;
+      log('ok',`[FixAuto] 🔧 Fix concluído — ${fixed}/${total} reparados`);
+      results.forEach(r=>{
+        const lvl = r.action==='ok'?'info': r.action==='skipped'?'warn':'ok';
+        log(lvl,`  ${r.email}: [${r.action}] ${r.detail}`);
+      });
+      const skipped = results.filter(r=>r.action==='skipped');
+      if(skipped.length>0){
+        log('warn',`[FixAuto] ${skipped.length} usuário(s) precisam refazer login (token Gmail expirado)`);
+        skipped.forEach(r=>addIssue('medium',`Token ${r.email}`,'Token Gmail expirado','Usuário precisa refazer login no H2BApply'));
+      }
+    } else {
+      log('err',`[FixAuto] fix-auto falhou HTTP ${fixR.status}`, fixR.data?.error);
+      addIssue('critical','Fix Auto',`HTTP ${fixR.status}`,fixR.data?.error);
+    }
+
+    // 4. Aguardar 5s e verificar resultado
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Aguardando 5s para verificar resultado...');
+    await wait(5000);
+    const liveAfter = await apiFetch('/api/admin/live');
+    const workersAfter = liveAfter.data?.workers||liveAfter.data?.users||[];
+    const activeAfter = workersAfter.filter(u=>u.hasAuto);
+    const stalledAfter = workersAfter.filter(u=>u.jobStalled);
+    log('ok',`[FixAuto] Pós-fix: ${activeAfter.length} ativos | ${stalledAfter.length} ainda travados`);
+    if(stalledAfter.length>0){
+      stalledAfter.forEach(u=>{
+        log('warn',`  ${u.email} ainda travado — status: ${u.autoStatus||'?'}`);
+        addIssue('medium',`Auto travado ${u.email}`,`Ainda travado após fix: ${u.autoStatus}`,'Verificar token Gmail do usuário');
+      });
+    }
+
+    // 5. Testar fix para usuário específico (o admin)
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Testando fix para usuário específico...');
+    const fixSingle = await post('/api/admin/fix-auto', {email: _adminEmail});
+    if(fixSingle.ok){
+      const r = fixSingle.data?.results?.[0];
+      log('ok',`[FixAuto] Fix individual ${_adminEmail}: ${r?.action||'?'} — ${r?.detail||'?'}`);
+    }
+
+    // 6. Relatório final de saúde
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Relatório de saúde dos automáticos...');
+    const healthR = await apiFetch('/api/admin/live');
+    const users = healthR.data?.workers||healthR.data?.users||[];
+    const resumo = {total:users.length, comAuto:0, semToken:0, travados:0, ok:0};
+    users.forEach(u=>{
+      if(u.hasAuto||u.autoStatus) resumo.comAuto++;
+      if(u.autoStatus==='paused_no_session') resumo.semToken++;
+      if(u.jobStalled) resumo.travados++;
+      if(u.hasAuto&&!u.jobStalled&&u.timers) resumo.ok++;
+    });
+    log('ok',`[FixAuto] Saúde final: ${resumo.comAuto} com auto | ✅ ${resumo.ok} OK | ⚠️ ${resumo.travados} travados | 🔑 ${resumo.semToken} sem token`);
+    if(resumo.travados===0 && resumo.semToken===0){
+      log('ok','[FixAuto] 🎉 Todos os automáticos estão saudáveis!');
     }
   }
 
@@ -1632,7 +1940,7 @@ const RobotV2 = (function(){
 
   // ── Contagem total de testes ─────────────────────────────────────
   function _countTotal(){
-    const counts={apis:16, auth:4, perfil:8, pdf:4, manual:8, auto:10, ranking:6, admin:10, cleanup:4};
+    const counts={apis:16, auth:4, perfil:8, pdf:4, manual:8, auto:10, ranking:6, admin:10, cleanup:4, fixauto:6};
     return [..._selectedSuites].reduce((s,k)=>s+(counts[k]||0),0);
   }
 
@@ -1737,6 +2045,7 @@ const RobotV2 = (function(){
         ranking: suiteRanking,
         admin:   suiteAdmin,
         cleanup: suiteCleanup,
+        fixauto: suiteFixAuto,
       };
 
       for(const [key,fn] of Object.entries(suiteMap)){
@@ -1842,6 +2151,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     <button class="suite-chip on" id="sc-ranking" onclick="rbSuite('ranking')">🏆 Ranking</button>
     <button class="suite-chip on" id="sc-admin"   onclick="rbSuite('admin')">🛡️ Admin APIs</button>
     <button class="suite-chip on" id="sc-cleanup" onclick="rbSuite('cleanup')" title="Sempre incluída">🧹 Limpeza</button>
+    <button class="suite-chip" id="sc-fixauto" onclick="rbSuite('fixauto')">🔧 Fix Auto</button>
   </div>
 
   <!-- E-mails ao vivo -->
@@ -1954,6 +2264,7 @@ document.addEventListener('DOMContentLoaded',()=>{
         <button class="tab-btn" onclick="switchModalTab('auto')"><i class="ti ti-robot"></i> Automático</button>
         <button class="tab-btn" onclick="switchModalTab('pdfs')"><i class="ti ti-file-type-pdf"></i> PDFs</button>
         <button class="tab-btn" onclick="switchModalTab('profiles')"><i class="ti ti-id-badge"></i> Perfis</button>
+        <button class="tab-btn" onclick="switchModalTab('journey')"><i class="ti ti-activity"></i> Jornada</button>
         <button class="tab-btn" onclick="switchModalTab('logs')"><i class="ti ti-list"></i> Logs Auto</button>
         <button class="tab-btn" onclick="switchModalTab('history')"><i class="ti ti-history"></i> Histórico</button>
         <button class="tab-btn" onclick="switchModalTab('enviados')"><i class="ti ti-mail"></i> Enviados</button>
@@ -1964,6 +2275,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       <div class="tab-content" id="modal-tab-auto"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
       <div class="tab-content" id="modal-tab-pdfs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
       <div class="tab-content" id="modal-tab-profiles"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      <div class="tab-content" id="modal-tab-journey"><div class="empty-state"><i class="ti ti-loader"></i>Carregando jornada...</div></div>
       <div class="tab-content" id="modal-tab-logs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
       <div class="tab-content" id="modal-tab-history"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
       <div class="tab-content" id="modal-tab-enviados"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
@@ -2032,7 +2344,8 @@ function showView(name) {
   const titles={dashboard:'Dashboard',workers:'Automáticos',events:'Eventos & Crashes',users:'Usuários',vip:'VIP & Planos',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',indicacoes:'Indicações'};
   setText('view-title', titles[name]||name);
   document.querySelectorAll('.sb-item').forEach(b=>{if(b.getAttribute('onclick')?.includes(`'${name}'`))b.classList.add('active');});
-  if(name==='users') renderUsersTable();
+  if(name==='users'){ renderUsersTable(); loadJourneyFeed(); }
+  if(name==='logs-export') loadLogsPreview();
   if(name==='workers') renderWorkersTable();
   if(name==='events') renderEventsView();
   if(name==='codes') loadCodes();
@@ -2075,7 +2388,7 @@ async function refreshAll() {
 
     if(currentView==='workers') renderWorkersTable();
     if(currentView==='events')  renderEventsView();
-    if(currentView==='users')   renderUsersTable();
+    if(currentView==='users'){   renderUsersTable(); loadJourneyFeed(); }
 
     // Live refresh modal if open
     if(currentModalEmail && currentModalData) {
@@ -2243,6 +2556,173 @@ function renderWorkersTable(){
 function filterWorkers(){renderWorkersTable();}
 
 // ══════════════════════════════════════════════════════════
+//  BULK STATUS — Diagnóstico Completo dos Automáticos
+// ══════════════════════════════════════════════════════════
+const PHASE_LABELS = {
+  sending:       {icon:'📨', label:'Enviando',         color:'var(--green)',  bg:'var(--greeng)'},
+  running:       {icon:'🟢', label:'Rodando',          color:'var(--green)',  bg:'var(--greeng)'},
+  waiting_limit: {icon:'📊', label:'Aguard. amanhã',   color:'var(--amber)',  bg:'var(--amberg)'},
+  waiting_hour:  {icon:'🕐', label:'Aguard. horário',  color:'var(--blue)',   bg:'var(--blueg)'},
+  stalled:       {icon:'🚨', label:'TRAVADO',          color:'var(--red)',    bg:'var(--redg)'},
+  dead_timer:    {icon:'💀', label:'Timer morto',      color:'var(--red)',    bg:'var(--redg)'},
+  paused_token:  {icon:'🔑', label:'Sem token',        color:'var(--red)',    bg:'var(--redg)'},
+  paused_manual: {icon:'⏸', label:'Pausado',          color:'var(--t2)',     bg:'var(--glass2)'},
+  no_pdf:        {icon:'📄', label:'Sem PDF',          color:'var(--amber)',  bg:'var(--amberg)'},
+  no_token:      {icon:'🔑', label:'Sem token',        color:'var(--red)',    bg:'var(--redg)'},
+  finished:      {icon:'✅', label:'Concluído',        color:'var(--t3)',     bg:'var(--glass2)'},
+};
+
+let bulkData = null;
+
+async function loadBulkStatus(){
+  const panel = document.getElementById('bulk-status-panel');
+  const btn = document.getElementById('btn-bulk-refresh');
+  if(!panel) return;
+  if(btn){ btn.disabled=true; btn.innerHTML='<i class="ti ti-loader"></i> Carregando...'; }
+  panel.style.display='';
+  panel.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i> Carregando diagnóstico...</div>';
+  try {
+    const r = await fetch('/api/admin/bulk-status',{credentials:'include'});
+    const d = await r.json();
+    bulkData = d.workers||[];
+    renderBulkStatus();
+  } catch(e){
+    panel.innerHTML=`<div class="empty-state" style="color:var(--red)"><i class="ti ti-alert-circle"></i>Erro: ${esc(e.message)}</div>`;
+  } finally {
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-refresh"></i> Diagnóstico Completo'; }
+  }
+}
+
+function renderBulkStatus(){
+  const panel = document.getElementById('bulk-status-panel');
+  if(!panel||!bulkData) return;
+  const now = Date.now();
+  
+  // Resumo por fase
+  const phaseCounts = {};
+  bulkData.forEach(w=>{ phaseCounts[w.phase]=(phaseCounts[w.phase]||0)+1; });
+  const problems = bulkData.filter(w=>['stalled','dead_timer','paused_token','no_pdf','no_token'].includes(w.phase));
+  const attention = bulkData.filter(w=>['waiting_limit','paused_manual'].includes(w.phase));
+  
+  let html = `<div style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;overflow:hidden">`;
+  
+  // Header com resumo
+  html += `<div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <div style="font-size:13px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px"><i class="ti ti-stethoscope" style="color:var(--purple)"></i> Diagnóstico: ${bulkData.length} workers</div>
+    ${problems.length>0?`<span style="background:var(--redg);border:1px solid var(--redb);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;color:var(--red)">🚨 ${problems.length} com problema</span>`:'<span style="background:var(--greeng);border:1px solid var(--greenb);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;color:var(--green)">✅ Todos OK</span>'}
+    ${attention.length>0?`<span style="background:var(--amberg);border:1px solid var(--amberb);border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;color:var(--amber)">⚠️ ${attention.length} aguardando</span>`:''}
+    <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+      ${Object.entries(phaseCounts).map(([p,c])=>{
+        const ph=PHASE_LABELS[p]||{icon:'?',label:p,color:'var(--t3)',bg:'var(--glass2)'};
+        return `<span style="background:${ph.bg};border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;color:${ph.color}">${ph.icon} ${ph.label}: ${c}</span>`;
+      }).join('')}
+    </div>
+  </div>`;
+  
+  // Lista de workers com diagnóstico completo
+  html += `<div style="max-height:600px;overflow-y:auto">`;
+  
+  bulkData.forEach(w=>{
+    const ph = PHASE_LABELS[w.phase]||{icon:'❓',label:w.phase,color:'var(--t3)',bg:'var(--glass2)'};
+    const isProb = ['stalled','dead_timer','paused_token','no_pdf','no_token'].includes(w.phase);
+    const borderColor = isProb?'rgba(239,68,68,.3)':w.canFix?'rgba(245,158,11,.2)':'var(--border)';
+    
+    html += `<div style="padding:12px 14px;border-bottom:1px solid var(--border);${isProb?'background:rgba(239,68,68,.03)':''}">
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
+        <!-- Avatar + nome -->
+        <div style="flex-shrink:0">
+          ${w.picture?`<img src="${esc(w.picture)}" style="width:32px;height:32px;border-radius:50%;object-fit:cover">`:
+          `<div style="width:32px;height:32px;border-radius:50%;background:var(--glass2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--text)">${(w.name||w.email)[0].toUpperCase()}</div>`}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:4px">
+            <span style="font-size:13px;font-weight:800;color:#fff">${esc(w.name)}</span>
+            <span class="mono" style="font-size:10px;color:var(--t3)">${esc(w.email)}</span>
+            <span style="background:${ph.bg};border:1px solid ${borderColor};border-radius:20px;padding:2px 8px;font-size:10px;font-weight:800;color:${ph.color}">${ph.icon} ${ph.label}</span>
+            ${w.job.pctDone>0?`<span style="font-size:10px;color:var(--t2)">${w.job.pctDone}% — ${w.job.sentCount}/${w.job.originalCount} vagas</span>`:''}
+          </div>
+          <!-- Fase detalhada -->
+          <div style="background:var(--bg2);border:1px solid ${borderColor};border-radius:8px;padding:10px 12px;margin-bottom:8px">
+            <div style="font-size:11px;font-weight:700;color:${ph.color};margin-bottom:4px">📍 Fase atual: ${ph.label}</div>
+            <div style="font-size:11px;color:var(--text);line-height:1.7">${esc(w.phaseDetail)}</div>
+          </div>
+          <!-- Barra de progresso -->
+          ${w.job.originalCount>0?`<div style="margin-bottom:8px">
+            <div class="prog-bg" style="height:6px"><div class="prog-fill ${isProb?'pg-red':w.phase==='waiting_limit'?'pg-amber':'pg-green'}" style="width:${w.job.pctDone}%"></div></div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-top:2px">
+              <span>${w.job.sentCount.toLocaleString('pt-BR')} enviados</span>
+              <span>${w.job.queueLen.toLocaleString('pt-BR')} restantes</span>
+              <span>${w.autoLimit}/dia | hoje: ${w.todayAuto}</span>
+            </div>
+          </div>`:''}
+          <!-- Checklist de saúde -->
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+            <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:${w.checklist.hasToken?'var(--greeng)':'var(--redg)'};color:${w.checklist.hasToken?'var(--green)':'var(--red)'}">
+              ${w.checklist.hasToken?'✅':'❌'} Token Gmail
+            </span>
+            <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:${w.checklist.hasPdf?'var(--greeng)':'var(--redg)'};color:${w.checklist.hasPdf?'var(--green)':'var(--red)'}">
+              ${w.checklist.hasPdf?'✅':'❌'} PDF
+            </span>
+            <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:${w.checklist.hasProfile?'var(--greeng)':'var(--amberg)'};color:${w.checklist.hasProfile?'var(--green)':'var(--amber)'}">
+              ${w.checklist.hasProfile?'✅':'⚠️'} Perfil
+            </span>
+            <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:${w.checklist.hasTimer?'var(--greeng)':'var(--redg)'};color:${w.checklist.hasTimer?'var(--green)':'var(--red)'}">
+              ${w.checklist.hasTimer?'✅':'❌'} Timer
+            </span>
+            <span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:${w.checklist.limitOk?'var(--greeng)':'var(--amberg)'};color:${w.checklist.limitOk?'var(--green)':'var(--amber)'}">
+              ${w.checklist.limitOk?'✅':'⚠️'} Limite
+            </span>
+            ${w.restarts>0?`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--amberg);color:var(--amber)">↺${w.restarts} restarts</span>`:''}
+            ${w.errors>0?`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--redg);color:var(--red)">❌${w.errors} erros</span>`:''}
+            ${w.recentPulados>0?`<span style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--glass2);color:var(--t2)">⏭${w.recentPulados} pulados/24h</span>`:''}
+          </div>
+          <!-- Logs recentes inline -->
+          ${w.logs.length>0?`
+          <div style="margin-bottom:6px">
+            <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">📋 Log recente (${w.logs.length} entradas)</div>
+            <div style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;overflow:hidden;max-height:120px;overflow-y:auto">
+              ${w.logs.slice(0,8).map(l=>{
+                const lc={enviado:'#4ade80',falhou:'#f87171',pulado:'#94a3b8',duplicado:'#64748b',pausado:'#fbbf24',sistema:'#60a5fa',erro_anexo:'#f87171',limite:'#60a5fa',waiting_rate_limit:'#f59e0b'}[l.status]||'#94a3b8';
+                const li={enviado:'✅',falhou:'❌',pulado:'⏭',duplicado:'⊘',pausado:'⏸',sistema:'ℹ️',erro_anexo:'📎',limite:'📊',waiting_rate_limit:'⏳'}[l.status]||'•';
+                return `<div style="display:flex;gap:6px;padding:3px 8px;border-bottom:1px solid rgba(255,255,255,.03);font-size:9.5px;font-family:monospace">
+                  <span style="color:var(--t3);flex-shrink:0;min-width:44px">${(l.date||'').split(' ')[1]||l.date||''}</span>
+                  <span style="color:${lc};flex-shrink:0">${li}</span>
+                  <span style="color:${lc};font-weight:700;flex-shrink:0">${esc(l.status)}</span>
+                  <span style="color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.jobTitle||l.company||l.to||'')}</span>
+                  ${l.error?`<span style="color:var(--red);font-size:9px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(l.error)}">${esc(l.error.slice(0,60))}</span>`:''}
+                </div>`;
+              }).join('')}
+            </div>
+          </div>
+          `:''}
+          <!-- Ações -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button onclick="openUser('${esc(w.email)}')" style="display:inline-flex;align-items:center;gap:5px;background:var(--glass2);border:1px solid var(--border2);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit">
+              <i class="ti ti-eye"></i> Detalhes completos
+            </button>
+            ${w.canFix&&!w.needsUser?`<button onclick="adminFixAuto('${esc(w.email)}')" style="display:inline-flex;align-items:center;gap:5px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;color:#a78bfa;cursor:pointer;font-family:inherit">
+              <i class="ti ti-tool"></i> Fix Auto
+            </button>`:''}
+            ${w.phase==='stalled'||w.phase==='dead_timer'?`<button onclick="forceRestart('${esc(w.email)}')" style="display:inline-flex;align-items:center;gap:5px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;color:var(--green);cursor:pointer;font-family:inherit">
+              <i class="ti ti-refresh"></i> Reiniciar
+            </button>`:''}
+            ${w.phase==='waiting_limit'?`<button onclick="adminResetDaily()" style="display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;color:var(--amber);cursor:pointer;font-family:inherit">
+              <i class="ti ti-calendar-stats"></i> Reset Diário
+            </button>`:''}
+            ${w.needsUser?`<span style="display:inline-flex;align-items:center;gap:5px;background:var(--redg);border:1px solid var(--redb);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;color:var(--red)">
+              ⚠️ Usuário precisa agir
+            </span>`:''}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  });
+  
+  html += `</div></div>`;
+  panel.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════
 //  EVENTS VIEW
 // ══════════════════════════════════════════════════════════
 const EVENT_LABELS={
@@ -2285,63 +2765,209 @@ function filterEvents(){renderEventsView();}
 // ══════════════════════════════════════════════════════════
 //  USERS TABLE
 // ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+//  USERS VIEW — PAINEL PREMIUM COMPLETO
+// ══════════════════════════════════════════════════════════
+
+const ACTION_ICONS = {
+  login:'🔐', first_login:'🎉', logout:'👋', pdf_upload:'📄', pdf_delete:'🗑️',
+  profile_save:'👤', auto_start:'🚀', auto_stop:'⏹', auto_fail:'💥',
+  manual_send:'📨', manual_fail:'❌', onboard:'✅', settings:'⚙️',
+  code_redeem:'🎁', vip_start:'⭐', referral:'🤝', inbox_check:'📬',
+};
+const ACTION_COLORS = {
+  auto_fail:'var(--red)', manual_fail:'var(--red)', first_login:'var(--green)',
+  auto_start:'var(--cyan)', manual_send:'var(--green)', pdf_upload:'var(--blue)',
+  login:'var(--t2)',
+};
+
+function _planBadge(p){
+  return {free:'<span class="badge b-gray">Free</span>',vip:'<span class="badge b-purple">⭐ VIP</span>',pro:'<span class="badge b-cyan">🤖 Pro</span>',vipro:'<span class="badge b-blue">⭐🤖</span>'}[p]||`<span class="badge b-gray">${esc(p||'?')}</span>`;
+}
+function _hasProblem(u){
+  return u.jobStalled || u.oauthOk===false || u.hasPdf===false || u.errors>3;
+}
+function _hasAttention(u){
+  return u.hasAuto && !u.jobStalled && (u.autoStatus==='waiting_limit'||u.autoStatus==='paused');
+}
+
 function renderUsersTable(){
-  const el=document.getElementById('users-tbody');
+  const list=document.getElementById('users-cards-list');
   const lbl=document.getElementById('users-count-lbl');
-  if(!el||!liveData) return;
+  if(!list||!liveData) return;
+
   const q=(document.getElementById('u-search')?.value||'').toLowerCase();
   const pf=document.getElementById('u-filter-plan')?.value||'';
-  const af=document.getElementById('u-filter-auto')?.value||'';
-  const of=document.getElementById('u-filter-online')?.value||'';
-  let users=allUsers;
+  const sf=document.getElementById('u-filter-status')?.value||'';
+  const sort=document.getElementById('u-sort')?.value||'recent';
+
+  let users=[...allUsers];
   if(q) users=users.filter(u=>(u.email||'').includes(q)||(u.name||'').toLowerCase().includes(q));
   if(pf) users=users.filter(u=>(u.plan||'')===pf);
-  if(af==='yes') users=users.filter(u=>u.hasAuto);
-  if(af==='no') users=users.filter(u=>!u.hasAuto);
-  if(of==='yes') users=users.filter(u=>u.isOnline);
-  if(of==='no') users=users.filter(u=>!u.isOnline);
+  if(sf==='online') users=users.filter(u=>u.isOnline);
+  if(sf==='problem') users=users.filter(u=>_hasProblem(u));
+  if(sf==='auto') users=users.filter(u=>u.hasAuto);
+  if(sf==='nopdf') users=users.filter(u=>u.hasPdf===false);
+  if(sf==='noauto') users=users.filter(u=>!u.hasAuto);
+
+  // Ordenação
+  if(sort==='today') users.sort((a,b)=>(b.todaySent||0)-(a.todaySent||0));
+  else if(sort==='total') users.sort((a,b)=>(b.totalSent||0)-(a.totalSent||0));
+  else if(sort==='problems') users.sort((a,b)=>(_hasProblem(b)?1:0)-(_hasProblem(a)?1:0));
+  else users.sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+
   if(lbl) lbl.textContent=`${users.length} de ${allUsers.length} usuários`;
-  const planBadge=p=>({free:'<span class="badge b-gray">Free</span>',vip:'<span class="badge b-purple">⭐ VIP</span>',pro:'<span class="badge b-cyan">🤖 Pro</span>',vipro:'<span class="badge b-blue">⭐🤖 VIPro</span>'}[p]||`<span class="badge b-gray">${esc(p||'?')}</span>`);
-  const rows=users.map(u=>{
-    const onlineBadge=u.isOnline
-      ?`<span class="status-pill sp-ok"><span class="sp-dot"></span>Online${u.sessionAge?` ${u.sessionAge}m`:''}</span>`
-      :`<span class="status-pill sp-idle"><span class="sp-dot"></span>Offline</span>`;
-    const autoBadge=u.hasAuto
-      ?(u.jobStalled?`<span class="badge b-amber">⚠️ Travado</span>`:`<span class="badge b-green">🤖 Rodando</span>`)
-      :(u.autoStatus?`<span class="badge b-gray" title="${esc(u.autoStatus)}">${fmtStatus(u.autoStatus)}</span>`:`<span style="color:var(--t3);font-size:11px">–</span>`);
-    const health=`<div class="health-row">
-      <span class="hi ${u.oauthOk===false?'hi-err':u.oauthOk===true?'hi-ok':'hi-unk'}" title="OAuth"></span>
-      <span class="hi ${u.hasPdf===false?'hi-err':u.hasPdf===true?'hi-ok':'hi-unk'}" title="PDF"></span>
-      ${u.errors>0?`<span style="font-size:9px;color:var(--red)" title="${u.errors} erros">⚠️${u.errors}</span>`:''}
-    </div>`;
-    const crAt=(u.createdAt||'').slice(0,10)||'–';
-    return `<tr onclick="openUser('${esc(u.email)}')">
-      <td>
-        <div style="display:flex;align-items:center;gap:7px">
-          ${u.picture?`<img src="${esc(u.picture)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover">`:avLetter(u.name||u.email)}
-          <div>
-            <div style="font-weight:700;font-size:12px">${esc(u.name||u.email.split('@')[0])}</div>
-            <div class="mono" style="color:var(--t3);font-size:10px">${esc(u.email)}</div>
-          </div>
+
+  // Atualizar stats bar
+  const total=allUsers.length;
+  const online=allUsers.filter(u=>u.isOnline).length;
+  const vips=allUsers.filter(u=>u.plan!=='free').length;
+  const autos=allUsers.filter(u=>u.hasAuto).length;
+  const todayTotal=allUsers.reduce((s,u)=>s+(u.todaySent||0),0);
+  const problems=allUsers.filter(u=>_hasProblem(u)).length;
+  ['usb-total','usb-online','usb-vip','usb-auto','usb-today','usb-problems'].forEach((id,i)=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent=[total,online,vips,autos,todayTotal,problems][i];
+  });
+
+  if(!users.length){list.innerHTML='<div class="empty-state"><i class="ti ti-users-off"></i>Nenhum usuário encontrado</div>';return;}
+
+  // Renderizar como cards
+  list.innerHTML=users.map(u=>{
+    const isProblem=_hasProblem(u);
+    const isAttention=_hasAttention(u);
+    const cls=isProblem?'uc-problem':isAttention?'uc-attention':u.isOnline?'uc-online':'';
+
+    // Status do automático
+    const autoPhase=u.jobStalled?'🚨 Travado':u.hasAuto?'🟢 Rodando':u.autoStatus?fmtStatus(u.autoStatus):'–';
+    const autoColor=u.jobStalled?'var(--red)':u.hasAuto?'var(--green)':u.autoStatus?'var(--amber)':'var(--t3)';
+
+    // Checklist de saúde
+    const chk=[
+      {ok:u.oauthOk!==false, label:'Token'},
+      {ok:u.hasPdf!==false,  label:'PDF'},
+      {ok:u.timers||!u.hasAuto, label:'Timer'},
+      {ok:!u.jobStalled,     label:'OK'},
+    ];
+    const chkHtml=chk.map(c=>`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:${c.ok?'var(--greeng)':'var(--redg)'};color:${c.ok?'var(--green)':'var(--red)'}">${c.ok?'✅':'❌'} ${c.label}</span>`).join('');
+
+    // Logs recentes (do liveData se disponível)
+    const recentLogs=u.recentLogs||[];
+    const logsHtml=recentLogs.length>0?
+      `<div class="uc-log-mini">${recentLogs.slice(0,3).map(l=>{
+        const lc={enviado:'#4ade80',falhou:'#f87171',pulado:'#94a3b8',sistema:'#60a5fa',pausado:'#fbbf24'}[l.status]||'#94a3b8';
+        return `<div class="uc-log-row"><span style="color:${lc};flex-shrink:0">${({enviado:'✅',falhou:'❌',pulado:'⏭',sistema:'ℹ️',pausado:'⏸'}[l.status]||'•')}</span><span style="color:${lc};font-weight:700;min-width:50px;flex-shrink:0">${esc(l.status)}</span><span style="color:var(--t2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.jobTitle||l.company||'')}</span></div>`;
+      }).join('')}</div>`:
+      '<div style="font-size:9px;color:var(--t3);padding:3px 0">Sem logs recentes</div>';
+
+    // Fila e progresso
+    const qSize=u.queueSize||0;
+    const origCount=u.originalCount||0;
+    const pct=origCount>0?Math.round((1-qSize/origCount)*100):0;
+    const progressHtml=origCount>0?`
+      <div class="uc-row"><span class="uc-key">Progresso</span>
+        <div style="display:flex;align-items:center;gap:5px">
+          <div class="prog-bg" style="width:60px;height:5px"><div class="prog-fill ${u.jobStalled?'pg-red':u.hasAuto?'pg-green':'pg-blue'}" style="width:${pct}%"></div></div>
+          <span class="uc-val">${pct}%</span>
         </div>
-      </td>
-      <td>${planBadge(u.plan)}</td>
-      <td>${onlineBadge}</td>
-      <td>${autoBadge}</td>
-      <td style="font-size:12px;font-weight:700;color:var(--text)">${u.todaySent||0}</td>
-      <td style="font-size:11px;color:var(--t2)">${(u.totalSent||0).toLocaleString('pt-BR')}</td>
-      <td style="font-size:11px;color:var(--t2)">${u.cvCount||0}</td>
-      <td>${health}</td>
-      <td style="font-size:10px;color:var(--t3)">${crAt}</td>
-      <td onclick="event.stopPropagation()" style="white-space:nowrap">
-        ${u.hasAuto?`<button class="btn btn-xs btn-success" onclick="forceRestart('${esc(u.email)}')" title="Reiniciar"><i class="ti ti-refresh"></i></button>`:''}
-        <button class="btn btn-xs btn-ghost" onclick="openUser('${esc(u.email)}')"><i class="ti ti-eye"></i></button>
-      </td>
-    </tr>`;
+      </div>
+      <div class="uc-row"><span class="uc-key">Fila restante</span><span class="uc-val ${qSize>0?'ok':''}">${qSize.toLocaleString('pt-BR')} / ${origCount.toLocaleString('pt-BR')}</span></div>`:'';
+
+    return `<div class="user-card ${cls}" onclick="openUser('${esc(u.email)}')">
+      <div class="uc-header">
+        ${u.picture?`<img class="uc-avatar" src="${esc(u.picture)}" onerror="this.style.display='none'">`:`<div class="uc-avatar-letter">${(u.name||u.email||'?')[0].toUpperCase()}</div>`}
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span class="uc-name">${esc(u.name||u.email.split('@')[0])}</span>
+            ${_planBadge(u.plan)}
+            ${u.isOnline?`<span class="badge b-green">🟢${u.sessionAge?` ${u.sessionAge}m`:''}</span>`:'<span style="font-size:9px;color:var(--t3)">Offline</span>'}
+            ${isProblem?'<span class="badge b-red">🚨 Problema</span>':''}
+            ${u.errors>0?`<span class="badge b-red">${u.errors} erros</span>`:''}
+            ${u.restarts>0?`<span class="badge b-amber">↺${u.restarts}</span>`:''}
+          </div>
+          <div class="uc-email">${esc(u.email)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:18px;font-weight:800;color:var(--text)">${u.todaySent||0}</div>
+          <div style="font-size:9px;color:var(--t3)">hoje</div>
+        </div>
+      </div>
+      <div class="uc-body">
+        <!-- Col 1: Automático -->
+        <div class="uc-section">
+          <div class="uc-section-title"><i class="ti ti-robot" style="color:var(--cyan)"></i> Automático</div>
+          <div class="uc-row"><span class="uc-key">Status</span><span class="uc-val" style="color:${autoColor}">${autoPhase}</span></div>
+          <div class="uc-row"><span class="uc-key">Auto hoje</span><span class="uc-val ${(u.todaySentAuto||0)>0?'ok':''}">${u.todaySentAuto||0} / ${u.autoLimit||10}</span></div>
+          <div class="uc-row"><span class="uc-key">Fila total</span><span class="uc-val" style="color:${(u.totalQueueRemaining||0)>0?'var(--cyan)':'var(--t3)'}">${(u.totalQueueRemaining||0).toLocaleString('pt-BR')} vagas${u.queueDaysLeft?` · ~${u.queueDaysLeft}d`:''}</span></div>
+          ${progressHtml}
+          ${u.nextSendAt&&u.nextSendAt>Date.now()?`<div class="uc-row"><span class="uc-key">${u.autoStatus==='waiting_limit'?'📊 Retoma':'Próximo'}</span><span class="uc-val" style="color:${u.autoStatus==='waiting_limit'?'var(--blue)':''}">${fmtAgo(u.nextSendAt-Date.now())}</span></div>`:''}
+          ${u.lastError&&u.autoStatus!=='waiting_limit'&&u.autoStatus!=='waiting_rate_limit'?`<div style="font-size:9px;color:var(--red);margin-top:4px;word-break:break-word;line-height:1.4">${esc(u.lastError.slice(0,80))}</div>`:''}
+        </div>
+        <!-- Col 2: Saúde & Conta -->
+        <div class="uc-section">
+          <div class="uc-section-title"><i class="ti ti-heart-rate-monitor" style="color:var(--red)"></i> Saúde & Conta</div>
+          <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:6px">${chkHtml}</div>
+          <div class="uc-row"><span class="uc-key">CVs</span><span class="uc-val ${(u.cvCount||0)>0?'ok':'warn'}">${u.cvCount||0} arquivo(s)</span></div>
+          <div class="uc-row"><span class="uc-key">Perfis</span><span class="uc-val">${u.profileCount||0}</span></div>
+          <div class="uc-row"><span class="uc-key">Manual hoje</span><span class="uc-val">${u.todaySentManual||0} / ${u.manualLimit||20}</span></div>
+          <div class="uc-row"><span class="uc-key">Total geral</span><span class="uc-val">${(u.totalSent||0).toLocaleString('pt-BR')}</span></div>
+          <div class="uc-row"><span class="uc-key">Membro desde</span><span class="uc-key">${(u.createdAt||'').slice(0,10)||'–'}</span></div>
+        </div>
+        <!-- Col 3: Logs recentes -->
+        <div class="uc-section">
+          <div class="uc-section-title"><i class="ti ti-list" style="color:var(--amber)"></i> Logs recentes</div>
+          ${logsHtml}
+        </div>
+      </div>
+      <div class="uc-actions" onclick="event.stopPropagation()">
+        <button class="uc-btn uc-btn-eye" onclick="openUser('${esc(u.email)}')"><i class="ti ti-eye"></i> Detalhes</button>
+        ${u.hasAuto?`<button class="uc-btn uc-btn-restart" onclick="forceRestart('${esc(u.email)}')"><i class="ti ti-refresh"></i> Reiniciar</button>`:''}
+        ${isProblem&&!u.needsUserAction?`<button class="uc-btn uc-btn-fix" onclick="adminFixAuto('${esc(u.email)}')"><i class="ti ti-tool"></i> Fix</button>`:''}
+        <button class="uc-btn uc-btn-vip" onclick="event.stopPropagation();document.getElementById('vip-email').value='${esc(u.email)}';showView('vip')"><i class="ti ti-diamond"></i> VIP</button>
+        <button class="uc-btn uc-btn-msg" onclick="event.stopPropagation();document.getElementById('msg-email').value='${esc(u.email)}';showView('vip')"><i class="ti ti-message"></i> Msg</button>
+        ${u.hasAuto?`<button class="uc-btn uc-btn-stop" onclick="forceStop('${esc(u.email)}')"><i class="ti ti-player-stop"></i> Parar</button>`:''}
+      </div>
+    </div>`;
   }).join('');
-  el.innerHTML=rows||'<tr><td colspan="10" class="empty-state">Nenhum usuário</td></tr>';
 }
+
 function filterUsers(){renderUsersTable();}
+
+// Feed de jornada 24h
+let _journeyFeedLoading = false;
+async function loadJourneyFeed(){
+  if(_journeyFeedLoading) return;
+  _journeyFeedLoading=true;
+  const wrap=document.getElementById('journey-feed-wrap');
+  if(!wrap) return;
+  const filter=document.getElementById('jf-filter')?.value||'';
+  try {
+    const url='/api/admin/journey-feed?limit=80'+(filter?'&action='+filter:'');
+    const r=await fetch(url,{credentials:'include'});
+    const d=await r.json();
+    const events=d.events||[];
+    if(!events.length){wrap.innerHTML='<div class="empty-state" style="font-size:11px">Nenhuma ação registrada ainda</div>';return;}
+    wrap.innerHTML=`<div style="max-height:500px;overflow-y:auto">
+      ${events.map(ev=>{
+        const ic=ACTION_ICONS[ev.action]||'•';
+        const cl=ACTION_COLORS[ev.action]||'var(--t2)';
+        const time=(ev.date||'').split(' ')[1]||(ev.date||'').slice(0,5)||'';
+        const errHtml=ev.error?`<span class="jf-err" title="${esc(ev.error)}"> — ${esc(ev.error.slice(0,40))}</span>`:'';
+        return `<div class="jf-line" onclick="openUser('${esc(ev.email||'')}');event.stopPropagation()" style="cursor:pointer">
+          <span class="jf-ts">${time}</span>
+          <span style="flex-shrink:0">${ic}</span>
+          <span class="jf-action" style="color:${cl}">${esc(ev.action)}</span>
+          <span class="jf-who" title="${esc(ev.email||'')}">${esc(ev.name||ev.email||'?')}</span>
+          <span class="jf-detail">${esc(ev.detail||'')}${errHtml}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  } catch(e){
+    wrap.innerHTML=`<div class="empty-state" style="color:var(--red);font-size:11px"><i class="ti ti-alert-circle"></i>${esc(e.message)}</div>`;
+  } finally {
+    _journeyFeedLoading=false;
+  }
+}
 
 // ══════════════════════════════════════════════════════════
 //  USER DETAIL MODAL — COMPLETO
@@ -2352,7 +2978,7 @@ async function openUser(email){
   document.getElementById('modal-name').textContent='…';
   document.getElementById('modal-email').textContent=email;
   // Reset tabs
-  ['overview','auto','pdfs','profiles','logs','history','enviados','health','edit'].forEach(t=>{
+  ['overview','auto','pdfs','profiles','journey','logs','history','enviados','health','edit'].forEach(t=>{
     const el=document.getElementById('modal-tab-'+t);
     if(el) el.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>';
   });
@@ -2390,6 +3016,7 @@ async function openUser(email){
     renderModalHistory(d);
     renderModalEnviados(d,u);
     renderModalHealth(d,u);
+    renderModalJourney(d,u);
     renderModalEdit(d,u);
   } catch(e){
     document.getElementById('modal-tab-overview').innerHTML=`<div class="empty-state" style="color:var(--red)"><i class="ti ti-alert-circle"></i>Erro: ${esc(e.message)}</div>`;
@@ -2736,7 +3363,8 @@ function renderModalAuto(d,u){
       <div class="detail-row"><span class="detail-label">Próximo envio</span><span class="detail-val">${job.nextSendAt&&job.nextSendAt>now?fmtAgo(job.nextSendAt-now)+' restante':'–'}</span></div>
       <div class="detail-row"><span class="detail-label">Finalizado em</span><span class="detail-val">${job.finishedAt?new Date(job.finishedAt).toLocaleString('pt-BR'):'–'}</span></div>
       <div class="detail-row"><span class="detail-label">Timer JS ativo</span><span class="detail-val">${d.timers?'✅ Sim':'❌ Não'}</span></div>
-      <div class="detail-row"><span class="detail-label">Vagas na fila</span><span class="detail-val" style="font-weight:700;color:var(--amber)">${((job.queue&&job.queue.length)||0).toLocaleString('pt-BR')}</span></div>
+      <div class="detail-row"><span class="detail-label">Vagas restantes</span><span class="detail-val" style="font-weight:700;color:var(--cyan)">${((job.queue&&job.queue.length)||0).toLocaleString('pt-BR')} / ${(job.originalCount||0).toLocaleString('pt-BR')}</span></div>
+      <div class="detail-row"><span class="detail-label">Dias estimados</span><span class="detail-val" style="color:var(--blue)">${d.autoLimit&&d.autoLimit>0?`~${Math.ceil(((job.queue&&job.queue.length)||0)/d.autoLimit)} dias (${d.autoLimit}/dia)`:' – '}</span></div>
     </div>
   </div>`;
 
@@ -2943,6 +3571,46 @@ function renderModalHistory(d){
 }
 
 // ── TAB: HEALTH ───────────────────────────────────────────
+async function renderModalJourney(d, u){
+  const el = document.getElementById('modal-tab-journey');
+  if(!el) return;
+  try {
+    const r = await fetch(`/api/admin/journey/${encodeURIComponent(d.user?.email||'')}`, {credentials:'include'});
+    const jd = await r.json();
+    const journey = jd.journey||[];
+    if(!journey.length){
+      el.innerHTML='<div class="empty-state"><i class="ti ti-activity"></i>Nenhuma ação registrada para este usuário ainda.</div>';
+      return;
+    }
+    const ACTION_COLORS_M = {
+      auto_fail:'#f87171', manual_fail:'#f87171', first_login:'#4ade80',
+      auto_start:'#22d3ee', manual_send:'#4ade80', pdf_upload:'#60a5fa',
+      login:'var(--t2)', profile_save:'#a78bfa', code_redeem:'#fbbf24',
+    };
+    el.innerHTML=`
+      <div style="font-size:11px;color:var(--t3);margin-bottom:10px;display:flex;align-items:center;gap:6px">
+        <i class="ti ti-activity" style="color:var(--amber)"></i>
+        ${journey.length} ações registradas — últimas ${Math.min(journey.length,200)}
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;overflow:hidden;max-height:400px;overflow-y:auto">
+        ${journey.map(ev=>{
+          const ic=ACTION_ICONS[ev.action]||'•';
+          const cl=ACTION_COLORS_M[ev.action]||'var(--t2)';
+          const okSign=ev.ok?'':' ❌';
+          return `<div style="display:flex;gap:8px;padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.03);font-size:10px;${!ev.ok?'background:rgba(239,68,68,.04)':''}">
+            <span style="color:var(--t3);flex-shrink:0;min-width:80px;font-family:monospace;font-size:9px">${esc((ev.date||'').slice(11,19)||ev.date||'')}</span>
+            <span style="flex-shrink:0">${ic}</span>
+            <span style="font-weight:700;min-width:90px;flex-shrink:0;color:${cl}">${esc(ev.action)}${okSign}</span>
+            <span style="color:var(--text);flex:1;line-height:1.5">${esc(ev.detail||'')}</span>
+            ${ev.error?`<span style="color:var(--red);font-size:9px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(ev.error)}">${esc(ev.error.slice(0,60))}</span>`:''}
+          </div>`;
+        }).join('')}
+      </div>`;
+  } catch(e) {
+    el.innerHTML=`<div class="empty-state" style="color:var(--red)"><i class="ti ti-alert-circle"></i>Erro: ${esc(e.message)}</div>`;
+  }
+}
+
 function renderModalHealth(d,u){
   const el=document.getElementById('modal-tab-health');
   if(!el) return;
@@ -3742,6 +4410,145 @@ async function loadAutoNotifLog(){
   }
 }
 
+</script>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  ADMIN GLOBAL ACTIONS — Reset Diário + Fix Auto
+// ════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════
+//  DOWNLOAD DE LOGS — Para diagnóstico pelo Claude
+// ════════════════════════════════════════════════════════
+async function loadLogsPreview(){
+  const el = document.getElementById('logs-preview');
+  if(!el) return;
+  el.textContent = 'Carregando preview...';
+  try {
+    const r = await fetch('/api/admin/logs/export?fmt=claude&filter=errors&limit=5', {credentials:'include'});
+    if(!r.ok){ el.textContent = `Erro HTTP ${r.status}`; return; }
+    const text = await r.text();
+    // Mostrar só os primeiros 3000 chars
+    el.textContent = text.slice(0,3000) + (text.length>3000?'\n\n[... truncado — baixe o arquivo completo]':'');
+  } catch(e){
+    el.textContent = 'Erro: ' + e.message;
+  }
+}
+
+async function downloadLogs(fmt='claude', filter='all'){
+  const btn = event?.currentTarget;
+  if(btn){ btn.disabled=true; btn.style.opacity='.5'; }
+  try {
+    const since = fmt==='errors' ? Date.now()-86400000*7 : 0; // erros: última semana
+    const url = `/api/admin/logs/export?fmt=${fmt}&filter=${filter}&since=${since}`;
+    const r = await fetch(url, {credentials:'include'});
+    if(!r.ok){ alert(`Erro: HTTP ${r.status}`); return; }
+    const blob = await r.blob();
+    const ext = {claude:'txt', json:'json', csv:'csv'}[fmt]||'txt';
+    const filename = `h2bapply-${filter}-${new Date().toISOString().slice(0,10)}.${ext}`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch(e){
+    alert('Erro ao baixar: ' + e.message);
+  } finally {
+    if(btn){ btn.disabled=false; btn.style.opacity='1'; }
+  }
+}
+
+async function checkEngineHealth(){
+  try {
+    const r = await fetch('/api/admin/engine-health', {credentials:'include'});
+    const d = await r.json();
+    const {workers, summary} = d;
+    let msg = `⚡ ENGINE HEALTH\n\n`;
+    msg += `Total workers ativos: ${summary.total}\n`;
+    msg += `✅ Saudáveis: ${summary.healthy}\n`;
+    msg += `🚨 Travados: ${summary.stuck}\n\n`;
+    if(summary.stuck > 0){
+      const stuck = workers.filter(w=>!w.healthy);
+      msg += `WORKERS TRAVADOS:\n`;
+      stuck.forEach(w => msg += `• ${w.email}\n  Status: ${w.status} | Timer: ${w.hasTimer?'✅':'❌ MORTO'} | Running: ${w.isRunning?'✅':'❌'}\n`);
+    } else {
+      msg += `✅ Todos os workers estão funcionando corretamente!`;
+    }
+    alert(msg);
+    if(summary.stuck > 0 && confirm('Deseja executar Fix Auto para reparar os workers travados?')){
+      adminFixAuto();
+    }
+  } catch(e) {
+    alert('Erro: ' + e.message);
+  }
+}
+
+async function adminResetDaily(){
+  if(!confirm('♻️ RESETAR DIÁRIOS\n\nIsso vai remover os registros de envio de HOJE de TODOS os usuários.\n\nResultado: cada usuário poderá enviar novamente o limite do seu plano.\n\nO histórico permanente e o dedup (anti-duplicata) NÃO são afetados.\n\nConfirmar?')) return;
+  const btn = event.currentTarget;
+  btn.disabled=true; btn.textContent='Resetando...';
+  try {
+    const r = await fetch('/api/admin/reset-daily',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'}});
+    const d = await r.json();
+    if(d.ok){
+      alert(`✅ Reset concluído!\n\n📊 Entradas removidas: ${d.totalRemoved}\n👥 Usuários afetados: ${d.usersAffected}\n📅 Data resetada: ${d.date}\n\nTodos os usuários podem enviar novamente!`);
+      if(typeof loadLive === 'function') loadLive();
+    } else {
+      alert('❌ Erro: ' + (d.error||'desconhecido'));
+    }
+  } catch(e) {
+    alert('❌ Erro de conexão: ' + e.message);
+  } finally {
+    btn.disabled=false; btn.innerHTML='<i class="ti ti-calendar-stats" style="font-size:15px"></i> ♻️ Resetar Diários';
+  }
+}
+
+async function adminFixAuto(email){
+  // Se não passar email, repara TODOS
+  const todos = !email;
+  if(todos && !confirm('🔧 FIX AUTO GERAL\n\nVai diagnosticar e reparar automaticamente os envios automáticos de TODOS os usuários.\n\nProblemas tratados:\n• Timer perdido → reagendado\n• Fila vazia travada → finalizada\n• Stall >10min → reiniciado\n• Limite liberado após meia-noite → retomado\n\nNão afeta usuários com token Gmail expirado (precisam refazer login).\n\nConfirmar?')) return;
+  
+  const body = email ? {email} : {};
+  try {
+    const r = await fetch('/api/admin/fix-auto',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await r.json();
+    if(d.ok){
+      const fixed = d.results.filter(r=>!['ok','skipped','none'].includes(r.action));
+      const skipped = d.results.filter(r=>r.action==='skipped');
+      const ok = d.results.filter(r=>r.action==='ok');
+      let msg = `✅ Fix Auto concluído!
+
+`;
+      msg += `🔧 Reparados: ${d.fixed}
+`;
+      msg += `✅ OK (sem ação): ${ok.length}
+`;
+      msg += `⏭ Pulados (sem token): ${skipped.length}
+
+`;
+      if(fixed.length > 0){
+        msg += `Ações realizadas:
+`;
+        fixed.forEach(r => msg += `• ${r.email}: ${r.action} — ${r.detail}
+`);
+      }
+      if(skipped.length > 0){
+        msg += `
+Usuários que precisam refazer login:
+`;
+        skipped.forEach(r => msg += `• ${r.email}
+`);
+      }
+      alert(msg);
+      if(typeof loadLive === 'function') loadLive();
+      if(typeof loadWorkers === 'function') loadWorkers();
+    } else {
+      alert('❌ Erro: ' + (d.error||'desconhecido'));
+    }
+  } catch(e) {
+    alert('❌ Erro: ' + e.message);
+  }
+}
 </script>
 </body>
 </html>

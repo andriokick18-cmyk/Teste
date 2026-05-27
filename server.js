@@ -117,6 +117,7 @@ const CVS_DIR     = path.join(DATA_DIR, "cvs");
 const AUTO_FILE   = path.join(DATA_DIR, "auto_jobs.json");
 const SENT_FILE   = path.join(DATA_DIR, "sent_emails.json");
 const LOGS_FILE   = path.join(DATA_DIR, "auto_logs.json");   // NEW: logs detalhados
+const JOURNEY_FILE = path.join(DATA_DIR, "journey.json");       // Jornada do usuário
 const NOTES_FILE  = path.join(DATA_DIR, "notes.json");
 const ALERTS_FILE = path.join(DATA_DIR, "job_alerts.json");
 const CODES_FILE  = path.join(DATA_DIR, "promo_codes.json"); // NEW: promo codes
@@ -139,6 +140,7 @@ let DB_HIST   = {};
 let DB_AUTO   = {};
 let DB_SENT   = {};   // { userEmail → Set<destEmail> }
 let DB_LOGS   = {};   // { userEmail → LogEntry[] }
+let DB_JOURNEY = {}; // { userEmail → JourneyEvent[] }
 let DB_NOTES  = {};
 let DB_ALERTS = {};
 let DB_CODES  = {};   // NEW: promo codes { code → { manualDays, autoDays, createdAt, createdBy, active, usedBy[] } }
@@ -203,6 +205,7 @@ function boot() {
   DB_NOTES  = load(NOTES_FILE, {});
   DB_ALERTS = load(ALERTS_FILE, {});
   DB_LOGS   = load(LOGS_FILE, {});
+  DB_JOURNEY = load(JOURNEY_FILE, {});
   DB_CODES  = load(CODES_FILE, {});
   DB_PUSH   = load(PUSH_FILE, {});
   DB_APP_INDEX = load(APPIDX_FILE, {});
@@ -540,6 +543,24 @@ function addLog(userEmail, entry) {
   const critical = ["enviado","falhou","pausado","cancelado","erro_anexo"].includes(record.status);
   if (critical || DB_LOGS[userEmail].length % 10 === 0) persistLogs();
 }
+
+// ── RASTREAMENTO DE JORNADA ──────────────────────────────────────────────────
+function trackJourney(email, action, detail) {
+  if(!email||!action) return;
+  try {
+    if(!DB_JOURNEY[email]) DB_JOURNEY[email]=[];
+    const d=detail||{};
+    DB_JOURNEY[email].unshift({
+      ts:Date.now(), date:toLocaleBRT(Date.now()),
+      action, ok:d.ok!==false,
+      detail:d.detail||'', error:d.error||'', meta:d.meta||{}
+    });
+    if(DB_JOURNEY[email].length>500) DB_JOURNEY[email]=DB_JOURNEY[email].slice(0,500);
+    persistDebounced(JOURNEY_FILE, DB_JOURNEY, 5000);
+    if(d.ok===false && d.critical) pushGlobalEvent('user_error',email,`${action}: ${d.error||''}`, 'error');
+  } catch(e){ console.warn('[trackJourney]',e.message); }
+}
+
 function getUserLogs(userEmail, filters={}) {
   const logs = DB_LOGS[userEmail] || [];
   let out = logs;
@@ -1166,6 +1187,8 @@ function scheduleAuto(email) {
       const delay=Math.max(0,next-now);
       setAutoJob(email,{...job,status:"waiting_limit",nextSendAt:next.getTime()});
       autoTimers.set(email,setTimeout(()=>scheduleAuto(email),delay));
+      const retomaBRT_now = next.toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"});
+      addLog(email,{status:"limite",jobTitle:`📊 Limite diário atingido: ${todayAuto}/${autoLimit} envios`,company:`Fila pausada. Retoma amanhã às ${retomaBRT_now} BRT (${Math.round(delay/60000)}min). Fila: ${job.queue?.length||0} vagas aguardando.`,error:""});
       console.log(`[auto/now] ${email} limite (${todayAuto}/${autoLimit}), retoma à meia-noite BRT (~${Math.round(delay/60000)}min)`);
       return;
     }
@@ -1197,6 +1220,8 @@ function scheduleAuto(email) {
     next.setUTCHours(startUTC2,0,0,0);next.setDate(next.getDate()+1);
     setAutoJob(email,{...job,status:"waiting_limit",nextSendAt:next.getTime()});
     autoTimers.set(email,setTimeout(()=>scheduleAuto(email),next-now));
+    const retomaBRT_sched = next.toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"});
+    addLog(email,{status:"limite",jobTitle:`📊 Limite diário: ${todayAuto}/${autoLimit} envios`,company:`Retoma amanhã às ${startH}h BRT (${retomaBRT_sched}). Fila: ${job.queue?.length||0} vagas aguardando.`,error:""});
     console.log(`[auto/sched] ${email} limite (${todayAuto}/${autoLimit}), retoma ${startH}h BRT amanhã`);
     return;
   }
@@ -1620,11 +1645,13 @@ async function _doAutoSendInner(email) {
       if (gmBody?.error) {
         const msg = String(gmBody.error.message || JSON.stringify(gmBody.error));
         // Erros de rate limit / 5xx → retry; erros de autenticação / payload → sem retry
-        const isTransient = gmStatus >= 500 || msg.includes("rateLimitExceeded") || msg.includes("userRateLimitExceeded");
+        const isRateLimit2 = msg.includes("rateLimitExceeded") || msg.includes("userRateLimitExceeded") || msg.includes("User-rate limit");
+        const isTransient = gmStatus >= 500 || isRateLimit2;
         if (isTransient && retryCount < MAX_RETRIES) {
           retryCount++;
-          console.warn(`[auto] ⚠️ erro transiente (${msg}), retry ${retryCount}/${MAX_RETRIES}`);
-          await new Promise(r => setTimeout(r, 5000 * retryCount));
+          const delay = isRateLimit2 ? 30000 : 5000 * retryCount; // rate limit → espera 30s antes de retry
+          console.warn(`[auto] ⚠️ erro transiente (${msg}), retry ${retryCount}/${MAX_RETRIES} em ${delay/1000}s`);
+          await new Promise(r => setTimeout(r, delay));
           continue;
         }
         throw new Error(msg);
@@ -1679,20 +1706,53 @@ async function _doAutoSendInner(email) {
       updateAutoStats(email, { sent:(getAutoStats(email).sent||0)+1, startedAt:getAutoStats(email).startedAt||Date.now() });
       // ✅ Heartbeat: registra atividade para o watchdog
       { const h=getHealth(email); h.lastSent=Date.now(); h.errors=0; h.stalledAt=null; h.status="ok"; }
+      // Limpa _rl_* keys do job para o destinatário atual (evita crescimento infinito do objeto)
+      { const _cj=getAutoJob(email); if(_cj){ const _rlKey="_rl_"+(target.to||"").replace(/[^a-z0-9]/gi,""); if(_cj[_rlKey]){ const {[_rlKey]:_rm,..._rest}=_cj; setAutoJob(email,_rest); } } }
       console.log(`[auto] ✅ ${email} → ${target.to} anexos=${attachments.length} [${appId}]`);
       sendOk = true;
       break;
 
     } catch(e) {
-      const isTransient = String(e.message).includes("rateLimitExceeded") || String(e.message).includes("userRateLimitExceeded") || String(e.message).includes("500") || String(e.message).includes("503");
+      const errMsg = String(e.message);
+      const isRateLimit = errMsg.includes("rateLimitExceeded") || errMsg.includes("userRateLimitExceeded") || errMsg.includes("User-rate limit");
+      const isTransient = isRateLimit || errMsg.includes("500") || errMsg.includes("503") || errMsg.includes("Service Unavailable");
+
+      if (isRateLimit) {
+        // ── RATE LIMIT GMAIL: respeitar o "Retry after" ─────────────────
+        let retryAfterMs = 60 * 60 * 1000; // 1h fallback
+        const retryMatch = errMsg.match(/Retry after ([0-9T:.Z+-]+)/i);
+        if (retryMatch) {
+          try {
+            const retryTs = new Date(retryMatch[1]).getTime();
+            const waitMs = retryTs - Date.now();
+            if (waitMs > 0 && waitMs < 12 * 3600_000) retryAfterMs = waitMs + 60_000; // +1min margem
+          } catch(_) {}
+        }
+        const retryAtStr = new Date(Date.now() + retryAfterMs).toLocaleTimeString("pt-BR");
+        const waitMin = Math.round(retryAfterMs / 60000);
+        // Devolver vaga à frente da fila para não perder
+        const curJob = getAutoJob(email);
+        if (curJob) {
+          const restoredQ = [target, ...(curJob.queue||[])];
+          setAutoJob(email, { ...curJob, queue: restoredQ, status:"waiting_rate_limit", nextSendAt:Date.now()+retryAfterMs });
+        }
+        addLog(email, { ...logEntry, status:"pausado",
+          error:`⏳ Rate limit Gmail — retomando às ${retryAtStr} BRT (aguardando ${waitMin}min)`,
+          profileUsed:selectedProfile?.name||"", attachCount:attachments.length });
+        trackJourney(email,'auto_fail',{ok:false,error:`Rate limit. Retoma ${retryAtStr}`,detail:`${target?.company||"?"} → ${target?.to||"?"}`});
+        console.warn(`[auto] ⏳ Rate limit ${email} — pausando ${waitMin}min até ${retryAtStr}`);
+        autoTimers.set(email, setTimeout(() => scheduleAuto(email), retryAfterMs));
+        return;
+      }
+
       if (isTransient && retryCount < MAX_RETRIES) {
         retryCount++;
-        console.warn(`[auto] ⚠️ erro transiente (${e.message}), retry ${retryCount}/${MAX_RETRIES}`);
-        await new Promise(r => setTimeout(r, 5000 * retryCount));
+        console.warn(`[auto] ⚠️ erro transiente (${errMsg}), retry ${retryCount}/${MAX_RETRIES}`);
+        await new Promise(r => setTimeout(r, 8000 * retryCount));
         continue;
       }
-      console.warn(`[auto] ❌ ${email} → ${target.to}: ${e.message}`);
-      addLog(email, { ...logEntry, status:"falhou", error:e.message, profileUsed:selectedProfile?.name||"", subjectUsed:(subject||"").slice(0,120), attachCount:attachments.length, attempt:retryCount+1 });
+      addLog(email, { ...logEntry, status:"falhou", error:errMsg, profileUsed:selectedProfile?.name||"", subjectUsed:(subject||"").slice(0,120), attachCount:attachments.length, attempt:retryCount+1 });
+      trackJourney(email,'auto_fail',{ok:false,error:errMsg,detail:`Falha: ${target?.company||"?"} → ${target?.to||"?"}`,meta:{to:target?.to}});
       updateAutoStats(email, { failed:(getAutoStats(email).failed||0)+1 });
       break;
     }
@@ -1725,7 +1785,21 @@ const fillTpl=(tpl,v)=>(tpl||"")
   .replace(/{start}/g,      v.inicio||"");
 
 function reactivateAutoJobs(){
-  let n=0;for(const[email,job]of Object.entries(DB_AUTO)){if(job.active&&job.queue?.length>0){scheduleAuto(email);n++;}}
+  let n=0;
+  for(const[email,job]of Object.entries(DB_AUTO)){
+    if(!job.active||!job.queue?.length) continue;
+    const waitStatuses=new Set(["waiting_rate_limit","waiting_hour","waiting_limit","waiting_interval"]);
+    const hasNextSend = job.nextSendAt && job.nextSendAt > Date.now();
+    if(waitStatuses.has(job.status) && hasNextSend){
+      // Respeita o delay original — não dispara imediatamente
+      const delay = Math.max(1000, job.nextSendAt - Date.now());
+      console.log(`[auto] reativado com delay ${Math.round(delay/1000)}s para ${email} (status:${job.status})`);
+      autoTimers.set(email, setTimeout(()=>scheduleAuto(email), delay));
+    } else {
+      scheduleAuto(email);
+    }
+    n++;
+  }
   if(n)console.log(`[auto] ${n} job(s) reativados`);
 }
 
@@ -1743,7 +1817,7 @@ const getSessId=req=>{const m=(req.headers.cookie||"").match(/(?:^|;\s*)h2b_sess
 const getSess  =req=>{const id=getSessId(req);return id?sessions[id]:null;};
 
 function makeCallbackPage(sessId){
-  return`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Entrando...</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;font-family:sans-serif;color:#fff}.box{text-align:center}.spin{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="box"><div class="spin"></div><div style="font-size:18px;font-weight:600">Entrando na sua conta...</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:8px">Aguarde um momento</div></div><script>setTimeout(function(){window.location.replace('/')},150);</script></body></html>`;
+  return`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Entrando...</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;font-family:sans-serif;color:#fff}.box{text-align:center}.spin{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="box"><div class="spin"></div><div style="font-size:18px;font-weight:600">Entrando na sua conta...</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:8px">Aguarde um momento</div></div><script>setTimeout(function(){window.location.replace('/')},800);</script></body></html>`;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1798,7 +1872,8 @@ function generateIconPNG(size) {
 }
 
 function httpsReq(opts,body){return new Promise((res,rej)=>{const p=body?(typeof body==="string"?body:JSON.stringify(body)):null;const r=https.request(opts,resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{const raw=Buffer.concat(ch).toString();try{res({status:resp.statusCode,body:JSON.parse(raw)});}catch{res({status:resp.statusCode,body:raw});}});});r.on("error",rej);r.setTimeout(15000,()=>{r.destroy();rej(new Error("Timeout"));});if(p)r.write(p);r.end();});}
-function readBody(req){return new Promise((res,rej)=>{const p=[];req.on("data",c=>p.push(c));req.on("end",()=>res(Buffer.concat(p).toString()));req.on("error",rej);});}
+const MAX_BODY_SIZE = 50 * 1024 * 1024; // 50MB — suficiente para PDFs base64
+function readBody(req){return new Promise((res,rej)=>{const p=[];let sz=0;req.on("data",c=>{sz+=c.length;if(sz>MAX_BODY_SIZE){rej(new Error("Payload too large"));return;}p.push(c);});req.on("end",()=>res(Buffer.concat(p).toString()));req.on("error",rej);});}
 function json(res,status,data){const b=JSON.stringify(data);res.writeHead(status,{"Content-Type":"application/json; charset=utf-8","Content-Length":Buffer.byteLength(b)});res.end(b);}
 
 // ══════════════════════════════════════════════════════════
@@ -2481,6 +2556,8 @@ const server=http.createServer(async(req,res)=>{
           : null;
         setUser(ui.email,{...tokenData,email:ui.email,name:ui.name||ui.email,picture:ui.picture||"",country:"Brazil",phone:"",cc:"",city:"",language:"pt-BR",cvs:[],created_at:new Date().toISOString(),plan:newUserVip?"vip":"free",vip:newUserVip||null,saved:[],onboarded:false,isAdmin:isAdminEmail(ui.email),settings:{subject:"Application for {vaga} – {nome}",body:"Dear Hiring Manager,\n\nMy name is {nome} and I am writing to express my strong interest in the {vaga} position at {empresa}.\n\nI am from {pais} and fully available to start on the requested date.\n\nPlease find my resume attached.\n\nBest regards,\n{nome}\n{telefone}",followupSubject:"Following up: {vaga} at {empresa}",followupBody:"Dear Hiring Manager,\n\nFollowing up on {vaga} at {empresa}.\n\nBest regards,\n{nome}"}});
         console.log("[oauth] ✅ Novo:",ui.email,"| trial:",trialDays,"d manual VIP");
+        trackJourney(ui.email,'first_login',{detail:`Novo. Trial:${trialDays}d`,meta:{name:ui.name}});
+        pushGlobalEvent('new_user',ui.email,`Novo: ${ui.name||ui.email}`,"info");
         // ── REFERRAL FIX v18: lê refCode APENAS da sessão pendente ──
         // O Google não repassa parâmetros extras na URL de callback — só o "state".
         // O ?ref= foi salvo em sessions["__p__"+state].refCode no /oauth/start.
@@ -2548,7 +2625,8 @@ const server=http.createServer(async(req,res)=>{
   if(pathname==="/api/cv/upload"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});if(rateLimit(s.user_email+"_cv",10,3600_000))return json(res,429,{error:"Muitos uploads. Tente novamente em 1 hora."});try{const d=JSON.parse(await readBody(req));if(!d.base64||!d.name)return json(res,400,{error:"base64 e name obrigatórios."});// Tamanho: base64 representa ~75% dos bytes reais
 const estimatedBytes=Math.round(d.base64.length*0.75);if(d.base64.length>14_000_000)return json(res,400,{error:"Arquivo maior que 10MB."});if(estimatedBytes<1000)return json(res,400,{error:"Arquivo muito pequeno ou corrompido."});// Valida magic bytes %PDF (mais robusto: verifica os 4 primeiros bytes do binário real)
 const pdfBuf=Buffer.from(d.base64.slice(0,8),"base64");if(pdfBuf.length<4||pdfBuf[0]!==0x25||pdfBuf[1]!==0x50||pdfBuf[2]!==0x44||pdfBuf[3]!==0x46)return json(res,400,{error:"Arquivo inválido: não é um PDF. Envie um arquivo .pdf válido."});// Nome seguro
-const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)return json(res,400,{error:"Nome do arquivo inválido."});const p=getUser(s.user_email)||{};const cvs=p.cvs||[];const idx=Date.now();const meta={idx,name:safeName,size:estimatedBytes,date:new Date().toISOString(),cvType:d.cvType||"resume",b64:d.base64};if(cvs.length>=10){const old=cvs.shift();deleteCv(s.user_email,old.idx);}cvs.push(meta);saveCv(s.user_email,idx,d.base64);setUser(s.user_email,{cvs});return json(res,200,{ok:true,cv:{idx:meta.idx,name:meta.name,size:meta.size,date:meta.date,cvType:meta.cvType}});}catch(e){return json(res,500,{error:e.message});}}
+const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)return json(res,400,{error:"Nome do arquivo inválido."});const p=getUser(s.user_email)||{};const cvs=p.cvs||[];const idx=Date.now();const meta={idx,name:safeName,size:estimatedBytes,date:new Date().toISOString(),cvType:d.cvType||"resume",b64:d.base64};if(cvs.length>=10){const old=cvs.shift();deleteCv(s.user_email,old.idx);}cvs.push(meta);saveCv(s.user_email,idx,d.base64);setUser(s.user_email,{cvs});trackJourney(s.user_email,'pdf_upload',{detail:`PDF: ${safeName} ~${Math.round(estimatedBytes/1024)}KB`,meta:{name:safeName,idx}});
+      return json(res,200,{ok:true,cv:{idx:meta.idx,name:meta.name,size:meta.size,date:meta.date,cvType:meta.cvType}});}catch(e){return json(res,500,{error:e.message});}}
   if(/^\/api\/cv\/\d+$/.test(pathname)&&req.method==="GET"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const idx=parseInt(pathname.split("/").pop(),10);const p=getUser(s.user_email);if(!p?.cvs?.find(c=>c.idx===idx))return json(res,403,{error:"CV não encontrado."});const b64=loadCv(s.user_email,idx);if(!b64)return json(res,404,{error:"Arquivo não encontrado."});return json(res,200,{base64:b64,idx});}
   if(/^\/api\/cv\/\d+$/.test(pathname)&&req.method==="DELETE"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const idx=parseInt(pathname.split("/").pop(),10);const p=getUser(s.user_email);if(!p?.cvs?.find(c=>c.idx===idx))return json(res,403,{error:"CV não encontrado."});deleteCv(s.user_email,idx);setUser(s.user_email,{cvs:(p.cvs||[]).filter(c=>c.idx!==idx)});return json(res,200,{ok:true});}
 
@@ -2747,8 +2825,8 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       }
       // Remove do APPLIED index
       if(jobId){
-        const idx=DB_APPIDX[s.user_email];
-        if(idx){delete idx[jobId];persist(APPIDX_FILE,DB_APPIDX);}
+        const idx=DB_APP_INDEX[s.user_email];
+        if(idx){delete idx[jobId];persist(APPIDX_FILE,DB_APP_INDEX);}
       }
       invalidateUserStatsCache(s.user_email);
       console.log(`[sent/remove] ${s.user_email} removeu vaga jobId=${jobId||"-"} caseNum=${caseNum||"-"} (${before-hist.length} entradas)`);
@@ -3059,6 +3137,7 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
       setAutoJob(s.user_email,job);
       autoStats.set(s.user_email,{sent:0,failed:0,skipped:0,startedAt:Date.now()});
       addLog(s.user_email,{status:"sistema",jobTitle:`Envio automático iniciado: ${queue.length} vagas`,company:`Fonte: ${d.source||"manual"} | Categoria: ${d.category||"all"}`,source:d.source||"manual",category:d.category||"all"});
+      trackJourney(s.user_email,'auto_start',{detail:`Auto: ${queue.length} vagas | ${d.source||"manual"}`,meta:{queueSize:queue.length}});
       // Inicia imediatamente
       setTimeout(()=>scheduleAuto(s.user_email),100);
       return json(res,200,{ok:true,queueSize:queue.length});
@@ -3226,6 +3305,355 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
     if(pathname==="/api/admin/clear-sent"&&req.method==="POST"){try{const d=JSON.parse(await readBody(req));if(!d.email)return json(res,400,{error:"email obrigatório."});if(DB_SENT[d.email]){delete DB_SENT[d.email];persistSent();}return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
 
     // ── ADMIN LIVE MONITOR ────────────────────────────────────
+    // ── ADMIN: Jornada individual ─────────────────────────────────────────────
+    if(pathname.startsWith("/api/admin/journey/")&&req.method==="GET"){
+      const tEm=decodeURIComponent(pathname.replace("/api/admin/journey/",""));
+      return json(res,200,{email:tEm,journey:(DB_JOURNEY[tEm]||[]).slice(0,200),total:(DB_JOURNEY[tEm]||[]).length});
+    }
+    if(pathname==="/api/admin/journey-feed"&&req.method==="GET"){
+      const pu=new URL("http://x"+req.url);
+      const lim2=parseInt(pu.searchParams.get("limit")||"100");
+      const af2=pu.searchParams.get("action")||"";
+      const allEv=[];
+      for(const[em,evs] of Object.entries(DB_JOURNEY)){
+        const usr=getUser(em)||{};
+        for(const ev of (evs||[]).slice(0,50)){
+          if(af2&&ev.action!==af2)continue;
+          allEv.push({...ev,email:em,name:usr.name||em.split("@")[0],picture:usr.picture||"",plan:getPlan(usr)});
+        }
+      }
+      allEv.sort((a,b)=>b.ts-a.ts);
+      return json(res,200,{events:allEv.slice(0,lim2),total:allEv.length});
+    }
+    if(pathname==="/api/admin/reset-daily"&&req.method==="POST"){
+      try{
+        const td=todayStr();let rm=0,ua=0;
+        for(const em of Object.keys(DB_HIST)){
+          const before=DB_HIST[em].length;
+          DB_HIST[em]=DB_HIST[em].filter(h=>(h.dateStr||"")!==td);
+          const r2=before-DB_HIST[em].length;
+          if(r2>0){rm+=r2;ua++;invalidateUserStatsCache(em);}
+        }
+        persist(HIST_FILE,DB_HIST);
+        pushGlobalEvent("reset_daily",s.user_email,`Reset: ${rm} entradas de ${ua} usuários`,"info");
+        return json(res,200,{ok:true,totalRemoved:rm,usersAffected:ua,date:td});
+      }catch(e){return json(res,500,{error:e.message});}
+    }
+    if(pathname==="/api/admin/fix-auto"&&req.method==="POST"){
+      try{
+        const fa=JSON.parse(await readBody(req));
+        const faTgt=fa.email||null;
+        const faResults=[];
+        const faEmails=faTgt?[faTgt]:Object.keys(DB_AUTO);
+        for(const em of faEmails){
+          const job=getAutoJob(em);if(!job)continue;
+          const usr=getUser(em)||{};const hist=getHist(em);
+          const tAuto=countAutoToday(hist);const aLim=getAutoLimit(usr);
+          const hasTmr=autoTimers.has(em);
+          const fr={email:em,action:"none",detail:""};
+          if(job.active&&(!job.queue||job.queue.length===0)){
+            if(autoTimers.has(em)){clearTimeout(autoTimers.get(em));autoTimers.delete(em);}
+            setAutoJob(em,{...job,active:false,status:"finished",finishedAt:Date.now()});
+            addLog(em,{status:"sistema",jobTitle:"✅ Fila finalizada pelo fix-auto",company:"Reparo"});
+            fr.action="finalized";fr.detail="Fila vazia→finalizado";
+          } else if(!job.active&&(job.status==="paused_no_session"||job.status==="paused_oauth_expired"||job.status==="paused")){
+            const hTok=!!(usr.cached_access_token&&usr.cached_token_expiry&&Date.now()<usr.cached_token_expiry-60000);
+            const hRef=!!usr.refresh_token;
+            if(!hTok&&!hRef){fr.action="skipped";fr.detail="Sem token — login necessário";}
+            else{setAutoJob(em,{...job,active:true,status:"restarted_by_fix"});addLog(em,{status:"sistema",jobTitle:"🔧 Reativado pelo fix-auto",company:"OK"});scheduleAuto(em);fr.action="reactivated";fr.detail="Token OK→reativado";}
+          } else if(job.active&&!hasTmr){
+            addLog(em,{status:"sistema",jobTitle:"🔧 Timer perdido→reagendado",company:"fix-auto"});
+            scheduleAuto(em);fr.action="rescheduled";fr.detail="Timer perdido→reagendado";
+          } else if(job.status==="waiting_limit"&&tAuto<aLim){
+            if(autoTimers.has(em)){clearTimeout(autoTimers.get(em));autoTimers.delete(em);}
+            setAutoJob(em,{...job,active:true,status:"running"});scheduleAuto(em);
+            fr.action="resumed_after_limit";fr.detail=`${tAuto}/${aLim}→retomando`;
+          } else if(job.active&&job.queue?.length>0&&hasTmr){
+            const st=Date.now()-(job.lastSentAt||job.startedAt||0);
+            if(st>600000){if(autoTimers.has(em)){clearTimeout(autoTimers.get(em));autoTimers.delete(em);}scheduleAuto(em);fr.action="unstalled";fr.detail=`Stall ${Math.round(st/60000)}min→reiniciado`;}
+            else{fr.action="ok";fr.detail=`OK fila:${job.queue.length}`;}
+          } else{fr.action="ok";fr.detail=`status:${job.status||"?"}`;}
+          faResults.push(fr);
+        }
+        const faFixed=faResults.filter(r=>!["ok","skipped","none"].includes(r.action)).length;
+        pushGlobalEvent("fix_auto",s.user_email,`fix-auto: ${faFixed}/${faResults.length}`,"info");
+        return json(res,200,{ok:true,results:faResults,fixed:faFixed,total:faResults.length});
+      }catch(e){return json(res,500,{error:e.message});}
+    }
+    if(pathname==="/api/admin/bulk-status"&&req.method==="GET"){
+      const bsNow=Date.now();const bsResult=[];
+      for(const[em,job] of Object.entries(DB_AUTO)){
+        const usr=getUser(em)||{};const bsH=getHealth(em)||{};const hist=getHist(em);
+        const tAuto=countAutoToday(hist);const aLim=getAutoLimit(usr);
+        const hasTmr=autoTimers.has(em);const lastAct=job.lastSentAt||job.startedAt||0;
+        const stalMs=job.active&&job.queue?.length>0?bsNow-lastAct:0;
+        const hPdf=(usr.cvs||[]).some(c=>{try{return!!loadCv(em,c.idx);}catch{return false;}});
+        const hTok=!!(usr.refresh_token||(usr.cached_access_token&&usr.cached_token_expiry&&bsNow<usr.cached_token_expiry-60000));
+        const qLen=job.queue?.length||0;const origC=job.originalCount||0;
+        const sentC=origC-qLen;const pct=origC>0?Math.round((sentC/origC)*100):0;
+        let phase="",phDet="",phIco="",canFix=false,needsUser=false;
+        if(!job.active&&!qLen&&job.status==="finished"){phase="finished";phDet=`Concluído ${sentC}/${origC}`;phIco="✅";}
+        else if(!job.active&&(job.status==="paused_no_session"||job.status==="paused_oauth_expired")){phase="paused_token";phDet="Token expirado—login necessário";phIco="🔑";needsUser=true;}
+        else if(!job.active){phase="paused_manual";phDet=`Parado: ${job.status||"?"}`;phIco="⏸";canFix=true;}
+        else if(job.active&&tAuto>=aLim){const nx=job.nextSendAt?new Date(job.nextSendAt):null;phase="waiting_limit";phDet=`Limite ${tAuto}/${aLim}. ${nx?`Retoma em ${Math.round((nx-bsNow)/60000)}min`:"Retoma meia-noite"}. Fila:${qLen}`;phIco="📊";canFix=true;}
+        else if(job.active&&job.status==="waiting_hour"){phase="waiting_hour";phDet=`Aguarda janela ${job.startH??'?'}h–${job.endH??'?'}h. Fila:${qLen}`;phIco="🕐";}
+        else if(job.active&&stalMs>1200000){phase="stalled";phDet=`Travado ${Math.round(stalMs/60000)}min. Timer:${hasTmr?'ativo':'MORTO'}`;phIco="🚨";canFix=true;}
+        else if(job.active&&!hasTmr&&qLen>0){phase="dead_timer";phDet="Timer morto";phIco="💀";canFix=true;}
+        else if(job.active&&qLen>0){const nx=job.nextSendAt;phase="running";phDet=`${qLen} restantes (${pct}%). ${nx&&nx>bsNow?`Próximo ${Math.round((nx-bsNow)/1000)}s`:"Enviando"}`;phIco="🟢";}
+        else{phase=job.status||"unknown";phDet=`Status:${job.status||"?"} Fila:${qLen}`;phIco="❓";}
+        const bsLogs=(DB_LOGS[em]||[]).slice(0,20).map(l=>({ts:l.ts,date:l.date||"",status:l.status,jobTitle:l.jobTitle||"",company:l.company||"",to:l.to||"",error:l.error||""}));
+        bsResult.push({email:em,name:usr.name||em.split("@")[0],picture:usr.picture||"",plan:getPlan(usr),phase,phaseDetail:phDet,phaseIcon:phIco,canFix,needsUser,job:{active:job.active,status:job.status,queueLen:qLen,originalCount:origC,sentCount:sentC,pctDone:pct,startedAt:job.startedAt,lastSentAt:job.lastSentAt,nextSendAt:job.nextSendAt,startH:job.startH,endH:job.endH},todayAuto:tAuto,autoLimit:aLim,stalledMs:stalMs,restarts:bsH.restarts||0,errors:bsH.errors||0,lastError:bsH.lastError||"",checklist:{hasToken:hTok,hasPdf:hPdf,hasTimer:hasTmr,limitOk:tAuto<aLim,queueOk:qLen>0},logs:bsLogs});
+      }
+      const bsOrd={stalled:0,dead_timer:1,paused_token:2,waiting_limit:3,running:4,waiting_hour:5,paused_manual:6,finished:7,unknown:8};
+      bsResult.sort((a,b)=>(bsOrd[a.phase]??99)-(bsOrd[b.phase]??99));
+      return json(res,200,{workers:bsResult,total:bsResult.length,ts:bsNow});
+    }
+    // ── ADMIN: EXPORT COMPLETO DE LOGS PARA IA ──────────────────────────────
+    // Gera um relatório JSON estruturado de todos os usuários e seus logs.
+    // Formato otimizado para colar no Claude e pedir diagnóstico.
+    if(pathname==="/api/admin/logs/export"&&req.method==="GET"){
+      const u2=new URL("http://x"+req.url);
+      const fmt=u2.searchParams.get("fmt")||"json";    // json | csv | claude
+      const filter=u2.searchParams.get("filter")||"";  // all | errors | active
+      const since=parseInt(u2.searchParams.get("since")||"0"); // timestamp ms
+      const now=Date.now();
+
+      // Montar snapshot completo
+      const snapshot={
+        exportedAt: new Date().toISOString(),
+        exportedBy: s.user_email,
+        serverVersion: "v15",
+        totalUsers: Object.keys(DB_USERS).length,
+        filter,
+        users: []
+      };
+
+      for(const[email,user] of Object.entries(DB_USERS)){
+        const job=getAutoJob(email)||null;
+        const h=getHealth(email)||{};
+        const hist=getHist(email);
+        const logs=(DB_LOGS[email]||[]);
+        const journey=(DB_JOURNEY[email]||[]);
+        const todayAuto=countAutoToday(hist);
+        const autoLimit=getAutoLimit(user);
+        const plan=getPlan(user);
+
+        // Filtrar logs por timestamp se solicitado
+        const filteredLogs=since>0
+          ? logs.filter(l=>l.ts>=since)
+          : logs;
+        const filteredJourney=since>0
+          ? journey.filter(j=>j.ts>=since)
+          : journey;
+
+        // Erros recentes (últimas 24h)
+        // Erros recentes (últimas 24h) — exclui falhas de rate limit (são esperas normais)
+        const recentErrors=logs.filter(l=>
+          (l.status==="falhou"||l.status==="erro_anexo")&&
+          l.ts>(now-86400000)&&
+          !((l.error||"").toLowerCase().includes("rate limit")||
+            (l.error||"").toLowerCase().includes("ratelimit")||
+            (l.error||"").toLowerCase().includes("user-rate"))
+        );
+
+        // Determinar se deve incluir este usuário
+        if(filter==="errors" && recentErrors.length===0 && !h.lastError && !job?.status?.includes("paused")) continue;
+        if(filter==="active" && !job?.active) continue;
+
+        // Determinar status atual legível
+        let currentStatus="Sem automático";
+        let statusDetail="";
+        if(job){
+          const qLen=job.queue?.length||0;
+          const origC=job.originalCount||0;
+          const pctDone=origC>0?Math.round(((origC-qLen)/origC)*100):0;
+          if(!job.active){
+            const st=job.status||"parado";
+            if(st==="finished") currentStatus="✅ Concluído";
+            else if(st.includes("paused_no_session")||st.includes("paused_oauth")) currentStatus="🔑 Token Gmail expirado";
+            else if(st==="paused") currentStatus="⏸ Pausado manualmente";
+            else if(st==="waiting_rate_limit") currentStatus="⏳ Rate limit Gmail";
+            else currentStatus=`Parado: ${st}`;
+            statusDetail=`Fila: ${qLen.toLocaleString()} vagas restantes de ${origC.toLocaleString()} (${pctDone}% concluído)`;
+          } else {
+            const st=job.status||"";
+            if(st==="waiting_limit") currentStatus=`📊 Limite diário (${todayAuto}/${autoLimit})`;
+            else if(st==="waiting_hour") currentStatus=`🕐 Aguardando horário`;
+            else if(st==="waiting_rate_limit") currentStatus=`⏳ Rate limit Gmail`;
+            else currentStatus=`🟢 Rodando`;
+            statusDetail=`${qLen.toLocaleString()} restantes (${pctDone}%). Próximo: ${job.nextSendAt&&job.nextSendAt>now?Math.round((job.nextSendAt-now)/60000)+"min":"agora"}`;
+          }
+        }
+
+        // Checar problemas
+        const problems=[];
+        if(h.oauthOk===false) problems.push("TOKEN_GMAIL_EXPIRADO");
+        if(h.hasPdf===false) problems.push("SEM_PDF");
+        if((user.profiles||[]).length===0) problems.push("SEM_PERFIL");
+        if((user.profiles||[]).every(p=>!(p.subjects?.length>0||p.subject))) problems.push("SEM_ASSUNTO");
+        if((user.profiles||[]).every(p=>!(p.emailBodies?.length>0||p.body))) problems.push("SEM_CORPO_EMAIL");
+        if(job?.active&&!autoTimers.has(email)) problems.push("TIMER_MORTO");
+        if(recentErrors.length>5) problems.push(`${recentErrors.length}_ERROS_24H`);
+
+        snapshot.users.push({
+          // Identificação
+          email,
+          name: user.name||email.split("@")[0],
+          plan,
+          createdAt: user.created_at||"",
+          // Status atual
+          currentStatus,
+          statusDetail,
+          problems,
+          hasCriticalProblem: problems.length>0,
+          // Automático
+          autoJob: job ? {
+            active: job.active,
+            status: job.status||"",
+            queueRemaining: job.queue?.length||0,
+            queueOriginal: job.originalCount||0,
+            pctDone: job.originalCount>0?Math.round(((job.originalCount-(job.queue?.length||0))/job.originalCount)*100):0,
+            daysLeft: autoLimit>0?Math.ceil((job.queue?.length||0)/autoLimit):null,
+            startedAt: job.startedAt?new Date(job.startedAt).toISOString():"",
+            lastSentAt: job.lastSentAt?new Date(job.lastSentAt).toISOString():"",
+            nextSendAt: job.nextSendAt?new Date(job.nextSendAt).toISOString():"",
+            source: job.source||"",
+            category: job.category||"",
+          } : null,
+          // Limite diário
+          todayAuto,
+          todayManual: countManualToday(hist),
+          autoLimit,
+          manualLimit: getManualLimit(user),
+          // Saúde
+          health: {
+            oauthOk: h.oauthOk,
+            hasPdf: h.hasPdf,
+            timerActive: autoTimers.has(email),
+            restarts: h.restarts||0,
+            errors: h.errors||0,
+            lastError: h.lastError||"",
+            stalledAt: h.stalledAt||null,
+          },
+          // CVs e perfis
+          cvCount: (user.cvs||[]).length,
+          cvNames: (user.cvs||[]).map(c=>c.name),
+          profileCount: (user.profiles||[]).length,
+          profileNames: (user.profiles||[]).map(p=>p.name),
+          // Logs filtrados (máx 100 por usuário)
+          logs: filteredLogs.slice(0,100).map(l=>({
+            date: l.date||"",
+            status: l.status,
+            company: l.company||"",
+            to: l.to||"",
+            job: l.jobTitle||"",
+            error: l.error||"",
+            profile: l.profileUsed||"",
+            attach: l.attachCount||0,
+          })),
+          // Jornada do usuário (máx 50)
+          journey: filteredJourney.slice(0,50).map(j=>({
+            date: j.date||"",
+            action: j.action,
+            ok: j.ok,
+            detail: j.detail||"",
+            error: j.error||"",
+          })),
+          // Erros recentes
+          recentErrors: recentErrors.slice(0,20).map(l=>({
+            date: l.date||"",
+            company: l.company||"",
+            to: l.to||"",
+            error: l.error||"",
+          })),
+        });
+      }
+
+      // Ordenar: problemas críticos primeiro
+      snapshot.users.sort((a,b)=>{
+        if(a.hasCriticalProblem&&!b.hasCriticalProblem) return -1;
+        if(!a.hasCriticalProblem&&b.hasCriticalProblem) return 1;
+        return (b.recentErrors.length)-(a.recentErrors.length);
+      });
+
+      // Formato CLAUDE — texto otimizado para colar no chat
+      if(fmt==="claude"){
+        const lines=[];
+        lines.push(`# H2BApply — Relatório de Diagnóstico`);
+        lines.push(`**Gerado em:** ${new Date().toLocaleString("pt-BR")} | **Total usuários:** ${snapshot.totalUsers} | **Filtro:** ${filter||"todos"}`);
+        lines.push("");
+        const withProblems=snapshot.users.filter(u=>u.hasCriticalProblem||u.recentErrors.length>0);
+        const ok=snapshot.users.filter(u=>!u.hasCriticalProblem&&u.recentErrors.length===0);
+        lines.push(`## Resumo: ${withProblems.length} com problemas | ${ok.length} sem problemas`);
+        lines.push("");
+        for(const u of snapshot.users){
+          lines.push(`---`);
+          lines.push(`### ${u.name} (${u.email}) — ${u.plan.toUpperCase()}`);
+          lines.push(`**Status:** ${u.currentStatus}`);
+          if(u.statusDetail) lines.push(`**Detalhe:** ${u.statusDetail}`);
+          if(u.problems.length>0) lines.push(`**⚠️ PROBLEMAS:** ${u.problems.join(", ")}`);
+          if(u.autoJob){
+            const j=u.autoJob;
+            lines.push(`**Fila:** ${j.queueRemaining.toLocaleString()}/${j.queueOriginal.toLocaleString()} vagas (${j.pctDone}%) — ~${j.daysLeft||"?"}d restantes`);
+            lines.push(`**Auto hoje:** ${u.todayAuto}/${u.autoLimit} | **Último envio:** ${j.lastSentAt?j.lastSentAt.slice(0,16).replace("T"," "):"nunca"}`);
+          }
+          if(u.health.lastError) lines.push(`**Último erro:** ${u.health.lastError}`);
+          if(u.recentErrors.length>0){
+            lines.push(`**Erros recentes (${u.recentErrors.length}):**`);
+            u.recentErrors.slice(0,5).forEach(e=>lines.push(`  - [${e.date}] ${e.company||e.to}: ${e.error}`));
+          }
+          if(u.logs.length>0){
+            lines.push(`**Últimos logs:**`);
+            u.logs.slice(0,5).forEach(l=>lines.push(`  - [${l.date}] ${l.status.toUpperCase()} | ${l.company||l.to||""} ${l.error?"→ "+l.error:""}`));
+          }
+          lines.push("");
+        }
+        const text=lines.join("\n");
+        res.writeHead(200,{
+          "Content-Type":"text/plain; charset=utf-8",
+          "Content-Disposition":`attachment; filename="h2bapply-diagnostico-${new Date().toISOString().slice(0,10)}.txt"`,
+          "Content-Length":Buffer.byteLength(text,"utf8")
+        });
+        return res.end(text);
+      }
+
+      // Formato CSV simplificado
+      if(fmt==="csv"){
+        const headers=["email","name","plan","currentStatus","problems","todayAuto","autoLimit","queueRemaining","queueOriginal","pctDone","daysLeft","hasPdf","hasToken","timerActive","restarts","errors","lastError","lastSentAt","profileCount","cvCount"];
+        const rows=[headers.join(",")];
+        snapshot.users.forEach(u=>{
+          const j=u.autoJob;
+          rows.push([
+            u.email,u.name,u.plan,
+            `"${u.currentStatus}"`,
+            `"${u.problems.join("|")}"`,
+            u.todayAuto,u.autoLimit,
+            j?.queueRemaining||0,j?.queueOriginal||0,j?.pctDone||0,j?.daysLeft||0,
+            u.health.hasPdf,u.health.oauthOk,u.health.timerActive,
+            u.health.restarts,u.health.errors,
+            `"${(u.health.lastError||"").replace(/"/g,"'").slice(0,100)}"`,
+            j?.lastSentAt||"",u.profileCount,u.cvCount
+          ].join(","));
+        });
+        const csv=rows.join("\n");
+        res.writeHead(200,{
+          "Content-Type":"text/csv; charset=utf-8",
+          "Content-Disposition":`attachment; filename="h2bapply-logs-${new Date().toISOString().slice(0,10)}.csv"`,
+          "Content-Length":Buffer.byteLength(csv,"utf8")
+        });
+        return res.end(csv);
+      }
+
+      // Formato JSON padrão
+      const jsonStr=JSON.stringify(snapshot,null,2);
+      res.writeHead(200,{
+        "Content-Type":"application/json; charset=utf-8",
+        "Content-Disposition":`attachment; filename="h2bapply-logs-${new Date().toISOString().slice(0,10)}.json"`,
+        "Content-Length":Buffer.byteLength(jsonStr,"utf8")
+      });
+      return res.end(jsonStr);
+    }
+
     if(pathname==="/api/admin/live"&&req.method==="GET"){
       const now=Date.now();
       const onlineSessions=Object.values(sessions).filter(s=>s.user_email&&!s.pending&&(now-(s.created_at||0))<SESS_TTL);
@@ -3246,18 +3674,32 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
         const lastSession=onlineSessions.find(s=>s.user_email===u.email);
         const sessionAge=lastSession?Math.round((now-(lastSession.created_at||0))/60000):null;
         const jobStalled=job?.active&&job?.queue?.length>0&&(now-(job.lastSentAt||job.startedAt||0))>STALL_THRESHOLD;
+        const uPlan=getPlan(u);
+        const manualLimitU=getManualLimit(u);
+        const autoLimitU=getAutoLimit(u);
+        const todayManualU=countManualToday(hist);
+        const todayAutoU=countAutoToday(hist);
         return{
-          email:u.email,name:u.name,picture:u.picture,plan:getPlan(u),
+          email:u.email,name:u.name,picture:u.picture,plan:uPlan,
           isOnline,sessionAge,
           hasAuto:!!job?.active,
           autoStatus:job?.status||null,
           queueSize:job?.queue?.length||0,
           originalCount:job?.originalCount||0,
+          totalQueueRemaining:job?.queue?.length||0,  // vagas restantes na fila
+          totalQueueOriginal:job?.originalCount||0,   // total inicial da fila
+          queueDaysLeft:autoLimitU>0?Math.ceil((job?.queue?.length||0)/autoLimitU):null, // dias estimados
           lastSentAt:job?.lastSentAt||null,
           startedAt:job?.startedAt||null,
           nextSendAt:job?.nextSendAt||null,
           jobStalled,
           timers:autoTimers.has(u.email),
+          manualLimit:manualLimitU,
+          autoLimit:autoLimitU,
+          todaySentManual:todayManualU,
+          todaySentAuto:todayAutoU,
+          todaySent:todayManualU+todayAutoU,
+          profileCount:(u.profiles||[]).length,
           hasPdf:h.hasPdf,
           oauthOk:h.oauthOk,
           gmailOk:h.gmailOk,
@@ -4531,9 +4973,13 @@ async function diagnoseJob(email) {
   h.oauthOk = true;
 
   // 3. Checa fila travada (ativo mas sem progresso há STALL_THRESHOLD)
+  // ⚠️ NUNCA marcar como stalled se está aguardando limite/horário/rate-limit — são esperas normais
+  const WAITING_STATUSES = new Set(["waiting_limit","waiting_hour","waiting_rate_limit","waiting_interval"]);
   const lastActivity = job.lastSentAt || job.startedAt || 0;
   const stalledMs = now - lastActivity;
-  const isStalled = job.active && job.queue?.length > 0 && stalledMs > STALL_THRESHOLD;
+  const isStalled = job.active && job.queue?.length > 0 && stalledMs > STALL_THRESHOLD
+    && !WAITING_STATUSES.has(job.status)  // não é espera normal
+    && !(job.nextSendAt && job.nextSendAt > now); // não tem próximo envio agendado
 
   if (isStalled) {
     const mins = Math.round(stalledMs / 60000);
