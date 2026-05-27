@@ -1835,7 +1835,74 @@ const getSessId=req=>{const m=(req.headers.cookie||"").match(/(?:^|;\s*)h2b_sess
 const getSess  =req=>{const id=getSessId(req);return id?sessions[id]:null;};
 
 function makeCallbackPage(sessId){
-  return`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Entrando...</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;font-family:sans-serif;color:#fff}.box{text-align:center}.spin{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="box"><div class="spin"></div><div style="font-size:18px;font-weight:600">Entrando na sua conta...</div><div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:8px">Aguarde um momento</div></div><script>setTimeout(function(){window.location.replace('/')},150);</script></body></html>`;
+  // FIX-LOOP-001: confirma cookie via /api/status ANTES de redirecionar.
+  // Proteção contra loop: sessionStorage conta tentativas.
+  return`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Entrando...</title>
+<style>
+body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#0f172a;font-family:sans-serif;color:#fff}
+.box{text-align:center;max-width:340px;padding:0 20px}
+.spin{width:44px;height:44px;border:3px solid rgba(255,255,255,.15);border-top-color:#60a5fa;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 20px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.msg{font-size:17px;font-weight:600;margin-bottom:8px}
+.sub{font-size:13px;color:rgba(255,255,255,.45)}
+.err{background:#ef444420;border:1px solid #ef4444;border-radius:10px;padding:14px 16px;font-size:13px;color:#fca5a5;margin-top:20px;display:none;text-align:left;line-height:1.6}
+.btn{margin-top:16px;padding:10px 22px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:none}
+</style>
+</head><body>
+<div class="box">
+  <div class="spin" id="spin"></div>
+  <div class="msg" id="msg">Entrando na sua conta...</div>
+  <div class="sub" id="sub">Aguarde um momento</div>
+  <div class="err" id="err"></div>
+  <button class="btn" id="btn" onclick="window.location.href='/'">Ir para o app</button>
+</div>
+<script>
+(function(){
+  var LOOP_KEY = 'h2b_cb_attempts';
+  var MAX_ATTEMPTS = 3;
+  var attempts = parseInt(sessionStorage.getItem(LOOP_KEY) || '0', 10) + 1;
+  sessionStorage.setItem(LOOP_KEY, attempts);
+
+  if (attempts > MAX_ATTEMPTS) {
+    document.getElementById('spin').style.display = 'none';
+    document.getElementById('msg').textContent = 'Problema no login detectado';
+    document.getElementById('sub').textContent = '';
+    var errEl = document.getElementById('err');
+    errEl.innerHTML =
+      '<strong>⚠️ Não foi possível completar o login.</strong><br><br>' +
+      'Tente:<br>' +
+      '1. Limpar cookies do site e tentar novamente<br>' +
+      '2. Usar navegador em modo normal (não anônimo)<br>' +
+      '3. Desativar extensões de bloqueio de cookies';
+    errEl.style.display = 'block';
+    document.getElementById('btn').style.display = 'inline-block';
+    return;
+  }
+
+  function checkAndRedirect(retries) {
+    if (retries <= 0) {
+      sessionStorage.removeItem(LOOP_KEY);
+      window.location.replace('/');
+      return;
+    }
+    fetch('/api/status', { credentials: 'include', cache: 'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d.connected) {
+          sessionStorage.removeItem(LOOP_KEY);
+          window.location.replace('/');
+        } else {
+          setTimeout(function(){ checkAndRedirect(retries - 1); }, 400);
+        }
+      })
+      .catch(function(){
+        setTimeout(function(){ checkAndRedirect(retries - 1); }, 600);
+      });
+  }
+
+  setTimeout(function(){ checkAndRedirect(6); }, 200);
+})();
+</script></body></html>`;
 }
 
 // ══════════════════════════════════════════════════════════
