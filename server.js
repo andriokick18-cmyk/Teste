@@ -127,80 +127,50 @@ const ADMIN_SETTINGS_FILE = path.join(DATA_DIR, "admin_settings.json"); // Admin
 const NOTIF_FILE     = path.join(DATA_DIR, "notifications.json");  // Global notifications from ADM
 const REFERRAL_FILE  = path.join(DATA_DIR, "referrals.json");       // Referral tracking
 const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
-const BAD_LEADS_FILE = path.join(DATA_DIR, "bad_leads.json");       // v14: banco global de leads ruins
+const BAD_LEADS_FILE   = path.join(DATA_DIR, "bad_leads.json");      // v14: leads com hard bounce
 try { fs.mkdirSync(CVS_DIR, { recursive: true }); } catch {}
 
 // ══════════════════════════════════════════════════════════
-//  v14 — CLASSIFICADOR DE ERROS DE ENVIO
-//  Separa erros permanentes (hard bounce) de temporários
-//  Evita desperdiçar limite diário em leads ruins
+//  v14 — CLASSIFICADOR DE ERROS + BANCO DE LEADS RUINS
+//  Evita desperdiçar limite diário em emails inválidos
 // ══════════════════════════════════════════════════════════
-
-// Padrões de ERRO PERMANENTE — nunca tentar novamente
 const PERM_ERROR_PATTERNS = [
-  /550.*user.*unknown/i, /550.*no.*such.*user/i, /550.*invalid.*recipient/i,
-  /550.*mailbox.*not.*found/i, /550.*does.*not.*exist/i, /550.*bad.*destination/i,
-  /551.*user.*not.*local/i, /553.*mailbox.*name.*not.*allowed/i,
-  /554.*delivery.*error/i, /554.*invalid.*address/i,
-  /user unknown/i, /no.*such.*user/i, /mailbox.*not.*found/i,
-  /invalid.*recipient/i, /recipient.*rejected/i, /address.*rejected/i,
-  /does.*not.*exist/i, /account.*does.*not.*exist/i, /account.*disabled/i,
-  /account.*suspended/i, /domain.*not.*found/i, /nxdomain/i,
-  /undeliverable.*address/i, /permanent.*failure/i, /hard.*bounce/i,
+  /550.*user.*unknown/i,/550.*no.*such.*user/i,/550.*invalid.*recipient/i,
+  /550.*mailbox.*not.*found/i,/550.*does.*not.*exist/i,/550.*bad.*destination/i,
+  /551.*user.*not.*local/i,/553.*mailbox.*name.*not.*allowed/i,
+  /554.*delivery.*error/i,/554.*invalid.*address/i,
+  /user unknown/i,/no.*such.*user/i,/mailbox.*not.*found/i,
+  /invalid.*recipient/i,/recipient.*rejected/i,/address.*rejected/i,
+  /does.*not.*exist/i,/account.*does.*not.*exist/i,/account.*disabled/i,
+  /account.*suspended/i,/domain.*not.*found/i,/nxdomain/i,
+  /undeliverable.*address/i,/permanent.*failure/i,/hard.*bounce/i,
   /technical details of permanent failure/i,
   /The email account that you tried to reach does not exist/i,
 ];
-
-// Padrões de ERRO TEMPORÁRIO — retry com backoff
 const TEMP_ERROR_PATTERNS = [
-  /rateLimitExceeded/i, /userRateLimitExceeded/i, /User-rate limit/i,
-  /Too Many Requests/i, /429/,
-  /Service Unavailable/i, /503/, /502/, /500/,
-  /Connection reset/i, /ECONNRESET/i, /ETIMEDOUT/i, /ENOTFOUND/i,
-  /timeout/i, /temporarily/i, /try again/i,
-  /Quota exceeded/i, /Daily.*limit/i,
+  /rateLimitExceeded/i,/userRateLimitExceeded/i,/User-rate limit/i,
+  /Too Many Requests/i,/429/,/Service Unavailable/i,/503/,/502/,/500/,
+  /Connection reset/i,/ECONNRESET/i,/ETIMEDOUT/i,/ENOTFOUND/i,
+  /timeout/i,/temporarily/i,/try again/i,/Quota exceeded/i,/Daily.*limit/i,
 ];
-
-/**
- * Classifica um erro de envio em: "permanent" | "transient" | "unknown"
- * permanent → nunca tentar novamente, não consome slot diário
- * transient  → retry com backoff, não marca lead como ruim
- * unknown   → retry limitado, log detalhado
- */
 function classifyError(errMsg) {
-  const msg = String(errMsg || "");
-  if (PERM_ERROR_PATTERNS.some(p => p.test(msg))) return "permanent";
-  if (TEMP_ERROR_PATTERNS.some(p => p.test(msg)))  return "transient";
+  const msg = String(errMsg||"");
+  if (PERM_ERROR_PATTERNS.some(p=>p.test(msg))) return "permanent";
+  if (TEMP_ERROR_PATTERNS.some(p=>p.test(msg)))  return "transient";
   return "unknown";
 }
-
-// ══════════════════════════════════════════════════════════
-//  BANCO GLOBAL DE LEADS RUINS — persiste entre sessões
-//  Estrutura: { email → { status, failures, lastTry, errorType, firstFailAt } }
-// ══════════════════════════════════════════════════════════
-let DB_BAD_LEADS = {}; // carregado no boot
-
+let DB_BAD_LEADS = {};
 function isBadLead(email) {
   const rec = DB_BAD_LEADS[email];
   if (!rec) return false;
-  // Considera ruim apenas se teve falha permanente OU 3+ falhas desconhecidas
-  return rec.status === "permanent" || (rec.failures >= 3 && rec.status === "unknown");
+  return rec.status==="permanent" || (rec.failures>=3 && rec.status==="unknown");
 }
-
 function markBadLead(email, errorType, errMsg) {
   const now = Date.now();
-  const rec = DB_BAD_LEADS[email] || { failures: 0, firstFailAt: now };
-  DB_BAD_LEADS[email] = {
-    ...rec,
-    status:    errorType, // "permanent" | "unknown"
-    failures:  rec.failures + 1,
-    lastTry:   now,
-    lastError: String(errMsg || "").slice(0, 200),
-  };
+  const rec = DB_BAD_LEADS[email]||{failures:0,firstFailAt:now};
+  DB_BAD_LEADS[email] = {...rec,status:errorType,failures:rec.failures+1,lastTry:now,lastError:String(errMsg||"").slice(0,200)};
   persistDebounced(BAD_LEADS_FILE, DB_BAD_LEADS, 3000);
-  console.log(`[bad-leads] ⛔ ${email} marcado como ${errorType} (falhas: ${DB_BAD_LEADS[email].failures})`);
 }
-
 function persistBadLeads() { persist(BAD_LEADS_FILE, DB_BAD_LEADS); }
 
 console.log(`[boot] H2BApply v13.0 | ${APP_URL} | ${DATA_DIR}`);
@@ -290,8 +260,7 @@ function boot() {
   DB_NOTIF    = load(NOTIF_FILE,    { notifications: [] });
   DB_SUGGESTIONS = load(SUGGESTIONS_FILE, []);
   if(!Array.isArray(DB_SUGGESTIONS)) DB_SUGGESTIONS = [];
-  // v14: banco de leads ruins
-  DB_BAD_LEADS = load(BAD_LEADS_FILE, {});
+  DB_BAD_LEADS = load(BAD_LEADS_FILE, {}); // v14: leads ruins
   const rawRef = load(REFERRAL_FILE, { byCode: {}, byEmail: {} });
   DB_REFERRAL = {
     byCode:  (rawRef.byCode  && typeof rawRef.byCode  === 'object') ? rawRef.byCode  : {},
@@ -1241,16 +1210,12 @@ function updateAutoStats(email, delta) {
 }
 
 function scheduleAuto(email) {
-  // Guard: nunca deixar exceção matar o timer silenciosamente
-  try {
-    _scheduleAutoInner(email);
-  } catch(e) {
-    console.error(`[auto/sched] EXCEÇÃO em scheduleAuto(${email}):`, e.message);
-    // Reagenda em 5min para recuperar automaticamente
-    autoTimers.set(email, setTimeout(() => scheduleAuto(email), 5 * 60_000));
+  try { _scheduleAutoInner(email); }
+  catch(e) {
+    console.error(`[auto/sched] EXCEÇÃO para ${email}:`, e.message);
+    autoTimers.set(email, setTimeout(()=>scheduleAuto(email), 5*60_000));
   }
 }
-
 function _scheduleAutoInner(email) {
   if(autoTimers.has(email))clearTimeout(autoTimers.get(email));
   const job=getAutoJob(email);
@@ -1474,17 +1439,14 @@ async function _doAutoSendInner(email) {
   let queue = (job.queue || []).map(item => Object.assign({}, item)); // cópia profunda rasa
   let target = null;
 
-  // Pula duplicatas e leads ruins da fila
+  // Pula duplicatas e bad leads da fila
   while (queue.length > 0) {
     const candidate = queue[0];
-
-    // v14: pula bad leads globais (hard bounce, domínio inexistente etc.)
-    // NÃO consome slot do limite diário
+    // v14: pula leads com hard bounce global — NÃO consome limite diário
     if (isBadLead((candidate.to||"").toLowerCase().trim())) {
-      addLog(email, { status:"pulado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:`Lead inválido (histórico global de bounce): "${candidate.to}"` });
+      addLog(email, { status:"pulado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:`Lead inválido (bounce permanente global): "${candidate.to}"` });
       queue.shift(); continue;
     }
-
     if (!hasSent(email, candidate.to)) {
       // v15-SEC: auto dedup + validação robusta + self-send guard
       const _ce = parseEmail(candidate.to||"");
@@ -1503,21 +1465,14 @@ async function _doAutoSendInner(email) {
     queue.shift();
   }
 
-  if (!target || queue.length === 0) {
-    // v14 FIX: fila vazia NÃO finaliza o job permanentemente.
-    // Mantém active=true e status="queue_empty".
-    // O watchdog pode reativar quando novas vagas forem adicionadas.
-    // O usuário pode religar manualmente a qualquer momento.
-    if (!target && queue.length === 0) {
-      setAutoJob(email, { ...job, active:false, queue:[], finishedAt:Date.now(), status:"finished" });
-      autoTimers.delete(email);
-      addLog(email, { status:"sistema", jobTitle:"Fila finalizada", company:`Total: ${job.originalCount||0} vagas processadas` });
-      console.log(`[auto] ${email} finalizado`);
-      // 🔔 Notifica o usuário por email que a fila terminou
-      sendNotifEmail(email, "finished").catch(e => console.warn("[notif/finished]", e.message));
-      return;
-    }
-    // target existe mas queue foi zerada — continua enviando o target normalmente
+  // Fila finalizada: target null E queue vazia
+  if (!target) {
+    setAutoJob(email, { ...job, active:false, queue:[], finishedAt:Date.now(), status:"finished" });
+    autoTimers.delete(email);
+    addLog(email, { status:"sistema", jobTitle:"Fila finalizada", company:`Total: ${job.originalCount||0} vagas processadas` });
+    console.log(`[auto] ${email} finalizado`);
+    sendNotifEmail(email, "finished").catch(e => console.warn("[notif/finished]", e.message));
+    return;
   }
 
   // Remove target da fila e salva ANTES de tentar envio (evita reprocessamento em crash)
@@ -1816,18 +1771,17 @@ async function _doAutoSendInner(email) {
 
     } catch(e) {
       const errMsg = String(e.message);
-      const errClass = classifyError(errMsg); // v14: "permanent" | "transient" | "unknown"
+      const errClass = classifyError(errMsg); // v14: "permanent"|"transient"|"unknown"
       const isRateLimit = errMsg.includes("rateLimitExceeded") || errMsg.includes("userRateLimitExceeded") || errMsg.includes("User-rate limit");
-      const isTransient = errClass === "transient" || isRateLimit || errMsg.includes("500") || errMsg.includes("503") || errMsg.includes("Service Unavailable");
+      const isTransient = errClass==="transient" || isRateLimit || errMsg.includes("500") || errMsg.includes("503") || errMsg.includes("Service Unavailable");
 
-      // ── ERRO PERMANENTE: marca lead como ruim, NÃO consome retry nem limite ──
+      // v14: ERRO PERMANENTE — marca lead, não consome retry, não conta no limite
       if (errClass === "permanent") {
         markBadLead(target.to, "permanent", errMsg);
-        addLog(email, { ...logEntry, status:"bounce_permanente", error:`Hard bounce (${errMsg.slice(0,120)}) — lead marcado como inválido permanentemente`, profileUsed:selectedProfile?.name||"", attachCount:attachments.length, attempt:retryCount+1 });
+        addLog(email, { ...logEntry, status:"bounce_permanente", error:`Hard bounce: ${errMsg.slice(0,120)} — lead bloqueado permanentemente`, profileUsed:selectedProfile?.name||"", attachCount:attachments.length, attempt:retryCount+1 });
         trackJourney(email,'auto_fail',{ok:false,error:`Hard bounce: ${target?.to||"?"}`,detail:`Permanente: ${target?.company||"?"}`,meta:{to:target?.to}});
-        console.warn(`[auto] ⛔ Hard bounce ${email} → ${target.to}: ${errMsg.slice(0,80)}`);
-        // NÃO incrementa failed no stats (não foi "falha", foi lead ruim)
-        break; // sai do retry, avança para próxima vaga
+        console.warn(`[auto] ⛔ Hard bounce ${email} → ${target.to}`);
+        break; // avança para próxima vaga, NÃO incrementa failed
       }
 
       if (isRateLimit) {
@@ -1864,12 +1818,8 @@ async function _doAutoSendInner(email) {
         await new Promise(r => setTimeout(r, 8000 * retryCount));
         continue;
       }
-
-      // Erro desconhecido: acumula falhas no lead, mas permite retry posterior
-      if (errClass === "unknown") {
-        markBadLead(target.to, "unknown", errMsg);
-      }
-
+      // v14: erro desconhecido acumula falhas no lead
+      if (errClass === "unknown") markBadLead(target.to, "unknown", errMsg);
       addLog(email, { ...logEntry, status:"falhou", error:errMsg, profileUsed:selectedProfile?.name||"", subjectUsed:(subject||"").slice(0,120), attachCount:attachments.length, attempt:retryCount+1 });
       trackJourney(email,'auto_fail',{ok:false,error:errMsg,detail:`Falha: ${target?.company||"?"} → ${target?.to||"?"}`,meta:{to:target?.to}});
       updateAutoStats(email, { failed:(getAutoStats(email).failed||0)+1 });
@@ -1910,17 +1860,15 @@ function reactivateAutoJobs(){
     const waitStatuses=new Set(["waiting_rate_limit","waiting_hour","waiting_limit","waiting_interval"]);
     const hasNextSend = job.nextSendAt && job.nextSendAt > Date.now();
     if(waitStatuses.has(job.status) && hasNextSend){
-      // Respeita o delay original — não dispara imediatamente
       const delay = Math.max(1000, job.nextSendAt - Date.now());
       console.log(`[auto] reativado com delay ${Math.round(delay/1000)}s para ${email} (status:${job.status})`);
       autoTimers.set(email, setTimeout(()=>scheduleAuto(email), delay));
     } else if(job.status === "sending") {
-      // v14: crash durante envio — limpa lock e reagenda imediatamente
-      // (o item já foi removido da fila antes do crash, então não haverá duplicata)
+      // v14: crash durante envio — item já foi removido da fila, apenas reagenda
       console.log(`[auto] reativado após crash-durante-envio para ${email}`);
-      autoSendLock.delete(email); // limpa qualquer lock residual
-      setAutoJob(email, { ...job, status:"waiting_interval" }); // normaliza status
-      autoTimers.set(email, setTimeout(()=>scheduleAuto(email), 10_000)); // aguarda 10s
+      autoSendLock.delete(email);
+      setAutoJob(email, { ...job, status:"waiting_interval" });
+      autoTimers.set(email, setTimeout(()=>scheduleAuto(email), 10_000));
     } else {
       scheduleAuto(email);
     }
@@ -4567,22 +4515,8 @@ O H2BApply NÃO garante contratação, entrevista ou aprovação de visto — ap
     return json(res,200,{referrals:rows,total:rows.length});
   }
 
-  // v14: rotas extras do admin (health scores, bad leads)
-  if (_adminExtraRoutes[pathname]) {
-    const s = getSess(req);
-    if (!s?.user_email) return json(res,401,{error:"Não autenticado"});
-    const pu = getUser(s.user_email)||{};
-    if (!pu.isAdmin && !isAdminEmail(s.user_email)) return json(res,403,{error:"Acesso negado"});
-    return _adminExtraRoutes[pathname](req, res);
-  }
-
   res.writeHead(404,{"Content-Type":"application/json"});res.end(JSON.stringify({error:"404"}));
 });
-
-// ── v14: injeta rotas extras do admin ────────────────────
-// health-scores e bad-leads disponíveis em /api/admin/health-scores e /api/admin/bad-leads
-// Autenticação exigida: isAdmin ou ADMIN_EMAIL
-
 
 // ── Cleanup ───────────────────────────────────────────────
 setInterval(()=>{const n=Date.now();let c=0;Object.keys(sessions).forEach(k=>{const s=sessions[k],a=n-(s.ts||s.created_at||0);if((s.pending&&a>600_000)||(!s.pending&&a>SESS_TTL)){delete sessions[k];c++;}});if(c)console.log(`[cleanup] ${c} sessão(ões)`);Object.keys(rateMap).forEach(k=>{if(rateMap[k].r<Date.now())delete rateMap[k];});// Limpa locks de send órfãos (>30s)
@@ -5071,66 +5005,10 @@ async function runReengagement(){
 scheduleReengagement(); // Inicia no boot
 
 function getHealth(email) {
-  if (!healthState.has(email)) healthState.set(email, {
-    lastSent:0, lastCheck:0, restarts:0, errors:0, status:"ok",
-    lastError:"", oauthOk:null, gmailOk:null, hasPdf:null, stalledAt:null,
-    // v14: métricas de throughput
-    sentLast1h:0, sentLast1hTs:Date.now(), throughputPerHour:0,
-  });
+  if (!healthState.has(email)) healthState.set(email, { lastSent:0, lastCheck:0, restarts:0, errors:0, status:"ok", lastError:"", oauthOk:null, gmailOk:null, hasPdf:null, stalledAt:null });
   return healthState.get(email);
 }
 function setHealth(email, patch) { const h=getHealth(email); Object.assign(h,patch); }
-
-// v14: calcula health score completo para o painel admin
-function calcHealthScore(email) {
-  const job = getAutoJob(email);
-  const h   = getHealth(email);
-  const stats = getAutoStats(email);
-  if (!job) return null;
-
-  const now = Date.now();
-  const queueLen   = (job.queue||[]).length;
-  const totalSent  = stats.sent || 0;
-  const totalFailed= stats.failed || 0;
-  const successRate= (totalSent+totalFailed) > 0
-    ? Math.round(totalSent / (totalSent+totalFailed) * 100) : 100;
-
-  // Previsão de conclusão baseada no intervalo médio (3–5min por envio)
-  const avgIntervalMs = 4 * 60_000; // 4min médio
-  const etaMs = queueLen * avgIntervalMs;
-  const etaStr = queueLen > 0
-    ? (etaMs < 3600_000
-        ? `~${Math.round(etaMs/60000)}min`
-        : `~${(etaMs/3600_000).toFixed(1)}h`)
-    : "concluído";
-
-  // Tempo sem envio
-  const silentMs = h.lastSent > 0 ? now - h.lastSent : 0;
-  const isStuck  = silentMs > STALL_THRESHOLD && job.active && queueLen > 0
-    && !["waiting_limit","waiting_hour","waiting_rate_limit"].includes(job.status);
-
-  // Contagem de bad leads na fila atual
-  const badLeadsInQueue = (job.queue||[]).filter(item => isBadLead((item.to||"").toLowerCase())).length;
-
-  return {
-    email,
-    active:      job.active,
-    status:      job.status || "unknown",
-    queueLen,
-    badLeadsInQueue,
-    totalSent,
-    totalFailed,
-    successRate,
-    silentMinutes: Math.round(silentMs / 60000),
-    isStuck,
-    restarts:    h.restarts,
-    oauthOk:     h.oauthOk,
-    hasPdf:      h.hasPdf,
-    eta:         etaStr,
-    nextSendAt:  job.nextSendAt || null,
-    lastError:   h.lastError || "",
-  };
-}
 
 function pushGlobalEvent(type, email, msg, level="warn") {
   GLOBAL_EVENTS.unshift({ ts:Date.now(), date:toLocaleBRT(Date.now()), type, email, msg, level });
@@ -5164,14 +5042,6 @@ async function diagnoseJob(email) {
     pushGlobalEvent("oauth_invalid", email, "Autenticação expirada — automático pausado", "error");
     setAutoJob(email, { ...job, active:false, status:"paused_oauth_expired" });
     autoTimers.delete(email);
-    // v14: Push imediato para o usuário saber que parou
-    pushToUser(email, {
-      type: "auto_paused",
-      title: "⚠️ H2BApply — Login necessário",
-      body: "Seu envio automático pausou pois sua autenticação expirou. Acesse o app para continuar.",
-      url: "/?tab=auto",
-      tag: "h2b-auth-expired",
-    }).catch(() => {});
     return;
   }
   h.oauthOk = true;
@@ -5381,31 +5251,6 @@ function calcRanking(period, category, myEmail) {
 // ── BOOT ─────────────────────────────────────────────────
 boot();loadSheets();
 
-// v14: expõe calcHealthScore e DB_BAD_LEADS via endpoint /api/admin/health-scores e /api/admin/bad-leads
-// (injetado dinamicamente no handler de /api/admin existente via flag)
-const _adminExtraRoutes = {
-  "/api/admin/health-scores": (req, res) => {
-    const scores = Object.keys(DB_AUTO)
-      .filter(e => DB_AUTO[e].active)
-      .map(e => calcHealthScore(e))
-      .filter(Boolean);
-    return json(res, 200, { scores, total: scores.length });
-  },
-  "/api/admin/bad-leads": (req, res) => {
-    const list = Object.entries(DB_BAD_LEADS)
-      .sort((a,b) => (b[1].lastTry||0) - (a[1].lastTry||0))
-      .slice(0, 500)
-      .map(([email, rec]) => ({ email, ...rec }));
-    return json(res, 200, { badLeads: list, total: list.length });
-  },
-  "/api/admin/bad-leads/clear": (req, res) => {
-    if (req.method !== "POST") { json(res,405,{error:"método inválido"}); return; }
-    DB_BAD_LEADS = {};
-    persistBadLeads();
-    return json(res, 200, { ok: true, msg: "Banco de leads ruins limpo." });
-  },
-};
-
 // ── Graceful shutdown: persiste TODOS os bancos ──────────
 function flushAll() {
   console.log("[shutdown] Persistindo dados...");
@@ -5428,7 +5273,6 @@ function flushAll() {
   try { persist(NOTIF_FILE,    DB_NOTIF);    } catch(e) { console.warn("[shutdown] notif:",    e.message); }
   try { persist(REFERRAL_FILE, DB_REFERRAL); } catch(e) { console.warn("[shutdown] referral:", e.message); }
   try { persist(SUGGESTIONS_FILE, DB_SUGGESTIONS); } catch(e) { console.warn("[shutdown] suggestions:", e.message); }
-  // v14: leads ruins
   try { persistBadLeads(); } catch(e) { console.warn("[shutdown] bad_leads:", e.message); }
 
   // 3. Persiste sent_emails (conversão Set → Array)
