@@ -1710,15 +1710,15 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <div class="home-section-title" style="padding-left:0">Hoje</div>
             <div class="home-stat-cards" style="grid-template-columns:1fr 1fr 1fr">
               <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer">
-                <div class="home-stat-val" style="color:var(--blue)" id="home-stat-manual">–</div>
+                <div class="home-stat-val" style="color:var(--blue)" id="home-stat-manual">0</div>
                 <div class="home-stat-lbl">Manuais hoje</div>
               </div>
               <div class="home-stat-card" onclick="openAutoModal()" style="cursor:pointer">
-                <div class="home-stat-val" style="color:var(--purple)" id="home-stat-auto">–</div>
+                <div class="home-stat-val" style="color:var(--purple)" id="home-stat-auto">0</div>
                 <div class="home-stat-lbl">Automáticos hoje</div>
               </div>
               <div class="home-stat-card" onclick="sv('respostas')" style="cursor:pointer">
-                <div class="home-stat-val" style="color:var(--green)" id="home-stat-replies">–</div>
+                <div class="home-stat-val" style="color:var(--green)" id="home-stat-replies">0</div>
                 <div class="home-stat-lbl">Empresas responderam</div>
               </div>
             </div>
@@ -1726,7 +1726,22 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <!-- Últimas respostas -->
           <div class="home-section-title">📩 Empresas que Responderam</div>
           <div class="home-quick-replies" id="home-quick-replies">
-            <div style="padding:18px;text-align:center;color:var(--t3);font-size:13px"><span class="spin spin-sm"></span></div>
+            <div style="padding:16px 14px;text-align:center;color:var(--t3);font-size:12px;background:var(--sf2);border-radius:var(--r);border:1.5px dashed var(--border)">
+              <div style="font-size:20px;margin-bottom:6px">📭</div>
+              <div style="font-weight:600;color:var(--t2);margin-bottom:2px">Nenhuma empresa respondeu ainda</div>
+              <div style="font-size:11px">Quando uma empresa te responder aparece aqui</div>
+            </div>
+          </div>
+          <!-- Ajuda rápida — sempre visível para novos usuários -->
+          <div id="home-help-card" style="margin:0 14px 12px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid rgba(16,185,129,.3);border-radius:var(--rl);padding:14px 16px;cursor:pointer" onclick="sv('tutorial')">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="font-size:24px">📖</div>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:800;color:#047857">Como usar o H2BApply</div>
+                <div style="font-size:11px;color:#059669;margin-top:2px">Guia passo a passo — do cadastro à primeira resposta</div>
+              </div>
+              <i class="ti ti-chevron-right" style="font-size:16px;color:#10b981"></i>
+            </div>
           </div>
           <!-- Conta -->
           <div class="home-section-title">⚙️ Minha Conta</div>
@@ -1746,6 +1761,14 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Ver Candidaturas Enviadas</div></div>
               <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
             </button>
+            <button class="home-reply-item" onclick="sv('logs')" style="border:none;width:100%;background:none;font-family:inherit;border-top:1px solid var(--border)">
+              <div style="width:32px;height:32px;border-radius:9px;background:var(--sf3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0"><i class="ti ti-list-details" style="color:var(--t2)"></i></div>
+              <div style="flex:1;text-align:left">
+                <div style="font-size:13px;font-weight:700">Ver Logs do Automático</div>
+                <div style="font-size:11px;color:var(--t3)">O que o automático está fazendo</div>
+              </div>
+              <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
+            </button>
           </div>
         </div>
       </div>
@@ -1758,7 +1781,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <button class="stab stab-sheet-jul" id="stab-jul2025" onclick="setTab('jul2025')" style="margin-top:8px"><i class="ti ti-snowflake" style="color:#3b82f6"></i><strong>H-2A — Jul 2025</strong><span class="stab-cnt" id="sc-jul">–</span></button>
         </div>
         <div class="search-bar">
-          <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="🔍 Buscar por cargo, empresa, estado..." oninput="onSearch()" autocomplete="off" inputmode="search"></div>
+          <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="🔍 Ex: landscaper, Florida, H-400-26001..." oninput="onSearchDebounced()" autocomplete="off" inputmode="search"></div>
           <!-- BOTÃO FILTROS -->
           <div style="display:flex;align-items:center;gap:6px;padding:6px 10px 8px;border-top:1px solid var(--border)">
             <button id="filter-toggle-btn" onclick="toggleFilters()" style="display:flex;align-items:center;gap:6px;background:var(--sf2);border:1.5px solid var(--border2);border-radius:10px;padding:7px 14px;font-size:12px;font-weight:700;color:var(--t2);cursor:pointer;font-family:inherit">
@@ -1842,6 +1865,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div class="jlist-panel" id="jlist-panel">
             <div class="jlist-hdr">
               <span class="jcount" id="jcount">Carregando...</span>
+              <span id="jemail-count" style="font-size:11px;color:var(--green);font-weight:600;display:none"></span>
               <span id="jfrom-cache" style="font-size:10px;color:var(--amber);display:none">cache</span>
             </div>
             <div id="jlist"></div>
@@ -1869,16 +1893,22 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       </div>
 
       <!-- ══ SAVED ══ -->
-      <div class="view gone" id="v-saved"><div class="view-scroll"><div id="saved-list"></div></div></div>
+      <div class="view gone" id="v-saved">
+        <div class="view-scroll">
+          <div style="font-size:17px;font-weight:800;margin-bottom:4px">🔖 Vagas Salvas</div>
+          <div style="font-size:13px;color:var(--t2);margin-bottom:14px">Vagas que você marcou para ver depois. Toque no ★ em qualquer vaga para salvar.</div>
+          <div id="saved-list"></div>
+        </div>
+      </div>
 
       <!-- ══ HIST ══ -->
       <div class="view gone" id="v-hist"><div class="view-scroll">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
           <div style="font-size:18px;font-weight:800">✈️ Candidaturas Enviadas</div>
           <div style="display:flex;gap:6px;align-items:center">
-            <button class="fbtn on" id="ht-all"    onclick="setHistTab('all')">Todas</button>
-            <button class="fbtn"    id="ht-manual" onclick="setHistTab('manual')">Manual</button>
-            <button class="fbtn"    id="ht-auto"   onclick="setHistTab('auto')">🤖 Auto</button>
+            <button class="fbtn on" id="ht-all"    onclick="setHistTab('all')">Todas <span id="ht-cnt-all" style="opacity:.6"></span></button>
+            <button class="fbtn"    id="ht-manual" onclick="setHistTab('manual')">✈️ Manual <span id="ht-cnt-manual" style="opacity:.6"></span></button>
+            <button class="fbtn"    id="ht-auto"   onclick="setHistTab('auto')">🤖 Automático <span id="ht-cnt-auto" style="opacity:.6"></span></button>
             <button class="btn btn-secondary btn-sm" onclick="confirmClearHist()" title="Resetar — vagas voltam para a lista" style="padding:5px 11px;font-size:12px;border-color:var(--amber);color:var(--amber)"><i class="ti ti-refresh"></i> Limpar histórico</button>
           </div>
         </div>
@@ -2046,16 +2076,8 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <button onclick="inboxViewAll()"><i class="ti ti-eye"></i> Ver todas</button>
         </div>
 
-        <!-- Notificação push banner (aparece só se não solicitou permissão) -->
-        <div id="inbox-notif-banner" style="display:none;background:linear-gradient(135deg,#1e3a8a,#1a56db);color:#fff;padding:9px 14px;flex-shrink:0;align-items:center;gap:8px">
-          <i class="ti ti-bell-ringing" style="font-size:16px;flex-shrink:0"></i>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:700">Ativar notificações</div>
-            <div style="font-size:10px;opacity:.8">Seja avisado quando receberem respostas, mesmo com o app fechado</div>
-          </div>
-          <button onclick="requestPushPermission()" style="background:#fff;color:#1a56db;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">Ativar</button>
-          <button onclick="dismissNotifBanner()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:14px;font-family:inherit"><i class="ti ti-x"></i></button>
-        </div>
+        <!-- Notificação push: pedida no momento certo (após ligar automático) -->
+        <div id="inbox-notif-banner" style="display:none"></div>
 
         <!-- Lista -->
         <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch" id="inbox-list">
@@ -2065,7 +2087,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           </div>
         </div>
         <!-- Pipeline view -->
-        <div style="flex:1;overflow-x:auto;overflow-y:hidden;display:none;padding:12px;gap:10px;min-height:0" id="pipeline-view">
+        <div style="flex:1;overflow-x:auto;overflow-y:hidden;display:none;padding:12px;gap:10px;min-height:0;flex-direction:column" id="pipeline-view">
+          <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:8px 12px;font-size:11px;color:#1d4ed8;margin-bottom:8px;flex-shrink:0">
+            💡 Toque em qualquer card e escolha o status para mover entre as colunas
+          </div>
           <div style="display:flex;gap:10px;height:100%;min-width:max-content">
             <div class="pipeline-col" id="pipe-responded">
               <div class="pipeline-col-hdr" style="background:var(--bluel);color:var(--blue)">💬 Respondeu <span class="pipeline-cnt" id="pipe-cnt-responded">0</span></div>
@@ -2091,8 +2116,11 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       <div class="view gone" id="v-logs">
         <!-- ══ LOGS AUTOMÁTICO ══ -->
         <div class="view-scroll">
-          <div style="font-size:18px;font-weight:800;margin-bottom:4px">📋 Logs do Envio Automático</div>
-          <div style="font-size:13px;color:var(--t2);margin-bottom:14px">Histórico completo de todos os envios automáticos</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:18px;font-weight:800">📋 Logs do Automático</div>
+            <button class="btn btn-secondary btn-sm" onclick="openAutoModal()" title="Ver painel do automático"><i class="ti ti-robot"></i> Ver Automático</button>
+          </div>
+          <div style="font-size:13px;color:var(--t2);margin-bottom:14px">O que o automático está fazendo agora e o histórico de envios</div>
           <!-- Toolbar -->
           <div class="logs-toolbar">
             <input class="logs-search" type="text" id="log-q" placeholder="🔍 Buscar empresa, e-mail..." oninput="loadLogs()" inputmode="search">
@@ -2160,7 +2188,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <div class="rk-cat-bar">
           <button class="rk-cat active" data-cat="sends"     onclick="setRankCat('sends')"><i class="ti ti-send"></i> Envios</button>
           <button class="rk-cat"        data-cat="responses" onclick="setRankCat('responses')"><i class="ti ti-mail-opened"></i> Respostas</button>
-          <button class="rk-cat"        data-cat="active"    onclick="setRankCat('active')"><i class="ti ti-flame"></i> Mais Ativos</button>
+          <button class="rk-cat"        data-cat="active"    onclick="setRankCat('active')"><i class="ti ti-flame"></i> Em Alta</button>
         </div>
 
         <!-- Period tabs -->
@@ -3341,6 +3369,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <button style="flex-shrink:0;background:var(--purplel);border:1px solid var(--purpleb);color:var(--purple);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap" onclick="quickReply('confirm')">✔ Confirmo</button>
         <button style="flex-shrink:0;background:var(--sf2);border:1px solid var(--border2);color:var(--t2);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap" onclick="quickReply('question')">❓ Dúvida</button>
         <button style="flex-shrink:0;background:var(--purplel);border:1px solid var(--purpleb);color:var(--purple);border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap" onclick="openQuickReplyModal(_currentEmailId)"><i class="ti ti-bolt" style="font-size:11px"></i> Modelo</button>
+        <button style="flex-shrink:0;background:linear-gradient(135deg,rgba(8,145,178,.15),rgba(6,182,212,.1));border:1px solid rgba(8,145,178,.35);color:#0891b2;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap" onclick="suggestIaReplyFromEmail()"><i class="ti ti-brain" style="font-size:11px"></i> IA</button>
       </div>
       <input class="input gone" id="ed-reply-subject" type="text" style="margin-bottom:5px;font-size:12px;height:32px" placeholder="Assunto da resposta">
       <div style="display:flex;gap:6px;align-items:flex-end">
@@ -4151,12 +4180,30 @@ function renderHdr(){
 }
 function updateLimChip(){
   const c=g("#hdr-lim");if(!c)return;
-  if(U.autoJob?.active){c.className="lchip lc-a";c.innerHTML="🤖 Auto <strong>ON</strong>";}
-  else if(U.manualRemaining===0){c.className="lchip lc-x";c.innerHTML="🔒 Envios esgotados hoje";}
-  else if(U.manualRemaining<=3){c.className="lchip lc-w";c.innerHTML=`⚠️ Só ${U.manualRemaining} envio${U.manualRemaining>1?'s':''} restante${U.manualRemaining>1?'s':''}`;}
+  if(U.autoJob?.active){
+    const qs=U.autoJob.queueSize||0;
+    const orig=U.autoJob.originalCount||0;
+    const done=Math.max(0,orig-qs);
+    const pct=orig>0?Math.round(done/orig*100):0;
+    c.className="lchip lc-a";
+    c.title=`Automático ativo — ${done} de ${orig} vagas enviadas (${pct}%)`;
+    c.innerHTML=`🤖 Auto <strong>ON</strong> ${orig>0?pct+"%":""}`;
+  }
+  else if(U.manualRemaining===0){
+    c.className="lchip lc-x";
+    c.title="Limite de envios manuais esgotado para hoje. Renova à meia-noite BRT.";
+    c.innerHTML="🔒 Envios esgotados hoje";
+  }
+  else if(U.manualRemaining<=3){
+    c.className="lchip lc-w";
+    c.title=`Restam ${U.manualRemaining} envio(s) manual(is) hoje. Clique para ver planos.`;
+    c.innerHTML=`⚠️ Só ${U.manualRemaining} envio${U.manualRemaining>1?"s":""} restante${U.manualRemaining>1?"s":""}`;
+  }
   else{
     const planLabel={free:"Free",vip:"⭐VIP",pro:"🤖Pro",vipro:"⭐Pro"}[U.plan]||"Free";
-    c.className="lchip lc-ok";c.innerHTML=`${planLabel} · ${U.manualRemaining} envios`;
+    c.className="lchip lc-ok";
+    c.title=`Plano ${planLabel} — ${U.manualRemaining} envios manuais restantes hoje. Clique para ver planos.`;
+    c.innerHTML=`${planLabel} · ${U.manualRemaining} envios hoje`;
   }
 }
 function updateAutoDot(on){
@@ -4489,6 +4536,11 @@ async function loadTabCounts(){
 //  JOBS (Seasonal)
 // ═══════════════════════════════════════════
 let stmr;
+let _searchTimer=null;
+function onSearchDebounced(){
+  clearTimeout(_searchTimer);
+  _searchTimer=setTimeout(onSearch,280); // 280ms evita render a cada tecla
+}
 function onSearch(){clearTimeout(stmr);stmr=setTimeout(()=>{const q=g("#q").value.trim();if(q!==fQ){fQ=q;if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}},350);}
 function applyF(){fState=g("#f-state")?.value||"";fWage=parseFloat(g("#f-wage")?.value||0);fWorkers=parseInt(g("#f-workers")?.value||0);if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}updateFilterBadge();}
 function setType(t){fType=t;["all","agri","nonag"].forEach(k=>g("#ft-"+k)?.classList.remove("on"));const m={all:"ft-all",agricultural:"ft-agri","non-agricultural":"ft-nonag"};g("#"+m[t])?.classList.add("on");if(tab==="seasonal")loadJobs(true);updateFilterBadge();}
@@ -6093,6 +6145,13 @@ function useMyTpl(){const b=g("#af-body");if(b){b.value=fill(CFG.body||DEFAULT_B
 function setHistTab(t){histTab=t;["all","manual","auto"].forEach(k=>g("#ht-"+k)?.classList.toggle("on",k===t));renderHist();}
 
 function renderHist(){
+  // Atualiza contagem nas tabs
+  const all=HIST.length;
+  const manual=HIST.filter(h=>h.type==="manual").length;
+  const auto=HIST.filter(h=>h.type==="auto").length;
+  const cntAll=document.getElementById("ht-cnt-all");if(cntAll)cntAll.textContent=all?"("+all+")":"";
+  const cntM=document.getElementById("ht-cnt-manual");if(cntM)cntM.textContent=manual?"("+manual+")":"";
+  const cntA=document.getElementById("ht-cnt-auto");if(cntA)cntA.textContent=auto?"("+auto+")":"";
   const el=g("#hist-list");if(!el)return;
   const q=(g("#hist-search")?.value||"").toLowerCase().trim();
   let list=histTab==="manual"?HIST.filter(h=>h.type!=="auto"):histTab==="auto"?HIST.filter(h=>h.type==="auto"):HIST;
@@ -6491,7 +6550,7 @@ function updateLogStats(){
 async function exportLogs(){
   try{const r=await fetch("/api/auto-logs/export",{credentials:"include"});const blob=await r.blob();const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="h2b_logs_"+new Date().toISOString().slice(0,10)+".csv";a.click();toast("CSV exportado ✓","g");}catch(e){toast("Erro: "+e.message,"r");}
 }
-async function clearLogs(){if(!confirm("Limpar todos os logs?"))return;try{const r=await fetch("/api/auto-logs",{method:"DELETE",credentials:"include"});const d=await r.json();if(d.ok){allLogsData=[];renderLogs();updateLogStats();toast("Logs limpos","r");}else throw new Error(d.error);}catch(e){toast("Erro: "+e.message,"r");}}
+async function clearLogs(){if(!confirm("Limpar todos os logs?\n\nIsso apaga o histórico de envios automáticos. O automático continua funcionando normalmente."))return;try{const r=await fetch("/api/auto-logs",{method:"DELETE",credentials:"include"});const d=await r.json();if(d.ok){allLogsData=[];renderLogs();updateLogStats();toast("Logs limpos","r");}else throw new Error(d.error);}catch(e){toast("Erro: "+e.message,"r");}}
 
 // ═══════════════════════════════════════════
 //  AUTO SEND — WIZARD
@@ -6808,7 +6867,7 @@ function pfUpdatePreview(){
 async function confirmStartAuto(){
   // Sempre 24/7: sem janela de horário — reseta à meia-noite BRT e continua
   closePreflight();
-  await startAuto(0,24,"now");
+  await startAuto(0,24);
 }
 
 // ══════════════════════════════════════════════════════
@@ -6816,19 +6875,16 @@ async function confirmStartAuto(){
 //  Envia case numbers ao servidor → servidor busca emails
 //  Isso evita falha do DOL API no browser (CORS/rate limit)
 // ══════════════════════════════════════════════════════
-async function startAuto(overrideStartH, overrideEndH, _mode="now"){
+async function startAuto(overrideStartH, overrideEndH){
   if(!autoSelectedSrc){toast("Escolha a fonte das vagas! (Passo 1)","r");g("#ws-1")?.scrollIntoView({behavior:"smooth"});return;}
   const activeProfiles=(U.profiles||UPROFILES||[]).filter(p=>p.active!==false);
-  if(!activeProfiles.length){toast("Crie pelo menos 1 perfil ativo antes de iniciar!","r");return;}
-  const nowH=new Date().getHours();
+  if(!activeProfiles.length){toast("⚠️ Você precisa criar um perfil de envio com seu currículo primeiro!\nVá em Meu Perfil → E-mail e crie um perfil.","r");setTimeout(()=>{closeAutoModal();sv('profile');setTimeout(()=>switchProfileTab('profiles'),200);},1500);return;}
+  // startH/endH removidos — automático roda 24/7
   const limit=999999; // sem limite — carrega toda a planilha
   const state=g("#af-state")?.value||"";
   const keyword=g("#af-kw")?.value.trim()||"";
   const minWage=parseFloat(g("#af-min-wage")?.value||"0")||0;
-  const hasEmail=g("#af-has-email")?.value||"";
-  // startH/endH: vindos do modal preflight ou do wizard
-  const startH=overrideStartH!==undefined?overrideStartH:parseInt(g("#af-start-h")?.value||8,10);
-  const endH  =overrideEndH  !==undefined?overrideEndH  :parseInt(g("#af-end-h")?.value||20,10);
+  const hasEmail="yes"; // sempre filtra vagas com e-mail — sem e-mail não tem como enviar
   const btn=g("#auto-start-btn");
   btn.disabled=true;
   btn.innerHTML='<span class="spin spin-sm"></span><span>Carregando vagas...</span>';
@@ -6911,8 +6967,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
         category:autoSelectedCat||"all",
         startH,
         endH,
-        mode:_mode,
-        filters:{state,keyword,limit,category:autoSelectedCat,minWage,hasEmail}
+                filters:{state,keyword,limit,category:autoSelectedCat,minWage,hasEmail}
       })
     });
     const data=await resp.json();
@@ -6941,6 +6996,13 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
     setTimeout(()=>{const lv=g("#auto-live-section");const wz=g("#auto-wizard");if(lv)lv.style.display="block";if(wz)wz.style.display="none";if(typeof loadAutoLogs==="function")loadAutoLogs();},100);
     const msg=`🟢 Enviando agora! Roda 24/7 até zerar a fila — reseta à meia-noite BRT.`;
     toast(`✅ ${data.queueSize} vagas na fila! ${msg}`,"g");
+    // Pedir push notification AGORA — contexto perfeito: usuário acabou de ligar o auto
+    // Quer ser avisado quando as empresas responderem
+    setTimeout(()=>{
+      if(Notification.permission==="default"){
+        _showPushPromptAfterAuto();
+      }
+    },2000);
 
   }catch(e){
     toast("Erro: "+e.message,"r");
@@ -6953,13 +7015,17 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
 async function pauseAuto(){try{await fetch("/api/auto/pause",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:false,status:"paused"};updateAutoUI();updateLimChip();toast("Pausado","au");}catch(e){toast("Erro","r");}}
 async function resumeAuto(){try{await fetch("/api/auto/resume",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:true,status:"resuming"};updateAutoUI();updateLimChip();startAutoPolling();toast("Retomado ✓","g");}catch(e){toast("Erro","r");}}
 async function stopAuto(){
-  setTimeout(async function(){await _loadSentIds();if(tab!=="seasonal")loadSheetMeta(true);},600);
-if(!confirm("Parar o envio completamente?"))return;try{await fetch("/api/auto/stop",{method:"POST",credentials:"include"});U.autoJob=null;_autoQueueIds=new Set();_syncAutoQueueVisibility();clearInterval(autoInterval);autoInterval=null;if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado","r");// Recarrega perfis do servidor para garantir que não sumiram
+  if(!confirm("Parar o envio automático completamente?\n\nAs vagas restantes ficam salvas. Você pode reiniciar quando quiser."))return;
+  setTimeout(async function(){await _loadSentIds();if(tab!=="seasonal")loadSheetMeta(true);},600);try{await fetch("/api/auto/stop",{method:"POST",credentials:"include"});U.autoJob=null;_autoQueueIds=new Set();_syncAutoQueueVisibility();clearInterval(autoInterval);autoInterval=null;if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado","r");// Recarrega perfis do servidor para garantir que não sumiram
 try{const pr=await fetch("/api/profiles",{credentials:"include"}).then(r=>r.json());UPROFILES=pr.profiles||[];if(U)U.profiles=UPROFILES;}catch{}
 }catch(e){toast("Erro","r");}}
 
 // FIX: oculta/mostra cards de vagas com base em _autoQueueIds (sincroniza UI após auto iniciar/parar)
+let _syncVisThrottle=0;
 function _syncAutoQueueVisibility(){
+  // Throttle: no máximo 1x a cada 3s para não travar em listas grandes
+  const now=Date.now();if(now-_syncVisThrottle<3000)return;
+  _syncVisThrottle=now;
   try{
     // Sheet cards: vagas nas abas jan2026/jul2025
     document.querySelectorAll(".jcard[id^='jcard-s_']").forEach(card=>{
@@ -6980,10 +7046,35 @@ function _syncAutoQueueVisibility(){
   }catch{}
 }
 
+function _showPushPromptAfterAuto(){
+  // Modal simples e direto: "Quer ser avisado quando uma empresa responder?"
+  const existing=document.getElementById("push-prompt-auto");
+  if(existing)existing.remove();
+  const el=document.createElement("div");
+  el.id="push-prompt-auto";
+  el.style.cssText="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:500;background:#1e1b4b;color:#fff;border-radius:16px;padding:16px 18px;max-width:340px;width:calc(100vw - 32px);box-shadow:0 8px 32px rgba(0,0,0,.4);animation:slideUp .25s ease";
+  el.innerHTML=`
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div style="font-size:24px;flex-shrink:0">🛫</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:800;margin-bottom:4px">Quer ser avisado quando uma empresa responder?</div>
+        <div style="font-size:12px;opacity:.75;margin-bottom:12px;line-height:1.5">Você recebe um alerta no celular mesmo com o app fechado — não perde nenhuma resposta.</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="requestPushPermission();document.getElementById('push-prompt-auto')?.remove()" style="flex:1;background:linear-gradient(135deg,#4ade80,#10b981);color:#fff;border:none;border-radius:10px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✅ Sim, ativar</button>
+          <button onclick="document.getElementById('push-prompt-auto')?.remove()" style="background:rgba(255,255,255,.12);color:rgba(255,255,255,.7);border:none;border-radius:10px;padding:9px 13px;font-size:12px;cursor:pointer;font-family:inherit">Agora não</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  // Auto-remove após 15s
+  setTimeout(()=>document.getElementById("push-prompt-auto")?.remove(),15000);
+}
+
 function startAutoPolling(){if(autoInterval)clearInterval(autoInterval);autoInterval=setInterval(pollAutoStatus,5000);}
 
 async function pollAutoStatus(){
-  if(curView!=="auto"&&!U.autoJob?.active)return;
+  // Sempre polling quando auto ativo — card da home precisa atualizar em qualquer tela
+  if(!U.autoJob?.active && curView!=="auto" && curView!=="home")return;
   try{
     const r=await fetch("/api/auto/status",{credentials:"include"});const d=await r.json();
     if(d.job)U.autoJob={...d.job};else U.autoJob=null;
@@ -7023,6 +7114,7 @@ async function loadAutoLogs(){
 function updateAutoUI(){
   const j=U.autoJob;const active=j?.active;const has=!!j&&j.status!=="finished";
   const live=g("#auto-live-section");const wizard=g("#auto-wizard");
+  // Se ativo ou pausado: mostra painel de monitoramento diretamente
   if(live)live.style.display=has?"block":"none";
   if(wizard)wizard.style.display=has?"none":"block";
 
@@ -7034,12 +7126,15 @@ function updateAutoUI(){
     starting:"🟡 Iniciando...",
     sending:"🟢 Enviando...",
     paused:"⏸ Pausado",
-    paused_no_session:"⚠️ Faça login novamente para retomar",
-    finished:"✅ Fila concluída! Reative para nova rodada.",
+    paused_no_session:"🔐 Sua sessão expirou — abra o app e faça login para retomar",
+    paused_token_revoked:"🔐 Acesso Google revogado — entre no app e faça login novamente",
+    paused_auth_error:"🔐 Erro de autenticação — toque aqui para fazer login novamente",
+    paused_account_suspended:"⛔ Conta Gmail com restrições — verifique sua conta Google",
+    finished:"✅ Pronto! Todas as vagas foram enviadas. Reative se quiser rodar novamente.",
     resuming:"🟢 Retomando...",
-    waiting_interval:"⏳ Aguardando intervalo entre envios...",
-    waiting_hour:"🌙 Fora do horário configurado — retoma automático",
-    waiting_limit:"🌙 Limite diário atingido — retoma automaticamente à meia-noite! Não precisa fazer nada."
+    waiting_interval:"⏳ Aguardando 3–5 minutos entre envios (padrão anti-spam)...",
+    waiting_hour:"🌙 Aguardando — retoma em instantes",
+    waiting_limit:"🌙 Descansando — enviou o máximo de hoje. Retoma automaticamente à meia-noite BRT."
   };
   if(banner){banner.className="auto-status-banner "+(active?"asb-sending":j.status==="finished"?"asb-done":"asb-paused");}
   if(txt)txt.textContent=statusLabels[j.status]||j.status||"–";
@@ -7088,7 +7183,10 @@ function updateAutoUI(){
 
   // Dias restantes estimados
   const daysLeft=autoLim>0&&qs>0?Math.ceil(qs/autoLim):null;
-  el("#dash-days-left", qs===0?"✅ Concluído!":daysLeft?`~${daysLeft} dia${daysLeft>1?"s":""} p/ terminar`:"");
+  const daysStr=qs===0?"✅ Concluído! Todas as vagas foram enviadas.":
+    daysLeft?`~${daysLeft} dia${daysLeft>1?"s":""} para terminar${daysLeft>7?" — continue ligado!":""}`:
+    "";
+  el("#dash-days-left", daysStr);
 
   // Cards secundários
   el("#dash-queue",  qs.toLocaleString("pt-BR"));
@@ -7922,6 +8020,13 @@ function closeEmailDetail(){g("#email-detail-overlay").classList.add("gone");_cu
 
 // ── Modal Envio Automático ──────────────────────────────
 async function openAutoModal(){
+  // Se auto está ativo ou pausado: vai direto para o painel de monitoramento
+  if(U.autoJob && U.autoJob.status!=="finished"){
+    const live=document.getElementById("auto-live-section");
+    const wizard=document.getElementById("auto-wizard");
+    if(live)live.style.display="block";
+    if(wizard)wizard.style.display="none";
+  }
   // ── Se envio já está ativo: abre direto o painel de monitoramento ──
   if(U.autoJob && U.autoJob.active){
     const ov=g("#auto-modal-overlay");if(!ov)return;
@@ -8490,6 +8595,35 @@ function copyEmailReply(){
 }
 
 // ── Enviar resposta pelo app ────────────────────────────────
+function suggestIaReplyFromEmail(){
+  // Pega contexto do e-mail atual e abre o IA Chat com sugestão pronta
+  const email=g("#email-detail-overlay")?._currentEmail;
+  const fromName=(email?.from||"").replace(/<[^>]+>/g,"").replace(/"/g,"").trim()||"empresa";
+  const subject=email?.subject||"";
+  const body=email?.snippet||"";
+  const prompt=`Uma empresa americana chamada "${fromName}" me enviou este e-mail com o assunto "${subject}":
+
+"${body.slice(0,400)}"
+
+Me ajude a responder em inglês de forma profissional e breve. Sou brasileiro buscando trabalho H-2B.`;
+  // Copia prompt para o campo de resposta do email com instrução
+  const replyEl=g("#ed-reply-body");
+  if(replyEl){
+    replyEl.value=""; replyEl.focus();
+    replyEl.placeholder="✨ Dica: vá em IA Chat (menu) e cole esta pergunta:
+
+"+prompt.slice(0,200)+"...";
+  }
+  // Abre IA Chat em background com o prompt preenchido
+  closeEmailDetail();
+  setTimeout(()=>{
+    sv("iaChat");
+    setTimeout(()=>{
+      const ia=g("#ia-input");if(ia){ia.value=prompt;ia.focus();}
+    },200);
+  },100);
+}
+
 function sendEmailReply(){
   const email=g("#email-detail-overlay")?._currentEmail;
   const fromEmail=email?(email.from.match(/<([^>]+)>/)||[])[1]||email.from:"";
@@ -8540,8 +8674,21 @@ function sendEmailReply(){
 }
 
 // ── Render Home ───────────────────────────────────────────
+let _lastHomeHash="";
 function renderHome(){
-  _showWelcome();
+  // Esconde card de ajuda para usuários já configurados
+  const helpCard=document.getElementById("home-help-card");
+  if(helpCard){
+    const st=_checkSetupStatus&&_checkSetupStatus();
+    helpCard.style.display=(st&&st.allDone)?"none":"";
+  }
+  // Dirty-check: só re-renderiza stats se algo mudou
+  const _newHash=JSON.stringify({
+    autoActive:U.autoJob?.active,autoStatus:U.autoJob?.status,
+    qs:U.autoJob?.queueSize,todayAuto:U.todaySentAuto,todayManual:U.todaySentManual
+  });
+  const _fullRender=_newHash!==_lastHomeHash;
+  _lastHomeHash=_newHash;
 
   // Saudação por hora
   const hr=new Date().getHours();
@@ -9126,8 +9273,10 @@ function _updateHomeAutoCard() {
     if (j.status === "waiting_limit") {
       if (sub) sub.textContent = `🌙 Descansando — enviou ${todayAuto} de ${autoLim} hoje. Retoma à meia-noite automaticamente.`;
     } else {
-      if (sub) sub.textContent = orig > 0
-        ? `${done.toLocaleString("pt-BR")} de ${orig.toLocaleString("pt-BR")} vagas enviadas (hoje: ${todayAuto})`
+      const daysEst = U.autoLimit>0&&qs>0?Math.ceil(qs/U.autoLimit):0;
+    const daysStr = daysEst>1?` · ~${daysEst} dia${daysEst>1?"s":""} p/ terminar`:(daysEst===1?" · termina amanhã":"");
+    if (sub) sub.textContent = orig > 0
+        ? `${done.toLocaleString("pt-BR")} de ${orig.toLocaleString("pt-BR")} enviadas (hoje: ${todayAuto}/${U.autoLimit||0})${daysStr}`
         : `Enviando agora • ${todayAuto} hoje`;
     }
     if (progWrap && orig > 0) {
@@ -9139,8 +9288,11 @@ function _updateHomeAutoCard() {
     // PAUSADO
     card.className = "home-auto-card inactive";
     if (pulse) pulse.style.display = "none";
-    if (title) title.textContent = "⏸ Automático Pausado";
-    if (sub) sub.textContent = "⏸ Pausado — toque para retomar o envio automático";
+    const needsLogin = j.status==="paused_no_session"||j.status==="paused_token_revoked"||j.status==="paused_auth_error";
+    if (title) title.textContent = needsLogin ? "🔐 Login necessário para continuar" : "⏸ Automático Pausado";
+    if (sub) sub.textContent = needsLogin
+      ? "Toque aqui → faça login → o automático retoma de onde parou"
+      : "⏸ Pausado — toque para ver status e retomar";
     if (progWrap) progWrap.style.display = "none";
   } else {
     // INATIVO
@@ -10138,6 +10290,55 @@ strong,b{font-weight:700;color:inherit}
   }
 }
 
+
+/* ══ CHIP AUTO ON — destaque quando rodando ══ */
+.lchip.lc-a {
+  background: linear-gradient(135deg,rgba(74,222,128,.2),rgba(16,185,129,.15)) !important;
+  color: #047857 !important;
+  border-color: rgba(16,185,129,.4) !important;
+  font-weight: 800 !important;
+  animation: chipPulse 2.5s ease-in-out infinite;
+}
+@keyframes chipPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(16,185,129,.3); }
+  50%      { box-shadow: 0 0 0 4px rgba(16,185,129,0); }
+}
+/* ══ Estado vazio amigável ══ */
+.empty-friendly {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 40px 20px; text-align: center;
+  gap: 10px; color: var(--t3);
+}
+.empty-friendly .ef-icon { font-size: 44px; opacity: .4; }
+.empty-friendly .ef-title { font-size: 15px; font-weight: 700; color: var(--t2); }
+.empty-friendly .ef-sub { font-size: 13px; line-height: 1.5; max-width: 260px; }
+
+/* ══ HOME AUTO CARD ATIVO — destaque visual ══ */
+.home-auto-card:not(.inactive) {
+  background: linear-gradient(135deg,rgba(74,222,128,.12),rgba(16,185,129,.08)) !important;
+  border: 2px solid rgba(74,222,128,.5) !important;
+}
+/* Barra de progresso na home: mais visível */
+#home-auto-prog-bar {
+  transition: width 1s ease !important;
+}
+/* Chip de auto ON pulsando */
+.lchip.lc-a {
+  animation: chipPulse 2.5s ease-in-out infinite !important;
+}
+/* Input busca vagas: focus mais vistoso */
+.search-inp:focus {
+  border-color: var(--blue) !important;
+  background: #fff !important;
+  box-shadow: 0 0 0 4px rgba(59,130,246,.15) !important;
+}
+/* Hist tabs: active state claro */
+.fbtn.on {
+  background: var(--bluel) !important;
+  color: var(--blue) !important;
+  border-color: var(--blueb) !important;
+  font-weight: 700 !important;
+}
 </style>
 
 <script>
@@ -10604,7 +10805,10 @@ function showGoogleWarnModal(){
 <script>
 var _termsChecked=false,_termsScrolled=false,_termsCallback=null;
 function showTerms(callback){
+  // Verifica apenas no servidor — localStorage some se usuário limpar cache
+  // O aceite real persiste em /api/accept-terms no banco do servidor
   try{
+    // Compatibilidade: se já aceitou localmente E tiver menos de 1 ano, ok
     var a=localStorage.getItem("h2b_terms_v2");
     if(a){var d=JSON.parse(a);if(d.accepted&&d.ts&&(Date.now()-d.ts)<365*86400000){if(callback)callback();return;}}
   }catch(e){}
@@ -10680,27 +10884,7 @@ function showTip(el,html){
   setTimeout(function(){document.addEventListener("click",function _hd(){if(_tip){_tip.remove();_tip=null;}document.removeEventListener("click",_hd);},{once:true});},50);
 }
 
-// Banner boas-vindas (1ª vez)
-function _showWelcome(){
-  try{if(localStorage.getItem("h2b_ok"))return;}catch(e){}
-  var hdr=document.querySelector(".home-header");
-  if(!hdr||document.getElementById("h2b-welcome"))return;
-  var b=document.createElement("div");
-  b.id="h2b-welcome";
-  b.style.cssText="margin:12px 14px 0;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:14px;padding:16px;position:relative";
-  var close=document.createElement("button");
-  close.style.cssText="position:absolute;top:8px;right:10px;background:none;border:none;color:rgba(255,255,255,.8);font-size:20px;cursor:pointer;padding:0;line-height:1";
-  close.textContent="×";
-  close.onclick=function(){b.remove();try{localStorage.setItem("h2b_ok","1");}catch(e){}};
-  b.appendChild(close);
-  var steps=["Vá em <strong>Perfil → Perfis de Email</strong> e configure seu currículo","Acesse <strong>Envio Manual</strong> para escolher vagas e candidatar","Ative o <strong>Envio Automático</strong> para candidaturas 24h no piloto automático","Acompanhe as <strong>Respostas</strong> quando empresas americanas te responderem"];
-  var inner=document.createElement("div");
-  inner.innerHTML="<div style='font-size:15px;font-weight:800;margin-bottom:10px'>🚀 Bem-vindo ao H2BApply!</div><div style='display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.55'>"+
-    steps.map(function(s,i){return "<div style='display:flex;gap:8px'><span style='background:rgba(255,255,255,.25);border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800'>"+(i+1)+"</span><span>"+s+"</span></div>";}).join("")+
-    "</div>";
-  b.appendChild(inner);
-  hdr.insertAdjacentElement("afterend",b);
-}
+// _showWelcome() removida — substituída por _showSetupChecklist() que é mais completa
 </script>
 
 </body>
@@ -12262,7 +12446,7 @@ async function markNotifRead(id){
   }catch{}
 }
 
-function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escHtml(s){return esc(s);}  // alias para esc() — evita duplicação
 
 console.log("[v17] Notificações ADM + Indicações + Enviados carregados");
 
@@ -12563,10 +12747,10 @@ function applyLang(){
   // ── HOME ──
   _st('home-auto-title',t('auto_title'));
   _st('home-auto-sub',t('auto_sub'));
-  _sSection('.home-section-title','Atalhos Rápidos','Quick Access','Accesos Rápidos',t('shortcuts'));
+  _sSection('.home-section-title','Acesso Rápido','Quick Access','Acceso Rápido',t('shortcuts'));
   _sSection('.home-section-title','Hoje','Today','Hoy',t('today'));
-  _sSection('.home-section-title','Conta','Account','Cuenta',t('account'));
-  _sSection('.home-section-title','Últimas Respostas','Latest Replies','Últimas Respuestas',t('latest_replies'));
+  _sSection('.home-section-title','⚙️ Minha Conta','⚙️ My Account','⚙️ Mi Cuenta',t('account'));
+  _sSection('.home-section-title','📩 Empresas que Responderam','📩 Company Replies','📩 Respuestas de Empresas',t('latest_replies'));
   // Home shortcut labels
   const sc=document.querySelectorAll('.home-shortcut .home-shortcut-label');
   const scK=['manual','manual_lbl','search','search_lbl','responses','responses_lbl','auto_lbl','auto_lbl','ranking','ranking','profile','profile_lbl'];
