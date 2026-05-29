@@ -1370,7 +1370,40 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <div style="height:100%;background:linear-gradient(90deg,#4f46e5,#7c3aed);border-radius:99px;animation:h2bBar 1.2s ease-out forwards"></div>
   </div>
 </div>
-<style>@keyframes h2bBar{0%{width:0}100%{width:100%}}</style>
+<style>@keyframes h2bBar{0%{width:0}100%{width:100%}}
+/* ══ UX IMPROVEMENTS ══ */
+/* Card automático inativo: borda pontilhada roxa pulsante para chamar atenção */
+.home-auto-card.inactive {
+  border: 2px dashed rgba(124,58,237,.35) !important;
+  animation: autoPulse 3s ease-in-out infinite;
+}
+@keyframes autoPulse {
+  0%,100% { border-color: rgba(124,58,237,.35); }
+  50%      { border-color: rgba(124,58,237,.7); box-shadow: 0 0 0 4px rgba(124,58,237,.08); }
+}
+/* Botão Auto na navbar: sempre com glow suave */
+.bn.bn-auto .bn-auto-ring {
+  box-shadow: 0 4px 18px rgba(124,58,237,.5), 0 0 0 0 rgba(124,58,237,.3);
+  animation: autoGlow 2.5s ease-in-out infinite;
+}
+@keyframes autoGlow {
+  0%,100% { box-shadow: 0 4px 18px rgba(124,58,237,.5); }
+  50%      { box-shadow: 0 4px 24px rgba(124,58,237,.8), 0 0 0 6px rgba(124,58,237,.12); }
+}
+/* Seção Acesso Rápido: grid mais espaçado */
+.home-shortcuts { gap: 8px !important; }
+/* Sidebar: seção "Mais opções" visualmente menor */
+.sb-sec:last-of-type .sb-item { font-size: 12px !important; opacity: .85; }
+.sb-sec:last-of-type .sb-lbl { font-size: 10px !important; }
+/* Chip de limite: cursor pointer mais óbvio */
+#hdr-lim { cursor: pointer; }
+#hdr-lim:hover { opacity: .8; }
+/* Placeholder da busca: cor mais visível */
+.search-inp::placeholder { color: var(--t2) !important; font-weight: 500; }
+/* Home-stat-cards: cursor pointer óbvio */
+.home-stat-card { cursor: pointer; }
+.home-stat-card:hover { background: var(--sf2); border-color: var(--border2); }
+</style>
 <script>
 (function(){
   var done=false;
@@ -1542,7 +1575,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <button onclick="setAppLang('en')" class="lang-opt" data-lang="en">🇺🇸 English</button>
         <button onclick="setAppLang('es')" class="lang-opt" data-lang="es">🇲🇽 Español</button>
       </div>
-      <div class="lchip lc-ok" id="hdr-lim" onclick="sv('plans')" style="cursor:pointer"></div>
+      <div class="lchip lc-ok" id="hdr-lim" onclick="sv('plans')" style="cursor:pointer" title="Clique para ver seus planos e limites de envio"></div>
       <div class="av-btn" id="hdr-av" onclick="openDrawer()" title="Menu completo">?</div>
     </div>
   </div>
@@ -1568,29 +1601,29 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       <!-- AUTO BUTTON — MAIN CTA -->
       <button class="sb-item sb-auto-btn" id="sb-auto-btn" onclick="openAutoModal()">
         <i class="ti ti-robot" style="font-size:16px"></i>
-        <span style="flex:1">Envio Automático</span>
+        <span style="flex:1">🤖 Ligar Automático</span>
         <span id="sb-auto-dot" style="display:none;width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulseDot 2s infinite"></span>
       </button>
       <div class="sb-sec">
-        <div class="sb-lbl">Navegação</div>
+        <div class="sb-lbl">Principal</div>
         <button class="sb-item" id="si-tutorial" onclick="sv('tutorial')" style="background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.07));border:1.5px solid rgba(16,185,129,.3);border-radius:10px;font-weight:800;color:#059669;margin-bottom:4px"><i class="ti ti-book-2" style="font-size:15px;color:#059669"></i>Tutorial — Como Usar <span style="margin-left:auto;font-size:9px;background:#059669;color:#fff;padding:1px 6px;border-radius:99px;font-weight:800">GUIA</span></button>
-        <button class="sb-item active" id="si-home" onclick="sv('home')"><i class="ti ti-home-2"></i>Home</button>
-        <button class="sb-item" id="si-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i>Envio Manual<span class="sb-badge sb-badge-b" id="sib-jobs" style="display:none"></span></button>
+        <button class="sb-item active" id="si-home" onclick="sv('home')"><i class="ti ti-home-2"></i>Início</button>
+        <button class="sb-item" id="si-jobs" onclick="sv('jobs')"><i class="ti ti-briefcase"></i>Vagas H-2B/H-2A<span class="sb-badge sb-badge-b" id="sib-jobs" style="display:none"></span></button>
         <button class="sb-item" id="si-pesquisa" onclick="sv('pesquisa')"><i class="ti ti-search"></i>Pesquisar Vagas<span class="sb-badge sb-badge-b" id="sib-pesquisa" style="display:none"></span></button>
         <button class="sb-item" id="si-saved" onclick="sv('saved')"><i class="ti ti-bookmark"></i>Salvas<span class="sb-badge sb-badge-b" id="sib-saved" style="display:none"></span></button>
       </div>
       <div class="sb-sec">
-        <div class="sb-lbl">Atividade</div>
-        <button class="sb-item" id="si-respostas" onclick="sv('respostas')" style="color:var(--green);font-weight:700"><i class="ti ti-mail-opened" style="color:var(--green)"></i>Respostas<span class="sb-badge" id="sib-respostas" style="display:none;background:var(--green);color:#fff"></span></button>
-        <button class="sb-item" id="si-hist" onclick="sv('hist')"><i class="ti ti-send"></i>Enviadas<span class="sb-badge sb-badge-g" id="sib-hist" style="display:none"></span></button>
+        <div class="sb-lbl">Acompanhamento</div>
+        <button class="sb-item" id="si-respostas" onclick="sv('respostas')" style="color:var(--green);font-weight:700"><i class="ti ti-mail-opened" style="color:var(--green)"></i>Empresas que Responderam<span class="sb-badge" id="sib-respostas" style="display:none;background:var(--green);color:#fff"></span></button>
+        <button class="sb-item" id="si-hist" onclick="sv('hist')"><i class="ti ti-send"></i>Candidaturas Enviadas<span class="sb-badge sb-badge-g" id="sib-hist" style="display:none"></span></button>
         <button class="sb-item" id="si-ranking" onclick="sv('ranking')" style="color:#d97706;font-weight:700"><i class="ti ti-trophy" style="color:#f59e0b"></i>Ranking <span class="sb-badge" style="margin-left:auto;font-size:10px;font-weight:800;padding:1px 7px;border-radius:20px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff">🔥</span></button>
       </div>
       <div class="sb-sec">
-        <div class="sb-lbl">Conta</div>
-        <button class="sb-item" id="si-profile" onclick="sv('profile')"><i class="ti ti-user"></i>Perfil</button>
+        <div class="sb-lbl">Minha Conta</div>
+        <button class="sb-item" id="si-profile" onclick="sv('profile')"><i class="ti ti-user"></i>Meu Perfil e Currículo</button>
         <button class="sb-item sb-item-plans" id="si-plans" onclick="sv('plans')" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.07));border:1.5px solid rgba(99,102,241,.3);border-radius:var(--r);font-weight:800;color:#4f46e5;margin-top:4px"><i class="ti ti-diamond" style="font-size:16px;color:#4f46e5"></i>Planos & Recompensas</button>
         <button class="sb-item" id="si-logs" onclick="sv('logs')" style="color:var(--t3);font-size:12px"><i class="ti ti-list-details" style="font-size:14px"></i>Logs Automático<span class="sb-badge sb-badge-r" id="sib-logs" style="display:none"></span></button>
-        <button class="sb-item" id="si-indicar" onclick="sv('indicar')"><i class="ti ti-users-group"></i>Indicar Amigos<span class="sb-badge" id="sib-indicar" style="display:none;background:var(--green);color:#fff"></span></button>
+        <button class="sb-item" id="si-indicar" onclick="sv('indicar')"><i class="ti ti-users-group"></i>Indicar Amigos e Ganhar VIP<span class="sb-badge" id="sib-indicar" style="display:none;background:var(--green);color:#fff"></span></button>
         <button class="sb-item" id="si-redeem" onclick="sv('redeem')" style="background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(109,40,217,.06));border:1.5px solid rgba(139,92,246,.25);border-radius:10px;font-weight:800;color:#7c3aed"><i class="ti ti-ticket" style="font-size:15px;color:#7c3aed"></i>Resgatar Código<span style="margin-left:auto;font-size:9px;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:99px">NOVO</span></button>
         <button class="sb-item" id="si-notificacoes" onclick="sv('notificacoes')"><i class="ti ti-bell"></i>Notificações<span class="sb-badge" id="sib-notificacoes" style="display:none;background:#7c3aed;color:#fff"></span></button>
         <button class="sb-item" id="si-iaChat" onclick="sv('iaChat')" style="background:linear-gradient(135deg,rgba(8,145,178,.1),rgba(6,182,212,.06));border:1.5px solid rgba(8,145,178,.25);border-radius:10px;font-weight:800;color:#0891b2"><i class="ti ti-brain" style="font-size:15px;color:#0891b2"></i>IA Chat H2B<span style="margin-left:auto;font-size:9px;background:#0891b2;color:#fff;padding:1px 6px;border-radius:99px">IA</span></button>
@@ -1622,68 +1655,54 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             </div>
             <div class="home-plan-row" id="home-plan-row"></div>
           </div>
-          <!-- Status automático (aparece se ativo) -->
-          <div class="home-auto-card inactive" id="home-auto-card" onclick="openAutoModal()" style="cursor:pointer;transition:transform .14s" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+          <!-- Status automático -->
+          <div class="home-auto-card inactive" id="home-auto-card" onclick="openAutoModal()" style="cursor:pointer;transition:all .15s" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
             <div style="display:flex;align-items:center;gap:10px">
-              <div style="width:36px;height:36px;border-radius:10px;background:rgba(126,58,242,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0" id="home-auto-icon"><i class="ti ti-robot" style="color:var(--purple)"></i></div>
+              <div style="width:40px;height:40px;border-radius:12px;background:rgba(126,58,242,.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;position:relative" id="home-auto-icon">
+                <i class="ti ti-robot" style="color:var(--purple)"></i>
+                <span id="home-auto-pulse" style="display:none;position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;background:#4ade80;animation:pulseDot 2s infinite"></span>
+              </div>
               <div style="flex:1;min-width:0">
                 <div style="font-size:13px;font-weight:800" id="home-auto-title">Envio Automático</div>
-                <div style="font-size:11px;opacity:.7;margin-top:1px" id="home-auto-sub">Toque para configurar e iniciar</div>
+                <div style="font-size:11px;color:rgba(0,0,0,.5);margin-top:2px" id="home-auto-sub">Toque para configurar e iniciar</div>
+                <!-- Barra de progresso mini (só quando ativo) -->
+                <div id="home-auto-prog-wrap" style="display:none;margin-top:6px">
+                  <div style="height:4px;background:rgba(0,0,0,.08);border-radius:2px;overflow:hidden">
+                    <div id="home-auto-prog-bar" style="height:100%;background:linear-gradient(90deg,#7c3aed,#2563eb);border-radius:2px;width:0%;transition:width .5s"></div>
+                  </div>
+                  <div id="home-auto-prog-lbl" style="font-size:10px;color:rgba(0,0,0,.4);margin-top:3px;font-weight:600"></div>
+                </div>
               </div>
-              <i class="ti ti-chevron-right" style="font-size:18px;opacity:.5"></i>
+              <i class="ti ti-chevron-right" style="font-size:18px;opacity:.4;flex-shrink:0"></i>
             </div>
           </div>
           <!-- Atalhos Rápidos -->
-          <div class="home-section-title">Atalhos Rápidos</div>
+          <div class="home-section-title">Acesso Rápido</div>
           <div class="home-shortcuts" style="grid-template-columns:repeat(3,1fr)">
             <button class="home-shortcut hs-jobs" onclick="sv('jobs')">
-              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#eff6ff,#dbeafe)"><i class="ti ti-send" style="color:var(--blue)"></i></div>
-              <div class="home-shortcut-label">✈️ Manual</div>
-            </button>
-            <button class="home-shortcut" onclick="sv('pesquisa')">
-              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#ecfeff,#cffafe)"><i class="ti ti-search" style="color:#0891b2"></i></div>
-              <div class="home-shortcut-label">🔍 Pesquisar</div>
+              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#eff6ff,#dbeafe)"><i class="ti ti-briefcase" style="color:var(--blue)"></i></div>
+              <div class="home-shortcut-label">📋 Vagas</div>
             </button>
             <button class="home-shortcut hs-respostas" onclick="sv('respostas')">
               <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7)"><i class="ti ti-mail-opened" style="color:var(--green)"></i></div>
-              <div class="home-shortcut-label">📩 Respostas</div>
+              <div class="home-shortcut-label">📩 Empresas</div>
               <span class="home-shortcut-badge" id="home-badge-resp" style="display:none"></span>
             </button>
             <button class="home-shortcut hs-auto" onclick="openAutoModal()">
               <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe)"><i class="ti ti-robot" style="color:var(--purple)"></i></div>
               <div class="home-shortcut-label">🤖 Automático</div>
             </button>
-            <button class="home-shortcut hs-ranking" onclick="sv('ranking')">
-              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#fef9c3,#fef08a)"><i class="ti ti-trophy" style="color:#f59e0b"></i></div>
-              <div class="home-shortcut-label">🏆 Ranking</div>
-            </button>
             <button class="home-shortcut hs-cadastros" onclick="sv('profile')">
               <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#fff0f3,#ffe4e6)"><i class="ti ti-user" style="color:#e11d48"></i></div>
-              <div class="home-shortcut-label">👤 Perfil</div>
-            </button>
-            <button class="home-shortcut" onclick="sv('tutorial')">
-              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7)"><i class="ti ti-book-2" style="color:#059669"></i></div>
-              <div class="home-shortcut-label">📖 Tutorial</div>
-            </button>
-            <button class="home-shortcut" onclick="sv('redeem')">
-              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe)"><i class="ti ti-ticket" style="color:#7c3aed"></i></div>
-              <div class="home-shortcut-label">🎫 Código</div>
-            </button>
-            <button class="home-shortcut" onclick="sv('indicar')">
-              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7)"><i class="ti ti-users" style="color:#10b981"></i></div>
-              <div class="home-shortcut-label">👥 Indicar</div>
-            </button>
-            <button class="home-shortcut" onclick="sv('sugestoes')">
-              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#fffbeb,#fef3c7)"><i class="ti ti-bulb" style="color:#f59e0b"></i></div>
-              <div class="home-shortcut-label">💡 Sugestões</div>
-            </button>
-            <button class="home-shortcut" onclick="sv('plans')">
-              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#eff6ff,#dbeafe)"><i class="ti ti-diamond" style="color:#4f46e5"></i></div>
-              <div class="home-shortcut-label">💎 Planos</div>
+              <div class="home-shortcut-label">👤 Meu Perfil</div>
             </button>
             <button class="home-shortcut" onclick="sv('hist')">
               <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#f8fafc,#f1f5f9)"><i class="ti ti-history" style="color:#64748b"></i></div>
               <div class="home-shortcut-label">📋 Enviadas</div>
+            </button>
+            <button class="home-shortcut hs-ranking" onclick="sv('ranking')">
+              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#fef9c3,#fef08a)"><i class="ti ti-trophy" style="color:#f59e0b"></i></div>
+              <div class="home-shortcut-label">🏆 Ranking</div>
             </button>
           </div>
           <!-- Stats do dia -->
@@ -1692,29 +1711,29 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <div class="home-stat-cards" style="grid-template-columns:1fr 1fr 1fr">
               <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer">
                 <div class="home-stat-val" style="color:var(--blue)" id="home-stat-manual">–</div>
-                <div class="home-stat-lbl">Manual</div>
+                <div class="home-stat-lbl">Manuais hoje</div>
               </div>
               <div class="home-stat-card" onclick="openAutoModal()" style="cursor:pointer">
                 <div class="home-stat-val" style="color:var(--purple)" id="home-stat-auto">–</div>
-                <div class="home-stat-lbl">Automático</div>
+                <div class="home-stat-lbl">Automáticos hoje</div>
               </div>
               <div class="home-stat-card" onclick="sv('respostas')" style="cursor:pointer">
                 <div class="home-stat-val" style="color:var(--green)" id="home-stat-replies">–</div>
-                <div class="home-stat-lbl">Respostas</div>
+                <div class="home-stat-lbl">Empresas responderam</div>
               </div>
             </div>
           </div>
           <!-- Últimas respostas -->
-          <div class="home-section-title">Últimas Respostas</div>
+          <div class="home-section-title">📩 Empresas que Responderam</div>
           <div class="home-quick-replies" id="home-quick-replies">
             <div style="padding:18px;text-align:center;color:var(--t3);font-size:13px"><span class="spin spin-sm"></span></div>
           </div>
           <!-- Conta -->
-          <div class="home-section-title">Conta</div>
+          <div class="home-section-title">⚙️ Minha Conta</div>
           <div style="margin:0 14px 20px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden">
             <button class="home-reply-item" onclick="sv('plans')" style="border:none;width:100%;background:none;font-family:inherit">
               <div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(59,130,246,.1));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0"><i class="ti ti-diamond" style="color:#4f46e5"></i></div>
-              <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Planos & Recompensas</div><div style="font-size:11px;color:var(--t3)" id="home-plan-label">Plano Free</div></div>
+              <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Planos & Como Ganhar VIP Grátis</div><div style="font-size:11px;color:var(--t3)" id="home-plan-label">Plano Free</div></div>
               <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
             </button>
             <button class="home-reply-item" onclick="sv('ranking')" style="border:none;width:100%;background:none;font-family:inherit;border-top:1px solid var(--border)">
@@ -1724,7 +1743,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             </button>
             <button class="home-reply-item" onclick="sv('hist')" style="border:none;width:100%;background:none;font-family:inherit;border-top:1px solid var(--border)">
               <div style="width:32px;height:32px;border-radius:9px;background:var(--sf3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0"><i class="ti ti-send" style="color:var(--t2)"></i></div>
-              <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Candidaturas Enviadas</div></div>
+              <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Ver Candidaturas Enviadas</div></div>
               <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
             </button>
           </div>
@@ -1734,16 +1753,16 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       <!-- ══ JOBS ══ -->
       <div class="view" id="v-jobs">
         <div class="stabs">
-          <button class="stab active" id="stab-seasonal" onclick="setTab('seasonal')"><i class="ti ti-globe"></i>Seasonal Jobs<span class="stab-cnt" id="sc-seasonal" style="display:none"></span></button>
-          <button class="stab stab-sheet-jan" id="stab-jan2026" onclick="setTab('jan2026')" style="margin-top:8px"><i class="ti ti-sun" style="color:#f59e0b"></i><strong>Jan 2026</strong><span class="stab-cnt" id="sc-jan">–</span></button>
-          <button class="stab stab-sheet-jul" id="stab-jul2025" onclick="setTab('jul2025')" style="margin-top:8px"><i class="ti ti-snowflake" style="color:#3b82f6"></i><strong>Jul 2025</strong><span class="stab-cnt" id="sc-jul">–</span></button>
+          <button class="stab active" id="stab-seasonal" onclick="setTab('seasonal')"><i class="ti ti-globe"></i>Vagas ao Vivo (DOL)<span class="stab-cnt" id="sc-seasonal" style="display:none"></span></button>
+          <button class="stab stab-sheet-jan" id="stab-jan2026" onclick="setTab('jan2026')" style="margin-top:8px"><i class="ti ti-sun" style="color:#f59e0b"></i><strong>H-2B — Jan 2026</strong><span class="stab-cnt" id="sc-jan">–</span></button>
+          <button class="stab stab-sheet-jul" id="stab-jul2025" onclick="setTab('jul2025')" style="margin-top:8px"><i class="ti ti-snowflake" style="color:#3b82f6"></i><strong>H-2A — Jul 2025</strong><span class="stab-cnt" id="sc-jul">–</span></button>
         </div>
         <div class="search-bar">
-          <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="Cargo, empresa, estado..." oninput="onSearch()" autocomplete="off" inputmode="search"></div>
+          <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="🔍 Buscar por cargo, empresa, estado..." oninput="onSearch()" autocomplete="off" inputmode="search"></div>
           <!-- BOTÃO FILTROS -->
           <div style="display:flex;align-items:center;gap:6px;padding:6px 10px 8px;border-top:1px solid var(--border)">
             <button id="filter-toggle-btn" onclick="toggleFilters()" style="display:flex;align-items:center;gap:6px;background:var(--sf2);border:1.5px solid var(--border2);border-radius:10px;padding:7px 14px;font-size:12px;font-weight:700;color:var(--t2);cursor:pointer;font-family:inherit">
-              <i class="ti ti-adjustments-horizontal" style="font-size:15px"></i> Filtros
+              <i class="ti ti-adjustments-horizontal" style="font-size:15px"></i> Filtrar vagas
               <span id="filter-active-count" style="display:none;background:var(--blue);color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;font-weight:800">0</span>
             </button>
             <div id="active-filter-tags" style="display:flex;gap:5px;flex-wrap:wrap;flex:1;overflow:hidden"></div>
@@ -1811,7 +1830,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <div>
               <div style="font-size:11px;font-weight:800;color:var(--t3);margin-bottom:7px;text-transform:uppercase">🔀 Ordenação</div>
               <div style="display:flex;gap:6px">
-                <button class="fbtn on" id="so-rand" onclick="setSort('random')">🔀 Aleatório</button>
+                <button class="fbtn on" id="so-rand" onclick="setSort('random')">🔀 Misturar</button>
                 <button class="fbtn" id="so-desc" onclick="setSort('desc')">Recentes</button>
                 <button class="fbtn" id="so-asc" onclick="setSort('asc')">Antigas</button>
               </div>
@@ -1855,21 +1874,21 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       <!-- ══ HIST ══ -->
       <div class="view gone" id="v-hist"><div class="view-scroll">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-          <div style="font-size:18px;font-weight:800">Candidaturas Enviadas</div>
+          <div style="font-size:18px;font-weight:800">✈️ Candidaturas Enviadas</div>
           <div style="display:flex;gap:6px;align-items:center">
             <button class="fbtn on" id="ht-all"    onclick="setHistTab('all')">Todas</button>
             <button class="fbtn"    id="ht-manual" onclick="setHistTab('manual')">Manual</button>
             <button class="fbtn"    id="ht-auto"   onclick="setHistTab('auto')">🤖 Auto</button>
-            <button class="btn btn-secondary btn-sm" onclick="confirmClearHist()" title="Resetar — vagas voltam para a lista" style="padding:5px 11px;font-size:12px;border-color:var(--amber);color:var(--amber)"><i class="ti ti-refresh"></i> Reset</button>
+            <button class="btn btn-secondary btn-sm" onclick="confirmClearHist()" title="Resetar — vagas voltam para a lista" style="padding:5px 11px;font-size:12px;border-color:var(--amber);color:var(--amber)"><i class="ti ti-refresh"></i> Limpar histórico</button>
           </div>
         </div>
         <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 13px;margin-bottom:12px;font-size:12px;color:#1e3a8a;line-height:1.6;display:flex;align-items:flex-start;gap:8px">
           <i class="ti ti-info-circle" style="font-size:15px;flex-shrink:0;margin-top:1px"></i>
-          <span>Toque em qualquer candidatura para ver detalhes, <strong>reenviar</strong> ou <strong>excluir individualmente</strong>. O botão <strong>Reset</strong> apaga tudo e faz as vagas voltarem para a lista (útil para recandidatar-se).</span>
+          <span>Toque em qualquer candidatura para ver detalhes, <strong>reenviar</strong> ou <strong>excluir</strong>. O botão <strong>Limpar histórico</strong> apaga tudo e as vagas voltam para a lista — útil para recandidatar em novas vagas.</span>
         </div>
         <div style="position:relative;margin-bottom:12px">
           <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:15px;pointer-events:none"></i>
-          <input class="input" id="hist-search" type="text" placeholder="Buscar empresa, cargo ou e-mail..." oninput="renderHist()" style="padding-left:33px;font-size:13px">
+          <input class="input" id="hist-search" type="text" placeholder="🔍 Buscar empresa, cargo ou e-mail..." oninput="renderHist()" style="padding-left:33px;font-size:13px">
         </div>
         <div id="hist-summary" style="font-size:12px;color:var(--t3);margin-bottom:10px"></div>
         <div id="hist-list"></div>
@@ -1880,8 +1899,8 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <!-- Header -->
         <div style="background:linear-gradient(135deg,#0c1a40,#1a3a6b);color:#fff;padding:12px 16px 10px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px">
           <div>
-            <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px"><i class="ti ti-search"></i> Pesquisar Vagas</div>
-            <div style="font-size:11px;opacity:.7;margin-top:1px">Busca em todas as fontes: Seasonal, Jan 2026, Jul 2025</div>
+            <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px"><i class="ti ti-search"></i> 🔍 Busca Avançada de Vagas</div>
+            <div style="font-size:11px;opacity:.7;margin-top:1px">Busca em todas as fontes ao mesmo tempo: DOL Live, H-2B Jan/2026, H-2A Jul/2025</div>
           </div>
           <button id="pesq-clear-btn" onclick="clearPesquisa()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);padding:6px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:none"><i class="ti ti-x"></i> Limpar</button>
         </div>
@@ -1936,7 +1955,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <!-- Header -->
         <div style="background:linear-gradient(135deg,#050d1f,#1e3a8a);color:#fff;padding:12px 16px 10px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px">
           <div>
-            <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px"><i class="ti ti-mail-opened"></i> Respostas</div>
+            <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px"><i class="ti ti-mail-opened"></i> 📩 Empresas que Responderam</div>
             <div style="font-size:11px;opacity:.7;margin-top:1px" id="inbox-subtitle">Gmail conectado</div>
           </div>
           <div style="display:flex;gap:6px;align-items:center">
@@ -1949,15 +1968,15 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <div style="display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
           <div style="flex:1;padding:8px 6px;text-align:center;border-right:1px solid var(--border);cursor:pointer" onclick="setInboxMainTab('replies')" title="Ver respostas de enviados">
             <div style="font-size:17px;font-weight:800;color:var(--green);line-height:1" id="inbox-stat-replies">–</div>
-            <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Respostas</div>
+            <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Responderam</div>
           </div>
           <div style="flex:1;padding:8px 6px;text-align:center;border-right:1px solid var(--border);cursor:pointer" onclick="setInboxMainTab('all')">
             <div style="font-size:17px;font-weight:800;color:var(--blue);line-height:1" id="inbox-stat-total">–</div>
-            <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Total</div>
+            <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">No Gmail</div>
           </div>
           <div style="flex:1;padding:8px 6px;text-align:center;cursor:pointer" onclick="setInboxFilter('unread')">
             <div style="font-size:17px;font-weight:800;color:var(--red);line-height:1" id="inbox-stat-unread">–</div>
-            <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Não lidas</div>
+            <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Não abertas</div>
           </div>
           <div style="flex:1;padding:8px 6px;text-align:center;cursor:pointer" onclick="setInboxFilter('starred')">
             <div style="font-size:17px;font-weight:800;color:var(--amber);line-height:1" id="inbox-stat-starred">–</div>
@@ -1968,15 +1987,15 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <!-- Main Tabs -->
         <div class="inbox-tabs" id="inbox-main-tabs" style="display:flex;align-items:stretch">
           <button class="inbox-tab inbox-tab-replies active" id="imtab-replies" onclick="setInboxMainTab('replies')" style="color:var(--green);font-weight:700;flex:1">
-            <i class="ti ti-arrow-back-up" style="font-size:14px;color:var(--green)"></i> Respostas
+            <i class="ti ti-arrow-back-up" style="font-size:14px;color:var(--green)"></i> Responderam pra mim
             <span class="inbox-tab-badge badge-green" id="imtab-replies-badge" style="display:none"></span>
           </button>
           <button class="inbox-tab inbox-tab-all" id="imtab-all" onclick="setInboxMainTab('all')" style="flex:1">
-            <i class="ti ti-inbox" style="font-size:14px"></i> Todos
+            <i class="ti ti-inbox" style="font-size:14px"></i> Caixa de entrada
             <span class="inbox-tab-badge badge-blue" id="imtab-all-badge" style="display:none"></span>
           </button>
           <button class="inbox-tab" id="imtab-pipeline" onclick="setInboxMainTab('pipeline')" style="flex:1">
-            <i class="ti ti-layout-kanban" style="font-size:14px"></i> Pipeline
+            <i class="ti ti-layout-kanban" style="font-size:14px"></i> Acompanhar
           </button>
           <!-- Botão Notificações inline na aba -->
           <button id="inbox-notif-tab-btn" onclick="toggleInboxNotifPanel()" style="display:flex;align-items:center;gap:5px;padding:6px 11px;border:none;background:none;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--t3);flex-shrink:0;font-family:inherit;margin-bottom:-1.5px;transition:all .18s;position:relative" title="Configurar notificações">
@@ -1992,8 +2011,8 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <div id="inbox-notif-panel" style="display:none;background:var(--sf2);border-bottom:1.5px solid var(--border);padding:12px 14px;flex-shrink:0">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">
             <div>
-              <div style="font-size:13px;font-weight:700;margin-bottom:2px">🛫 Alerta de nova resposta</div>
-              <div style="font-size:11px;color:var(--t2);line-height:1.5">Som + aviso quando uma empresa te responder</div>
+              <div style="font-size:13px;font-weight:700;margin-bottom:2px">🛫 Aviso quando uma empresa responder</div>
+              <div style="font-size:11px;color:var(--t2);line-height:1.5">Você recebe um aviso no celular mesmo com o app fechado</div>
             </div>
             <button id="inbox-notif-toggle-btn" onclick="toggleNotificationsInbox()" style="flex-shrink:0;width:52px;height:28px;border-radius:14px;border:none;cursor:pointer;position:relative;transition:background .2s;background:var(--border2)">
               <div id="inbox-notif-toggle-dot" style="width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"></div>
@@ -2099,7 +2118,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <option value="lifeguard">🏊 Lifeguard</option>
               <option value="other">📋 Outros</option>
             </select>
-            <button class="btn btn-secondary btn-sm" onclick="exportLogs()"><i class="ti ti-download"></i> CSV</button>
+            <button class="btn btn-secondary btn-sm" onclick="exportLogs()"><i class="ti ti-download"></i> Exportar</button>
             <button class="btn btn-danger btn-sm" onclick="clearLogs()"><i class="ti ti-trash"></i></button>
           </div>
           <!-- Stats row -->
@@ -2206,10 +2225,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       <div class="view gone" id="v-profile" style="display:flex;flex-direction:column;overflow:hidden">
         <!-- ── Subtabs ── -->
         <div style="background:var(--surface);border-bottom:1.5px solid var(--border);display:flex;flex-shrink:0">
-          <button class="stab active" id="ptab-me"       onclick="switchProfileTab('me')"       style="flex:1;font-size:13px;padding:10px 6px;justify-content:center"><i class="ti ti-user" style="font-size:15px"></i><br><span style="font-size:10px">Eu</span></button>
+          <button class="stab active" id="ptab-me"       onclick="switchProfileTab('me')"       style="flex:1;font-size:13px;padding:10px 6px;justify-content:center"><i class="ti ti-user" style="font-size:15px"></i><br><span style="font-size:10px">Dados</span></button>
 
-          <button class="stab"        id="ptab-profiles" onclick="switchProfileTab('profiles')" style="flex:1;font-size:13px;padding:10px 6px;justify-content:center;position:relative"><i class="ti ti-user-circle" style="font-size:15px"></i><br><span style="font-size:10px">Perfis</span><span id="ptab-profiles-cnt" style="position:absolute;top:6px;right:8px;background:var(--blue);color:#fff;border-radius:20px;font-size:9px;font-weight:800;padding:1px 5px;display:none"></span></button>
-          <button class="stab"        id="ptab-stats"    onclick="switchProfileTab('stats')"    style="flex:1;font-size:13px;padding:10px 6px;justify-content:center"><i class="ti ti-chart-bar" style="font-size:15px"></i><br><span style="font-size:10px">Stats</span></button>
+          <button class="stab"        id="ptab-profiles" onclick="switchProfileTab('profiles')" style="flex:1;font-size:13px;padding:10px 6px;justify-content:center;position:relative"><i class="ti ti-user-circle" style="font-size:15px"></i><br><span style="font-size:10px">E-mail</span><span id="ptab-profiles-cnt" style="position:absolute;top:6px;right:8px;background:var(--blue);color:#fff;border-radius:20px;font-size:9px;font-weight:800;padding:1px 5px;display:none"></span></button>
+          <button class="stab"        id="ptab-stats"    onclick="switchProfileTab('stats')"    style="flex:1;font-size:13px;padding:10px 6px;justify-content:center"><i class="ti ti-chart-bar" style="font-size:15px"></i><br><span style="font-size:10px">Estatísticas</span></button>
         </div>
         <div id="profile-tab-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
 
@@ -2223,7 +2242,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             </div>
             <div style="height:12px"></div>
             <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-bottom:12px">
-              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px">Dados pessoais</div>
+              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px">Seus dados (aparecem no e-mail para as empresas)</div>
               <div class="field-row">
                 <div class="field"><label>Nome completo * <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Nome completo</strong><br>Aparece automaticamente em todos os e-mails enviados. Use exatamente como no passaporte.')">?</span></label><input class="input" id="cfg-name" type="text" placeholder="Seu nome completo"></div>
                 <div class="field"><label>País <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>País de origem</strong><br>Escreva em inglês: <strong>Brazil</strong>. Aparece no modelo de e-mail.')">?</span></label><input class="input" id="cfg-country" type="text" placeholder="Brazil"></div>
@@ -2237,7 +2256,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                 <div class="field"><label>Idioma</label><select class="input" id="cfg-lang"><option value="pt-BR">🇧🇷 Português</option><option value="en-US">🇺🇸 English</option><option value="es">🇲🇽 Español</option></select></div>
               </div>
             </div>
-            <button class="btn btn-primary w100" onclick="saveProfile()"><i class="ti ti-check"></i> Salvar dados</button>
+            <button class="btn btn-primary w100" onclick="saveProfile()"><i class="ti ti-check"></i> Salvar Meus Dados</button>
             <!-- Notificações -->
             <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-top:12px">
               <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px"><i class="ti ti-bell" style="font-size:13px"></i> Notificações</div>
@@ -2269,10 +2288,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 
                     <!-- ══ TAB: PERFIS DE EMAIL ══ -->
           <div id="ptab-content-profiles" style="padding:14px 16px;display:none">
-            <div style="font-size:16px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px"><i class="ti ti-user-circle" style="color:var(--purple)"></i> Perfis de E-mail</div>
-            <div style="font-size:12px;color:var(--t2);margin-bottom:14px;line-height:1.5">Cada perfil define o assunto, o corpo do e-mail e o currículo a usar. O sistema escolhe o perfil certo para cada vaga automaticamente.</div>
-            <button class="btn btn-primary w100" style="margin-bottom:12px" onclick="openProfileEditor()">
-              <i class="ti ti-plus"></i> Criar Novo Perfil
+            <div style="font-size:16px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px"><i class="ti ti-user-circle" style="color:var(--purple)"></i> Perfis de Envio (Currículo + E-mail)</div>
+            <div style="font-size:12px;color:var(--t2);margin-bottom:14px;line-height:1.5">Aqui você cadastra seu currículo (PDF) e o modelo de e-mail. O sistema usa isso automaticamente para se candidatar às vagas. <strong>Crie pelo menos 1 perfil para poder enviar candidaturas.</strong></div>
+            <button class="btn btn-primary w100" style="margin-bottom:12px;font-size:15px;padding:13px" onclick="openProfileEditor()">
+              <i class="ti ti-plus"></i> ➕ Criar Meu Perfil de Envio
             </button>
             <div style="background:var(--sf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--t2);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <span style="font-weight:700">🔄 Prioridade:</span>
@@ -2346,59 +2365,96 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           </div>
 
           <!-- LIVE DASHBOARD (quando ativo) -->
-          <div id="auto-live-section" style="display:none">
-            <!-- Progress visual -->
-            <div id="auto-progress-wrap" style="background:var(--sf2);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;display:none">
-              <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--t2);margin-bottom:6px">
-                <span id="auto-prog-label">Progresso</span>
-                <span id="auto-prog-pct" style="color:var(--blue)">0%</span>
-              </div>
-              <div style="height:6px;background:var(--sf3);border-radius:3px;overflow:hidden">
-                <div id="auto-prog-bar" style="height:100%;background:linear-gradient(90deg,#2563eb,#7c3aed);border-radius:3px;width:0%;transition:width .5s ease"></div>
-              </div>
-              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:5px">
-                <span>✅ <span id="auto-prog-sent">0</span> enviados</span>
-                <span>📬 <span id="auto-prog-queue">–</span> na fila</span>
-                <span>⏱ próximo: <span id="auto-prog-next">–</span></span>
-              </div>
-            </div>
-            <!-- Status banner -->
-            <div class="auto-status-banner asb-sending" id="auto-status-banner" style="margin-top:0;border-radius:0;margin-bottom:12px">
-              <span class="spin spin-sm"></span>
+          <div id="auto-live-section" style="display:none;padding:0 14px 14px">
+
+            <!-- ═══ STATUS BANNER ═══ -->
+            <div id="auto-status-banner" class="auto-status-banner asb-sending" style="margin:0 -14px 14px;border-radius:0">
+              <span class="spin spin-sm" id="auto-spin"></span>
               <div style="flex:1">
-                <div id="auto-status-text" style="font-weight:700">Enviando...</div>
-                <div id="auto-status-sub" style="font-size:11px;opacity:.8;margin-top:2px"></div>
+                <div id="auto-status-text" style="font-weight:700;color:var(--purple)">Enviando...</div>
+                <div id="auto-status-sub" style="font-size:11px;color:var(--t2);margin-top:2px"></div>
               </div>
-              <div id="auto-timer" style="font-size:12px;font-family:monospace;opacity:.8"></div>
             </div>
-            <!-- Dashboard numbers -->
-            <div class="auto-dashboard">
-              <div class="auto-dash-box"><div class="auto-dash-val" id="dash-sent" style="color:var(--green)">0</div><div class="auto-dash-lbl">Enviados</div></div>
-              <div class="auto-dash-box"><div class="auto-dash-val" id="dash-failed" style="color:var(--red)">0</div><div class="auto-dash-lbl">Falhas</div></div>
-              <div class="auto-dash-box"><div class="auto-dash-val" id="dash-queue">–</div><div class="auto-dash-lbl">Na fila</div></div>
-              <div class="auto-dash-box"><div class="auto-dash-val" id="dash-limit">–</div><div class="auto-dash-lbl">Limite diário</div></div>
+
+            <!-- ═══ BLOCO PRINCIPAL: X enviados hoje / Total da fila ═══ -->
+            <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5,#2563eb);border-radius:var(--rl);padding:18px 16px 14px;margin-bottom:12px;position:relative;overflow:hidden">
+              <!-- estrelas decorativas -->
+              <div style="position:absolute;top:0;right:0;bottom:0;left:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Ctext x='10' y='30' fill='rgba(255,255,255,.06)' font-size='40'%3E★%3C/text%3E%3Ctext x='60' y='80' fill='rgba(255,255,255,.04)' font-size='60'%3E★%3C/text%3E%3C/svg%3E");pointer-events:none"></div>
+
+              <!-- Linha 1: enviados HOJE / total da fila -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:14px;position:relative">
+                <div style="border-right:1px solid rgba(255,255,255,.2);padding-right:12px">
+                  <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Hoje</div>
+                  <div style="display:flex;align-items:baseline;gap:5px">
+                    <span id="dash-sent" style="font-family:'Sora',sans-serif;font-size:36px;font-weight:900;color:#fff;line-height:1">0</span>
+                    <span id="dash-limit-sub" style="font-size:12px;color:rgba(255,255,255,.6);font-weight:600">/ 200</span>
+                  </div>
+                  <div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:2px">e-mails enviados hoje</div>
+                </div>
+                <div style="padding-left:12px">
+                  <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Total da fila</div>
+                  <div style="display:flex;align-items:baseline;gap:5px">
+                    <span id="dash-queue-sent" style="font-family:'Sora',sans-serif;font-size:36px;font-weight:900;color:#fff;line-height:1">0</span>
+                    <span id="dash-queue-total-lbl" style="font-size:12px;color:rgba(255,255,255,.6);font-weight:600">/ 0</span>
+                  </div>
+                  <div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:2px">vagas enviadas no total</div>
+                </div>
+              </div>
+
+              <!-- Barra de progresso do total -->
+              <div style="margin-bottom:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+                  <span style="font-size:11px;color:rgba(255,255,255,.65);font-weight:600">Progresso total da fila</span>
+                  <span id="dash-pct" style="font-size:12px;font-weight:800;color:#fff;background:rgba(255,255,255,.2);padding:2px 9px;border-radius:20px">0%</span>
+                </div>
+                <div style="height:8px;background:rgba(255,255,255,.15);border-radius:4px;overflow:hidden">
+                  <div id="dash-prog" style="height:100%;background:rgba(255,255,255,.9);border-radius:4px;width:0%;transition:width .7s ease"></div>
+                </div>
+              </div>
+
+              <!-- Linha 3: info extra -->
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:10px;color:rgba(255,255,255,.5)">Limite: <strong style="color:rgba(255,255,255,.8)" id="dash-limit">200</strong>/dia • reseta à meia-noite</span>
+                <span id="dash-days-left" style="font-size:11px;color:rgba(255,255,255,.8);font-weight:700"></span>
+              </div>
             </div>
-            <!-- Progress -->
-            <div style="margin-bottom:12px">
-              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:4px"><span>Progresso</span><span id="dash-pct">0%</span></div>
-              <div class="auto-prog-bg"><div class="auto-prog-fill" id="dash-prog" style="width:0%"></div></div>
+
+            <!-- ═══ CARDS SECUNDÁRIOS: falhas / restam ═══ -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+              <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:12px;text-align:center">
+                <div style="font-size:22px;font-weight:800;color:var(--blue)" id="dash-queue">–</div>
+                <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Restam na fila</div>
+              </div>
+              <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:12px;text-align:center">
+                <div style="font-size:22px;font-weight:800;color:var(--red)" id="dash-failed">0</div>
+                <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Falhas hoje</div>
+              </div>
             </div>
-            <!-- Next job preview -->
-            <div class="next-job-card" id="next-job-card">
-              <div class="next-job-title">📬 Próxima candidatura</div>
+
+            <!-- ═══ PRÓXIMA CANDIDATURA ═══ -->
+            <div class="next-job-card" id="next-job-card" style="margin-bottom:10px">
+              <div class="next-job-title">📬 Enviando agora para...</div>
               <div class="next-job-info" id="next-job-name">–</div>
               <div class="next-job-sub" id="next-job-email">–</div>
             </div>
-            <!-- Controls -->
-            <div class="auto-controls-row">
+
+            <!-- ═══ BOTÕES ═══ -->
+            <div class="auto-controls-row" style="margin-bottom:12px">
               <button class="btn btn-secondary" id="auto-pause-btn" style="display:none" onclick="pauseAuto()"><i class="ti ti-player-pause"></i> Pausar</button>
               <button class="btn btn-secondary" id="auto-resume-btn" style="display:none" onclick="resumeAuto()"><i class="ti ti-player-play"></i> Retomar</button>
-              <button class="btn btn-danger btn-sm" id="auto-stop-btn" style="display:none" onclick="stopAuto()"><i class="ti ti-square"></i> Parar</button>
-              <button class="btn btn-secondary btn-sm" onclick="sv('logs')"><i class="ti ti-list-details"></i> Ver logs</button>
+              <button class="btn btn-danger btn-sm" id="auto-stop-btn" style="display:none" onclick="stopAuto()"><i class="ti ti-square"></i> Parar tudo</button>
+              <button class="btn btn-secondary btn-sm" onclick="sv('logs')"><i class="ti ti-list-details"></i> Ver histórico</button>
             </div>
-            <!-- Recent logs preview -->
-            <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Últimos envios</div>
+
+            <!-- ═══ ÚLTIMOS ENVIOS ═══ -->
+            <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Últimos envios</div>
             <div id="auto-recent-logs" style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:14px"></div>
+
+            <!-- compat -->
+            <span id="auto-prog-label" style="display:none"></span><span id="auto-prog-pct" style="display:none"></span>
+            <span id="auto-prog-bar" style="display:none"></span><span id="auto-prog-sent" style="display:none"></span>
+            <span id="auto-prog-queue" style="display:none"></span><span id="auto-prog-next" style="display:none"></span>
+            <span id="auto-timer" style="display:none"></span>
           </div>
 
           <!-- WIZARD FORM (quando inativo) -->
@@ -2558,55 +2614,14 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <div><strong>✅ Funciona com app fechado!</strong> O envio roda no servidor Railway — feche o celular, desligue o Wi-Fi, não importa. Quando você voltar, os e-mails já foram enviados. <em>Só precisa estar logado uma vez.</em></div>
             </div>
 
-            <!-- Escolha quando iniciar -->
-            <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px">Quando começar?</div>
-            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
-              <label id="pf-opt-now" style="display:flex;align-items:center;gap:10px;background:var(--greenl);border:2px solid var(--green);border-radius:var(--r);padding:12px 14px;cursor:pointer">
-                <input type="radio" name="pf-when" value="now" checked style="accent-color:var(--green);width:16px;height:16px;flex-shrink:0" onchange="pfToggleWhen()">
-                <div>
-                  <div style="font-weight:700;color:var(--green);font-size:13px">▶ Começar agora</div>
-                  <div style="font-size:11px;color:var(--t2)">Envia sem parar 24/7. Reseta à meia-noite e continua até zerar a fila.</div>
-                </div>
-              </label>
-              <label id="pf-opt-sched" style="display:flex;align-items:center;gap:10px;background:var(--sf2);border:1.5px solid var(--border2);border-radius:var(--r);padding:12px 14px;cursor:pointer">
-                <input type="radio" name="pf-when" value="schedule" style="accent-color:var(--blue);width:16px;height:16px;flex-shrink:0" onchange="pfToggleWhen()">
-                <div>
-                  <div style="font-weight:700;color:var(--text);font-size:13px">🕐 Agendar horário</div>
-                  <div style="font-size:11px;color:var(--t2)">Envia das X às Y horas todo dia. Fora do horário fica pausado.</div>
-                </div>
-              </label>
+            <!-- Envio 24/7: sem janela de horario -->
+            <div style="background:var(--greenl);border:2px solid var(--green);border-radius:var(--r);padding:12px 14px;margin-bottom:14px">
+              <div style="font-weight:700;color:var(--green);font-size:13px">&#9654; Envio 24/7 — sem restrição de horário</div>
+              <div style="font-size:11px;color:var(--t2);margin-top:4px">Envia até atingir o limite diário, depois retoma automaticamente à meia-noite (Brasília). Nunca para.</div>
             </div>
+            <input type="hidden" id="pf-sh" value="0">
+            <input type="hidden" id="pf-eh" value="24">
 
-            <!-- Seletor de horário (aparece ao escolher Agendar) -->
-            <div id="pf-sched-box" style="display:none;background:var(--sf2);border:1.5px solid var(--border2);border-radius:var(--r);padding:12px;margin-bottom:14px">
-              <div style="font-size:12px;font-weight:600;color:var(--t2);margin-bottom:8px"><i class="ti ti-clock"></i> Horário (Brasília)</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                <div>
-                  <label style="font-size:11px;color:var(--t3);font-weight:600;display:block;margin-bottom:3px">Iniciar às</label>
-                  <select class="input" id="pf-sh" style="font-size:13px" onchange="pfUpdatePreview()">
-                    <option value="0">00:00</option><option value="1">01:00</option><option value="2">02:00</option>
-                    <option value="3">03:00</option><option value="4">04:00</option><option value="5">05:00</option>
-                    <option value="6">06:00</option><option value="7">07:00</option><option value="8" selected>08:00</option>
-                    <option value="9">09:00</option><option value="10">10:00</option><option value="11">11:00</option>
-                    <option value="12">12:00</option><option value="13">13:00</option><option value="14">14:00</option>
-                    <option value="15">15:00</option><option value="16">16:00</option><option value="17">17:00</option>
-                    <option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option>
-                    <option value="21">21:00</option><option value="22">22:00</option><option value="23">23:00</option>
-                  </select>
-                </div>
-                <div>
-                  <label style="font-size:11px;color:var(--t3);font-weight:600;display:block;margin-bottom:3px">Parar às</label>
-                  <select class="input" id="pf-eh" style="font-size:13px" onchange="pfUpdatePreview()">
-                    <option value="10">10:00</option><option value="11">11:00</option><option value="12">12:00</option>
-                    <option value="13">13:00</option><option value="14">14:00</option><option value="15">15:00</option>
-                    <option value="16">16:00</option><option value="17">17:00</option><option value="18">18:00</option>
-                    <option value="19">19:00</option><option value="20" selected>20:00</option><option value="21">21:00</option>
-                    <option value="22">22:00</option><option value="23">23:00</option><option value="24">00:00 (meia-noite)</option>
-                  </select>
-                </div>
-              </div>
-              <div id="pf-preview" style="margin-top:8px;font-size:11px;color:var(--t3)"></div>
-            </div>
 
           </div>
           <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0">
@@ -3098,7 +3113,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
             <div>
               <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px"><i class="ti ti-brain"></i> IA Chat H2B</div>
-              <div style="font-size:11px;opacity:.8;margin-top:1px">Treinado com todo o conhecimento do H2BApply</div>
+              <div style="font-size:11px;opacity:.8;margin-top:1px">Tire dúvidas sobre H-2B, vistos e como usar o app</div>
             </div>
             <button onclick="clearIaChat()" style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit"><i class="ti ti-trash" style="font-size:12px"></i> Limpar</button>
           </div>
@@ -3150,7 +3165,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <div style="padding:8px 12px 10px;background:#fff;border-top:1px solid var(--border);flex-shrink:0">
           <div style="display:flex;gap:8px;align-items:flex-end">
             <textarea id="ia-input" class="input" rows="2"
-              placeholder="Pergunte sobre H-2B, vistos, como usar o app, emails em inglês..."
+              placeholder="Ex: Como funciona o visto H-2B? Como responder uma empresa em inglês?"
               style="flex:1;min-height:42px;max-height:100px;font-size:13px;resize:none;border-radius:12px;padding:9px 13px;line-height:1.5;background:#f5f7ff"></textarea>
             <button id="ia-send-btn" onclick="sendIaMessage()"
               style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#0891b2,#06b6d4);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(8,145,178,.3)">
@@ -3204,7 +3219,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 
             <!-- Botão enviar -->
             <button id="sug-send-btn" onclick="sendSugestao()" class="btn btn-primary w100" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);padding:13px;font-size:14px">
-              <i class="ti ti-send"></i> Enviar Sugestão para os Devs
+              <i class="ti ti-send"></i> Enviar Sugestão
             </button>
 
             <!-- Feedback de envio -->
@@ -3235,21 +3250,26 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     </div><!-- /main-area -->
   </div><!-- /app-body --><!-- Bottom Nav -->
   <nav class="bottom-nav">
-    <button class="bn active" id="bn-home" onclick="sv('home')"><i class="ti ti-home-2"></i><span>Home</span></button>
-    <button class="bn" id="bn-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i><span>Manual</span></button>
+    <button class="bn active" id="bn-home" onclick="sv('home')"><i class="ti ti-home-2"></i><span>Início</span></button>
+    <button class="bn" id="bn-respostas" onclick="sv('respostas')" style="position:relative">
+      <i class="ti ti-mail-opened" style="color:var(--green)"></i>
+      <span style="color:var(--green);font-weight:700">Empresas</span>
+      <span id="bnd-respostas" class="bn-dot" style="display:none;background:var(--red)"></span>
+    </button>
     <!-- AUTO — CTA central destacado -->
     <button class="bn bn-auto" id="bn-auto" onclick="openAutoModal()">
       <div class="bn-auto-ring"><i class="ti ti-robot"></i></div>
-      <span>Auto</span>
+      <span>Automático</span>
       <span class="bn-dot" id="bnd-auto" style="background:#7e3af2;right:calc(50% - 22px);top:1px"></span>
     </button>
-    <button class="bn" id="bn-ranking" onclick="sv('ranking')" style="position:relative">
-      <i class="ti ti-trophy" style="color:#f59e0b;font-size:21px"></i>
-      <span style="color:#d97706;font-weight:700">Ranking</span>
+    <button class="bn" id="bn-jobs" onclick="sv('jobs')" style="position:relative">
+      <i class="ti ti-briefcase"></i>
+      <span>Vagas</span>
     </button>
-    <button class="bn" id="bn-iaChat" onclick="sv('iaChat')" style="position:relative">
-      <i class="ti ti-brain" style="color:#0891b2;font-size:20px"></i>
-      <span style="color:#0891b2;font-weight:700;font-size:9px">IA Chat</span>
+    <button class="bn" id="bn-profile" onclick="sv('profile')" style="position:relative">
+      <i class="ti ti-user-circle"></i>
+      <span>Meu Perfil</span>
+      <span id="bnd-profile-alert" class="bn-dot" style="display:none;background:var(--amber)"></span>
     </button>
   </nav>
 </div>
@@ -3366,7 +3386,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <div class="mhdr" style="background:linear-gradient(135deg,#1e1b4b,#1a56db);color:#fff;border-radius:20px 20px 0 0">
       <div>
         <div class="mttl" id="pe-title" style="color:#fff">Novo Perfil</div>
-        <div class="msub" style="color:rgba(255,255,255,.75)">Este perfil será usado nos envios manuais e automáticos</div>
+        <div class="msub" style="color:rgba(255,255,255,.75)">Cadastre seu currículo e o texto que será enviado às empresas americanas</div>
       </div>
       <button class="mx" onclick="closeProfileEditor()" style="color:rgba(255,255,255,.8)"><i class="ti ti-x"></i></button>
     </div>
@@ -3380,7 +3400,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <div class="mbody" style="padding:0">
       <!-- ══ SEÇÃO: INFORMAÇÕES BÁSICAS ══ -->
       <div style="padding:16px 18px 12px;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">① Informações Básicas</div>
+        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">① Nome do Perfil</div>
 
         <div class="field" style="display:flex;gap:10px;align-items:flex-start">
           <div style="flex:1">
@@ -3471,7 +3491,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 
       <!-- ══ SEÇÃO: COMPATIBILIDADE ══ -->
       <div style="padding:16px 18px 12px;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">② Compatibilidade</div>
+        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">② Para Quais Vagas Usar Este Perfil?</div>
 
         <div class="field">
           <label>Planilhas compatíveis <span style="color:var(--t3);font-weight:400">(vazio = todas)</span></label>
@@ -3510,7 +3530,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 
       <!-- ══ SEÇÃO: CURRÍCULO ══ -->
       <div style="padding:16px 18px 12px;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">③ Currículo &amp; Cover Letter (PDF)</div>
+        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">③ Seu Currículo em PDF (obrigatório)</div>
 
         <!-- ── CURRÍCULO ── -->
         <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:8px">📄 Currículo (Resume)</div>
@@ -3831,24 +3851,28 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
   </div>
   <div style="padding:8px">
     <!-- CTA principal -->
-    <button class="d-item" onclick="closeDrawer();openAutoModal()" style="background:rgba(124,58,237,.1);color:#6d28d9;font-weight:700;border-radius:var(--r);margin-bottom:4px;border:1.5px solid rgba(124,58,237,.2)"><i class="ti ti-robot"></i>Envio Automático</button>
-    <!-- Divisor -->
-    <div style="font-size:9px;font-weight:800;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;padding:8px 4px 4px">Navegação</div>
-    <button class="d-item" onclick="closeDrawer();sv('home')"><i class="ti ti-home-2"></i>Home</button>
-    <button class="d-item" onclick="closeDrawer();sv('jobs')"><i class="ti ti-send"></i>Envio Manual</button>
-    <button class="d-item" onclick="closeDrawer();sv('pesquisa')"><i class="ti ti-search"></i>Pesquisar Vagas</button>
-    <button class="d-item" onclick="closeDrawer();sv('respostas')" style="color:var(--green);font-weight:700"><i class="ti ti-mail-opened" style="color:var(--green)"></i>Respostas</button>
-    <button class="d-item" onclick="closeDrawer();sv('ranking')" style="color:#b45309;font-weight:700"><i class="ti ti-trophy" style="color:#f59e0b"></i>Ranking</button>
+    <button class="d-item" onclick="closeDrawer();openAutoModal()" style="background:rgba(124,58,237,.1);color:#6d28d9;font-weight:800;border-radius:var(--r);margin-bottom:4px;border:1.5px solid rgba(124,58,237,.2);font-size:15px;padding:13px 14px"><i class="ti ti-robot"></i>🤖 Ligar Automático</button>
+    <!-- Principal -->
+    <div style="font-size:9px;font-weight:800;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;padding:8px 4px 4px">Principal</div>
+    <button class="d-item" onclick="closeDrawer();sv('home')"><i class="ti ti-home-2"></i>Início</button>
+    <button class="d-item" onclick="closeDrawer();sv('jobs')"><i class="ti ti-briefcase"></i>Vagas H-2B/H-2A</button>
+    <button class="d-item" onclick="closeDrawer();sv('respostas')" style="color:var(--green);font-weight:700"><i class="ti ti-mail-opened" style="color:var(--green)"></i>Empresas que Responderam</button>
     <button class="d-item" onclick="closeDrawer();sv('hist')"><i class="ti ti-send"></i>Candidaturas Enviadas</button>
-    <button class="d-item" onclick="closeDrawer();sv('saved')"><i class="ti ti-bookmark"></i>Vagas Salvas</button>
-    <!-- Divisor -->
-    <div style="font-size:9px;font-weight:800;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;padding:8px 4px 4px">Conta</div>
-    <button class="d-item" onclick="closeDrawer();sv('profile')"><i class="ti ti-user"></i>Perfil</button>
+    <!-- Conta -->
+    <div style="font-size:9px;font-weight:800;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;padding:8px 4px 4px">Minha Conta</div>
+    <button class="d-item" onclick="closeDrawer();sv('profile')"><i class="ti ti-user"></i>Meu Perfil e Currículo</button>
     <button class="d-item" onclick="closeDrawer();sv('plans')" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.07));border:1.5px solid rgba(99,102,241,.25);font-weight:800;color:#4f46e5;border-radius:var(--r)"><i class="ti ti-diamond" style="font-size:16px;color:#4f46e5"></i>Planos & Recompensas</button>
-    <button class="d-item" onclick="closeDrawer();sv('logs')" style="color:var(--t3);font-size:13px"><i class="ti ti-list-details"></i>Logs Automático</button>
+    <button class="d-item" onclick="closeDrawer();sv('ranking')" style="color:#b45309;font-weight:700"><i class="ti ti-trophy" style="color:#f59e0b"></i>Ranking Competitivo</button>
+    <button class="d-item" onclick="closeDrawer();sv('indicar')"><i class="ti ti-users-group"></i>Indicar Amigos e Ganhar VIP</button>
+    <!-- Mais -->
+    <div style="font-size:9px;font-weight:800;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;padding:8px 4px 4px">Mais</div>
+    <button class="d-item" onclick="closeDrawer();sv('pesquisa')"><i class="ti ti-search"></i>Busca Avançada de Vagas</button>
+    <button class="d-item" onclick="closeDrawer();sv('saved')"><i class="ti ti-bookmark"></i>Vagas Salvas</button>
+    <button class="d-item" onclick="closeDrawer();sv('tutorial')"><i class="ti ti-book-2"></i>Como usar o app</button>
+    <button class="d-item" onclick="closeDrawer();sv('logs')" style="color:var(--t3);font-size:13px"><i class="ti ti-list-details"></i>Logs do Automático</button>
     <div id="d-admin" style="display:none"><button class="d-item" onclick="location.href='/admin'"><i class="ti ti-shield"></i>Painel Admin</button></div>
     <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px">
-      <button class="d-item" onclick="doLogout()" style="color:var(--red)"><i class="ti ti-logout"></i>Sair</button>
+      <button class="d-item" onclick="doLogout()" style="color:var(--red)"><i class="ti ti-logout"></i>Sair da conta</button>
     </div>
   </div>
 </div>
@@ -4128,8 +4152,8 @@ function renderHdr(){
 function updateLimChip(){
   const c=g("#hdr-lim");if(!c)return;
   if(U.autoJob?.active){c.className="lchip lc-a";c.innerHTML="🤖 Auto <strong>ON</strong>";}
-  else if(U.manualRemaining===0){c.className="lchip lc-x";c.innerHTML="🔒 Limite atingido";}
-  else if(U.manualRemaining<=3){c.className="lchip lc-w";c.innerHTML=`⚠️ ${U.manualRemaining} restantes`;}
+  else if(U.manualRemaining===0){c.className="lchip lc-x";c.innerHTML="🔒 Envios esgotados hoje";}
+  else if(U.manualRemaining<=3){c.className="lchip lc-w";c.innerHTML=`⚠️ Só ${U.manualRemaining} envio${U.manualRemaining>1?'s':''} restante${U.manualRemaining>1?'s':''}`;}
   else{
     const planLabel={free:"Free",vip:"⭐VIP",pro:"🤖Pro",vipro:"⭐Pro"}[U.plan]||"Free";
     c.className="lchip lc-ok";c.innerHTML=`${planLabel} · ${U.manualRemaining} envios`;
@@ -4158,7 +4182,7 @@ function renderDrawer(){
 const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","indicar","notificacoes","redeem","tutorial","iaChat","sugestoes"];
 function sv(v,...args){
   // ── "auto" abre modal em vez da view ──
-  if(v==="auto"){if(typeof openAutoModal==="function"){openAutoModal();return;}}
+  if(v==="auto"){if(typeof openAutoModal==="function"){openAutoModal();return;}} _recheckSetupAfterSave();
   curView=v;
   VIEWS.forEach(id=>{const ve=g("#v-"+id);if(ve)ve.classList.toggle("gone",id!==v);const si=g("#si-"+id);if(si)si.classList.toggle("active",id===v);const bn=g("#bn-"+id);if(bn)bn.classList.toggle("active",id===v);});
   if(v==="hist")renderHist();if(v==="saved")renderSaved();if(v==="profile"){loadProfile();loadTplView();setTimeout(()=>{_loadSoundPref();renderSoundSelector();},100);}
@@ -6723,21 +6747,18 @@ function openPreflightModal(){
   if(!activeProfiles.length){toast("Crie pelo menos 1 perfil ativo antes de iniciar!","r");sv('profile');return;}
 
   const autoLimit=U.autoLimit||10;
-  const limit=10000;
-  const daysNeeded=Math.ceil(limit/autoLimit);
+  const daysNeeded=0; // variável não usada
   const minPerDay=autoLimit*4;
   const hpd=Math.floor(minPerDay/60),mpd=minPerDay%60;
   const durPerDay=hpd>0?(mpd>0?`${hpd}h${mpd}min`:`${hpd}h`):`${mpd}min`;
 
-  g("#pf-count").textContent="Auto";
+  // Contagem via /api/count-jobs (evita chamar getSheet que só existe no servidor)
+  if(autoSelectedSrc)fetch("/api/count-jobs?sheet="+autoSelectedSrc,{credentials:"include"}).then(r=>r.json()).then(d=>{const el=g("#pf-count");if(el)el.textContent=(d.total||"–").toLocaleString("pt-BR");}).catch(()=>{});
   g("#pf-duration").textContent=durPerDay;
   g("#pf-subtitle").textContent=`${autoLimit} e-mails/dia • intervalo 3–5 min • servidor sempre ligado`;
 
   // Pre-fill horário
-  const sh=g("#af-start-h")?.value||"8";
-  const eh=g("#af-end-h")?.value||"20";
-  if(g("#pf-sh"))g("#pf-sh").value=sh;
-  if(g("#pf-eh"))g("#pf-eh").value=eh;
+  // sh/eh removidos — sem janela de horário
 
   // Preenche painel de perfis no modal
   const profilesList=g("#pf-profiles-list");
@@ -6757,32 +6778,20 @@ function openPreflightModal(){
     }
   }
 
-  // Reset para "agora"
-  const radNow=document.querySelector('input[name="pf-when"][value="now"]');
-  if(radNow){radNow.checked=true;}
-  g("#pf-sched-box").style.display="none";
+  // Reset e abre modal
   pfUpdatePreview();
   g("#pf-overlay").classList.remove("gone");
 }
 
 function closePreflight(){g("#pf-overlay").classList.add("gone");}
 
-function pfToggleWhen(){
-  const val=document.querySelector('input[name="pf-when"]:checked')?.value||"now";
-  g("#pf-sched-box").style.display=val==="schedule"?"block":"none";
-  // Visual feedback on labels
-  const nowLbl=g("#pf-opt-now");const schedLbl=g("#pf-opt-sched");
-  if(nowLbl){nowLbl.style.background=val==="now"?"var(--greenl)":"var(--sf2)";nowLbl.style.borderColor=val==="now"?"var(--green)":"var(--border2)";nowLbl.style.borderWidth=val==="now"?"2px":"1.5px";}
-  if(schedLbl){schedLbl.style.background=val==="schedule"?"var(--bluel)":"var(--sf2)";schedLbl.style.borderColor=val==="schedule"?"var(--blue)":"var(--border2)";schedLbl.style.borderWidth=val==="schedule"?"2px":"1.5px";}
-  pfUpdatePreview();
-}
+function pfToggleWhen(){ pfUpdatePreview(); } // modo único 24/7
 
 function pfUpdatePreview(){
   const el=g("#pf-preview");if(!el)return;
   const val=document.querySelector('input[name="pf-when"]:checked')?.value||"now";
   if(val==="now"){el.textContent="🟢 Inicia agora e envia sem parar. Reseta à meia-noite e continua automaticamente.";el.style.color="var(--green)";return;}
-  const sh=parseInt(g("#pf-sh")?.value||8,10);
-  const eh=parseInt(g("#pf-eh")?.value||20,10);
+  const sh=0; const eh=24; // sem janela de horário
   const nowH=new Date().getHours();
   const nowM=new Date().getMinutes();
   if(nowH>=sh&&nowH<eh){
@@ -6797,21 +6806,9 @@ function pfUpdatePreview(){
 }
 
 async function confirmStartAuto(){
-  const val=document.querySelector('input[name="pf-when"]:checked')?.value||"now";
-  let startH,endH;
-  if(val==="schedule"){
-    startH=parseInt(g("#pf-sh")?.value||8,10);
-    endH=parseInt(g("#pf-eh")?.value||20,10);
-    if(g("#af-start-h"))g("#af-start-h").value=String(startH);
-    if(g("#af-end-h"))g("#af-end-h").value=String(endH);
-    closePreflight();
-    await startAuto(startH,endH,"schedule");
-  }else{
-    // MODO AGORA: sem janela de horário — envia 24/7, reseta à meia-noite
-    startH=0; endH=24; // irrelevante no modo now, mas enviamos valores neutros
-    closePreflight();
-    await startAuto(startH,endH,"now");
-  }
+  // Sempre 24/7: sem janela de horário — reseta à meia-noite BRT e continua
+  closePreflight();
+  await startAuto(0,24,"now");
 }
 
 // ══════════════════════════════════════════════════════
@@ -6824,7 +6821,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
   const activeProfiles=(U.profiles||UPROFILES||[]).filter(p=>p.active!==false);
   if(!activeProfiles.length){toast("Crie pelo menos 1 perfil ativo antes de iniciar!","r");return;}
   const nowH=new Date().getHours();
-  const limit=10000;
+  const limit=999999; // sem limite — carrega toda a planilha
   const state=g("#af-state")?.value||"";
   const keyword=g("#af-kw")?.value.trim()||"";
   const minWage=parseFloat(g("#af-min-wage")?.value||"0")||0;
@@ -6838,7 +6835,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
   try{
     btn.innerHTML='<span class="spin spin-sm"></span><span>Buscando vagas...</span>';
     const allCases=[];const caseMeta={};
-    let sk=0;const pageSize=50;
+    let sk=0;const pageSize=500;
     while(allCases.length<limit){
       const p=new URLSearchParams({sheet:autoSelectedSrc,skip:sk,top:Math.min(pageSize,limit-allCases.length)});
       if(state)p.append("state",state);
@@ -6851,6 +6848,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
       if(!d.jobs?.length)break;
       d.jobs.forEach(j=>{allCases.push(j.id);caseMeta[j.id]={
         company:j.company,state:j.state,category:j.category||"other",
+        email:j.email||null, // CRÍTICO: inclui email da planilha no caseMeta
         // v13: campos extras para snapshot completo
         title:j.title||j.occupation||"",
         city:j.city||"",
@@ -6873,6 +6871,8 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
     }
 
     btn.innerHTML=`<span class="spin spin-sm"></span><span>Iniciando envio de ${allCases.length} vagas...</span>`;
+    // Atualiza o contador no modal de confirmação com o total real
+    const _pfCount=g("#pf-count");if(_pfCount)_pfCount.textContent=allCases.length.toLocaleString("pt-BR");
     // v15-FIX: Determina resumeIdx/coverIdx com fallback inteligente
     // Prioridade: autoResIdx (escolha explícita no painel auto) →
     //             activeResIdx (currículo "padrão") →
@@ -6935,15 +6935,11 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
     // FIX-3: popula _autoQueueIds imediatamente ao iniciar para ocultar do manual
     if(data.queueIds&&data.queueIds.length){_autoQueueIds=new Set(data.queueIds);}else{try{const _as=await fetch("/api/auto/status",{credentials:"include"}).then(r=>r.json());_autoQueueIds=new Set(_as.autoQueueIds||[]);}catch{}}
     _syncAutoQueueVisibility(); // FIX: oculta vagas do manual imediatamente
-    U.autoJob={...U.autoJob,mode:_mode};
+    // mode removido — sempre 24/7
     updateLimChip();updateAutoDot(true);updateAutoUI();startAutoPolling();
     // Fecha o wizard e abre direto o painel de monitoramento
     setTimeout(()=>{const lv=g("#auto-live-section");const wz=g("#auto-wizard");if(lv)lv.style.display="block";if(wz)wz.style.display="none";if(typeof loadAutoLogs==="function")loadAutoLogs();},100);
-    const msg=_mode==="now"
-      ?`🟢 Enviando agora! Contínuo até zerar a fila.`
-      :(nowH>=startH&&nowH<endH
-        ?`🟢 Enviando agora! Para às ${String(endH).padStart(2,"0")}:00`
-        :`⏰ Aguarda ${String(startH).padStart(2,"0")}:00 para iniciar`);
+    const msg=`🟢 Enviando agora! Roda 24/7 até zerar a fila — reseta à meia-noite BRT.`;
     toast(`✅ ${data.queueSize} vagas na fila! ${msg}`,"g");
 
   }catch(e){
@@ -7061,24 +7057,42 @@ function updateAutoUI(){
     _autoCountdown=setInterval(updateCountdown,1000);
   } else if(sub)sub.textContent="";
 
-  // Dashboard
+
+  // ═══ DASHBOARD — números claros e corretos ═══
   const stats=U.autoStats||{};
-  const sent=stats.sent||U.todaySentAuto||0;const failed=stats.failed||0;
-  const qs=j.queueSize||0;const orig=j.originalCount||1;
-  // Barra mostra progresso TOTAL da fila (não do limite diário)
-  const totalSentFromQueue=Math.max(0,orig-qs);
-  const pct=orig>0?Math.min(100,Math.round((totalSentFromQueue/orig)*100)):0;
-  const el=(id,val)=>{const e=g(id);if(e)e.textContent=val;};
-  el("#dash-sent",sent);el("#dash-failed",failed);el("#dash-queue",qs.toLocaleString());
-  el("#dash-limit",`${U.todaySentAuto}/${U.autoLimit}`);el("#dash-pct",pct+"%");
-  const prog=g("#dash-prog");if(prog)prog.style.width=pct+"%";
-  // Cor da barra: verde normal, amarelo em espera, cinza finalizado
+  const sentToday = U.todaySentAuto||0;           // enviados HOJE (limite diário)
+  const failed    = stats.failed||0;
+  const qs        = j.queueSize||0;               // vagas AINDA na fila
+  const orig      = j.originalCount||0;           // total original da fila
+  const totalDone = Math.max(0,orig-qs);          // total já enviado da fila
+  const pct       = orig>0?Math.min(100,Math.round((totalDone/orig)*100)):0;
+  const autoLim   = U.autoLimit||200;             // limite diário (200 pro/vipro)
+  const el=(id,v)=>{const e=g(id);if(e)e.textContent=v;};
+
+  // Bloco roxo: HOJE (lado esq) + TOTAL (lado dir)
+  el("#dash-sent",       sentToday.toLocaleString("pt-BR"));
+  el("#dash-limit-sub",  `/ ${autoLim.toLocaleString("pt-BR")}`);
+  el("#dash-queue-sent", totalDone.toLocaleString("pt-BR"));
+  el("#dash-queue-total-lbl", `/ ${orig.toLocaleString("pt-BR")}`);
+  el("#dash-pct",        pct+"%");
+  el("#dash-limit",      autoLim.toLocaleString("pt-BR"));
+
+  // Barra de progresso
+  const prog=g("#dash-prog");
   if(prog){
-    if(j.status==="waiting_limit"||j.status==="waiting_hour") prog.style.background="var(--amber)";
-    else if(j.status==="finished") prog.style.background="var(--green)";
-    else prog.style.background="";
+    prog.style.width=pct+"%";
+    if(j.status==="waiting_limit") prog.style.background="rgba(251,191,36,.9)";
+    else if(j.status==="finished") prog.style.background="rgba(74,222,128,.9)";
+    else prog.style.background="rgba(255,255,255,.9)";
   }
 
+  // Dias restantes estimados
+  const daysLeft=autoLim>0&&qs>0?Math.ceil(qs/autoLim):null;
+  el("#dash-days-left", qs===0?"✅ Concluído!":daysLeft?`~${daysLeft} dia${daysLeft>1?"s":""} p/ terminar`:"");
+
+  // Cards secundários
+  el("#dash-queue",  qs.toLocaleString("pt-BR"));
+  el("#dash-failed", failed.toLocaleString("pt-BR"));
   // Next job preview
   const njc=g("#next-job-card");const njn=g("#next-job-name");const nje=g("#next-job-email");
   if(j.currentJob&&active){if(njc)njc.classList.add("show");if(njn)njn.textContent=j.currentJob.title||j.currentJob.company||"–";if(nje)nje.textContent=j.currentJob.to||"–";}
@@ -7506,6 +7520,9 @@ function updInboxBadge(unread){
   const bd=g("#bnd-respostas");if(bd)bd.style.display=unread?"block":"none";
   // Atualiza o card de stat da Home
   const sr=g("#home-stat-replies");if(sr)sr.textContent=unread>0?String(unread):"–";
+  // Atualiza badge de respostas no bottom nav
+  const bndResp = g("#bnd-respostas");
+  if(bndResp){bndResp.style.display = unread>0 ? "" : "none";bndResp.textContent = unread>9?"9+":String(unread);}
   const hb=g("#home-badge-resp");if(hb){hb.style.display=unread?"":"none";hb.textContent=String(unread);}
 }
 
@@ -7929,19 +7946,14 @@ async function openAutoModal(){
   const hasCv=DOCS.some(c=>(c.cvType||"resume")==="resume");
 
   if(profiles.length===0){
-    if(confirm("Para usar o Envio Automático você precisa criar ao menos um perfil de e-mail.\n\nDeseja criar agora?")){
-      sv("profile");
-      setTimeout(()=>{switchProfileTab("profiles");setTimeout(openProfileEditor,200);},100);
-    }
+    // Mostra checklist de setup em vez de confirm() genérico
+    _showSetupChecklist();
     return;
   }
-  // Verifica currículo — só bloqueia se NENHUM perfil tem PDF e DOCS também está vazio
-  const _hasCvInProfiles=profiles.some(p=>p.resumeIdx||p.cvs?.some(c=>c.cvType==="resume"));
+  // Verifica currículo
+  const _hasCvInProfiles=profiles.some(p=>p.resumeIdx!=null||p.cvs?.some(c=>c.cvType==="resume"));
   if(!hasCv&&!_hasCvInProfiles){
-    if(confirm("Você não tem currículo enviado. O envio automático precisa de um currículo vinculado a um perfil.\n\nDeseja criar/editar um perfil agora?")){
-      sv("profile");
-      setTimeout(()=>{switchProfileTab("profiles");setTimeout(openProfileEditor,200);},100);
-    }
+    _showSetupChecklist();
     return;
   }
 
@@ -8549,7 +8561,10 @@ function renderHome(){
   const pl=g("#home-plan-label");if(pl)pl.textContent={free:"Plano Free",vip:"⭐ VIP",pro:"💥 VIPro",vipro:"💥 VIPro"}[U.plan]||"Plano Free";
   // Stats do dia
   const sm=g("#home-stat-manual");if(sm)sm.textContent=`${U.todaySentManual}/${U.manualLimit}`;
-  const sa=g("#home-stat-auto");if(sa)sa.textContent=`${U.todaySentAuto}/${U.autoLimit}`;
+  const sa=g("#home-stat-auto");
+  if(sa){if(U.autoJob?.active&&(U.autoJob?.originalCount||0)>0){const _o=U.autoJob.originalCount;const _q=U.autoJob.queueSize||0;const _d=Math.max(0,_o-_q);sa.textContent=`${_d.toLocaleString("pt-BR")}/${_o.toLocaleString("pt-BR")}`;sa.title=`${_d} de ${_o} vagas enviadas`;}else{sa.textContent=`${U.todaySentAuto}/${U.autoLimit}`;}}
+  // Atualiza card automático na home
+  _updateHomeAutoCard();
   const sr=g("#home-stat-replies");if(sr){const unread=INBOX_EMAILS.filter(e=>!e.isRead).length;sr.textContent=unread>0?String(unread):"–";}
   // Card Auto
   const ac=g("#home-auto-card");const at=g("#home-auto-title");const as=g("#home-auto-sub");const ai=g("#home-auto-icon");
@@ -8557,7 +8572,7 @@ function renderHome(){
     if(U.autoJob?.active){
       ac.className="home-auto-card";
       if(at)at.textContent="🟢 Envio Automático Ativo!";
-      if(as)as.textContent=`Fila: ${U.autoJob.queueSize||0} vagas · Toque para gerenciar`;
+      if(as){const _o=U.autoJob.originalCount||0;const _q=U.autoJob.queueSize||0;const _d=Math.max(0,_o-_q);const _p=_o>0?Math.round(_d/_o*100):0;as.textContent=_o>0?`${_d.toLocaleString("pt-BR")}/${_o.toLocaleString("pt-BR")} vagas (${_p}%)`:(`Fila: ${_q} vagas`);}
       if(ai)ai.innerHTML='<i class="ti ti-robot" style="color:#fff"></i>';
     }else{
       ac.className="home-auto-card inactive";
@@ -9067,17 +9082,129 @@ if ("serviceWorker" in navigator) {
 //  e onboarded=true nunca mais exibe a mensagem.
 // ══════════════════════════════════════════════════════════
 function _showFirstLoginWelcome() {
-  // Mostra modal de boas-vindas em vez de apenas banner
   setTimeout(() => {
-    // Verifica novamente (pode ter sido onboarded na mesma sessão)
     if (U.onboarded) return;
-    // Mostra o banner informativo persistente
-    showBanner(
-      "blue",
-      "👋 Bem-vindo ao <strong>H2BApply</strong>! Configure seu <strong>Perfil</strong> e envie seu <strong>Currículo (PDF)</strong> para começar.",
-      "sv('profile')"
-    );
+    // Mostra checklist de setup obrigatório
+    _showSetupChecklist();
   }, 900);
+}
+
+function _checkSetupStatus() {
+  const hasName = !!(U.name && U.name !== U.email && U.name.trim().length > 1);
+  const hasPhone = !!(U.phone && U.phone.trim().length > 4);
+  const hasCv = DOCS.some(c => (c.cvType||"resume") === "resume");
+  const hasProfile = (U.profiles||UPROFILES||[]).filter(p => p.active !== false).length > 0;
+  return { hasName, hasPhone, hasCv, hasProfile,
+    allDone: hasName && hasCv && hasProfile };
+}
+
+function _updateHomeAutoCard() {
+  const card = g("#home-auto-card");
+  const title = g("#home-auto-title");
+  const sub = g("#home-auto-sub");
+  const icon = g("#home-auto-icon");
+  const pulse = g("#home-auto-pulse");
+  const progWrap = g("#home-auto-prog-wrap");
+  const progBar = g("#home-auto-prog-bar");
+  const progLbl = g("#home-auto-prog-lbl");
+  if (!card) return;
+
+  const j = U.autoJob;
+  if (j && j.active) {
+    // ATIVO
+    card.className = "home-auto-card"; // gradiente roxo
+    if (pulse) pulse.style.display = "";
+    if (title) title.textContent = "🟢 Automático Rodando";
+    if (icon) icon.style.background = "rgba(74,222,128,.2)";
+    const orig = j.originalCount || 0;
+    const qs = j.queueSize || 0;
+    const done = Math.max(0, orig - qs);
+    const pct = orig > 0 ? Math.round(done/orig*100) : 0;
+    const todayAuto = U.todaySentAuto || 0;
+    const autoLim = U.autoLimit || 200;
+
+    if (j.status === "waiting_limit") {
+      if (sub) sub.textContent = `🌙 Descansando — enviou ${todayAuto} de ${autoLim} hoje. Retoma à meia-noite automaticamente.`;
+    } else {
+      if (sub) sub.textContent = orig > 0
+        ? `${done.toLocaleString("pt-BR")} de ${orig.toLocaleString("pt-BR")} vagas enviadas (hoje: ${todayAuto})`
+        : `Enviando agora • ${todayAuto} hoje`;
+    }
+    if (progWrap && orig > 0) {
+      progWrap.style.display = "";
+      if (progBar) progBar.style.width = pct + "%";
+      if (progLbl) progLbl.textContent = `${pct}% concluído • ${qs.toLocaleString("pt-BR")} restantes`;
+    }
+  } else if (j && !j.active && j.status !== "finished") {
+    // PAUSADO
+    card.className = "home-auto-card inactive";
+    if (pulse) pulse.style.display = "none";
+    if (title) title.textContent = "⏸ Automático Pausado";
+    if (sub) sub.textContent = "⏸ Pausado — toque para retomar o envio automático";
+    if (progWrap) progWrap.style.display = "none";
+  } else {
+    // INATIVO
+    card.className = "home-auto-card inactive";
+    if (pulse) pulse.style.display = "none";
+    if (title) title.textContent = "🤖 Envio Automático";
+    if (icon) icon.style.background = "rgba(126,58,242,.15)";
+    if (sub) sub.textContent = "Toque aqui para ligar e enviar candidaturas sozinho 24h/dia";
+    if (progWrap) progWrap.style.display = "none";
+  }
+}
+
+function _showSetupChecklist() {
+  // Não mostra se já está tudo configurado
+  const st = _checkSetupStatus();
+  if (st.allDone) return;
+
+  // Remove checklist anterior se existir
+  const old = document.getElementById('setup-checklist-banner');
+  if (old) old.remove();
+
+  const steps = [
+    { done: st.hasName && st.hasPhone, icon: 'ti-user', label: 'Seu nome e WhatsApp (aparecem no e-mail)', action: "sv('profile')", actionLabel: 'Preencher →' },
+    { done: st.hasCv, icon: 'ti-file-type-pdf', label: 'Subir seu currículo em PDF', action: "sv('profile');setTimeout(()=>switchProfileTab('profiles'),200)", actionLabel: 'Subir Currículo →' },
+    { done: st.hasProfile, icon: 'ti-user-circle', label: 'Criar o texto que vai no e-mail para as empresas', action: "sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(openProfileEditor,200)},200)", actionLabel: 'Criar Agora →' },
+  ];
+  const doneCount = steps.filter(s => s.done).length;
+  if (doneCount === steps.length) return;
+
+  const stepsHtml = steps.map((s,i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:${s.done?'rgba(16,185,129,.07)':'var(--sf2)'};border-radius:8px;border:1.5px solid ${s.done?'rgba(16,185,129,.25)':'var(--border)'}">
+      <div style="width:26px;height:26px;border-radius:50%;background:${s.done?'var(--green)':'var(--sf3)'};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <i class="ti ${s.done?'ti-check':'ti-'+s.icon.replace('ti-','')}" style="font-size:13px;color:${s.done?'#fff':'var(--t3)'}"></i>
+      </div>
+      <span style="flex:1;font-size:12px;font-weight:${s.done?'600':'700'};color:${s.done?'var(--t2)':'var(--text)'}${s.done?';text-decoration:line-through':''}">${i+1}. ${s.label}</span>
+      ${!s.done?`<button onclick="${s.action};document.getElementById('setup-checklist-banner')?.remove()" style="font-size:11px;font-weight:800;color:var(--blue);background:var(--bluel);border:1px solid var(--blueb);border-radius:6px;padding:3px 9px;cursor:pointer;white-space:nowrap;font-family:inherit">${s.actionLabel}</button>`:'<i class="ti ti-circle-check-filled" style="color:var(--green);font-size:18px;flex-shrink:0"></i>'}
+    </div>`).join('');
+
+  const banner = document.createElement('div');
+  banner.id = 'setup-checklist-banner';
+  banner.style.cssText = 'position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;padding:0 0 env(safe-area-inset-bottom,0)';
+  banner.innerHTML = `
+    <div style="background:var(--surface);width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:20px 18px 24px;box-shadow:0 -12px 48px rgba(0,0,0,.4);animation:slideUp .25s ease">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <div style="font-family:'Sora',sans-serif;font-size:18px;font-weight:800;margin-bottom:2px">👋 Olá! Vamos configurar seu perfil</div>
+          <div style="font-size:12px;color:var(--t2)">Só precisa fazer isso ${steps.length - doneCount > 1 ? "essas " + (steps.length-doneCount) + " coisas" : "isso"} e o automático já pode funcionar</div>
+        </div>
+        <button onclick="document.getElementById('setup-checklist-banner').remove()" style="background:var(--sf2);border:1px solid var(--border);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><i class="ti ti-x" style="font-size:15px;color:var(--t2)"></i></button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:16px">${stepsHtml}</div>
+      <div style="font-size:11px;color:var(--t3);text-align:center">${doneCount} de ${steps.length} pronto${doneCount>1?"s":""} • Pode fechar e continuar depois</div>
+    </div>`;
+  document.body.appendChild(banner);
+  // Fecha ao clicar fora
+  banner.addEventListener('click', e => { if(e.target === banner) banner.remove(); });
+}
+
+// Re-checa o checklist sempre que o usuário sai de uma tela de configuração
+function _recheckSetupAfterSave() {
+  const st = _checkSetupStatus();
+  // Atualiza badge de alerta no perfil do bottom nav
+  const badge = document.getElementById('bnd-profile-alert');
+  if (badge) badge.style.display = st.allDone ? 'none' : '';
 }
 
 // ── Inicialização ─────────────────────────────────────────

@@ -270,6 +270,14 @@ async function buildSheet(type, dateStr, outFile, label) {
 
   console.log(`  ✅ ${compact.length} vagas válidas (${discarded} descartadas)`);
 
+  // Validação mínima: se retornou menos de 10 vagas válidas, algo está errado
+  // (API pode ter retornado estrutura diferente ou estar com problemas)
+  if (compact.length < 10) {
+    console.error(`  ❌ ABORTANDO salvamento: apenas ${compact.length} vagas válidas — suspeito de resposta inválida da API`);
+    console.log(`  ↩ Mantendo arquivo existente intacto: ${outFile}`);
+    return false;
+  }
+
   // Distribuição de categorias
   const catCount = {};
   compact.forEach(r => { catCount[r.k] = (catCount[r.k] || 0) + 1; });

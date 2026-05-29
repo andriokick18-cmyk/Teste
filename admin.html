@@ -306,11 +306,12 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
         <div id="alert-banners"></div>
         <div class="stat-grid" id="stat-grid">
           <div class="stat-card stat-blue"><i class="ti ti-users stat-icon"></i><div class="stat-val" id="s-online">–</div><div class="stat-lbl">Online agora</div><div class="stat-sub" id="s-sessions">– sessões ativas</div></div>
-          <div class="stat-card stat-green"><i class="ti ti-robot stat-icon"></i><div class="stat-val" id="s-auto">–</div><div class="stat-lbl">Automáticos ativos</div><div class="stat-sub" id="s-auto-sub">– vagas na fila</div></div>
-          <div class="stat-card stat-amber"><i class="ti ti-alert-triangle stat-icon"></i><div class="stat-val" id="s-stalled">–</div><div class="stat-lbl">Filas travadas</div><div class="stat-sub">Watchdog ativo</div></div>
+          <div class="stat-card stat-green"><i class="ti ti-robot stat-icon"></i><div class="stat-val" id="s-auto">–</div><div class="stat-lbl">Automáticos ativos</div><div class="stat-sub" id="s-auto-sub">– enviando agora</div></div>
+          <div class="stat-card stat-amber"><i class="ti ti-alert-triangle stat-icon"></i><div class="stat-val" id="s-stalled">–</div><div class="stat-lbl">Travadas / Aguardando</div><div class="stat-sub" id="s-waiting">– aguard. meia-noite</div></div>
+          <div class="stat-card" style="--glow:rgba(6,182,212,.06);background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:14px 16px;"><i class="ti ti-list-numbers stat-icon" style="color:var(--cyan);opacity:.2"></i><div class="stat-val" id="s-queue-total" style="color:var(--cyan)">–</div><div class="stat-lbl">Vagas na fila total</div><div class="stat-sub" id="s-queue-sent">– enviadas de filas</div></div>
           <div class="stat-card stat-cyan"><i class="ti ti-send stat-icon"></i><div class="stat-val" id="s-today">–</div><div class="stat-lbl">Enviados hoje</div><div class="stat-sub" id="s-total">– total geral</div></div>
           <div class="stat-card stat-purple"><i class="ti ti-users stat-icon"></i><div class="stat-val" id="s-users">–</div><div class="stat-lbl">Total usuários</div><div class="stat-sub" id="s-vip">– planos ativos</div></div>
-          <div class="stat-card stat-red"><i class="ti ti-server stat-icon"></i><div class="stat-val" id="s-mem">–</div><div class="stat-lbl">RAM usada</div><div class="stat-sub" id="s-cache">– vagas DOL</div></div>
+          <div class="stat-card stat-red" id="s-disk-card"><i class="ti ti-server stat-icon"></i><div class="stat-val" id="s-mem">–</div><div class="stat-lbl">RAM usada</div><div class="stat-sub" id="s-disk">✅ /data</div></div>
         </div>
         <!-- AÇÕES RÁPIDAS ADMIN -->
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
@@ -2411,21 +2412,33 @@ function updateDashboard() {
   setText('s-online', d.onlineCount??'–');
   setText('s-sessions', `${d.activeSessions??0} sessões ativas`);
   setText('s-auto', d.activeAutoCount??'–');
-  const totalQ=(d.users||[]).filter(u=>u.hasAuto).reduce((n,u)=>n+(u.queueSize||0),0);
-  setText('s-auto-sub', `${totalQ.toLocaleString('pt-BR')} vagas na fila`);
+  setText('s-auto-sub', `${(d.activeWithQueue||0)} enviando · ${(d.waitingLimit||0)} aguard.`);
   setText('s-stalled', d.stalledCount??'–');
+  setText('s-waiting', `${(d.waitingLimit||0)} aguardando meia-noite`);
+  // Fila total — usa dados do servidor (FIX-ADM)
+  const totalQAll = d.totalQueueAll ?? (d.users||[]).reduce((n,u)=>n+(u.queueSize||0),0);
+  const totalOrigAll = d.totalOriginalAll ?? (d.users||[]).reduce((n,u)=>n+(u.originalCount||0),0);
+  setText('s-queue-total', totalQAll.toLocaleString('pt-BR'));
+  setText('s-queue-sent', `${Math.max(0,totalOrigAll-totalQAll).toLocaleString('pt-BR')} de ${totalOrigAll.toLocaleString('pt-BR')} orig.`);
   setText('s-today', (d.totalSentToday||0).toLocaleString('pt-BR'));
   setText('s-total', `${(d.totalSentAll||0).toLocaleString('pt-BR')} total`);
   setText('s-users', (d.totalUsers||0).toLocaleString('pt-BR'));
   const vipCount=(d.users||[]).filter(u=>u.plan&&u.plan!=='free').length;
   setText('s-vip', `${vipCount} com plano pago`);
   setText('s-mem', `${d.memMB??'–'}MB`);
-  setText('s-cache', `${(d.jobsCache||0).toLocaleString('pt-BR')} vagas DOL`);
+  if(d.diskOk===false){
+    setText('s-disk','⚠️ /tmp VOLÁTIL!');
+    const dc=document.getElementById('s-disk-card');if(dc){dc.style.borderColor='var(--redb)';dc.style.background='var(--redg)';}
+    const ds=document.getElementById('s-disk');if(ds)ds.style.color='var(--red)';
+  } else {
+    setText('s-disk', d.dataDir?`✅ ${d.dataDir}`:'✅ persistente');
+  }
 
   // Alert banners
   const banners = document.getElementById('alert-banners');
   if(banners){
     let html='';
+    if(d.diskOk===false) html+=`<div class="alert-banner ab-err" style="border-color:var(--redb)"><i class="ti ti-database-x"></i><strong>⚠️ DISCO VOLÁTIL (/tmp)!</strong> Dados perdem no próximo deploy. Configure DATA_DIR=/data URGENTE!</div>`;
     if(d.stalledCount>0) html+=`<div class="alert-banner ab-warn"><i class="ti ti-alert-triangle"></i><strong>${d.stalledCount} fila(s) travada(s)</strong> — Watchdog tentando reiniciar. Veja "Automáticos".</div>`;
     const noOauth=(d.users||[]).filter(u=>u.hasAuto&&u.oauthOk===false);
     if(noOauth.length) html+=`<div class="alert-banner ab-err"><i class="ti ti-lock"></i><strong>${noOauth.length} usuário(s) com OAuth expirado</strong> — Automático pausado. Precisam fazer login novamente.</div>`;
@@ -2471,67 +2484,128 @@ function renderDashEvents(){
 }
 
 // ══════════════════════════════════════════════════════════
-//  WORKERS TABLE
+//  WORKERS TABLE — Diagnóstico completo
+//  Mostra EXATAMENTE por que cada usuário não está enviando
 // ══════════════════════════════════════════════════════════
 function buildWorkersTable(workers){
   const now=Date.now();
+
+  // Cores e labels por status de diagnóstico
+  const DIAG={
+    ok:          {color:'var(--green)', bg:'var(--greeng)', icon:'✅', label:'Rodando'},
+    starting:    {color:'var(--blue)',  bg:'var(--blueg)',  icon:'🚀', label:'Iniciando'},
+    waiting_limit:{color:'var(--blue)', bg:'var(--blueg)',  icon:'📊', label:'Limite diário'},
+    waiting_hour:{color:'var(--blue)',  bg:'var(--blueg)',  icon:'🕐', label:'Fora do horário'},
+    rate_limit:  {color:'var(--amber)', bg:'var(--amberg)', icon:'⏳', label:'Rate limit Gmail'},
+    token_retry: {color:'var(--amber)', bg:'var(--amberg)', icon:'🔑', label:'Renovando token'},
+    stalled:     {color:'var(--red)',   bg:'var(--redg)',   icon:'🔴', label:'TRAVADO'},
+    stuck_sending:{color:'var(--red)',  bg:'var(--redg)',   icon:'⚠️', label:'Preso em envio'},
+    no_token:    {color:'var(--red)',   bg:'var(--redg)',   icon:'🔐', label:'Token inválido'},
+    no_pdf:      {color:'var(--red)',   bg:'var(--redg)',   icon:'📎', label:'Sem PDF'},
+    never_sent:  {color:'var(--red)',   bg:'var(--redg)',   icon:'❓', label:'Nunca enviou'},
+    slow:        {color:'var(--amber)', bg:'var(--amberg)', icon:'🐌', label:'Lento'},
+    finished:    {color:'var(--t3)',    bg:'var(--glass2)', icon:'✔',  label:'Finalizado'},
+  };
+
   const rows=workers.map(u=>{
-    const lastSentAgo=u.lastSentAt?fmtAgo(now-u.lastSentAt):'–';
-    const startedAgo=u.startedAt?fmtAgo(now-u.startedAt):'–';
-    const progress=u.originalCount?Math.round((1-u.queueSize/u.originalCount)*100):0;
-    const isStalled=u.jobStalled;
-    const rInfo=STOP_REASON_FULL[u.autoStatus]||null;
-    const tooltipTxt=isStalled?'⚠️ Fila travada há mais de 20min — reinicie o worker'
-      :rInfo?`${rInfo.icon} ${rInfo.titulo} | ${rInfo.admin_pode}`
-      :u.autoStatus||'';
-    const statusBadge=isStalled
-      ?`<span class="status-pill sp-warn" title="${esc(tooltipTxt)}"><span class="sp-dot"></span>⚠️ Travado</span>`
-      :u.hasAuto
-        ?`<span class="status-pill sp-ok" title="${esc(tooltipTxt)}"><span class="sp-dot"></span>${fmtStatus(u.autoStatus)}</span>`
-        :u.autoStatus
-          ?`<span class="status-pill sp-idle" title="${esc(tooltipTxt)}" style="cursor:help"><span class="sp-dot"></span>${fmtStatus(u.autoStatus)}</span>`
-          :`<span class="status-pill sp-idle"><span class="sp-dot"></span>Inativo</span>`;
-    const healthDots=`<div class="health-row">
-      <span class="hi ${u.oauthOk===false?'hi-err':u.oauthOk===true?'hi-ok':'hi-unk'}" title="OAuth: ${u.oauthOk===false?'❌ Inválido':u.oauthOk===true?'✅ OK':'?'}"></span>
-      <span class="hi ${u.hasPdf===false?'hi-err':u.hasPdf===true?'hi-ok':'hi-unk'}" title="PDF: ${u.hasPdf===false?'❌ Ausente':u.hasPdf===true?'✅ OK':'?'}"></span>
-      <span class="hi ${u.timers?'hi-ok':'hi-warn'}" title="Timer: ${u.timers?'✅ Ativo':'⚠️ Sem timer'}"></span>
-      ${u.errors>0?`<span class="hi hi-err" title="${u.errors} erros"></span>`:''}
-      ${u.restarts>0?`<span style="font-size:9px;color:var(--amber)">↺${u.restarts}</span>`:''}
-    </div>`;
-    const nextTxt=u.nextSendAt&&u.nextSendAt>now?fmtAgo(u.nextSendAt-now)+'<br><span style="font-size:9px;color:var(--t3)">próximo</span>':'–';
-    return `<tr onclick="openUser('${esc(u.email)}')" style="${isStalled?'background:rgba(245,158,11,.05)':''}">
-      <td>
-        <div style="display:flex;align-items:center;gap:7px">
-          ${u.picture?`<img src="${esc(u.picture)}" style="width:24px;height:24px;border-radius:50%;object-fit:cover">`:avLetter(u.name||u.email)}
-          <div><div style="font-weight:700;font-size:12px">${esc(u.name||u.email.split('@')[0])}</div><div class="mono" style="color:var(--t3);font-size:10px">${esc(u.email)}</div></div>
+    const diag = u.diag || {status:'ok', reason:'', action:''};
+    const dStyle = DIAG[diag.status] || DIAG.ok;
+    const isProb = ['stalled','stuck_sending','no_token','no_pdf','never_sent','token_retry'].includes(diag.status);
+    const isWarn = ['slow','rate_limit'].includes(diag.status);
+
+    // Tempo desde último envio
+    const lastSentAgo = u.lastSentAt
+      ? (now-u.lastSentAt < 60000 ? 'agora' : fmtAgo(now-u.lastSentAt))
+      : u.startedAt ? '(nunca enviou)' : '–';
+
+    // Próximo envio
+    const nextSendIn = u.nextSendAt && u.nextSendAt > now
+      ? fmtAgo(u.nextSendAt - now)
+      : u.hasAuto ? 'em breve' : '–';
+
+    // Progresso
+    const sent = (u.originalCount||0) - (u.queueSize||0);
+    const pct = u.originalCount > 0 ? Math.round(sent/u.originalCount*100) : 0;
+    const queueLabel = u.originalCount > 0 ? `${sent.toLocaleString('pt-BR')}/${(u.originalCount||0).toLocaleString('pt-BR')} (${pct}%)` : '–';
+    const queueColor = pct>=100?'var(--green)':pct>50?'var(--cyan)':'var(--t2)';
+
+    // Vaga atual sendo processada
+    const currentJobTxt = u.currentJob
+      ? `<div style="font-size:9px;color:var(--t3);margin-top:2px">📧 Enviando: <span style="color:var(--t2)">${esc((u.currentJob.company||u.currentJob.title||'').slice(0,30))}</span></div>`
+      : '';
+
+    // Log mais recente
+    const lastLog = (u.recentLogs||[])[0];
+    const lastLogTxt = lastLog
+      ? `<div style="font-size:9px;margin-top:2px"><span style="color:${{enviado:'#4ade80',falhou:'#f87171',pulado:'#94a3b8',pausado:'#fbbf24',sistema:'#60a5fa',limite:'#60a5fa',duplicado:'#64748b'}[lastLog.status]||'#94a3b8'}">${{enviado:'✅',falhou:'❌',pulado:'⏭',pausado:'⏸',sistema:'ℹ️',limite:'📊',duplicado:'⊘'}[lastLog.status]||'•'} ${esc(lastLog.status)}</span> <span style="color:var(--t3)">${esc((lastLog.company||lastLog.jobTitle||lastLog.to||'').slice(0,35))}</span>${lastLog.error?`<span style="color:var(--red)"> — ${esc(lastLog.error.slice(0,50))}</span>`:''}</div>`
+      : '';
+
+    // Diagnóstico expandido
+    const diagBox = `
+      <div style="background:${isProb?'rgba(239,68,68,.07)':isWarn?'rgba(245,158,11,.07)':'rgba(255,255,255,.02)'};border:1px solid ${isProb?'rgba(239,68,68,.25)':isWarn?'rgba(245,158,11,.2)':'rgba(255,255,255,.06)'};border-radius:7px;padding:7px 10px;margin-top:5px">
+        <div style="font-size:10px;font-weight:700;color:${dStyle.color};margin-bottom:3px">${dStyle.icon} ${esc(diag.reason)}</div>
+        ${diag.action?`<div style="font-size:9px;color:var(--t3)">👉 ${esc(diag.action)}</div>`:''}
+        ${currentJobTxt}
+        ${lastLogTxt}
+      </div>`;
+
+    // Próximos envios estimados
+    const daysLeftTxt = u.queueDaysLeft && u.queueDaysLeft > 0
+      ? `<span style="font-size:9px;color:var(--t3)">~${u.queueDaysLeft}d restantes</span>`
+      : '';
+
+    // Checklist saúde compacta
+    const checks = [
+      {ok: u.oauthOk!==false, na: u.oauthOk===null, label:'Token'},
+      {ok: u.hasPdf!==false,  na: u.hasPdf===null,  label:'PDF'},
+      {ok: u.timers,          na: false,             label:'Timer'},
+      {ok: u.profileCount>0,  na: false,             label:'Perfil'},
+    ].map(c=>`<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:${c.na?'var(--glass2)':c.ok?'var(--greeng)':'var(--redg)'};color:${c.na?'var(--t3)':c.ok?'var(--green)':'var(--red)'};font-weight:700">${c.na?'?':c.ok?'✓':'✗'} ${c.label}</span>`).join(' ');
+
+    return `<tr style="vertical-align:top;${isProb?'background:rgba(239,68,68,.03)':isWarn?'background:rgba(245,158,11,.02)':''}">
+      <td style="padding:10px 12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          ${u.picture?`<img src="${esc(u.picture)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0">`:avLetter(u.name||u.email)}
+          <div>
+            <div style="font-weight:700;font-size:12px">${esc(u.name||u.email.split('@')[0])}</div>
+            <div class="mono" style="color:var(--t3);font-size:9px">${esc(u.email)}</div>
+            <div style="margin-top:2px;display:flex;gap:3px;flex-wrap:wrap">${checks}</div>
+          </div>
         </div>
       </td>
-      <td>${statusBadge}</td>
-      <td style="max-width:200px">
-        ${isStalled
-          ? `<div style="font-size:11px;color:var(--amber);font-weight:700">⚠️ Fila travada</div><div style="font-size:10px;color:var(--t2)">Reinicie o worker</div>`
-          : rInfo && !u.hasAuto
-            ? `<div style="font-size:11px;color:${rInfo.voce_resolve?'var(--green)':'var(--red)'};font-weight:700">${rInfo.voce_resolve?'✅':'❌'} ${esc(rInfo.titulo)}</div><div style="font-size:10px;color:var(--t2);margin-top:2px">${esc((rInfo.admin_pode||'').slice(0,80))}${rInfo.admin_pode&&rInfo.admin_pode.length>80?'…':''}</div>`
-            : u.hasAuto
-              ? `<div style="font-size:11px;color:var(--green)">✅ Rodando normalmente</div>`
-              : `<div style="font-size:11px;color:var(--t3)">–</div>`
-        }
+      <td style="padding:10px 12px">
+        <span style="display:inline-flex;align-items:center;gap:4px;background:${dStyle.bg};border:1px solid ${dStyle.color}33;border-radius:20px;padding:3px 9px;font-size:10px;font-weight:800;color:${dStyle.color}">${dStyle.icon} ${dStyle.label}</span>
+        ${u.restarts>0?`<div style="font-size:9px;color:var(--amber);margin-top:3px">↺ ${u.restarts} restart${u.restarts>1?'s':''}</div>`:''}
+        ${u.errors>0?`<div style="font-size:9px;color:var(--red)">❌ ${u.errors} erros</div>`:''}
       </td>
-      <td>
-        <div style="font-size:11px;margin-bottom:3px">${(u.queueSize||0).toLocaleString('pt-BR')} / ${(u.originalCount||0).toLocaleString('pt-BR')}</div>
-        <div class="prog-bg" style="width:80px"><div class="prog-fill ${isStalled?'pg-amber':'pg-green'}" style="width:${progress}%"></div></div>
+      <td style="padding:10px 12px;min-width:260px">${diagBox}</td>
+      <td style="padding:10px 12px;text-align:right;white-space:nowrap">
+        <div style="font-size:12px;font-weight:700;margin-bottom:2px;color:${queueColor}">${queueLabel}</div>
+        <div class="prog-bg" style="width:80px;margin:0 0 3px auto"><div class="prog-fill ${isProb?'pg-red':isWarn?'pg-amber':'pg-green'}" style="width:${pct}%"></div></div>
+        <div style="font-size:9px;color:var(--t3)">${pct}% ${daysLeftTxt}</div>
+        <div style="font-size:9px;color:var(--t2);margin-top:2px">Hoje: ${u.todaySentAuto||0}/${u.autoLimit||0} auto</div>
       </td>
-      <td style="font-size:11px;color:var(--t2)">${lastSentAgo}</td>
-      <td>${healthDots}</td>
-      <td onclick="event.stopPropagation()" style="white-space:nowrap">
-        <button class="btn btn-xs btn-success" onclick="forceRestart('${esc(u.email)}')" title="Reiniciar"><i class="ti ti-refresh"></i></button>
-        <button class="btn btn-xs btn-danger" onclick="forceStop('${esc(u.email)}')" title="Parar"><i class="ti ti-player-stop"></i></button>
-        <button class="btn btn-xs btn-ghost" onclick="openUser('${esc(u.email)}')" title="Detalhes"><i class="ti ti-eye"></i></button>
+      <td style="padding:10px 12px;white-space:nowrap">
+        <div style="font-size:11px;color:var(--t2)">⬆️ ${lastSentAgo}</div>
+        <div style="font-size:9px;color:var(--t3);margin-top:2px">⏭ próx: ${nextSendIn}</div>
+        ${u.todayFailed>0?`<div style="font-size:9px;color:var(--red);margin-top:2px">❌ ${u.todayFailed} falha${u.todayFailed>1?'s':''} hoje</div>`:''}
+        ${u.todaySkipped>0?`<div style="font-size:9px;color:var(--t3);margin-top:1px">⏭ ${u.todaySkipped} pulados hoje</div>`:''}
+      </td>
+      <td style="padding:10px 8px;white-space:nowrap" onclick="event.stopPropagation()">
+        ${u.hasAuto||u.autoStatus?`<button class="btn btn-xs btn-success" onclick="forceRestart('${esc(u.email)}')" title="Reiniciar worker"><i class="ti ti-refresh"></i></button>`:''}
+        ${u.hasAuto?`<button class="btn btn-xs btn-danger" onclick="forceStop('${esc(u.email)}')" title="Parar automático"><i class="ti ti-player-stop"></i></button>`:''}
+        <button class="btn btn-xs btn-ghost" onclick="openUser('${esc(u.email)}')" title="Ver detalhes completos"><i class="ti ti-eye"></i></button>
       </td>
     </tr>`;
   }).join('');
-  return `<table><thead><tr>
-    <th>Usuário</th><th>Status</th><th>Por que parou / O que fazer</th><th>Fila</th><th>Último envio</th><th>Saúde</th><th>Ações</th>
+
+  return `<table style="width:100%"><thead><tr>
+    <th style="padding:8px 12px;font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.05em">Usuário</th>
+    <th style="padding:8px 12px;font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.05em">Status</th>
+    <th style="padding:8px 12px;font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.05em">Por que / O que fazer</th>
+    <th style="padding:8px 12px;font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;text-align:right">Progresso</th>
+    <th style="padding:8px 12px;font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.05em">Timings</th>
+    <th style="padding:8px 8px;font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.05em">Ações</th>
   </tr></thead><tbody>${rows}</tbody></table>`;
 }
 
