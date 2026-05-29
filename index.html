@@ -1370,7 +1370,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <div style="height:100%;background:linear-gradient(90deg,#4f46e5,#7c3aed);border-radius:99px;animation:h2bBar 1.2s ease-out forwards"></div>
   </div>
 </div>
-<style>@keyframes h2bBar{0%{width:0}100%{width:100%}}</style>
+<style>@keyframes h2bBar{0%{width:0}100%{width:100%}}
+/* Perfil: nova tela sem sub-abas */
+#v-profile { background: var(--bg); }
+</style>
 <script>
 (function(){
   var done=false;
@@ -1576,7 +1579,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <button class="sb-item" id="si-tutorial" onclick="sv('tutorial')" style="background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.07));border:1.5px solid rgba(16,185,129,.3);border-radius:10px;font-weight:800;color:#059669;margin-bottom:4px"><i class="ti ti-book-2" style="font-size:15px;color:#059669"></i>Tutorial — Como Usar <span style="margin-left:auto;font-size:9px;background:#059669;color:#fff;padding:1px 6px;border-radius:99px;font-weight:800">GUIA</span></button>
         <button class="sb-item active" id="si-home" onclick="sv('home')"><i class="ti ti-home-2"></i>Início</button>
         <button class="sb-item" id="si-jobs" onclick="sv('jobs')"><i class="ti ti-briefcase"></i>Vagas H-2B/H-2A<span class="sb-badge sb-badge-b" id="sib-jobs" style="display:none"></span></button>
-        <button class="sb-item" id="si-pesquisa" onclick="sv('pesquisa')"><i class="ti ti-search"></i>Pesquisar Vagas<span class="sb-badge sb-badge-b" id="sib-pesquisa" style="display:none"></span></button>
+
         <button class="sb-item" id="si-saved" onclick="sv('saved')"><i class="ti ti-bookmark"></i>Salvas<span class="sb-badge sb-badge-b" id="sib-saved" style="display:none"></span></button>
       </div>
       <div class="sb-sec">
@@ -1589,10 +1592,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <div class="sb-lbl">Conta</div>
         <button class="sb-item" id="si-profile" onclick="sv('profile')"><i class="ti ti-user"></i>Meu Perfil e Currículo</button>
         <button class="sb-item sb-item-plans" id="si-plans" onclick="sv('plans')" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.07));border:1.5px solid rgba(99,102,241,.3);border-radius:var(--r);font-weight:800;color:#4f46e5;margin-top:4px"><i class="ti ti-diamond" style="font-size:16px;color:#4f46e5"></i>Planos & Recompensas</button>
-        <button class="sb-item" id="si-logs" onclick="sv('logs')" style="color:var(--t3);font-size:12px"><i class="ti ti-list-details" style="font-size:14px"></i>Logs Automático<span class="sb-badge sb-badge-r" id="sib-logs" style="display:none"></span></button>
+
         <button class="sb-item" id="si-indicar" onclick="sv('indicar')"><i class="ti ti-users-group"></i>Indicar Amigos e Ganhar VIP<span class="sb-badge" id="sib-indicar" style="display:none;background:var(--green);color:#fff"></span></button>
         <button class="sb-item" id="si-redeem" onclick="sv('redeem')" style="background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(109,40,217,.06));border:1.5px solid rgba(139,92,246,.25);border-radius:10px;font-weight:800;color:#7c3aed"><i class="ti ti-ticket" style="font-size:15px;color:#7c3aed"></i>Resgatar Código<span style="margin-left:auto;font-size:9px;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:99px">NOVO</span></button>
-        <button class="sb-item" id="si-notificacoes" onclick="sv('notificacoes')"><i class="ti ti-bell"></i>Notificações<span class="sb-badge" id="sib-notificacoes" style="display:none;background:#7c3aed;color:#fff"></span></button>
+
         <button class="sb-item" id="si-iaChat" onclick="sv('iaChat')" style="background:linear-gradient(135deg,rgba(8,145,178,.1),rgba(6,182,212,.06));border:1.5px solid rgba(8,145,178,.25);border-radius:10px;font-weight:800;color:#0891b2"><i class="ti ti-brain" style="font-size:15px;color:#0891b2"></i>IA Chat H2B<span style="margin-left:auto;font-size:9px;background:#0891b2;color:#fff;padding:1px 6px;border-radius:99px">IA</span></button>
         <button class="sb-item" id="si-sugestoes" onclick="sv('sugestoes')" style="background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(109,40,217,.05));border:1.5px solid rgba(124,58,237,.2);border-radius:10px;font-weight:700;color:#7c3aed"><i class="ti ti-bulb" style="font-size:15px;color:#7c3aed"></i>Sugestões para Devs</button>
       </div>
@@ -1643,13 +1646,14 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <i class="ti ti-chevron-right" style="font-size:18px;opacity:.4;flex-shrink:0"></i>
             </div>
           </div>
-          <!-- Atalhos Rápidos -->
+          <!-- Acesso Rápido -->
           <div class="home-section-title">Acesso Rápido</div>
           <div class="home-shortcuts" style="grid-template-columns:repeat(3,1fr)">
             <button class="home-shortcut hs-jobs" onclick="sv('jobs')">
               <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#eff6ff,#dbeafe)"><i class="ti ti-briefcase" style="color:var(--blue)"></i></div>
               <div class="home-shortcut-label">📋 Vagas</div>
             </button>
+
             <button class="home-shortcut hs-respostas" onclick="sv('respostas')">
               <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7)"><i class="ti ti-mail-opened" style="color:var(--green)"></i></div>
               <div class="home-shortcut-label">📩 Empresas</div>
@@ -1659,17 +1663,22 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe)"><i class="ti ti-robot" style="color:var(--purple)"></i></div>
               <div class="home-shortcut-label">🤖 Automático</div>
             </button>
-            <button class="home-shortcut hs-cadastros" onclick="sv('profile')">
-              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#fff0f3,#ffe4e6)"><i class="ti ti-user" style="color:#e11d48"></i></div>
-              <div class="home-shortcut-label">👤 Meu Perfil</div>
-            </button>
-            <button class="home-shortcut" onclick="sv('hist')">
-              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#f8fafc,#f1f5f9)"><i class="ti ti-history" style="color:#64748b"></i></div>
-              <div class="home-shortcut-label">📋 Enviadas</div>
-            </button>
             <button class="home-shortcut hs-ranking" onclick="sv('ranking')">
               <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#fef9c3,#fef08a)"><i class="ti ti-trophy" style="color:#f59e0b"></i></div>
               <div class="home-shortcut-label">🏆 Ranking</div>
+            </button>
+            <button class="home-shortcut hs-cadastros" onclick="sv('profile');setTimeout(()=>switchProfileTab('profiles'),120)">
+              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#fff0f3,#ffe4e6)"><i class="ti ti-user-circle" style="color:#e11d48"></i></div>
+              <div class="home-shortcut-label">📝 Meu Perfil</div>
+            </button>
+
+
+
+
+
+            <button class="home-shortcut" onclick="sv('hist')">
+              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#f8fafc,#f1f5f9)"><i class="ti ti-history" style="color:#64748b"></i></div>
+              <div class="home-shortcut-label">📋 Enviadas</div>
             </button>
           </div>
           <!-- Stats do dia -->
@@ -1862,60 +1871,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       </div></div>
 
       <!-- ══ PESQUISAR VAGAS ══ -->
-      <div class="view gone" id="v-pesquisa">
-        <!-- Header -->
-        <div style="background:linear-gradient(135deg,#0c1a40,#1a3a6b);color:#fff;padding:12px 16px 10px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px">
-          <div>
-            <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px"><i class="ti ti-search"></i> Pesquisar Vagas</div>
-            <div style="font-size:11px;opacity:.7;margin-top:1px">Busca em todas as fontes: Seasonal, Jan 2026, Jul 2025</div>
-          </div>
-          <button id="pesq-clear-btn" onclick="clearPesquisa()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);padding:6px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:none"><i class="ti ti-x"></i> Limpar</button>
-        </div>
-
-        <!-- Barra de busca principal -->
-        <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:12px 14px;flex-shrink:0">
-          <div style="position:relative;margin-bottom:10px">
-            <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--blue);font-size:16px;pointer-events:none"></i>
-            <input class="input" id="pesq-input" type="text" placeholder="Empresa, e-mail, ETA case number, cargo, estado..." style="padding-left:38px;font-size:14px;height:46px;border-color:var(--blue);border-width:2px;box-shadow:0 0 0 3px rgba(59,130,246,.1)" oninput="doPesquisa()" autocomplete="off" inputmode="search">
-            <button onclick="doPesquisaBtn()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Buscar</button>
-          </div>
-          <!-- Chips de fonte -->
-          <div style="display:flex;gap:5px;flex-wrap:wrap">
-            <button class="pesq-src-chip active" data-src="all" onclick="setPesqSrc('all')">🌐 Todas as fontes</button>
-            <button class="pesq-src-chip" data-src="seasonal" onclick="setPesqSrc('seasonal')"><i class="ti ti-globe" style="font-size:11px"></i> Seasonal</button>
-            <button class="pesq-src-chip" data-src="jan2026" onclick="setPesqSrc('jan2026')">☀️ Jan 2026</button>
-            <button class="pesq-src-chip" data-src="jul2025" onclick="setPesqSrc('jul2025')">❄️ Jul 2025</button>
-            <button class="pesq-src-chip" data-src="hist" onclick="setPesqSrc('hist')"><i class="ti ti-send" style="font-size:11px"></i> Enviadas</button>
-          </div>
-        </div>
-
-        <!-- Stats da busca -->
-        <div id="pesq-stats" style="background:var(--sf2);border-bottom:1px solid var(--border);padding:7px 14px;font-size:12px;color:var(--t2);flex-shrink:0;display:none;align-items:center;gap:8px">
-          <i class="ti ti-info-circle" style="color:var(--blue);font-size:14px;flex-shrink:0"></i>
-          <span id="pesq-stats-text"></span>
-        </div>
-
-        <!-- Lista de resultados -->
-        <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch" id="pesq-list">
-          <!-- Estado inicial -->
-          <div id="pesq-empty-state" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;gap:16px;text-align:center">
-            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(139,92,246,.1));display:flex;align-items:center;justify-content:center;border:2px solid rgba(99,102,241,.15)">
-              <i class="ti ti-search" style="font-size:28px;color:var(--blue)"></i>
-            </div>
-            <div>
-              <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px">Pesquise qualquer coisa</div>
-              <div style="font-size:13px;color:var(--t3);line-height:1.6;max-width:300px">Digite o nome da empresa, um e-mail recebido, o ETA case number, o cargo ou o estado para encontrar todas as vagas correspondentes</div>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:320px">
-              <button onclick="setPesqExample('cerminara')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">cerminara</button>
-              <button onclick="setPesqExample('H-400-26001')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">H-400-26001</button>
-              <button onclick="setPesqExample('landscaping@')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">landscaping@...</button>
-              <button onclick="setPesqExample('FLORIDA')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">FLORIDA</button>
-              <button onclick="setPesqExample('landscape')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">landscape</button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- v-pesquisa removida -->
 
       <!-- ══ RESPOSTAS ══ -->
       <div class="view gone" id="v-respostas">
@@ -2055,55 +2011,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       </div>
 
       <!-- LOGS -->
-      <div class="view gone" id="v-logs">
-        <!-- ══ LOGS AUTOMÁTICO ══ -->
-        <div class="view-scroll">
-          <div style="font-size:18px;font-weight:800;margin-bottom:4px">📋 Logs do Envio Automático</div>
-          <div style="font-size:13px;color:var(--t2);margin-bottom:14px">Histórico completo de todos os envios automáticos</div>
-          <!-- Toolbar -->
-          <div class="logs-toolbar">
-            <input class="logs-search" type="text" id="log-q" placeholder="🔍 Buscar empresa, e-mail..." oninput="loadLogs()" inputmode="search">
-            <select class="fsel" id="log-status" onchange="loadLogs()" style="height:34px">
-              <option value="">Todos status</option>
-              <option value="enviado">✅ Enviado</option>
-              <option value="falhou">❌ Falhou</option>
-              <option value="duplicado">🔁 Duplicado</option>
-              <option value="pausado">⏸ Pausado</option>
-              <option value="cancelado">🚫 Cancelado</option>
-              <option value="sistema">ℹ️ Sistema</option>
-            </select>
-            <select class="fsel" id="log-category" onchange="loadLogs()" style="height:34px">
-              <option value="">Todas categorias</option>
-              <option value="landscape">🌿 Landscape</option>
-              <option value="construction">🏗️ Construction</option>
-              <option value="housekeeper">🏨 Housekeeper</option>
-              <option value="seafood">🦞 Seafood</option>
-              <option value="farm">🌾 Farm</option>
-              <option value="golf">⛳ Golf</option>
-              <option value="amusement">🎡 Amusement</option>
-              <option value="forest">🌲 Forest</option>
-              <option value="lifeguard">🏊 Lifeguard</option>
-              <option value="other">📋 Outros</option>
-            </select>
-            <button class="btn btn-secondary btn-sm" onclick="exportLogs()"><i class="ti ti-download"></i> CSV</button>
-            <button class="btn btn-danger btn-sm" onclick="clearLogs()"><i class="ti ti-trash"></i></button>
-          </div>
-          <!-- Stats row -->
-          <div class="stats-row" id="log-stats-row" style="grid-template-columns:repeat(4,1fr)">
-            <div class="stat-box"><div class="stat-val" id="log-stat-sent">–</div><div class="stat-lbl">Enviados</div></div>
-            <div class="stat-box"><div class="stat-val" style="color:var(--red)" id="log-stat-failed">–</div><div class="stat-lbl">Falhas</div></div>
-            <div class="stat-box"><div class="stat-val" style="color:var(--amber)" id="log-stat-dup">–</div><div class="stat-lbl">Duplicados</div></div>
-            <div class="stat-box"><div class="stat-val" style="color:var(--green)" id="log-stat-rate">–</div><div class="stat-lbl">Taxa sucesso</div></div>
-          </div>
-          <!-- Log list -->
-          <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden">
-            <div id="log-list"><div style="padding:28px;text-align:center;color:var(--t3)"><span class="spin"></span></div></div>
-          </div>
-          <div id="log-more" style="margin-top:12px;text-align:center;display:none">
-            <button class="btn btn-secondary" onclick="loadMoreLogs()">Carregar mais</button>
-          </div>
-        </div>
-      </div>
+      <!-- v-logs removida -->
 
       <!-- ══ RANKING COMPETITIVO v14 ══ -->
       <div class="view gone" id="v-ranking">
@@ -2190,24 +2098,45 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 
       <!-- ══ PROFILE ══ -->
       <div class="view gone" id="v-profile" style="display:flex;flex-direction:column;overflow:hidden">
-        <!-- ── Subtabs ── -->
-        <div style="background:var(--surface);border-bottom:1.5px solid var(--border);display:flex;flex-shrink:0">
-          <button class="stab active" id="ptab-me"       onclick="switchProfileTab('me')"       style="flex:1;font-size:13px;padding:10px 6px;justify-content:center"><i class="ti ti-user" style="font-size:15px"></i><br><span style="font-size:10px">Eu</span></button>
-
-          <button class="stab"        id="ptab-profiles" onclick="switchProfileTab('profiles')" style="flex:1;font-size:13px;padding:10px 6px;justify-content:center;position:relative"><i class="ti ti-user-circle" style="font-size:15px"></i><br><span style="font-size:10px">E-mail</span><span id="ptab-profiles-cnt" style="position:absolute;top:6px;right:8px;background:var(--blue);color:#fff;border-radius:20px;font-size:9px;font-weight:800;padding:1px 5px;display:none"></span></button>
-          <button class="stab"        id="ptab-stats"    onclick="switchProfileTab('stats')"    style="flex:1;font-size:13px;padding:10px 6px;justify-content:center"><i class="ti ti-chart-bar" style="font-size:15px"></i><br><span style="font-size:10px">Stats</span></button>
+        <!-- Cabeçalho simples sem abas -->
+        <div style="background:linear-gradient(135deg,#1e1b4b,#1a56db);color:#fff;padding:14px 16px 12px;flex-shrink:0;display:flex;align-items:center;gap:10px">
+          <div id="pav" style="width:42px;height:42px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,.3);background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0">?</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:16px;font-weight:800" id="p-name">–</div>
+            <div style="font-size:12px;opacity:.75" id="p-email">–</div>
+          </div>
+          <div id="p-plan-badge"></div>
         </div>
         <div id="profile-tab-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
 
           <!-- ══ TAB: EU ══ -->
           <div id="ptab-content-me" style="padding:14px 16px">
-            <div class="prof-hdr">
-              <div id="pav" style="width:50px;height:50px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.3);margin-bottom:8px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff">?</div>
-              <div style="font-size:18px;font-weight:800" id="p-name">–</div>
-              <div style="font-size:13px;opacity:.75" id="p-email">–</div>
-              <div id="p-plan-badge" style="margin-top:4px"></div>
+
+            <!-- ══ DESTAQUE: PERFIS DE ENVIO (a coisa mais importante) ══ -->
+            <div style="background:linear-gradient(135deg,#f0f4ff,#e8ecff);border:2px solid rgba(99,102,241,.3);border-radius:16px;padding:16px;margin-bottom:16px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <i class="ti ti-user-circle" style="font-size:20px;color:#fff"></i>
+                </div>
+                <div>
+                  <div style="font-size:15px;font-weight:800;color:#1e1b4b">Perfil de Envio e Currículo</div>
+                  <div style="font-size:11px;color:#4c4f82">Obrigatório para enviar candidaturas</div>
+                </div>
+              </div>
+              <div id="profile-list-mini" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+                <div style="background:#fff;border:1.5px dashed rgba(99,102,241,.4);border-radius:10px;padding:12px;text-align:center;color:#7c7fb5;font-size:13px">
+                  <i class="ti ti-user-circle" style="font-size:24px;display:block;margin-bottom:4px;opacity:.4"></i>
+                  Nenhum perfil criado ainda
+                </div>
+              </div>
+              <button class="btn btn-primary w100" style="font-size:15px;padding:13px" onclick="openProfileEditor()">
+                <i class="ti ti-plus"></i> ➕ Criar Meu Perfil de Envio
+              </button>
+              <div id="profile-list" style="display:none;flex-direction:column;gap:10px;margin-top:10px"></div>
             </div>
-            <div style="height:12px"></div>
+
+
+
             <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-bottom:12px">
               <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px">Dados pessoais</div>
               <div class="field-row">
@@ -2254,7 +2183,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           </div>
 
                     <!-- ══ TAB: PERFIS DE EMAIL ══ -->
-          <div id="ptab-content-profiles" style="padding:14px 16px;display:none">
+          <div id="ptab-content-profiles" style="padding:14px 16px;display:none;position:absolute;left:-9999px">
             <div style="font-size:16px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px"><i class="ti ti-user-circle" style="color:var(--purple)"></i> Perfis de E-mail</div>
             <div style="font-size:12px;color:var(--t2);margin-bottom:14px;line-height:1.5">Cada perfil define o assunto, o corpo do e-mail e o currículo a usar. O sistema escolhe o perfil certo para cada vaga automaticamente.</div>
             <button class="btn btn-primary w100" style="margin-bottom:12px" onclick="openProfileEditor()">
@@ -3058,20 +2987,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       </div></div>
 
       <!-- ══ v16: NOTIFICAÇÕES ══ -->
-      <div class="view gone" id="v-notificacoes"><div class="view-scroll" style="padding:0 0 80px">
-        <div style="background:linear-gradient(135deg,#3b0764,#4c1d95,#6d28d9);color:#fff;padding:16px;margin-bottom:0">
-          <div style="font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px"><i class="ti ti-bell"></i> Notificações</div>
-          <div style="font-size:12px;opacity:.8;margin-top:3px">Avisos e atualizações do sistema</div>
-          <!-- Tabs: Não lidas / Todas -->
-          <div style="display:flex;gap:6px;margin-top:12px">
-            <button id="notif-tab-unread" onclick="setNotifTab('unread')" style="background:rgba(255,255,255,.25);color:#fff;border:none;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Não lidas</button>
-            <button id="notif-tab-all" onclick="setNotifTab('all')" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border:none;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Todas</button>
-          </div>
-        </div>
-        <div id="notif-history-list" style="padding:16px;display:flex;flex-direction:column;gap:10px">
-          <div style="text-align:center;color:var(--t3);font-size:12px;padding:30px">Carregando...</div>
-        </div>
-      </div></div>
+      <!-- v-notificacoes removida -->
 
       <!-- ══ IA CHAT (Gemini) ══ -->
       <div class="view gone" id="v-iaChat" style="display:flex;flex-direction:column;overflow:hidden">
@@ -3235,7 +3151,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     </button>
     <button class="bn" id="bn-profile" onclick="sv('profile')" style="position:relative">
       <i class="ti ti-user-circle"></i>
-      <span>Meu Perfil</span>
+      <span>Perfil</span>
       <span id="bnd-profile-alert" class="bn-dot" style="display:none;background:var(--amber)"></span>
     </button>
   </nav>
@@ -3823,7 +3739,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <div style="font-size:9px;font-weight:800;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;padding:8px 4px 4px">Navegação</div>
     <button class="d-item" onclick="closeDrawer();sv('home')"><i class="ti ti-home-2"></i>Início</button>
     <button class="d-item" onclick="closeDrawer();sv('jobs')"><i class="ti ti-briefcase"></i>Vagas H-2B/H-2A</button>
-    <button class="d-item" onclick="closeDrawer();sv('pesquisa')"><i class="ti ti-search"></i>Pesquisar Vagas</button>
+
     <button class="d-item" onclick="closeDrawer();sv('respostas')" style="color:var(--green);font-weight:700"><i class="ti ti-mail-opened" style="color:var(--green)"></i>Respostas</button>
     <button class="d-item" onclick="closeDrawer();sv('ranking')" style="color:#b45309;font-weight:700"><i class="ti ti-trophy" style="color:#f59e0b"></i>Ranking</button>
     <button class="d-item" onclick="closeDrawer();sv('hist')"><i class="ti ti-send"></i>Candidaturas Enviadas</button>
@@ -3832,7 +3748,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <div style="font-size:9px;font-weight:800;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;padding:8px 4px 4px">Conta</div>
     <button class="d-item" onclick="closeDrawer();sv('profile')"><i class="ti ti-user"></i>Perfil</button>
     <button class="d-item" onclick="closeDrawer();sv('plans')" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.07));border:1.5px solid rgba(99,102,241,.25);font-weight:800;color:#4f46e5;border-radius:var(--r)"><i class="ti ti-diamond" style="font-size:16px;color:#4f46e5"></i>Planos & Recompensas</button>
-    <button class="d-item" onclick="closeDrawer();sv('logs')" style="color:var(--t3);font-size:13px"><i class="ti ti-list-details"></i>Logs Automático</button>
+
     <div id="d-admin" style="display:none"><button class="d-item" onclick="location.href='/admin'"><i class="ti ti-shield"></i>Painel Admin</button></div>
     <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px">
       <button class="d-item" onclick="doLogout()" style="color:var(--red)"><i class="ti ti-logout"></i>Sair</button>
@@ -10666,6 +10582,46 @@ function _showWelcome(){
 }
 </script>
 
+
+<script>
+// Sincroniza lista de perfis mini no topo do Perfil
+(function(){
+  var _origRenderProfiles = window.renderProfiles;
+  window.renderProfiles = function(){
+    if(typeof _origRenderProfiles === 'function') _origRenderProfiles();
+    // Atualiza mini lista e botão
+    var mini = document.getElementById('profile-list-mini');
+    var mainList = document.getElementById('profile-list');
+    var createBtn = document.querySelector('#ptab-content-me .btn-primary');
+    if(!mini) return;
+    var profiles = (window.UPROFILES||[]).filter(function(p){return p.active!==false;});
+    if(profiles.length === 0){
+      mini.style.display = 'flex';
+      mainList && (mainList.style.display = 'none');
+      mini.innerHTML = '<div style="background:#fff;border:1.5px dashed rgba(99,102,241,.4);border-radius:10px;padding:12px;text-align:center;color:#7c7fb5;font-size:13px"><i class="ti ti-user-circle" style="font-size:24px;display:block;margin-bottom:4px;opacity:.4"></i>Nenhum perfil criado ainda</div>';
+      if(createBtn) createBtn.style.display = '';
+    } else {
+      mini.style.display = 'none';
+      if(mainList){
+        mainList.style.display = 'flex';
+        // Copiar conteúdo da lista real para a lista visível
+        mainList.innerHTML = profiles.slice(0,3).map(function(p){
+          var hasPdf = !!(p.pdfName || p.resumeIdx != null);
+          return '<div style="background:#fff;border:1.5px solid rgba(99,102,241,.2);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px">'
+            + '<div style="width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(124,58,237,.1));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">'+(p.icon||'📝')+'</div>'
+            + '<div style="flex:1;min-width:0">'
+            + '<div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+p.name+'</div>'
+            + '<div style="font-size:11px;color:var(--t3);margin-top:2px">'+(hasPdf?'✅ Com currículo':'⚠️ Sem currículo')+'</div>'
+            + '</div>'
+            + '<button onclick="openProfileEditor(''+p.id+'')" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--t2)"><i class="ti ti-edit" style="font-size:12px"></i> Editar</button>'
+            + '</div>';
+        }).join('') + (profiles.length > 3 ? '<div style="font-size:11px;color:var(--t3);text-align:center;padding:4px">+' + (profiles.length-3) + ' perfis</div>' : '');
+      }
+      if(createBtn) createBtn.innerHTML = '<i class="ti ti-plus"></i> ➕ Adicionar Perfil';
+    }
+  };
+})();
+</script>
 </body>
 <script>
 // ════════════════════════════════════════════════════
