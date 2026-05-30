@@ -5409,6 +5409,9 @@ function updDocBadge(){const n=DOCS.length;const b=g("#sib-docs");if(b){b.style.
 function loadProfile(){
   g("#cfg-name").value=CFG.name||U.name||"";g("#cfg-country").value=CFG.country||"Brazil";g("#cfg-phone").value=CFG.phone||"";g("#cfg-city").value=CFG.city||"";g("#cfg-lang").value=CFG.language||"pt-BR";
   g("#p-name").textContent=U.name;g("#p-email").textContent=U.email;
+  // Atualiza mini-lista de perfis imediatamente com UPROFILES já em memória
+  // (loadTplView vai atualizar novamente após o fetch completar)
+  if(typeof renderProfiles === 'function') renderProfiles();
   const pav=g("#pav");if(pav){if(U.picture){pav.innerHTML=`<img src="${esc(U.picture)}" style="width:100%;height:100%;object-fit:cover">`;pav.style.cssText="width:50px;height:50px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.3);margin-bottom:8px";}else{pav.textContent=(U.name||"?")[0].toUpperCase();}}
   const ppb=g("#p-plan-badge");if(ppb)ppb.innerHTML=planBadgeHTML();
 }
@@ -8526,6 +8529,8 @@ async function openAutoModal(){
   const ov=g("#auto-modal-overlay");if(!ov)return;
   ov.style.display="block";
   document.body.style.overflow="hidden";
+  // Inicializa estado do wizard para H-2B (padrão) ao abrir
+  if(typeof setAutoVisa==="function") setAutoVisa('h2b');
   setTimeout(()=>{
     if(typeof loadAutoView==="function")loadAutoView();
     else if(typeof _renderAutoProfilesPanel==="function")_renderAutoProfilesPanel();
@@ -11492,6 +11497,9 @@ function switchProfileTab(tab){
     _updateProfileTabCount();
   } else if(tab==="stats"){
     renderStatsTab();
+  } else if(tab==="me"){
+    // Atualiza mini-lista de perfis na aba "EU" sempre que ela é aberta
+    if(typeof renderProfiles === 'function') renderProfiles();
   }
 }
 
