@@ -1878,6 +1878,7 @@ async function _doAutoSendInner(email) {
         category:  target.category,
         state:     target.state,
         source:    job.source,
+        sheetSource: job.source || undefined,
         profileUsed: selectedProfile?.name || null,
       };
       addHist(email, histEntry);
@@ -3120,9 +3121,10 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
   if(pathname==="/api/sent-ids"&&req.method==="GET"){
     const s2=getSess(req);if(!s2?.user_email)return json(res,401,{error:"Não autenticado."});
     const hist=getHist(s2.user_email);
-    const sentJan=new Set(),sentJul=new Set(),sentSeasonal=new Set();
+    const sentJan=new Set(),sentJul=new Set(),sentH2A=new Set(),sentSeasonal=new Set();
     hist.forEach(h=>{
       if(h.sheetSource==="jan2026"&&h.caseNum) sentJan.add(h.caseNum);
+      else if(h.sheetSource==="h2a"&&h.caseNum) sentH2A.add(h.caseNum);
       else if(h.sheetSource==="jul2025"&&h.caseNum) sentJul.add(h.caseNum);
       else if(h.jobId) sentSeasonal.add(h.jobId);
     });
@@ -3140,6 +3142,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       // Detecta de qual planilha a vaga veio pelo prefixo do case number
       const src = autoJob.source || "";
       if(src==="jan2026" || (q.caseNum||"").startsWith("H-4")) sentJan.add(id);
+      else if(src==="h2a") sentH2A.add(id);
       else if(src==="jul2025" || (q.caseNum||"").startsWith("H-3")) sentJul.add(id);
       else sentSeasonal.add(id);
     });
@@ -3147,6 +3150,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     return json(res,200,{
       jan2026:[...sentJan],
       jul2025:[...sentJul],
+      h2a:[...sentH2A],
       seasonal:[...sentSeasonal],
       autoQueueIds,
       autoQueueSize: autoQueue.length,

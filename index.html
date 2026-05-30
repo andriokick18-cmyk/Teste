@@ -2335,7 +2335,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <button class="btn btn-primary w100" style="font-size:15px;padding:13px" onclick="openProfileEditor()">
                 <i class="ti ti-plus"></i> ➕ Criar Meu Perfil de Envio
               </button>
-              <div id="profile-list" style="display:none;flex-direction:column;gap:10px;margin-top:10px"></div>
+              <div id="auto-profile-list" style="display:none;flex-direction:column;gap:10px;margin-top:10px"></div>
             </div>
 
 
@@ -7388,7 +7388,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
     try {
       const sentResp = await fetch("/api/sent-ids", {credentials:"include"});
       const sentData = await sentResp.json();
-      const srcSent = autoSelectedSrc==="jan2026" ? (sentData.jan2026||[]) : (sentData.jul2025||[]);
+      const srcSent = autoSelectedSrc==="jan2026" ? (sentData.jan2026||[]) : autoSelectedSrc==="h2a" ? (sentData.h2a||sentData.jul2025||[]) : (sentData.jul2025||[]);
       srcSent.forEach(id => sentCaseIds.add(id));
       // Também exclui o que está atualmente na fila do automático
       (sentData.autoQueueIds||[]).forEach(id => sentCaseIds.add(id));
@@ -11278,7 +11278,7 @@ function _showWelcome(){
     if(typeof _origRenderProfiles === 'function') _origRenderProfiles();
     // Atualiza mini lista e botão
     var mini = document.getElementById('profile-list-mini');
-    var mainList = document.getElementById('profile-list');
+    var mainList = document.getElementById('auto-profile-list');
     var createBtn = document.querySelector('#ptab-content-me .btn-primary');
     if(!mini) return;
     var profiles = (window.UPROFILES||[]).filter(function(p){return p.active!==false;});
