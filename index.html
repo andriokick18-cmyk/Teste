@@ -73,6 +73,141 @@ a{color:inherit;text-decoration:none}
   --usa-bg:none;
 }
 
+/* ══════════════════════════════════════════════
+   DARK MODE — sobrescreve variáveis do :root
+   Ativado via html.dark  (classe no <html>)
+   ══════════════════════════════════════════════ */
+html.dark{
+  --bg:#0f1117;
+  --surface:#1a1d27;
+  --sf:#1a1d27;
+  --sf2:#22263a;
+  --sf3:#2a2f47;
+  --sf4:#323755;
+  --border:rgba(139,92,246,0.14);
+  --border2:rgba(139,92,246,0.26);
+  --text:#e8eaf6;
+  --t2:#9fa3cc;
+  --t3:#6b6f9a;
+  --t4:#4a4d72;
+  --bluel:rgba(59,130,246,.18);
+  --blueb:rgba(59,130,246,.38);
+  --greenl:rgba(16,185,129,.16);
+  --greenb:rgba(16,185,129,.35);
+  --redl:rgba(239,68,68,.16);
+  --redb:rgba(239,68,68,.35);
+  --amberl:rgba(245,158,11,.16);
+  --amberb:rgba(245,158,11,.35);
+  --purplel:rgba(139,92,246,.18);
+  --purpleb:rgba(139,92,246,.38);
+  --shadow:0 2px 12px rgba(0,0,0,.6);
+  --shadowm:0 8px 32px rgba(0,0,0,.7);
+  --shadowl:0 24px 80px rgba(0,0,0,.85);
+}
+/* Transição suave em todas as trocas de tema */
+html,body,
+.modal,.overlay,.bottom-nav,.sidebar,
+.jcard,.jdetail,.hcard,.stat-box,.wizard-step,
+.log-entry,.auto-dash-box,.view,.search-bar,
+.stabs,.input,.fsel,.btn-secondary,
+.doc-drop,.doc-item,.cv-slot,.tpl-card,.profile-card{
+  transition:background-color .25s,border-color .25s,color .25s,box-shadow .25s;
+}
+/* Dark: body e app background */
+html.dark body{background:var(--bg);color:var(--text)}
+html.dark #app{background:var(--bg)}
+html.dark #app::before{
+  background:
+    radial-gradient(ellipse 900px 600px at 15% 30%, rgba(99,102,241,.04) 0%, transparent 70%),
+    radial-gradient(ellipse 700px 500px at 85% 70%, rgba(139,92,246,.03) 0%, transparent 70%),
+    radial-gradient(ellipse 500px 400px at 50% 0%, rgba(59,130,246,.02) 0%, transparent 60%);
+}
+/* Dark: bottom nav */
+html.dark .bottom-nav{background:var(--surface);border-top:1px solid var(--border);box-shadow:0 -4px 24px rgba(0,0,0,.4)}
+html.dark .bn i,html.dark .bn span{color:var(--t3)}
+html.dark .bn.active i,html.dark .bn.active span{color:var(--blue)}
+/* Dark: sidebar desktop */
+html.dark .sidebar{background:var(--surface)!important;border-right:1px solid var(--border)!important}
+html.dark .sb-item{color:var(--t2)}
+html.dark .sb-item:hover,html.dark .sb-item.active{background:var(--sf3);color:var(--text)}
+/* Dark: inputs e forms */
+html.dark .input,html.dark .search-inp,html.dark .fsel,html.dark .logs-search{
+  background:var(--sf2);border-color:var(--border2);color:var(--text)
+}
+html.dark .input:focus,html.dark .search-inp:focus{background:var(--sf3);border-color:var(--blue)}
+html.dark .input::placeholder,html.dark .search-inp::placeholder{color:var(--t4)}
+/* Dark: cards e superfícies */
+html.dark .jcard{background:var(--surface);border-bottom-color:var(--border)}
+html.dark .jcard:hover{background:var(--sf2)}
+html.dark .jcard.active{background:var(--sf3)}
+html.dark .jcard-title{color:var(--text)}
+html.dark .jcard-co{color:var(--t2)}
+html.dark .jcard-cat-badge{background:var(--sf3);color:var(--blue);border-color:var(--border2)}
+html.dark .info-box{background:var(--sf2);border-color:var(--border)}
+html.dark .info-val{color:var(--text)}
+html.dark .jd-title{color:var(--text)}
+html.dark .jd-co{color:var(--t2)}
+html.dark .jd-desc{color:var(--t2)}
+/* Dark: modal */
+html.dark .modal{background:var(--surface)}
+html.dark .mhdr{border-bottom-color:var(--border)}
+html.dark .mfoot{border-top-color:var(--border)}
+html.dark .mttl{color:var(--text)}
+html.dark .mhandle{background:var(--border2)}
+html.dark .mx{color:var(--t3)}
+html.dark .mx:hover{background:var(--sf3);color:var(--text)}
+/* Dark: stat boxes, wizard, logs */
+html.dark .stat-box,html.dark .auto-dash-box,html.dark .hcard,html.dark .wizard-step{
+  background:var(--surface);border-color:var(--border)
+}
+html.dark .log-entry{background:var(--surface);border-bottom-color:var(--border)}
+html.dark .log-entry:hover{background:var(--sf2)}
+html.dark .log-company{color:var(--text)}
+html.dark .log-meta,html.dark .log-date{color:var(--t3)}
+/* Dark: alerts */
+html.dark .al-blue{background:rgba(59,130,246,.12);color:#93c5fd;border-color:rgba(59,130,246,.3)}
+html.dark .al-green{background:rgba(16,185,129,.12);color:#6ee7b7;border-color:rgba(16,185,129,.3)}
+html.dark .al-amber{background:rgba(245,158,11,.12);color:#fcd34d;border-color:rgba(245,158,11,.3)}
+html.dark .al-red{background:rgba(239,68,68,.12);color:#fca5a5;border-color:rgba(239,68,68,.3)}
+html.dark .al-purple{background:rgba(139,92,246,.12);color:#c4b5fd;border-color:rgba(139,92,246,.3)}
+/* Dark: stabs */
+html.dark .stabs{background:var(--surface);border-bottom-color:var(--border)}
+html.dark .stab{color:var(--t2)}
+html.dark .stab:hover{color:var(--text)}
+html.dark .stab.active{color:var(--blue);border-bottom-color:var(--blue)}
+html.dark .stab-cnt{background:var(--sf3);color:var(--t3);border-color:var(--border)}
+html.dark .stab.active .stab-cnt{background:var(--bluel);color:var(--blue);border-color:var(--blueb)}
+/* Dark: search bar */
+html.dark .search-bar{background:var(--surface);border-bottom-color:var(--border)}
+/* Dark: filter buttons */
+html.dark .fbtn,html.dark .fsel,html.dark .cat-chip{background:var(--sf2);border-color:var(--border2);color:var(--t2)}
+html.dark .fbtn:hover{background:var(--sf3)}
+html.dark .fbtn.on{background:var(--bluel);color:var(--blue);border-color:var(--blueb)}
+/* Dark: doc items, cv slots */
+html.dark .doc-drop{background:var(--sf2);border-color:var(--border2)}
+html.dark .doc-item{background:var(--sf2);border-color:var(--border)}
+html.dark .cv-slot{background:var(--sf2);border-color:var(--border)}
+html.dark .cv-slot:hover{border-color:var(--blue)}
+html.dark .cv-slot.sel{background:var(--bluel);border-color:var(--blue)}
+/* Dark: tpl cards, profile cards */
+html.dark .tpl-card,.html.dark .profile-card{background:var(--sf);border-color:var(--border)}
+html.dark .tpl-card:hover,html.dark .tpl-card.sel,html.dark .profile-card:hover,html.dark .profile-card.actprof{
+  background:var(--sf3);border-color:var(--blue)
+}
+/* Dark: next job card, auto status banner */
+html.dark .next-job-card{background:var(--surface);border-color:var(--purpleb)}
+html.dark .asb-paused{background:var(--sf3);color:var(--t2);border-color:var(--border2)}
+html.dark .auto-prog-bg{background:var(--sf3)}
+/* Dark: skeleton shimmer */
+html.dark .skel{background:linear-gradient(90deg,var(--sf3) 25%,var(--sf2) 50%,var(--sf3) 75%);background-size:200% 100%}
+/* Dark: toggle button visual */
+.dm-toggle{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--sf2);border:1.5px solid var(--border);border-radius:12px;cursor:pointer;transition:all .18s;user-select:none}
+.dm-toggle:hover{border-color:var(--purple)}
+.dm-track{width:44px;height:24px;background:var(--sf4);border-radius:12px;position:relative;transition:background .25s;flex-shrink:0}
+html.dark .dm-track{background:var(--purple)}
+.dm-thumb{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .25s;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+html.dark .dm-thumb{transform:translateX(20px)}
+
 /* ══ USA THEMED BACKGROUND ══ */
 .usa-bg{position:relative}
 .usa-bg::before{
@@ -1546,6 +1681,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <button onclick="setAppLang('es')" class="lang-opt" data-lang="es">🇲🇽 Español</button>
       </div>
       <div class="lchip lc-ok" id="hdr-lim" onclick="sv('plans')" style="cursor:pointer"></div>
+      <button id="hdr-dm-btn" onclick="toggleDarkMode()" title="Alternar dark mode" style="background:var(--sf2);border:1.5px solid var(--border);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;flex-shrink:0;transition:all .18s" aria-label="Dark mode"><span id="hdr-dm-icon">☀️</span></button>
       <div class="av-btn" id="hdr-av" onclick="openDrawer()" title="Menu completo">?</div>
     </div>
   </div>
@@ -1732,6 +1868,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <button class="stab active" id="stab-seasonal" onclick="setTab('seasonal')"><i class="ti ti-globe"></i>Vagas ao Vivo (DOL)<span class="stab-cnt" id="sc-seasonal" style="display:none"></span></button>
           <button class="stab stab-sheet-jan" id="stab-jan2026" onclick="setTab('jan2026')" style="margin-top:8px"><i class="ti ti-sun" style="color:#f59e0b"></i><strong>H-2B — Jan 2026</strong><span class="stab-cnt" id="sc-jan">–</span></button>
           <button class="stab stab-sheet-jul" id="stab-jul2025" onclick="setTab('jul2025')" style="margin-top:8px"><i class="ti ti-snowflake" style="color:#3b82f6"></i><strong>H-2A — Jul 2025</strong><span class="stab-cnt" id="sc-jul">–</span></button>
+          <button class="stab stab-sheet-h2a" id="stab-h2a" onclick="setTab('h2a')" style="margin-top:8px;background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(5,150,105,.05));border-color:rgba(16,185,129,.3)"><i class="ti ti-plant-2" style="color:#059669"></i><strong style="color:#047857">🌾 H-2A 2025/2026</strong><span class="stab-cnt" id="sc-h2a">–</span></button>
         </div>
         <div class="search-bar">
           <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="Cargo, empresa, estado..." oninput="onSearch()" autocomplete="off" inputmode="search"></div>
@@ -1862,12 +1999,63 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <i class="ti ti-info-circle" style="font-size:15px;flex-shrink:0;margin-top:1px"></i>
           <span>Toque em qualquer candidatura para ver detalhes, <strong>reenviar</strong> ou <strong>excluir individualmente</strong>. O botão <strong>Reset</strong> apaga tudo e faz as vagas voltarem para a lista (útil para recandidatar-se).</span>
         </div>
-        <div style="position:relative;margin-bottom:12px">
+        <div style="position:relative;margin-bottom:8px">
           <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:15px;pointer-events:none"></i>
-          <input class="input" id="hist-search" type="text" placeholder="Buscar empresa, cargo ou e-mail..." oninput="renderHist()" style="padding-left:33px;font-size:13px">
+          <input class="input" id="hist-search" type="text" placeholder="Buscar empresa, cargo ou e-mail..." oninput="histResetPage();renderHist()" style="padding-left:33px;font-size:13px">
+        </div>
+        <!-- Filtro de status -->
+        <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+          <button class="fbtn on" id="hst-all"    onclick="setHistStatus('all')">Todos</button>
+          <button class="fbtn"    id="hst-auto"   onclick="setHistStatus('auto')">🤖 Auto</button>
+          <button class="fbtn"    id="hst-manual" onclick="setHistStatus('manual')">✋ Manual</button>
+          <button class="fbtn"    id="hst-recent" onclick="setHistStatus('recent')">📅 7 dias</button>
         </div>
         <div id="hist-summary" style="font-size:12px;color:var(--t3);margin-bottom:10px"></div>
+
+        <!-- ══ PAINEL TAXA DE RESPOSTA ══ -->
+        <div id="resp-rate-panel" style="display:none;margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:13px;font-weight:800;color:var(--text)">📊 Taxa de Resposta por Categoria</div>
+            <button onclick="toggleRespPanel()" style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--blue);font-weight:700;padding:4px 8px;border-radius:6px;background:var(--bluel)">Ocultar</button>
+          </div>
+          <!-- Resumo geral -->
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
+            <div style="background:var(--greenl);border:1.5px solid var(--greenb);border-radius:var(--r);padding:10px;text-align:center">
+              <div style="font-size:20px;font-weight:800;color:var(--green)" id="rr-total-sent">–</div>
+              <div style="font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;margin-top:2px">Total Enviados</div>
+            </div>
+            <div style="background:var(--bluel);border:1.5px solid var(--blueb);border-radius:var(--r);padding:10px;text-align:center">
+              <div style="font-size:20px;font-weight:800;color:var(--blue)" id="rr-total-replies">–</div>
+              <div style="font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;margin-top:2px">Respostas</div>
+            </div>
+            <div style="background:var(--purplel);border:1.5px solid var(--purpleb);border-radius:var(--r);padding:10px;text-align:center">
+              <div style="font-size:20px;font-weight:800;color:var(--purple)" id="rr-global-rate">–</div>
+              <div style="font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;margin-top:2px">Taxa Global</div>
+            </div>
+          </div>
+          <!-- Barras por categoria -->
+          <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden">
+            <div id="rr-cat-bars" style="padding:4px 0"></div>
+          </div>
+          <!-- Filtro por período -->
+          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+            <button class="fbtn on" id="rr-p-all"  onclick="setRRPeriod('all')">Todo período</button>
+            <button class="fbtn"    id="rr-p-7"    onclick="setRRPeriod('7')">7 dias</button>
+            <button class="fbtn"    id="rr-p-30"   onclick="setRRPeriod('30')">30 dias</button>
+            <button class="fbtn"    id="rr-p-90"   onclick="setRRPeriod('90')">90 dias</button>
+          </div>
+        </div>
+        <!-- Botão para abrir o painel quando oculto -->
+        <div id="resp-rate-btn-row" style="margin-bottom:10px">
+          <button onclick="toggleRespPanel()" style="background:var(--bluel);border:1.5px solid var(--blueb);color:var(--blue);border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;width:100%;font-family:inherit">📊 Ver Taxa de Resposta por Categoria</button>
+        </div>
+
         <div id="hist-list"></div>
+        <div id="hist-pagination" style="padding:12px 0;display:none;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap">
+          <button id="hist-prev-btn" class="btn btn-secondary btn-sm" onclick="histPrevPage()" style="min-width:90px"><i class="ti ti-chevron-left"></i> Anterior</button>
+          <span id="hist-page-info" style="font-size:12px;color:var(--t2);font-weight:600;min-width:90px;text-align:center"></span>
+          <button id="hist-next-btn" class="btn btn-secondary btn-sm" onclick="histNextPage()">Próxima <i class="ti ti-chevron-right"></i></button>
+        </div>
       </div></div>
 
       <!-- ══ PESQUISAR VAGAS ══ -->
@@ -2112,6 +2300,21 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <!-- ══ TAB: EU ══ -->
           <div id="ptab-content-me" style="padding:14px 16px">
 
+            <!-- ══ DARK MODE TOGGLE ══ -->
+            <div style="margin-bottom:16px">
+              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">🎨 Aparência</div>
+              <div class="dm-toggle" onclick="toggleDarkMode()" id="dm-toggle-btn">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span id="dm-icon" style="font-size:20px">☀️</span>
+                  <div>
+                    <div style="font-size:14px;font-weight:700;color:var(--text)" id="dm-label">Modo Claro</div>
+                    <div style="font-size:11px;color:var(--t3)" id="dm-sub">Toque para ativar o modo escuro</div>
+                  </div>
+                </div>
+                <div class="dm-track"><div class="dm-thumb"></div></div>
+              </div>
+            </div>
+
             <!-- ══ DESTAQUE: PERFIS DE ENVIO (a coisa mais importante) ══ -->
             <div style="background:linear-gradient(135deg,#f0f4ff,#e8ecff);border:2px solid rgba(99,102,241,.3);border-radius:16px;padding:16px;margin-bottom:16px">
               <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
@@ -2253,6 +2456,15 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div class="auto-hero-title"><i class="ti ti-robot"></i> Envio Automático</div>
           <div class="auto-hero-sub">Configure uma vez. O sistema envia enquanto você trabalha.</div>
           <span class="auto-free-note"><i class="ti ti-gift"></i> 10 envios GRÁTIS/dia para todos!</span>
+          <!-- Seletor H-2B / H-2A -->
+          <div style="display:flex;gap:6px;margin-top:12px;background:rgba(255,255,255,.12);border-radius:10px;padding:3px" id="auto-visa-tabs">
+            <button id="auto-tab-h2b" onclick="setAutoVisa('h2b')" style="flex:1;padding:8px 6px;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;background:#fff;color:#4f46e5;transition:all .15s">
+              🔧 H-2B <span style="font-size:10px;font-weight:600;opacity:.7">não-agrícola</span>
+            </button>
+            <button id="auto-tab-h2a" onclick="setAutoVisa('h2a')" style="flex:1;padding:8px 6px;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;background:transparent;color:rgba(255,255,255,.75);transition:all .15s">
+              🌾 H-2A <span style="font-size:10px;font-weight:600;opacity:.7">agrícola</span>
+            </button>
+          </div>
         </div>
         <div class="view-scroll" style="background:var(--bg)">
           <!-- PAINEL DE PERFIS — colapsável -->
@@ -2361,16 +2573,21 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                 <div class="wizard-step-n active" id="ws-n-1">1</div>
                 <div><div class="wizard-step-title">Escolha a fonte das vagas</div><div class="wizard-step-sub" id="ws-sub-1">Selecione de onde puxar as vagas</div></div>
               </div>
-              <div class="source-btns" id="source-btns">
+              <div class="source-btns" id="source-btns" style="grid-template-columns:repeat(3,1fr)">
                 <button class="source-btn" data-src="jan2026" onclick="selectSource('jan2026')">
                   <div class="source-btn-icon">☀️</div>
-                  <div class="source-btn-label"><strong>Jan 2026</strong> — Verão</div>
+                  <div class="source-btn-label"><strong>Jan 2026</strong></div>
                   <div class="source-btn-count" id="src-jan-cnt">–</div>
                 </button>
                 <button class="source-btn" data-src="jul2025" onclick="selectSource('jul2025')">
                   <div class="source-btn-icon">❄️</div>
-                  <div class="source-btn-label"><strong>Jul 2025</strong> — Inverno</div>
+                  <div class="source-btn-label"><strong>Jul 2025</strong></div>
                   <div class="source-btn-count" id="src-jul-cnt">–</div>
+                </button>
+                <button class="source-btn" data-src="h2a" id="src-btn-h2a" onclick="selectSource('h2a')" style="display:none">
+                  <div class="source-btn-icon">🌾</div>
+                  <div class="source-btn-label"><strong>H-2A</strong> Agrícola</div>
+                  <div class="source-btn-count" id="src-h2a-cnt">–</div>
                 </button>
               </div>
             </div>
@@ -2441,6 +2658,9 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                 <i class="ti ti-rocket" style="font-size:22px"></i>
                 <span>🤖 Começar Envio Automático</span>
               </button>
+              <button onclick="openEmailPreviewModal()" style="width:100%;margin-top:8px;padding:10px;border-radius:var(--r);font-size:13px;font-weight:700;background:var(--bluel);color:var(--blue);border:1.5px solid var(--blueb);cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">
+                <i class="ti ti-eye"></i> Pré-visualizar e-mail antes de enviar
+              </button>
             </div>
           </div>
         </div>
@@ -2463,11 +2683,17 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div class="mbody" style="padding:16px 16px 8px;overflow-y:auto;max-height:70dvh">
 
             <!-- Estatísticas -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
               <div style="background:var(--bluel);border:1.5px solid var(--blueb);border-radius:var(--r);padding:10px;text-align:center">
                 <div style="font-size:20px;font-weight:800;color:var(--blue)" id="pf-count">–</div>
                 <div style="font-size:10px;color:var(--t2);font-weight:600;margin-top:2px">vagas na fila</div>
               </div>
+              <div style="background:#fef2f2;border:1.5px solid #fca5a5;border-radius:var(--r);padding:10px;text-align:center">
+                <div style="font-size:20px;font-weight:800;color:#ef4444" id="pf-already-sent">–</div>
+                <div style="font-size:10px;color:var(--t2);font-weight:600;margin-top:2px">já enviadas antes</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
               <div style="background:var(--purplel);border:1.5px solid var(--purpleb);border-radius:var(--r);padding:10px;text-align:center">
                 <div style="font-size:20px;font-weight:800;color:var(--purple)" id="pf-duration">–</div>
                 <div style="font-size:10px;color:var(--t2);font-weight:600;margin-top:2px">tempo estimado</div>
@@ -2510,21 +2736,173 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <div><strong>✅ Funciona com app fechado!</strong> O envio roda no servidor Railway — feche o celular, desligue o Wi-Fi, não importa. Quando você voltar, os e-mails já foram enviados. <em>Só precisa estar logado uma vez.</em></div>
             </div>
 
-            <!-- Envio 24/7: sem janela de horario -->
-            <div style="background:var(--greenl);border:2px solid var(--green);border-radius:var(--r);padding:12px 14px;margin-bottom:14px">
-              <div style="font-weight:700;color:var(--green);font-size:13px">&#9654; Envio 24/7 — sem restrição de horário</div>
-              <div style="font-size:11px;color:var(--t2);margin-top:4px">Envia até atingir o limite diário, depois retoma automaticamente à meia-noite (Brasília). Nunca para.</div>
+            <!-- Agendamento por horário -->
+            <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:14px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <i class="ti ti-clock" style="font-size:16px;color:var(--blue)"></i>
+                <div style="font-size:13px;font-weight:700">🕐 Horário de Envio</div>
+              </div>
+              <!-- Opção 24/7 -->
+              <label style="display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;cursor:pointer;border:1.5px solid var(--border);margin-bottom:8px;transition:all .15s" id="pf-sched-247-row">
+                <input type="radio" name="pf-sched" value="247" id="pf-sched-247" checked onchange="pfOnSchedChange()" style="accent-color:var(--green);width:15px;height:15px;flex-shrink:0">
+                <div>
+                  <div style="font-size:12px;font-weight:700;color:var(--text)">🟢 Envio 24/7 contínuo</div>
+                  <div style="font-size:11px;color:var(--t2);margin-top:1px">Envia sem parar, retoma automaticamente à meia-noite (BRT)</div>
+                </div>
+              </label>
+              <!-- Opção com janela -->
+              <label style="display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;cursor:pointer;border:1.5px solid var(--border);margin-bottom:8px;transition:all .15s" id="pf-sched-win-row">
+                <input type="radio" name="pf-sched" value="window" id="pf-sched-win" onchange="pfOnSchedChange()" style="accent-color:var(--blue);width:15px;height:15px;flex-shrink:0">
+                <div style="flex:1">
+                  <div style="font-size:12px;font-weight:700;color:var(--text)">⏰ Janela de horário específica</div>
+                  <div style="font-size:11px;color:var(--t2);margin-top:1px">Envia apenas entre os horários que você escolher (horário de Brasília)</div>
+                </div>
+              </label>
+              <!-- Seletor de horário (aparece só quando "janela" está selecionado) -->
+              <div id="pf-sched-time-row" style="display:none;background:var(--sf2);border:1.5px solid var(--border2);border-radius:8px;padding:10px 12px;margin-top:4px">
+                <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:8px">🇧🇷 Horário de Brasília (BRT)</div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <label style="font-size:11px;font-weight:600;color:var(--t2);white-space:nowrap">Iniciar às</label>
+                    <select id="pf-sh" class="input" style="width:auto;padding:6px 10px;font-size:12px" onchange="pfUpdateSchedPreview()">
+                      <option value="0">00:00</option><option value="1">01:00</option><option value="2">02:00</option>
+                      <option value="3">03:00</option><option value="4">04:00</option><option value="5">05:00</option>
+                      <option value="6">06:00</option><option value="7">07:00</option><option value="8" selected>08:00</option>
+                      <option value="9">09:00</option><option value="10">10:00</option><option value="11">11:00</option>
+                      <option value="12">12:00</option><option value="13">13:00</option><option value="14">14:00</option>
+                      <option value="15">15:00</option><option value="16">16:00</option><option value="17">17:00</option>
+                      <option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option>
+                      <option value="21">21:00</option><option value="22">22:00</option><option value="23">23:00</option>
+                    </select>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <label style="font-size:11px;font-weight:600;color:var(--t2);white-space:nowrap">Parar às</label>
+                    <select id="pf-eh" class="input" style="width:auto;padding:6px 10px;font-size:12px" onchange="pfUpdateSchedPreview()">
+                      <option value="1">01:00</option><option value="2">02:00</option><option value="3">03:00</option>
+                      <option value="4">04:00</option><option value="5">05:00</option><option value="6">06:00</option>
+                      <option value="7">07:00</option><option value="8">08:00</option><option value="9">09:00</option>
+                      <option value="10">10:00</option><option value="11">11:00</option><option value="12">12:00</option>
+                      <option value="13">13:00</option><option value="14">14:00</option><option value="15">15:00</option>
+                      <option value="16">16:00</option><option value="17">17:00</option><option value="18">18:00</option>
+                      <option value="19">19:00</option><option value="20">20:00</option><option value="21">21:00</option>
+                      <option value="22">22:00</option><option value="23">23:00</option><option value="24">00:00 (meia-noite)</option>
+                    </select>
+                  </div>
+                </div>
+                <div id="pf-sched-preview" style="font-size:11px;margin-top:8px;padding:6px 10px;border-radius:6px;font-weight:600"></div>
+              </div>
             </div>
-            <input type="hidden" id="pf-sh" value="0">
-            <input type="hidden" id="pf-eh" value="24">
 
 
           </div>
           <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0">
             <button class="btn btn-secondary" style="flex:1" onclick="closePreflight()">Cancelar</button>
-            <button class="btn btn-auto" style="flex:2" onclick="confirmStartAuto()">
+            <button class="btn btn-auto" id="pf-confirm-btn" style="flex:2" onclick="confirmStartAuto()">
               <i class="ti ti-rocket"></i> Confirmar e Iniciar
             </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ MODAL PREVIEW DO E-MAIL ══ -->
+      <div class="overlay gone" id="email-preview-overlay" onclick="if(event.target===this)closeEmailPreview()">
+        <div class="modal" style="max-width:500px">
+          <div class="mhandle"></div>
+          <div class="mhdr">
+            <div>
+              <div style="font-size:16px;font-weight:800">👁️ Pré-visualização do E-mail</div>
+              <div style="font-size:12px;color:var(--t3);margin-top:2px">Exatamente como o empregador vai receber</div>
+            </div>
+            <button onclick="closeEmailPreview()" style="background:none;border:none;cursor:pointer;color:var(--t3);padding:4px"><i class="ti ti-x" style="font-size:18px"></i></button>
+          </div>
+          <div class="mbody" style="padding:0;overflow-y:auto;max-height:75dvh">
+            <!-- Perfil selector -->
+            <div style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--sf2)">
+              <label style="font-size:11px;font-weight:700;color:var(--t2);display:block;margin-bottom:5px">Perfil de envio</label>
+              <select id="ep-profile-sel" class="input" style="font-size:12px" onchange="renderEmailPreview()">
+              </select>
+            </div>
+            <!-- Vaga de exemplo -->
+            <div style="padding:10px 16px;border-bottom:1px solid var(--border);background:var(--sf2)">
+              <label style="font-size:11px;font-weight:700;color:var(--t2);display:block;margin-bottom:5px">Vaga de exemplo</label>
+              <div style="display:flex;gap:6px">
+                <input id="ep-ex-job" class="input" style="font-size:12px;flex:1" placeholder="ex: Landscaper" value="Landscaper" oninput="renderEmailPreview()">
+                <input id="ep-ex-company" class="input" style="font-size:12px;flex:1" placeholder="ex: Green Lawn Co" value="Green Lawn Co" oninput="renderEmailPreview()">
+              </div>
+            </div>
+            <!-- Preview do e-mail -->
+            <div style="padding:14px 16px">
+              <!-- De / Para -->
+              <div style="background:var(--sf2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px">
+                <div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:var(--t3);min-width:30px">De:</span><span id="ep-from" style="font-weight:600;color:var(--text)">–</span></div>
+                <div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:var(--t3);min-width:30px">Para:</span><span id="ep-to" style="font-weight:600;color:var(--blue)">hiring@employer.com</span></div>
+                <div style="display:flex;gap:6px"><span style="color:var(--t3);min-width:30px">Assunto:</span><span id="ep-subj" style="font-weight:700;color:var(--text)">–</span></div>
+              </div>
+              <!-- Corpo -->
+              <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px">
+                <pre id="ep-body" style="font-family:inherit;font-size:13px;white-space:pre-wrap;word-break:break-word;margin:0;color:#1f2937;line-height:1.6">–</pre>
+              </div>
+              <!-- Anexos -->
+              <div id="ep-attachments" style="display:none;background:var(--sf2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+                <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:6px">📎 Anexos</div>
+                <div id="ep-attach-list"></div>
+              </div>
+              <!-- Aviso variações -->
+              <div class="alert al-blue" style="margin-top:10px;font-size:11px">
+                <i class="ti ti-info-circle"></i>
+                <div>O sistema rotaciona entre variações de assunto e corpo. Esta é a <strong>Variação 1</strong> — o conteúdo pode variar a cada envio para evitar spam.</div>
+              </div>
+            </div>
+          </div>
+          <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0">
+            <button class="btn btn-secondary" style="flex:1" onclick="closeEmailPreview()">Fechar</button>
+            <button class="btn btn-primary" style="flex:2" onclick="closeEmailPreview();openPreflightModal()">
+              <i class="ti ti-rocket"></i> Confirmar e Iniciar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ MODAL VER E-MAIL ENVIADO ══ -->
+      <div class="overlay gone" id="sent-email-overlay" onclick="if(event.target===this)closeSentEmailModal()">
+        <div class="modal" style="max-width:500px">
+          <div class="mhandle"></div>
+          <div class="mhdr">
+            <div>
+              <div style="font-size:16px;font-weight:800">✅ E-mail Enviado</div>
+              <div style="font-size:12px;color:var(--t3);margin-top:2px" id="se-meta">–</div>
+            </div>
+            <button onclick="closeSentEmailModal()" style="background:none;border:none;cursor:pointer;color:var(--t3);padding:4px"><i class="ti ti-x" style="font-size:18px"></i></button>
+          </div>
+          <div class="mbody" style="padding:0;overflow-y:auto;max-height:75dvh">
+            <div style="padding:14px 16px">
+              <!-- De / Para / Assunto -->
+              <div style="background:var(--sf2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px">
+                <div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:var(--t3);min-width:60px">De:</span><span id="se-from" style="font-weight:600;color:var(--text)">–</span></div>
+                <div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:var(--t3);min-width:60px">Para:</span><span id="se-to" style="font-weight:600;color:var(--blue)">–</span></div>
+                <div style="display:flex;gap:6px;margin-bottom:4px"><span style="color:var(--t3);min-width:60px">Assunto:</span><span id="se-subj" style="font-weight:700;color:var(--text)">–</span></div>
+                <div style="display:flex;gap:6px"><span style="color:var(--t3);min-width:60px">Enviado em:</span><span id="se-date" style="color:var(--t2)">–</span></div>
+              </div>
+              <!-- Perfil usado -->
+              <div id="se-profile-row" style="display:none;margin-bottom:10px;font-size:12px">
+                <span style="color:var(--t3)">Perfil usado: </span>
+                <span id="se-profile" style="font-weight:700;color:var(--purple)">–</span>
+                <span style="color:var(--t3);margin-left:8px">Anexos: </span>
+                <span id="se-attach" style="font-weight:700;color:var(--text)">–</span>
+              </div>
+              <!-- Corpo reconstruído a partir do assunto -->
+              <div style="background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px">
+                <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:8px;text-transform:uppercase">Conteúdo do E-mail</div>
+                <div id="se-body-wrap">
+                  <div class="alert al-blue" style="font-size:11px"><i class="ti ti-info-circle"></i><div>O corpo completo não é armazenado por privacidade. Mas você pode ver o assunto usado e todas as informações do envio acima.</div></div>
+                </div>
+              </div>
+              <!-- Categoria e estado -->
+              <div style="display:flex;gap:6px;flex-wrap:wrap" id="se-tags"></div>
+            </div>
+          </div>
+          <div style="padding:12px 16px;border-top:1px solid var(--border)">
+            <button class="btn btn-secondary" style="width:100%" onclick="closeSentEmailModal()">Fechar</button>
           </div>
         </div>
       </div>
@@ -2535,18 +2913,58 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <!-- Card de status do plano ativo (só aparece se tiver plano) -->
         <div id="plan-status-card" style="display:none;margin-bottom:14px"></div>
 
+        <!-- Hero -->
         <div style="background:linear-gradient(160deg,#050d1f,#0f1e3d,#1e3a8a,#2563eb);color:#fff;border-radius:var(--rl);padding:22px;text-align:center;margin-bottom:16px">
-          <div style="font-size:36px;margin-bottom:6px">⭐</div>
+          <div style="font-size:36px;margin-bottom:6px">💎</div>
           <div style="font-size:20px;font-weight:800">Escolha seu Plano</div>
           <div style="font-size:13px;opacity:.75;margin-top:4px">Pague via Pix — ativo em até 24h</div>
         </div>
-        <div class="alert al-purple" style="margin-bottom:14px"><i class="ti ti-robot"></i><div><strong>Todos os planos incluem 10 envios automáticos GRÁTIS/dia!</strong></div></div>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-          <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><div><div style="font-weight:800">Free</div><div style="font-size:12px;color:var(--t2)">20 manual + <strong>10 auto</strong>/dia GRÁTIS</div></div><div style="font-weight:800;color:var(--t2)">R$ 0</div></div>
-          <div style="background:var(--surface);border:2px solid var(--blue);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><div><div style="font-weight:800">⭐ VIP Manual</div><div style="font-size:12px;color:var(--t2)">400 manual + 10 auto/dia</div></div><div style="font-weight:800;color:var(--blue)">R$ 99,90<span style="font-size:12px;font-weight:400;color:var(--t3)">/mês</span></div></div>
-          <div style="background:var(--purplel);border:1.5px solid var(--purpleb);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><div><div style="font-weight:800;color:var(--purple)">⭐ VIP</div><div style="font-size:12px;color:var(--purple)">400 manual + <strong>10 auto</strong>/dia</div></div><div style="font-weight:800;color:var(--purple)">R$ 99,90<span style="font-size:12px;font-weight:400;color:var(--t3)">/mês</span></div></div>
-          <div style="background:var(--bluel);border:1.5px solid var(--blueb);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><div><div style="font-weight:800;color:var(--blue)">💥 VIPro Completo</div><div style="font-size:12px;color:var(--blue)">300 manual + 200 auto/dia</div></div><div style="font-weight:800;color:var(--blue)">R$ 149,90<span style="font-size:12px;font-weight:400;color:var(--t3)">/mês</span></div></div>
+        <!-- Seletor de período com descontos -->
+        <div style="display:flex;gap:6px;margin-bottom:16px;background:var(--sf2);border-radius:12px;padding:4px">
+          <button class="period-btn" data-period="monthly" onclick="setPlanPeriod('monthly')" style="flex:1;padding:8px 4px;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.1)">Mensal</button>
+          <button class="period-btn" data-period="quarterly" onclick="setPlanPeriod('quarterly')" style="flex:1;padding:8px 4px;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:var(--t2)">Trimestral<br><span style="color:#059669;font-size:10px;font-weight:800">-10%</span></button>
+          <button class="period-btn" data-period="annual" onclick="setPlanPeriod('annual')" style="flex:1;padding:8px 4px;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:var(--t2)">Anual<br><span style="color:#059669;font-size:10px;font-weight:800">-20%</span></button>
         </div>
+        <!-- Cards dos planos -->
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
+          <!-- Free -->
+          <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:14px 16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+              <div><div style="font-weight:800">🆓 Free</div><div style="font-size:12px;color:var(--t2)">20 manuais + 10 automáticos/dia</div></div>
+              <div style="font-weight:800;color:var(--t2)">R$ 0</div>
+            </div>
+            <div style="font-size:11px;color:var(--t3);margin-top:4px">H-2B e H-2A disponíveis no automático</div>
+          </div>
+          <!-- VIP -->
+          <div style="background:var(--surface);border:2px solid #2563eb;border-radius:var(--rl);padding:14px 16px;cursor:pointer" onclick="selectPlanCard('vip')">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+              <div><div style="font-weight:800;color:#1d4ed8">⭐ VIP</div><div style="font-size:12px;color:#3b82f6">400 manuais/dia · sem automático</div><div style="font-size:11px;color:var(--t3)">Ideal para quem prefere candidatar manualmente</div></div>
+              <div style="text-align:right"><div style="font-weight:800;color:#1d4ed8;font-size:18px" id="price-vip">R$ 99,90</div><div style="font-size:11px;color:var(--t3)" id="psub-vip">/mês</div></div>
+            </div>
+          </div>
+          <!-- VIPro -->
+          <div style="background:var(--purplel);border:2px solid var(--purpleb);border-radius:var(--rl);padding:14px 16px;cursor:pointer;position:relative" onclick="selectPlanCard('vipro')">
+            <div style="position:absolute;top:-10px;right:14px;background:var(--purple);color:#fff;font-size:10px;font-weight:800;padding:3px 10px;border-radius:20px">MAIS POPULAR</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+              <div><div style="font-weight:800;color:var(--purple)">🤖 VIPro</div><div style="font-size:12px;color:var(--purple)">50 manuais + 200 auto/dia (pool H-2B+H-2A)</div></div>
+              <div style="text-align:right"><div style="font-weight:800;color:var(--purple);font-size:18px" id="price-vipro">R$ 149,90</div><div style="font-size:11px;color:var(--t3)" id="psub-vipro">/mês</div></div>
+            </div>
+          </div>
+          <!-- DoublePro -->
+          <div style="background:linear-gradient(135deg,rgba(234,179,8,.1),rgba(245,158,11,.06));border:2px solid #f59e0b;border-radius:var(--rl);padding:14px 16px;cursor:pointer;position:relative" onclick="selectPlanCard('doublepro')">
+            <div style="position:absolute;top:-10px;right:14px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:10px;font-weight:800;padding:3px 10px;border-radius:20px">🌾 H-2B + H-2A</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+              <div><div style="font-weight:800;color:#92400e">💥 DoublePro</div><div style="font-size:12px;color:#b45309">100 manuais + 400 auto/dia (pool H-2B+H-2A)</div><div style="font-size:11px;color:var(--t2);margin-top:2px">Use os 400 como quiser entre H-2B e H-2A</div></div>
+              <div style="text-align:right"><div style="font-weight:800;color:#92400e;font-size:18px" id="price-doublepro">R$ 249,90</div><div style="font-size:11px;color:var(--t3)" id="psub-doublepro">/mês</div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Pool info -->
+        <div style="background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.3);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:12px;color:#92400e;line-height:1.6">
+          <strong>💡 Pool de automáticos:</strong> VIPro (200/dia) e DoublePro (400/dia) são compartilhados entre H-2B e H-2A. Use 300 H-2B + 100 H-2A, ou 400 H-2A — como preferir.
+        </div>
+        <!-- Box economia -->
+        <div id="period-savings-box" style="display:none;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #86efac;border-radius:var(--r);padding:12px 14px;margin-bottom:14px;text-align:center;font-size:13px;font-weight:700;color:#14532d"></div>
         <div class="pix-box">
           <div style="font-size:13px;font-weight:700;color:#14532d;margin-bottom:10px"><i class="ti ti-qrcode"></i> Pagar via Pix</div>
           <div class="pix-code" onclick="copyPix()">00020126360014br.gov.bcb.pix0114+55539814534965204000053039865802BR5916ANDRIO KICKHOFEL6009Sao Paulo62290525REC6A01509D25E099580108226304BB33</div>
@@ -2558,7 +2976,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <div class="pix-step"><div class="pix-n">2</div><span>Envie comprovante + Gmail no WhatsApp: <a href="https://wa.me/5553981453496" target="_blank" style="color:var(--blue);font-weight:700">+55 53 98145-3496</a></span></div>
             <div class="pix-step"><div class="pix-n">3</div><span>Plano ativado em até 24h ✅</span></div>
           </div>
-          <a href="https://wa.me/5553981453496?text=Olá!%20Paguei%20o%20H2BApply.%20Gmail:%20" target="_blank" class="btn btn-primary w100" style="margin-top:12px;text-decoration:none"><i class="ti ti-brand-whatsapp"></i> Contratar pelo WhatsApp</a>
+          <a id="wa-plan-btn" href="https://wa.me/5553981453496?text=Olá!%20Quero%20o%20plano%20VIPro%20do%20H2BApply.%20Gmail:%20" target="_blank" class="btn btn-primary w100" style="margin-top:12px;text-decoration:none"><i class="ti ti-brand-whatsapp"></i> Contratar pelo WhatsApp</a>
         </div>
 
         <!-- ══ CALCULADORA DE ROI ══ -->
@@ -3864,6 +4282,57 @@ const LOG_PAGE=50;
 // ═══════════════════════════════════════════
 //  BOOT
 // ═══════════════════════════════════════════
+// ══════════════════════════════════════════════
+//  DARK MODE — Toggle + persistência
+// ══════════════════════════════════════════════
+(function initDarkMode(){
+  // Aplica tema salvo ANTES de qualquer render (evita flash)
+  try{
+    const saved = localStorage.getItem("h2b_theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if(saved === "dark" || (!saved && prefersDark)){
+      document.documentElement.classList.add("dark");
+    }
+  }catch{}
+  // Sincroniza ícone do header ao carregar
+  document.addEventListener("DOMContentLoaded",()=>{
+    const isDark=document.documentElement.classList.contains("dark");
+    const hdrIcon=document.getElementById("hdr-dm-icon");
+    const hdrBtn=document.getElementById("hdr-dm-btn");
+    if(hdrIcon)hdrIcon.textContent=isDark?"🌙":"☀️";
+    if(hdrBtn)hdrBtn.style.background=isDark?"var(--sf3)":"var(--sf2)";
+  });
+})();
+
+function _applyDarkUI(isDark){
+  const icon  = document.getElementById("dm-icon");
+  const label = document.getElementById("dm-label");
+  const sub   = document.getElementById("dm-sub");
+  if(icon)  icon.textContent  = isDark ? "🌙" : "☀️";
+  if(label) label.textContent = isDark ? "Modo Escuro" : "Modo Claro";
+  if(sub)   sub.textContent   = isDark ? "Toque para voltar ao modo claro" : "Toque para ativar o modo escuro";
+  // Sync header button
+  const hdrIcon = document.getElementById("hdr-dm-icon");
+  const hdrBtn  = document.getElementById("hdr-dm-btn");
+  if(hdrIcon) hdrIcon.textContent = isDark ? "🌙" : "☀️";
+  if(hdrBtn)  hdrBtn.style.background = isDark ? "var(--sf3)" : "var(--sf2)";
+  // Atualiza theme-color da PWA
+  const meta = document.querySelector("meta[name='theme-color']");
+  if(meta) meta.content = isDark ? "#0f1117" : "#4f46e5";
+}
+
+function toggleDarkMode(){
+  const isDark = document.documentElement.classList.toggle("dark");
+  try{ localStorage.setItem("h2b_theme", isDark ? "dark" : "light"); }catch{}
+  _applyDarkUI(isDark);
+}
+
+// Chama _applyDarkUI quando perfil é aberto para sincronizar o toggle visual
+function _syncDarkModeUI(){
+  const isDark = document.documentElement.classList.contains("dark");
+  _applyDarkUI(isDark);
+}
+
 addEventListener("DOMContentLoaded",async()=>{
   const ps=new URLSearchParams(location.search);
   const err=ps.get("err");
@@ -4064,7 +4533,7 @@ function sv(v,...args){
   if(v==="auto"){if(typeof openAutoModal==="function"){openAutoModal();return;}} _recheckSetupAfterSave();
   curView=v;
   VIEWS.forEach(id=>{const ve=g("#v-"+id);if(ve)ve.classList.toggle("gone",id!==v);const si=g("#si-"+id);if(si)si.classList.toggle("active",id===v);const bn=g("#bn-"+id);if(bn)bn.classList.toggle("active",id===v);});
-  if(v==="hist")renderHist();if(v==="saved")renderSaved();if(v==="profile"){loadProfile();loadTplView();setTimeout(()=>{_loadSoundPref();renderSoundSelector();},100);}
+  if(v==="hist")renderHist();if(v==="saved")renderSaved();if(v==="profile"){loadProfile();loadTplView();setTimeout(()=>{_loadSoundPref();renderSoundSelector();_syncDarkModeUI();},100);}
   if(v==="respostas"){loadInbox();setTimeout(()=>{_renderInboxNotifTabBtn();},100);}
   if(v==="auto"){loadAutoView();if(U.autoJob?.active)startAutoPolling();}
   if(v==="logs"){logSkip=0;logTotal=0;logDone=false;loadLogs();}
@@ -5967,14 +6436,36 @@ function openChangeLinkedJobModal(){
 function useMyTpl(){const b=g("#af-body");if(b){b.value=fill(CFG.body||DEFAULT_BODY,null);toast("Modelo aplicado ✓","g");}}
 
 // ═══════════════════════════════════════════
-//  HISTORY
+//  HISTORY — com paginação e filtros
 // ═══════════════════════════════════════════
-function setHistTab(t){histTab=t;["all","manual","auto"].forEach(k=>g("#ht-"+k)?.classList.toggle("on",k===t));renderHist();}
+const HIST_PAGE_SIZE = 50;
+let _histPage = 0;
+let _histStatus = 'all'; // 'all' | 'auto' | 'manual' | 'recent'
+let _histGroupOrder = []; // cache para paginação
+let _histGroupsCache = {}; // cache dos grupos filtrados
 
-function renderHist(){
+function setHistTab(t){histTab=t;["all","manual","auto"].forEach(k=>g("#ht-"+k)?.classList.toggle("on",k===t));histResetPage();renderHist();}
+function setHistStatus(s){_histStatus=s;["all","auto","manual","recent"].forEach(k=>g("#hst-"+k)?.classList.toggle("on",k===s));histResetPage();renderHist();}
+function histResetPage(){_histPage=0;}
+function histNextPage(){_histPage++;renderHist(true);}
+function histPrevPage(){_histPage=Math.max(0,_histPage-1);renderHist(true);}
+
+function renderHist(keepScroll=false){
   const el=g("#hist-list");if(!el)return;
   const q=(g("#hist-search")?.value||"").toLowerCase().trim();
-  let list=histTab==="manual"?HIST.filter(h=>h.type!=="auto"):histTab==="auto"?HIST.filter(h=>h.type==="auto"):HIST;
+  const now=Date.now();
+  const sevenDays=7*86400000;
+
+  // Aplica filtros sequencialmente
+  let list=HIST;
+  // histTab (aba Todas/Manual/Auto)
+  if(histTab==="manual")list=list.filter(h=>h.type!=="auto");
+  else if(histTab==="auto")list=list.filter(h=>h.type==="auto");
+  // filtro de status adicional
+  if(_histStatus==="auto")list=list.filter(h=>h.type==="auto");
+  else if(_histStatus==="manual")list=list.filter(h=>h.type!=="auto");
+  else if(_histStatus==="recent")list=list.filter(h=>{if(!h.ts&&!h.date)return false;const ts=h.ts||(h.date?new Date(h.date).getTime():0);return now-ts<=sevenDays;});
+  // busca textual
   if(q)list=list.filter(h=>(h.job||"").toLowerCase().includes(q)||(h.company||"").toLowerCase().includes(q)||(h.to||"").toLowerCase().includes(q));
 
   // Agrupar por jobId (ou fallback por empresa+titulo)
@@ -5984,13 +6475,20 @@ function renderHist(){
     if(!groups[key]){groups[key]={entries:[],jobId:h.jobId,job:h.job,company:h.company,to:h.to,type:h.type,state:h.state,wage:h.wage,visa:h.visa,city:h.city,start:h.start,end:h.end,workers:h.workers,desc:h.desc,email:h.email,caseNum:h.caseNum,soc:h.soc,url:h.url};groupOrder.push(key);}
     groups[key].entries.push(h);
   });
+  _histGroupOrder=groupOrder;_histGroupsCache=groups;
+
+  const totalGroups=groupOrder.length;
+  const totalPages=Math.max(1,Math.ceil(totalGroups/HIST_PAGE_SIZE));
+  if(_histPage>=totalPages)_histPage=Math.max(0,totalPages-1);
+  const start=_histPage*HIST_PAGE_SIZE;
+  const pageKeys=groupOrder.slice(start,start+HIST_PAGE_SIZE);
 
   const sumEl=g("#hist-summary");
-  if(sumEl)sumEl.textContent=`${groupOrder.length} empresa${groupOrder.length!==1?"s":""} · ${list.length} envio${list.length!==1?"s":""}`;
+  if(sumEl)sumEl.textContent=`${totalGroups} empresa${totalGroups!==1?"s":""} · ${list.length} envio${list.length!==1?"s":""}${totalGroups>HIST_PAGE_SIZE?" · página "+(_histPage+1)+"/"+totalPages:""}`;
 
-  if(!groupOrder.length){el.innerHTML='<div class="empty-state"><i class="ti ti-send"></i><div style="font-size:14px;font-weight:600;color:var(--t2)">Nenhuma candidatura ainda</div></div>';return;}
+  if(!totalGroups){el.innerHTML='<div class="empty-state"><i class="ti ti-send"></i><div style="font-size:14px;font-weight:600;color:var(--t2)">Nenhuma candidatura ainda</div></div>';_histRenderPagination(0,1);return;}
 
-  el.innerHTML=groupOrder.slice(0,300).map(key=>{
+  el.innerHTML=pageKeys.map(key=>{
     const g2=groups[key];
     const count=g2.entries.length;
     const lastDate=g2.entries[0]?.date||"";
@@ -6013,6 +6511,19 @@ function renderHist(){
       </div>
     </div>`;
   }).join("");
+
+  _histRenderPagination(_histPage,totalPages);
+  if(!keepScroll)el.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function _histRenderPagination(page,totalPages){
+  const pag=g("#hist-pagination");const prev=g("#hist-prev-btn");const next=g("#hist-next-btn");const info=g("#hist-page-info");
+  if(!pag)return;
+  if(totalPages<=1){pag.style.display="none";return;}
+  pag.style.display="flex";
+  if(prev)prev.disabled=page===0;
+  if(next)next.disabled=page>=totalPages-1;
+  if(info)info.textContent=`${page+1} / ${totalPages}`;
 }
 
 // Mapa de grupos em memória para o modal
@@ -6631,10 +7142,38 @@ function openPreflightModal(){
   const hpd=Math.floor(minPerDay/60),mpd=minPerDay%60;
   const durPerDay=hpd>0?(mpd>0?`${hpd}h${mpd}min`:`${hpd}h`):`${mpd}min`;
 
-  // Contagem via /api/count-jobs (evita chamar getSheet que só existe no servidor)
-  if(autoSelectedSrc)fetch("/api/count-jobs?sheet="+autoSelectedSrc,{credentials:"include"}).then(r=>r.json()).then(d=>{const el=g("#pf-count");if(el)el.textContent=(d.total||"–").toLocaleString("pt-BR");}).catch(()=>{});
+  // Contagem via /api/count-jobs com filtros aplicados
+  if(autoSelectedSrc){
+    const state=g("#af-state")?.value||"";
+    const minWage=parseFloat(g("#af-min-wage")?.value||"0")||0;
+    const hasEmail=g("#af-has-email")?.value||"";
+    const cats=autoSelectedCats&&autoSelectedCats.length>0?autoSelectedCats.join(","):(autoSelectedCat&&autoSelectedCat!=="all"?autoSelectedCat:"");
+    const qp=new URLSearchParams({sheet:autoSelectedSrc});
+    if(state)qp.set("state",state);
+    if(minWage>0)qp.set("minWage",String(minWage));
+    if(hasEmail==="yes")qp.set("hasEmail","yes");
+    if(cats)qp.set("category",cats);
+    // Busca total com filtros e já-enviadas em paralelo
+    Promise.all([
+      fetch("/api/count-jobs?"+qp,{credentials:"include"}).then(r=>r.json()).catch(()=>({})),
+      fetch("/api/sent-ids",{credentials:"include"}).then(r=>r.json()).catch(()=>({}))
+    ]).then(([countData, sentData])=>{
+      const totalWithFilters = countData.filtered ?? countData.total ?? 0;
+      const srcSentIds = new Set([
+        ...(autoSelectedSrc==="jan2026" ? (sentData.jan2026||[]) : (sentData.jul2025||[])),
+        ...(sentData.autoQueueIds||[])
+      ]);
+      // Estimativa de já-enviadas dentro dos filtros atuais
+      // (contagem exata só disponível após paginação completa — aqui mostramos estimativa)
+      const alreadySentEl=g("#pf-already-sent");
+      if(alreadySentEl) alreadySentEl.textContent=srcSentIds.size.toLocaleString("pt-BR");
+      const countEl=g("#pf-count");
+      if(countEl) countEl.textContent=Math.max(0,totalWithFilters-srcSentIds.size).toLocaleString("pt-BR")+"*";
+      const subtitle=g("#pf-subtitle");
+      if(subtitle) subtitle.textContent=`${autoLimit} e-mails/dia • intervalo 3–5 min • * contagem exata ao confirmar`;
+    });
+  }
   g("#pf-duration").textContent=durPerDay;
-  g("#pf-subtitle").textContent=`${autoLimit} e-mails/dia • intervalo 3–5 min • servidor sempre ligado`;
 
   // Pre-fill horário
   // sh/eh removidos — sem janela de horário
@@ -6685,9 +7224,28 @@ function pfUpdatePreview(){
 }
 
 async function confirmStartAuto(){
-  // Sempre 24/7: sem janela de horário — reseta à meia-noite BRT e continua
-  closePreflight();
-  await startAuto(0,24,"now");
+  // Lê agendamento do modal preflight
+  const sched = document.querySelector('input[name="pf-sched"]:checked')?.value || '247';
+  let startH = 0, endH = 24;
+  if(sched === 'window'){
+    startH = parseInt(g('#pf-sh')?.value || 0, 10);
+    endH   = parseInt(g('#pf-eh')?.value || 24, 10);
+    if(endH <= startH){ toast('Horário de parada deve ser após o horário de início!','r'); return; }
+  }
+
+  // Melhoria 5: não fecha modal imediatamente — mostra contagem final antes de fechar
+  const confirmBtn = g('#pf-confirm-btn');
+  if(confirmBtn){ confirmBtn.disabled = true; confirmBtn.innerHTML = '<span class="spin spin-sm"></span> Carregando vagas...'; }
+  await startAuto(startH, endH, 'now');
+  // Após startAuto: exibe contagem final no botão por 2.5s antes de fechar
+  const pfCount = g('#pf-count');
+  const finalCount = pfCount?.textContent || '–';
+  if(confirmBtn){
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = `<i class="ti ti-check"></i> ✅ ${finalCount} vagas na fila — iniciando!`;
+    confirmBtn.style.background = 'var(--green)';
+  }
+  setTimeout(()=> closePreflight(), 2500);
 }
 
 // ══════════════════════════════════════════════════════
@@ -6714,9 +7272,23 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
   try{
     btn.innerHTML='<span class="spin spin-sm"></span><span>Buscando vagas...</span>';
     const allCases=[];const caseMeta={};
-    let sk=0;const pageSize=500;
+    let sk=0;const pageSize=2000; // usa o máximo do servidor para minimizar requisições
+
+    // Carrega IDs já enviados para pré-filtrar a fila (evita enfileirar o que já foi enviado)
+    let sentCaseIds = new Set();
+    try {
+      const sentResp = await fetch("/api/sent-ids", {credentials:"include"});
+      const sentData = await sentResp.json();
+      const srcSent = autoSelectedSrc==="jan2026" ? (sentData.jan2026||[]) : (sentData.jul2025||[]);
+      srcSent.forEach(id => sentCaseIds.add(id));
+      // Também exclui o que está atualmente na fila do automático
+      (sentData.autoQueueIds||[]).forEach(id => sentCaseIds.add(id));
+    } catch(e) { console.warn("[startAuto] Não foi possível carregar sent-ids:", e.message); }
+
     while(allCases.length<limit){
-      const p=new URLSearchParams({sheet:autoSelectedSrc,skip:sk,top:Math.min(pageSize,limit-allCases.length)});
+      // sort=asc garante paginação estável — sem duplicatas ou lacunas entre páginas
+      // o shuffle real acontece no servidor ao montar a fila (/api/auto/start)
+      const p=new URLSearchParams({sheet:autoSelectedSrc,skip:sk,top:Math.min(pageSize,limit-allCases.length),sort:"asc"});
       if(state)p.append("state",state);
       if(keyword)p.append("q",keyword);
       if(autoSelectedCats&&autoSelectedCats.length>0)p.append("category",autoSelectedCats.join(","));else if(autoSelectedCat&&autoSelectedCat!=="all")p.append("category",autoSelectedCat);
@@ -6725,7 +7297,10 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
       const r=await fetch("/api/sheet-meta?"+p,{credentials:"include"});
       const d=await r.json();
       if(!d.jobs?.length)break;
-      d.jobs.forEach(j=>{allCases.push(j.id);caseMeta[j.id]={
+      d.jobs.forEach(j=>{
+        // Pré-filtra: ignora vagas já enviadas ou já na fila
+        if(sentCaseIds.has(j.id)) return;
+        allCases.push(j.id);caseMeta[j.id]={
         company:j.company,state:j.state,category:j.category||"other",
         email:j.email||null, // CRÍTICO: inclui email da planilha no caseMeta
         // v13: campos extras para snapshot completo
@@ -6750,8 +7325,11 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
     }
 
     btn.innerHTML=`<span class="spin spin-sm"></span><span>Iniciando envio de ${allCases.length} vagas...</span>`;
-    // Atualiza o contador no modal de confirmação com o total real
-    const _pfCount=g("#pf-count");if(_pfCount)_pfCount.textContent=allCases.length.toLocaleString("pt-BR");
+    // Atualiza os cards do modal com os números exatos após pré-filtragem
+    const _pfCount=g("#pf-count");
+    const _pfSent=g("#pf-already-sent");
+    if(_pfCount) _pfCount.textContent=allCases.length.toLocaleString("pt-BR");
+    if(_pfSent)  _pfSent.textContent=sentCaseIds.size.toLocaleString("pt-BR");
     // v15-FIX: Determina resumeIdx/coverIdx com fallback inteligente
     // Prioridade: autoResIdx (escolha explícita no painel auto) →
     //             activeResIdx (currículo "padrão") →
@@ -10622,6 +11200,145 @@ function _showWelcome(){
   };
 })();
 </script>
+
+<script>
+// ══ AUTO VISA: controle H-2B / H-2A ══
+var _autoVisa = 'h2b';
+function setAutoVisa(visa) {
+  _autoVisa = visa;
+  var h2bTab = document.getElementById('auto-tab-h2b');
+  var h2aTab = document.getElementById('auto-tab-h2a');
+  if(h2bTab && h2aTab) {
+    if(visa === 'h2a') {
+      h2bTab.style.background = 'transparent'; h2bTab.style.color = 'rgba(255,255,255,.75)';
+      h2aTab.style.background = '#fff'; h2aTab.style.color = '#047857';
+    } else {
+      h2bTab.style.background = '#fff'; h2bTab.style.color = '#4f46e5';
+      h2aTab.style.background = 'transparent'; h2aTab.style.color = 'rgba(255,255,255,.75)';
+    }
+  }
+  // Mostrar/esconder source-btn H-2A e H-2B sources
+  var h2aBtn = document.getElementById('src-btn-h2a');
+  var janBtn = document.querySelector('[data-src="jan2026"]');
+  var julBtn = document.querySelector('[data-src="jul2025"]');
+  if(visa === 'h2a') {
+    if(h2aBtn) h2aBtn.style.display = '';
+    if(janBtn) janBtn.style.display = 'none';
+    if(julBtn) julBtn.style.display = 'none';
+    // Seleciona h2a automaticamente
+    if(typeof selectSource === 'function') selectSource('h2a');
+    // Atualizar titulo wizard
+    var ws1sub = document.getElementById('ws-sub-1');
+    if(ws1sub) ws1sub.textContent = 'Vagas H-2A (agrícolas) do banco de dados';
+    // Atualizar categorias para H-2A
+    _loadH2aCats();
+  } else {
+    if(h2aBtn) h2aBtn.style.display = 'none';
+    if(janBtn) janBtn.style.display = '';
+    if(julBtn) julBtn.style.display = '';
+    var ws1sub = document.getElementById('ws-sub-1');
+    if(ws1sub) ws1sub.textContent = 'Selecione de onde puxar as vagas';
+  }
+}
+
+function _loadH2aCats() {
+  fetch('/api/sheet-categories?sheet=h2a')
+    .then(r=>r.json())
+    .then(data=>{
+      var chips = document.getElementById('auto-cat-chips');
+      if(!chips || !data.categories) return;
+      chips.innerHTML = '<button class="cat-chip-sel sel" data-cat="all" onclick="selectCat('all')">Todos</button>';
+      data.categories.forEach(function(cat) {
+        var b = document.createElement('button');
+        b.className = 'cat-chip-sel';
+        b.dataset.cat = cat.key;
+        b.onclick = function(){ selectCat(cat.key); };
+        b.textContent = cat.label + ' (' + cat.count + ')';
+        chips.appendChild(b);
+      });
+    }).catch(function(){});
+}
+
+// Conta vagas H-2A na source-btn
+(function loadH2aCnt(){
+  fetch('/api/sheet-meta?sheet=h2a&skip=0&top=1')
+    .then(r=>r.json())
+    .then(d=>{
+      var el = document.getElementById('src-h2a-cnt');
+      if(el && d.total) el.textContent = d.total.toLocaleString('pt-BR') + ' vagas';
+    }).catch(function(){});
+})();
+
+// ══ PLANOS: período e seleção ══
+var _planPeriod = 'monthly';
+var _selectedPlan = 'vipro';
+var _basePrices = { vip: 99.90, vipro: 149.90, doublepro: 249.90 };
+var _discounts  = { monthly: 0, quarterly: 0.10, annual: 0.20 };
+var _months     = { monthly: 1, quarterly: 3, annual: 12 };
+
+function setPlanPeriod(period) {
+  _planPeriod = period;
+  document.querySelectorAll('.period-btn').forEach(function(b) {
+    var active = b.dataset.period === period;
+    b.style.background  = active ? '#fff' : 'transparent';
+    b.style.color       = active ? 'var(--text)' : 'var(--t2)';
+    b.style.boxShadow   = active ? '0 1px 4px rgba(0,0,0,.1)' : 'none';
+  });
+  var disc = _discounts[period] || 0;
+  var mos  = _months[period]    || 1;
+  ['vip','vipro','doublepro'].forEach(function(p) {
+    var monthly = _basePrices[p] * (1 - disc);
+    var total   = (monthly * mos).toFixed(2).replace('.', ',');
+    var el = document.getElementById('price-' + p);
+    var sub= document.getElementById('psub-' + p);
+    if(el) el.textContent = 'R$ ' + monthly.toFixed(2).replace('.', ',');
+    if(sub) {
+      if(period==='monthly') sub.textContent = '/mês';
+      else sub.textContent = '/mês · Total R$ ' + total;
+    }
+  });
+  var savBox = document.getElementById('period-savings-box');
+  if(savBox) {
+    if(disc > 0) {
+      savBox.style.display = 'block';
+      savBox.textContent = '✅ Você economiza ' + Math.round(disc*100) + '% no plano ' + (period==='quarterly'?'trimestral':'anual') + '!';
+    } else {
+      savBox.style.display = 'none';
+    }
+  }
+  updateWaLink();
+}
+
+function selectPlanCard(plan) {
+  _selectedPlan = plan;
+  updateWaLink();
+}
+
+function updateWaLink() {
+  var btn = document.getElementById('wa-plan-btn');
+  if(!btn) return;
+  var pn = { vip:'VIP (R$99,90)', vipro:'VIPro (R$149,90)', doublepro:'DoublePro (R$249,90)' };
+  var per= { monthly:'mensal', quarterly:'trimestral (-10%)', annual:'anual (-20%)' };
+  var gmail = (window.U && window.U.email) ? window.U.email : '';
+  var msg = 'Olá! Quero contratar o plano ' + (pn[_selectedPlan]||_selectedPlan)
+          + ' - ' + (per[_planPeriod]||_planPeriod)
+          + ' do H2BApply. Meu Gmail: ' + gmail;
+  btn.href = 'https://wa.me/5553981453496?text=' + encodeURIComponent(msg);
+}
+
+// Hook sv() para inicializar planos ao abrir
+var _sv_orig = window.sv;
+window.sv = function(v) {
+  _sv_orig && _sv_orig.apply(this, arguments);
+  if(v === 'plans') { setPlanPeriod('monthly'); selectPlanCard('vipro'); }
+  if(v === 'auto')  { setAutoVisa('h2b'); }
+};
+
+// getPlanLabel com doublepro
+window.getPlanLabel = function(p) {
+  return {free:"Free",vip:"⭐ VIP",pro:"🤖 Pro",vipro:"⭐🤖 VIPro",doublepro:"💥 DoublePro"}[p] || "Free";
+};
+</script>
 </body>
 <script>
 // ════════════════════════════════════════════════════
@@ -13326,8 +14043,307 @@ console.log("[v19] Language system (PT/EN/ES) loaded");
 })();
 
 
+// ══════════════════════════════════════════════════════════════════
+//  MELHORIA 1 — PAINEL TAXA DE RESPOSTA POR CATEGORIA
+// ══════════════════════════════════════════════════════════════════
+let rrPeriodDays = 0; // 0 = todos
+let rrPanelOpen = false;
 
+const CAT_LABELS_RR = {
+  landscape:'🌿 Landscape', food:'🍽️ Food & Bar', housekeeper:'🏨 Housekeeper',
+  construction:'🏗️ Construction', driver:'🚛 Driver', cleaning:'🧹 Cleaning',
+  warehouse:'📦 Warehouse', seafood:'🦞 Seafood', farm:'🌾 Farm',
+  golf:'⛳ Golf', lifeguard:'🏊 Lifeguard', amusement:'🎡 Amusement',
+  forest:'🌲 Forest', ski:'⛷️ Ski', other:'📋 Other',
+};
 
+function toggleRespPanel(){
+  rrPanelOpen = !rrPanelOpen;
+  const panel = g('#resp-rate-panel');
+  const btnRow = g('#resp-rate-btn-row');
+  if(panel) panel.style.display = rrPanelOpen ? 'block' : 'none';
+  if(btnRow) btnRow.style.display = rrPanelOpen ? 'none' : 'block';
+  if(rrPanelOpen) computeAndRenderRespRate();
+}
 
+function setRRPeriod(p){
+  rrPeriodDays = p === 'all' ? 0 : parseInt(p, 10);
+  ['all','7','30','90'].forEach(k => g('#rr-p-'+k)?.classList.toggle('on', k === p));
+  computeAndRenderRespRate();
+}
+
+async function computeAndRenderRespRate(){
+  // Conta enviados por categoria do HIST local
+  const cutoffTs = rrPeriodDays > 0 ? Date.now() - rrPeriodDays * 86400000 : 0;
+
+  const sentByCat = {};
+  (HIST || []).forEach(h => {
+    if(cutoffTs && h.ts && h.ts < cutoffTs) return;
+    const cat = h.category || 'other';
+    sentByCat[cat] = (sentByCat[cat] || 0) + 1;
+  });
+  const totalSent = Object.values(sentByCat).reduce((a,b) => a+b, 0);
+
+  // Tenta buscar respostas do servidor para cruzar com logs
+  let repliesByCat = {};
+  let totalReplies = 0;
+  try {
+    const r = await fetch('/api/auto-logs?top=5000', {credentials:'include'});
+    const d = await r.json();
+    const logs = d.logs || [];
+    // Logs marcados como "enviado" vs respostas: usamos inbox para contar
+    // Aqui aproximamos: conta logs "enviado" do servidor também para enriquecer
+    logs.forEach(l => {
+      if(l.status !== 'enviado') return;
+      if(cutoffTs && l.ts && l.ts < cutoffTs) return;
+      const cat = l.category || 'other';
+      if(!sentByCat[cat]) sentByCat[cat] = 0;
+    });
+  } catch{}
+
+  // Tenta buscar taxa de resposta do servidor
+  try {
+    const r = await fetch('/api/stats', {credentials:'include'});
+    const d = await r.json();
+    totalReplies = d.replies || 0;
+    // Distribui respostas proporcionalmente por categoria (aproximação)
+    if(totalReplies > 0 && totalSent > 0){
+      Object.keys(sentByCat).forEach(cat => {
+        repliesByCat[cat] = Math.round((sentByCat[cat] / totalSent) * totalReplies);
+      });
+    }
+  } catch {}
+
+  const globalRate = totalSent > 0 ? ((totalReplies / totalSent) * 100).toFixed(1) + '%' : '–';
+
+  // Render resumo
+  const el = (id, v) => { const e = g(id); if(e) e.textContent = v; };
+  el('#rr-total-sent', totalSent.toLocaleString('pt-BR'));
+  el('#rr-total-replies', totalReplies.toLocaleString('pt-BR'));
+  el('#rr-global-rate', globalRate);
+
+  // Render barras por categoria
+  const barsEl = g('#rr-cat-bars');
+  if(!barsEl) return;
+  const cats = Object.entries(sentByCat).sort((a,b) => b[1]-a[1]).filter(([,v]) => v > 0);
+  if(!cats.length){ barsEl.innerHTML = '<div style="padding:14px;font-size:13px;color:var(--t3);text-align:center">Nenhuma candidatura ainda</div>'; return; }
+
+  const maxSent = Math.max(...cats.map(([,v]) => v), 1);
+  barsEl.innerHTML = cats.map(([cat, sent]) => {
+    const replies = repliesByCat[cat] || 0;
+    const rate = sent > 0 ? ((replies/sent)*100).toFixed(1) : '0.0';
+    const barW = Math.round((sent/maxSent)*100);
+    const label = CAT_LABELS_RR[cat] || cat;
+    return `<div style="padding:8px 14px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:12px;font-weight:700;color:var(--text)">${esc(label)}</span>
+        <div style="display:flex;gap:10px;align-items:center">
+          <span style="font-size:11px;color:var(--t2)">${sent.toLocaleString('pt-BR')} enviados</span>
+          <span style="font-size:12px;font-weight:800;color:var(--green);min-width:40px;text-align:right">${rate}%</span>
+        </div>
+      </div>
+      <div style="background:var(--sf3);border-radius:4px;height:6px;overflow:hidden">
+        <div style="height:100%;width:${barW}%;background:linear-gradient(90deg,var(--blue),var(--purple));border-radius:4px;transition:width .4s ease"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  MELHORIA 2 — AGENDAMENTO POR FUSO HORÁRIO
+// ══════════════════════════════════════════════════════════════════
+function pfOnSchedChange(){
+  const val = document.querySelector('input[name="pf-sched"]:checked')?.value || '247';
+  const timeRow = g('#pf-sched-time-row');
+  const row247 = g('#pf-sched-247-row');
+  const rowWin = g('#pf-sched-win-row');
+  if(timeRow) timeRow.style.display = val === 'window' ? 'block' : 'none';
+  if(row247) row247.style.border = `1.5px solid ${val==='247' ? 'var(--green)' : 'var(--border)'}`;
+  if(row247) row247.style.background = val==='247' ? 'var(--greenl)' : '';
+  if(rowWin) rowWin.style.border = `1.5px solid ${val==='window' ? 'var(--blue)' : 'var(--border)'}`;
+  if(rowWin) rowWin.style.background = val==='window' ? 'var(--bluel)' : '';
+  pfUpdateSchedPreview();
+}
+
+function pfUpdateSchedPreview(){
+  const el = g('#pf-sched-preview');
+  if(!el) return;
+  const sh = parseInt(g('#pf-sh')?.value || 0, 10);
+  const eh = parseInt(g('#pf-eh')?.value || 24, 10);
+  if(eh <= sh){ el.textContent = '⚠️ Horário inválido — parada deve ser após início'; el.style.background='#fef2f2'; el.style.color='#ef4444'; return; }
+  const nowH = new Date().getHours();
+  const dur = eh - sh;
+  let status, color, bg;
+  if(nowH >= sh && nowH < eh){
+    status = `✅ Dentro da janela agora — inicia imediatamente. Ativo por ${dur}h/dia.`;
+    color = 'var(--green)'; bg = 'var(--greenl)';
+  } else if(nowH < sh){
+    const diffM = (sh - nowH) * 60 - new Date().getMinutes();
+    const h = Math.floor(diffM/60), m = diffM%60;
+    status = `⏰ Começa em ~${h>0?h+'h ':''}${m}min (às ${String(sh).padStart(2,'0')}:00 BRT) · ${dur}h/dia`;
+    color = 'var(--amber)'; bg = 'var(--amberl)';
+  } else {
+    status = `⏰ Fora da janela — começa amanhã às ${String(sh).padStart(2,'0')}:00 BRT · ${dur}h/dia`;
+    color = 'var(--amber)'; bg = 'var(--amberl)';
+  }
+  el.textContent = status; el.style.color = color; el.style.background = bg;
+}
+
+// Reset preflight ao abrir
+const _origOpenPreflightModal = openPreflightModal;
+openPreflightModal = function(){
+  _origOpenPreflightModal();
+  // Reset schedule UI
+  const r247 = g('#pf-sched-247');
+  if(r247){ r247.checked = true; pfOnSchedChange(); }
+  // Re-enable confirm button
+  const btn = g('#pf-confirm-btn');
+  if(btn){ btn.disabled = false; btn.innerHTML = '<i class="ti ti-rocket"></i> Confirmar e Iniciar'; }
+};
+
+// ══════════════════════════════════════════════════════════════════
+//  MELHORIA 3 — PREVIEW DO E-MAIL ANTES DE ENVIAR
+// ══════════════════════════════════════════════════════════════════
+function openEmailPreviewModal(){
+  if(!autoSelectedSrc){ toast('Escolha a fonte das vagas primeiro (Passo 1)','r'); return; }
+  const activeProfiles = (U.profiles || UPROFILES || []).filter(p => p.active !== false);
+  if(!activeProfiles.length){ toast('Crie pelo menos 1 perfil ativo antes de pré-visualizar!','r'); return; }
+
+  // Preencher selector de perfis
+  const sel = g('#ep-profile-sel');
+  if(sel){
+    sel.innerHTML = activeProfiles.map(p =>
+      `<option value="${p.id||p._id||''}">${esc(p.name||'Sem nome')}${p.isGeneral?' (Geral)':''}</option>`
+    ).join('');
+  }
+  renderEmailPreview();
+  g('#email-preview-overlay')?.classList.remove('gone');
+}
+
+function closeEmailPreview(){ g('#email-preview-overlay')?.classList.add('gone'); }
+
+function renderEmailPreview(){
+  const activeProfiles = (U.profiles || UPROFILES || []).filter(p => p.active !== false);
+  const sel = g('#ep-profile-sel');
+  const selId = sel?.value;
+  const profile = activeProfiles.find(p => (p.id||p._id||'') === selId) || activeProfiles[0];
+  if(!profile) return;
+
+  const exJob = g('#ep-ex-job')?.value || 'Landscaper';
+  const exCo = g('#ep-ex-company')?.value || 'Green Lawn Co';
+  const fakeJob = { title: exJob, company: exCo, job: exJob, state: 'FLORIDA', city: 'Orlando' };
+
+  // Assunto
+  const subjects = profile.settings?.subjects || profile.subjects || [];
+  const subject = fill(subjects[0] || DEFAULT_SUBJECT, fakeJob);
+
+  // Corpo
+  const bodies = profile.settings?.emailBodies || profile.emailBodies || [];
+  const body = fill(bodies[0] || profile.settings?.body || DEFAULT_BODY, fakeJob);
+
+  // Anexos
+  const cvList = [];
+  const resumeIdx = profile.resumeIdx ?? profile.settings?.resumeIdx;
+  const coverIdx = profile.coverIdx ?? profile.settings?.coverIdx;
+  if(resumeIdx !== undefined && resumeIdx !== null){
+    const cv = (DOCS||[]).find(d => d.idx === resumeIdx);
+    if(cv) cvList.push({ name: cv.name || 'resume.pdf', type: 'Currículo' });
+  }
+  if(coverIdx !== undefined && coverIdx !== null){
+    const cv = (DOCS||[]).find(d => d.idx === coverIdx);
+    if(cv) cvList.push({ name: cv.name || 'cover.pdf', type: 'Cover Letter' });
+  }
+
+  // Preencher UI
+  const el = (id,v) => { const e = g(id); if(e) e.textContent = v; };
+  el('#ep-from', U?.email || 'seu@gmail.com');
+  el('#ep-to', 'hiring@' + exCo.toLowerCase().replace(/\s+/g,'') + '.com');
+  el('#ep-subj', subject);
+  el('#ep-body', body);
+
+  const attWrap = g('#ep-attachments');
+  const attList = g('#ep-attach-list');
+  if(attWrap && attList){
+    if(cvList.length){
+      attWrap.style.display = 'block';
+      attList.innerHTML = cvList.map(a =>
+        `<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:3px"><i class="ti ti-file-type-pdf" style="color:#ef4444"></i><span style="font-weight:600">${esc(a.name)}</span><span style="color:var(--t3)">(${a.type})</span></div>`
+      ).join('');
+    } else {
+      attWrap.style.display = 'block';
+      attList.innerHTML = '<div style="font-size:12px;color:var(--amber);font-weight:600">⚠️ Nenhum currículo configurado neste perfil</div>';
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  MELHORIA 4 — VER E-MAIL ENVIADO (log clicável)
+// ══════════════════════════════════════════════════════════════════
+function openSentEmailModal(logEntry){
+  if(!logEntry) return;
+  const el = (id,v) => { const e = g(id); if(e) e.textContent = v||'–'; };
+  el('#se-from', U?.email || '–');
+  el('#se-to', logEntry.to || '–');
+  el('#se-subj', logEntry.subjectUsed || '(assunto não registrado)');
+  el('#se-date', logEntry.date || '–');
+  el('#se-meta', `${logEntry.company||'–'} · ${logEntry.jobTitle||'–'}`);
+
+  const profRow = g('#se-profile-row');
+  if(profRow && logEntry.profileUsed){
+    profRow.style.display = 'block';
+    el('#se-profile', logEntry.profileUsed);
+    el('#se-attach', logEntry.attachCount ? logEntry.attachCount + ' arquivo(s)' : 'nenhum');
+  } else if(profRow){ profRow.style.display = 'none'; }
+
+  // Tags
+  const tagsEl = g('#se-tags');
+  if(tagsEl){
+    const tags = [];
+    if(logEntry.category && logEntry.category !== 'other') tags.push(`<span class="tag tgr">${esc(CAT_LABELS_RR[logEntry.category]||logEntry.category)}</span>`);
+    if(logEntry.state) tags.push(`<span class="tag tgr"><i class="ti ti-map-pin" style="font-size:9px"></i>${esc(logEntry.state)}</span>`);
+    if(logEntry.source) tags.push(`<span class="tag tb" style="font-size:10px">${esc(logEntry.source)}</span>`);
+    if(logEntry.status === 'enviado') tags.push(`<span class="tag" style="background:var(--greenl);color:var(--green);border-color:var(--greenb)">✅ enviado</span>`);
+    tagsEl.innerHTML = tags.join('');
+  }
+
+  g('#sent-email-overlay')?.classList.remove('gone');
+}
+function closeSentEmailModal(){ g('#sent-email-overlay')?.classList.add('gone'); }
+
+// Torna logs clicáveis no painel auto (renderRecentLogs patch)
+const _origRenderRecentLogs = renderRecentLogs;
+renderRecentLogs = function(logs){
+  const el = g('#auto-recent-logs');
+  if(!el) return;
+  if(!logs.length){ el.innerHTML='<div style="padding:12px 14px;font-size:13px;color:var(--t3)">Nenhum envio ainda</div>'; return; }
+  el.innerHTML = logs.map((l,i) => {
+    const em = {enviado:'✅',falhou:'❌',duplicado:'🔁',pausado:'⏸',sistema:'ℹ️',cancelado:'🚫'}[l.status]||'•';
+    const clickable = l.status === 'enviado';
+    return `<div class="log-entry" ${clickable?`onclick="openSentEmailModal(${JSON.stringify(l).replace(/"/g,'&quot;')})" style="cursor:pointer"`:''}>
+      <span class="log-status ls-${l.status||'sistema'}">${em} ${esc(l.status)}</span>
+      <div class="log-main">
+        <div class="log-company">${esc(l.company||l.jobTitle||'–')}</div>
+        ${l.to?`<div class="log-email" style="font-size:11px">${esc(l.to)}</div>`:''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+        <div class="log-date">${esc((l.date||'').split(' ')[1]||'')}</div>
+        ${clickable?`<span style="font-size:9px;color:var(--blue);font-weight:700">Ver →</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+};
+
+// Hook: quando carrega a aba hist, atualiza o botão do painel
+const _origSv = sv;
+sv = function(v){
+  _origSv(v);
+  if(v === 'hist'){
+    // Reseta painel resp-rate ao trocar de aba
+    const panel = g('#resp-rate-panel');
+    const btnRow = g('#resp-rate-btn-row');
+    if(!rrPanelOpen){ if(panel) panel.style.display='none'; if(btnRow) btnRow.style.display='block'; }
+    else { computeAndRenderRespRate(); }
+  }
+};
 </script>
 </html>

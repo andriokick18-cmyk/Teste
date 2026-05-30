@@ -52,18 +52,19 @@ console.log(`[boot] Push VAPID: ${PUSH_ENABLED?"✅ configurado":"⚠️  desati
 
 // ── Planos ────────────────────────────────────────────────
 //   free  → 20 manual  + 10 auto  /dia (Grátis)
-//   vip   → 300 manual + 10 auto  /dia (só manual pago)
-//   vipro → 300 manual + 200 auto /dia = 500 total/dia
-//
-//   O limite do automático é EXCLUSIVO do automático.
-//   O limite manual é EXCLUSIVO do manual (envio pelo botão).
-//   Eles NÃO se misturam — um não consome o limite do outro.
+//   vip       → 400 manual + 0 auto  /dia  R$99,90
+//   vipro     → 50 manual  + 200 auto /dia  R$149,90
+//   doublepro → 100 manual + 400 auto /dia  R$249,90 (pool único H-2B+H-2A)
 const PLAN_LIMITS = {
-  free:  { manual: 20,  auto: 10  },
-  vip:   { manual: 300, auto: 10  },
-  pro:   { manual: 300, auto: 200 }, // legado — igual ao vipro
-  vipro: { manual: 300, auto: 200 },
+  free:      { manual: 20,  auto: 10  },
+  vip:       { manual: 400, auto: 0   },
+  pro:       { manual: 50,  auto: 200 }, // legado → alias vipro
+  vipro:     { manual: 50,  auto: 200 },
+  doublepro: { manual: 100, auto: 400 },
 };
+// Preços base mensais (centavos BRL) e descontos por período
+const PLAN_PRICES    = { vip:{monthly:9990,name:"VIP"}, vipro:{monthly:14990,name:"VIPro"}, doublepro:{monthly:24990,name:"DoublePro"} };
+const PERIOD_DISCOUNTS = { monthly:{months:1,discount:0}, quarterly:{months:3,discount:0.10}, annual:{months:12,discount:0.20} };
 // Intervalos base (substituídos pelo cálculo inteligente)
 const AUTO_INTERVAL_MIN = 180_000; // 3 min fallback
 const AUTO_INTERVAL_MAX = 300_000; // 5 min fallback
@@ -615,19 +616,38 @@ function exportLogsCSV(userEmail) {
 // Backup
 setInterval(()=>{ try{persist(path.join(DATA_DIR,"backup.json"),{ts:new Date().toISOString(),users:DB_USERS,total:Object.keys(DB_USERS).length});persistLogs();}catch{} },10*60*1000);
 
-// FIX-BUG15: limpeza de DB_SENT para evitar OOM
+// FIX-BUG15 v2: limpeza inteligente de DB_SENT por data de envio
+// Remove apenas emails enviados há mais de 6 meses, preservando os recentes.
+// NUNCA apaga tudo — evita reenvio para empresas antigas.
 setInterval(()=>{
   try {
-    const sixMonthsAgo = Date.now() - 180*86400_000;
-    let cleaned=0;
-    for(const[ue,sentSet] of Object.entries(DB_SENT)){
-      const u=getUser(ue);const j=getAutoJob(ue);
-      if(!j?.active&&u?.lastSeenAt&&u.lastSeenAt<sixMonthsAgo){
-        cleaned+=sentSet.size; DB_SENT[ue]=new Set();
-        console.log(`[mem-clean] ${ue}: ${sentSet.size} emails limpos`);
+    const SIX_MONTHS = 180 * 86400_000;
+    const cutoff = Date.now() - SIX_MONTHS;
+    let cleaned = 0;
+    for(const [ue, sentSet] of Object.entries(DB_SENT)){
+      const u = getUser(ue); const j = getAutoJob(ue);
+      // Só processa usuários sem automático ativo e que não aparecem há 6 meses
+      if(j?.active || !u?.lastSeenAt || u.lastSeenAt >= cutoff) continue;
+      // Reconstrói Set mantendo só emails enviados nos últimos 6 meses (via HIST)
+      const hist = getHist(ue);
+      const recentEmails = new Set();
+      for(const entry of hist){
+        let ts = 0;
+        if(entry.sentAt){ const p=new Date(entry.sentAt).getTime(); if(!isNaN(p)) ts=p; }
+        if(!ts && entry.dateStr){
+          const pts=entry.dateStr.split("/");
+          if(pts.length===3){ const r=new Date(`${pts[2]}-${pts[1]}-${pts[0]}T12:00:00Z`).getTime(); if(!isNaN(r)) ts=r; }
+        }
+        if(ts >= cutoff){ const nd=_normEmail(entry.to||""); if(nd) recentEmails.add(nd); }
+      }
+      const removed = sentSet.size - recentEmails.size;
+      if(removed > 0){
+        DB_SENT[ue] = recentEmails;
+        cleaned += removed;
+        console.log(`[mem-clean] ${ue}: ${removed} antigos removidos (${recentEmails.size} recentes mantidos)`);
       }
     }
-    if(cleaned>0){persistSent();console.log(`[mem-clean] Total: ${cleaned} removidos`);}
+    if(cleaned>0){persistSent();console.log(`[mem-clean] Total: ${cleaned} entradas antigas removidas`);}
   }catch(e){console.warn("[mem-clean]",e.message);}
 }, 6*60*60*1000);
 
@@ -820,6 +840,77 @@ async function serverPushPoll() {
 // Executa poll a cada 2 minutos
 setInterval(serverPushPoll, 2 * 60 * 1000);
 
+// ══════════════════════════════════════════════════════════
+//  H-2A DAILY UPDATE — 03:00 BRT (06:00 UTC) todo dia
+//  Busca novas vagas em seasonaljobs.dol.gov e adiciona ao h2a_jobs.json
+// ══════════════════════════════════════════════════════════
+async function updateH2aDaily(force) {
+  const todayKey = new Date().toISOString().slice(0,10);
+  if (!force && DB_H2A_DAILY[todayKey]?.done) {
+    console.log("[h2a] Já atualizado hoje:", todayKey);
+    return;
+  }
+  console.log("[h2a] Iniciando update diário H-2A...");
+  try {
+    const d    = new Date();
+    const mm   = String(d.getUTCMonth()+1).padStart(2,"0");
+    const dd   = String(d.getUTCDate()).padStart(2,"0");
+    const yyyy = d.getUTCFullYear();
+    const url  = `https://seasonaljobs.dol.gov/archive?search=&location=&start_date=${mm}%2F${dd}%2F${yyyy}&job_type=H-2A&sort=relevancy&job_status=active`;
+    const https2 = require("https");
+    const html = await new Promise((res,rej)=>{
+      const r=https2.get(url,{headers:{"User-Agent":"H2BApply/1.0","Accept":"text/html"}},rsp=>{
+        let s=""; rsp.on("data",c=>s+=c); rsp.on("end",()=>res(s)); rsp.on("error",rej);
+      }); r.on("error",rej); r.setTimeout(30000,()=>{r.destroy();rej(new Error("timeout"));});
+    });
+    // Extrai case numbers e emails do HTML
+    const cases  = [...new Set((html.match(/H-300-\d{5}-\d{6}/g)||[]))];
+    const existing = new Set(SHEET_H2A.map(j=>j.c));
+    const newCases = cases.filter(c=>!existing.has(c));
+    let added = 0;
+    const emailRe = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+    for (const cid of newCases) {
+      const idx   = html.indexOf(cid);
+      if (idx<0) continue;
+      const block = html.slice(Math.max(0,idx-300),idx+600);
+      const emails = [...new Set((block.match(emailRe)||[]))].filter(e=>e.includes("@")&&!e.includes("dol.gov")&&!e.includes("seasonaljobs"));
+      if (!emails.length) continue;
+      const titleM = block.match(/class="[^"]*title[^"]*"[^>]*>([^<]{5,80})</) || block.match(/<h[234][^>]*>([^<]{5,80})<\/h/i);
+      const compM  = block.match(/class="[^"]*employer[^"]*"[^>]*>([^<]{3,80})</) || block.match(/employer[^>]*>([^<]{3,60})</i);
+      const stateM = block.match(/\b([A-Z]{2})\b(?=\s*<|\s*,|\s*&)/);
+      SHEET_H2A.push({
+        c:cid, t:(titleM?titleM[1].trim():"Farm Worker"), n:(compM?compM[1].trim():"Agricultural Employer"),
+        s:(stateM?stateM[1]:""), e:emails[0], w:"", wunit:"h", wk:1,
+        k:"crop_laborer", visa:"H-2A", exp:false, hrs:40, loc:"",
+        addedDate: todayKey,
+      });
+      added++;
+    }
+    if (added>0) {
+      fs.writeFileSync(H2A_FILE, JSON.stringify(SHEET_H2A));
+      console.log(`[h2a] ✅ ${added} novas vagas H-2A. Total: ${SHEET_H2A.length}`);
+    } else {
+      console.log("[h2a] Nenhuma vaga nova hoje.");
+    }
+    DB_H2A_DAILY[todayKey] = { added, total:SHEET_H2A.length, updatedAt:new Date().toISOString(), done:true };
+    saveH2aDailyLog();
+  } catch(e) {
+    console.error("[h2a] Erro no update:", e.message);
+    DB_H2A_DAILY[todayKey] = { added:0, total:SHEET_H2A.length, error:e.message, done:false };
+    saveH2aDailyLog();
+  }
+}
+
+// Agenda H-2A update para 06:00 UTC (03:00 BRT)
+(function scheduleH2aUpdate(){
+  const now  = Date.now();
+  const next = new Date(); next.setUTCHours(6,0,0,0);
+  if (next.getTime() <= now) next.setUTCDate(next.getUTCDate()+1);
+  const delay = next.getTime() - now;
+  console.log(`[h2a] Próximo update em ~${Math.round(delay/3600000)}h`);
+  setTimeout(()=>{ updateH2aDaily(); setInterval(()=>updateH2aDaily(), 24*60*60*1000); }, delay);
+})();
+
 
 // Verifica se manual VIP está ativo
 function isManualVipActive(u) {
@@ -844,12 +935,15 @@ function isAutoVipActive(u) {
 function isVipActive(u) { return isManualVipActive(u) || isAutoVipActive(u); }
 
 // Retorna plano efetivo baseado no stack
+// Retorna plano efetivo baseado no stack
 function getPlan(u) {
   const manual = isManualVipActive(u);
   const auto   = isAutoVipActive(u);
+  const planName = u.vip?.plan || "";
+  if (planName === "doublepro" && (manual || auto)) return "doublepro";
   if (manual && auto) return "vipro";
   if (manual) return "vip";
-  if (auto)   return "vipro"; // plano "pro" removido — auto-only = vipro
+  if (auto)   return "vipro";
   return "free";
 }
 
@@ -940,9 +1034,16 @@ const deleteCv = (e,i) => {
 // ══════════════════════════════════════════════════════════
 //  PLANILHAS COM CATEGORIAS DINÂMICAS
 // ══════════════════════════════════════════════════════════
-let SHEET_JAN = [], SHEET_JUL = [];
+let SHEET_JAN = [], SHEET_JUL = [], SHEET_H2A = [];
 const sheetCache = new Map();
 const SHEET_TTL  = 60*60*1000;
+
+// ── H-2A daily log ──
+const H2A_FILE      = path.join(__dirname, "h2a_jobs.json");
+const H2A_DAILY_LOG = path.join(DATA_DIR,  "h2a_daily_log.json");
+let DB_H2A_DAILY = {};
+try { DB_H2A_DAILY = JSON.parse(fs.readFileSync(H2A_DAILY_LOG,"utf8")); } catch { DB_H2A_DAILY = {}; }
+function saveH2aDailyLog(){ try{ fs.writeFileSync(H2A_DAILY_LOG,JSON.stringify(DB_H2A_DAILY)); }catch{} }
 
 // Mapa de categorias para labels em português
 // ── Grupos de categorias semelhantes (para envio inteligente) ──
@@ -968,6 +1069,19 @@ const CATEGORY_LABELS = {
   other:        { label:"📋 Outros",                  en:"Other" },
 };
 
+// Categorias H-2A
+const H2A_CATEGORY_LABELS = {
+  crop_laborer:      { label:"🌾 Crop / Field Worker",  en:"Crop Laborer"       },
+  equipment_operator:{ label:"🚜 Equipment Operator",    en:"Equipment Operator" },
+  greenhouse:        { label:"🌿 Greenhouse / Nursery",  en:"Greenhouse"         },
+  livestock:         { label:"🐄 Livestock / Dairy",     en:"Livestock"          },
+  general_farm:      { label:"🌱 General Farm",          en:"General Farm"       },
+  tree_fruit:        { label:"🍎 Tree Fruit / Orchard",  en:"Tree Fruit"         },
+  ag_construction:   { label:"🏗️ Ag Construction",      en:"Ag Construction"    },
+  driver:            { label:"🚛 Driver / Transport",    en:"Driver"             },
+  forestry:          { label:"🌲 Forestry / Logging",    en:"Forestry"           },
+};
+
 function loadSheets() {
   let anyLoaded = false;
   for(const[key,file]of[["jan","jan2026_compact.json"],["jul","jul2025_compact.json"]]){
@@ -987,10 +1101,22 @@ function loadSheets() {
         console.warn(`[sheet] ❌ Erro ao ler ${file}:`, e.message);
       }
     } else {
-      // Arquivo não existe — pode ser primeiro deploy ou build-sheets nunca rodou
       console.warn(`[sheet] ⚠️ ${file} não encontrado. Execute: node build-sheets.js`);
       console.warn(`[sheet] ⚠️ As planilhas de vagas ficarão vazias até o build rodar.`);
     }
+  }
+  // ── Carrega H-2A ──
+  if(fs.existsSync(H2A_FILE)){
+    try{
+      const d=JSON.parse(fs.readFileSync(H2A_FILE,"utf8"));
+      if(Array.isArray(d)&&d.length>0){
+        SHEET_H2A=d;
+        console.log(`[sheet] ✅ h2a: ${d.length} vagas`);
+        anyLoaded=true;
+      }else{ console.warn("[sheet] ⚠️ h2a_jobs.json vazio ou inválido"); }
+    }catch(e){ console.warn("[sheet] ❌ Erro ao ler h2a_jobs.json:",e.message); }
+  }else{
+    console.warn("[sheet] ⚠️ h2a_jobs.json não encontrado — coloque na raiz do projeto");
   }
   if (!anyLoaded) {
     console.warn("[sheet] ❌ NENHUMA planilha carregada. Vagas das abas Jan/Jul estarão vazias.");
@@ -1018,15 +1144,22 @@ function detectCategory(name) {
   return "other";
 }
 
-function getSheet(n) { return n==="jan2026"?SHEET_JAN:n==="jul2025"?SHEET_JUL:[]; }
+function getSheet(n) {
+  if(n==="jan2026") return SHEET_JAN;
+  if(n==="jul2025") return SHEET_JUL;
+  if(n==="h2a")     return SHEET_H2A;
+  return [];
+}
 
 function getSheetCategories(sheetName) {
   const arr = getSheet(sheetName);
   const counts = {};
   arr.forEach(r => { const k=r.k||"other"; counts[k]=(counts[k]||0)+1; });
+  // Para H-2A usa labels específicos
+  const labels = sheetName==="h2a" ? H2A_CATEGORY_LABELS : CATEGORY_LABELS;
   return Object.entries(counts)
     .sort((a,b)=>b[1]-a[1])
-    .map(([k,count])=>({key:k,label:CATEGORY_LABELS[k]?.label||k,count}));
+    .map(([k,count])=>({key:k,label:labels[k]?.label||CATEGORY_LABELS[k]?.label||k,count}));
 }
 
 // Fisher-Yates shuffle — embaralha sem modificar o array original
@@ -1125,10 +1258,13 @@ function searchSheet(arr, q, state, category, skip, top, sort) {
     else list=list.filter(r=>cats.includes(r.k||"other"));
   }
   // Ordenação: asc/desc preserva paginação visual; shuffle (default) garante aleatoriedade
-  // para evitar que vários usuários enviem para as mesmas empresas simultaneamente
+  // para evitar que vários usuários enviem para as mesmas empresas simultaneamente.
+  // NOTA: o shuffle real acontece no /api/auto/start após coletar todas as vagas.
+  // Na busca paginada usamos ordem estável para garantir que skip/top
+  // retornem registros corretos sem duplicatas ou lacunas entre páginas.
   if (sort==="desc") list=[...list].reverse();
-  else if (sort==="asc") { /* mantém ordem original */ }
-  else { list=shuffleArray(list); } // sort="" ou "random" → embaralha
+  else if (sort==="shuffle") { list=shuffleArray(list); } // shuffle explícito (uso não-paginado)
+  // sort="asc", "random", "" → ordem estável para paginação correta
   return { total:list.length, items:list.slice(skip,skip+top) };
 }
 
@@ -1491,6 +1627,8 @@ async function _doAutoSendInner(email) {
           autoTimers.delete(email);
           addLog(email, { status:"pausado", company:"Sistema", to:"", jobTitle:"🔐 Acesso Google revogado — faça login novamente", error: msg });
           console.warn(`[auto] ❌ Token revogado para ${email} — pausa definitiva`);
+          // Notifica usuário por email para que saiba que precisa fazer login novamente
+          sendNotifEmail(email, "token_revoked").catch(e => console.warn("[notif/token_revoked]", e.message));
         } else {
           // Erro temporário (rede, timeout) — agenda nova tentativa em 5min sem pausar
           const curJob = getAutoJob(email);
@@ -1600,6 +1738,7 @@ async function _doAutoSendInner(email) {
     }
 
     // ── Assunto (rotação, novo objeto a cada envio) ────────
+    const _isH2A = (target.visa||job.visaType||"").toUpperCase()==="H-2A"||job.source==="h2a";
     const subjectPool = (selectedProfile?.subjects?.length) ? [...selectedProfile.subjects]
                       : (job.subjects?.length)              ? [...job.subjects]
                       : null;
@@ -1608,10 +1747,10 @@ async function _doAutoSendInner(email) {
       const rot = rotateItem(subjectPool, rotState.lastSubjIdx);
       chosenSubject = rot.value; newSubjIdx = rot.idx;
     } else {
-      chosenSubject = genSubject(String(target.title || "")); newSubjIdx = -1;
+      chosenSubject = genSubject(String(target.title || ""), _isH2A); newSubjIdx = -1;
     }
     if (!chosenSubject || !String(chosenSubject).trim()) {
-      chosenSubject = genSubject(String(target.title || "")); newSubjIdx = -1;
+      chosenSubject = genSubject(String(target.title || ""), _isH2A); newSubjIdx = -1;
     }
 
     // ── Corpo (rotação, novo objeto a cada envio) ──────────
@@ -1871,7 +2010,14 @@ async function _doAutoSendInner(email) {
   autoTimers.set(email, setTimeout(() => scheduleAuto(email), interval));
 }
 
-const genSubject=title=>{const pfx=["Application for","Interest in","Applying for","H-2B Application:","Candidature for"];return`${pfx[Math.floor(Math.random()*pfx.length)]} ${title}`;};
+const genSubject=(title,isH2A)=>{
+  if(isH2A){
+    const pfx=["H-2A Farm Worker Application –","Agricultural Worker Application –","Applying for Farm Position –","H-2A Visa Worker –","Farm Labor Application –","Experienced Farmworker –"];
+    return`${pfx[Math.floor(Math.random()*pfx.length)]} ${title}`;
+  }
+  const pfx=["Application for","Interest in","Applying for","H-2B Application:","Candidature for"];
+  return`${pfx[Math.floor(Math.random()*pfx.length)]} ${title}`;
+};
 // fillTpl: substitui TODAS as variáveis de template — incluindo {email}, {cidade}, {estado}
 const fillTpl=(tpl,v)=>(tpl||"")
   .replace(/{vaga}/g,       v.vaga||"")
@@ -3563,14 +3709,35 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
   if(pathname.startsWith("/api/admin")){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
     const p=getUser(s.user_email);if(!p?.isAdmin)return json(res,403,{error:"Acesso negado."});
-    if(pathname==="/api/admin/stats"&&req.method==="GET"){const tu=Object.keys(DB_USERS).length;const ts=Object.values(DB_HIST).reduce((n,a)=>n+a.length,0);const ds=todayStr();const tt=Object.values(DB_HIST).reduce((n,a)=>n+a.filter(h=>h.dateStr===ds).length,0);const vu=Object.values(DB_USERS).filter(u=>isVipActive(u)).length;const au=Object.values(DB_AUTO).filter(j=>j.active).length;return json(res,200,{totalUsers:tu,totalSent:ts,todayTotal:tt,vipUsers:vu,activeAutoJobs:au,freeUsers:tu-vu,jobsCached:jobsCache.length,jobsTotal,activeSessions:Object.keys(sessions).filter(k=>!k.startsWith("__")).length,dataDir:DATA_DIR,disk:fs.existsSync("/data"),sheetJan:SHEET_JAN.length,sheetJul:SHEET_JUL.length});}
+    if(pathname==="/api/admin/stats"&&req.method==="GET"){
+      const tu=Object.keys(DB_USERS).length;
+      const ts=Object.values(DB_HIST).reduce((n,a)=>n+a.length,0);
+      const ds=todayStr();
+      const tt=Object.values(DB_HIST).reduce((n,a)=>n+a.filter(h=>h.dateStr===ds).length,0);
+      const vu=Object.values(DB_USERS).filter(u=>isVipActive(u)).length;
+      const au=Object.values(DB_AUTO).filter(j=>j.active).length;
+      const todayKey=new Date().toISOString().slice(0,10);
+      const h2aLog=DB_H2A_DAILY[todayKey]||{added:0,total:SHEET_H2A.length,updatedAt:null};
+      const planDist={free:0,vip:0,vipro:0,doublepro:0};
+      Object.values(DB_USERS).forEach(u=>{const pl=getPlan(u);planDist[pl]=(planDist[pl]||0)+1;});
+      return json(res,200,{totalUsers:tu,totalSent:ts,todayTotal:tt,vipUsers:vu,activeAutoJobs:au,freeUsers:tu-vu,jobsCached:jobsCache.length,jobsTotal,activeSessions:Object.keys(sessions).filter(k=>!k.startsWith("__")).length,dataDir:DATA_DIR,disk:fs.existsSync("/data"),sheetJan:SHEET_JAN.length,sheetJul:SHEET_JUL.length,sheetH2a:SHEET_H2A.length,h2aToday:h2aLog.added,h2aTotal:SHEET_H2A.length,h2aLastUpdate:h2aLog.updatedAt,planDist});
+    }
     if(pathname==="/api/admin/users"&&req.method==="GET"){const list=Object.values(DB_USERS).map(u=>{const vok=isVipActive(u);const h=getHist(u.email);const autoJob=getAutoJob(u.email);return{email:u.email,name:u.name,picture:u.picture,country:u.country,phone:u.phone,created_at:u.created_at,cvCount:(u.cvs||[]).length,histCount:h.length,todaySent:countManualToday(h)+countAutoToday(h),plan:getPlan(u),isAdmin:!!u.isAdmin,vip:u.vip?{active:vok,expiresAt:u.vip.expiresAt,activatedAt:u.vip.activatedAt,days:u.vip.days||30,plan:u.vip.plan||"vip",manualExpires:u.vip.manualExpires||0,autoExpires:u.vip.autoExpires||0}:null,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0}:null};}).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));return json(res,200,{users:list,total:list.length});}
+    // Admin H-2A: forçar update agora
+    if(pathname==="/api/admin/h2a/update"&&req.method==="POST"){
+      updateH2aDaily(true).catch(e=>console.error("[h2a]",e.message));
+      return json(res,200,{ok:true,msg:"Update H-2A iniciado"});
+    }
+    // Admin H-2A: histórico diário
+    if(pathname==="/api/admin/h2a/daily"&&req.method==="GET"){
+      return json(res,200,{log:DB_H2A_DAILY,total:SHEET_H2A.length});
+    }
     if(pathname==="/api/admin/vip/activate"&&req.method==="POST"){try{const d=JSON.parse(await readBody(req));if(!d.email)return json(res,400,{error:"email obrigatório."});const target=getUser(d.email);if(!target)return json(res,404,{error:"Usuário não encontrado."});const days=Math.max(1,Math.min(365,parseInt(d.days||30,10)));const autoDays=Math.max(0,Math.min(365,parseInt(d.autoDays||0,10)));const planName=d.plan||"vip";const now=Date.now();
       // Stack: adiciona manual e/ou auto dias
       let manualExpires=target.vip?.manualExpires&&target.vip.manualExpires>now?target.vip.manualExpires:now;
       let autoExpires=target.vip?.autoExpires&&target.vip.autoExpires>now?target.vip.autoExpires:now;
-      if(planName==="vip"||planName==="vipro")manualExpires+=days*86400_000;
-      if(planName==="pro"||planName==="vipro")autoExpires+=days*86400_000;
+      if(planName==="vip"||planName==="vipro"||planName==="doublepro")manualExpires+=days*86400_000;
+      if(planName==="pro"||planName==="vipro"||planName==="doublepro")autoExpires+=days*86400_000;
       // Se autoDays especificado separado
       if(autoDays>0)autoExpires+=autoDays*86400_000;
       const vip={...(target.vip||{}),active:true,manualExpires,autoExpires,activatedAt:now,activatedBy:s.user_email,note:d.note||"",days,autoDays,plan:planName};
@@ -4297,6 +4464,11 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
         topWeek:week.slice(0,3).map(r=>({name:r.name,plan:r.plan,score:r.score,picture:r.picture})),
         onlineCount});
     }
+  }
+
+  // ── Preços dos planos (público) ──────────────────────────
+  if(pathname==="/api/plan-prices"&&req.method==="GET"){
+    return json(res,200,{plans:PLAN_PRICES,periods:PERIOD_DISCOUNTS,limits:PLAN_LIMITS});
   }
 
   // ── Resgatar código promo (usuário autenticado) ───────────
@@ -5145,6 +5317,52 @@ Equipe H2BApply` },
 // Controla envio único por período (1x por evento, não fica spammando)
 const _notifLock = new Set(); // email+tipo
 
+// Mensagens para token revogado — usuário precisa fazer login novamente
+const MSGS_TOKEN_REVOKED = [
+  { sub:"🔐 {nome}, seu automático pausou — precisa de 1 minutinho!", body:`{nome}!
+
+Seu robô do H2BApply estava trabalhando forte, mas o acesso ao seu Gmail foi interrompido — provavelmente porque sua senha do Google mudou ou o acesso foi revogado.
+
+✅ Para reativar em 1 minuto:
+1. Acesse h2bapply.com
+2. Faça login com o Google novamente
+3. O automático volta a funcionar do ponto onde parou!
+
+Suas candidaturas que já foram enviadas estão todas salvas — você não perdeu nada! 🎯
+
+Bora reativar e continuar enviando! 🇺🇸💪
+
+Equipe H2BApply 🤖` },
+
+  { sub:"⚠️ {nome}, ação necessária — automático pausado por segurança", body:`Oi {nome}!
+
+Detectamos que o acesso ao seu Gmail foi interrompido. Isso é normal quando a senha do Google é alterada ou quando o acesso é revogado nas configurações da conta.
+
+Seu automático está pausado mas a fila está salva! 📋
+
+🔄 Para continuar em segundos:
+→ Acesse h2bapply.com
+→ Clique em "Entrar com Google"
+→ Pronto! O robô retoma de onde parou!
+
+Não deixa a fila esfriar — tem empresa americana esperando! 🇺🇸
+
+Equipe H2BApply` },
+
+  { sub:"🔑 {nome}! Seu robô precisa de você — acesso Google expirou", body:`{nome}!!
+
+Seu robô estava na missão, mas encontrou um obstáculo: o acesso ao Gmail foi interrompido e ele pausou para te avisar.
+
+A solução é rápida:
+🔐 Entre em h2bapply.com → faça login com Google → robô volta a correr!
+
+Suas candidaturas anteriores estão todas salvas e a fila continua te esperando! 💪
+
+Vamos lá que a América não espera! 🇺🇸🚀
+
+Equipe H2BApply 🤖` },
+];
+
 async function sendNotifEmail(userEmail, tipo) {
   // Trava: não envia o mesmo tipo 2x em 24h
   const lockKey = `${userEmail}_${tipo}`;
@@ -5155,7 +5373,9 @@ async function sendNotifEmail(userEmail, tipo) {
   try {
     const p = getUser(userEmail);
     const nome = (p?.name || userEmail.split("@")[0] || "amigo").split(" ")[0];
-    const msgs = tipo === "stalled" ? MSGS_STALLED : MSGS_FINISHED;
+    const msgs = tipo === "stalled"       ? MSGS_STALLED
+               : tipo === "token_revoked" ? MSGS_TOKEN_REVOKED
+               : MSGS_FINISHED;
     // Escolhe variação aleatória
     const idx = Math.floor(Math.random() * msgs.length);
     const msg = msgs[idx];
@@ -5572,6 +5792,8 @@ async function tokenGuardianRun() {
             setAutoJob(email, {...job, active:false, status:"paused_token_revoked"});
             if (autoTimers.has(email)) { clearTimeout(autoTimers.get(email)); autoTimers.delete(email); }
             addLog(email, {status:"pausado", jobTitle:"🔐 Acesso Google revogado pelo usuário", company:"O usuário removeu o acesso do H2BApply no painel Google. Faça login novamente para reativar.", error: msg});
+            // Notifica usuário por email para que saiba que precisa fazer login novamente
+            sendNotifEmail(email, "token_revoked").catch(e => console.warn("[notif/token_revoked/guardian]", e.message));
           }
         }
         // Outros erros (rede, timeout) → tenta de novo no próximo ciclo
