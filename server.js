@@ -1367,14 +1367,20 @@ function scheduleAuto(email) {
   function nextMidnightBRT() {
     const now = new Date();
     const next = new Date(now);
-    next.setUTCHours(3,0,1,0); // 00:00 BRT = 03:01 UTC (1s após meia-noite)
+    next.setUTCHours(3,0,0,0); // 00:00 BRT = 03:00 UTC (meia-noite exata)
     if (next <= now) next.setUTCDate(next.getUTCDate()+1);
     return next;
   }
 
   const p=getUser(email)||{};
   // FIX-BUG7: usa o limite registrado no job para não degradar se VIP expirar
-  const autoLimit = job.lockedAutoLimit || getAutoLimit(p);
+  // FIX-ERR3: se o plano melhorou enquanto o auto rodava, usa o novo limite superior
+  const currentPlanLimit = getAutoLimit(p);
+  const autoLimit = Math.max(job.lockedAutoLimit || 0, currentPlanLimit);
+  // Atualiza lockedAutoLimit no job se o plano melhorou (sem reatribuir job)
+  if (autoLimit > (job.lockedAutoLimit || 0)) {
+    setAutoJob(email, { ...job, lockedAutoLimit: autoLimit });
+  }
   const todayAuto=countAutoToday(getHist(email));
 
   if(todayAuto>=autoLimit){
@@ -1412,7 +1418,9 @@ function selectProfile(profiles, target, sheet) {
     const h2aProfiles = active.filter(pr => {
       if (pr.isGeneral) return false;
       const prName = (pr.name || "").toLowerCase();
-      // Perfil explicitamente para H-2A
+      // Perfil explicitamente para H-2A — checa pr.visa primeiro (campo canônico)
+      if (pr.visa === 'h2a' || pr.visa === 'both') return true;
+      // Fallback: heurística de nome para perfis criados antes do campo visa existir
       if (prName.includes("h2a") || prName.includes("h-2a") || prName.includes("farm") || prName.includes("agricult")) return true;
       if (pr.categories && (pr.categories.includes("farm") || pr.categories.includes("h2a") || pr.categories.includes("agricultural"))) return true;
       return false;
@@ -1784,12 +1792,18 @@ async function _doAutoSendInner(email) {
       wage:     String(target.wage    || ""),
       inicio:   String(target.start   || ""),
     };
+    // v17-FIX: avisa claramente se nome está vazio (causa {nome} literal no assunto)
+    if (!tplVars.nome) {
+      addLog(email, { ...logEntry, status:"pulado", error:"Nome do candidato não preenchido no perfil — preencha seu nome nas configurações para que o template {nome} seja substituído corretamente." });
+      break;
+    }
+
     const subject = fillTpl(String(chosenSubject), tplVars);
     const body    = fillTpl(String(rawBody),        tplVars);
 
     // v15-SEC: bloqueia envio com assunto ou corpo vazio
     if (!subject.trim()) {
-      addLog(email, { ...logEntry, status:"pulado", error:"Assunto em branco — configure um assunto no perfil ou nas configurações." });
+      addLog(email, { ...logEntry, status:"pulado", error:"Assunto em branco após substituição de variáveis — verifique se o template usa variáveis não preenchidas (ex: {nome} sem nome no perfil)." });
       break; // sai do retry loop — pula esta vaga
     }
     if (!body.trim()) {
@@ -1879,6 +1893,7 @@ async function _doAutoSendInner(email) {
         state:     target.state,
         source:    job.source,
         sheetSource: job.source || undefined,
+        caseNum:   target.caseNum || target.id || "",
         profileUsed: selectedProfile?.name || null,
       };
       addHist(email, histEntry);
@@ -1963,7 +1978,9 @@ async function _doAutoSendInner(email) {
         if (curJob) {
           // Devolve a vaga para frente da fila — não perde
           const restoredQ = [target, ...(curJob.queue||[])];
-          setAutoJob(email, { ...curJob, queue: restoredQ, status:"waiting_rate_limit", nextSendAt:Date.now()+retryAfterMs });
+          // FIX-ERR5: reverte também o rotState para o estado ANTES desta tentativa
+          // (o envio não ocorreu — rotação de assunto/corpo não deve avançar)
+          setAutoJob(email, { ...curJob, queue: restoredQ, rotState: job.rotState || curJob.rotState, status:"waiting_rate_limit", nextSendAt:Date.now()+retryAfterMs });
         }
         addLog(email, { ...logEntry, status:"pausado", error: errFriendly + ` Retomando às ${retryAtStr} BRT (${waitMin}min).` });
         trackJourney(email,'auto_fail',{ok:false,error:errFriendly,detail:`Rate limit → ${target?.company||"?"}`});
@@ -3143,7 +3160,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       const src = autoJob.source || "";
       if(src==="jan2026" || (q.caseNum||"").startsWith("H-4")) sentJan.add(id);
       else if(src==="h2a") sentH2A.add(id);
-      else if(src==="jul2025" || (q.caseNum||"").startsWith("H-3")) sentJul.add(id);
+      else if(src==="jul2025" || (q.caseNum||"").startsWith("H-400")) sentJul.add(id);
       else sentSeasonal.add(id);
     });
 
@@ -5845,19 +5862,21 @@ function inRankPeriod(e, period) {
   if (period === "all") return true;
   if (period === "day") return e.dateStr === todayStr();
 
-  // Tenta obter timestamp confiável: sentAt → dateStr → exclui
+  // FIX-ERR8: usa dateStr (BRT) como fonte primária para evitar desvio de 3h UTC/BRT
+  // sentAt é UTC puro — um envio às 22h BRT tem sentAt do dia seguinte UTC.
+  // dateStr "DD/MM/YYYY" reflete o dia correto em BRT — reconstroído ao meio-dia UTC (neutro).
   let ts = 0;
-  if (e.sentAt) {
-    const parsed = new Date(e.sentAt).getTime();
-    if (!isNaN(parsed)) ts = parsed;
-  }
-  // Fallback: reconstrói timestamp a partir do dateStr "DD/MM/YYYY"
-  if (ts === 0 && e.dateStr) {
+  if (e.dateStr) {
     const parts = e.dateStr.split("/");
     if (parts.length === 3) {
       const reconstructed = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00Z`).getTime();
       if (!isNaN(reconstructed)) ts = reconstructed;
     }
+  }
+  // Fallback: sentAt UTC se dateStr ausente (registros legados)
+  if (ts === 0 && e.sentAt) {
+    const parsed = new Date(e.sentAt).getTime();
+    if (!isNaN(parsed)) ts = parsed;
   }
   if (ts === 0) return false; // sem data confiável — exclui do ranking de período
 

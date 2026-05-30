@@ -2386,7 +2386,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           </div>
 
                     <!-- ══ TAB: PERFIS DE EMAIL ══ -->
-          <div id="ptab-content-profiles" style="padding:14px 16px;display:none;position:absolute;left:-9999px">
+          <div id="ptab-content-profiles" style="padding:14px 16px;display:none">
             <div style="font-size:16px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px"><i class="ti ti-user-circle" style="color:var(--purple)"></i> Perfis de E-mail</div>
             <div style="font-size:12px;color:var(--t2);margin-bottom:14px;line-height:1.5">Cada perfil define o assunto, o corpo do e-mail e o currículo a usar. O sistema escolhe o perfil certo para cada vaga automaticamente.</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
@@ -7269,7 +7269,7 @@ function openPreflightModal(){
     ]).then(([countData, sentData])=>{
       const totalWithFilters = countData.filtered ?? countData.total ?? 0;
       const srcSentIds = new Set([
-        ...(autoSelectedSrc==="jan2026" ? (sentData.jan2026||[]) : (sentData.jul2025||[])),
+        ...(autoSelectedSrc==="jan2026" ? (sentData.jan2026||[]) : autoSelectedSrc==="h2a" ? (sentData.h2a||sentData.jul2025||[]) : (sentData.jul2025||[])),
         ...(sentData.autoQueueIds||[])
       ]);
       // Estimativa de já-enviadas dentro dos filtros atuais
