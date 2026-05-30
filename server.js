@@ -18,6 +18,8 @@
 //    doublepro → 100 manual + 400 auto /dia
 // ═══════════════════════════════════════════════════════════
 "use strict";
+// FIX-21: versão centralizada — usada em todos os logs para evitar inconsistência
+const APP_VERSION = "15.0.0";
 const http   = require("http");
 const https  = require("https");
 const fs     = require("fs");
@@ -143,7 +145,7 @@ const REFERRAL_FILE  = path.join(DATA_DIR, "referrals.json");       // Referral 
 const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
 try { fs.mkdirSync(CVS_DIR, { recursive: true }); } catch {}
 
-console.log(`[boot] H2BApply v14.0 | ${APP_URL} | ${DATA_DIR}`);
+console.log(`[boot] H2BApply v${APP_VERSION} | ${APP_URL} | ${DATA_DIR}`);
 const _diskOk = DATA_DIR !== "/tmp";
 console.log(`[boot] Disk: ${_diskOk ? `✅ ${DATA_DIR} (persistente)` : "❌ /tmp (VOLÁTIL — tokens/PDFs serão perdidos no próximo deploy!)"}`);
 if (!_diskOk) {
@@ -786,119 +788,230 @@ async function pushToUser(userEmail, payload) {
   }
 }
 
-// Polling de inbox no servidor — verifica novas respostas a cada 2 min para usuários
-// com push ativo e auto-send em andamento ou VIP
-const pushPollState = new Map(); // email → { lastUnread }
-async function serverPushPoll() {
+// FIX-17: Poll escalonado — distribui verificações ao longo de 10min (600s)
+// em vez de checar todos de uma vez a cada 2min.
+// Com 200 usuários: 1 check a cada 3s → 200 checks em 600s → 20 checks/min (seguro)
+async function serverPushPollScheduled() {
   if (!PUSH_ENABLED) return;
   const usersWithPush = Object.keys(DB_PUSH).filter(e => (DB_PUSH[e]||[]).length > 0);
-  for (const email of usersWithPush) {
-    const u = getUser(email); if (!u) continue;
-    // Pega sessão ativa para buscar inbox
-    const sessArr = Object.values(sessions).filter(s => s.user_email === email && s.access_token);
-    const sess = sessArr[0]; const sessId = sess ? Object.keys(sessions).find(k => sessions[k] === sess) : null;
-    if (!sessId) continue; // sem sessão ativa = não pode checar inbox
-    try {
-      const emails = await gmailFetchInbox(sessId, 50);
-      // FIX: desconta emails que o usuário já marcou como lidos pelo app (persiste entre sessões)
-      const dbUsr = getUser(email) || {};
-      const pReadSet = new Set(dbUsr.readEmailIds || []);
-      const unread = emails.filter(e => !e.isRead && !pReadSet.has(e.id)).length;
-      const prev = pushPollState.get(email) ?? -1;
-      if (prev >= 0 && unread > prev) {
-        const diff = unread - prev;
-        // v13: tenta vincular a resposta mais recente não-lida à vaga original
-        const newestUnread = emails.find(e => !e.isRead);
-        let linkedHint = "";
-        let linkedAppId = "";
-        if(newestUnread){
-          const match = matchAppToEmail(email, {
-            threadId: newestUnread.threadId, inReplyTo: newestUnread.inReplyTo,
-            references: newestUnread.references, from: newestUnread.from
-          });
-          if(match?.app){
-            linkedAppId = match.app.appId;
-            const co = (match.app.company || match.app.jobSnapshot?.company || "").trim();
-            if(co) linkedHint = co;
+  if (!usersWithPush.length) return;
+
+  const POLL_WINDOW_MS = 10 * 60 * 1000; // 10 minutos
+  const delayPerUser = Math.max(2000, Math.floor(POLL_WINDOW_MS / usersWithPush.length));
+
+  for (let i = 0; i < usersWithPush.length; i++) {
+    const email = usersWithPush[i];
+    // Agenda cada usuário com delay incremental para distribuir a carga
+    setTimeout(async () => {
+      const u = getUser(email); if (!u) return;
+      const sessArr = Object.values(sessions).filter(s => s.user_email === email && s.access_token);
+      const sess = sessArr[0]; const sessId = sess ? Object.keys(sessions).find(k => sessions[k] === sess) : null;
+      if (!sessId) return;
+      try {
+        const emails = await gmailFetchInbox(sessId, 50);
+        const dbUsr = getUser(email) || {};
+        const pReadSet = new Set(dbUsr.readEmailIds || []);
+        const unread = emails.filter(e => !e.isRead && !pReadSet.has(e.id)).length;
+        const prev = pushPollState.get(email) ?? -1;
+        if (prev >= 0 && unread > prev) {
+          const diff = unread - prev;
+          const newestUnread = emails.find(e => !e.isRead);
+          let linkedHint = "";
+          let linkedAppId = "";
+          if(newestUnread){
+            const match = matchAppToEmail(email, {
+              threadId: newestUnread.threadId, inReplyTo: newestUnread.inReplyTo,
+              references: newestUnread.references, from: newestUnread.from
+            });
+            if(match?.app){
+              linkedAppId = match.app.appId;
+              const co = (match.app.company || match.app.jobSnapshot?.company || "").trim();
+              if(co) linkedHint = co;
+            }
           }
+          const baseTitle = `✈️ H2BApply — ${diff} nova${diff > 1 ? "s" : ""} resposta${diff > 1 ? "s" : ""}!`;
+          const payload = {
+            type: "new_reply",
+            title: linkedHint ? `✈️ ${linkedHint} respondeu!` : baseTitle,
+            body: linkedHint
+              ? `Você recebeu uma resposta para a vaga em ${linkedHint}.`
+              : `Você recebeu ${diff} nova${diff > 1 ? "s" : ""} resposta${diff > 1 ? "s" : ""}. Toque para abrir.`,
+            icon: "/icon-192.png",
+            badge: "/icon-192.png",
+            tag: "h2b-inbox",
+            url: linkedAppId ? `/?tab=respostas&app=${linkedAppId}` : "/?tab=respostas",
+            appId: linkedAppId || null,
+            timestamp: Date.now(),
+          };
+          console.log(`[push-poll] ${email}: ${diff} nova(s) resp${linkedHint?` (${linkedHint})`:""} → push`);
+          await pushToUser(email, payload);
         }
-        const baseTitle = `✈️ H2BApply — ${diff} nova${diff > 1 ? "s" : ""} resposta${diff > 1 ? "s" : ""}!`;
-        const payload = {
-          type: "new_reply",
-          title: linkedHint ? `✈️ ${linkedHint} respondeu!` : baseTitle,
-          body: linkedHint
-            ? `Você recebeu uma resposta para a vaga em ${linkedHint}.`
-            : `Você recebeu ${diff} nova${diff > 1 ? "s" : ""} resposta${diff > 1 ? "s" : ""}. Toque para abrir.`,
-          icon: "/icon-192.png",
-          badge: "/icon-192.png",
-          tag: "h2b-inbox",
-          url: linkedAppId ? `/?tab=respostas&app=${linkedAppId}` : "/?tab=respostas",
-          appId: linkedAppId || null,
-          timestamp: Date.now(),
-        };
-        console.log(`[push-poll] ${email}: ${diff} nova(s) resp${linkedHint?` (${linkedHint})`:""} → push`);
-        await pushToUser(email, payload);
-      }
-      pushPollState.set(email, unread);
-    } catch(e) { /* sessão pode ter expirado */ }
+        pushPollState.set(email, unread);
+      } catch(e) { /* sessão pode ter expirado */ }
+    }, i * delayPerUser);
   }
 }
-// Executa poll a cada 2 minutos
-setInterval(serverPushPoll, 2 * 60 * 1000);
+// Executa o poll escalonado a cada 10 minutos (antes: 2min para TODOS de uma vez)
+const pushPollState = new Map(); // email → lastUnread (mantido fora da função para persistência)
+setInterval(serverPushPollScheduled, 10 * 60 * 1000);
 
 // ══════════════════════════════════════════════════════════
 //  H-2A DAILY UPDATE — 03:00 BRT (06:00 UTC) todo dia
-//  Busca novas vagas em seasonaljobs.dol.gov e adiciona ao h2a_jobs.json
+//  Busca novas vagas no DOL (feed ZIP oficial) e faz MERGE INCREMENTAL no h2a_jobs.json
+//  Regras:
+//    1. Baixa feed ZIP h2a do DOL (mesmo endpoint do build-sheets.js)
+//    2. Adiciona apenas case numbers novos — nunca remove vagas existentes
+//    3. Atualiza campo `exp` das vagas já existentes (begin_date pode ter virado passado)
+//    4. Recarrega SHEET_H2A em memória após salvar
 // ══════════════════════════════════════════════════════════
+
+// Detecta categoria H-2A a partir do título e nome do empregador
+function _detectH2ACat(title, employer) {
+  const t = (title   || "").toLowerCase().trim();
+  const n = (employer|| "").toLowerCase().trim();
+  const TIT = {
+    "farmworker":"crop_laborer","farm worker":"crop_laborer","field worker":"crop_laborer",
+    "field laborer":"crop_laborer","crop laborer":"crop_laborer","harvest worker":"crop_laborer",
+    "harvester":"crop_laborer","farm laborer":"crop_laborer","general farmworker":"crop_laborer",
+    "farmworkers":"crop_laborer","farmworkers and laborers":"crop_laborer",
+    "equipment operator":"equipment_operator","operating engineer":"equipment_operator",
+    "tractor operator":"equipment_operator","machine operator":"equipment_operator",
+    "agricultural equipment operator":"equipment_operator",
+    "greenhouse worker":"greenhouse","nursery worker":"greenhouse","flower harvester":"greenhouse",
+    "tree fruit laborer":"tree_fruit","orchard worker":"tree_fruit","fruit picker":"tree_fruit",
+    "apple picker":"tree_fruit","cherry picker":"tree_fruit",
+    "dairy worker":"livestock","livestock worker":"livestock","beekeeper":"livestock",
+    "poultry worker":"livestock","ranch hand":"livestock",
+    "truck driver":"driver","shuttle driver":"driver","transport driver":"driver",
+    "construction laborer":"ag_construction","construction worker":"ag_construction",
+    "farm construction":"ag_construction","construction laborers":"ag_construction",
+  };
+  const EMP = {
+    crop_laborer:      ["farm","ranch","harvest","crop","orchard","berry","potato","tomato","vegetable","fruit","citrus","vineyard","agri"],
+    equipment_operator:["equipment","tractor","machinery","irrigat","operator"],
+    greenhouse:        ["greenhouse","nursery","floral","flower"],
+    tree_fruit:        ["orchard","cherry","apple","peach","blueberry","strawberry"],
+    livestock:         ["dairy","cattle","livestock","poultry","hog","swine","bee","apiary"],
+    driver:            ["transport","shuttle","logistics","trucking"],
+    ag_construction:   ["construction","builder","concrete","paving","ag builder"],
+    forestry:          ["timber","logging","lumber","reforestation","forest"],
+  };
+  if (TIT[t]) return TIT[t];
+  for (const [kw,cat] of Object.entries(TIT)) { if (t.includes(kw)||kw.includes(t)) return cat; }
+  for (const [cat,kws] of Object.entries(EMP)) { if (kws.some(k=>n.includes(k))) return cat; }
+  return "general_farm";
+}
+
+// Converte registro bruto DOL → formato h2a_jobs.json
+function _dolToH2ARecord(rec) {
+  const email = (rec.apply_email && rec.apply_email !== "N/A") ? rec.apply_email.trim()
+              : (rec.employer_email && rec.employer_email !== "N/A") ? rec.employer_email.trim() : "";
+  if (!email || !email.includes("@")) return null; // descarta sem email
+  const st = (rec.case_status || "").toLowerCase();
+  if (["denied","withdrawn","invalidated"].some(d => st.includes(d))) return null;
+
+  const title    = (rec.job_title || "").trim();
+  const employer = (rec.employer_business_name || rec.employer_trade_name || "").trim();
+  const state    = (rec.worksite_state || rec.employer_state || "").toUpperCase().trim();
+  const city     = (rec.worksite_city  || rec.employer_city  || "").trim();
+  const caseNum  = (rec.case_number || rec.case_id || "").trim();
+  if (!caseNum) return null;
+
+  const wageRaw = rec.basic_rate_from ? String(parseFloat(rec.basic_rate_from).toFixed(2)) : "";
+  const wunit   = rec.pay_range_desc === "Month" ? "mês" : "h";
+  const hrs     = parseInt(rec.hours_per_week || rec.guaranteed_hours || 0) || 40;
+  const loc     = city ? `${city}, ${state}` : state;
+  const beginMs = rec.begin_date ? new Date(rec.begin_date.slice(0,10)).getTime() : 0;
+  const exp     = beginMs > 0 ? (beginMs < Date.now()) : false;
+
+  return {
+    c: caseNum, t: title, n: employer, s: state, e: email,
+    w: wageRaw, wunit, wk: parseInt(rec.total_positions || 0) || 0,
+    k: _detectH2ACat(title, employer), visa: "H-2A", exp, hrs, loc,
+  };
+}
+
+// Download genérico com suporte a redirect, gzip e ZIP
+function _dolDownload(url) {
+  return new Promise((resolve, reject) => {
+    const mod = url.startsWith("https") ? https : http;
+    const req = mod.get(url, { headers: { "User-Agent": "H2BApply/1.0" } }, res => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return _dolDownload(res.headers.location).then(resolve).catch(reject);
+      }
+      if (res.statusCode !== 200) return reject(new Error("HTTP " + res.statusCode));
+      const chunks = []; res.on("data", c => chunks.push(c)); res.on("end", () => resolve(Buffer.concat(chunks))); res.on("error", reject);
+    });
+    req.on("error", reject);
+    req.setTimeout(60000, () => { req.destroy(); reject(new Error("Timeout")); });
+  });
+}
+
+async function _dolFetchH2AFeed(today) {
+  const url = `https://api.seasonaljobs.dol.gov/datahub-search/sjCaseData/zip/h2a/${today}`;
+  console.log(`[h2a] GET ${url}`);
+  const buf = await _dolDownload(url);
+  let data;
+  if (buf[0] === 0x1f && buf[1] === 0x8b) {
+    data = zlib.gunzipSync(buf);
+  } else if (buf[0] === 0x50 && buf[1] === 0x4b) {
+    const tmpZip = path.join(require("os").tmpdir(), `h2a_${Date.now()}.zip`);
+    fs.writeFileSync(tmpZip, buf);
+    try {
+      const { execSync } = require("child_process");
+      const list = execSync(`unzip -Z1 "${tmpZip}"`).toString().trim().split("\n");
+      const jf   = list.find(f => f.trim().endsWith(".json") || f.trim().endsWith(".JSON"));
+      if (!jf) throw new Error("No JSON in ZIP");
+      data = execSync(`unzip -p "${tmpZip}" "${jf.trim()}"`);
+    } finally { try { fs.unlinkSync(tmpZip); } catch (_) {} }
+  } else { data = buf; }
+  return JSON.parse(data.toString("utf8"));
+}
+
 async function updateH2aDaily(force) {
   const todayKey = new Date().toISOString().slice(0,10);
   if (!force && DB_H2A_DAILY[todayKey]?.done) {
     console.log("[h2a] Já atualizado hoje:", todayKey);
     return;
   }
-  console.log("[h2a] Iniciando update diário H-2A...");
+  console.log("[h2a] Iniciando update diário H-2A (DOL ZIP feed + merge incremental)...");
   try {
-    const d    = new Date();
-    const mm   = String(d.getUTCMonth()+1).padStart(2,"0");
-    const dd   = String(d.getUTCDate()).padStart(2,"0");
-    const yyyy = d.getUTCFullYear();
-    const url  = `https://seasonaljobs.dol.gov/archive?search=&location=&start_date=${mm}%2F${dd}%2F${yyyy}&job_type=H-2A&sort=relevancy&job_status=active`;
-    const https2 = require("https");
-    const html = await new Promise((res,rej)=>{
-      const r=https2.get(url,{headers:{"User-Agent":"H2BApply/1.0","Accept":"text/html"}},rsp=>{
-        let s=""; rsp.on("data",c=>s+=c); rsp.on("end",()=>res(s)); rsp.on("error",rej);
-      }); r.on("error",rej); r.setTimeout(30000,()=>{r.destroy();rej(new Error("timeout"));});
-    });
-    // Extrai case numbers e emails do HTML
-    const cases  = [...new Set((html.match(/H-300-\d{5}-\d{6}/g)||[]))];
-    const existing = new Set(SHEET_H2A.map(j=>j.c));
-    const newCases = cases.filter(c=>!existing.has(c));
-    let added = 0;
-    const emailRe = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
-    for (const cid of newCases) {
-      const idx   = html.indexOf(cid);
-      if (idx<0) continue;
-      const block = html.slice(Math.max(0,idx-300),idx+600);
-      const emails = [...new Set((block.match(emailRe)||[]))].filter(e=>e.includes("@")&&!e.includes("dol.gov")&&!e.includes("seasonaljobs"));
-      if (!emails.length) continue;
-      const titleM = block.match(/class="[^"]*title[^"]*"[^>]*>([^<]{5,80})</) || block.match(/<h[234][^>]*>([^<]{5,80})<\/h/i);
-      const compM  = block.match(/class="[^"]*employer[^"]*"[^>]*>([^<]{3,80})</) || block.match(/employer[^>]*>([^<]{3,60})</i);
-      const stateM = block.match(/\b([A-Z]{2})\b(?=\s*<|\s*,|\s*&)/);
-      SHEET_H2A.push({
-        c:cid, t:(titleM?titleM[1].trim():"Farm Worker"), n:(compM?compM[1].trim():"Agricultural Employer"),
-        s:(stateM?stateM[1]:""), e:emails[0], w:"", wunit:"h", wk:1,
-        k:"crop_laborer", visa:"H-2A", exp:false, hrs:40, loc:"",
-        addedDate: todayKey,
-      });
-      added++;
+    // 1. Baixa feed DOL
+    const raw     = await _dolFetchH2AFeed(todayKey);
+    const records = Array.isArray(raw) ? raw : (raw.data || raw.results || raw.items || raw.cases || []);
+    console.log(`[h2a] ${records.length} registros brutos do DOL`);
+
+    // 2. Índice das vagas existentes em memória (case number → posição no array)
+    const existingIdx = new Map(SHEET_H2A.map((j,i) => [j.c, i]));
+
+    let added = 0, updated = 0;
+    for (const rec of records) {
+      const converted = _dolToH2ARecord(rec);
+      if (!converted) continue;
+      const cn = converted.c;
+      if (existingIdx.has(cn)) {
+        // Atualiza só o campo exp se mudou
+        const i = existingIdx.get(cn);
+        if (SHEET_H2A[i].exp !== converted.exp) { SHEET_H2A[i].exp = converted.exp; updated++; }
+      } else {
+        // Vaga nova — adiciona
+        SHEET_H2A.push(converted);
+        existingIdx.set(cn, SHEET_H2A.length - 1);
+        added++;
+      }
     }
-    if (added>0) {
-      fs.writeFileSync(H2A_FILE, JSON.stringify(SHEET_H2A));
-      console.log(`[h2a] ✅ ${added} novas vagas H-2A. Total: ${SHEET_H2A.length}`);
+
+    // 3. Salva no disco com backup atômico
+    if (added > 0 || updated > 0) {
+      const tmp = H2A_FILE + ".tmp";
+      fs.writeFileSync(tmp, JSON.stringify(SHEET_H2A));
+      fs.renameSync(tmp, H2A_FILE);
+      console.log(`[h2a] ✅ +${added} novas | ~${updated} exp atualizados | Total: ${SHEET_H2A.length}`);
     } else {
       console.log("[h2a] Nenhuma vaga nova hoje.");
     }
-    DB_H2A_DAILY[todayKey] = { added, total:SHEET_H2A.length, updatedAt:new Date().toISOString(), done:true };
+
+    DB_H2A_DAILY[todayKey] = { added, updated, total: SHEET_H2A.length, updatedAt: new Date().toISOString(), done: true };
     saveH2aDailyLog();
   } catch(e) {
     console.error("[h2a] Erro no update:", e.message);
@@ -1383,12 +1496,15 @@ function scheduleAuto(email) {
   // Se o plano expirou, currentPlanLimit já reflete o free (10/dia) — usamos esse.
   // Se o plano melhorou (upgrade), usamos o maior.
   const currentPlanLimit = getAutoLimit(p);
-  const planStillActive = isAutoVipActive(p) || currentPlanLimit > 10; // >10 = algum plano pago ativo
-  const autoLimit = planStillActive
-    ? Math.max(job.lockedAutoLimit || 0, currentPlanLimit)
-    : currentPlanLimit; // plano expirou — usa o limite atual (free=10)
-  // Atualiza lockedAutoLimit no job se o plano melhorou (sem reatribuir job)
-  if (autoLimit > (job.lockedAutoLimit || 0)) {
+  // FIX-12: autoLimit NUNCA pode exceder o plano atual.
+  // Se o plano foi rebaixado (ex: DoublePro→Free), lockedAutoLimit antigo é descartado.
+  // Se o plano melhorou (upgrade), usa o maior entre os dois.
+  // Resultado: lockedAutoLimit é sempre ≤ currentPlanLimit.
+  const autoLimit = isAutoVipActive(p)
+    ? Math.min(Math.max(job.lockedAutoLimit || 0, currentPlanLimit), currentPlanLimit)
+    : currentPlanLimit; // plano expirou → usa limite atual (free=10)
+  // Atualiza lockedAutoLimit apenas se o plano melhorou (nunca preserva limite antigo maior)
+  if (autoLimit !== (job.lockedAutoLimit || 0)) {
     setAutoJob(email, { ...job, lockedAutoLimit: autoLimit });
   }
   const todayAuto=countAutoToday(getHist(email));
@@ -1576,6 +1692,11 @@ async function _doAutoSendInner(email) {
   while (queue.length > 0) {
     const candidate = queue[0];
     if (!hasSent(email, candidate.to)) {
+      // FIX-20: pula vaga marcada como expirada (exp:true) — pode ter expirado enquanto estava na fila
+      if (candidate.exp === true) {
+        addLog(email, { status:"pulado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:"Vaga expirada (begin_date no passado) — pulada" });
+        queue.shift(); continue;
+      }
       // v15-SEC: auto dedup + validação robusta + self-send guard
       const _ce = parseEmail(candidate.to||"");
       if (!_ce.ok) {
@@ -2667,8 +2788,9 @@ const server=http.createServer(async(req,res)=>{
     <h2>4. Planos e pagamentos</h2>
     <ul>
       <li><strong>Free:</strong> 20 envios manuais + 10 automáticos por dia, gratuito</li>
-      <li><strong>VIP:</strong> 400 manuais + 10 automáticos por dia — R$ 99,90/mês</li>
-      <li><strong>VIPro:</strong> 300 manuais + 200 automáticos por dia — R$ 149,90/mês</li>
+      <li><strong>VIP:</strong> 400 manuais por dia (apenas manual, sem automático) — R$ 99,90/mês</li>
+      <li><strong>VIPro:</strong> 50 manuais + 200 automáticos por dia — R$ 149,90/mês</li>
+      <li><strong>DoublePro:</strong> 100 manuais + 400 automáticos por dia — R$ 249,90/mês</li>
     </ul>
     <p>Pagamentos são realizados via PIX. Não há reembolso após ativação do plano.</p>
 
@@ -3600,6 +3722,24 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
         }
       }
 
+      // ✅ FIX-13: Deduplica a fila na criação — remove emails já enviados E duplicatas internas.
+      // Antes só era feito durante o processamento (um por um), causando fila inflada.
+      const _seenToEmails = new Set();
+      const beforeDedup = queue.length;
+      queue = queue.filter(item => {
+        const norm = _normEmail(item.to);
+        if (!norm) return false;
+        // Remove se já foi enviado anteriormente (histórico persistido)
+        if (hasSent(s.user_email, norm)) return false;
+        // Remove duplicatas internas da própria fila
+        if (_seenToEmails.has(norm)) return false;
+        _seenToEmails.add(norm);
+        return true;
+      });
+      if (queue.length < beforeDedup) {
+        console.log(`[auto/start] FIX-13: ${beforeDedup - queue.length} duplicatas removidas na criação da fila (${queue.length} únicas restantes)`);
+      }
+
       // ✅ FIX-EXPIRED: remove vagas cuja data de início já passou há mais de 60 dias
       // Evita enviar candidaturas para empresas com vagas de temporadas passadas
       const cutoffExpiry = Date.now() - 60 * 86400_000;
@@ -4230,8 +4370,6 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
             diagStatus = "waiting_limit";
             diagReason = `Limite diário atingido (${todayAutoU}/${autoLimitU}). Retoma amanhã.`;
             diagAction = "Normal — aguarda meia-noite BRT";
-          // waiting_hour removido — sem janela de horário
-            diagAction = "Normal — aguarda horário configurado";
           } else if (job.status === "waiting_rate_limit") {
             diagStatus = "rate_limit";
             diagReason = `Gmail bloqueou temporariamente (rate limit). Retoma às ${job.nextSendAt?new Date(job.nextSendAt).toLocaleTimeString("pt-BR",{timeZone:"America/Sao_Paulo"}):"?"}`;
@@ -6080,7 +6218,7 @@ process.on("unhandledRejection",(reason)=>{
 });
 
 server.listen(PORT,"0.0.0.0",()=>{
-  console.log(`\n✅  H2BApply v13.1 — ${APP_URL} (porta ${PORT})`);
+  console.log(`\n✅  H2BApply v${APP_VERSION} — ${APP_URL} (porta ${PORT})`);
   console.log(`    👤 Usuários: ${Object.keys(DB_USERS).length}`);
   console.log(`    📋 Jan/2026: ${SHEET_JAN.length} | Jul/2025: ${SHEET_JUL.length}`);
   console.log(`    🔗 Índice candidaturas: ${Object.keys(DB_APP_INDEX).length} usuário(s)`);

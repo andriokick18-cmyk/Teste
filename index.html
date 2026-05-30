@@ -4346,6 +4346,28 @@ function toggleDarkMode(){
   const isDark = document.documentElement.classList.toggle("dark");
   try{ localStorage.setItem("h2b_theme", isDark ? "dark" : "light"); }catch{}
   _applyDarkUI(isDark);
+  // FIX-35: persiste preferência de dark mode no servidor → sincroniza entre dispositivos
+  if(U?.connected){
+    fetch("/api/settings",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({settings:{darkMode: isDark ? "dark" : "light"}})
+    }).catch(()=>{});
+  }
+}
+
+// FIX-35: aplica dark mode vindo do servidor (preferência sincronizada)
+function _applyServerDarkMode(serverDarkMode) {
+  if (!serverDarkMode) return;
+  const localSaved = (() => { try { return localStorage.getItem("h2b_theme"); } catch { return null; } })();
+  // Servidor tem prioridade sobre localStorage se divergirem
+  if (serverDarkMode === "dark" && !document.documentElement.classList.contains("dark")) {
+    document.documentElement.classList.add("dark");
+    try{ localStorage.setItem("h2b_theme","dark"); }catch{}
+    _applyDarkUI(true);
+  } else if (serverDarkMode === "light" && document.documentElement.classList.contains("dark")) {
+    document.documentElement.classList.remove("dark");
+    try{ localStorage.setItem("h2b_theme","light"); }catch{}
+    _applyDarkUI(false);
+  }
 }
 
 // Chama _applyDarkUI quando perfil é aberto para sincronizar o toggle visual
@@ -4373,6 +4395,8 @@ async function checkStatus(){
       DOCS=d.cvs||[];
       activeResIdx=DOCS.filter(c=>(c.cvType||"resume")==="resume").slice(-1)[0]?.idx||null;
       if(d.readEmailIds?.length)_loadReadStateFromServer(d.readEmailIds);
+      // FIX-35: aplica dark mode do servidor (sincroniza preferência entre dispositivos)
+      if(d.settings?.darkMode) _applyServerDarkMode(d.settings.darkMode);
       // Restore language from server preference
       if(d.language && LANG_DICT && LANG_DICT[d.language]){
         if(_curLang !== d.language){
@@ -8527,7 +8551,15 @@ async function openAutoModal(){
   const hasCv=DOCS.some(c=>(c.cvType||"resume")==="resume");
 
   if(profiles.length===0){
-    // Mostra checklist de setup em vez de confirm() genérico
+    // FIX-32: feedback específico — usuário sabe exatamente o que falta
+    toast("⚠️ Crie um perfil de e-mail antes de iniciar o automático. Vá em Perfil → Perfis de Envio.","a",5000);
+    _showSetupChecklist();
+    return;
+  }
+  // Verifica se ao menos um perfil tem assunto configurado
+  const hasSubject = profiles.some(p => (p.subjects?.length > 0) || p.subject);
+  if(!hasSubject){
+    toast("⚠️ Configure um assunto de e-mail no seu perfil antes de iniciar.","a",5000);
     _showSetupChecklist();
     return;
   }
