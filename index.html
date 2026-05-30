@@ -2389,9 +2389,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div id="ptab-content-profiles" style="padding:14px 16px;display:none;position:absolute;left:-9999px">
             <div style="font-size:16px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px"><i class="ti ti-user-circle" style="color:var(--purple)"></i> Perfis de E-mail</div>
             <div style="font-size:12px;color:var(--t2);margin-bottom:14px;line-height:1.5">Cada perfil define o assunto, o corpo do e-mail e o currículo a usar. O sistema escolhe o perfil certo para cada vaga automaticamente.</div>
-            <button class="btn btn-primary w100" style="margin-bottom:12px" onclick="openProfileEditor()">
-              <i class="ti ti-plus"></i> Criar Novo Perfil
-            </button>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+              <button class="btn btn-primary" onclick="openProfileEditor(null,'h2b')"><i class="ti ti-plus"></i> Perfil H-2B</button>
+              <button class="btn btn-secondary" style="background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(5,150,105,.1));border-color:rgba(16,185,129,.4);color:#047857;font-weight:800" onclick="openProfileEditor(null,'h2a')">🌾 Perfil H-2A</button>
+            </div>
             <div style="background:var(--sf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--t2);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <span style="font-weight:700">🔄 Prioridade:</span>
               <span>1. 📂 Por Categoria</span>
@@ -3770,6 +3771,25 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div id="pe-type-hint" style="margin-top:7px;font-size:11px;color:var(--t2);line-height:1.5;padding:7px 10px;background:var(--sf2);border-radius:8px;border-left:3px solid var(--blue)"></div>
         </div>
 
+        <!-- ── VISTO: H-2B ou H-2A ── -->
+        <div class="field">
+          <label>Tipo de visto <span style="color:var(--red)">*</span></label>
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;padding:9px 14px;border:2px solid var(--border2);border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;background:var(--sf2);transition:all .15s" id="pe-visa-h2b-lbl">
+              <input type="radio" name="pe-visa" value="h2b" id="pe-visa-h2b" style="accent-color:#4f46e5" onchange="peOnVisaChange()" checked> 🔧 H-2B <span style="font-size:10px;font-weight:500;color:var(--t3)">não-agrícola</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;padding:9px 14px;border:2px solid var(--border2);border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;background:var(--sf2);transition:all .15s" id="pe-visa-h2a-lbl">
+              <input type="radio" name="pe-visa" value="h2a" id="pe-visa-h2a" style="accent-color:#047857" onchange="peOnVisaChange()"> 🌾 H-2A <span style="font-size:10px;font-weight:500;color:var(--t3)">agrícola</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;padding:9px 14px;border:2px solid var(--border2);border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;background:var(--sf2);transition:all .15s" id="pe-visa-both-lbl">
+              <input type="radio" name="pe-visa" value="both" id="pe-visa-both" style="accent-color:#f59e0b" onchange="peOnVisaChange()"> 🔄 Ambos
+            </label>
+          </div>
+          <div id="pe-visa-hint" style="margin-top:7px;font-size:11px;color:var(--t2);line-height:1.5;padding:7px 10px;background:var(--sf2);border-radius:8px;border-left:3px solid var(--green)">
+            Este perfil será usado <strong>apenas para vagas H-2B</strong>. Os e-mails só serão enviados para empregadores H-2B.
+          </div>
+        </div>
+
         <div style="display:flex;gap:14px;margin-top:4px">
           <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="pe-active" checked style="width:16px;height:16px;accent-color:var(--green)">
@@ -3800,6 +3820,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="jan2026" style="accent-color:var(--blue)"> ☀️ Jan/2026</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="jul2025" style="accent-color:var(--blue)"> ❄️ Jul/2025</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="dol" style="accent-color:var(--blue)"> 🔍 DOL Live</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.08);border:1.5px solid rgba(16,185,129,.3);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="h2a" style="accent-color:#047857"> 🌾 H-2A Agrícola</label>
           </div>
         </div>
 
@@ -5976,25 +5997,38 @@ function peAddBodyModel(type){
 function renderProfiles(){
   const list=g("#profile-list");if(!list)return;
   if(!UPROFILES.length){
-    list.innerHTML=`<div class="empty-state"><i class="ti ti-user-circle"></i><p>Nenhum perfil criado ainda</p><small>Clique em "Criar Novo Perfil" acima para começar. Recomendamos ter pelo menos 1 perfil Geral e perfis específicos por categoria.</small></div>`;
+    list.innerHTML=`<div class="empty-state"><i class="ti ti-user-circle"></i><p>Nenhum perfil criado ainda</p><small>Clique em "Criar Novo Perfil" acima para começar. Recomendamos ter pelo menos 1 perfil Geral e perfis específicos por categoria.</small></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+      <button class="btn btn-primary" onclick="openProfileEditor(null,'h2b')"><i class="ti ti-plus"></i> Perfil H-2B</button>
+      <button class="btn btn-secondary" style="background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(5,150,105,.1));border-color:rgba(16,185,129,.4);color:#047857;font-weight:800" onclick="openProfileEditor(null,'h2a')">🌾 Perfil H-2A</button>
+    </div>`;
     return;
   }
   const typeLabel={specific:"🎯 Específico",category:"📂 Por Categoria",general:"🌐 Geral (Fallback)"};
   const typeBg={specific:"var(--bluel)",category:"var(--greenl)",general:"var(--purplel)"};
   const typeColor={specific:"var(--blue)",category:"var(--green)",general:"var(--purple)"};
-  list.innerHTML=UPROFILES.map(p=>{
+  const visaBadge=(v)=>{
+    if(v==='h2a')return`<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;background:rgba(16,185,129,.15);color:#047857;border:1px solid rgba(16,185,129,.4)">🌾 H-2A</span>`;
+    if(v==='both')return`<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;background:rgba(245,158,11,.13);color:#92400e;border:1px solid rgba(245,158,11,.4)">🔄 H-2B+H-2A</span>`;
+    return`<span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px;background:rgba(59,130,246,.13);color:#1e40af;border:1px solid rgba(59,130,246,.3)">🔧 H-2B</span>`;
+  };
+  // Separar em grupos
+  const h2bProfiles=UPROFILES.filter(p=>!p.visa||p.visa==='h2b');
+  const h2aProfiles=UPROFILES.filter(p=>p.visa==='h2a'||p.visa==='both');
+  const renderCard=(p)=>{
     const active=p.active!==false;
     const ptype=p.type||(p.isGeneral?"general":((p.categories||[]).length?"category":"specific"));
     const cats=(p.categories||[]).join(", ")||"–";
     const subjects=p.subjects||[];
     const bodies=p.emailBodies||[];
     const hasPdf=!!(p.pdfName||p.resumeIdx!=null);
-    return`<div class="profile-card" style="opacity:${active?1:.55};border:1.5px solid ${active?"var(--border)":"var(--border2)"}">
+    return`<div class="profile-card" style="opacity:${active?1:.55};border:1.5px solid ${active?(p.visa==='h2a'?'rgba(16,185,129,.35)':'var(--border)'):'var(--border2)'}">
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
-        <div style="width:38px;height:38px;border-radius:10px;background:${typeBg[ptype]||"var(--sf2)"};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${p.icon||(ptype==="general"?"🌐":ptype==="category"?"📂":"🎯")}</div>
+        <div style="width:38px;height:38px;border-radius:10px;background:${p.visa==='h2a'?'rgba(16,185,129,.15)':typeBg[ptype]||'var(--sf2)'};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${p.icon||(ptype==="general"?"🌐":ptype==="category"?"📂":"🎯")}</div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             <span style="font-size:14px;font-weight:800">${esc(p.name)}</span>
+            ${visaBadge(p.visa)}
             <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:${typeBg[ptype]};color:${typeColor[ptype]}">${typeLabel[ptype]||ptype}</span>
             ${p.isFavorite?'<span style="font-size:13px">⭐</span>':""}
             <span style="background:${active?"var(--greenl)":"var(--sf3)"};color:${active?"var(--green)":"var(--t3)"};border:1px solid ${active?"var(--greenb)":"var(--border)"};border-radius:10px;font-size:10px;font-weight:700;padding:1px 7px">${active?"● Ativo":"○ Inativo"}</span>
@@ -6005,7 +6039,6 @@ function renderProfiles(){
             <span style="font-size:10px;background:var(--sf2);border:1px solid var(--border);border-radius:5px;padding:2px 7px;color:${bodies.length>=3?"var(--green)":"var(--amber)"}"><i class="ti ti-file-text"></i> ${bodies.length} corpo${bodies.length!==1?"s":""}${bodies.length<3?" ⚠️":""}</span>
             ${hasPdf?`<span style="font-size:10px;color:var(--red);background:var(--redl);border:1px solid var(--redb);border-radius:5px;padding:2px 7px"><i class="ti ti-file-type-pdf"></i> PDF</span>`:`<span style="font-size:10px;color:var(--amber);background:var(--amberl);border:1px solid var(--amberb);border-radius:5px;padding:2px 7px">⚠️ Sem PDF</span>`}
             ${(p.categories||[]).length?`<span style="font-size:10px;background:var(--sf2);border:1px solid var(--border);border-radius:5px;padding:2px 7px;color:var(--t2)">📂 ${esc(cats.slice(0,30))}</span>`:""}
-            ${(p.sheets||[]).length?`<span style="font-size:10px;background:var(--sf2);border:1px solid var(--border);border-radius:5px;padding:2px 7px;color:var(--t2)">📋 ${esc((p.sheets||[]).join(", "))}</span>`:""}
           </div>
         </div>
       </div>
@@ -6016,12 +6049,62 @@ function renderProfiles(){
         <button onclick="deleteProfile('${p.id}')" class="btn btn-danger btn-xs"><i class="ti ti-trash"></i></button>
       </div>
     </div>`;
-  }).join("")+
-  `<button class="btn btn-primary w100" style="margin-top:8px" onclick="openProfileEditor()"><i class="ti ti-plus"></i> Criar Mais Perfis</button>`;
+  };
+  let html='';
+  if(h2bProfiles.length){
+    html+=`<div style="font-size:11px;font-weight:800;color:#1e40af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;padding:4px 8px;background:rgba(59,130,246,.1);border-radius:6px;display:flex;align-items:center;gap:5px"><i class="ti ti-tool" style="font-size:12px"></i> Perfis H-2B — Não-agrícola</div>`;
+    html+=h2bProfiles.map(renderCard).join('');
+  }
+  if(h2aProfiles.length){
+    html+=`<div style="font-size:11px;font-weight:800;color:#047857;text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px;padding:4px 8px;background:rgba(16,185,129,.1);border-radius:6px;display:flex;align-items:center;gap:5px"><i class="ti ti-plant-2" style="font-size:12px"></i> Perfis H-2A — Agrícola</div>`;
+    html+=h2aProfiles.map(renderCard).join('');
+  }
+  // Botões de criar no rodapé
+  html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+    <button class="btn btn-primary" onclick="openProfileEditor(null,'h2b')"><i class="ti ti-plus"></i> + Perfil H-2B</button>
+    <button class="btn btn-secondary" style="background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(5,150,105,.1));border-color:rgba(16,185,129,.4);color:#047857;font-weight:800" onclick="openProfileEditor(null,'h2a')">🌾 + Perfil H-2A</button>
+  </div>`;
+  list.innerHTML=html;
+}
+
+// ── VISA CHANGE ─────────────────────────────────
+function peOnVisaChange(){
+  const visa=document.querySelector('input[name="pe-visa"]:checked')?.value||'h2b';
+  const hints={
+    h2b:'Este perfil será usado <strong>apenas para vagas H-2B</strong>. Os e-mails só serão enviados para empregadores H-2B (não-agrícola).',
+    h2a:'Este perfil será usado <strong>apenas para vagas H-2A</strong>. Os e-mails só serão enviados para empregadores H-2A (agrícola). Categorias como Farm, Forest, Seafood são comuns aqui.',
+    both:'Este perfil será usado para <strong>vagas H-2B e H-2A</strong>. O sistema enviará para qualquer vaga compatível independente do visto.'
+  };
+  const colors={h2b:'var(--blue)',h2a:'#047857',both:'var(--amber)'};
+  const hint=g('#pe-visa-hint');
+  if(hint){hint.innerHTML=hints[visa]||hints.h2b;hint.style.borderLeftColor=colors[visa]||colors.h2b;}
+  // Highlight selected label
+  ['h2b','h2a','both'].forEach(v=>{
+    const lbl=g(`#pe-visa-${v}-lbl`);
+    if(lbl){lbl.style.borderColor=v===visa?colors[v]:'var(--border2)';lbl.style.background=v===visa?'var(--sf)':'var(--sf2)';}
+  });
+  // Para H-2A: sugerir categorias agrícolas automaticamente
+  if(visa==='h2a'){
+    const farmCat=document.querySelector('input[name="pe-cat"][value="farm"]');
+    const forestCat=document.querySelector('input[name="pe-cat"][value="forest"]');
+    if(farmCat&&!farmCat.checked)farmCat.checked=true;
+    // Atualizar planilha compatível para h2a
+    const h2aSheet=document.querySelector('input[name="pe-sheet"][value="h2a"]');
+    const jan=document.querySelector('input[name="pe-sheet"][value="jan2026"]');
+    const jul=document.querySelector('input[name="pe-sheet"][value="jul2025"]');
+    if(h2aSheet&&!h2aSheet.checked)h2aSheet.checked=true;
+    if(jan)jan.checked=false;
+    if(jul)jul.checked=false;
+  } else if(visa==='h2b'){
+    const h2aSheet=document.querySelector('input[name="pe-sheet"][value="h2a"]');
+    const jan=document.querySelector('input[name="pe-sheet"][value="jan2026"]');
+    if(h2aSheet)h2aSheet.checked=false;
+    if(jan&&!jan.checked)jan.checked=true;
+  }
 }
 
 // ── ABRIR EDITOR ────────────────────────────────
-function openProfileEditor(id){
+function openProfileEditor(id,presetVisa){
   editingProfileId=id||null;
   const p=id?UPROFILES.find(x=>x.id===id):null;
   clearProfilePdf();
@@ -6050,6 +6133,16 @@ function openProfileEditor(id){
   const typeEl=document.querySelector(`input[name="pe-type"][value="${ptype}"]`);
   if(typeEl){typeEl.checked=true;}else{const def=document.querySelector('input[name="pe-type"][value="category"]');if(def)def.checked=true;}
   peOnTypeChange();
+
+  // Tipo de visto (visa): usa o do perfil, ou presetVisa, ou h2b padrão
+  const pvisa=p?.visa||(presetVisa||'h2b');
+  const visaEl=document.querySelector(`input[name="pe-visa"][value="${pvisa}"]`);
+  if(visaEl)visaEl.checked=true;
+  else{const def=document.querySelector('input[name="pe-visa"][value="h2b"]');if(def)def.checked=true;}
+  peOnVisaChange();
+  // Título do editor indica o tipo de visto
+  const peTitle=g('#pe-title');
+  if(peTitle&&!p){peTitle.textContent=pvisa==='h2a'?'Novo Perfil H-2A':pvisa==='both'?'Novo Perfil H-2B+H-2A':'Novo Perfil H-2B';}
 
   // Subjects
   peSubjects=p?.subjects?.length?[...p.subjects]:(p?.subject?[p.subject]:[]);
@@ -6293,7 +6386,7 @@ async function saveProfileFromEditor(){
     emailBodies:peBodies,
     subject:peSubjects[0]||"",
     body:peBodies[0]||"",
-    categories,sheets,resumeIdx,coverIdx,
+    visa:document.querySelector('input[name="pe-visa"]:checked')?.value||'h2b',categories,sheets,resumeIdx,coverIdx,
   };
 
   // Upload PDF se novo
@@ -6906,17 +6999,32 @@ async function _renderAutoProfilesPanel(){
     UPROFILES=pr.profiles||[];
     if(U)U.profiles=UPROFILES;
   }catch(e){console.warn("[_renderAutoProfilesPanel] falha ao buscar perfis:",e.message);}
-  const profiles=UPROFILES.filter(p=>p.active!==false);
+  // Filtrar perfis pelo visto atual (_autoVisa) — H-2A só vê perfis H-2A, H-2B só vê H-2B
+  const allActive=UPROFILES.filter(p=>p.active!==false);
+  const profiles=allActive.filter(p=>{
+    const v=p.visa||'h2b';
+    if(_autoVisa==='h2a') return v==='h2a'||v==='both';
+    return v==='h2b'||v==='both'||v===undefined;
+  });
+  const isH2a=_autoVisa==='h2a';
+  const visaLabel=isH2a?'H-2A (agrícola)':'H-2B (não-agrícola)';
+  const visaColor=isH2a?'#047857':'#4f46e5';
+  const visaIcon=isH2a?'🌾':'🔧';
+  const visaCreateFn=isH2a?`openProfileEditor(null,'h2a')`:`openProfileEditor(null,'h2b')`;
 
   if(!profiles.length){
-    panel.innerHTML=`<div style="background:var(--redl);border:1.5px solid var(--redb);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px">
-      <i class="ti ti-alert-triangle" style="font-size:18px;color:var(--red);flex-shrink:0"></i>
-      <div style="flex:1">
-        <div style="font-size:13px;font-weight:800;color:var(--red)">Nenhum perfil criado</div>
-        <div style="font-size:11px;color:var(--red);opacity:.8">Crie um perfil antes de iniciar o envio automático</div>
+    const hasOtherVisa=allActive.some(p=>isH2a?(p.visa==='h2b'||!p.visa):(p.visa==='h2a'));
+    panel.innerHTML=`<div style="background:var(--redl);border:1.5px solid var(--redb);border-radius:var(--r);padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <i class="ti ti-alert-triangle" style="font-size:18px;color:var(--red);flex-shrink:0"></i>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:800;color:var(--red)">${visaIcon} Nenhum perfil ${visaLabel}</div>
+          <div style="font-size:11px;color:var(--red);opacity:.8">Crie um perfil ${visaLabel} para usar o automático</div>
+        </div>
       </div>
-      <button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="closeAutoModal();sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(openProfileEditor,200)},100)">
-        <i class="ti ti-plus"></i> Criar
+      ${hasOtherVisa?`<div style="font-size:11px;color:var(--amber);margin-bottom:8px;padding:6px 8px;background:var(--amberl);border-radius:6px"><i class="ti ti-info-circle"></i> Você tem perfis do outro visto. Perfis H-2B <strong>não são usados</strong> em vagas H-2A e vice-versa.</div>`:''}
+      <button class="btn btn-primary btn-sm w100" onclick="closeAutoModal();sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(()=>${visaCreateFn},200)},100)">
+        <i class="ti ti-plus"></i> Criar Perfil ${visaLabel}
       </button>
     </div>`;
     return;
@@ -6930,6 +7038,7 @@ async function _renderAutoProfilesPanel(){
       <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer" onclick="_toggleAutoPanel()">
         <i class="ti ti-user-circle" style="font-size:16px;color:${hasGeneral?"var(--green)":"var(--amber)"}"></i>
         <div style="flex:1;min-width:0">
+          <div style="font-size:11px;color:${visaColor};font-weight:800;margin-bottom:1px">${visaIcon} Perfis ${visaLabel}</div>
           <div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
             ${hasGeneral?"✅":"⚠️"} ${profiles.length} perfil(s): ${esc(names)}
           </div>
@@ -6950,8 +7059,8 @@ async function _renderAutoProfilesPanel(){
             <i class="ti ${ok?"ti-check":"ti-alert-triangle"}" style="color:${ok?"var(--green)":"var(--amber)"};font-size:13px"></i>
           </div>`;
         }).join("")}
-        ${!hasGeneral?`<div style="margin-top:8px;font-size:11px;color:var(--amber);display:flex;align-items:center;gap:5px"><i class="ti ti-alert-triangle"></i> Sem perfil Geral — crie um para vagas sem categoria. <span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="closeAutoModal();sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(openProfileEditor,200)},100)">Criar →</span></div>`:""}
-        <button class="btn btn-secondary btn-sm w100" style="margin-top:8px" onclick="closeAutoModal();sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(openProfileEditor,200)},100)"><i class="ti ti-plus"></i> Adicionar Perfil</button>
+        ${!hasGeneral?`<div style="margin-top:8px;font-size:11px;color:var(--amber);display:flex;align-items:center;gap:5px"><i class="ti ti-alert-triangle"></i> Sem perfil Geral — crie um para vagas sem categoria específica. <span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="closeAutoModal();sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(()=>${visaCreateFn},200)},100)">Criar →</span></div>`:""}
+        <button class="btn btn-secondary btn-sm w100" style="margin-top:8px" onclick="closeAutoModal();sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(()=>${visaCreateFn},200)},100)"><i class="ti ti-plus"></i> Adicionar Perfil ${visaLabel}</button>
       </div>
     </div>`;
 }
@@ -11195,7 +11304,19 @@ function _showWelcome(){
             + '</div>';
         }).join('') + (profiles.length > 3 ? '<div style="font-size:11px;color:var(--t3);text-align:center;padding:4px">+' + (profiles.length-3) + ' perfis</div>' : '');
       }
-      if(createBtn) createBtn.innerHTML = '<i class="ti ti-plus"></i> ➕ Adicionar Perfil';
+      // Mostrar botões de criar por visto
+      if(createBtn){
+        createBtn.style.display='none';
+        var btnsRow=document.getElementById('profile-mini-create-row');
+        if(!btnsRow){
+          btnsRow=document.createElement('div');
+          btnsRow.id='profile-mini-create-row';
+          btnsRow.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px';
+          btnsRow.innerHTML='<button class="btn btn-primary" style="font-size:13px" onclick="openProfileEditor(null,\'h2b\')"><i class="ti ti-plus"></i> Perfil H-2B</button>'
+            +'<button class="btn btn-secondary" style="background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(5,150,105,.1));border-color:rgba(16,185,129,.4);color:#047857;font-weight:800;font-size:13px" onclick="openProfileEditor(null,\'h2a\')">🌾 Perfil H-2A</button>';
+          createBtn.parentNode.insertBefore(btnsRow,createBtn.nextSibling);
+        }
+      }
     }
   };
 })();
@@ -11239,6 +11360,15 @@ function setAutoVisa(visa) {
     var ws1sub = document.getElementById('ws-sub-1');
     if(ws1sub) ws1sub.textContent = 'Selecione de onde puxar as vagas';
   }
+  // RE-RENDERIZAR painel de perfis filtrado pelo visto selecionado
+  if(typeof _renderAutoProfilesPanel === 'function') _renderAutoProfilesPanel();
+  // Atualizar título hero
+  var heroTitle = document.querySelector('.auto-hero-title');
+  if(heroTitle) heroTitle.innerHTML = '<i class="ti ti-robot"></i> Envio Automático ' + (visa==='h2a'?'H-2A':'H-2B');
+  var heroSub = document.querySelector('.auto-hero-sub');
+  if(heroSub) heroSub.textContent = visa==='h2a'
+    ? 'Envio automático para vagas H-2A (agrícolas). Apenas perfis H-2A serão usados.'
+    : 'Configure uma vez. O sistema envia enquanto você trabalha.';
 }
 
 function _loadH2aCats() {
