@@ -1,23 +1,21 @@
 // ═══════════════════════════════════════════════════════════
-//  H2BApply v13.1 — Motor de envio automático profissional
-//  [REESTRUTURADO: calcStreak/last7Days/inRankPeriod/calcRanking
-//   movidas para escopo global; flushAll completo no shutdown]
+//  H2BApply v14.0 — Motor de envio automático profissional
+//  [CORREÇÕES CRÍTICAS v14]:
+//    • FIX-PERF: setAutoJob usa debounce 800ms (evita reescrever fila 500KB a cada envio)
+//    • FIX-HIST: addHist usa persistFlush (evita perda de histórico no crash pós-envio)
+//    • FIX-PLAN: lockedAutoLimit respeita expiração do plano VIP
+//    • FIX-BOOT: reactivateAutoJobs com retry 3x + backoff (cold start Railway)
+//    • FIX-REENG: runReengagement não depende de sessão ativa do admin
+//    • FIX-REENG2: referência adminSid corrigida para adminToken
+//    • FIX-EXPIRED: vagas com begin_date >60 dias no passado removidas da fila
+//    • FIX-SESSION: login reativa automaticamente jobs pausados por falta de token
+//    • FIX-QUEUE-PERSIST: AUTO_FILE usa persistFlush para estados críticos
 //
 //  PLANOS:
 //    free   → 20 manual + 10 auto /dia
-//    vip    → 400 manual + 10 auto /dia  (R$49,90)
-//    pro    → 300 manual + 200 auto /dia  (R$119,90)
-//    vipro  → 400 manual + 200 auto /dia (R$149,90)
-//
-//  NOVIDADES v13:
-//    • Envio automático STREAMING (começa imediatamente)
-//    • Logs completos com status detalhado
-//    • Filtros dinâmicos por categoria de serviço
-//    • Painel de logs profissional + exportação CSV
-//    • Dashboard em tempo real
-//    • Recuperação automática após queda
-//    • Migração automática de dados antigos
-//    • IDs únicos por candidatura (appId) + índice de vinculação
+//    vip    → 400 manual + 0 auto  /dia
+//    vipro  → 50 manual  + 200 auto /dia
+//    doublepro → 100 manual + 400 auto /dia
 // ═══════════════════════════════════════════════════════════
 "use strict";
 const http   = require("http");
@@ -145,7 +143,7 @@ const REFERRAL_FILE  = path.join(DATA_DIR, "referrals.json");       // Referral 
 const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
 try { fs.mkdirSync(CVS_DIR, { recursive: true }); } catch {}
 
-console.log(`[boot] H2BApply v13.0 | ${APP_URL} | ${DATA_DIR}`);
+console.log(`[boot] H2BApply v14.0 | ${APP_URL} | ${DATA_DIR}`);
 const _diskOk = DATA_DIR !== "/tmp";
 console.log(`[boot] Disk: ${_diskOk ? `✅ ${DATA_DIR} (persistente)` : "❌ /tmp (VOLÁTIL — tokens/PDFs serão perdidos no próximo deploy!)"}`);
 if (!_diskOk) {
@@ -295,10 +293,18 @@ const getUser    = e => DB_USERS[e]||null;
 const setUser    = (e,d) => { DB_USERS[e]={...(DB_USERS[e]||{}),...d}; persist(USERS_FILE,DB_USERS); };
 const delUser    = e => { delete DB_USERS[e]; persist(USERS_FILE,DB_USERS); };
 const getHist    = e => DB_HIST[e]||[];
-const addHist    = (e,entry) => { if(!DB_HIST[e])DB_HIST[e]=[]; DB_HIST[e].unshift(entry); if(DB_HIST[e].length>10000)DB_HIST[e]=DB_HIST[e].slice(0,10000); invalidateUserStatsCache(e); persistDebounced(HIST_FILE,DB_HIST,1500); }; // FIX-BUG8
+const addHist    = (e,entry) => { if(!DB_HIST[e])DB_HIST[e]=[]; DB_HIST[e].unshift(entry); if(DB_HIST[e].length>10000)DB_HIST[e]=DB_HIST[e].slice(0,10000); invalidateUserStatsCache(e); persistFlush(HIST_FILE,DB_HIST); }; // FIX-BUG8: escrita imediata evita perda no crash pós-envio
 const delHist    = e => { delete DB_HIST[e]; persist(HIST_FILE,DB_HIST); };
 const getAutoJob = e => DB_AUTO[e]||null;
-const setAutoJob = (e,d) => { DB_AUTO[e]={...(DB_AUTO[e]||{}),...d}; persist(AUTO_FILE,DB_AUTO); };
+// FIX-PERF: usa debounce de 800ms para escritas frequentes da fila (cada envio)
+// mas força escrita imediata para mudanças críticas de estado (active, finished, paused)
+const _CRITICAL_AUTO_STATUSES = new Set(["finished","paused","paused_token_revoked","paused_auth_error","paused_no_session","paused_account_suspended","paused_corrupt_queue","paused_oauth_expired","paused_no_refresh_token"]);
+const setAutoJob = (e,d) => {
+  DB_AUTO[e]={...(DB_AUTO[e]||{}),...d};
+  const isCritical = d.active===false || d.active===true || _CRITICAL_AUTO_STATUSES.has(d.status||"");
+  if(isCritical){ persistFlush(AUTO_FILE,DB_AUTO); }
+  else { persistDebounced(AUTO_FILE,DB_AUTO,800); }
+};
 const delAutoJob = e => { delete DB_AUTO[e]; persist(AUTO_FILE,DB_AUTO); };
 // ══════════════════════════════════════════════════════════
 // REGRA PRINCIPAL — Anti-duplicata absoluta
@@ -1373,10 +1379,14 @@ function scheduleAuto(email) {
   }
 
   const p=getUser(email)||{};
-  // FIX-BUG7: usa o limite registrado no job para não degradar se VIP expirar
-  // FIX-ERR3: se o plano melhorou enquanto o auto rodava, usa o novo limite superior
+  // FIX-PLAN-EXPIRY: lockedAutoLimit só é mantido se o plano ainda está ativo.
+  // Se o plano expirou, currentPlanLimit já reflete o free (10/dia) — usamos esse.
+  // Se o plano melhorou (upgrade), usamos o maior.
   const currentPlanLimit = getAutoLimit(p);
-  const autoLimit = Math.max(job.lockedAutoLimit || 0, currentPlanLimit);
+  const planStillActive = isAutoVipActive(p) || currentPlanLimit > 10; // >10 = algum plano pago ativo
+  const autoLimit = planStillActive
+    ? Math.max(job.lockedAutoLimit || 0, currentPlanLimit)
+    : currentPlanLimit; // plano expirou — usa o limite atual (free=10)
   // Atualiza lockedAutoLimit no job se o plano melhorou (sem reatribuir job)
   if (autoLimit > (job.lockedAutoLimit || 0)) {
     setAutoJob(email, { ...job, lockedAutoLimit: autoLimit });
@@ -2067,11 +2077,27 @@ async function reactivateAutoJobs(){
   for (const email of emailsToWarm) {
     const u = getUser(email);
     if (!u?.refresh_token) continue;
-    try {
-      await refreshTokenForUser(email);
-      console.log(`[boot] ✅ Token pré-aquecido: ${email}`);
-    } catch(e) {
-      console.warn(`[boot] ⚠️ Token falhou para ${email}:`, e.message);
+    let ok = false;
+    // FIX-BOOT-RETRY: tenta 3x com backoff — cold start do Railway pode ter rede lenta
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await refreshTokenForUser(email);
+        console.log(`[boot] ✅ Token pré-aquecido: ${email} (tentativa ${attempt})`);
+        ok = true;
+        break;
+      } catch(e) {
+        console.warn(`[boot] ⚠️ Token falhou para ${email} (tentativa ${attempt}/3):`, e.message);
+        if (attempt < 3) await new Promise(r => setTimeout(r, 3000 * attempt));
+      }
+    }
+    // Se falhou nas 3 tentativas por invalid_grant = revogado, pausa o job
+    if (!ok) {
+      const job = getAutoJob(email);
+      if (job?.active) {
+        // Não pausa por erro de rede — só por revogação explícita
+        // O tokenGuardian vai tentar renovar a cada 10min
+        console.warn(`[boot] ⚠️ Token não renovado para ${email} — tokenGuardian tentará novamente`);
+      }
     }
   }
 
@@ -2217,17 +2243,27 @@ async function refreshToken(sid){
 
 // Renova token usando refresh_token do banco (para auto sem sessão ativa)
 async function refreshTokenForUser(email){
-  const u=getUser(email);if(!u?.refresh_token)throw new Error("Sem refresh_token — usuário precisa fazer login novamente.");
+  const u=getUser(email);
+  if(!u?.refresh_token) throw new Error("Sem refresh_token — usuário precisa fazer login novamente.");
+  // Validação básica: refresh_token do Google começa com "1//" ou tem pelo menos 20 chars
+  if(typeof u.refresh_token !== "string" || u.refresh_token.length < 20){
+    console.error(`[token] ❌ refresh_token inválido para ${email}: "${String(u.refresh_token).slice(0,20)}..."`);
+    throw new Error("refresh_token corrompido — usuário precisa fazer login novamente.");
+  }
   const b=new URLSearchParams({client_id:CLIENT_ID,client_secret:CLIENT_SECRET,refresh_token:u.refresh_token,grant_type:"refresh_token"}).toString();
   const{body:r}=await httpsReq({hostname:"oauth2.googleapis.com",path:"/token",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(b)}},b);
-  if(r.error)throw new Error(r.error_description||r.error);
-  if(!r.access_token)throw new Error("Token não retornado pelo Google.");
+  if(r.error){
+    console.error(`[token] ❌ Google recusou refresh para ${email}: ${r.error} — ${r.error_description||""}`);
+    throw new Error(r.error_description||r.error);
+  }
+  if(!r.access_token) throw new Error("Token não retornado pelo Google.");
   const expiresAt=Date.now()+(r.expires_in||3600)*1000;
   setUser(email,{cached_access_token:r.access_token,cached_token_expiry:expiresAt});
-  if(r.refresh_token)setUser(email,{refresh_token:r.refresh_token});
-  // Atualiza todas as sessões ativas desse usuário
+  // Se o Google mandou um novo refresh_token (rotação), salva o novo
+  if(r.refresh_token) setUser(email,{refresh_token:r.refresh_token});
+  // Atualiza todas as sessões ativas desse usuário em memória
   for(const sid of Object.keys(sessions)){const s=sessions[sid];if(s.user_email===email){s.access_token=r.access_token;s.expires_at=expiresAt;if(r.refresh_token)s.refresh_token=r.refresh_token;}}
-  console.log(`[token] ✅ Token renovado para ${email} via banco`);
+  console.log(`[token] ✅ Token renovado para ${email} (expira em ${Math.round((expiresAt-Date.now())/60000)}min)`);
   return r.access_token;
 }
 
@@ -2879,22 +2915,19 @@ const server=http.createServer(async(req,res)=>{
       const{body:ui}=await httpsReq({hostname:"www.googleapis.com",path:"/oauth2/v2/userinfo",method:"GET",headers:{"Authorization":"Bearer "+tk.access_token}});
       if(!ui.email)return fail("E-mail não obtido.");
       const sid="sess_"+crypto.randomBytes(24).toString("hex");
-      // FIX: preserva o refresh_token existente no banco se o Google não mandou um novo
-      // O Google só envia refresh_token na primeira autenticação; re-logins omitem.
+      // Preserva o refresh_token existente no banco se o Google não mandou um novo.
+      // O Google só envia refresh_token na 1a autenticação (prompt=consent).
       const _existingRt = getUser(ui.email)?.refresh_token || null;
       const _rtToUse = tk.refresh_token || _existingRt;
-      sessions[sid]={access_token:tk.access_token,refresh_token:_rtToUse,expires_at:Date.now()+(tk.expires_in||3600)*1000,user_email:ui.email,user_name:ui.name||ui.email,picture:ui.picture||"",created_at:Date.now()};
-      // Salva refresh_token e access_token no banco para uso pelo automático sem sessão
-      const tokenData={cached_access_token:tk.access_token,cached_token_expiry:Date.now()+(tk.expires_in||3600)*1000};
-      // CRÍTICO: nunca sobrescrever refresh_token existente com null.
-      // O Google só envia refresh_token na 1a autenticação (prompt=consent).
-      // Em re-logins, tk.refresh_token vem undefined — usa o do banco.
-      if(tk.refresh_token){
-        tokenData.refresh_token=tk.refresh_token;
-      } else {
-        const _existingUser = getUser(ui.email);
-        if(_existingUser?.refresh_token) tokenData.refresh_token = _existingUser.refresh_token;
+      // AVISO CRÍTICO: sem refresh_token o automático para quando o access_token expirar (~1h)
+      if (!_rtToUse) {
+        console.error(`[oauth] ⚠️ CRÍTICO: usuário ${ui.email} sem refresh_token! O automático vai parar em ~1h. Usuário precisa fazer logout+login novamente aceitando todas as permissões.`);
       }
+      sessions[sid]={access_token:tk.access_token,refresh_token:_rtToUse,expires_at:Date.now()+(tk.expires_in||3600)*1000,user_email:ui.email,user_name:ui.name||ui.email,picture:ui.picture||"",created_at:Date.now()};
+      // Salva tokens no banco — usados pelo automático quando o app está fechado
+      const tokenData={cached_access_token:tk.access_token,cached_token_expiry:Date.now()+(tk.expires_in||3600)*1000};
+      // Sempre salva o melhor refresh_token disponível — nunca deixa undefined entrar
+      if (_rtToUse) tokenData.refresh_token = _rtToUse;
       const ex=getUser(ui.email);
       if(!ex){
         const now=Date.now();
@@ -2947,10 +2980,13 @@ const server=http.createServer(async(req,res)=>{
         const vipStillActive = isVipActive(ex);
         const vipDowngrade = ex.vip?.active && !vipStillActive ? {vip:{...ex.vip,active:false},plan:"free"} : {};
         setUser(ui.email,{...tokenData,picture:ui.picture||ex.picture,isAdmin:isAdminEmail(ui.email),...vipDowngrade});
-        console.log("[oauth] Login:",ui.email,"| refresh_token salvo:",!!tokenData.refresh_token,"| vip:",vipStillActive?"ativo":"inativo","| Total:",Object.keys(DB_USERS).length);
+        const _rtSource = tk.refresh_token ? "novo do Google" : (_existingRt ? "preservado do banco" : "AUSENTE ⚠️");
+        console.log("[oauth] Login:",ui.email,"| refresh_token:",_rtSource,"| vip:",vipStillActive?"ativo":"inativo","| Total:",Object.keys(DB_USERS).length);
       }
       const cookieStr=makeCookieStr(sid);const page=makeCallbackPage(sid);
       res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Content-Length":Buffer.byteLength(page),"Set-Cookie":cookieStr,"Cache-Control":"no-cache, no-store"});
+      // FIX-SESSION-RECOVERY: tenta reativar job pausado por falta de token (fire-and-forget)
+      setTimeout(() => { try { tryReactivateAfterLogin(ui.email); } catch(_) {} }, 2000);
       return res.end(page);
     }catch(e){return fail("Erro: "+e.message);}
   }
@@ -3562,6 +3598,20 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
             break;
           }
         }
+      }
+
+      // ✅ FIX-EXPIRED: remove vagas cuja data de início já passou há mais de 60 dias
+      // Evita enviar candidaturas para empresas com vagas de temporadas passadas
+      const cutoffExpiry = Date.now() - 60 * 86400_000;
+      const beforeExpiry = queue.length;
+      queue = queue.filter(item => {
+        if (!item.start) return true; // sem data = mantém
+        const startMs = new Date(item.start).getTime();
+        if (isNaN(startMs)) return true; // data inválida = mantém
+        return startMs >= cutoffExpiry; // mantém se começou nos últimos 60 dias ou no futuro
+      });
+      if (queue.length < beforeExpiry) {
+        console.log(`[auto/start] ${beforeExpiry - queue.length} vagas removidas por data expirada (>60 dias atrás)`);
       }
 
       // ✅ Embaralha a fila no servidor — cada usuário terá ordem diferente
@@ -5510,9 +5560,19 @@ function scheduleReengagement(){
 
 async function runReengagement(){
   const now = Date.now();
-  const adminSess = Object.entries(sessions).find(([,s])=>s.user_email===ADMIN_EMAIL&&s.access_token);
-  if(!adminSess){ console.warn("[reengagement] Admin offline — pulando rodada"); return; }
-  const [adminSid] = adminSess;
+  // FIX-REENG: não depende de sessão ativa — usa refresh_token do banco (igual ao sendNotifEmail)
+  let adminToken = null;
+  const adminSessEntry = Object.entries(sessions).find(([,s])=>s.user_email===ADMIN_EMAIL&&s.access_token);
+  if (adminSessEntry) {
+    adminToken = adminSessEntry[1].access_token;
+  } else {
+    const adminUser = getUser(ADMIN_EMAIL);
+    if (adminUser?.refresh_token) {
+      try { adminToken = await refreshTokenForUser(ADMIN_EMAIL); }
+      catch(re) { console.warn("[reengagement] Admin token falhou:", re.message); return; }
+    }
+  }
+  if (!adminToken) { console.warn("[reengagement] Admin sem token — pulando rodada"); return; }
   let sent=0;
 
   for(const [email,user] of Object.entries(DB_USERS)){
@@ -5539,7 +5599,7 @@ async function runReengagement(){
       const idx=Math.floor(Math.random()*msgs.length);
       const {sub,body}=msgs[idx];
       const raw=buildMime({to:email,subject:sub.replace(/{nome}/g,nome),fromName:"H2BApply 🤖",fromEmail:ADMIN_EMAIL,text:body.replace(/{nome}/g,nome)});
-      const {status}=await httpsReq({hostname:"gmail.googleapis.com",path:"/gmail/v1/users/me/messages/send",method:"POST",headers:{"Authorization":"Bearer "+sessions[adminSid].access_token,"Content-Type":"application/json"}},{raw});
+      const {status}=await httpsReq({hostname:"gmail.googleapis.com",path:"/gmail/v1/users/me/messages/send",method:"POST",headers:{"Authorization":"Bearer "+adminToken,"Content-Type":"application/json"}},{raw});
       if(status===200){
         _notifLock.add(lockKey);_notifSentAt[lockKey]=now;
         setTimeout(()=>_notifLock.delete(lockKey),22*3600_000);
@@ -5823,7 +5883,22 @@ async function tokenGuardianRun() {
     }
   }
 }
-setInterval(tokenGuardianRun, 10 * 60 * 1000); // a cada 10 minutos (era 15)
+setInterval(tokenGuardianRun, 10 * 60 * 1000); // a cada 10 minutos
+
+// FIX-SESSION-RECOVERY: quando usuário faz login e gera nova sessão,
+// reativa automaticamente jobs que estavam pausados por falta de token
+// Chamado internamente após OAuth callback com sucesso
+function tryReactivateAfterLogin(email) {
+  const job = getAutoJob(email);
+  if (!job) return;
+  const RECOVERABLE = new Set(["paused_no_session","paused_token_retry","waiting_token_retry","paused_no_refresh_token"]);
+  if (job.active || !RECOVERABLE.has(job.status)) return;
+  if (!job.queue?.length) return;
+  console.log(`[session-recovery] Reativando job de ${email} após novo login (status era: ${job.status})`);
+  setAutoJob(email, { ...job, active: true, status: "recovering" });
+  addLog(email, { status:"sistema", jobTitle:"✅ Envio automático reativado após novo login", company:`Fila retomada: ${job.queue.length} vagas restantes` });
+  scheduleAuto(email);
+}
 
 // ══════════════════════════════════════════════════════════
 //  FUNÇÕES UTILITÁRIAS GLOBAIS (stats, ranking)

@@ -7603,19 +7603,31 @@ function updateAutoUI(){
     starting:"🟡 Iniciando...",
     sending:"🟢 Enviando...",
     paused:"⏸ Pausado",
-    paused_no_session:"⚠️ Faça login novamente para retomar",
+    paused_no_session:"🔑 Sessão expirada — abra o app e faça login novamente para retomar",
+    paused_token_revoked:"🔑 Acesso Google revogado — faça login novamente para retomar",
+    paused_auth_error:"🔑 Erro de autenticação — faça login novamente para retomar",
+    paused_account_suspended:"⛔ Conta Gmail suspensa — verifique em gmail.com",
+    paused_oauth_expired:"🔑 Token expirado — faça login novamente para retomar",
+    paused_corrupt_queue:"❌ Fila corrompida — reinicie o automático",
     finished:"✅ Fila concluída! Reative para nova rodada.",
     resuming:"🟢 Retomando...",
     waiting_interval:"⏳ Aguardando intervalo entre envios...",
     waiting_hour:"🌙 Fora do horário configurado — retoma automático",
-    waiting_limit:"🌙 Limite diário atingido — retoma automaticamente à meia-noite! Não precisa fazer nada."
+    waiting_limit:"🌙 Limite diário atingido — retoma automaticamente à meia-noite! Não precisa fazer nada.",
+    waiting_rate_limit:"⏳ Gmail pediu pausa temporária — retomando em breve automaticamente",
+    waiting_token_retry:"⏳ Erro temporário de token — tentando novamente em 5min",
+    recovering:"🔄 Recuperando...",
+    restarted_by_fix:"🔄 Reiniciado automaticamente",
   };
   if(banner){banner.className="auto-status-banner "+(active?"asb-sending":j.status==="finished"?"asb-done":"asb-paused");}
   if(txt)txt.textContent=statusLabels[j.status]||j.status||"–";
 
-  // Next send countdown — roda em tempo real (atualiza a cada 1s)
+  // Subtexto: countdown para esperas normais, ou botão de login para erros de token
   if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}
-  if(j.nextSendAt&&(j.status==="waiting_interval"||j.status==="waiting_hour"||j.status==="waiting_limit")&&sub){
+  const tokenErrorStatuses=new Set(["paused_token_revoked","paused_no_session","paused_auth_error","paused_oauth_expired"]);
+  if(tokenErrorStatuses.has(j.status)&&sub){
+    sub.innerHTML='<a href="/oauth/start" style="color:#fff;font-weight:800;text-decoration:underline;font-size:13px">👉 Clique aqui para fazer login novamente</a>';
+  } else if(j.nextSendAt&&(j.status==="waiting_interval"||j.status==="waiting_hour"||j.status==="waiting_limit"||j.status==="waiting_rate_limit")&&sub){
     const updateCountdown=()=>{
       const left=Math.max(0,Math.round((j.nextSendAt-Date.now())/1000));
       if(left===0){sub.textContent="Enviando em instantes...";if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}return;}
