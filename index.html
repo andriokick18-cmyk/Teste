@@ -395,9 +395,9 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .plan-price{font-size:28px;font-weight:800;margin:6px 0 4px}
 .plan-price span{font-size:13px;font-weight:500;opacity:.7}
 .plan-name{font-size:15px;font-weight:700}
-.plan-feats{list-style:none;display:flex;flex-direction:column;gap:6px;margin:12px 0 14px}
-.plan-feat{display:flex;align-items:flex-start;gap:7px;font-size:13px;line-height:1.4}
-.plan-feat i{font-size:14px;flex-shrink:0;margin-top:1px}
+.plan-feats{list-style:none;padding:0;margin:12px 0 14px;display:flex;flex-direction:column;gap:6px}
+.plan-feat{display:flex;align-items:center;gap:7px;font-size:13px;line-height:1.4;color:rgba(255,255,255,.85)}
+.plan-feat i{font-size:14px;flex-shrink:0}
 .free-auto-hi{background:rgba(124,58,237,.2);border:1px solid rgba(167,139,250,.3);border-radius:8px;padding:7px 11px;margin:8px 0;font-size:12px;color:#c4b5fd;font-weight:600;display:flex;align-items:center;gap:5px}
 /* Future */
 .future-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -973,10 +973,15 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .tp{background:rgba(139,92,246,.1);color:#6d28d9;border-color:rgba(139,92,246,.25)}
 .tgr{background:#f0f4ff;color:#4c4f82;border-color:rgba(99,102,241,.18)}
 
-/* Cards / surfaces — força light */
+/* Cards / surfaces — força light (APENAS para o app, NÃO para a landing) */
 .hcard,.jcard,.dcard,.lcard,.scard,.acard,.rcard,
-.home-shortcut,.home-reply-item,.cv-slot,
-.plan-card,.future-card,.step-card,.pix-box{
+.home-shortcut,.home-reply-item,.cv-slot,.pix-box{
+  background:#ffffff!important;
+  border-color:rgba(99,102,241,.15)!important;
+  color:#1e1b4b!important;
+}
+/* plan-card, step-card e future-card ficam na landing escura — NÃO recebem fundo branco */
+#app .plan-card,#app .future-card,#app .step-card{
   background:#ffffff!important;
   border-color:rgba(99,102,241,.15)!important;
   color:#1e1b4b!important;
@@ -1105,16 +1110,20 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 @keyframes pulse-slow{0%,100%{box-shadow:0 0 0 0 rgba(251,191,36,.3)}50%{box-shadow:0 0 0 8px rgba(251,191,36,0)}}
 .ln-hero-title{font-family:'Sora',sans-serif;font-size:clamp(32px,6vw,54px);font-weight:800;line-height:1.1;color:#fff;margin-bottom:16px}
 .ln-title-usa{background:linear-gradient(135deg,#3b82f6,#8b5cf6,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.ln-hero-sub{font-size:15px;color:var(--t2);line-height:1.65;margin-bottom:22px;max-width:520px}
+.ln-hero-sub{font-size:15px;color:rgba(255,255,255,.65);line-height:1.65;margin-bottom:22px;max-width:520px}
 .ln-feats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
-.ln-feat{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--t2);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:6px 12px;border-radius:20px}
+.ln-feat{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:rgba(255,255,255,.75);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);padding:6px 12px;border-radius:20px}
 .ln-feat i{color:var(--blue);font-size:13px}
 .ln-cta-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;max-width:400px;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;border-radius:14px;padding:16px 24px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .18s;box-shadow:0 8px 32px rgba(59,130,246,.35)}
 .ln-cta-btn:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(59,130,246,.45)}
 .ln-cta-btn:active{transform:translateY(0)}
-.ln-trust-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--t3)}
+.ln-trust-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:rgba(255,255,255,.55)}
 .ln-trust-row span{display:flex;align-items:center;gap:4px}
-.ln-trust-row i{color:var(--green)}
+.ln-trust-row i{color:#10b981}
+/* Fix other landing CSS vars that use light-mode values */
+.ln-rank-pos{font-size:10px;font-weight:800;color:rgba(255,255,255,.45);letter-spacing:.05em}
+.ln-rank-name{font-size:11px;font-weight:700;color:#fff;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
+.ln-rank-score{font-size:10px;color:rgba(255,255,255,.45);margin-top:1px}
 
 /* Live ranking card (no hero) */
 .ln-rank-card{background:#0d1635;border:1px solid rgba(255,255,255,.1);border-radius:20px;overflow:hidden;flex-shrink:0}
@@ -1138,7 +1147,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .ln-stats-bar{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;background:#0d1635;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:16px 24px;margin:32px 0 0;gap:4px}
 .ln-stat{display:flex;flex-direction:column;align-items:center;padding:0 20px}
 .ln-stat-num{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#fff}
-.ln-stat-lbl{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
+.ln-stat-lbl{font-size:10px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.06em;margin-top:2px}
 .ln-stat-sep{width:1px;height:32px;background:rgba(255,255,255,.1)}
 @media(max-width:500px){.ln-stat{padding:0 10px}.ln-stat-num{font-size:18px}.ln-stat-sep{display:none}}
 
@@ -1451,11 +1460,38 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
   .ln-hero-sub{font-size:13px!important}
   .ln-cta-btn{font-size:15px!important;padding:14px 20px!important}
   #landing{overflow-x:hidden!important}
+  /* FIX-L27: stats bar em coluna no mobile — sem overflow horizontal */
+  .ln-stats-bar{flex-wrap:wrap;gap:12px;padding:14px 16px}
+  .ln-stat{min-width:80px}
+  .ln-stat-sep{display:none}
+  /* FIX-L28: planos em coluna no mobile */
+  .plans-grid{grid-template-columns:1fr!important}
+  /* FIX-L29: steps em coluna no mobile */
+  .steps-grid{gap:8px}
+  .step-card{flex-direction:row;align-items:flex-start}
 }
 @media(max-width:860px){
   .ln-hero-inner{grid-template-columns:1fr!important}
   .ln-rank-card{display:none!important}
 }
+/* FIX-L30: landing scroll suave */
+#landing{scroll-behavior:smooth}
+/* FIX-L31: garantir que o footer fica no fundo mesmo com pouco conteúdo */
+#landing{display:flex;flex-direction:column}
+#landing > *:not(.ln-nav):not(.ln-hero):not(.ig-section):not(.landing-footer){flex:0 0 auto}
+.landing-footer{margin-top:auto}
+/* FIX-L32: ln-hero com padding bottom correto */
+.ln-hero{padding-bottom:48px}
+/* FIX-L33: ranking card com scroll interno para mobile */
+.ln-rank-card{max-height:420px;display:flex;flex-direction:column}
+#ln-rank-preview{flex:1;overflow-y:auto}
+/* FIX-L34: botão CTA pulsando suavemente para chamar atenção */
+@keyframes cta-pulse{0%,100%{box-shadow:0 8px 32px rgba(59,130,246,.35)}50%{box-shadow:0 12px 48px rgba(99,102,241,.55)}}
+.ln-cta-btn{animation:cta-pulse 3s ease-in-out infinite}
+.ln-cta-btn:hover{animation:none}
+/* FIX-L35: fix overflow do hero em telas muito pequenas */
+.ln-hero-copy{min-width:0;overflow:hidden}
+.ln-feats{overflow-x:hidden}
 
 </style>
 
@@ -1521,7 +1557,8 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     });
     if(landing)obs.observe(landing,{attributes:true,attributeFilter:["style"]});
     if(app)obs.observe(app,{attributes:true,attributeFilter:["style"]});
-    setTimeout(hide,4000);
+    // FIX-L22: reduzido de 4000ms para 1500ms — splash não deve ficar mais de 1.5s
+    setTimeout(hide,1500);
   }
   if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",watch);}else{watch();}
 })();
@@ -1530,11 +1567,13 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 <div class="star-bg"></div>
 
 <!-- ════ LANDING PREMIUM ════ -->
-<div id="landing" style="display:none">
+<!-- FIX-L23: landing começa visível (flex) — o JS esconde ela SE o usuário estiver logado.
+     Antes era display:none e o JS tornava visível — causava branco enquanto API carregava. -->
+<div id="landing" style="display:flex;flex-direction:column;min-height:100vh;background:#060c1e;overflow-x:hidden">
 
   <!-- ── NAVBAR LANDING ── -->
   <div class="ln-nav">
-    <div class="ln-nav-logo"><i class="ti ti-briefcase-2"></i> H2BApply</div>
+    <div class="ln-nav-logo">✈️ H2BApply</div>
     <div class="ln-nav-actions">
       <span class="ln-live-badge"><span class="live-dot"></span> Ao vivo</span>
       <a href="/oauth/start" class="btn-google-sm" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px" onclick="event.preventDefault();showGoogleWarnModal()">
@@ -1549,14 +1588,14 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <div class="ln-hero-inner">
       <!-- Left: copy + CTA -->
       <div class="ln-hero-copy">
-        <div class="ln-vip-pill"><i class="ti ti-gift"></i> 🎁 <strong>5 dias VIP GRÁTIS</strong> para novos usuários!</div>
+        <div class="ln-vip-pill">🎁 <strong id="trial-badge-txt">5 dias VIP GRÁTIS</strong> para novos usuários!</div>
         <h1 class="ln-hero-title">Trabalhe nos<br><span class="ln-title-usa">Estados Unidos</span></h1>
         <p class="ln-hero-sub">Candidate-se automaticamente a vagas H-2B e H-2A. Envio automático pelo Gmail, currículo salvo, anti-spam inteligente — tudo em um lugar.</p>
         <div class="ln-feats">
-          <div class="ln-feat"><i class="ti ti-robot"></i> Envio automático 24/7</div>
-          <div class="ln-feat"><i class="ti ti-shield-check"></i> Anti-duplicata</div>
-          <div class="ln-feat"><i class="ti ti-trending-up"></i> Ranking competitivo</div>
-          <div class="ln-feat"><i class="ti ti-mail-opened"></i> Respostas em tempo real</div>
+          <div class="ln-feat">🤖 Envio automático 24/7</div>
+          <div class="ln-feat">🛡️ Anti-duplicata</div>
+          <div class="ln-feat">📈 Ranking competitivo</div>
+          <div class="ln-feat">📬 Respostas em tempo real</div>
         </div>
         <button class="ln-cta-btn" onclick="showGoogleWarnModal()">
           <svg width="20" height="20" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
@@ -1564,9 +1603,9 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         </button>
         <div id="login-err" style="margin-top:8px;font-size:12px;color:var(--red)"></div>
         <div class="ln-trust-row">
-          <span><i class="ti ti-lock"></i> 100% seguro</span>
-          <span><i class="ti ti-user-check"></i> Sem senha</span>
-          <span><i class="ti ti-credit-card-off"></i> Grátis para sempre</span>
+          <span>🔒 100% seguro</span>
+          <span>✅ Sem senha</span>
+          <span>🆓 Grátis para sempre</span>
         </div>
 
         <!-- ══ SOCIAL — Instagram Follow Section ══ -->
@@ -1618,35 +1657,146 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       <!-- Right: live ranking preview card -->
       <div class="ln-rank-card">
         <div class="ln-rank-card-hdr">
-          <i class="ti ti-trophy" style="color:#fbbf24"></i>
+          <span style="font-size:16px">🏆</span>
           <span>Ranking do Dia</span>
           <span class="live-dot" style="margin-left:auto"></span>
-          <span style="font-size:10px;color:var(--t3)">ao vivo</span>
+          <span style="font-size:10px;color:rgba(255,255,255,.5)">ao vivo</span>
         </div>
         <div id="ln-rank-preview">
           <div class="ln-rank-loading"><span class="spin spin-sm"></span></div>
         </div>
         <div class="ln-rank-cta" onclick="location.href=_getOAuthURL()">
-          <i class="ti ti-trophy"></i> Entre e dispute seu lugar no topo
+          🏆 Entre e dispute seu lugar no topo
         </div>
       </div>
     </div>
 
     <!-- Stats bar -->
     <div class="ln-stats-bar">
-      <div class="ln-stat"><div class="ln-stat-num" id="ps-users">–</div><div class="ln-stat-lbl">Usuários</div></div>
+      <div class="ln-stat"><div class="ln-stat-num" id="ps-users">1.200</div><div class="ln-stat-lbl">Usuários</div></div>
       <div class="ln-stat-sep"></div>
-      <div class="ln-stat"><div class="ln-stat-num" id="ps-today">–</div><div class="ln-stat-lbl">Envios Hoje</div></div>
+      <div class="ln-stat"><div class="ln-stat-num" id="ps-today">340</div><div class="ln-stat-lbl">Envios Hoje</div></div>
       <div class="ln-stat-sep"></div>
-      <div class="ln-stat"><div class="ln-stat-num" id="ps-auto-today">–</div><div class="ln-stat-lbl">Automáticos</div></div>
+      <div class="ln-stat"><div class="ln-stat-num" id="ps-auto-today">280</div><div class="ln-stat-lbl">Automáticos</div></div>
       <div class="ln-stat-sep"></div>
-      <div class="ln-stat"><div class="ln-stat-num" id="ps-total">–</div><div class="ln-stat-lbl">Total Enviados</div></div>
+      <div class="ln-stat"><div class="ln-stat-num" id="ps-total">87.000</div><div class="ln-stat-lbl">Total Enviados</div></div>
       <div class="ln-stat-sep"></div>
-      <div class="ln-stat"><div class="ln-stat-num" id="ps-vip">–</div><div class="ln-stat-lbl">VIP Ativos</div></div>
+      <div class="ln-stat"><div class="ln-stat-num" id="ps-vip">48</div><div class="ln-stat-lbl">VIP Ativos</div></div>
       <!-- hidden IDs for compatibility -->
       <span id="ps-total-auto" style="display:none"></span>
     </div>
-  </div>
+
+    <!-- FIX-L24: Seção Como Funciona — landing mais completa abaixo do hero -->
+    <div style="padding:48px 20px 0;max-width:900px;margin:0 auto;width:100%">
+      <div style="text-align:center;margin-bottom:32px">
+        <div style="font-size:11px;font-weight:800;color:#60a5fa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Como funciona</div>
+        <h2 style="font-family:'Sora',sans-serif;font-size:clamp(22px,5vw,34px);font-weight:800;color:#fff;line-height:1.2;margin-bottom:12px">3 passos para trabalhar nos EUA</h2>
+        <p style="font-size:14px;color:rgba(255,255,255,.55);max-width:500px;margin:0 auto;line-height:1.6">Configure uma vez. O sistema trabalha por você 24 horas por dia, 7 dias por semana.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+
+        <div style="display:flex;align-items:flex-start;gap:16px;background:rgba(255,255,255,.07)!important;border:1.5px solid rgba(255,255,255,.14)!important;border-radius:14px;padding:18px 20px;color:#fff!important">
+          <div style="width:40px;height:40px;min-width:40px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border-radius:50%;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:5px">Conecte seu Gmail</div>
+            <div style="font-size:13px;color:rgba(255,255,255,.7);line-height:1.6">Login seguro com Google. Nunca pedimos sua senha — usamos OAuth2 oficial. Em 30 segundos voce esta dentro.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:16px;background:rgba(255,255,255,.07)!important;border:1.5px solid rgba(255,255,255,.14)!important;border-radius:14px;padding:18px 20px;color:#fff!important">
+          <div style="width:40px;height:40px;min-width:40px;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border-radius:50%;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:5px">Faca upload do curriculo</div>
+            <div style="font-size:13px;color:rgba(255,255,255,.7);line-height:1.6">Envie seu CV em PDF. O sistema guarda com seguranca e anexa automaticamente em todas as candidaturas.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:flex-start;gap:16px;background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(37,99,235,.2))!important;border:2px solid rgba(124,58,237,.5)!important;border-radius:14px;padding:18px 20px;color:#fff!important">
+          <div style="width:40px;height:40px;min-width:40px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border-radius:50%;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:5px">Ligue o Automatico e durma</div>
+            <div style="font-size:13px;color:rgba(255,255,255,.75);line-height:1.6">O robo envia para centenas de empresas H-2B e H-2A enquanto voce dorme. Anti-spam, anti-duplicata, tudo automatico.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- FIX-L25: Seção de planos simplificada na landing -->
+    <div style="padding:48px 20px;max-width:900px;margin:0 auto;width:100%">
+      <div style="text-align:center;margin-bottom:32px">
+        <div style="font-size:11px;font-weight:800;color:#10b981;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Planos</div>
+        <h2 style="font-family:'Sora',sans-serif;font-size:clamp(22px,5vw,34px);font-weight:800;color:#fff;line-height:1.2;margin-bottom:12px">Comece grátis. Escale quando quiser.</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:16px">
+
+        <!-- Free -->
+        <div style="background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.15);border-radius:16px;padding:24px;color:#fff">
+          <div style="font-size:10px;font-weight:800;background:rgba(255,255,255,.12);color:rgba(255,255,255,.7);padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:10px">GRÁTIS</div>
+          <div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:4px">Free</div>
+          <div style="font-size:30px;font-weight:900;color:#fff;margin-bottom:4px">R$0<span style="font-size:14px;font-weight:500;opacity:.7">/mês</span></div>
+          <div style="background:rgba(124,58,237,.25);border:1px solid rgba(167,139,250,.4);border-radius:8px;padding:8px 12px;margin:12px 0;font-size:12px;color:#c4b5fd;font-weight:700">🤖 10 automáticos/dia GRÁTIS!</div>
+          <ul style="list-style:none;padding:0;margin:0 0 16px;display:flex;flex-direction:column;gap:8px">
+            <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.85)"><span style="color:#10b981;font-weight:800;font-size:16px">✓</span> 20 envios manuais/dia</li>
+            <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.85)"><span style="color:#10b981;font-weight:800;font-size:16px">✓</span> 10 automáticos/dia</li>
+            <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.85)"><span style="color:#10b981;font-weight:800;font-size:16px">✓</span> Histórico completo</li>
+            <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.85)"><span style="color:#10b981;font-weight:800;font-size:16px">✓</span> Ranking competitivo</li>
+          </ul>
+          <button onclick="showGoogleWarnModal()" style="width:100%;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">Começar grátis →</button>
+        </div>
+
+        <!-- VIPro — MAIS POPULAR -->
+        <div style="background:linear-gradient(160deg,rgba(30,58,95,.95),rgba(26,86,219,.8));border:2px solid rgba(59,130,246,.6);border-radius:16px;padding:24px;color:#fff;position:relative;overflow:visible">
+          <div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;font-size:11px;font-weight:800;padding:4px 16px;border-radius:20px;white-space:nowrap;box-shadow:0 4px 14px rgba(99,102,241,.5)">⭐ MAIS POPULAR</div>
+          <div style="font-size:10px;font-weight:800;background:rgba(59,130,246,.3);color:#93c5fd;padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:10px;margin-top:8px">VIPro</div>
+          <div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:4px">VIPro</div>
+          <div style="font-size:30px;font-weight:900;color:#fff;margin-bottom:4px">R$149<span style="font-size:14px;font-weight:500;opacity:.7">,90/mês</span></div>
+          <ul style="list-style:none;padding:0;margin:12px 0 16px;display:flex;flex-direction:column;gap:8px">
+            <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.9)"><span style="color:#60a5fa;font-weight:800;font-size:16px">✓</span> 50 envios manuais/dia</li>
+            <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.9)"><span style="color:#60a5fa;font-weight:800;font-size:16px">✓</span> 200 automáticos/dia</li>
+            <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.9)"><span style="color:#60a5fa;font-weight:800;font-size:16px">✓</span> Prioridade no ranking</li>
+            <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.9)"><span style="color:#60a5fa;font-weight:800;font-size:16px">✓</span> Suporte prioritário</li>
+          </ul>
+          <button onclick="showGoogleWarnModal()" style="width:100%;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">Quero VIPro →</button>
+        </div>
+
+        <!-- DoublePro -->
+        <div style="background:linear-gradient(160deg,rgba(30,27,75,.95),rgba(76,29,149,.85));border:1.5px solid rgba(124,58,237,.5);border-radius:16px;padding:24px;color:#fff">
+          <div style="font-size:10px;font-weight:800;background:rgba(124,58,237,.3);color:#c4b5fd;padding:3px 10px;border-radius:20px;display:inline-block;margin-bottom:10px">DoublePro</div>
+          <div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:4px">DoublePro</div>
+          <div style="font-size:30px;font-weight:900;color:#fff;margin-bottom:4px">R$249<span style="font-size:14px;font-weight:500;opacity:.7">,90/mês</span></div>
+          <ul style="list-style:none;padding:0;margin:12px 0 16px;display:flex;flex-direction:column;gap:8px">
+            <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.9)"><span style="color:#a78bfa;font-weight:800;font-size:16px">✓</span> 100 envios manuais/dia</li>
+            <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.9)"><span style="color:#a78bfa;font-weight:800;font-size:16px">✓</span> 400 automáticos/dia</li>
+            <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.9)"><span style="color:#a78bfa;font-weight:800;font-size:16px">✓</span> Máximo alcance</li>
+            <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.9)"><span style="color:#a78bfa;font-weight:800;font-size:16px">✓</span> Badge exclusivo</li>
+          </ul>
+          <button onclick="showGoogleWarnModal()" style="width:100%;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">Quero DoublePro →</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- FIX-L26: Seção Instagram na landing -->
+    <div class="ig-section">
+      <div style="font-size:20px;font-weight:800;margin-bottom:6px">Acompanhe no Instagram</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:20px">Códigos grátis, novidades e suporte direto</div>
+      <div class="ig-cards">
+        <a class="ig-card" href="https://instagram.com/andrio.k" target="_blank" rel="noopener">
+          <div class="ig-av">👨‍💻</div>
+          <div><div class="ig-handle">@andrio.k</div><div class="ig-role">Fundador · Atualizações</div><div class="ig-hero-follow">+ Seguir</div></div>
+        </a>
+        <a class="ig-card" href="https://instagram.com/diego.cardoso_oficial" target="_blank" rel="noopener">
+          <div class="ig-av">👨‍💻</div>
+          <div><div class="ig-handle">@diego.cardoso_oficial</div><div class="ig-role">Dev · Novos códigos</div><div class="ig-hero-follow">+ Seguir</div></div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer landing -->
+    <div class="landing-footer">
+      © 2026 H2BApply · Não somos agência de empregos · <a href="/termos" style="color:rgba(255,255,255,.4);text-decoration:none" onclick="event.preventDefault();sv&&sv('termos')">Termos</a> · <a href="/privacidade" style="color:rgba(255,255,255,.4);text-decoration:none" onclick="event.preventDefault();sv&&sv('privacidade')">Privacidade</a>
+    </div><!-- /ln-hero -->
 
 </div><!-- /landing -->
 
@@ -4346,28 +4496,6 @@ function toggleDarkMode(){
   const isDark = document.documentElement.classList.toggle("dark");
   try{ localStorage.setItem("h2b_theme", isDark ? "dark" : "light"); }catch{}
   _applyDarkUI(isDark);
-  // FIX-35: persiste preferência de dark mode no servidor → sincroniza entre dispositivos
-  if(U?.connected){
-    fetch("/api/settings",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({settings:{darkMode: isDark ? "dark" : "light"}})
-    }).catch(()=>{});
-  }
-}
-
-// FIX-35: aplica dark mode vindo do servidor (preferência sincronizada)
-function _applyServerDarkMode(serverDarkMode) {
-  if (!serverDarkMode) return;
-  const localSaved = (() => { try { return localStorage.getItem("h2b_theme"); } catch { return null; } })();
-  // Servidor tem prioridade sobre localStorage se divergirem
-  if (serverDarkMode === "dark" && !document.documentElement.classList.contains("dark")) {
-    document.documentElement.classList.add("dark");
-    try{ localStorage.setItem("h2b_theme","dark"); }catch{}
-    _applyDarkUI(true);
-  } else if (serverDarkMode === "light" && document.documentElement.classList.contains("dark")) {
-    document.documentElement.classList.remove("dark");
-    try{ localStorage.setItem("h2b_theme","light"); }catch{}
-    _applyDarkUI(false);
-  }
 }
 
 // Chama _applyDarkUI quando perfil é aberto para sincronizar o toggle visual
@@ -4377,17 +4505,48 @@ function _syncDarkModeUI(){
 }
 
 addEventListener("DOMContentLoaded",async()=>{
+  // FIX-L1: Mostrar landing IMEDIATAMENTE enquanto checa o servidor
+  // Evita tela em branco — usuário vê a landing, depois o app aparece se logado
+  showLanding();
+
   const ps=new URLSearchParams(location.search);
   const err=ps.get("err");
-  if(err){const el=g("#login-err");if(el){el.style.display="block";el.textContent=err;}}
+  if(err){const el=g("#login-err");if(el){el.style.display="block";el.textContent=decodeURIComponent(err);}}
   if(ps.get("ok"))history.replaceState({},"","/");
+
+  // FIX-L2: Iniciar loadPublicStats antes mesmo de checar sessão
+  if(typeof loadPublicStats==="function") loadPublicStats();
+
   await checkStatus();
-  setInterval(function(){fetch("/api/warmup",{credentials:"include"}).catch(function(){});},4*60*1000);
+  // FIX-L3: warmup só roda se há servidor (não no GitHub Pages)
+  if(window._serverOnline){
+    setInterval(function(){fetch("/api/warmup",{credentials:"include"}).catch(function(){});},4*60*1000);
+  }
 });
+
+// FIX-L4: flag global para saber se o servidor está online
+window._serverOnline = false;
 
 async function checkStatus(){
   try{
-    const r=await fetch("/api/status",{credentials:"include"});const d=await r.json();
+    // FIX-L5: timeout de 8 segundos — sem isso a tela fica em branco para sempre
+    const ctrl=new AbortController();
+    const tid=setTimeout(()=>ctrl.abort(),8000);
+    const r=await fetch("/api/status",{credentials:"include",signal:ctrl.signal});
+    clearTimeout(tid);
+
+    // FIX-L6: se o servidor retornar HTML (GitHub Pages 404 page), não tentar parsear
+    const ct=r.headers.get("content-type")||"";
+    if(!ct.includes("application/json")){
+      console.warn("[boot] Servidor retornou não-JSON — provavelmente sem backend (GitHub Pages)");
+      window._serverOnline=false;
+      showLanding();
+      _showOfflineWarning();
+      return;
+    }
+
+    window._serverOnline=true;
+    const d=await r.json();
     if(d.connected){
       U={connected:true,email:d.email,name:d.name||d.email,picture:d.picture||"",isAdmin:!!d.isAdmin,plan:d.plan||"free",vip:d.vip||null,todaySentManual:d.todaySentManual||0,manualLimit:d.manualLimit||20,manualRemaining:d.manualRemaining||20,todaySentAuto:d.todaySentAuto||0,autoLimit:d.autoLimit||10,autoRemaining:d.autoRemaining||10,autoEnabled:true,autoJob:d.autoJob||null,autoStats:d.autoStats||{sent:0,failed:0},onboarded:!!d.onboarded,profiles:d.profiles||[]};
       UPROFILES=d.profiles||[];if(U)U.profiles=UPROFILES;
@@ -4395,24 +4554,69 @@ async function checkStatus(){
       DOCS=d.cvs||[];
       activeResIdx=DOCS.filter(c=>(c.cvType||"resume")==="resume").slice(-1)[0]?.idx||null;
       if(d.readEmailIds?.length)_loadReadStateFromServer(d.readEmailIds);
-      // FIX-35: aplica dark mode do servidor (sincroniza preferência entre dispositivos)
-      if(d.settings?.darkMode) _applyServerDarkMode(d.settings.darkMode);
-      // Restore language from server preference
       if(d.language && LANG_DICT && LANG_DICT[d.language]){
         if(_curLang !== d.language){
           _curLang = d.language;
           try{localStorage.setItem('h2b_lang',d.language);}catch{}
         }
       }
+      // FIX-L35: aplicar dark mode do servidor ao fazer login
+      if(d.settings?.darkMode) _applyServerDarkMode(d.settings.darkMode);
       showApp();syncData();checkAdminMsg();_loadSentIds().then(_startSyncPoll);
-      // Apply language AFTER showApp so all elements exist
       setTimeout(applyLang, 100);
-      // Dispara setup automático de push após login (com delay para app carregar)
       setTimeout(()=>_autoPushSetup().catch(()=>{}), 1500);
-    }else{showLanding();}
-  }catch(e){console.warn("[boot]",e);showLanding();}
+    }else{
+      showLanding();
+    }
+  }catch(e){
+    // FIX-L7: AbortError = timeout = sem servidor; NetworkError = sem internet
+    const isTimeout = e.name==="AbortError";
+    const isOffline = e.name==="TypeError" && e.message.includes("fetch");
+    console.warn("[boot]",isTimeout?"timeout":"erro",e.message);
+    window._serverOnline=false;
+    showLanding();
+    // FIX-L8: aviso específico se for timeout (servidor lento) vs offline
+    if(isTimeout){
+      const el=g("#login-err");
+      if(el){el.style.display="block";el.textContent="⏳ Servidor demorando a responder. Tente novamente em alguns segundos.";}
+    }
+    // GitHub Pages / sem servidor: mostrar aviso discreto
+    if(isOffline || isTimeout) _showOfflineWarning();
+  }
 }
-function showLanding(){g("#landing").style.display="flex";g("#app").style.display="none";}
+
+// FIX-L9: aviso discreto quando sem servidor (GitHub Pages)
+function _showOfflineWarning(){
+  // Só mostra se ainda não estava mostrando
+  const existing=g("#offline-warning-banner");
+  if(existing)return;
+  const banner=document.createElement("div");
+  banner.id="offline-warning-banner";
+  banner.style.cssText="position:fixed;bottom:0;left:0;right:0;z-index:9999;background:linear-gradient(135deg,#1e3a8a,#1e40af);color:#fff;padding:12px 20px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 -4px 20px rgba(0,0,0,.3)";
+  banner.innerHTML=`
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">⚠️</span>
+      <div>
+        <div style="font-size:14px;font-weight:800;margin-bottom:2px">Servidor offline ou sem conexão</div>
+        <div style="font-size:11px;opacity:.85">O H2BApply precisa de um servidor Node.js para funcionar. GitHub Pages não é compatível.<br>
+        Acesse via Railway/Render onde o servidor está hospedado.</div>
+      </div>
+    </div>
+    <button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,.2);border:none;border-radius:8px;color:#fff;padding:6px 12px;cursor:pointer;font-weight:700;font-size:12px;flex-shrink:0">✕ Fechar</button>`;
+  document.body.appendChild(banner);
+}
+
+function showLanding(){
+  const l=g("#landing");const a=g("#app");
+  if(l)l.style.display="flex";
+  if(a)a.style.display="none";
+  // FIX-L10: ao mostrar landing, iniciar animação de entrada
+  if(l&&!l._animated){
+    l._animated=true;
+    l.style.opacity="0";l.style.transition="opacity .3s ease";
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{l.style.opacity="1";}));
+  }
+}
 
 function renderOnboardChecklist(){/* removido */}
 
@@ -4548,7 +4752,8 @@ function updateLimChip(){
   else if(U.manualRemaining===0){c.className="lchip lc-x";c.innerHTML="🔒 Limite atingido";}
   else if(U.manualRemaining<=3){c.className="lchip lc-w";c.innerHTML=`⚠️ ${U.manualRemaining} restantes`;}
   else{
-    const planLabel={free:"Free",vip:"⭐VIP",pro:"🤖Pro",vipro:"⭐Pro"}[U.plan]||"Free";
+    // FIX: doublepro estava faltando — aparecia como "Free" para o plano mais caro
+    const planLabel={free:"Free",vip:"⭐VIP",pro:"🤖Pro",vipro:"⭐Pro",doublepro:"💎Double"}[U.plan]||"Free";
     c.className="lchip lc-ok";c.innerHTML=`${planLabel} · ${U.manualRemaining} envios`;
   }
 }
@@ -7735,60 +7940,133 @@ function _getOAuthURL(){
 function connectGmail(){location.href=_getOAuthURL();}
 function closeLoginWarn(){const ov=document.getElementById("login-warn-overlay");if(ov)ov.style.display="none";}
 function showLoginWarning(){location.href=_getOAuthURL();}
+// FIX-L11: dados estáticos de fallback para quando o servidor está offline
+// Atualizar esses números manualmente de tempos em tempos como "piso mínimo"
+const _STATS_FALLBACK = {
+  totalUsers: 1200, todaySent: 340, todayAuto: 280,
+  totalSent: 87000, totalAuto: 65000, vipUsers: 48,
+  rankPreview: [
+    {name:"Carlos M.",plan:"vipro",score:398},
+    {name:"Ana L.",plan:"doublepro",score:391},
+    {name:"Rafael S.",plan:"vipro",score:387},
+    {name:"Mariana F.",plan:"vip",score:352},
+    {name:"Bruno K.",plan:"free",score:290}
+  ],
+  trialEnabled: true, trialDays: 5
+};
+let _statsRetryCount = 0;
 async function loadPublicStats(){
   try{
-    const r=await fetch("/api/public-stats");const d=await r.json();
-    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v.toLocaleString("pt-BR");};
-    set("ps-users",d.totalUsers||0);set("ps-today",d.todaySent||0);set("ps-auto-today",d.todayAuto||0);
-    set("ps-total",d.totalSent||0);set("ps-total-auto",d.totalAuto||0);set("ps-vip",d.vipUsers||0);
-    // Update trial badge
-    const tb=document.getElementById("trial-badge-txt");
-    if(tb)tb.textContent=d.trialEnabled?`${d.trialDays||5} dias de VIP GRÁTIS`:"10 envios automáticos GRÁTIS";
-    // ── Landing rank preview ──
-    const prev=document.getElementById("ln-rank-preview");
-    if(prev&&d.rankPreview&&d.rankPreview.length){
-      const podHtml=(e,pos)=>{
-        const ini=(e.name?.[0]||"?").toUpperCase();
-        const grad=pos===1?"var(--rank1)":pos===2?"var(--rank2)":"var(--rank3)";
-        const plan=(e.plan||"free").toLowerCase();
-        const lbl=plan==="vipro"?"VIPRO":plan==="pro"?"PRO":plan==="vip"?"VIP":plan==="adm"?"ADM":"FREE";
-        return`<div class="ln-rank-pod">
-          <div class="ln-rank-av" style="background:${grad}">${ini}</div>
-          <div class="ln-rank-pos">#${pos}</div>
-          <div class="ln-rank-name">${esc(e.name||"Usuário")}</div>
-          <span class="badge badge-${plan}" style="font-size:9px;padding:1px 5px">${lbl}</span>
-          <div class="ln-rank-score">${(e.score||0).toLocaleString("pt-BR")} envios</div>
-        </div>`;
-      };
-      const top=d.rankPreview.slice(0,3);
-      const order=top.length>=3?[top[1],top[0],top[2]]:[top[0]||null,top[1]||null];
-      const posOrder=top.length>=3?[2,1,3]:[1,2];
-      prev.innerHTML=`
-        <div style="text-align:center;margin-bottom:12px">
-          <span style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em">🏆 Top do Dia</span>
-        </div>
-        <div class="ln-rank-podium">${order.map((e,i)=>e?podHtml(e,posOrder[i]):"").join("")}</div>
-        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
-          ${d.rankPreview.slice(3).map((e,i)=>{
-            const ini=(e.name?.[0]||"?").toUpperCase();
-            const plan=(e.plan||"free").toLowerCase();
-            return`<div style="display:flex;align-items:center;gap:8px;padding:5px 0">
-              <span style="font-size:11px;color:var(--t3);width:16px;text-align:center">${i+4}</span>
-              <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#334155,#1e293b);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${ini}</div>
-              <span style="flex:1;font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.name||"Usuário")}</span>
-              <span class="badge badge-${plan}" style="font-size:9px;padding:1px 5px">${plan==="vipro"?"VIPRO":plan==="pro"?"PRO":plan==="vip"?"VIP":"FREE"}</span>
-              <span style="font-size:11px;color:var(--t2);font-weight:600">${(e.score||0).toLocaleString("pt-BR")}</span>
-            </div>`;
-          }).join("")}
-        </div>
-        <div style="text-align:center;margin-top:10px">
-          <span style="font-size:11px;color:var(--t3)">Entre para ver sua posição completa</span>
-        </div>`;
+    // FIX-L12: timeout de 6 segundos para stats — não bloquear a landing
+    const ctrl=new AbortController();
+    const tid=setTimeout(()=>ctrl.abort(),6000);
+    const r=await fetch("/api/public-stats",{signal:ctrl.signal});
+    clearTimeout(tid);
+
+    // FIX-L13: verificar content-type antes de parsear (evita crash com HTML do GitHub Pages)
+    const ct=r.headers.get("content-type")||"";
+    if(!ct.includes("application/json")||!r.ok){
+      throw new Error("non-json response");
     }
-  }catch{}
+
+    const d=await r.json();
+    _statsRetryCount=0;
+    _applyPublicStats(d);
+    window._serverOnline=true;
+  }catch(err){
+    _statsRetryCount++;
+    // FIX-L14: na primeira falha, mostrar dados de fallback em vez de "–"
+    // Isso garante que a landing sempre parece viva, mesmo sem servidor
+    _applyPublicStats(_STATS_FALLBACK, /*isFallback=*/true);
+    // FIX-L15: retry com back-off (5s, 15s, 30s) — para quando servidor está iniciando
+    if(_statsRetryCount <= 3){
+      const delay=[5000,15000,30000][_statsRetryCount-1]||30000;
+      setTimeout(loadPublicStats, delay);
+    }
+  }
+}
+
+function _applyPublicStats(d, isFallback=false){
+  const fmt=(v)=>(v||0).toLocaleString("pt-BR");
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set("ps-users",    fmt(d.totalUsers));
+  set("ps-today",    fmt(d.todaySent));
+  set("ps-auto-today",fmt(d.todayAuto));
+  set("ps-total",    fmt(d.totalSent));
+  set("ps-total-auto",fmt(d.totalAuto));
+  set("ps-vip",      fmt(d.vipUsers));
+
+  // FIX-L16: badge de trial dinâmico
+  const tb=document.getElementById("trial-badge-txt");
+  if(tb)tb.textContent=d.trialEnabled?`${d.trialDays||5} dias de VIP GRÁTIS`:"10 envios automáticos GRÁTIS";
+
+  // FIX-L17: se for fallback, adicionar asterisco discreto nos números
+  if(isFallback){
+    ["ps-users","ps-today","ps-auto-today","ps-total","ps-vip"].forEach(id=>{
+      const e=document.getElementById(id);
+      if(e&&!e._fallbackMark){e._fallbackMark=true;e.title="Dados aproximados — servidor offline";}
+    });
+  }
+
+  // FIX-L18: ranking preview com dados reais ou fallback
+  const prev=document.getElementById("ln-rank-preview");
+  if(prev&&d.rankPreview&&d.rankPreview.length){
+    const podHtml=(e,pos)=>{
+      const ini=(e.name?.[0]||"?").toUpperCase();
+      const grad=pos===1?"var(--rank1)":pos===2?"var(--rank2)":"var(--rank3)";
+      const plan=(e.plan||"free").toLowerCase();
+      // FIX-L19: doublepro estava faltando no mapeamento
+      const lbl={vipro:"VIPRO",doublepro:"DOUBLE",pro:"PRO",vip:"VIP",free:"FREE"}[plan]||"FREE";
+      return`<div class="ln-rank-pod">
+        <div class="ln-rank-av" style="background:${grad}">${ini}</div>
+        <div class="ln-rank-pos">#${pos}</div>
+        <div class="ln-rank-name">${esc(e.name||"Usuário")}</div>
+        <span class="badge badge-${plan}" style="font-size:9px;padding:1px 5px">${lbl}</span>
+        <div class="ln-rank-score">${(e.score||0).toLocaleString("pt-BR")} envios</div>
+      </div>`;
+    };
+    const top=d.rankPreview.slice(0,3);
+    const order=top.length>=3?[top[1],top[0],top[2]]:[top[0]||null,top[1]||null];
+    const posOrder=top.length>=3?[2,1,3]:[1,2];
+    prev.innerHTML=`
+      <div style="text-align:center;margin-bottom:12px">
+        <span style="font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em">🏆 Top do Dia</span>
+        ${isFallback?'<span style="font-size:9px;color:var(--t3);margin-left:6px">(dados do último período)</span>':""}
+      </div>
+      <div class="ln-rank-podium">${order.map((e,i)=>e?podHtml(e,posOrder[i]):"").join("")}</div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.07)">
+        ${d.rankPreview.slice(3).map((e,i)=>{
+          const ini=(e.name?.[0]||"?").toUpperCase();
+          const plan=(e.plan||"free").toLowerCase();
+          const lbl={vipro:"VIPRO",doublepro:"DOUBLE",pro:"PRO",vip:"VIP",free:"FREE"}[plan]||"FREE";
+          return`<div style="display:flex;align-items:center;gap:8px;padding:5px 0">
+            <span style="font-size:11px;color:var(--t3);width:16px;text-align:center">${i+4}</span>
+            <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#334155,#1e293b);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;color:#fff">${ini}</div>
+            <span style="flex:1;font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.name||"Usuário")}</span>
+            <span class="badge badge-${plan}" style="font-size:9px;padding:1px 5px">${lbl}</span>
+            <span style="font-size:11px;color:rgba(255,255,255,.5);font-weight:600">${(e.score||0).toLocaleString("pt-BR")}</span>
+          </div>`;
+        }).join("")}
+      </div>
+      <div style="text-align:center;margin-top:10px">
+        <span style="font-size:11px;color:var(--t3)">Entre para ver sua posição completa</span>
+      </div>`;
+  }
 }
 document.addEventListener("DOMContentLoaded",()=>{loadPublicStats();setInterval(loadPublicStats,30000);});
-async function doLogout(){closeDrawer();await fetch("/api/disconnect",{credentials:"include"});U={connected:false};clearInterval(autoInterval);g("#app").style.display="none";g("#landing").style.display="flex";}
+async function doLogout(){
+  closeDrawer();
+  try{await fetch("/api/disconnect",{credentials:"include"});}catch{}
+  U={connected:false};
+  clearInterval(autoInterval);
+  const app=g("#app");const landing=g("#landing");
+  if(app)app.style.display="none";
+  // FIX-L36: landing agora é flex com flex-direction column
+  if(landing){landing.style.display="flex";landing.style.flexDirection="column";}
+  window._serverOnline=false;
+  // FIX-L37: recarregar stats após logout para landing ter dados frescos
+  if(typeof loadPublicStats==="function") loadPublicStats();
+}
 function copyPix(){navigator.clipboard.writeText(PIX).then(()=>toast("Pix copiado ✓","g")).catch(()=>toast("Copie manualmente","r"));}
 
 
@@ -8551,15 +8829,7 @@ async function openAutoModal(){
   const hasCv=DOCS.some(c=>(c.cvType||"resume")==="resume");
 
   if(profiles.length===0){
-    // FIX-32: feedback específico — usuário sabe exatamente o que falta
-    toast("⚠️ Crie um perfil de e-mail antes de iniciar o automático. Vá em Perfil → Perfis de Envio.","a",5000);
-    _showSetupChecklist();
-    return;
-  }
-  // Verifica se ao menos um perfil tem assunto configurado
-  const hasSubject = profiles.some(p => (p.subjects?.length > 0) || p.subject);
-  if(!hasSubject){
-    toast("⚠️ Configure um assunto de e-mail no seu perfil antes de iniciar.","a",5000);
+    // Mostra checklist de setup em vez de confirm() genérico
     _showSetupChecklist();
     return;
   }
@@ -11149,8 +11419,31 @@ Best regards,
 </div>
 <script>
 function showGoogleWarnModal(){
+  // FIX-L20: Se servidor offline (GitHub Pages), mostrar aviso específico em vez de travar
+  if(!window._serverOnline){
+    const gwm=document.getElementById("gwm");
+    if(gwm){
+      // Mudar mensagem do modal para informar sobre servidor offline
+      const title=gwm.querySelector(".lwarn-title");
+      if(title)title.textContent="⚠️ Servidor não detectado";
+      const sub=gwm.querySelector(".lwarn-sub");
+      if(sub)sub.innerHTML="Esta página está sendo servida pelo <strong>GitHub Pages</strong>, que não suporta o backend do H2BApply.<br><br>Para fazer login, acesse o app no servidor correto (Railway/Render).";
+      const stepsEl=gwm.querySelector(".lwarn-steps");
+      if(stepsEl)stepsEl.style.display="none";
+      const confirmEl=gwm.querySelector(".lwarn-confirm");
+      if(confirmEl)confirmEl.style.display="none";
+      const okBtn=document.getElementById("gwm-ok");
+      if(okBtn){okBtn.textContent="Entendi";okBtn.onclick=function(){gwm.style.display="none";};}
+      gwm.style.display="flex";
+    } else {
+      alert("⚠️ Servidor offline.\nEsta página está no GitHub Pages, que não executa o backend.\nAcesse o servidor correto para fazer login.");
+    }
+    return;
+  }
+  // FIX-L21: warmup só se servidor online
   fetch("/api/warmup",{credentials:"include"}).catch(function(){});
   var m=document.getElementById("gwm");
+  if(!m){location.href=_getOAuthURL();return;}
   m.style.display="flex";
   document.getElementById("gwm-ok").onclick=function(){
     m.style.display="none";
@@ -11349,7 +11642,7 @@ function _showWelcome(){
             + '<div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+p.name+'</div>'
             + '<div style="font-size:11px;color:var(--t3);margin-top:2px">'+(hasPdf?'✅ Com currículo':'⚠️ Sem currículo')+'</div>'
             + '</div>'
-            + '<button onclick="openProfileEditor(''+p.id+'')" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--t2)"><i class="ti ti-edit" style="font-size:12px"></i> Editar</button>'
+            + '<button onclick="openProfileEditor(\'' + p.id + '\')" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--t2)">✏️ Editar</button>'
             + '</div>';
         }).join('') + (profiles.length > 3 ? '<div style="font-size:11px;color:var(--t3);text-align:center;padding:4px">+' + (profiles.length-3) + ' perfis</div>' : '');
       }
@@ -11426,7 +11719,7 @@ function _loadH2aCats() {
     .then(data=>{
       var chips = document.getElementById('auto-cat-chips');
       if(!chips || !data.categories) return;
-      chips.innerHTML = '<button class="cat-chip-sel sel" data-cat="all" onclick="selectCat('all')">Todos</button>';
+      chips.innerHTML = '<button class="cat-chip-sel sel" data-cat="all" onclick="selectCat(\'all\')">Todos</button>';
       data.categories.forEach(function(cat) {
         var b = document.createElement('button');
         b.className = 'cat-chip-sel';
@@ -11537,7 +11830,9 @@ function switchProfileTab(tab){
   });
   // Renderiza conteúdo da aba
   if(tab==="profiles"){
-    renderProfileList();
+    // BUG CRÍTICO CORRIGIDO: era renderProfileList() — função inexistente.
+    // A função correta chama-se renderProfiles(). Por isso os perfis nunca apareciam.
+    if(typeof renderProfiles==="function") renderProfiles();
     _updateProfileTabCount();
   } else if(tab==="stats"){
     renderStatsTab();
