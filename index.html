@@ -1980,15 +1980,26 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                 <div class="home-stat-val" style="color:var(--blue)" id="home-stat-manual">–</div>
                 <div class="home-stat-lbl">Manual</div>
               </div>
-              <div class="home-stat-card" onclick="openAutoModal()" style="cursor:pointer">
+              <!-- FIX-UX: usa showAutoVisaChoice em vez de openAutoModal -->
+              <div class="home-stat-card" onclick="showAutoVisaChoice()" style="cursor:pointer">
                 <div class="home-stat-val" style="color:var(--purple)" id="home-stat-auto">–</div>
-                <div class="home-stat-lbl">Automático</div>
+                <div class="home-stat-lbl">Auto 🤖</div>
               </div>
               <div class="home-stat-card" onclick="sv('respostas')" style="cursor:pointer">
                 <div class="home-stat-val" style="color:var(--green)" id="home-stat-replies">–</div>
                 <div class="home-stat-lbl">Respostas</div>
               </div>
             </div>
+          </div>
+
+          <!-- Card do automático — só aparece quando ativo -->
+          <div id="home-auto-status-card" style="display:none;margin:0 14px 12px;background:linear-gradient(135deg,#312e81,#1e1b4b);border-radius:var(--rl);padding:14px 16px;cursor:pointer" onclick="showAutoVisaChoice()">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div style="font-size:13px;font-weight:800;color:#fff" id="home-auto-status-title">🟢 Automático Ativo</div>
+              <div style="font-size:11px;color:rgba(255,255,255,.5)" id="home-auto-status-days"></div>
+            </div>
+            <div id="home-auto-status-bars"></div>
+            <div style="font-size:11px;color:rgba(255,255,255,.5);margin-top:8px;text-align:center">Toque para ver detalhes ou pausar</div>
           </div>
           <!-- Últimas respostas -->
           <div class="home-section-title">📩 Empresas que Responderam</div>
@@ -9680,8 +9691,19 @@ function renderHome(){
     if(U.autoJob?.active)badges+=` <span class="tag" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:var(--purple);border-color:var(--purpleb);font-size:10px;white-space:nowrap;animation:pulse 2s infinite">🤖 Auto Ativo</span>`;
     planRow.innerHTML=badges;
   }
-  // Label plano em conta
-  const pl=g("#home-plan-label");if(pl)pl.textContent={free:"Plano Free",vip:"⭐ VIP",pro:"💥 VIPro",vipro:"💥 VIPro"}[U.plan]||"Plano Free";
+  // Label plano em conta — inclui DoublePro e aviso de expiração
+  const pl=g("#home-plan-label");
+  if(pl){
+    const planNames={free:"Plano Free",vip:"⭐ VIP",pro:"💥 VIPro",vipro:"💥 VIPro",doublepro:"💎 DoublePro"};
+    let planTxt=planNames[U.plan]||"Plano Free";
+    // Aviso de expiração próxima
+    if(U.vip?.autoExpires){
+      const daysLeft=Math.ceil((U.vip.autoExpires-Date.now())/86400000);
+      if(daysLeft>0&&daysLeft<=5) planTxt+=` · ⚠️ Expira em ${daysLeft}d`;
+      else if(daysLeft<=0) planTxt=" ❌ Plano expirado";
+    }
+    pl.textContent=planTxt;
+  }
   // Stats do dia
   const sm=g("#home-stat-manual");if(sm)sm.textContent=`${U.todaySentManual}/${U.manualLimit}`;
   const sa=g("#home-stat-auto");
@@ -9689,25 +9711,48 @@ function renderHome(){
   // Atualiza card automático na home
   _updateHomeAutoCard();
   const sr=g("#home-stat-replies");if(sr){const unread=INBOX_EMAILS.filter(e=>!e.isRead).length;sr.textContent=unread>0?String(unread):"–";}
-  // Card Auto — mostra status de AMBOS os jobs (H-2B e H-2A)
-  const ac=g("#home-auto-card");const at=g("#home-auto-title");const as=g("#home-auto-sub");const ai=g("#home-auto-icon");
-  if(ac){
-    const h2bJob=U.autoJobH2b||(!U.autoJob||U.autoJob.source==='h2a'?null:U.autoJob);
-    const h2aJob=U.autoJobH2a||(U.autoJob?.source==='h2a'?U.autoJob:null);
-    const anyActive=h2bJob?.active||h2aJob?.active;
-    if(anyActive){
-      ac.className="home-auto-card";
-      const parts=[];
-      if(h2bJob?.active){const o=h2bJob.originalCount||0;const q=h2bJob.queueSize||0;const d=Math.max(0,o-q);const p=o>0?Math.round(d/o*100):0;parts.push(`🔧 H-2B: ${d.toLocaleString("pt-BR")}/${o.toLocaleString("pt-BR")} (${p}%)`);}
-      if(h2aJob?.active){const o=h2aJob.originalCount||0;const q=h2aJob.queueSize||0;const d=Math.max(0,o-q);const p=o>0?Math.round(d/o*100):0;parts.push(`🌾 H-2A: ${d.toLocaleString("pt-BR")}/${o.toLocaleString("pt-BR")} (${p}%)`);}
-      if(at)at.textContent="🟢 Automático Ativo!";
-      if(as)as.textContent=parts.join(" · ")||"Enviando candidaturas...";
-      if(ai)ai.innerHTML='<span style="font-size:24px">🤖</span>';
-    }else{
-      ac.className="home-auto-card inactive";
-      if(at)at.textContent="Envio Automático";
-      if(as)as.textContent="Toque para configurar e iniciar";
-      if(ai)ai.innerHTML='<span style="font-size:24px" style="color:var(--purple)">🤖</span>';
+  // Card de status do automático na home — mostra quando há jobs ativos ou recentes
+  const homeAutoCard=g("#home-auto-status-card");
+  const homeAutoTitle=g("#home-auto-status-title");
+  const homeAutoDays=g("#home-auto-status-days");
+  const homeAutoBars=g("#home-auto-status-bars");
+  const h2bJob=U.autoJobH2b||(!U.autoJob||U.autoJob?.source==='h2a'?null:U.autoJob);
+  const h2aJob=U.autoJobH2a||(U.autoJob?.source==='h2a'?U.autoJob:null);
+  const anyJobActive=h2bJob?.active||h2aJob?.active;
+  if(homeAutoCard){
+    if(anyJobActive){
+      homeAutoCard.style.display="block";
+      if(homeAutoTitle)homeAutoTitle.textContent="🟢 Automático Ativo!";
+      let barsHtml="";
+      if(h2bJob){
+        const o=h2bJob.originalCount||0;const q=h2bJob.queueSize||0;const d=Math.max(0,o-q);const p=o>0?Math.round(d/o*100):0;
+        const daysLeft=U.autoLimit>0?Math.ceil(q/U.autoLimit):0;
+        barsHtml+=`<div style="margin-bottom:${h2aJob?8:0}px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <span style="font-size:11px;color:rgba(255,255,255,.8);font-weight:700">🔧 H-2B: ${d.toLocaleString("pt-BR")}/${o.toLocaleString("pt-BR")} vagas</span>
+            <span style="font-size:10px;color:rgba(255,255,255,.5)">${p}% ${daysLeft>0?`· ~${daysLeft}d`:""}</span>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,.15);border-radius:3px;overflow:hidden">
+            <div style="width:${p}%;height:100%;background:linear-gradient(90deg,#818cf8,#6366f1);border-radius:3px"></div>
+          </div>
+        </div>`;
+      }
+      if(h2aJob){
+        const o=h2aJob.originalCount||0;const q=h2aJob.queueSize||0;const d=Math.max(0,o-q);const p=o>0?Math.round(d/o*100):0;
+        const daysLeft=U.autoLimit>0?Math.ceil(q/U.autoLimit):0;
+        barsHtml+=`<div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <span style="font-size:11px;color:rgba(255,255,255,.8);font-weight:700">🌾 H-2A: ${d.toLocaleString("pt-BR")}/${o.toLocaleString("pt-BR")} vagas</span>
+            <span style="font-size:10px;color:rgba(255,255,255,.5)">${p}% ${daysLeft>0?`· ~${daysLeft}d`:""}</span>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,.15);border-radius:3px;overflow:hidden">
+            <div style="width:${p}%;height:100%;background:linear-gradient(90deg,#34d399,#10b981);border-radius:3px"></div>
+          </div>
+        </div>`;
+      }
+      if(homeAutoBars)homeAutoBars.innerHTML=barsHtml;
+    } else {
+      homeAutoCard.style.display="none";
     }
   }
   // Badge respostas
@@ -11834,22 +11879,61 @@ function showTip(el,html){
 
 // Banner boas-vindas (1ª vez)
 function _showWelcome(){
+  // Só mostra para usuários novos (sem perfil configurado)
+  const hasProfiles=(UPROFILES.length?UPROFILES:U.profiles||[]).filter(p=>p.active!==false).length>0;
+  const hasDocs=DOCS.length>0;
+  // Usuário já configurado — não mostrar guia básico
+  if(hasProfiles&&hasDocs)return;
   try{if(localStorage.getItem("h2b_ok"))return;}catch(e){}
   var hdr=document.querySelector(".home-header");
   if(!hdr||document.getElementById("h2b-welcome"))return;
+
   var b=document.createElement("div");
   b.id="h2b-welcome";
-  b.style.cssText="margin:12px 14px 0;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:14px;padding:16px;position:relative";
+  b.style.cssText="margin:12px 14px 0;background:linear-gradient(135deg,#1e1b4b,#312e81);color:#fff;border-radius:16px;padding:18px;position:relative;box-shadow:0 8px 32px rgba(79,70,229,.25)";
+
   var close=document.createElement("button");
-  close.style.cssText="position:absolute;top:8px;right:10px;background:none;border:none;color:rgba(255,255,255,.8);font-size:20px;cursor:pointer;padding:0;line-height:1";
+  close.style.cssText="position:absolute;top:10px;right:12px;background:rgba(255,255,255,.15);border:none;color:#fff;font-size:18px;cursor:pointer;padding:2px 7px;border-radius:6px;line-height:1.2;font-weight:700";
   close.textContent="×";
   close.onclick=function(){b.remove();try{localStorage.setItem("h2b_ok","1");}catch(e){}};
   b.appendChild(close);
-  var steps=["Vá em <strong>Perfil → Perfis de Email</strong> e configure seu currículo","Acesse <strong>Envio Manual</strong> para escolher vagas e candidatar","Ative o <strong>Envio Automático</strong> para candidaturas 24h no piloto automático","Acompanhe as <strong>Respostas</strong> quando empresas americanas te responderem"];
+
+  // Calcula qual passo o usuário está
+  const step1done=hasDocs;
+  const step2done=hasProfiles;
+  const step3done=false; // automático nunca "done" até enviar primeiro
+
   var inner=document.createElement("div");
-  inner.innerHTML="<div style='font-size:15px;font-weight:800;margin-bottom:10px'>🚀 Bem-vindo ao H2BApply!</div><div style='display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.55'>"+
-    steps.map(function(s,i){return "<div style='display:flex;gap:8px'><span style='background:rgba(255,255,255,.25);border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800'>"+(i+1)+"</span><span>"+s+"</span></div>";}).join("")+
-    "</div>";
+  inner.innerHTML=`
+    <div style="font-size:15px;font-weight:800;margin-bottom:4px">🚀 Comece em 3 passos</div>
+    <div style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:14px">Configure uma vez. O robô faz o resto.</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.${step1done?'12':'07'});border-radius:10px;padding:10px 12px;cursor:pointer" onclick="sv('profile');setTimeout(()=>document.getElementById('cv-upload-trigger')?.click(),400)">
+        <div style="width:28px;height:28px;border-radius:50%;background:${step1done?'#10b981':'rgba(255,255,255,.2)'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;flex-shrink:0">${step1done?'✓':'1'}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">${step1done?'✅ Currículo enviado':'📎 Envie seu currículo em PDF'}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.6)">${step1done?'Salvo com segurança':'Vai em Perfil → fazer upload do CV'}</div>
+        </div>
+        ${step1done?'':'<span style="font-size:18px">→</span>'}
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.${step2done?'12':'07'});border-radius:10px;padding:10px 12px;cursor:pointer" onclick="sv('profile');setTimeout(()=>switchProfileTab('profiles'),200)">
+        <div style="width:28px;height:28px;border-radius:50%;background:${step2done?'#10b981':'rgba(255,255,255,.2)'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;flex-shrink:0">${step2done?'✓':'2'}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">${step2done?'✅ Perfil de e-mail criado':'📝 Crie seu perfil de e-mail'}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.6)">${step2done?'Template de candidatura configurado':'Assunto e texto do e-mail para as empresas'}</div>
+        </div>
+        ${step2done?'':'<span style="font-size:18px">→</span>'}
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.07);border-radius:10px;padding:10px 12px;cursor:pointer" onclick="${step1done&&step2done?'showAutoVisaChoice()':'toast(\"Complete os passos 1 e 2 primeiro\",\"au\")'}">
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;flex-shrink:0">3</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700">🤖 Ligue o Automático</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.6)">Envia para centenas de empresas enquanto você dorme</div>
+        </div>
+        <span style="font-size:18px">${step1done&&step2done?'→':'🔒'}</span>
+      </div>
+    </div>
+    <div style="font-size:10px;color:rgba(255,255,255,.4);text-align:center">Feito! Pode deslogar — o robô continua sozinho por semanas.</div>`;
   b.appendChild(inner);
   hdr.insertAdjacentElement("afterend",b);
 }
