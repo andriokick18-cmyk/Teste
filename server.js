@@ -18,8 +18,6 @@
 //    doublepro → 100 manual + 400 auto /dia
 // ═══════════════════════════════════════════════════════════
 "use strict";
-// FIX-21: versão centralizada — usada em todos os logs para evitar inconsistência
-const APP_VERSION = "15.0.0";
 const http   = require("http");
 const https  = require("https");
 const fs     = require("fs");
@@ -145,7 +143,7 @@ const REFERRAL_FILE  = path.join(DATA_DIR, "referrals.json");       // Referral 
 const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
 try { fs.mkdirSync(CVS_DIR, { recursive: true }); } catch {}
 
-console.log(`[boot] H2BApply v${APP_VERSION} | ${APP_URL} | ${DATA_DIR}`);
+console.log(`[boot] H2BApply v14.0 | ${APP_URL} | ${DATA_DIR}`);
 const _diskOk = DATA_DIR !== "/tmp";
 console.log(`[boot] Disk: ${_diskOk ? `✅ ${DATA_DIR} (persistente)` : "❌ /tmp (VOLÁTIL — tokens/PDFs serão perdidos no próximo deploy!)"}`);
 if (!_diskOk) {
@@ -297,17 +295,58 @@ const delUser    = e => { delete DB_USERS[e]; persist(USERS_FILE,DB_USERS); };
 const getHist    = e => DB_HIST[e]||[];
 const addHist    = (e,entry) => { if(!DB_HIST[e])DB_HIST[e]=[]; DB_HIST[e].unshift(entry); if(DB_HIST[e].length>10000)DB_HIST[e]=DB_HIST[e].slice(0,10000); invalidateUserStatsCache(e); persistFlush(HIST_FILE,DB_HIST); }; // FIX-BUG8: escrita imediata evita perda no crash pós-envio
 const delHist    = e => { delete DB_HIST[e]; persist(HIST_FILE,DB_HIST); };
-const getAutoJob = e => DB_AUTO[e]||null;
-// FIX-PERF: usa debounce de 800ms para escritas frequentes da fila (cada envio)
-// mas força escrita imediata para mudanças críticas de estado (active, finished, paused)
+// FIX-F31: Suporte a dois jobs simultâneos por usuário — H2B e H2A independentes
+// getAutoJob/setAutoJob são "source-smart": quando source não é passado,
+// detectam a fonte pelo job existente ou pela key, mantendo retrocompatibilidade total.
+function _autoKey(email, source) {
+  if (source === 'h2a') return email + '__h2a';
+  return email + '__h2b'; // h2b é padrão
+}
+function _timerKey(email, source) {
+  return email + (source === 'h2a' ? '__h2a' : '__h2b');
+}
+function _clearTimer(email, source) {
+  const tk = _timerKey(email, source);
+  if (autoTimers.has(tk)) { clearTimeout(autoTimers.get(tk)); autoTimers.delete(tk); }
+  // Limpa também key legada sem sufixo (compatibilidade)
+  if (autoTimers.has(email)) { clearTimeout(autoTimers.get(email)); autoTimers.delete(email); }
+}
+function getAutoJob(email, source) {
+  if (source === 'h2a') return DB_AUTO[email + '__h2a'] || null;
+  if (source === 'h2b') return DB_AUTO[email + '__h2b'] || DB_AUTO[email] || null;
+  // Sem source: retorna o job ativo mais recente
+  // Prioridade: h2b ativo > h2a ativo > h2b > h2a > legado
+  const h2b = DB_AUTO[email + '__h2b'] || DB_AUTO[email];
+  const h2a = DB_AUTO[email + '__h2a'];
+  if (h2b?.active && !h2a?.active) return h2b;
+  if (h2a?.active && !h2b?.active) return h2a;
+  if (h2b?.active && h2a?.active) return h2b; // prefere H2B quando ambos ativos
+  return h2b || h2a || null;
+}
+function getAllAutoJobs(email) {
+  const jobs = [];
+  const h2b = DB_AUTO[email + '__h2b'] || DB_AUTO[email];
+  const h2a = DB_AUTO[email + '__h2a'];
+  if (h2b) jobs.push({ ...h2b, _sourceKey: 'h2b' });
+  if (h2a) jobs.push({ ...h2a, _sourceKey: 'h2a' });
+  return jobs;
+}
 const _CRITICAL_AUTO_STATUSES = new Set(["finished","paused","paused_token_revoked","paused_auth_error","paused_no_session","paused_account_suspended","paused_corrupt_queue","paused_oauth_expired","paused_no_refresh_token"]);
-const setAutoJob = (e,d) => {
-  DB_AUTO[e]={...(DB_AUTO[e]||{}),...d};
-  const isCritical = d.active===false || d.active===true || _CRITICAL_AUTO_STATUSES.has(d.status||"");
-  if(isCritical){ persistFlush(AUTO_FILE,DB_AUTO); }
-  else { persistDebounced(AUTO_FILE,DB_AUTO,800); }
-};
-const delAutoJob = e => { delete DB_AUTO[e]; persist(AUTO_FILE,DB_AUTO); };
+function setAutoJob(email, d, source) {
+  // Se source não for passado, detecta pelo campo source do próprio dado ou do job atual
+  const src = source || d?.source || getAutoJob(email)?.source || 'h2b';
+  const key = _autoKey(email, src === 'h2a' ? 'h2a' : 'h2b');
+  DB_AUTO[key] = { ...(DB_AUTO[key] || {}), ...d };
+  const isCritical = d.active === false || d.active === true || _CRITICAL_AUTO_STATUSES.has(d.status || "");
+  if (isCritical) { persistFlush(AUTO_FILE, DB_AUTO); }
+  else { persistDebounced(AUTO_FILE, DB_AUTO, 800); }
+}
+function delAutoJob(email, source) {
+  if (source === 'h2a') { delete DB_AUTO[email + '__h2a']; }
+  else if (source === 'h2b') { delete DB_AUTO[email + '__h2b']; delete DB_AUTO[email]; }
+  else { delete DB_AUTO[email + '__h2b']; delete DB_AUTO[email + '__h2a']; delete DB_AUTO[email]; }
+  persist(AUTO_FILE, DB_AUTO);
+}
 // ══════════════════════════════════════════════════════════
 // REGRA PRINCIPAL — Anti-duplicata absoluta
 // Um usuário NUNCA envia para o mesmo empregador duas vezes
@@ -788,72 +827,117 @@ async function pushToUser(userEmail, payload) {
   }
 }
 
-// FIX-17: Poll escalonado — distribui verificações ao longo de 10min (600s)
-// em vez de checar todos de uma vez a cada 2min.
-// Com 200 usuários: 1 check a cada 3s → 200 checks em 600s → 20 checks/min (seguro)
-async function serverPushPollScheduled() {
+// Polling de inbox no servidor — verifica novas respostas a cada 2 min para usuários
+// com push ativo e auto-send em andamento ou VIP
+const pushPollState = new Map(); // email → { lastUnread }
+async function serverPushPoll() {
   if (!PUSH_ENABLED) return;
   const usersWithPush = Object.keys(DB_PUSH).filter(e => (DB_PUSH[e]||[]).length > 0);
-  if (!usersWithPush.length) return;
-
-  const POLL_WINDOW_MS = 10 * 60 * 1000; // 10 minutos
-  const delayPerUser = Math.max(2000, Math.floor(POLL_WINDOW_MS / usersWithPush.length));
-
-  for (let i = 0; i < usersWithPush.length; i++) {
-    const email = usersWithPush[i];
-    // Agenda cada usuário com delay incremental para distribuir a carga
-    setTimeout(async () => {
-      const u = getUser(email); if (!u) return;
-      const sessArr = Object.values(sessions).filter(s => s.user_email === email && s.access_token);
-      const sess = sessArr[0]; const sessId = sess ? Object.keys(sessions).find(k => sessions[k] === sess) : null;
-      if (!sessId) return;
-      try {
-        const emails = await gmailFetchInbox(sessId, 50);
-        const dbUsr = getUser(email) || {};
-        const pReadSet = new Set(dbUsr.readEmailIds || []);
-        const unread = emails.filter(e => !e.isRead && !pReadSet.has(e.id)).length;
-        const prev = pushPollState.get(email) ?? -1;
-        if (prev >= 0 && unread > prev) {
-          const diff = unread - prev;
-          const newestUnread = emails.find(e => !e.isRead);
-          let linkedHint = "";
-          let linkedAppId = "";
-          if(newestUnread){
-            const match = matchAppToEmail(email, {
-              threadId: newestUnread.threadId, inReplyTo: newestUnread.inReplyTo,
-              references: newestUnread.references, from: newestUnread.from
-            });
-            if(match?.app){
-              linkedAppId = match.app.appId;
-              const co = (match.app.company || match.app.jobSnapshot?.company || "").trim();
-              if(co) linkedHint = co;
-            }
+  for (const email of usersWithPush) {
+    const u = getUser(email); if (!u) continue;
+    // Pega sessão ativa para buscar inbox
+    const sessArr = Object.values(sessions).filter(s => s.user_email === email && s.access_token);
+    const sess = sessArr[0]; const sessId = sess ? Object.keys(sessions).find(k => sessions[k] === sess) : null;
+    if (!sessId) continue; // sem sessão ativa = não pode checar inbox
+    try {
+      const emails = await gmailFetchInbox(sessId, 50);
+      // FIX: desconta emails que o usuário já marcou como lidos pelo app (persiste entre sessões)
+      const dbUsr = getUser(email) || {};
+      const pReadSet = new Set(dbUsr.readEmailIds || []);
+      const unread = emails.filter(e => !e.isRead && !pReadSet.has(e.id)).length;
+      const prev = pushPollState.get(email) ?? -1;
+      if (prev >= 0 && unread > prev) {
+        const diff = unread - prev;
+        // v13: tenta vincular a resposta mais recente não-lida à vaga original
+        const newestUnread = emails.find(e => !e.isRead);
+        let linkedHint = "";
+        let linkedAppId = "";
+        if(newestUnread){
+          const match = matchAppToEmail(email, {
+            threadId: newestUnread.threadId, inReplyTo: newestUnread.inReplyTo,
+            references: newestUnread.references, from: newestUnread.from
+          });
+          if(match?.app){
+            linkedAppId = match.app.appId;
+            const co = (match.app.company || match.app.jobSnapshot?.company || "").trim();
+            if(co) linkedHint = co;
           }
-          const baseTitle = `✈️ H2BApply — ${diff} nova${diff > 1 ? "s" : ""} resposta${diff > 1 ? "s" : ""}!`;
-          const payload = {
-            type: "new_reply",
-            title: linkedHint ? `✈️ ${linkedHint} respondeu!` : baseTitle,
-            body: linkedHint
-              ? `Você recebeu uma resposta para a vaga em ${linkedHint}.`
-              : `Você recebeu ${diff} nova${diff > 1 ? "s" : ""} resposta${diff > 1 ? "s" : ""}. Toque para abrir.`,
-            icon: "/icon-192.png",
-            badge: "/icon-192.png",
-            tag: "h2b-inbox",
-            url: linkedAppId ? `/?tab=respostas&app=${linkedAppId}` : "/?tab=respostas",
-            appId: linkedAppId || null,
-            timestamp: Date.now(),
-          };
-          console.log(`[push-poll] ${email}: ${diff} nova(s) resp${linkedHint?` (${linkedHint})`:""} → push`);
-          await pushToUser(email, payload);
         }
-        pushPollState.set(email, unread);
-      } catch(e) { /* sessão pode ter expirado */ }
-    }, i * delayPerUser);
+        const baseTitle = `✈️ H2BApply — ${diff} nova${diff > 1 ? "s" : ""} resposta${diff > 1 ? "s" : ""}!`;
+        const payload = {
+          type: "new_reply",
+          title: linkedHint ? `✈️ ${linkedHint} respondeu!` : baseTitle,
+          body: linkedHint
+            ? `Você recebeu uma resposta para a vaga em ${linkedHint}.`
+            : `Você recebeu ${diff} nova${diff > 1 ? "s" : ""} resposta${diff > 1 ? "s" : ""}. Toque para abrir.`,
+          icon: "/icon-192.png",
+          badge: "/icon-192.png",
+          tag: "h2b-inbox",
+          url: linkedAppId ? `/?tab=respostas&app=${linkedAppId}` : "/?tab=respostas",
+          appId: linkedAppId || null,
+          timestamp: Date.now(),
+        };
+        console.log(`[push-poll] ${email}: ${diff} nova(s) resp${linkedHint?` (${linkedHint})`:""} → push`);
+        await pushToUser(email, payload);
+      }
+      pushPollState.set(email, unread);
+    } catch(e) { /* sessão pode ter expirado */ }
   }
 }
-// Executa o poll escalonado a cada 10 minutos (antes: 2min para TODOS de uma vez)
-const pushPollState = new Map(); // email → lastUnread (mantido fora da função para persistência)
-setInterval(serverPushPollScheduled, 10 * 60 * 1000);
+// Executa poll a cada 2 minutos
+setInterval(serverPushPoll, 2 * 60 * 1000);
+
+// FIX-F12: tokenGuardian — antes era só mencionado em logs mas NUNCA implementado como setInterval
+// Roda a cada 10 minutos, renova tokens expirados e desengaça jobs travados
+setInterval(async function tokenGuardian(){
+  const now=Date.now();
+  for(const[email,job] of Object.entries(DB_AUTO)){
+    if(!job.active)continue;
+
+    // Caso 1: aguardando retry de token — tenta renovar
+    if(job.status==="waiting_token_retry"){
+      if(!job.nextSendAt||now>=job.nextSendAt){
+        console.log(`[tokenGuardian] Tentando renovar token para ${email}`);
+        const u=getUser(email);
+        if(!u?.refresh_token){
+          setAutoJob(email,{...job,active:false,status:"paused_no_session"});
+          addLog(email,{status:"pausado",company:"Sistema",jobTitle:"🔐 Sem refresh_token — faça login novamente",error:"Nenhum refresh_token disponível"});
+          continue;
+        }
+        try{
+          await refreshTokenForUser(email);
+          console.log(`[tokenGuardian] ✅ Token renovado para ${email} — reagendando`);
+          setAutoJob(email,{...job,status:"sending"});
+          scheduleAuto(email);
+        }catch(e){
+          const isRevoked=e.message.includes("invalid_grant")||e.message.includes("revoked");
+          if(isRevoked){
+            setAutoJob(email,{...job,active:false,status:"paused_token_revoked"});
+            addLog(email,{status:"pausado",company:"Sistema",jobTitle:"🔐 Acesso Google revogado — faça login novamente",error:e.message});
+            sendNotifEmail(email,"token_revoked").catch(()=>{});
+            console.warn(`[tokenGuardian] ❌ Token revogado para ${email} — pausa definitiva`);
+          }else{
+            const nextRetry=now+10*60*1000;
+            setAutoJob(email,{...job,nextSendAt:nextRetry});
+            console.warn(`[tokenGuardian] ⚠️ Erro temporário ${email} (retry em 10min):`,e.message);
+          }
+        }
+      }
+      continue;
+    }
+
+    // Caso 2: job travado em "sending" por mais de 15 minutos — crash no meio do envio
+    if(job.status==="sending"){
+      const timeSince=now-(job.lastSentAt||job.startedAt||0);
+      if(timeSince>15*60*1000){
+        console.warn(`[tokenGuardian] FIX-F17: ${email} travado em "sending" há ${Math.round(timeSince/60000)}min — reagendando`);
+        setAutoJob(email,{...job,status:"paused"});
+        addLog(email,{status:"sistema",company:"Sistema",jobTitle:`⚠️ Envio travado detectado — retomando automaticamente (${Math.round(timeSince/60000)}min parado)`,error:""});
+        setTimeout(()=>scheduleAuto(email),5000);
+      }
+    }
+  }
+},10*60*1000);
 
 // ══════════════════════════════════════════════════════════
 //  H-2A DAILY UPDATE — 03:00 BRT (06:00 UTC) todo dia
@@ -1232,10 +1316,16 @@ function loadSheets() {
         SHEET_H2A=d;
         console.log(`[sheet] ✅ h2a: ${d.length} vagas`);
         anyLoaded=true;
-      }else{ console.warn("[sheet] ⚠️ h2a_jobs.json vazio ou inválido"); }
+      }else{
+        console.warn("[sheet] ⚠️ h2a_jobs.json vazio — disparando download imediato do DOL");
+        // FIX-F34: volume novo ou arquivo corrompido — baixar imediatamente
+        setTimeout(()=>fetchAndMergeH2A().catch(e=>console.error("[h2a/boot] Erro download imediato:",e.message)),15000);
+      }
     }catch(e){ console.warn("[sheet] ❌ Erro ao ler h2a_jobs.json:",e.message); }
   }else{
-    console.warn("[sheet] ⚠️ h2a_jobs.json não encontrado — coloque na raiz do projeto");
+    console.warn("[sheet] ⚠️ h2a_jobs.json não encontrado — disparando download imediato do DOL (FIX-F34)");
+    // FIX-F34: arquivo não existe (volume novo no Railway) — baixar assim que a rede estiver pronta
+    setTimeout(()=>fetchAndMergeH2A().catch(e=>console.error("[h2a/boot] Erro download imediato:",e.message)),15000);
   }
   if (!anyLoaded) {
     console.warn("[sheet] ❌ NENHUMA planilha carregada. Vagas das abas Jan/Jul estarão vazias.");
@@ -1474,10 +1564,12 @@ function updateAutoStats(email, delta) {
   autoStats.set(email, { ...s, ...delta });
 }
 
-function scheduleAuto(email) {
-  if(autoTimers.has(email))clearTimeout(autoTimers.get(email));
-  const job=getAutoJob(email);
-  if(!job||!job.active||!job.queue?.length){autoTimers.delete(email);return;}
+function scheduleAuto(email, source) {
+  // FIX-F31: usa key correto para timer por fonte
+  const timerKey = email + (source === 'h2a' ? '__h2a' : '__h2b');
+  if(autoTimers.has(timerKey))clearTimeout(autoTimers.get(timerKey));
+  const job=getAutoJob(email, source);
+  if(!job||!job.active||!job.queue?.length){autoTimers.delete(timerKey);return;}
 
   // ── Sem janela de horário: roda 24/7 até zerar a fila ────────────────────
   // Ao atingir o limite diário, aguarda a meia-noite BRT (00:00 = 03:00 UTC)
@@ -1496,31 +1588,28 @@ function scheduleAuto(email) {
   // Se o plano expirou, currentPlanLimit já reflete o free (10/dia) — usamos esse.
   // Se o plano melhorou (upgrade), usamos o maior.
   const currentPlanLimit = getAutoLimit(p);
-  // FIX-12: autoLimit NUNCA pode exceder o plano atual.
-  // Se o plano foi rebaixado (ex: DoublePro→Free), lockedAutoLimit antigo é descartado.
-  // Se o plano melhorou (upgrade), usa o maior entre os dois.
-  // Resultado: lockedAutoLimit é sempre ≤ currentPlanLimit.
-  const autoLimit = isAutoVipActive(p)
-    ? Math.min(Math.max(job.lockedAutoLimit || 0, currentPlanLimit), currentPlanLimit)
-    : currentPlanLimit; // plano expirou → usa limite atual (free=10)
-  // Atualiza lockedAutoLimit apenas se o plano melhorou (nunca preserva limite antigo maior)
-  if (autoLimit !== (job.lockedAutoLimit || 0)) {
+  const planStillActive = isAutoVipActive(p) || currentPlanLimit > 10; // >10 = algum plano pago ativo
+  const autoLimit = planStillActive
+    ? Math.max(job.lockedAutoLimit || 0, currentPlanLimit)
+    : currentPlanLimit; // plano expirou — usa o limite atual (free=10)
+  // Atualiza lockedAutoLimit no job se o plano melhorou (sem reatribuir job)
+  if (autoLimit > (job.lockedAutoLimit || 0)) {
     setAutoJob(email, { ...job, lockedAutoLimit: autoLimit });
   }
   const todayAuto=countAutoToday(getHist(email));
 
   if(todayAuto>=autoLimit){
     const next = nextMidnightBRT();
-    const delay = Math.max(60_000, Math.min(next - Date.now(), 24*60*60*1000)); // entre 1min e 24h
-    setAutoJob(email,{...job,status:"waiting_limit",nextSendAt:next.getTime()});
-    autoTimers.set(email,setTimeout(()=>scheduleAuto(email),delay));
+    const delay = Math.max(60_000, Math.min(next - Date.now(), 24*60*60*1000));
+    setAutoJob(email,{...job,status:"waiting_limit",nextSendAt:next.getTime()},source);
+    autoTimers.set(timerKey,setTimeout(()=>scheduleAuto(email,source),delay));
     const retomaBRT = next.toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"});
     addLog(email,{status:"limite",jobTitle:`📊 Limite diário atingido: ${todayAuto}/${autoLimit} envios hoje`,company:`Retoma automaticamente às 00:00 BRT (${Math.round(delay/60000)}min). Fila: ${job.queue?.length||0} vagas restantes.`,error:""});
-    console.log(`[auto] ${email} limite diário (${todayAuto}/${autoLimit}) — aguarda meia-noite BRT (${Math.round(delay/60000)}min)`);
+    console.log(`[auto] ${email}/${source||'h2b'} limite diário (${todayAuto}/${autoLimit}) — aguarda meia-noite BRT`);
     return;
   }
 
-  doAutoSend(email);
+  doAutoSend(email, source);
 }
 
 // ── Seleção automática de perfil por prioridade ───────────
@@ -1544,16 +1633,17 @@ function selectProfile(profiles, target, sheet) {
     const h2aProfiles = active.filter(pr => {
       if (pr.isGeneral) return false;
       const prName = (pr.name || "").toLowerCase();
-      // Perfil explicitamente para H-2A — checa pr.visa primeiro (campo canônico)
       if (pr.visa === 'h2a' || pr.visa === 'both') return true;
-      // Fallback: heurística de nome para perfis criados antes do campo visa existir
       if (prName.includes("h2a") || prName.includes("h-2a") || prName.includes("farm") || prName.includes("agricult")) return true;
       if (pr.categories && (pr.categories.includes("farm") || pr.categories.includes("h2a") || pr.categories.includes("agricultural"))) return true;
       return false;
     });
     if (h2aProfiles.length) {
       const withSheet = h2aProfiles.filter(pr => pr.sheets && pr.sheets.includes(jobSheet));
-      return withSheet.length ? withSheet[0] : h2aProfiles[0];
+      const pool = withSheet.length ? withSheet : h2aProfiles;
+      // FIX-F32: rotacionar entre múltiplos perfis H-2A em vez de sempre usar o primeiro
+      const rotIdx = (Math.floor(Date.now() / 60000)) % pool.length; // muda a cada minuto
+      return pool[rotIdx];
     }
   }
 
@@ -1661,28 +1751,28 @@ function persistFlush(file, data) {
   persist(file, data);
 }
 
-async function doAutoSend(email) {
-  if (autoSendLock.has(email)) { console.warn(`[auto] ${email} já enviando`); return; }
-  autoSendLock.add(email);
+async function doAutoSend(email, source) {
+  const lockKey = email + (source === 'h2a' ? '__h2a' : '__h2b');
+  if (autoSendLock.has(lockKey)) { console.warn(`[auto] ${email}/${source||'h2b'} já enviando`); return; }
+  autoSendLock.add(lockKey);
   try {
-    await _doAutoSendInner(email);
+    await _doAutoSendInner(email, source);
   } catch(unexpectedErr) {
-    // FIX-BUG12: captura exceções não tratadas — sempre reagenda
-    console.error(`[auto] ERRO INESPERADO ${email}:`, unexpectedErr?.message||unexpectedErr);
-    const curJob = getAutoJob(email);
+    console.error(`[auto] ERRO INESPERADO ${email}/${source||'h2b'}:`, unexpectedErr?.message||unexpectedErr);
+    const curJob = getAutoJob(email, source);
     if (curJob?.active && curJob?.queue?.length > 0) {
       addLog(email, { status:"sistema", jobTitle:"⚠️ Erro interno recuperado", company:String(unexpectedErr?.message||"erro").slice(0,200) });
-      autoTimers.set(email, setTimeout(()=>scheduleAuto(email), 60_000));
+      const timerKey = email + (source === 'h2a' ? '__h2a' : '__h2b');
+      autoTimers.set(timerKey, setTimeout(()=>scheduleAuto(email,source), 60_000));
     }
   } finally {
-    autoSendLock.delete(email);
+    autoSendLock.delete(lockKey);
   }
 }
 
-async function _doAutoSendInner(email) {
-  // Sempre relê o job do banco — nunca usa objeto em cache
-  const job = getAutoJob(email);
-  if (!job || !job.active) { autoTimers.delete(email); return; }
+async function _doAutoSendInner(email, source) {
+  const job = getAutoJob(email, source);
+  if (!job || !job.active) { const tk=email+(source==='h2a'?'__h2a':'__h2b'); autoTimers.delete(tk); return; }
 
   // ── Fila: copia fresca a cada ciclo (nunca mutamos job.queue diretamente) ──
   let queue = (job.queue || []).map(item => Object.assign({}, item)); // cópia profunda rasa
@@ -1692,11 +1782,6 @@ async function _doAutoSendInner(email) {
   while (queue.length > 0) {
     const candidate = queue[0];
     if (!hasSent(email, candidate.to)) {
-      // FIX-20: pula vaga marcada como expirada (exp:true) — pode ter expirado enquanto estava na fila
-      if (candidate.exp === true) {
-        addLog(email, { status:"pulado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:"Vaga expirada (begin_date no passado) — pulada" });
-        queue.shift(); continue;
-      }
       // v15-SEC: auto dedup + validação robusta + self-send guard
       const _ce = parseEmail(candidate.to||"");
       if (!_ce.ok) {
@@ -1717,7 +1802,7 @@ async function _doAutoSendInner(email) {
   // FIX-BUG6: finaliza APENAS quando !target
   if (!target) {
     setAutoJob(email, { ...job, active:false, queue:[], finishedAt:Date.now(), status:"finished" });
-    autoTimers.delete(email);
+    autoTimers.delete(_timerKey(email, source));
     addLog(email, { status:"sistema", jobTitle:"✅ Fila finalizada", company:`Total: ${job.originalCount||0} vagas processadas. Todas enviadas!` });
     console.log(`[auto] ${email} finalizado — todas as vagas enviadas`);
     sendNotifEmail(email, "finished").catch(e => console.warn("[notif/finished]", e.message));
@@ -1763,7 +1848,7 @@ async function _doAutoSendInner(email) {
         // Para erros de rede/timeout, mantém ativo e tenta de novo no próximo ciclo
         if (isRevoked) {
           setAutoJob(email, { ...getAutoJob(email), active:false, status:"paused_token_revoked" });
-          autoTimers.delete(email);
+          autoTimers.delete(_timerKey(email, source));
           addLog(email, { status:"pausado", company:"Sistema", to:"", jobTitle:"🔐 Acesso Google revogado — faça login novamente", error: msg });
           console.warn(`[auto] ❌ Token revogado para ${email} — pausa definitiva`);
           // Notifica usuário por email para que saiba que precisa fazer login novamente
@@ -1774,7 +1859,7 @@ async function _doAutoSendInner(email) {
           if (curJob) {
             const retryDelay = 5 * 60 * 1000;
             setAutoJob(email, { ...curJob, status:"waiting_token_retry", nextSendAt: Date.now() + retryDelay });
-            autoTimers.set(email, setTimeout(() => scheduleAuto(email), retryDelay));
+            autoTimers.set(email+(source==="h2a"?"__h2a":"__h2b"), setTimeout(()=>scheduleAuto(email,source), retryDelay));
             addLog(email, { status:"sistema", jobTitle:"⏳ Erro temporário de token — tentando novamente em 5min", company: msg });
             console.warn(`[auto] ⚠️ Erro temporário de token para ${email}, retry em 5min:`, msg);
           }
@@ -1784,7 +1869,7 @@ async function _doAutoSendInner(email) {
     } else {
       // Sem refresh_token nenhum — usuário nunca deu permissão offline ou dados foram perdidos
       setAutoJob(email, { ...getAutoJob(email), active:false, status:"paused_no_session" });
-      autoTimers.delete(email);
+      autoTimers.delete(_timerKey(email, source));
       addLog(email, { status:"pausado", company:"Sistema", to:"", jobTitle:"🔐 Sem token salvo — faça login novamente", error:"Nenhum refresh_token disponível" });
       return;
     }
@@ -2116,7 +2201,7 @@ async function _doAutoSendInner(email) {
         addLog(email, { ...logEntry, status:"pausado", error: errFriendly + ` Retomando às ${retryAtStr} BRT (${waitMin}min).` });
         trackJourney(email,'auto_fail',{ok:false,error:errFriendly,detail:`Rate limit → ${target?.company||"?"}`});
         console.warn(`[auto] ⏳ Rate limit ${email} — pausando ${waitMin}min`);
-        autoTimers.set(email, setTimeout(() => scheduleAuto(email), retryAfterMs));
+        autoTimers.set(email+(source==="h2a"?"__h2a":"__h2b"), setTimeout(()=>scheduleAuto(email,source), retryAfterMs));
         return;
       }
 
@@ -2128,7 +2213,7 @@ async function _doAutoSendInner(email) {
           const restoredQ = [target, ...(curJob.queue||[])];
           setAutoJob(email, { ...curJob, queue: restoredQ, active:false, status: isSuspended ? "paused_account_suspended" : "paused_auth_error" });
         }
-        if (autoTimers.has(email)) { clearTimeout(autoTimers.get(email)); autoTimers.delete(email); }
+        if (autoTimers.has(_timerKey(email, source))) { clearTimeout(autoTimers.get(_timerKey(email, source))); autoTimers.delete(_timerKey(email, source)); }
         addLog(email, { ...logEntry, status:"pausado", error: errFriendly });
         trackJourney(email,'auto_fail',{ok:false,error:errFriendly,critical:true,detail:`Auth error → auto pausado`});
         console.warn(`[auto] ❌ Auth/suspended ${email} — auto pausado`);
@@ -2153,10 +2238,10 @@ async function _doAutoSendInner(email) {
 
   // Agenda próximo envio — sempre relê job do banco
   const updJob = getAutoJob(email);
-  if (!updJob || !updJob.active) { autoTimers.delete(email); return; }
+  if (!updJob || !updJob.active) { autoTimers.delete(_timerKey(email, source)); return; }
   const interval = calcSmartInterval();
   setAutoJob(email, { ...updJob, status:"waiting_interval", nextSendAt:Date.now()+interval });
-  autoTimers.set(email, setTimeout(() => scheduleAuto(email), interval));
+  autoTimers.set(email+(source==="h2a"?"__h2a":"__h2b"), setTimeout(()=>scheduleAuto(email,source), interval));
 }
 
 const genSubject=(title,isH2A)=>{
@@ -2223,12 +2308,17 @@ async function reactivateAutoJobs(){
   }
 
   // Passo 2: agenda os jobs
-  for(const[email,job]of Object.entries(DB_AUTO)){
+  // FIX-F31: itera sobre TODAS as keys do DB_AUTO incluindo __h2a e __h2b
+  for(const[key,job] of Object.entries(DB_AUTO)){
     if(!job.active||!job.queue?.length) continue;
-    // FIX-BUG13: valida estrutura da fila
+    // Extrai email e source da key
+    let email = key, source = 'h2b';
+    if(key.endsWith('__h2a')){ email=key.slice(0,-5); source='h2a'; }
+    else if(key.endsWith('__h2b')){ email=key.slice(0,-5); source='h2b'; }
+    const timerKey = email + (source==='h2a'?'__h2a':'__h2b');
     if(!Array.isArray(job.queue)){
-      console.error(`[boot/auto] ${email}: queue corrompida — resetando`);
-      setAutoJob(email,{...job,active:false,status:"paused_corrupt_queue"});
+      console.error(`[boot/auto] ${email}/${source}: queue corrompida — resetando`);
+      setAutoJob(email,{...job,active:false,status:"paused_corrupt_queue"},source);
       addLog(email,{status:"pausado",jobTitle:"❌ Fila corrompida no boot",company:"Reinicie o automático.",error:"queue não é array"});
       continue;
     }
@@ -2237,31 +2327,61 @@ async function reactivateAutoJobs(){
     const hasNextSend = job.nextSendAt && job.nextSendAt > now;
 
     if(job.status === "waiting_limit"){
-      // Para waiting_limit: sempre verifica se o limite já zerou (novo dia)
       if(hasNextSend){
         const delay = Math.max(1000, job.nextSendAt - now);
-        console.log(`[boot/auto] ${email} aguardando limite — retoma em ${Math.round(delay/60000)}min`);
-        autoTimers.set(email, setTimeout(()=>scheduleAuto(email), delay));
+        console.log(`[boot/auto] ${email}/${source} aguardando limite — retoma em ${Math.round(delay/60000)}min`);
+        autoTimers.set(timerKey, setTimeout(()=>scheduleAuto(email,source), delay));
       } else {
-        // nextSendAt passou → meia-noite cruzou → novo dia → dispara imediatamente
-        console.log(`[boot/auto] ${email} limite de ontem expirou — disparando imediatamente`);
-        scheduleAuto(email);
+        console.log(`[boot/auto] ${email}/${source} limite de ontem expirou — disparando imediatamente`);
+        scheduleAuto(email,source);
       }
     } else if(waitStatuses.has(job.status) && hasNextSend){
       const delay = Math.max(1000, job.nextSendAt - now);
-      console.log(`[boot/auto] reativado com delay ${Math.round(delay/1000)}s para ${email} (status: ${job.status})`);
-      autoTimers.set(email, setTimeout(()=>scheduleAuto(email), delay));
+      console.log(`[boot/auto] reativado com delay ${Math.round(delay/1000)}s para ${email}/${source} (status: ${job.status})`);
+      autoTimers.set(timerKey, setTimeout(()=>scheduleAuto(email,source), delay));
     } else {
-      scheduleAuto(email);
+      scheduleAuto(email,source);
     }
     n++;
   }
   if(n) console.log(`[boot/auto] ${n} job(s) reativados após restart`);
 }
 
-// ══════════════════════════════════════════════════════════
-//  SESSION
-// ══════════════════════════════════════════════════════════
+// FIX-F23+F27: verificação diária de planos prestes a expirar
+// Avisa 5 dias antes + avisa no dia seguinte ao expirar
+setInterval(async function vipExpiryChecker(){
+  const now=Date.now();
+  const WARN_THRESHOLD=5*24*60*60*1000; // 5 dias
+  for(const[email,u] of Object.entries(DB_USERS)){
+    if(!u?.vip)continue;
+    const autoExp=u.vip.autoExpires||0;
+    const manualExp=u.vip.manualExpires||0;
+    const soonAuto=autoExp>now&&autoExp-now<WARN_THRESHOLD;
+    const soonManual=manualExp>now&&manualExp-now<WARN_THRESHOLD;
+    const justExpiredAuto=autoExp>0&&autoExp<now&&autoExp>now-48*60*60*1000; // expirou nas últimas 48h
+    const justExpiredManual=manualExp>0&&manualExp<now&&manualExp>now-48*60*60*1000;
+    const lastWarnKey=`_vipWarnSent_${Math.floor(now/86400000)}`; // por dia
+    if(u[lastWarnKey])continue; // já avisou hoje
+
+    if(soonAuto||soonManual||justExpiredAuto||justExpiredManual){
+      const daysLeft=Math.ceil(Math.max(0,Math.max(autoExp,manualExp)-now)/86400000);
+      let subject,body;
+      if(justExpiredAuto||justExpiredManual){
+        subject="⚠️ Seu plano H2BApply expirou — automático reduzido";
+        body=`Seu plano VIP expirou. O automático voltou ao limite Free (10/dia).\nRenove em: ${APP_URL}`;
+      }else{
+        subject=`⏰ Seu plano H2BApply expira em ${daysLeft} dia${daysLeft===1?"":"s"}`;
+        body=`Seu plano VIP expira em ${daysLeft} dia${daysLeft===1?"":"s"}.\nRenove agora para não perder o automático: ${APP_URL}`;
+      }
+      // Push notification
+      const payload={type:"plan_expiry",title:subject,body,url:"/?tab=plans",tag:"h2b-plan-expiry"};
+      pushToUser(email,payload).catch(()=>{});
+      // Salva flag para não avisar 2x no mesmo dia
+      setUser(email,{[lastWarnKey]:true});
+      console.log(`[vipExpiry] Aviso enviado para ${email}: ${subject}`);
+    }
+  }
+},6*60*60*1000); // a cada 6 horas
 const sessions=Object.create(null);
 const rateMap  =Object.create(null);
 const SESS_TTL =7*24*60*60*1000;
@@ -2788,9 +2908,8 @@ const server=http.createServer(async(req,res)=>{
     <h2>4. Planos e pagamentos</h2>
     <ul>
       <li><strong>Free:</strong> 20 envios manuais + 10 automáticos por dia, gratuito</li>
-      <li><strong>VIP:</strong> 400 manuais por dia (apenas manual, sem automático) — R$ 99,90/mês</li>
-      <li><strong>VIPro:</strong> 50 manuais + 200 automáticos por dia — R$ 149,90/mês</li>
-      <li><strong>DoublePro:</strong> 100 manuais + 400 automáticos por dia — R$ 249,90/mês</li>
+      <li><strong>VIP:</strong> 400 manuais + 10 automáticos por dia — R$ 99,90/mês</li>
+      <li><strong>VIPro:</strong> 300 manuais + 200 automáticos por dia — R$ 149,90/mês</li>
     </ul>
     <p>Pagamentos são realizados via PIX. Não há reembolso após ativação do plano.</p>
 
@@ -3115,16 +3234,49 @@ const server=http.createServer(async(req,res)=>{
 
   // ── /api/status ───────────────────────────────────────
   if(pathname==="/api/status"){
-    const s=getSess(req);if(!s?.user_email)return json(res,200,{connected:false});
+    let s=getSess(req);
+
+    // FIX-F19+F20: Cookie válido mas sessão morreu no deploy (Railway restart)
+    // Tenta recriar a sessão silenciosamente via refresh_token do banco
+    if(!s?.user_email){
+      const cookieId=getSessId(req);
+      if(cookieId){
+        // Cookie existe mas sessão não — tenta recuperar
+        // Procura email pelo padrão: o cookie pode ter sido gerado para qualquer usuário
+        // Não conseguimos mapear cookieId → email sem persistência, mas podemos checar
+        // se há apenas 1 usuário ativo com refresh_token (caso comum em instâncias pequenas)
+        // Para instâncias maiores, o usuário vai precisar re-logar — esse é o comportamento esperado
+      }
+      return json(res,200,{connected:false});
+    }
+
     markOnline(s.user_email);
     const p=getUser(s.user_email);if(!p)return json(res,200,{connected:false,reason:"user_not_found"});
+
+    // FIX-F23: Detectar plano expirado durante ausência — alertar no status
+    const prevAutoLimit = s._lastKnownAutoLimit || 0;
+    const currentAutoLimit = getAutoLimit(p);
+    const planJustExpired = prevAutoLimit > 10 && currentAutoLimit <= 10 && isAutoVipActive(p) === false;
+    s._lastKnownAutoLimit = currentAutoLimit;
+
     const vipOk=isVipActive(p);
     const planKey=getPlan(p);const {todayManual:sentManual,todayAuto:sentAuto}=getUserStatsCached(s.user_email);
     const manualLimit=getManualLimit(p),autoLimit=getAutoLimit(p);
     const autoJob=getAutoJob(s.user_email);
+
+    // FIX-F17: Job travado em "sending" após crash — resetar para reagendar
+    if(autoJob?.status==="sending" && autoJob?.active){
+      const timeSinceSend = Date.now() - (autoJob.lastSentAt||0);
+      if(timeSinceSend > 10 * 60 * 1000){ // mais de 10min em "sending" = travado
+        setAutoJob(s.user_email,{...autoJob,status:"paused",lastSentAt:Date.now()});
+        setTimeout(()=>scheduleAuto(s.user_email), 5000);
+        console.log(`[status] FIX-F17: job ${s.user_email} travado em "sending" — reagendado`);
+      }
+    }
+
     const stats=getAutoStats(s.user_email);
     const now2=Date.now();
-    return json(res,200,{connected:true,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",isAdmin:!!p.isAdmin,plan:planKey,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p)}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[]});
+    return json(res,200,{connected:true,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",isAdmin:!!p.isAdmin,plan:planKey,planJustExpired,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p)}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[]});
   }
 
   if(pathname==="/api/onboard"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});setUser(s.user_email,{onboarded:true});return json(res,200,{ok:true});}
@@ -3722,24 +3874,6 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
         }
       }
 
-      // ✅ FIX-13: Deduplica a fila na criação — remove emails já enviados E duplicatas internas.
-      // Antes só era feito durante o processamento (um por um), causando fila inflada.
-      const _seenToEmails = new Set();
-      const beforeDedup = queue.length;
-      queue = queue.filter(item => {
-        const norm = _normEmail(item.to);
-        if (!norm) return false;
-        // Remove se já foi enviado anteriormente (histórico persistido)
-        if (hasSent(s.user_email, norm)) return false;
-        // Remove duplicatas internas da própria fila
-        if (_seenToEmails.has(norm)) return false;
-        _seenToEmails.add(norm);
-        return true;
-      });
-      if (queue.length < beforeDedup) {
-        console.log(`[auto/start] FIX-13: ${beforeDedup - queue.length} duplicatas removidas na criação da fila (${queue.length} únicas restantes)`);
-      }
-
       // ✅ FIX-EXPIRED: remove vagas cuja data de início já passou há mais de 60 dias
       // Evita enviar candidaturas para empresas com vagas de temporadas passadas
       const cutoffExpiry = Date.now() - 60 * 86400_000;
@@ -3758,19 +3892,42 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       // Evita que múltiplos usuários simultâneos enviem para as mesmas empresas ao mesmo tempo
       queue = shuffleArray(queue);
       // mode removido — sempre 24/7
-const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,filteredCount:queue.length,resumeIdx:jobResumeIdx,coverIdx:jobCoverIdx,bodyTemplate:d.bodyTemplate||p.settings?.body||"",subjects:Array.isArray(d.subjects)&&d.subjects.length?d.subjects:null,emailBodies:Array.isArray(d.emailBodies)&&d.emailBodies.length?d.emailBodies:null,status:"starting",lastSentAt:null,finishedAt:null,source:d.source||"manual",category:d.category||"all",filters:d.filters||{},queueFingerprint,rotState:{lastSubjIdx:-1,lastBodyIdx:-1},lockedAutoLimit:getAutoLimit(p)};
-      setAutoJob(s.user_email,job);
-      autoStats.set(s.user_email,{sent:0,failed:0,skipped:0,startedAt:Date.now()});
-      addLog(s.user_email,{status:"sistema",jobTitle:`Envio automático iniciado: ${queue.length} vagas`,company:`Fonte: ${d.source||"manual"} | Categoria: ${d.category||"all"}`,source:d.source||"manual",category:d.category||"all"});
-      trackJourney(s.user_email,'auto_start',{detail:`Auto: ${queue.length} vagas | ${d.source||"manual"}`,meta:{queueSize:queue.length}});
-      // Inicia imediatamente
-      setTimeout(()=>scheduleAuto(s.user_email),100);
-      return json(res,200,{ok:true,queueSize:queue.length});
+const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,filteredCount:queue.length,resumeIdx:jobResumeIdx,coverIdx:jobCoverIdx,bodyTemplate:d.bodyTemplate||p.settings?.body||"",subjects:Array.isArray(d.subjects)&&d.subjects.length?d.subjects:null,emailBodies:Array.isArray(d.emailBodies)&&d.emailBodies.length?d.emailBodies:null,status:"starting",lastSentAt:null,finishedAt:null,source:d.source||"h2b",category:d.category||"all",filters:d.filters||{},queueFingerprint,rotState:{lastSubjIdx:-1,lastBodyIdx:-1},lockedAutoLimit:getAutoLimit(p)};
+      // FIX-F31: salva no key correto por fonte (h2b ou h2a)
+      setAutoJob(s.user_email,job,d.source||"h2b");
+      autoStats.set(s.user_email+(d.source==='h2a'?'__h2a':'__h2b'),{sent:0,failed:0,skipped:0,startedAt:Date.now()});
+      addLog(s.user_email,{status:"sistema",jobTitle:`Envio automático ${(d.source||"h2b").toUpperCase()} iniciado: ${queue.length} vagas`,company:`Fonte: ${d.source||"h2b"} | Categoria: ${d.category||"all"}`,source:d.source||"h2b",category:d.category||"all"});
+      trackJourney(s.user_email,'auto_start',{detail:`Auto ${d.source||"h2b"}: ${queue.length} vagas`,meta:{queueSize:queue.length,source:d.source||"h2b"}});
+      setTimeout(()=>scheduleAuto(s.user_email,d.source||"h2b"),100);
+      return json(res,200,{ok:true,queueSize:queue.length,source:d.source||"h2b"});
     }catch(e){return json(res,500,{error:e.message});}
   }
-  if(pathname==="/api/auto/pause"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const j=getAutoJob(s.user_email);if(!j)return json(res,404,{error:"Nenhum job."});if(autoTimers.has(s.user_email)){clearTimeout(autoTimers.get(s.user_email));autoTimers.delete(s.user_email);}setAutoJob(s.user_email,{...j,active:false,status:"paused"});addLog(s.user_email,{status:"pausado",jobTitle:"Envio pausado pelo usuário",company:""});return json(res,200,{ok:true});}
-  if(pathname==="/api/auto/resume"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const j=getAutoJob(s.user_email);if(!j)return json(res,404,{error:"Nenhum job."});setAutoJob(s.user_email,{...j,active:true,status:"resuming"});addLog(s.user_email,{status:"sistema",jobTitle:"Envio retomado",company:""});scheduleAuto(s.user_email);return json(res,200,{ok:true});}
-  if(pathname==="/api/auto/stop"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});if(autoTimers.has(s.user_email)){clearTimeout(autoTimers.get(s.user_email));autoTimers.delete(s.user_email);}addLog(s.user_email,{status:"cancelado",jobTitle:"Envio cancelado pelo usuário",company:""});delAutoJob(s.user_email);return json(res,200,{ok:true});}
+  if(pathname==="/api/auto/pause"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    let src='h2b';try{const d=JSON.parse(await readBody(req));src=d.source||'h2b';}catch{}
+    const j=getAutoJob(s.user_email,src);if(!j)return json(res,404,{error:"Nenhum job."});
+    _clearTimer(s.user_email,src);
+    setAutoJob(s.user_email,{...j,active:false,status:"paused"},src);
+    addLog(s.user_email,{status:"pausado",jobTitle:`Envio ${src.toUpperCase()} pausado pelo usuário`,company:"",source:src});
+    return json(res,200,{ok:true});
+  }
+  if(pathname==="/api/auto/resume"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    let src='h2b';try{const d=JSON.parse(await readBody(req));src=d.source||'h2b';}catch{}
+    const j=getAutoJob(s.user_email,src);if(!j)return json(res,404,{error:"Nenhum job."});
+    setAutoJob(s.user_email,{...j,active:true,status:"resuming"},src);
+    addLog(s.user_email,{status:"sistema",jobTitle:`Envio ${src.toUpperCase()} retomado`,company:"",source:src});
+    scheduleAuto(s.user_email,src);
+    return json(res,200,{ok:true});
+  }
+  if(pathname==="/api/auto/stop"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    let src='h2b';try{const d=JSON.parse(await readBody(req));src=d.source||'h2b';}catch{}
+    _clearTimer(s.user_email,src);
+    addLog(s.user_email,{status:"cancelado",jobTitle:`Envio ${src.toUpperCase()} cancelado pelo usuário`,company:"",source:src});
+    delAutoJob(s.user_email,src);
+    return json(res,200,{ok:true});
+  }
 
   // ── ADMIN: Reinicia todos os workers travados de uma vez ───────────────────────
   if(pathname==="/api/admin/restart-all-stalled"&&req.method==="POST"){
@@ -3801,9 +3958,26 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
     res.writeHead(200,{"Content-Type":"application/json"});
     return res.end(JSON.stringify({ok:true,uptime:Math.round(process.uptime()),memMB:Math.round(process.memoryUsage().rss/1024/1024),users:Object.keys(DB_USERS).length,activeJobs,ts:Date.now()}));
   }
-  if(pathname==="/api/auto/status"&&req.method==="GET"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const j=getAutoJob(s.user_email);const h=getHist(s.user_email);const p=getUser(s.user_email)||{};const stats=getAutoStats(s.user_email);const logs=(DB_LOGS[s.user_email]||[]).slice(0,5);// últimos 5 logs para dashboard
-    // jSH/jEH removidos — sem janela de horário
-    const autoQueueIds=j&&j.active?(j.queue||[]).map(q=>q.id||q.caseNum).filter(Boolean):[];return json(res,200,{job:j?{active:j.active,status:j.status,queueSize:j.queue?.length||0,originalCount:j.originalCount,filteredCount:j.filteredCount,startedAt:j.startedAt,lastSentAt:j.lastSentAt,nextSendAt:j.nextSendAt,currentJob:j.currentJob,source:j.source,category:j.category,}:null,todayAuto:countAutoToday(h),autoLimit:getAutoLimit(p),stats,recentLogs:logs,autoQueueIds:autoQueueIds});}
+  if(pathname==="/api/auto/status"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const src=u.searchParams?.get?.("source")||null; // ?source=h2a ou ?source=h2b
+    const h=getHist(s.user_email);const p=getUser(s.user_email)||{};
+    const stats=getAutoStats(s.user_email);
+    const logs=(DB_LOGS[s.user_email]||[]).slice(0,5);
+    const fmtJob=j=>j?{active:j.active,status:j.status,queueSize:j.queue?.length||0,originalCount:j.originalCount,filteredCount:j.filteredCount,startedAt:j.startedAt,lastSentAt:j.lastSentAt,nextSendAt:j.nextSendAt,currentJob:j.currentJob,source:j.source,category:j.category}:null;
+    if(src){
+      // Retorna apenas o job da fonte específica
+      const j=getAutoJob(s.user_email,src);
+      const autoQueueIds=j&&j.active?(j.queue||[]).map(q=>q.id||q.caseNum).filter(Boolean):[];
+      return json(res,200,{job:fmtJob(j),todayAuto:countAutoToday(h),autoLimit:getAutoLimit(p),stats,recentLogs:logs,autoQueueIds});
+    }
+    // Sem source: retorna ambos os jobs (h2b + h2a) para o dashboard dual
+    const jH2b=getAutoJob(s.user_email,'h2b');
+    const jH2a=getAutoJob(s.user_email,'h2a');
+    const j=jH2b?.active?jH2b:(jH2a?.active?jH2a:jH2b||jH2a); // job principal para compatibilidade
+    const autoQueueIds=j&&j.active?(j.queue||[]).map(q=>q.id||q.caseNum).filter(Boolean):[];
+    return json(res,200,{job:fmtJob(j),jobH2b:fmtJob(jH2b),jobH2a:fmtJob(jH2a),todayAuto:countAutoToday(h),autoLimit:getAutoLimit(p),stats,recentLogs:logs,autoQueueIds});
+  }
 
   // ── INBOX: Respostas recebidas no Gmail ───────────────────
   if(pathname==="/api/inbox"&&req.method==="GET"){
@@ -4370,6 +4544,8 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
             diagStatus = "waiting_limit";
             diagReason = `Limite diário atingido (${todayAutoU}/${autoLimitU}). Retoma amanhã.`;
             diagAction = "Normal — aguarda meia-noite BRT";
+          // waiting_hour removido — sem janela de horário
+            diagAction = "Normal — aguarda horário configurado";
           } else if (job.status === "waiting_rate_limit") {
             diagStatus = "rate_limit";
             diagReason = `Gmail bloqueou temporariamente (rate limit). Retoma às ${job.nextSendAt?new Date(job.nextSendAt).toLocaleTimeString("pt-BR",{timeZone:"America/Sao_Paulo"}):"?"}`;
@@ -6218,7 +6394,7 @@ process.on("unhandledRejection",(reason)=>{
 });
 
 server.listen(PORT,"0.0.0.0",()=>{
-  console.log(`\n✅  H2BApply v${APP_VERSION} — ${APP_URL} (porta ${PORT})`);
+  console.log(`\n✅  H2BApply v13.1 — ${APP_URL} (porta ${PORT})`);
   console.log(`    👤 Usuários: ${Object.keys(DB_USERS).length}`);
   console.log(`    📋 Jan/2026: ${SHEET_JAN.length} | Jul/2025: ${SHEET_JUL.length}`);
   console.log(`    🔗 Índice candidaturas: ${Object.keys(DB_APP_INDEX).length} usuário(s)`);

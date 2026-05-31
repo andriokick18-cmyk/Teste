@@ -1854,12 +1854,17 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <button class="btn btn-danger btn-sm" onclick="doLogout()" style="font-size:11px;padding:5px 9px"><i class="ti ti-logout"></i></button>
         </div>
       </div>
-      <!-- AUTO BUTTON — MAIN CTA -->
-      <button class="sb-item sb-auto-btn" id="sb-auto-btn" onclick="openAutoModal()">
-        <i class="ti ti-robot" style="font-size:16px"></i>
-        <span style="flex:1">🤖 Ligar Automático</span>
-        <span id="sb-auto-dot" style="display:none;width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulseDot 2s infinite"></span>
-      </button>
+      <!-- AUTO BUTTONS — H-2B e H-2A -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:5px 3px 4px">
+        <button class="sb-item sb-auto-btn" id="sb-auto-btn" onclick="openAutoModalH2B()" style="margin:0;border-radius:var(--r);padding:9px 10px;justify-content:center;flex-direction:column;gap:3px;text-align:center;font-size:12px">
+          🔧 Auto H-2B
+          <span id="sb-auto-dot" style="display:none;width:7px;height:7px;border-radius:50%;background:#4ade80;animation:pulseDot 2s infinite;margin:0 auto"></span>
+        </button>
+        <button class="sb-item" id="sb-auto-h2a-btn" onclick="openAutoModalH2A()" style="margin:0;border-radius:var(--r);padding:9px 10px;justify-content:center;flex-direction:column;gap:3px;text-align:center;font-size:12px;background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.08));border:1.5px solid rgba(16,185,129,.35);color:#047857;font-weight:700">
+          🌾 Auto H-2A
+          <span id="sb-auto-h2a-dot" style="display:none;width:7px;height:7px;border-radius:50%;background:#4ade80;animation:pulseDot 2s infinite;margin:0 auto"></span>
+        </button>
+      </div>
       <div class="sb-sec">
         <div class="sb-lbl">Navegação</div>
         <button class="sb-item" id="si-tutorial" onclick="sv('tutorial')" style="background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.07));border:1.5px solid rgba(16,185,129,.3);border-radius:10px;font-weight:800;color:#059669;margin-bottom:4px"><i class="ti ti-book-2" style="font-size:15px;color:#059669"></i>Tutorial — Como Usar <span style="margin-left:auto;font-size:9px;background:#059669;color:#fff;padding:1px 6px;border-radius:99px;font-weight:800">GUIA</span></button>
@@ -1945,9 +1950,9 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <div class="home-shortcut-label">📩 Empresas</div>
               <span class="home-shortcut-badge" id="home-badge-resp" style="display:none"></span>
             </button>
-            <button class="home-shortcut hs-auto" onclick="openAutoModal()">
-              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe)"><i class="ti ti-robot" style="color:var(--purple)"></i></div>
-              <div class="home-shortcut-label">🤖 Automático</div>
+            <button class="home-shortcut hs-auto" onclick="showAutoVisaChoice()">
+              <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe)">🤖</div>
+              <div class="home-shortcut-label">Automático</div>
             </button>
             <button class="home-shortcut hs-ranking" onclick="sv('ranking')">
               <div class="home-shortcut-icon" style="background:linear-gradient(135deg,#fef9c3,#fef08a)"><i class="ti ti-trophy" style="color:#f59e0b"></i></div>
@@ -2626,19 +2631,25 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <!-- LIVE DASHBOARD (quando ativo) -->
           <div id="auto-live-section" style="display:none;padding:0 14px 14px">
 
+            <!-- ═══ BANNER PLANO EXPIRADO ═══ -->
+            <div id="auto-plan-expired-banner" style="display:none;background:#fef3c7;border:1.5px solid #fde68a;border-radius:10px;padding:10px 14px;font-size:12px;color:#92400e;margin:10px 0 0;font-weight:700"></div>
+
             <!-- ═══ STATUS BANNER ═══ -->
             <div id="auto-status-banner" class="auto-status-banner asb-sending" style="margin:0 -14px 14px;border-radius:0">
               <span class="spin spin-sm" id="auto-spin"></span>
               <div style="flex:1">
-                <div id="auto-status-text" style="font-weight:700;color:var(--purple)">Enviando...</div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div id="auto-status-text" style="font-weight:700;color:var(--purple)">Enviando...</div>
+                  <!-- BADGE FONTE H-2A/H-2B -->
+                  <div id="auto-source-badge"></div>
+                </div>
                 <div id="auto-status-sub" style="font-size:11px;color:var(--t2);margin-top:2px"></div>
               </div>
             </div>
 
             <!-- ═══ BLOCO PRINCIPAL: X enviados hoje / Total da fila ═══ -->
             <div style="background:linear-gradient(135deg,#7c3aed,#4f46e5,#2563eb);border-radius:var(--rl);padding:18px 16px 14px;margin-bottom:12px;position:relative;overflow:hidden">
-              <!-- estrelas decorativas -->
-              <div style="position:absolute;top:0;right:0;bottom:0;left:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Ctext x='10' y='30' fill='rgba(255,255,255,.06)' font-size='40'%3E★%3C/text%3E%3Ctext x='60' y='80' fill='rgba(255,255,255,.04)' font-size='60'%3E★%3C/text%3E%3C/svg%3E");pointer-events:none"></div>
+              <div style="position:absolute;top:0;right:0;bottom:0;left:0;background:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%22120%22%3E%3Ctext x=%2210%22 y=%2230%22 fill=%22rgba(255,255,255,.06)%22 font-size=%2240%22%3E★%3C/text%3E%3Ctext x=%2260%22 y=%2280%22 fill=%22rgba(255,255,255,.04)%22 font-size=%2260%22%3E★%3C/text%3E%3C/svg%3E');pointer-events:none"></div>
 
               <!-- Linha 1: enviados HOJE / total da fila -->
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:14px;position:relative">
@@ -2678,6 +2689,23 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               </div>
             </div>
 
+            <!-- ═══ SEGUNDO JOB (H-2A quando H-2B também ativo, ou vice-versa) ═══ -->
+            <div id="auto-second-job-card" style="display:none;background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(5,150,105,.1));border:1.5px solid rgba(16,185,129,.4);border-radius:var(--rl);padding:12px 14px;margin-bottom:12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <div id="auto-second-job-label" style="font-size:12px;font-weight:800;color:#047857">🌾 H-2A também ativo</div>
+                <div id="auto-second-job-status" style="font-size:11px;color:#065f46"></div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div style="flex:1">
+                  <div style="height:5px;background:rgba(5,150,105,.2);border-radius:3px;overflow:hidden">
+                    <div id="dash-prog-2" style="height:100%;background:#059669;border-radius:3px;width:0%;transition:width .5s"></div>
+                  </div>
+                </div>
+                <div id="auto-second-job-pct" style="font-size:11px;font-weight:800;color:#047857">0%</div>
+              </div>
+              <div id="auto-second-job-detail" style="font-size:11px;color:#065f46;margin-top:4px"></div>
+            </div>
+
             <!-- ═══ CARDS SECUNDÁRIOS: falhas / restam ═══ -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
               <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:12px;text-align:center">
@@ -2699,14 +2727,22 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 
             <!-- ═══ BOTÕES ═══ -->
             <div class="auto-controls-row" style="margin-bottom:12px">
-              <button class="btn btn-secondary" id="auto-pause-btn" style="display:none" onclick="pauseAuto()"><i class="ti ti-player-pause"></i> Pausar</button>
-              <button class="btn btn-secondary" id="auto-resume-btn" style="display:none" onclick="resumeAuto()"><i class="ti ti-player-play"></i> Retomar</button>
-              <button class="btn btn-danger btn-sm" id="auto-stop-btn" style="display:none" onclick="stopAuto()"><i class="ti ti-square"></i> Parar tudo</button>
-              <button class="btn btn-secondary btn-sm" onclick="sv('logs')"><i class="ti ti-list-details"></i> Ver histórico</button>
+              <button class="btn btn-secondary" id="auto-pause-btn" style="display:none" onclick="pauseAuto()">⏸ Pausar</button>
+              <button class="btn btn-secondary" id="auto-resume-btn" style="display:none" onclick="resumeAuto()">▶ Retomar</button>
+              <button class="btn btn-danger btn-sm" id="auto-stop-btn" style="display:none" onclick="stopAuto()">⏹ Parar</button>
+              <button class="btn btn-secondary btn-sm" onclick="sv('logs')">📋 Ver logs</button>
             </div>
 
             <!-- ═══ ÚLTIMOS ENVIOS ═══ -->
-            <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Últimos envios</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Últimos envios</div>
+              <!-- FILTRO H-2A / H-2B nos logs do dashboard -->
+              <select id="log-src-filter" onchange="renderLogs()" style="font-size:11px;border:1px solid var(--border);border-radius:6px;padding:2px 6px;background:var(--surface);color:var(--text);cursor:pointer;font-family:inherit">
+                <option value="all">Todos</option>
+                <option value="h2b">H-2B</option>
+                <option value="h2a">H-2A</option>
+              </select>
+            </div>
             <div id="auto-recent-logs" style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:14px"></div>
 
             <!-- compat -->
@@ -4565,6 +4601,13 @@ async function checkStatus(){
       showApp();syncData();checkAdminMsg();_loadSentIds().then(_startSyncPoll);
       setTimeout(applyLang, 100);
       setTimeout(()=>_autoPushSetup().catch(()=>{}), 1500);
+      // FIX-F22: buscar status do automático imediatamente após login — não depender de dado antigo
+      setTimeout(async()=>{
+        try{
+          const r=await fetch("/api/auto/status",{credentials:"include"});
+          if(r.ok){const d=await r.json();if(d.job){U.autoJob={...d.job};U.autoStats=d.stats||U.autoStats;updateAutoUI&&updateAutoUI();updateAutoDot&&updateAutoDot(!!d.job?.active);}}
+        }catch{}
+      },800);
     }else{
       showLanding();
     }
@@ -4627,44 +4670,51 @@ function showApp(){
   renderHdr();renderSidebar();renderDrawer();
   if(U.isAdmin){const e=g("#sb-admin-sec");if(e)e.style.display="block";const da=g("#d-admin");if(da)da.style.display="block";}
   loadTabCounts();
-  // Abre na HOME após login (não direto em Vagas)
   history.replaceState({view:"home"},"",location.pathname+location.search);
   sv("home");
   // Carrega inbox em background para badge
   setTimeout(()=>fetch("/api/inbox?limit=200",{credentials:"include"}).then(r=>r.json()).then(d=>{if(d.ok){INBOX_EMAILS=d.emails||[];_mergeReadState();_updateInboxStats();updInboxBadge(INBOX_EMAILS.filter(e=>!e.isRead).length);_renderHomeReplies();}}).catch(()=>{}),1500);
-  // Mensagem de boas-vindas: APENAS no primeiro login verdadeiro (onboarded===false)
-  // Após configurar perfil + upload de CV, o servidor persiste onboarded=true e nunca mais exibe
-  // Mensagem de boas-vindas removida
-  if(U.autoJob?.active){
+
+  // FIX-UX1: "Bem-vindo de volta" — mostra resumo do que aconteceu nos 7 dias
+  if(U.autoJob||U.autoJobH2b||U.autoJobH2a){
+    const anyJob=U.autoJob||U.autoJobH2b||U.autoJobH2a;
+    if(anyJob){
+      const orig=anyJob.originalCount||0;
+      const qs=anyJob.queueSize||0;
+      const sent=Math.max(0,orig-qs);
+      const src=anyJob.source==='h2a'?'H-2A':'H-2B';
+      const status=anyJob.active?"🟢 Ativo":"⏸️ Pausado";
+      if(sent>0){
+        // Mostra toast celebratório quando tem envios acumulados
+        setTimeout(()=>{
+          toast(`✈️ ${status} — ${sent.toLocaleString("pt-BR")} candidaturas ${src} enviadas no total!`,"g",6000);
+        },1200);
+      }
+    }
     startAutoPolling();updateAutoDot(true);
-    // FIX: carrega IDs da fila automática para ocultar vagas do manual ao abrir o app
     fetch("/api/auto/status",{credentials:"include"}).then(r=>r.json()).then(d=>{
+      if(d.jobH2b!==undefined){U.autoJobH2b=d.jobH2b||null;U.autoJobH2a=d.jobH2a||null;}
       _autoQueueIds=new Set(d.autoQueueIds||[]);
       _syncAutoQueueVisibility();
+      renderHome();
     }).catch(()=>{});
   }
-  // Follow-up reminders (3s delay)
-  setTimeout(checkFollowUpReminders, 3000);
-  // Referral link (800ms delay)
-  // loadReferralLink removido: indicação agora é aba separada (v-indicar)
-  // Profile subtab counts (600ms delay)
+
+  // Follow-up reminders
+  if(typeof checkFollowUpReminders==="function") setTimeout(checkFollowUpReminders, 3000);
+  // Profile subtab counts
   setTimeout(()=>{
     const cnt=(U.profiles||UPROFILES||[]).filter(p=>p.active!==false).length;
     const b=g("#ptab-profiles-cnt");if(b){b.style.display=cnt?"":"none";b.textContent=cnt;}
   },600);
-  // Onboarding check (1.5s delay)
+  // FIX-UX2: Onboarding — só mostra para novos usuários sem perfil
   setTimeout(checkShowOnboarding, 1500);
-  // Mostra checklist de onboarding se incompleto
-  
-  // Intercepta botão Voltar Android — nunca vai para landing
+
+  // Intercepta botão Voltar Android
   window.addEventListener("popstate",(e)=>{
-    if(!U.connected){return;}// sessão encerrada, não interfere
+    if(!U.connected){return;}
     const v=e.state?.view||"home";
-    if(v==="home"){
-      // Impede sair do app ao pressionar Voltar na Home
-      history.pushState({view:"home"},"",location.pathname+location.search);
-    }
-    // Navega para a view correta sem empurrar novo estado
+    if(v==="home"){history.pushState({view:"home"},"",location.pathname+location.search);}
     curView=v;
     VIEWS.forEach(id=>{const ve=g("#v-"+id);if(ve)ve.classList.toggle("gone",id!==v);const si=g("#si-"+id);if(si)si.classList.toggle("active",id===v);const bn=g("#bn-"+id);if(bn)bn.classList.toggle("active",id===v);});
     if(v==="home")renderHome();
@@ -4758,9 +4808,23 @@ function updateLimChip(){
   }
 }
 function updateAutoDot(on){
-  const d=g("#bnd-auto");if(d){if(on)d.classList.add("bn-dot","is-auto");else{d.classList.remove("is-auto");d.style.display="none";}}
-  const sb=g("#sb-auto-dot");if(sb)sb.style.display=on?"block":"none";
-  const sba=g("#sb-auto-btn");if(sba)sba.classList.toggle("is-active",on);
+  const h2bActive=on&&(U.autoJobH2b?.active||(U.autoJob?.active&&U.autoJob?.source!=='h2a'));
+  const h2aActive=on&&(U.autoJobH2a?.active||(U.autoJob?.active&&U.autoJob?.source==='h2a'));
+  // Bottom nav H-2B
+  const d=g("#bnd-auto");if(d){if(h2bActive){d.classList.add("bn-dot","is-auto");d.style.display="";}else{d.classList.remove("is-auto");d.style.display="none";}}
+  // Bottom nav H-2A
+  const dh2a=g("#bnd-auto-h2a");if(dh2a){dh2a.style.display=h2aActive?"":"none";}
+  // Sidebar
+  const sb=g("#sb-auto-dot");if(sb)sb.style.display=h2bActive?"block":"none";
+  const sbh2a=g("#sb-auto-h2a-dot");if(sbh2a)sbh2a.style.display=h2aActive?"block":"none";
+  const sba=g("#sb-auto-btn");if(sba)sba.classList.toggle("is-active",h2bActive||h2aActive);
+  const sbah2a=g("#sb-auto-h2a-btn");
+  if(sbah2a){
+    sbah2a.style.background=h2aActive?"linear-gradient(135deg,#059669,#047857)":"";
+    sbah2a.style.color=h2aActive?"#fff":"";
+    sbah2a.style.borderColor=h2aActive?"transparent":"";
+    sbah2a.style.boxShadow=h2aActive?"0 4px 12px rgba(5,150,105,.35)":"";
+  }
 }
 function renderSidebar(){
   const sbp=g("#sb-prof");if(sbp)sbp.style.display="block";
@@ -7177,19 +7241,39 @@ function loadMoreLogs(){loadLogs(false);}
 
 function renderLogs(){
   const el=g("#log-list");if(!el)return;
-  if(!allLogsData.length){el.innerHTML='<div class="empty-state" style="padding:28px 0"><i class="ti ti-list-details"></i><div style="font-size:14px;font-weight:600;color:var(--t2)">Nenhum log ainda</div><div style="font-size:13px;color:var(--t3)">Os logs aparecem aqui quando você usar o Envio Automático</div></div>';return;}
-  el.innerHTML=allLogsData.map(l=>{
+  // FIX-F35: filtro por fonte H2A/H2B
+  const srcFilter=g("#log-src-filter")?.value||"all";
+  const filtLogs=allLogsData.filter(l=>srcFilter==="all"||!l.source||l.source===srcFilter);
+  if(!filtLogs.length){el.innerHTML='<div class="empty-state" style="padding:28px 0">🗂️<div style="font-size:14px;font-weight:600;color:var(--t2)">Nenhum log ainda</div><div style="font-size:13px;color:var(--t3)">Os logs aparecem aqui quando você usar o Envio Automático</div></div>';return;}
+  // FIX-F26: data relativa inteligente — logs antigos mostram data, não só hora
+  function fmtLogDate(dateStr){
+    if(!dateStr)return"";
+    const parts=dateStr.split(" ");
+    const datePart=parts[0]||"";const timePart=parts[1]||"";
+    const [d,m,y]=(datePart||"").split("/");
+    const ts=new Date(`${y}-${m}-${d}T${timePart||"00:00:00"}`).getTime();
+    if(isNaN(ts))return timePart||dateStr;
+    const diffH=Math.floor((Date.now()-ts)/3600000);
+    if(diffH<1)return"agora";
+    if(diffH<24)return timePart;
+    if(diffH<48)return`ontem ${timePart}`.trim();
+    if(diffH<168)return`há ${Math.floor(diffH/24)}d`;
+    return`${d}/${m} ${timePart}`.trim();
+  }
+  el.innerHTML=filtLogs.map(l=>{
     const statusClass="ls-"+(l.status||"sistema").replace(/[^a-z]/g,"");
-    const statusEmoji={enviado:"✅",falhou:"❌",duplicado:"🔁",pausado:"⏸",cancelado:"🚫",sistema:"ℹ️"}[l.status]||"•";
+    const statusEmoji={enviado:"✅",falhou:"❌",duplicado:"🔁",pausado:"⏸",cancelado:"🚫",sistema:"ℹ️",pulado:"⏩",limite:"📊",erro_anexo:"📎"}[l.status]||"•";
+    // FIX-F35: badge H2A/H2B no log
+    const srcBadge=l.source==="h2a"?`<span style="font-size:9px;background:#d1fae5;color:#065f46;border-radius:4px;padding:1px 5px;margin-left:4px;font-weight:700">H-2A</span>`:l.source==="h2b"?`<span style="font-size:9px;background:#dbeafe;color:#1e40af;border-radius:4px;padding:1px 5px;margin-left:4px;font-weight:700">H-2B</span>`:"";
     return`<div class="log-entry">
       <span class="log-status ${statusClass}">${statusEmoji} ${esc(l.status||"–")}</span>
       <div class="log-main">
-        <div class="log-company">${esc(l.company||l.jobTitle||"–")}</div>
-        ${l.to?`<div class="log-email"><i class="ti ti-mail" style="font-size:10px"></i> ${esc(l.to)}</div>`:""}
-        <div class="log-meta">${l.category?`<span class="tag tgr" style="font-size:10px">${esc(l.category)}</span>`:""} ${l.state?`<span class="tag tgr" style="font-size:10px">${esc(l.state)}</span>`:""} ${l.source?`<span class="tag tb" style="font-size:10px">${esc(l.source)}</span>`:""}</div>
-        ${l.error?`<div class="log-error"><i class="ti ti-alert-circle" style="font-size:10px"></i> ${esc(l.error)}</div>`:""}
+        <div class="log-company">${esc(l.company||l.jobTitle||"–")}${srcBadge}</div>
+        ${l.to?`<div class="log-email" style="font-size:11px">${esc(l.to)}</div>`:""}
+        <div class="log-meta">${l.category?`<span class="tag tgr" style="font-size:10px">${esc(l.category)}</span>`:""} ${l.state?`<span class="tag tgr" style="font-size:10px">${esc(l.state)}</span>`:""}</div>
+        ${l.error?`<div class="log-error" style="font-size:11px;color:var(--red)">⚠️ ${esc(l.error)}</div>`:""}
       </div>
-      <div class="log-date">${esc((l.date||"").split(" ")[1]||l.date||"")}</div>
+      <div class="log-date" title="${esc(l.date||"")}">${fmtLogDate(l.date||"")}</div>
     </div>`;
   }).join("");
 }
@@ -7748,16 +7832,114 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
   btn.innerHTML='<i class="ti ti-rocket" style="font-size:20px"></i><span>Iniciar Envio Automático</span>';
 }
 
-async function pauseAuto(){try{await fetch("/api/auto/pause",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:false,status:"paused"};updateAutoUI();updateLimChip();toast("Pausado","au");}catch(e){toast("Erro","r");}}
-async function resumeAuto(){try{await fetch("/api/auto/resume",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:true,status:"resuming"};updateAutoUI();updateLimChip();startAutoPolling();toast("Retomado ✓","g");}catch(e){toast("Erro","r");}}
-async function stopAuto(){
-  setTimeout(async function(){await _loadSentIds();if(tab!=="seasonal")loadSheetMeta(true);},600);
-if(!confirm("Parar o envio completamente?"))return;try{await fetch("/api/auto/stop",{method:"POST",credentials:"include"});U.autoJob=null;_autoQueueIds=new Set();_syncAutoQueueVisibility();clearInterval(autoInterval);autoInterval=null;if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado","r");// Recarrega perfis do servidor para garantir que não sumiram
-try{const pr=await fetch("/api/profiles",{credentials:"include"}).then(r=>r.json());UPROFILES=pr.profiles||[];if(U)U.profiles=UPROFILES;}catch{}
-}catch(e){toast("Erro","r");}}
+// FIX-UX4: mostra escolha rápida H-2B / H-2A antes de abrir modal do automático
+function showAutoVisaChoice(){
+  // Se só tem um tipo de job ativo, vai direto para ele
+  const h2bActive=U.autoJobH2b?.active;
+  const h2aActive=U.autoJobH2a?.active;
+  if(h2bActive&&!h2aActive){openAutoModalH2B();return;}
+  if(h2aActive&&!h2bActive){openAutoModalH2A();return;}
 
-// FIX: oculta/mostra cards de vagas com base em _autoQueueIds (sincroniza UI após auto iniciar/parar)
-function _syncAutoQueueVisibility(){
+  // Mostra popup de escolha rápida
+  const ov=document.createElement("div");
+  ov.style.cssText="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;padding:20px";
+  ov.onclick=function(e){if(e.target===ov)ov.remove();};
+  ov.innerHTML=`
+    <div style="background:var(--surface);border-radius:20px 20px 16px 16px;width:100%;max-width:420px;padding:20px;box-shadow:0 -8px 40px rgba(0,0,0,.25)">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:800;color:var(--text)">Qual automático iniciar?</div>
+        <div style="font-size:12px;color:var(--t3);margin-top:3px">Escolha o tipo de visto para a candidatura</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button onclick="this.closest('div[style*=fixed]').remove();openAutoModalH2B()" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(79,70,229,.08));border:2px solid rgba(99,102,241,.4);border-radius:14px;padding:18px 12px;cursor:pointer;font-family:inherit;text-align:center">
+          <div style="font-size:28px;margin-bottom:6px">🔧</div>
+          <div style="font-size:14px;font-weight:800;color:#4f46e5">H-2B</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:2px">Não-agrícola</div>
+          <div style="font-size:10px;color:var(--t3)">Landscaping, seafood, resort...</div>
+        </button>
+        <button onclick="this.closest('div[style*=fixed]').remove();openAutoModalH2A()" style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.08));border:2px solid rgba(16,185,129,.4);border-radius:14px;padding:18px 12px;cursor:pointer;font-family:inherit;text-align:center">
+          <div style="font-size:28px;margin-bottom:6px">🌾</div>
+          <div style="font-size:14px;font-weight:800;color:#047857">H-2A</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:2px">Agrícola</div>
+          <div style="font-size:10px;color:var(--t3)">Farm, harvest, orchard...</div>
+        </button>
+      </div>
+      <button onclick="this.parentElement.parentElement.remove()" style="width:100%;margin-top:12px;background:none;border:1.5px solid var(--border);border-radius:10px;padding:10px;font-size:13px;color:var(--t2);cursor:pointer;font-family:inherit">Cancelar</button>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+// ── Abre o modal automático já pré-configurado por visto ──
+function openAutoModalH2B(){
+  // Define visa ANTES de abrir — openAutoModal usa _autoVisa para filtrar perfis
+  window._autoVisa='h2b';
+  if(typeof setAutoVisa==='function') setAutoVisa('h2b');
+  openAutoModal();
+}
+function openAutoModalH2A(){
+  // Define visa ANTES de abrir — openAutoModal usa _autoVisa para filtrar perfis H-2A
+  window._autoVisa='h2a';
+  if(typeof setAutoVisa==='function') setAutoVisa('h2a');
+  openAutoModal();
+}
+
+async function pauseAuto(){
+  const src=_curAutoSource();
+  try{
+    await fetch("/api/auto/pause",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:src})});
+    U.autoJob={...U.autoJob,active:false,status:"paused"};
+    updateAutoUI();updateLimChip();toast("Pausado ⏸","au");
+  }catch(e){toast("Erro: "+e.message,"r");}
+}
+async function resumeAuto(){
+  const src=_curAutoSource();
+  try{
+    await fetch("/api/auto/resume",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:src})});
+    U.autoJob={...U.autoJob,active:true,status:"resuming"};
+    updateAutoUI();updateLimChip();startAutoPolling();toast("Retomado ✓","g");
+  }catch(e){toast("Erro: "+e.message,"r");}
+}
+async function stopAuto(){
+  if(!confirm("Parar o envio completamente? A fila será perdida."))return;
+  const src=_curAutoSource();
+  try{
+    await fetch("/api/auto/stop",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:src})});
+    U.autoJob=null;
+    _autoQueueIds=new Set();_syncAutoQueueVisibility();
+    clearInterval(autoInterval);autoInterval=null;
+    if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}
+    updateAutoUI();updateAutoDot(false);updateLimChip();toast("Parado ✓","r");
+    try{const pr=await fetch("/api/profiles",{credentials:"include"}).then(r=>r.json());UPROFILES=pr.profiles||[];if(U)U.profiles=UPROFILES;}catch{}
+  }catch(e){toast("Erro: "+e.message,"r");}
+}
+
+function startAutoPolling(){if(autoInterval)clearInterval(autoInterval);autoInterval=setInterval(pollAutoStatus,5000);}
+
+async function pollAutoStatus(){
+  if(curView!=="auto"&&!U.autoJob?.active&&!U.autoJobH2a?.active)return;
+  try{
+    const r=await fetch("/api/auto/status",{credentials:"include"});const d=await r.json();
+    // FIX: suporte a dois jobs (H2B + H2A)
+    if(d.jobH2b!==undefined){
+      U.autoJobH2b=d.jobH2b||null;
+      U.autoJobH2a=d.jobH2a||null;
+      // autoJob = job principal (o que está na aba atual do modal, ou o ativo mais recente)
+      const srcAtual=_autoVisa||'h2b';
+      U.autoJob=srcAtual==='h2a'?(d.jobH2a||d.jobH2b||null):(d.jobH2b||d.jobH2a||null);
+    } else {
+      if(d.job)U.autoJob={...d.job};else U.autoJob=null;
+    }
+    U.todaySentAuto=d.todayAuto||0;U.autoLimit=d.autoLimit||10;U.autoStats=d.stats||{sent:0,failed:0};
+    _autoQueueIds=new Set(d.autoQueueIds||[]);
+    _syncAutoQueueVisibility();
+    if(curView==="auto")updateAutoUI();
+    if(curView==="home")renderHome();
+    const anyActive=(U.autoJob?.active||U.autoJobH2a?.active||U.autoJobH2b?.active)||false;
+    updateAutoDot(anyActive);updateLimChip();renderSidebar();
+    if(curView==="auto"&&d.recentLogs?.length)renderRecentLogs(d.recentLogs);
+    if(!anyActive&&autoInterval){clearInterval(autoInterval);autoInterval=null;_autoQueueIds=new Set();}
+  }catch{}
+}
   try{
     // Sheet cards: vagas nas abas jan2026/jul2025
     document.querySelectorAll(".jcard[id^='jcard-s_']").forEach(card=>{
@@ -7907,6 +8089,50 @@ function updateAutoUI(){
   const njc=g("#next-job-card");const njn=g("#next-job-name");const nje=g("#next-job-email");
   if(j.currentJob&&active){if(njc)njc.classList.add("show");if(njn)njn.textContent=j.currentJob.title||j.currentJob.company||"–";if(nje)nje.textContent=j.currentJob.to||"–";}
   else{if(njc)njc.classList.remove("show");}
+
+  // FIX-F23: alerta quando plano expirou durante ausência
+  const expBanner=g("#auto-plan-expired-banner");
+  if(expBanner){
+    if(U.planJustExpired){
+      expBanner.style.display="block";
+      expBanner.innerHTML=`⚠️ <strong>Seu plano VIP expirou!</strong> O automático agora roda no limite Free (${U.autoLimit}/dia). <a href="#" onclick="sv('planos')" style="color:#92400e;font-weight:800;text-decoration:underline">Renovar agora →</a>`;
+    } else {
+      expBanner.style.display="none";
+    }
+  }
+
+  // FIX-F35: badge H-2A/H-2B no status banner
+  const srcBadge=g("#auto-source-badge");
+  if(srcBadge){
+    if(j.source==="h2a"){
+      srcBadge.innerHTML='<span style="background:#d1fae5;color:#065f46;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:800">🌾 H-2A</span>';
+    } else {
+      srcBadge.innerHTML='<span style="background:#dbeafe;color:#1e40af;border-radius:6px;padding:2px 8px;font-size:10px;font-weight:800">🔧 H-2B</span>';
+    }
+  }
+
+  // FIX: mostrar segundo job se H2A e H2B ambos ativos
+  const secondCard=g("#auto-second-job-card");
+  if(secondCard){
+    const otherJob=j.source==='h2a'?(U.autoJobH2b||null):(U.autoJobH2a||null);
+    if(otherJob&&otherJob.active&&otherJob.status!=="finished"){
+      const otherSrc=j.source==='h2a'?'H-2B':'H-2A';
+      const otherIcon=j.source==='h2a'?'🔧':'🌾';
+      const oQs=otherJob.queueSize||0;const oOrig=otherJob.originalCount||oQs;
+      const oSent=Math.max(0,oOrig-oQs);const oPct=oOrig>0?Math.round(oSent/oOrig*100):0;
+      const stLbl={sending:"Enviando",waiting_limit:"Aguarda meia-noite",paused:"Pausado",finished:"Concluído",starting:"Iniciando"}[otherJob.status]||otherJob.status;
+      secondCard.style.display="block";
+      secondCard.style.background=j.source==='h2a'?"linear-gradient(135deg,rgba(37,99,235,.1),rgba(29,78,216,.08))":"linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.08))";
+      secondCard.style.borderColor=j.source==='h2a'?"rgba(59,130,246,.4)":"rgba(16,185,129,.4)";
+      const lbl=g("#auto-second-job-label");if(lbl)lbl.innerHTML=`${otherIcon} ${otherSrc} também ativo`;
+      const sta=g("#auto-second-job-status");if(sta)sta.textContent=stLbl;
+      const prog2=g("#dash-prog-2");if(prog2)prog2.style.width=oPct+"%";
+      const pct2=g("#auto-second-job-pct");if(pct2)pct2.textContent=oPct+"%";
+      const det=g("#auto-second-job-detail");if(det)det.textContent=`${oSent.toLocaleString("pt-BR")} enviados de ${oOrig.toLocaleString("pt-BR")} vagas`;
+    } else {
+      secondCard.style.display="none";
+    }
+  }
 
   // Buttons
   const pb=g("#auto-pause-btn");const rb=g("#auto-resume-btn");const sb=g("#auto-stop-btn");
@@ -8825,16 +9051,28 @@ async function openAutoModal(){
     if(U)U.profiles=UPROFILES;
   }catch(e){console.warn("[openAutoModal] falha ao buscar perfis:",e.message);}
 
-  const profiles=UPROFILES.filter(p=>p.active!==false);
+  const allActive=UPROFILES.filter(p=>p.active!==false);
+  // Migração: perfis sem campo visa assumem h2b (retrocompatibilidade)
+  allActive.forEach(p=>{ if(!p.visa) p.visa='h2b'; });
+  // Filtra pelo visa do modal — cada botão (H-2B / H-2A) já pré-setou _autoVisa
+  const currentVisa=_autoVisa||'h2b';
+  const profiles=allActive.filter(p=>p.visa===currentVisa||p.visa==='both');
   const hasCv=DOCS.some(c=>(c.cvType||"resume")==="resume");
 
-  if(profiles.length===0){
-    // Mostra checklist de setup em vez de confirm() genérico
+  if(allActive.length===0){
+    // Nenhum perfil de nenhum tipo — redireciona para criar
     _showSetupChecklist();
     return;
   }
+  if(profiles.length===0){
+    // Tem perfis mas não do visa correto
+    const visaLabel=currentVisa==='h2a'?'H-2A (agrícola)':'H-2B';
+    const hasOther=allActive.some(p=>p.visa!==(currentVisa==='h2a'?'h2b':'h2a'));
+    toast(`⚠️ Você não tem perfis ${visaLabel}. ${hasOther?'Seus perfis existentes são de outro visto.':'Crie um em Perfil → Perfis de E-mail.'}`,"a",6000);
+    // Abre o modal mesmo assim — _renderAutoProfilesPanel vai mostrar o botão de criar
+  }
   // Verifica currículo
-  const _hasCvInProfiles=profiles.some(p=>p.resumeIdx!=null||p.cvs?.some(c=>c.cvType==="resume"));
+  const _hasCvInProfiles=allActive.some(p=>p.resumeIdx!=null||p.cvs?.some(c=>c.cvType==="resume"));
   if(!hasCv&&!_hasCvInProfiles){
     _showSetupChecklist();
     return;
@@ -9451,19 +9689,25 @@ function renderHome(){
   // Atualiza card automático na home
   _updateHomeAutoCard();
   const sr=g("#home-stat-replies");if(sr){const unread=INBOX_EMAILS.filter(e=>!e.isRead).length;sr.textContent=unread>0?String(unread):"–";}
-  // Card Auto
+  // Card Auto — mostra status de AMBOS os jobs (H-2B e H-2A)
   const ac=g("#home-auto-card");const at=g("#home-auto-title");const as=g("#home-auto-sub");const ai=g("#home-auto-icon");
   if(ac){
-    if(U.autoJob?.active){
+    const h2bJob=U.autoJobH2b||(!U.autoJob||U.autoJob.source==='h2a'?null:U.autoJob);
+    const h2aJob=U.autoJobH2a||(U.autoJob?.source==='h2a'?U.autoJob:null);
+    const anyActive=h2bJob?.active||h2aJob?.active;
+    if(anyActive){
       ac.className="home-auto-card";
-      if(at)at.textContent="🟢 Envio Automático Ativo!";
-      if(as){const _o=U.autoJob.originalCount||0;const _q=U.autoJob.queueSize||0;const _d=Math.max(0,_o-_q);const _p=_o>0?Math.round(_d/_o*100):0;as.textContent=_o>0?`${_d.toLocaleString("pt-BR")}/${_o.toLocaleString("pt-BR")} vagas (${_p}%)`:(`Fila: ${_q} vagas`);}
-      if(ai)ai.innerHTML='<i class="ti ti-robot" style="color:#fff"></i>';
+      const parts=[];
+      if(h2bJob?.active){const o=h2bJob.originalCount||0;const q=h2bJob.queueSize||0;const d=Math.max(0,o-q);const p=o>0?Math.round(d/o*100):0;parts.push(`🔧 H-2B: ${d.toLocaleString("pt-BR")}/${o.toLocaleString("pt-BR")} (${p}%)`);}
+      if(h2aJob?.active){const o=h2aJob.originalCount||0;const q=h2aJob.queueSize||0;const d=Math.max(0,o-q);const p=o>0?Math.round(d/o*100):0;parts.push(`🌾 H-2A: ${d.toLocaleString("pt-BR")}/${o.toLocaleString("pt-BR")} (${p}%)`);}
+      if(at)at.textContent="🟢 Automático Ativo!";
+      if(as)as.textContent=parts.join(" · ")||"Enviando candidaturas...";
+      if(ai)ai.innerHTML='<span style="font-size:24px">🤖</span>';
     }else{
       ac.className="home-auto-card inactive";
       if(at)at.textContent="Envio Automático";
       if(as)as.textContent="Toque para configurar e iniciar";
-      if(ai)ai.innerHTML='<i class="ti ti-robot" style="color:var(--purple)"></i>';
+      if(ai)ai.innerHTML='<span style="font-size:24px" style="color:var(--purple)">🤖</span>';
     }
   }
   // Badge respostas
@@ -11680,37 +11924,46 @@ function setAutoVisa(visa) {
       h2aTab.style.background = 'transparent'; h2aTab.style.color = 'rgba(255,255,255,.75)';
     }
   }
-  // Mostrar/esconder source-btn H-2A e H-2B sources
+
+  // Mostrar/esconder botões de fonte
   var h2aBtn = document.getElementById('src-btn-h2a');
   var janBtn = document.querySelector('[data-src="jan2026"]');
   var julBtn = document.querySelector('[data-src="jul2025"]');
+  var ws1 = document.getElementById('ws-1');
+
   if(visa === 'h2a') {
+    // H-2A: esconde step 1 de escolha de fonte (só tem H-2A) — já está selecionado
     if(h2aBtn) h2aBtn.style.display = '';
     if(janBtn) janBtn.style.display = 'none';
     if(julBtn) julBtn.style.display = 'none';
-    // Seleciona h2a automaticamente
+    if(ws1) ws1.style.display = 'none'; // Step 1 oculto — H-2A não precisa escolher fonte
     if(typeof selectSource === 'function') selectSource('h2a');
-    // Atualizar titulo wizard
-    var ws1sub = document.getElementById('ws-sub-1');
-    if(ws1sub) ws1sub.textContent = 'Vagas H-2A (agrícolas) do banco de dados';
-    // Atualizar categorias para H-2A
     _loadH2aCats();
+    // Desbloqueia steps 2, 3, 4 diretamente
+    if(typeof unlockWizardStep === 'function'){unlockWizardStep(2);unlockWizardStep(3);unlockWizardStep(4);}
   } else {
+    // H-2B: mostra step 1 normalmente
     if(h2aBtn) h2aBtn.style.display = 'none';
     if(janBtn) janBtn.style.display = '';
     if(julBtn) julBtn.style.display = '';
-    var ws1sub = document.getElementById('ws-sub-1');
-    if(ws1sub) ws1sub.textContent = 'Selecione de onde puxar as vagas';
+    if(ws1) ws1.style.display = ''; // Step 1 visível novamente
+    // Reset seleção de fonte para H-2B
+    autoSelectedSrc = null;
+    document.querySelectorAll('.source-btn').forEach(function(b){b.classList.remove('sel');});
+    var sub = document.getElementById('ws-sub-1');
+    if(sub) sub.textContent = 'Selecione de onde puxar as vagas';
   }
-  // RE-RENDERIZAR painel de perfis filtrado pelo visto selecionado
-  if(typeof _renderAutoProfilesPanel === 'function') _renderAutoProfilesPanel();
-  // Atualizar título hero
+
+  // Atualiza o hero
   var heroTitle = document.querySelector('.auto-hero-title');
-  if(heroTitle) heroTitle.innerHTML = '<i class="ti ti-robot"></i> Envio Automático ' + (visa==='h2a'?'H-2A':'H-2B');
+  if(heroTitle) heroTitle.textContent = visa === 'h2a' ? '🌾 Automático H-2A (Agrícola)' : '🔧 Automático H-2B';
   var heroSub = document.querySelector('.auto-hero-sub');
-  if(heroSub) heroSub.textContent = visa==='h2a'
-    ? 'Envio automático para vagas H-2A (agrícolas). Apenas perfis H-2A serão usados.'
+  if(heroSub) heroSub.textContent = visa === 'h2a'
+    ? 'Candidaturas automáticas para vagas agrícolas H-2A. Usa apenas seus perfis H-2A.'
     : 'Configure uma vez. O sistema envia enquanto você trabalha.';
+
+  // Filtra painel de perfis pelo visa selecionado
+  if(typeof _renderAutoProfilesPanel === 'function') _renderAutoProfilesPanel();
 }
 
 function _loadH2aCats() {
@@ -12146,7 +12399,8 @@ async function obCreateProfile(){
   const subj=(g("#ob-prf-subj")?.value||"").trim();
   const body=(g("#ob-prf-body")?.value||"").trim();
   if(!subj||!body){toast("Preencha assunto e corpo","r");return;}
-  const prf={name,type,isGeneral:type==="general",active:true,subjects:[subj],emailBodies:[body],categories:[]};
+  // FIX-UX3: sempre define visa='h2b' no onboarding — usuário pode criar H-2A depois em Perfil
+  const prf={name,type,isGeneral:type==="general",active:true,subjects:[subj],emailBodies:[body],categories:[],visa:'h2b'};
   try{
     const r=await fetch("/api/profiles/save",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(prf)});
     const d=await r.json();
