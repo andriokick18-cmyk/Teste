@@ -1917,7 +1917,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <div class="home-plan-row" id="home-plan-row"></div>
           </div>
           <!-- Status automático -->
-          <div class="home-auto-card inactive" id="home-auto-card" onclick="openAutoModal()" style="cursor:pointer;transition:all .15s" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+          <div class="home-auto-card inactive" id="home-auto-card" onclick="showAutoVisaChoice()" style="cursor:pointer;transition:all .15s" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
             <div style="display:flex;align-items:center;gap:10px">
               <div style="width:40px;height:40px;border-radius:12px;background:rgba(126,58,242,.15);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;position:relative" id="home-auto-icon">
                 <i class="ti ti-robot" style="color:var(--purple)"></i>
@@ -2032,9 +2032,9 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       <div class="view" id="v-jobs">
         <div class="stabs">
           <button class="stab active" id="stab-seasonal" onclick="setTab('seasonal')"><i class="ti ti-globe"></i>Vagas ao Vivo (DOL)<span class="stab-cnt" id="sc-seasonal" style="display:none"></span></button>
-          <button class="stab stab-sheet-jan" id="stab-jan2026" onclick="setTab('jan2026')" style="margin-top:8px"><i class="ti ti-sun" style="color:#f59e0b"></i><strong>H-2B — Jan 2026</strong><span class="stab-cnt" id="sc-jan">–</span></button>
-          <button class="stab stab-sheet-jul" id="stab-jul2025" onclick="setTab('jul2025')" style="margin-top:8px"><i class="ti ti-snowflake" style="color:#3b82f6"></i><strong>H-2A — Jul 2025</strong><span class="stab-cnt" id="sc-jul">–</span></button>
-          <button class="stab stab-sheet-h2a" id="stab-h2a" onclick="setTab('h2a')" style="margin-top:8px;background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(5,150,105,.05));border-color:rgba(16,185,129,.3)"><i class="ti ti-plant-2" style="color:#059669"></i><strong style="color:#047857">🌾 H-2A 2025/2026</strong><span class="stab-cnt" id="sc-h2a">–</span></button>
+          <button class="stab stab-sheet-jan" id="stab-jan2026" onclick="setTab('jan2026')" style="margin-top:8px"><i class="ti ti-sun" style="color:#f59e0b"></i><strong>H-2B — Jan 2026 ☀️</strong><span class="stab-cnt" id="sc-jan">–</span></button>
+          <button class="stab stab-sheet-jul" id="stab-jul2025" onclick="setTab('jul2025')" style="margin-top:8px"><i class="ti ti-snowflake" style="color:#3b82f6"></i><strong>H-2B — Jul 2025 ❄️</strong><span class="stab-cnt" id="sc-jul">–</span></button>
+          <button class="stab stab-sheet-h2a" id="stab-h2a" onclick="setTab('h2a')" style="margin-top:8px;background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(5,150,105,.05));border-color:rgba(16,185,129,.3)"><i class="ti ti-plant-2" style="color:#059669"></i><strong style="color:#047857">🌾 H-2A Agrícola</strong><span class="stab-cnt" id="sc-h2a">–</span></button>
         </div>
         <div class="search-bar">
           <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="Cargo, empresa, estado..." oninput="onSearch()" autocomplete="off" inputmode="search"></div>
@@ -3411,10 +3411,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                 <div style="width:28px;height:28px;border-radius:8px;background:#ede9fe;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">⚙️</div>
                 <div><strong style="color:#5b21b6">Como configurar</strong><br>
                   <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;font-size:12px">
-                    <div style="display:flex;gap:6px"><span style="background:#7c3aed;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">1</span><span>Clique em <strong>"Envio Automático"</strong> na Home ou no menu</span></div>
-                    <div style="display:flex;gap:6px"><span style="background:#7c3aed;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">2</span><span>Escolha a <strong>planilha</strong> (Jan 2026 ou Jul 2025)</span></div>
-                    <div style="display:flex;gap:6px"><span style="background:#7c3aed;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">3</span><span>Escolha a <strong>quantidade de vagas</strong> que quer colocar no automático</span></div>
-                    <div style="display:flex;gap:6px"><span style="background:#7c3aed;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">4</span><span>Clique em <strong>"Iniciar Automático"</strong> e pronto!</span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#7c3aed;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">1</span><span>Clique em <strong>"Automático"</strong> na Home e escolha <strong>H-2B</strong> (não-agrícola) ou <strong>H-2A</strong> (agrícola)</span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#7c3aed;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">2</span><span>Para H-2B: escolha a planilha (Jan 2026 — verão / Jul 2025 — inverno). Para H-2A: as vagas agrícolas já são carregadas automaticamente</span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#7c3aed;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">3</span><span>Filtre por <strong>categoria</strong> (landscaping, seafood, farm...) e <strong>estado</strong> se quiser</span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#7c3aed;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">4</span><span>Clique em <strong>"Iniciar Automático"</strong> — pode deslogar, o robô continua sozinho!</span></div>
                   </div>
                 </div>
               </div>
@@ -3755,8 +3755,8 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       <span style="color:var(--green);font-weight:700">Empresas</span>
       <span id="bnd-respostas" class="bn-dot" style="display:none;background:var(--red)"></span>
     </button>
-    <!-- AUTO — CTA central destacado -->
-    <button class="bn bn-auto" id="bn-auto" onclick="openAutoModal()">
+    <!-- AUTO — CTA central -->
+    <button class="bn bn-auto" id="bn-auto" onclick="showAutoVisaChoice()">
       <div class="bn-auto-ring"><i class="ti ti-robot"></i></div>
       <span>Automático</span>
       <span class="bn-dot" id="bnd-auto" style="background:#7e3af2;right:calc(50% - 22px);top:1px"></span>
@@ -4750,7 +4750,7 @@ function daysLeft(ts){if(!ts)return-1;const d=Math.ceil((ts-Date.now())/86400000
 
 // ── Gera HTML do badge com dias restantes ────────
 function planBadgeHTML(){
-  const v=U.vip;
+  const v=U.vip;const p=U.plan||"free";
   const now=Date.now();
   const hasManual=v?.manualExpires&&v.manualExpires>now;
   const hasAuto=v?.autoExpires&&v.autoExpires>now;
@@ -4759,9 +4759,17 @@ function planBadgeHTML(){
   const al=hasAuto?daysLeft(v.autoExpires):-1;
   const urgent=d=>d>=0&&d<=5;
   const col=d=>urgent(d)?"var(--red)":d<=14?"var(--amber)":"var(--green)";
+  // Nome do plano correto
+  const planName={vip:"VIP",vipro:"VIPro",pro:"VIPro",doublepro:"DoublePro"}[p]||"VIP";
   let html="";
-  if(hasManual)html+=`<span class="tag" style="background:var(--bluel);color:${col(ml)};border-color:${col(ml)};font-size:10px;white-space:nowrap">⭐ VIP ${ml} dia${ml===1?"":"s"}</span> `;
-  if(hasAuto)html+=`<span class="tag" style="background:var(--purplel);color:${col(al)};border-color:${col(al)};font-size:10px;white-space:nowrap">🤖 Pro ${al} dia${al===1?"":"s"}</span>`;
+  if(hasManual){
+    const icon=p==="doublepro"?"💎":p==="vipro"||p==="pro"?"⭐":"⭐";
+    html+=`<span class="tag" style="background:var(--bluel);color:${col(ml)};border-color:${col(ml)};font-size:10px;white-space:nowrap">${icon} ${planName} ${ml}d</span> `;
+  }
+  if(hasAuto){
+    const icon=p==="doublepro"?"💎":"🤖";
+    html+=`<span class="tag" style="background:var(--purplel);color:${col(al)};border-color:${col(al)};font-size:10px;white-space:nowrap">${icon} Auto ${al}d</span>`;
+  }
   return html;
 }
 
@@ -10283,45 +10291,41 @@ function _updateHomeAutoCard() {
   const progLbl = g("#home-auto-prog-lbl");
   if (!card) return;
 
-  const j = U.autoJob;
-  if (j && j.active) {
-    // ATIVO
-    card.className = "home-auto-card"; // gradiente roxo
-    if (pulse) pulse.style.display = "";
-    if (title) title.textContent = "🟢 Automático Rodando";
-    if (icon) icon.style.background = "rgba(74,222,128,.2)";
-    const orig = j.originalCount || 0;
-    const qs = j.queueSize || 0;
-    const done = Math.max(0, orig - qs);
-    const pct = orig > 0 ? Math.round(done/orig*100) : 0;
-    const todayAuto = U.todaySentAuto || 0;
-    const autoLim = U.autoLimit || 200;
+  // FIX: suporta dual H2A+H2B
+  const h2bJob = U.autoJobH2b || (!U.autoJob || U.autoJob?.source === 'h2a' ? null : U.autoJob);
+  const h2aJob = U.autoJobH2a || (U.autoJob?.source === 'h2a' ? U.autoJob : null);
+  const j = h2bJob?.active ? h2bJob : (h2aJob?.active ? h2aJob : h2bJob || h2aJob || U.autoJob);
+  const anyActive = h2bJob?.active || h2aJob?.active;
 
-    if (j.status === "waiting_limit") {
-      if (sub) sub.textContent = `🌙 Limite do dia atingido (${todayAuto}/${autoLim}) — retoma à meia-noite`;
-    } else {
-      if (sub) sub.textContent = orig > 0
-        ? `${done.toLocaleString("pt-BR")} de ${orig.toLocaleString("pt-BR")} vagas enviadas (hoje: ${todayAuto})`
-        : `Enviando agora • ${todayAuto} hoje`;
-    }
-    if (progWrap && orig > 0) {
+  if (anyActive) {
+    card.className = "home-auto-card";
+    if (pulse) pulse.style.display = "";
+    const parts = [];
+    if (h2bJob?.active) { const o=h2bJob.originalCount||0;const q=h2bJob.queueSize||0;const d=Math.max(0,o-q);const p=o>0?Math.round(d/o*100):0;parts.push(`🔧 H-2B ${p}%`); }
+    if (h2aJob?.active) { const o=h2aJob.originalCount||0;const q=h2aJob.queueSize||0;const d=Math.max(0,o-q);const p=o>0?Math.round(d/o*100):0;parts.push(`🌾 H-2A ${p}%`); }
+    if (title) title.textContent = "🟢 Automático Ativo — " + parts.join(" · ");
+    const todayAuto = U.todaySentAuto || 0;
+    const autoLim = U.autoLimit || 10;
+    if (sub) sub.textContent = j?.status === "waiting_limit"
+      ? `🌙 Limite do dia (${todayAuto}/${autoLim}) — retoma à meia-noite`
+      : `${todayAuto} enviados hoje • Toque para detalhes`;
+    if (progWrap && j?.originalCount > 0) {
+      const o=j.originalCount;const q=j.queueSize||0;const d=Math.max(0,o-q);const p=o>0?Math.round(d/o*100):0;
       progWrap.style.display = "";
-      if (progBar) progBar.style.width = pct + "%";
-      if (progLbl) progLbl.textContent = `${pct}% concluído • ${qs.toLocaleString("pt-BR")} restantes`;
+      if (progBar) progBar.style.width = p + "%";
+      if (progLbl) progLbl.textContent = `${p}% concluído`;
     }
   } else if (j && !j.active && j.status !== "finished") {
-    // PAUSADO
     card.className = "home-auto-card inactive";
     if (pulse) pulse.style.display = "none";
     if (title) title.textContent = "⏸ Automático Pausado";
     if (sub) sub.textContent = "Toque para retomar";
     if (progWrap) progWrap.style.display = "none";
   } else {
-    // INATIVO
     card.className = "home-auto-card inactive";
     if (pulse) pulse.style.display = "none";
     if (title) title.textContent = "Envio Automático";
-    if (icon) icon.style.background = "rgba(126,58,242,.15)";
+    if (icon) icon && (icon.style.background = "rgba(126,58,242,.15)");
     if (sub) sub.textContent = "Toque para configurar e iniciar";
     if (progWrap) progWrap.style.display = "none";
   }
