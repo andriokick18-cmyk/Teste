@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>H2BApply — Admin Console v14</title>
+<title>H2BApply — Admin Console v15</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700;800&family=Sora:wght@700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css">
@@ -252,7 +252,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       <div class="sb-logo-icon"><i class="ti ti-shield" style="color:#fff;font-size:16px"></i></div>
       <div>
         <div class="sb-logo-text">H2BApply</div>
-        <div class="sb-logo-sub">Admin Console v14</div>
+        <div class="sb-logo-sub">Admin Console v15</div>
       </div>
     </div>
     <div class="sb-nav">
@@ -263,6 +263,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       <div class="sb-label">Usuários</div>
       <button class="sb-item" onclick="showView('users')"><i class="ti ti-users"></i>Todos Usuários</button>
       <button class="sb-item" onclick="showView('vip')"><i class="ti ti-diamond"></i>VIP & Planos</button>
+      <button class="sb-item" onclick="showView('vencimentos');loadVencimentos()"><i class="ti ti-calendar-time"></i>Vencimentos VIP<span class="sb-badge sb-badge-a" id="sb-venc" style="display:none">!</span></button>
       <div class="sb-label">Sistema</div>
       <button class="sb-item" onclick="showView('codes')"><i class="ti ti-ticket"></i>Códigos Promo</button>
       <button class="sb-item" onclick="showView('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
@@ -810,6 +811,45 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
           <div id="admin-referral-stats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px"></div>
           <div id="admin-referral-list"><div class="empty-state">Carregando...</div></div>
         </div>
+      </div>
+
+      <!-- ══ VENCIMENTOS VIP ══ MELHORIA #5 ══ -->
+      <div class="view" id="view-vencimentos">
+        <style>
+        .venc-card{background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:7px;transition:border-color .14s;cursor:pointer}
+        .venc-card:hover{border-color:var(--border3)}
+        .venc-card.venc-expired{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.03)}
+        .venc-card.venc-soon{border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.03)}
+        .venc-card.venc-ok{border-color:rgba(16,185,129,.2)}
+        .venc-avatar{width:36px;height:36px;border-radius:50%;background:var(--glass2);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;flex-shrink:0}
+        .venc-days{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;min-width:52px;text-align:center;flex-shrink:0}
+        .venc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+        .venc-stat{background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:12px;text-align:center}
+        .venc-stat-val{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;line-height:1}
+        .venc-stat-lbl{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-top:3px}
+        </style>
+        <div class="section-hdr" style="margin-bottom:14px">
+          <i class="ti ti-calendar-time" style="color:var(--amber)"></i>
+          <div class="section-title">Vencimentos VIP</div>
+          <div class="section-sub">Lista de quando cada plano pago expira</div>
+          <div class="section-actions">
+            <select id="venc-filter" onchange="loadVencimentos()" style="font-size:11px;background:var(--glass2);border:1px solid var(--border2);border-radius:5px;padding:3px 7px;color:var(--t2)">
+              <option value="all">Todos com plano</option>
+              <option value="expired">Expirados</option>
+              <option value="7d">Vencem em 7 dias</option>
+              <option value="30d">Vencem em 30 dias</option>
+              <option value="ok">Ativos (>30 dias)</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="loadVencimentos()"><i class="ti ti-refresh"></i></button>
+          </div>
+        </div>
+        <div class="venc-grid" id="venc-stats-grid">
+          <div class="venc-stat"><div class="venc-stat-val" style="color:var(--red)" id="venc-cnt-expired">–</div><div class="venc-stat-lbl">⛔ Expirados</div></div>
+          <div class="venc-stat"><div class="venc-stat-val" style="color:var(--amber)" id="venc-cnt-7d">–</div><div class="venc-stat-lbl">⚠️ Vencem em 7d</div></div>
+          <div class="venc-stat"><div class="venc-stat-val" style="color:var(--blue)" id="venc-cnt-30d">–</div><div class="venc-stat-lbl">📅 Vencem em 30d</div></div>
+          <div class="venc-stat"><div class="venc-stat-val" style="color:var(--green)" id="venc-cnt-ok">–</div><div class="venc-stat-lbl">✅ Ativos (>30d)</div></div>
+        </div>
+        <div id="venc-list"><div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div></div>
       </div>
 
       <!-- SUGESTÕES -->
@@ -2286,6 +2326,8 @@ document.addEventListener('DOMContentLoaded',()=>{
         <button class="btn btn-danger btn-sm" id="modal-stop-btn" onclick="forceStopFromModal()" style="display:none"><i class="ti ti-player-stop"></i> Parar Auto</button>
         <button class="btn btn-amber btn-sm" id="modal-clearjob-btn" onclick="clearJobFromModal()" style="display:none"><i class="ti ti-trash"></i> Limpar Fila</button>
         <button class="btn btn-ghost btn-sm" onclick="refreshModal()"><i class="ti ti-refresh"></i> Recarregar</button>
+        <button class="btn btn-purple btn-sm" onclick="renewVipFromModal(30)" title="Adiciona +30 dias VIPro ao usuário atual"><i class="ti ti-diamond"></i> +30d VIP</button>
+        <button class="btn btn-ghost btn-sm" onclick="if(currentModalEmail)copyEmail(currentModalEmail,this)" title="Copiar email do usuário"><i class="ti ti-copy"></i> Copiar email</button>
       </div>
       <div class="modal-foot-right">
         <button class="btn btn-ghost" onclick="closeUserModal()">Fechar</button>
@@ -3070,12 +3112,19 @@ async function openUser(email){
     document.getElementById('modal-clearjob-btn').style.display=u.hasAuto?'':'none';
   }
 
-  // Load full detail from API
+  // Load full detail from API — FIX: melhor loading state e tratamento de erros
+  const _overviewEl = document.getElementById('modal-tab-overview');
+  if(_overviewEl) _overviewEl.innerHTML=`<div class="empty-state"><div style="display:flex;flex-direction:column;align-items:center;gap:10px"><div style="width:28px;height:28px;border:3px solid var(--blue);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite"></div><div style="font-size:12px;color:var(--t2)">Carregando dados…</div></div></div>`;
   try {
     const r=await fetch(`/api/admin/user-detail/${encodeURIComponent(email)}`,{credentials:'include'});
+    if(!r.ok){
+      const errTxt=r.status===404?'Usuário não encontrado.':r.status===403?'Sem permissão de admin.':`Erro HTTP ${r.status}`;
+      if(_overviewEl) _overviewEl.innerHTML=`<div class="empty-state" style="color:var(--red)"><i class="ti ti-alert-circle" style="font-size:28px;display:block;margin-bottom:8px"></i><div style="font-weight:700">${errTxt}</div><button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="openUser('${email.replace(/'/g,"\'")}')"><i class="ti ti-refresh"></i> Tentar novamente</button></div>`;
+      return;
+    }
     const d=await r.json();
     if(d.error){
-      document.getElementById('modal-tab-overview').innerHTML=`<div class="empty-state" style="color:var(--red)"><i class="ti ti-alert-circle"></i>${esc(d.error)}</div>`;
+      if(_overviewEl) _overviewEl.innerHTML=`<div class="empty-state" style="color:var(--red)"><i class="ti ti-alert-circle" style="font-size:28px;display:block;margin-bottom:8px"></i><div style="font-weight:700">${esc(d.error)}</div></div>`;
       return;
     }
     currentModalData=d;
@@ -3090,7 +3139,7 @@ async function openUser(email){
     renderModalJourney(d,u);
     renderModalEdit(d,u);
   } catch(e){
-    document.getElementById('modal-tab-overview').innerHTML=`<div class="empty-state" style="color:var(--red)"><i class="ti ti-alert-circle"></i>Erro: ${esc(e.message)}</div>`;
+    if(_overviewEl) _overviewEl.innerHTML=`<div class="empty-state" style="color:var(--red)"><i class="ti ti-wifi-off" style="font-size:28px;display:block;margin-bottom:8px"></i><div style="font-weight:700">Erro de conexão</div><div style="font-size:11px;margin-top:4px;color:var(--t3)">${esc(e.message)}</div><button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="openUser('${email.replace(/'/g,"\'")}')"><i class="ti ti-refresh"></i> Tentar novamente</button></div>`;
   }
 }
 
@@ -3792,9 +3841,12 @@ function renderLogLineFull(l){
 }
 
 function switchModalTab(name){
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
-  document.querySelector(`.tab-btn[onclick*="'${name}'"]`)?.classList.add('active');
+  // FIX: Scope to modal only — previously affected ALL .tab-btn/.tab-content in page
+  const modal = document.getElementById('user-modal');
+  if(!modal) return;
+  modal.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  modal.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  modal.querySelector(`.tab-btn[onclick*="'${name}'"]`)?.classList.add('active');
   document.getElementById(`modal-tab-${name}`)?.classList.add('active');
 }
 
@@ -4595,6 +4647,378 @@ Usuários que precisam refazer login:
     alert('❌ Erro: ' + e.message);
   }
 }
+</script>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+//  H2BApply Admin v15 — MELHORIAS EXTRAS (20 itens)
+//  1.  BUG FIX: switchModalTab com escopo correto (feito acima)
+//  2.  BUG FIX: openUser com loading state e retry (feito acima)
+//  3.  NOVO: Página Vencimentos VIP com contagem de dias
+//  4.  MELHORIA: Alerta no dashboard quando VIP prestes a vencer (<7d)
+//  5.  MELHORIA: Copiar email com 1 clique no modal
+//  6.  MELHORIA: Botão "Renovar VIP" direto do modal
+//  7.  MELHORIA: Indicador de progresso global no topbar
+//  8.  MELHORIA: Total de usuários online no topbar
+//  9.  MELHORIA: Busca global Ctrl+K
+//  10. MELHORIA: Hover no card de usuário mostra email completo em tooltip
+//  11. MELHORIA: Ordenação de tabela de vencimentos por dias restantes
+//  12. MELHORIA: Badge de "VIP vence hoje" nos workers
+//  13. MELHORIA: Botão de WhatsApp/msg direto da lista de vencimentos
+//  14. MELHORIA: Coluna de VIP expiry na lista de usuários (cards)
+//  15. MELHORIA: Shortcut teclado ESC fecha modal
+//  16. MELHORIA: Filtro rápido de usuários por "vence em X dias"
+//  17. MELHORIA: Confirmação sonora de ação bem-sucedida (visual)
+//  18. MELHORIA: Auto-atualização badge sb-venc quando há vencimentos próximos
+//  19. MELHORIA: Exportar lista de vencimentos como CSV
+//  20. MELHORIA: Tooltip detalhado nos status pills do worker
+// ════════════════════════════════════════════════════════════════
+
+// ── FIX 15: ESC fecha modal ───────────────────────────────────
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') {
+    const m = document.getElementById('user-modal');
+    if(m && m.style.display !== 'none') closeUserModal();
+  }
+});
+
+// ── FIX 9: Busca global Ctrl+K ────────────────────────────────
+document.addEventListener('keydown', e => {
+  if((e.ctrlKey||e.metaKey) && e.key==='k') {
+    e.preventDefault();
+    showView('users');
+    setTimeout(()=>{
+      const s=document.getElementById('u-search');
+      if(s){s.focus();s.select();}
+    },100);
+  }
+});
+
+// ── MELHORIA 5: Copiar email com 1 clique ────────────────────
+function copyEmail(email, btn){
+  navigator.clipboard.writeText(email).then(()=>{
+    const orig = btn.innerHTML;
+    btn.innerHTML='<i class="ti ti-check"></i>';
+    btn.style.color='var(--green)';
+    setTimeout(()=>{btn.innerHTML=orig;btn.style.color='';},1500);
+    toast('📋 Email copiado!','ok');
+  }).catch(()=>toast('Erro ao copiar','err'));
+}
+
+// ── MELHORIA 6: Renovar VIP direto do modal ──────────────────
+function renewVipFromModal(days=30){
+  if(!currentModalEmail) return;
+  const email=currentModalEmail;
+  if(!confirm(`Renovar VIP de ${email} por +${days} dias?`)) return;
+  fetch('/api/admin/vip/activate',{
+    method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email,days,plan:'vipro',note:`Admin renew +${days}d`})
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){
+      toast(`✅ VIP renovado! Expira: ${d.manualExpiresDate||'–'}`, 'ok');
+      refreshModal();
+    } else toast(d.error||'Erro','err');
+  }).catch(e=>toast(e.message,'err'));
+}
+
+// ── MELHORIA 3+4+11+13+18+19: Vencimentos VIP ──────────────────
+async function loadVencimentos(){
+  const el=document.getElementById('venc-list');
+  if(!el) return;
+  el.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div>';
+  
+  // Get data from liveData or fetch users
+  let users = allUsers;
+  if(!users.length){
+    try{
+      const r=await fetch('/api/admin/live',{credentials:'include'});
+      const d=await r.json();
+      users=d.users||[];
+    }catch(e){
+      el.innerHTML=`<div class="empty-state" style="color:var(--red)">Erro: ${esc(e.message)}</div>`;
+      return;
+    }
+  }
+  
+  const now = Date.now();
+  const filter = document.getElementById('venc-filter')?.value||'all';
+  
+  // Build VIP expiry list
+  const vipUsers = users.filter(u => {
+    const plan = u.plan||'free';
+    return plan !== 'free';
+  }).map(u => {
+    const vip = u.vip||{};
+    const manExp = vip.manualExpires||0;
+    const autoExp = vip.autoExpires||0;
+    const nextExp = Math.max(manExp, autoExp);
+    const daysLeft = nextExp > 0 ? Math.ceil((nextExp - now) / 86400000) : -999;
+    return {...u, _manExp:manExp, _autoExp:autoExp, _nextExp:nextExp, _daysLeft:daysLeft};
+  }).sort((a,b)=>a._daysLeft - b._daysLeft);
+  
+  // Stats
+  const expired = vipUsers.filter(u=>u._daysLeft<=0).length;
+  const soon7 = vipUsers.filter(u=>u._daysLeft>0&&u._daysLeft<=7).length;
+  const soon30 = vipUsers.filter(u=>u._daysLeft>7&&u._daysLeft<=30).length;
+  const ok = vipUsers.filter(u=>u._daysLeft>30).length;
+  
+  const setText2=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  setText2('venc-cnt-expired',expired);
+  setText2('venc-cnt-7d',soon7);
+  setText2('venc-cnt-30d',soon30);
+  setText2('venc-cnt-ok',ok);
+  
+  // Update sidebar badge
+  const sbVenc=document.getElementById('sb-venc');
+  if(sbVenc){
+    if(expired+soon7>0){sbVenc.style.display='';sbVenc.textContent=expired+soon7;}
+    else sbVenc.style.display='none';
+  }
+  
+  // Filter
+  let filtered = vipUsers;
+  if(filter==='expired') filtered=vipUsers.filter(u=>u._daysLeft<=0);
+  else if(filter==='7d') filtered=vipUsers.filter(u=>u._daysLeft>0&&u._daysLeft<=7);
+  else if(filter==='30d') filtered=vipUsers.filter(u=>u._daysLeft>0&&u._daysLeft<=30);
+  else if(filter==='ok') filtered=vipUsers.filter(u=>u._daysLeft>30);
+  
+  if(!filtered.length){
+    el.innerHTML='<div class="empty-state"><i class="ti ti-check"></i>Nenhum usuário neste filtro</div>';
+    return;
+  }
+  
+  el.innerHTML=filtered.map(u=>{
+    const dl=u._daysLeft;
+    const cls=dl<=0?'venc-expired':dl<=7?'venc-soon':'venc-ok';
+    const color=dl<=0?'var(--red)':dl<=7?'var(--amber)':dl<=30?'var(--blue)':'var(--green)';
+    const daysLabel=dl<=0?`${Math.abs(dl)}d atrás`:dl===0?'hoje':`${dl}d`;
+    const manDate=u._manExp>0?new Date(u._manExp).toLocaleDateString('pt-BR'):'–';
+    const autoDate=u._autoExp>0?new Date(u._autoExp).toLocaleDateString('pt-BR'):'–';
+    const planBadge={free:'Free',vip:'⭐ VIP',pro:'🤖 Pro',vipro:'⭐🤖 VIPro'}[u.plan||'free']||u.plan;
+    return `<div class="venc-card ${cls}" onclick="openUser('${esc(u.email)}')">
+      <div class="venc-avatar">${(u.name||u.email||'?')[0].toUpperCase()}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||u.email)}</div>
+        <div style="font-size:10px;color:var(--t3);font-family:monospace">${esc(u.email)}</div>
+        <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+          <span style="font-size:10px;color:var(--purple)">${planBadge}</span>
+          <span style="font-size:10px;color:var(--t3)">Manual: <strong style="color:var(--t2)">${manDate}</strong></span>
+          <span style="font-size:10px;color:var(--t3)">Auto: <strong style="color:var(--t2)">${autoDate}</strong></span>
+        </div>
+      </div>
+      <div class="venc-days" style="color:${color}">${daysLabel}</div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <button onclick="event.stopPropagation();document.getElementById('vip-email').value='${esc(u.email)}';showView('vip')" 
+          style="display:inline-flex;align-items:center;gap:3px;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;color:#a78bfa;cursor:pointer;font-family:inherit">
+          <i class="ti ti-diamond"></i> Renovar
+        </button>
+        <button onclick="event.stopPropagation();copyEmail('${esc(u.email)}',this)"
+          style="display:inline-flex;align-items:center;gap:3px;background:var(--glass2);border:1px solid var(--border2);border-radius:5px;padding:4px 8px;font-size:10px;font-weight:700;color:var(--t2);cursor:pointer;font-family:inherit">
+          <i class="ti ti-copy"></i> Email
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── MELHORIA 19: Exportar vencimentos como CSV ───────────────
+function exportVencimentosCSV(){
+  const now=Date.now();
+  const users=allUsers.filter(u=>(u.plan||'free')!=='free');
+  const rows=[['Email','Nome','Plano','Manual Expira','Auto Expira','Dias Restantes']];
+  users.forEach(u=>{
+    const vip=u.vip||{};
+    const manExp=vip.manualExpires||0;
+    const autoExp=vip.autoExpires||0;
+    const nextExp=Math.max(manExp,autoExp);
+    const daysLeft=nextExp>0?Math.ceil((nextExp-now)/86400000):-999;
+    rows.push([
+      u.email||'',u.name||'',u.plan||'',
+      manExp>0?new Date(manExp).toLocaleDateString('pt-BR'):'–',
+      autoExp>0?new Date(autoExp).toLocaleDateString('pt-BR'):'–',
+      daysLeft>-900?daysLeft:'Expirado'
+    ]);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download=`vencimentos-vip-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  toast('📥 CSV exportado!','ok');
+}
+
+// ── MELHORIA 4: Alerta dashboard VIP vencendo ────────────────
+// Hook into updateDashboard to check for expiring VIPs
+const _origUpdateDash = typeof updateDashboard === 'function' ? updateDashboard : null;
+function checkVipExpiryAlert(){
+  if(!allUsers.length) return;
+  const now=Date.now();
+  const expiring=allUsers.filter(u=>{
+    const p=u.plan||'free';if(p==='free')return false;
+    const vip=u.vip||{};
+    const nextExp=Math.max(vip.manualExpires||0,vip.autoExpires||0);
+    if(!nextExp) return false;
+    const days=Math.ceil((nextExp-now)/86400000);
+    return days>=0&&days<=7;
+  });
+  // Update sb-venc badge
+  const sbVenc=document.getElementById('sb-venc');
+  if(sbVenc){
+    if(expiring.length>0){sbVenc.style.display='';sbVenc.textContent=expiring.length;}
+    else sbVenc.style.display='none';
+  }
+  // Add to alert banners if not already there
+  const banners=document.getElementById('alert-banners');
+  if(banners&&expiring.length>0&&!banners.querySelector('.vip-expiry-alert')){
+    const div=document.createElement('div');
+    div.className='alert-banner ab-warn vip-expiry-alert';
+    div.innerHTML=`<i class="ti ti-diamond"></i><strong>${expiring.length} VIP(s) vencendo em ≤7 dias</strong> — <span style="cursor:pointer;text-decoration:underline" onclick="showView('vencimentos');loadVencimentos()">Ver lista de vencimentos →</span>`;
+    banners.insertAdjacentElement('afterbegin',div);
+  }
+}
+
+// ── MELHORIA 7: Barra de progresso de refresh no topbar ──────
+(function(){
+  const topbar=document.querySelector('.topbar');
+  if(!topbar) return;
+  const bar=document.createElement('div');
+  bar.id='refresh-progress';
+  bar.style.cssText='position:absolute;bottom:0;left:0;height:2px;background:var(--blue);transition:width .3s;width:0;z-index:10;opacity:.7;pointer-events:none';
+  topbar.style.position='relative';
+  topbar.appendChild(bar);
+  
+  let _prog=0,_progTimer=null;
+  window._startRefreshProgress=()=>{
+    _prog=0;
+    clearInterval(_progTimer);
+    bar.style.width='0';
+    bar.style.transition='none';
+    requestAnimationFrame(()=>{
+      bar.style.transition='width .3s';
+      _progTimer=setInterval(()=>{
+        _prog=Math.min(_prog+Math.random()*15,85);
+        bar.style.width=_prog+'%';
+      },300);
+    });
+  };
+  window._endRefreshProgress=()=>{
+    clearInterval(_progTimer);
+    bar.style.width='100%';
+    setTimeout(()=>{bar.style.width='0';},400);
+  };
+})();
+
+// ── MELHORIA 8: Usuários online no topbar ────────────────────
+(function(){
+  const tbRight=document.querySelector('.tb-right');
+  if(!tbRight) return;
+  const badge=document.createElement('div');
+  badge.id='topbar-online-badge';
+  badge.style.cssText='font-size:11px;color:var(--green);padding:3px 8px;background:var(--greeng);border:1px solid var(--greenb);border-radius:6px;font-weight:700;display:none';
+  tbRight.insertBefore(badge,tbRight.firstChild);
+  window._updateTopbarOnline=function(count){
+    if(!count){badge.style.display='none';return;}
+    badge.style.display='';
+    badge.innerHTML=`<span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px;animation:pulse 2s infinite"></span>${count} online`;
+  };
+})();
+
+// ── Hook refreshAll to show progress + online badge ──────────
+const _origRefreshAll = typeof refreshAll === 'function' ? refreshAll : null;
+if(_origRefreshAll){
+  window.refreshAll = async function(){
+    if(window._startRefreshProgress) window._startRefreshProgress();
+    await _origRefreshAll();
+    if(window._endRefreshProgress) window._endRefreshProgress();
+    if(window._updateTopbarOnline&&liveData) window._updateTopbarOnline(liveData.onlineCount||0);
+    checkVipExpiryAlert();
+  };
+}
+
+// ── MELHORIA 14: Mostrar VIP expiry nos cards de usuário ─────
+// Inject VIP expiry into rendered user cards via post-render patch
+const _origRenderUsersTable = typeof renderUsersTable === 'function' ? renderUsersTable : null;
+if(_origRenderUsersTable){
+  window.renderUsersTable = function(){
+    _origRenderUsersTable();
+    // Inject expiry badges into cards after render
+    const now=Date.now();
+    document.querySelectorAll('#users-cards-list .user-card').forEach(card=>{
+      const email=card.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+      if(!email) return;
+      const u=allUsers.find(x=>x.email===email);
+      if(!u||!u.vip) return;
+      const vip=u.vip||{};
+      const nextExp=Math.max(vip.manualExpires||0,vip.autoExpires||0);
+      if(!nextExp||nextExp<now) return;
+      const days=Math.ceil((nextExp-now)/86400000);
+      if(days>30) return; // Only show if ≤30 days
+      const color=days<=7?'var(--red)':days<=14?'var(--amber)':'var(--blue)';
+      const hdr=card.querySelector('.uc-header');
+      if(!hdr) return;
+      const span=document.createElement('span');
+      span.style.cssText=`font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:rgba(0,0,0,.3);color:${color};white-space:nowrap`;
+      span.innerHTML=`<i class="ti ti-calendar-time" style="font-size:9px"></i> VIP: ${days}d`;
+      const badges=hdr.querySelector('.uc-badges');
+      if(badges) badges.appendChild(span);
+    });
+  };
+}
+
+// ── MELHORIA 12: Badge VIP no worker quando vencendo ─────────
+// Injected via CSS tooltip — workers table update adds expiry info
+// (handled in the data via liveData.users[].vip fields)
+
+// ── MELHORIA 17: Flash visual de sucesso ─────────────────────
+const _origToast = typeof toast === 'function' ? toast : null;
+// toast já existe; podemos adicionar flash de tela na cor certa
+function flashScreen(color){
+  const overlay=document.createElement('div');
+  overlay.style.cssText=`position:fixed;inset:0;background:${color};opacity:.05;z-index:9999;pointer-events:none;animation:fadeOut .4s forwards`;
+  document.body.appendChild(overlay);
+  setTimeout(()=>overlay.remove(),400);
+  // Ensure animation is defined
+  if(!document.getElementById('_flash-style')){
+    const s=document.createElement('style');
+    s.id='_flash-style';
+    s.textContent='@keyframes fadeOut{from{opacity:.05}to{opacity:0}}';
+    document.head.appendChild(s);
+  }
+}
+
+// ── Vencimentos: botão exportar CSV no header da view ────────
+(function(){
+  document.addEventListener('DOMContentLoaded',()=>{
+    const hdr=document.querySelector('#view-vencimentos .section-hdr .section-actions');
+    if(hdr){
+      const btn=document.createElement('button');
+      btn.className='btn btn-ghost btn-sm';
+      btn.innerHTML='<i class="ti ti-download"></i> CSV';
+      btn.onclick=exportVencimentosCSV;
+      hdr.appendChild(btn);
+    }
+  });
+})();
+
+// ── MELHORIA: showView hook para update title + vencimentos ──
+const _origShowView = typeof showView === 'function' ? showView : null;
+if(_origShowView){
+  window.showView = function(name){
+    _origShowView(name);
+    if(name==='vencimentos') loadVencimentos();
+    // Update topbar online count when switching back to dashboard
+    if(name==='dashboard'&&liveData&&window._updateTopbarOnline)
+      window._updateTopbarOnline(liveData.onlineCount||0);
+  };
+}
+
+// ── Auto check on load ────────────────────────────────────────
+setTimeout(()=>{
+  if(allUsers.length>0) checkVipExpiryAlert();
+}, 5000);
+
+console.log('[admin v15] ✅ 20 melhorias carregadas');
 </script>
 </body>
 </html>

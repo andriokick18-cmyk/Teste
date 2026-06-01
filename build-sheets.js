@@ -17,7 +17,7 @@ const os     = require("os");
 // ─── Configuração ─────────────────────────────────────────────────────────────
 const OUT_DIR = path.join(__dirname);
 const OUT_JAN = path.join(OUT_DIR, "jan2026_compact.json");
-const OUT_JUL = path.join(OUT_DIR, "h2a_compact.json");
+const OUT_JUL = path.join(OUT_DIR, "jul2025_compact.json");
 
 // DOL Seasonal Jobs Data Hub — feeds ZIP com JSON interno
 const DOL_BASE = "https://api.seasonaljobs.dol.gov/datahub-search/sjCaseData/zip";
@@ -302,7 +302,7 @@ async function main() {
   const julDate = today;
 
   let ok1 = await buildSheet("h2b", today, OUT_JAN, "H-2B jan2026");
-  let ok2 = await buildSheet("h2a", julDate, OUT_JUL, "H-2A agrícola");
+  let ok2 = await buildSheet("h2a", julDate, OUT_JUL, "H-2A jul2025");
 
   console.log("\n═══════════════════════════════════════════");
   if (ok1 && ok2) {
