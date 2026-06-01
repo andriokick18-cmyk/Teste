@@ -302,7 +302,7 @@ const _setUserPersistDebounce = { tid: null };
 const setUser    = (e,d) => {
   DB_USERS[e]={...(DB_USERS[e]||{}),...d};
   // Persiste imediatamente apenas para campos críticos (token, vip, admin)
-  const isCritical = d.refresh_token || d.cached_access_token || d.vip || d.isAdmin || d.plan || d.cvs || d.profiles;
+  const isCritical = d.refresh_token || d.cached_access_token || d.vip || d.isAdmin || d.plan || d.cvs || d.profiles || d.senderEmails;
   if (isCritical) {
     persist(USERS_FILE, DB_USERS);
   } else {
@@ -1496,15 +1496,33 @@ async function _doAutoSendInner(email) {
   // ── Token — nunca pausa sem tentar renovar primeiro ──────
   const logEntry = { company:target.company||"", to:target.to||"", jobTitle:target.title||"", category:target.category||"other", state:target.state||"", city:target.city||"", source:job.source||"", resumeName:"", error:"", profileUsed:"", selectedProfileName:"" };
   let accessToken = null;
+  let _autoSenderEmail = email; // email que vai realmente enviar (principal ou extra)
 
-  // Prioridade 1: sessão ativa em memória
+  // Prioridade 0: round-robin entre senders extras (se usuário tem extras ativos)
+  // Fazemos isso ANTES de usar a sessão para garantir distribuição igualitária
+  const _userData0 = getUser(email);
+  const _activeSenders = (_userData0?.senderEmails||[]).filter(s=>s.active!==false&&!s.tokenExpired&&!s.blocked);
+  if (_activeSenders.length > 0) {
+    try {
+      const {token:sndTok0, senderEmail:sndEmail0} = await getSenderToken(email, null);
+      if (sndTok0) {
+        accessToken = sndTok0;
+        _autoSenderEmail = sndEmail0;
+        console.log(`[auto] 📧 Round-robin sender: ${sndEmail0}`);
+      }
+    } catch(e) { console.warn("[auto] round-robin erro:", e.message); }
+  }
+
+  // Prioridade 1: sessão ativa em memória (só se não usou sender extra)
   const sessArr = Object.values(sessions).filter(s => s.user_email === email && s.access_token);
   const sess    = sessArr[0] || null;
   const sessId  = sess ? Object.keys(sessions).find(k => sessions[k] === sess) : null;
-  if (sess && sess.expires_at && Date.now() > sess.expires_at - 120_000) {
-    try { await refreshToken(sessId); } catch(e) { console.warn("[auto] refresh sessão:", e.message); }
+  if (!accessToken) {
+    if (sess && sess.expires_at && Date.now() > sess.expires_at - 120_000) {
+      try { await refreshToken(sessId); } catch(e) { console.warn("[auto] refresh sessão:", e.message); }
+    }
+    if (sess?.access_token) accessToken = sess.access_token;
   }
-  if (sess?.access_token) accessToken = sess.access_token;
 
   // Prioridade 2: token cacheado no banco ainda válido
   if (!accessToken) {
@@ -1514,17 +1532,7 @@ async function _doAutoSendInner(email) {
     }
   }
 
-  // Prioridade 2.5: sender extra via round-robin
-  if (!accessToken) {
-    try {
-      const {token:sndTok, senderEmail:sndEmail} = await getSenderToken(email, null);
-      if (sndTok) {
-        accessToken = sndTok;
-        job._currentSenderEmail = sndEmail;
-        console.log(`[auto] 📧 Usando sender extra: ${sndEmail}`);
-      }
-    } catch(e) { console.warn("[auto] getSenderToken erro:", e.message); }
-  }
+  // (round-robin de senders já feito na prioridade 0)
 
   // Prioridade 3: renovar via refresh_token (sempre tenta antes de pausar)
   if (!accessToken) {
@@ -1789,7 +1797,7 @@ async function _doAutoSendInner(email) {
         threadId:  gmBody?.threadId || null,
         jobSnapshot: snap,
         type:      "auto",
-        senderEmail: job._currentSenderEmail || email,
+        senderEmail: _autoSenderEmail || email,
         attachCount: attachments.length,
         category:  target.category,
         state:     target.state,
@@ -3018,7 +3026,8 @@ const server=http.createServer(async(req,res)=>{
       console.log(`[sender] ✅ ${newEmail} adicionado como sender de ${ownerEmail}`);
       trackJourney(ownerEmail,'sender_added',{detail:`Sender adicionado: ${newEmail}`});
       // Redireciona de volta ao perfil com toast de sucesso
-      const page=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Gmail adicionado!</title></head><body><script>sessionStorage.setItem('senderAdded','${newEmail}');window.location.href='/?tab=profile';</script></body></html>`;
+      const _safeEmail=JSON.stringify(newEmail);
+      const page=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Gmail adicionado!</title></head><body><script>sessionStorage.setItem('senderAdded',${_safeEmail});window.location.href='/';<\/script></body></html>`;
       res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Content-Length":Buffer.byteLength(page),"Cache-Control":"no-cache"});return res.end(page);
     }catch(e){return fail("Erro ao adicionar email: "+e.message);}
   }

@@ -4344,7 +4344,15 @@ function showApp(){
   loadTabCounts();
   // Abre na HOME após login (não direto em Vagas)
   history.replaceState({view:"home"},"",location.pathname+location.search);
-  sv("home");
+  // Multi-sender: se voltou do OAuth de sender, vai direto ao perfil
+  const _sndAdded=sessionStorage.getItem("senderAdded");
+  if(_sndAdded){
+    sessionStorage.removeItem("senderAdded");
+    sv("profile");
+    setTimeout(()=>toast(`Gmail ${_sndAdded} adicionado! ✓`,"g"),400);
+  } else {
+    sv("home");
+  }
   // Carrega inbox em background para badge
   setTimeout(()=>fetch("/api/inbox?limit=200",{credentials:"include"}).then(r=>r.json()).then(d=>{if(d.ok){INBOX_EMAILS=d.emails||[];_mergeReadState();_updateInboxStats();updInboxBadge(INBOX_EMAILS.filter(e=>!e.isRead).length);_renderHomeReplies();}}).catch(()=>{}),1500);
   // Mensagem de boas-vindas: APENAS no primeiro login verdadeiro (onboarded===false)
@@ -5430,10 +5438,9 @@ async function removeSender(email){
   }catch(e){toast("Erro: "+e.message,"r");}
 }
 
-// Verifica se voltou do OAuth de sender e mostra toast
+// Verifica se voltou do OAuth de sender — tratado em showApp()
+// returnToProfile: limpar se existir
 (function(){
-  const added=sessionStorage.getItem("senderAdded");
-  if(added){sessionStorage.removeItem("senderAdded");setTimeout(()=>{toast(`Gmail ${added} adicionado com sucesso! ✓`,"g");sv("profile");},500);}
   const rtp=sessionStorage.getItem("returnToProfile");
   if(rtp){sessionStorage.removeItem("returnToProfile");}
 })();
