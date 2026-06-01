@@ -610,7 +610,7 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .auto-controls-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 /* Wizard steps */
 .wizard-step{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:14px 16px;margin-bottom:10px;transition:all .2s}
-.wizard-step.locked{opacity:.6;pointer-events:none}
+.wizard-step.locked{opacity:.55;cursor:not-allowed}
 .wizard-step-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .wizard-step-n{width:26px;height:26px;border-radius:50%;background:var(--sf3);color:var(--t2);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .wizard-step-n.done{background:var(--green);color:#fff}
@@ -1591,6 +1591,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <div class="ln-vip-pill">🎁 <strong id="trial-badge-txt">5 dias VIP GRÁTIS</strong> para novos usuários!</div>
         <h1 class="ln-hero-title">Trabalhe nos<br><span class="ln-title-usa">Estados Unidos</span></h1>
         <p class="ln-hero-sub">Candidate-se automaticamente a vagas H-2B e H-2A. Envio automático pelo Gmail, currículo salvo, anti-spam inteligente — tudo em um lugar.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+          <div style="background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);border-radius:10px;padding:7px 12px;font-size:11px;color:#93c5fd"><strong>🔧 H-2B:</strong> Hotéis, Landscaping, Frutos do mar, Resorts</div>
+          <div style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);border-radius:10px;padding:7px 12px;font-size:11px;color:#6ee7b7"><strong>🌾 H-2A:</strong> Fazendas, Colheita, Pecuária, Agricultura</div>
+        </div>
         <div class="ln-feats">
           <div class="ln-feat">🤖 Envio automático 24/7</div>
           <div class="ln-feat">🛡️ Anti-duplicata</div>
@@ -2425,6 +2429,9 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <div class="mrb-label">sua posição</div>
             </div>
           </div>
+          <div style="flex:1;text-align:center">
+            <div id="mrb-gap" style="display:none;font-size:10px;font-weight:700;color:#60a5fa;background:rgba(59,130,246,.15);border-radius:20px;padding:2px 8px;display:inline-block"></div>
+          </div>
           <div class="mrb-right">
             <div class="mrb-score" id="mrb-score">0</div>
             <div class="mrb-slbl" id="mrb-slbl">envios</div>
@@ -2623,7 +2630,15 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div class="auto-hero-title"><i class="ti ti-robot"></i> Envio Automático</div>
           <div class="auto-hero-sub">Configure uma vez. O sistema envia enquanto você trabalha.</div>
           <span class="auto-free-note"><i class="ti ti-gift"></i> 10 envios GRÁTIS/dia para todos!</span>
+          <!-- FIX #28: aviso de limite compartilhado -->
+          <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:6px;margin-bottom:2px">
+            ⚠️ Envios manuais e automáticos compartilham o limite de <strong id="auto-limit-shared"></strong>/dia
+          </div>
           <!-- Seletor H-2B / H-2A -->
+          <!-- FIX #22: aviso que emails saem do Gmail do usuário -->
+          <div style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:var(--blue)">
+            📧 Os e-mails serão enviados do seu Gmail: <strong id="auto-gmail-addr" style="color:var(--blue)">–</strong>. As empresas respondem direto para você.
+          </div>
           <div style="display:flex;gap:6px;margin-top:12px;background:rgba(255,255,255,.12);border-radius:10px;padding:3px" id="auto-visa-tabs">
             <button id="auto-tab-h2b" onclick="setAutoVisa('h2b')" style="flex:1;padding:8px 6px;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;font-family:inherit;background:#fff;color:#4f46e5;transition:all .15s">
               🔧 H-2B <span style="font-size:10px;font-weight:600;opacity:.7">não-agrícola</span>
@@ -2737,8 +2752,16 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             </div>
 
             <!-- ═══ BOTÕES ═══ -->
-            <div class="auto-controls-row" style="margin-bottom:12px">
+            <div class="auto-controls-row" style="margin-bottom:12px;flex-wrap:wrap;gap:6px">
               <button class="btn btn-secondary" id="auto-pause-btn" style="display:none" onclick="pauseAuto()">⏸ Pausar</button>
+              <button class="btn btn-secondary btn-sm" id="auto-pause-timer-btn" style="display:none" onclick="togglePauseTimer()" title="Pausar por tempo">⏱️ Pausar por...</button>
+              <div id="auto-pause-timer-menu" style="display:none;position:absolute;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:6px;min-width:150px;box-shadow:0 8px 24px rgba(0,0,0,.15);z-index:100;margin-top:4px">
+                <div style="font-size:11px;font-weight:700;color:var(--t3);padding:4px 8px;margin-bottom:2px">Pausar por:</div>
+                <button onclick="pauseAutoFor(1);togglePauseTimer()" style="width:100%;text-align:left;background:none;border:none;padding:7px 10px;cursor:pointer;font-family:inherit;font-size:13px;border-radius:6px;color:var(--text)" onmouseover="this.style.background='var(--sf2)'" onmouseout="this.style.background='none'">1 hora</button>
+                <button onclick="pauseAutoFor(2);togglePauseTimer()" style="width:100%;text-align:left;background:none;border:none;padding:7px 10px;cursor:pointer;font-family:inherit;font-size:13px;border-radius:6px;color:var(--text)" onmouseover="this.style.background='var(--sf2)'" onmouseout="this.style.background='none'">2 horas</button>
+                <button onclick="pauseAutoFor(4);togglePauseTimer()" style="width:100%;text-align:left;background:none;border:none;padding:7px 10px;cursor:pointer;font-family:inherit;font-size:13px;border-radius:6px;color:var(--text)" onmouseover="this.style.background='var(--sf2)'" onmouseout="this.style.background='none'">4 horas</button>
+                <button onclick="pauseAutoFor(8);togglePauseTimer()" style="width:100%;text-align:left;background:none;border:none;padding:7px 10px;cursor:pointer;font-family:inherit;font-size:13px;border-radius:6px;color:var(--text)" onmouseover="this.style.background='var(--sf2)'" onmouseout="this.style.background='none'">8 horas</button>
+              </div>
               <button class="btn btn-secondary" id="auto-resume-btn" style="display:none" onclick="resumeAuto()">▶ Retomar</button>
               <button class="btn btn-danger btn-sm" id="auto-stop-btn" style="display:none" onclick="stopAuto()">⏹ Parar</button>
               <button class="btn btn-secondary btn-sm" onclick="sv('logs')">📋 Ver logs</button>
@@ -2791,7 +2814,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             </div>
 
             <!-- Step 2: Filters -->
-            <div class="wizard-step locked" id="ws-2">
+            <div class="wizard-step locked" id="ws-2" onclick="if(this.classList.contains('locked'))toast('Escolha a fonte das vagas no Passo 1 primeiro','au')">
               <div class="wizard-step-hdr">
                 <div class="wizard-step-n" id="ws-n-2">2</div>
                 <div><div class="wizard-step-title">Filtros (opcional)</div><div class="wizard-step-sub">Refine as vagas por tipo e estado</div></div>
@@ -4284,6 +4307,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <button class="btn btn-primary" style="flex:3;min-width:140px" id="pe-save-btn" onclick="saveProfileFromEditor()">
           <i class="ti ti-check"></i> Salvar Perfil
         </button>
+        <!-- FIX #47: botão de teste de email -->
+        <button class="btn btn-secondary btn-sm" style="flex:2;min-width:120px" onclick="sendTestEmail()" title="Enviar e-mail de teste para o seu próprio Gmail">
+          <i class="ti ti-mail-forward"></i> Testar e-mail
+        </button>
         <button class="btn btn-secondary btn-sm" style="flex:1" onclick="duplicateProfile(editingProfileId)" id="pe-dup-btn" style="display:none">
           <i class="ti ti-copy"></i>
         </button>
@@ -4552,90 +4579,75 @@ function _syncDarkModeUI(){
 }
 
 addEventListener("DOMContentLoaded",async()=>{
-  // FIX-L1: Mostrar landing IMEDIATAMENTE enquanto checa o servidor
-  // Evita tela em branco — usuário vê a landing, depois o app aparece se logado
   showLanding();
-
   const ps=new URLSearchParams(location.search);
   const err=ps.get("err");
   if(err){const el=g("#login-err");if(el){el.style.display="block";el.textContent=decodeURIComponent(err);}}
   if(ps.get("ok"))history.replaceState({},"","/");
-
-  // FIX-L2: Iniciar loadPublicStats antes mesmo de checar sessão
   if(typeof loadPublicStats==="function") loadPublicStats();
-
   await checkStatus();
-  // FIX-L3: warmup só roda se há servidor (não no GitHub Pages)
   if(window._serverOnline){
     setInterval(function(){fetch("/api/warmup",{credentials:"include"}).catch(function(){});},4*60*1000);
   }
 });
 
-// FIX-L4: flag global para saber se o servidor está online
-window._serverOnline = false;
+// null = desconhecido (não bloqueia login), false = confirmado offline, true = online
+window._serverOnline = null;
 
 async function checkStatus(){
   try{
-    // FIX-L5: timeout de 8 segundos — sem isso a tela fica em branco para sempre
+    // FIX: 15s timeout — Render cold start pode demorar até 12s
     const ctrl=new AbortController();
-    const tid=setTimeout(()=>ctrl.abort(),8000);
+    const tid=setTimeout(()=>ctrl.abort(),15000);
     const r=await fetch("/api/status",{credentials:"include",signal:ctrl.signal});
     clearTimeout(tid);
 
-    // FIX-L6: se o servidor retornar HTML (GitHub Pages 404 page), não tentar parsear
     const ct=r.headers.get("content-type")||"";
     if(!ct.includes("application/json")){
-      console.warn("[boot] Servidor retornou não-JSON — provavelmente sem backend (GitHub Pages)");
+      console.warn("[boot] não-JSON — sem backend");
       window._serverOnline=false;
       showLanding();
-      _showOfflineWarning();
       return;
     }
 
     window._serverOnline=true;
     const d=await r.json();
     if(d.connected){
-      U={connected:true,email:d.email,name:d.name||d.email,picture:d.picture||"",isAdmin:!!d.isAdmin,plan:d.plan||"free",vip:d.vip||null,todaySentManual:d.todaySentManual||0,manualLimit:d.manualLimit||20,manualRemaining:d.manualRemaining||20,todaySentAuto:d.todaySentAuto||0,autoLimit:d.autoLimit||10,autoRemaining:d.autoRemaining||10,autoEnabled:true,autoJob:d.autoJob||null,autoStats:d.autoStats||{sent:0,failed:0},onboarded:!!d.onboarded,profiles:d.profiles||[]};
+      U={connected:true,email:d.email,name:d.name||d.email,picture:d.picture||"",isAdmin:!!d.isAdmin,plan:d.plan||"free",vip:d.vip||null,todaySentManual:d.todaySentManual||0,manualLimit:d.manualLimit||20,manualRemaining:d.manualRemaining||20,todaySentAuto:d.todaySentAuto||0,autoLimit:d.autoLimit||10,autoRemaining:d.autoRemaining||10,autoEnabled:true,autoJob:d.autoJob||null,autoJobH2b:d.autoJobH2b||(d.autoJob?.source!=='h2a'?d.autoJob:null)||null,autoJobH2a:d.autoJobH2a||(d.autoJob?.source==='h2a'?d.autoJob:null)||null,autoStats:d.autoStats||{sent:0,failed:0},onboarded:!!d.onboarded,profiles:d.profiles||[],planJustExpired:!!d.planJustExpired};
       UPROFILES=d.profiles||[];if(U)U.profiles=UPROFILES;
       CFG={name:d.name||"",country:d.country||"Brazil",phone:d.phone||"",city:d.city||"",language:d.language||"pt-BR",subject:d.settings?.subject||"",body:d.settings?.body||""};
       DOCS=d.cvs||[];
       activeResIdx=DOCS.filter(c=>(c.cvType||"resume")==="resume").slice(-1)[0]?.idx||null;
       if(d.readEmailIds?.length)_loadReadStateFromServer(d.readEmailIds);
-      if(d.language && LANG_DICT && LANG_DICT[d.language]){
-        if(_curLang !== d.language){
-          _curLang = d.language;
-          try{localStorage.setItem('h2b_lang',d.language);}catch{}
-        }
-      }
-      // FIX-L35: aplicar dark mode do servidor ao fazer login
-      if(d.settings?.darkMode) _applyServerDarkMode(d.settings.darkMode);
+      if(d.language&&LANG_DICT&&LANG_DICT[d.language]){if(_curLang!==d.language){_curLang=d.language;try{localStorage.setItem('h2b_lang',d.language);}catch{}}}
+      if(d.settings?.darkMode)_applyServerDarkMode(d.settings.darkMode);
       showApp();syncData();checkAdminMsg();_loadSentIds().then(_startSyncPoll);
-      setTimeout(applyLang, 100);
-      setTimeout(()=>_autoPushSetup().catch(()=>{}), 1500);
-      // FIX-F22: buscar status do automático imediatamente após login — não depender de dado antigo
+      setTimeout(applyLang,100);
+      setTimeout(()=>_autoPushSetup().catch(()=>{}),1500);
+      // Buscar status dos dois jobs (H2B + H2A)
       setTimeout(async()=>{
         try{
-          const r=await fetch("/api/auto/status",{credentials:"include"});
-          if(r.ok){const d=await r.json();if(d.job){U.autoJob={...d.job};U.autoStats=d.stats||U.autoStats;updateAutoUI&&updateAutoUI();updateAutoDot&&updateAutoDot(!!d.job?.active);}}
+          const ar=await fetch("/api/auto/status",{credentials:"include"});
+          if(ar.ok){const ad=await ar.json();
+            if(ad.jobH2b!==undefined){U.autoJobH2b=ad.jobH2b||null;U.autoJobH2a=ad.jobH2a||null;}
+            if(ad.job)U.autoJob={...ad.job};
+            updateAutoUI&&updateAutoUI();
+            updateAutoDot&&updateAutoDot(!!(U.autoJob?.active||U.autoJobH2b?.active||U.autoJobH2a?.active));
+          }
         }catch{}
       },800);
     }else{
       showLanding();
     }
   }catch(e){
-    // FIX-L7: AbortError = timeout = sem servidor; NetworkError = sem internet
-    const isTimeout = e.name==="AbortError";
-    const isOffline = e.name==="TypeError" && e.message.includes("fetch");
-    console.warn("[boot]",isTimeout?"timeout":"erro",e.message);
+    const isTimeout=e.name==="AbortError";
+    console.warn("[boot]",isTimeout?"timeout 15s":"erro",e.message);
     window._serverOnline=false;
     showLanding();
-    // FIX-L8: aviso específico se for timeout (servidor lento) vs offline
     if(isTimeout){
       const el=g("#login-err");
-      if(el){el.style.display="block";el.textContent="⏳ Servidor demorando a responder. Tente novamente em alguns segundos.";}
+      if(el){el.style.display="block";el.textContent="⏳ Servidor iniciando... Aguarde alguns segundos e tente novamente.";}
     }
-    // GitHub Pages / sem servidor: mostrar aviso discreto
-    if(isOffline || isTimeout) _showOfflineWarning();
   }
 }
 
@@ -4686,28 +4698,21 @@ function showApp(){
   // Carrega inbox em background para badge
   setTimeout(()=>fetch("/api/inbox?limit=200",{credentials:"include"}).then(r=>r.json()).then(d=>{if(d.ok){INBOX_EMAILS=d.emails||[];_mergeReadState();_updateInboxStats();updInboxBadge(INBOX_EMAILS.filter(e=>!e.isRead).length);_renderHomeReplies();}}).catch(()=>{}),1500);
 
-  // FIX-UX1: "Bem-vindo de volta" — mostra resumo do que aconteceu nos 7 dias
-  if(U.autoJob||U.autoJobH2b||U.autoJobH2a){
-    const anyJob=U.autoJob||U.autoJobH2b||U.autoJobH2a;
-    if(anyJob){
-      const orig=anyJob.originalCount||0;
-      const qs=anyJob.queueSize||0;
-      const sent=Math.max(0,orig-qs);
-      const src=anyJob.source==='h2a'?'H-2A':'H-2B';
-      const status=anyJob.active?"🟢 Ativo":"⏸️ Pausado";
-      if(sent>0){
-        // Mostra toast celebratório quando tem envios acumulados
-        setTimeout(()=>{
-          toast(`✈️ ${status} — ${sent.toLocaleString("pt-BR")} candidaturas ${src} enviadas no total!`,"g",6000);
-        },1200);
-      }
+  // FIX-UX1: "Bem-vindo de volta" — mostra resumo do que aconteceu
+  const _anyActiveJob=U.autoJob?.active||U.autoJobH2b?.active||U.autoJobH2a?.active;
+  const _anyJob=U.autoJobH2b||U.autoJobH2a||U.autoJob;
+  if(_anyActiveJob||_anyJob?.queueSize>0){
+    if(_anyJob){
+      const orig=_anyJob.originalCount||0;const qs=_anyJob.queueSize||0;
+      const sent=Math.max(0,orig-qs);const src=_anyJob.source==='h2a'?'H-2A':'H-2B';
+      const status=_anyJob.active?"🟢 Ativo":"⏸️ Pausado";
+      if(sent>0){setTimeout(()=>{toast(`✈️ ${status} — ${sent.toLocaleString("pt-BR")} candidaturas ${src} enviadas no total!`,"g",6000);},1200);}
     }
     startAutoPolling();updateAutoDot(true);
     fetch("/api/auto/status",{credentials:"include"}).then(r=>r.json()).then(d=>{
       if(d.jobH2b!==undefined){U.autoJobH2b=d.jobH2b||null;U.autoJobH2a=d.jobH2a||null;}
       _autoQueueIds=new Set(d.autoQueueIds||[]);
-      _syncAutoQueueVisibility();
-      renderHome();
+      _syncAutoQueueVisibility();renderHome();
     }).catch(()=>{});
   }
 
@@ -4817,11 +4822,18 @@ function renderHdr(){
 }
 function updateLimChip(){
   const c=g("#hdr-lim");if(!c)return;
-  if(U.autoJob?.active){c.className="lchip lc-a";c.innerHTML="🤖 Auto <strong>ON</strong>";}
-  else if(U.manualRemaining===0){c.className="lchip lc-x";c.innerHTML="🔒 Limite atingido";}
+  const anyAutoActive=U.autoJob?.active||U.autoJobH2b?.active||U.autoJobH2a?.active;
+  const h2aActive=U.autoJobH2a?.active||(U.autoJob?.active&&U.autoJob?.source==='h2a');
+  const h2bActive=U.autoJobH2b?.active||(U.autoJob?.active&&U.autoJob?.source!=='h2a');
+  if(anyAutoActive){
+    const parts=[];
+    if(h2bActive)parts.push("H-2B");
+    if(h2aActive)parts.push("H-2A");
+    c.className="lchip lc-a";
+    c.innerHTML=`🤖 ${parts.join("+")} <strong>ON</strong>`;
+  }else if(U.manualRemaining===0){c.className="lchip lc-x";c.innerHTML="🔒 Limite atingido";}
   else if(U.manualRemaining<=3){c.className="lchip lc-w";c.innerHTML=`⚠️ ${U.manualRemaining} restantes`;}
   else{
-    // FIX: doublepro estava faltando — aparecia como "Free" para o plano mais caro
     const planLabel={free:"Free",vip:"⭐VIP",pro:"🤖Pro",vipro:"⭐Pro",doublepro:"💎Double"}[U.plan]||"Free";
     c.className="lchip lc-ok";c.innerHTML=`${planLabel} · ${U.manualRemaining} envios`;
   }
@@ -5037,7 +5049,7 @@ function renderRanking(d){
     }
   }
 
-  // ── Sticky bottom bar ──
+  // ── Sticky bottom bar com score e gap para próxima posição ──
   const mrb=g("#my-rank-bar");
   if(mrb){
     if(myPos){
@@ -5045,6 +5057,15 @@ function renderRanking(d){
       g("#mrb-name").textContent=U.name||"Você";
       g("#mrb-score").textContent=(myPos.score||0).toLocaleString("pt-BR");
       g("#mrb-slbl").textContent=slbl;
+      // FIX #32: mostrar gap para posição anterior
+      const myIdx=entries.findIndex(e=>e.isMe);
+      const prevEntry=myIdx>0?entries[myIdx-1]:null;
+      const gapEl=g("#mrb-gap");
+      if(gapEl&&prevEntry){
+        const gap=(prevEntry.score||0)-(myPos.score||0);
+        gapEl.textContent=gap>0?`+${gap.toLocaleString("pt-BR")} para #${myPos.pos-1}`:"Você está no topo!";
+        gapEl.style.display="";
+      } else if(gapEl){gapEl.style.display="none";}
       mrb.classList.remove("gone");
     } else {
       mrb.classList.add("gone");
@@ -5104,6 +5125,12 @@ function stopRankTimer(){if(_rankTimer){clearInterval(_rankTimer);_rankTimer=nul
 //  SOURCE TABS + DYNAMIC CATEGORIES
 // ═══════════════════════════════════════════
 function setTab(t){
+  // FIX #3: mostrar spinner imediatamente ao trocar de aba
+  const jlist=g("#jlist");
+  if(jlist&&t!==tab){
+    const tabLabels={jan2026:"H-2B Jan 2026",jul2025:"H-2B Jul 2025",h2a:"H-2A Agrícola",seasonal:"Ao Vivo (DOL)"};
+    jlist.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:48px 20px;color:var(--t3)"><span class="spin spin-lg"></span><div style="font-size:13px;font-weight:600">Carregando vagas ${tabLabels[t]||t}...</div></div>`;
+  }
   tab=t;fCat="all";
   if(t!=="seasonal"&&fSort!=="random"){fSort="random";g("#so-rand")?.classList.add("on");g("#so-desc")?.classList.remove("on");g("#so-asc")?.classList.remove("on");}
   ["seasonal","jan2026","jul2025"].forEach(x=>{g("#stab-"+x)?.classList.toggle("active",x===t);});
@@ -5160,9 +5187,28 @@ function selectTabCat(cat){
 }
 
 async function loadTabCounts(){
-  for(const sh of["jan2026","jul2025"]){
-    try{const r=await fetch(`/api/sheet-meta?sheet=${sh}&skip=0&top=1`,{credentials:"include"});const d=await r.json();const el=g("#sc-"+(sh==="jan2026"?"jan":"jul"));if(el&&d.total)el.textContent=d.total>999?Math.round(d.total/1000)+"k":String(d.total);}catch{}
-    try{const r=await fetch(`/api/sheet-meta?sheet=${sh}&skip=0&top=1`,{credentials:"include"});const d=await r.json();const el=g("#src-"+(sh==="jan2026"?"jan":"jul")+"-cnt");if(el&&d.total)el.textContent=d.total.toLocaleString()+" vagas";}catch{}
+  for(const sh of["jan2026","jul2025","h2a"]){
+    try{
+      const r=await fetch(`/api/sheet-meta?sheet=${sh}&skip=0&top=1`,{credentials:"include"});
+      const d=await r.json();
+      if(!d.total)continue;
+      // Vagas já enviadas desta fonte
+      const _sentSet=sh==="jan2026"?_sentJan:sh==="h2a"?_sentH2A:_sentJul;
+      const sent=_sentSet.size;
+      const remaining=Math.max(0,d.total-sent);
+      // Aba de vagas
+      const tabEl=g("#sc-"+(sh==="jan2026"?"jan":sh==="h2a"?"h2a":"jul"));
+      if(tabEl)tabEl.textContent=d.total>999?Math.round(d.total/1000)+"k":String(d.total);
+      // Botão do wizard automático — mostra restantes
+      const srcEl=g("#src-"+(sh==="jan2026"?"jan":sh==="h2a"?"h2a":"jul")+"-cnt");
+      if(srcEl){
+        if(sent>0){
+          srcEl.innerHTML=`${remaining.toLocaleString()} restantes <span style="color:#10b981;font-size:10px">(${sent} enviadas)</span>`;
+        } else {
+          srcEl.textContent=d.total.toLocaleString()+" vagas";
+        }
+      }
+    }catch{}
   }
 }
 
@@ -5436,9 +5482,13 @@ async function selSheetJob(cn){
 // ═══════════════════════════════════════════
 function mkCard(j){
   const sv2=SAVED.has(j.id),ap=APPLIED.has(j.id),_inAQ=_autoQueueIds.has(j.id)||_autoQueueIds.has(j.caseNum);
-  // Occupation category detection with icons
   const catInfo=getOccupationCategory(j.title||"");
-  return`<div class="jcard${(ap||_inAQ)?" applied":""}" id="jcard-${j.id}" onclick="selJob2('${j.id}')"${(ap||_inAQ)?' style="display:none"':""}
+  // FIX #2: vagas na fila do automático não somem — mostram badge explicativo
+  if(ap&&!_inAQ){
+    return`<div class="jcard applied" id="jcard-${j.id}" style="display:none"></div>`;
+  }
+  const autoQueueBadge=_inAQ?`<span class="tag" style="background:rgba(124,58,237,.12);color:#7c3aed;border-color:rgba(124,58,237,.25);font-size:9px;font-weight:800">🤖 Na fila auto</span>`:"";
+  return`<div class="jcard${_inAQ?" auto-queued":""}" id="jcard-${j.id}" onclick="${_inAQ?`toast('Esta vaga já está na fila do automático ✓','au')`:`selJob2('${j.id}')`}"${_inAQ?' style="opacity:.6;cursor:default"':""}
     <button class="save-btn${sv2?" on":""}" onclick="event.stopPropagation();toggleSave('${j.id}')" aria-label="Salvar"><i class="ti ti-bookmark${sv2?"-filled":""}"></i></button>
     <div class="jcard-cat-row">
       <span class="jcard-cat-badge"><i class="ti ${catInfo.icon}" style="font-size:9px"></i> ${catInfo.name}</span>
@@ -5451,6 +5501,7 @@ function mkCard(j){
       <span class="tag tgr"><i class="ti ti-map-pin" style="font-size:9px"></i>${esc(j.state)}</span>
       ${j.wage&&j.wage!=="–"?`<span class="tag tg">${esc(j.wage)}</span>`:""}
       ${j.workers>1?`<span class="tag ta">${j.workers}×</span>`:""}
+      ${autoQueueBadge}
       ${ap?'<span class="tag tp">✓</span>':""}
     </div>
   </div>`;
@@ -5482,7 +5533,7 @@ function mkDetailHTML(j){
     </div>
     ${j.desc?`<div class="jd-desc">${esc(j.desc)}</div>`:""}
     <div class="jd-acts">
-      ${j.hasEmail?`<button class="btn btn-primary" onclick="openModal('${j.id}')"><i class="ti ti-send"></i> Candidatar-se</button>`:`<div style="font-size:13px;color:var(--t3);padding:9px 13px;background:var(--sf2);border-radius:var(--r);border:1.5px solid var(--border)"><i class="ti ti-alert-triangle"></i> Sem e-mail direto</div>`}
+      ${j.hasEmail?`<button class="btn btn-primary" onclick="openModal('${j.id}')"><i class="ti ti-send"></i> Candidatar-se${U.manualRemaining<=3&&U.manualRemaining>0?` (${U.manualRemaining} restante${U.manualRemaining===1?'':'s'} hoje)`:''}${U.manualRemaining===0?' (limite atingido)':''}</button>`:`<div style="font-size:13px;color:var(--t3);padding:9px 13px;background:var(--sf2);border-radius:var(--r);border:1.5px solid var(--border)"><i class="ti ti-alert-triangle"></i> Sem e-mail direto</div>`}
       <button class="btn btn-secondary" onclick="toggleSave('${j.id}')"><i class="ti ti-bookmark${SAVED.has(j.id)?"-filled":""}"></i></button>
       ${j.url?`<a class="btn btn-secondary" href="https://${j.url.replace(/^https?:\/\//,"")}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i></a>`:""}
     </div>
@@ -5510,6 +5561,11 @@ function toggleSave(id){
 async function openModal(jobId){
   const j=JOBS.find(x=>x.id===String(jobId))||sCache[jobId]||null;
   if(!j)return;
+  // FIX #4: verificar email antes de abrir modal
+  if(!j.email&&!j.hasEmail){
+    toast("Esta vaga não tem e-mail direto disponível.","r",4000);
+    return;
+  }
   if(U.manualRemaining<=0){sv("plans");toast("Limite diário atingido. Faça upgrade.","r");return;}
   // Verifica se tem perfil (busca fresca para evitar falso negativo)
   let _profiles=(UPROFILES.length?UPROFILES:U.profiles||[]).filter(p=>p.active!==false);
@@ -5566,21 +5622,34 @@ async function openModal(jobId){
 
 function buildModalProfileSlots(j){
   const el=g("#m-profile-slots");if(!el)return;
-  // Sempre usa UPROFILES (mais atualizado) com fallback para U.profiles
-  const profiles=(UPROFILES.length?UPROFILES:U.profiles||[]).filter(p=>p.active!==false);
-  if(!profiles.length){
+  const allProfiles=(UPROFILES.length?UPROFILES:U.profiles||[]).filter(p=>p.active!==false);
+  // Migração: perfis sem campo visa assumem h2b
+  allProfiles.forEach(p=>{ if(!p.visa) p.visa='h2b'; });
+  // Detectar visa da vaga atual para filtrar perfis adequados
+  const jobVisa=(j?.visa||"").toLowerCase().includes("h-2a")||(tab==="h2a")?"h2a":"h2b";
+  // Perfis compatíveis com a vaga (prioritários)
+  const compatProfiles=allProfiles.filter(p=>p.visa===jobVisa||p.visa==='both');
+  // Se não tem perfil compatível, mostra todos mas com aviso
+  const profiles=compatProfiles.length?compatProfiles:allProfiles;
+  const hasIncompat=compatProfiles.length===0&&allProfiles.length>0;
+
+  if(!allProfiles.length){
     el.innerHTML=`<div style="padding:10px 0;font-size:12px;color:var(--t3)">Nenhum perfil. <span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="closeModal();sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(openProfileEditor,200)},100)">Criar perfil →</span></div>`;
     const subjEl=g("#m-subj");if(subjEl)subjEl.value="Application for "+esc(j.title||"this position")+" – "+(CFG.name||U.name||"Applicant");
     const bodyEl=g("#m-body");if(bodyEl)bodyEl.value="Dear Hiring Manager,\n\nI am writing to express my interest in the "+esc(j.title||"position")+" at "+esc(j.company||"your company")+".\n\nBest regards,\n"+(CFG.name||U.name||"");
     return;
   }
-  // Auto-seleciona o perfil mais adequado
+  // Aviso se não tem perfil compatível com a visa da vaga
+  const visaLabel=jobVisa==="h2a"?"H-2A":"H-2B";
+  const visaWarn=hasIncompat?`<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:11px;color:#92400e;font-weight:600">⚠️ Você não tem perfis ${visaLabel}. Usando seus outros perfis — considere criar um perfil ${visaLabel} específico.</div>`:"";
+  // Auto-seleciona o perfil mais adequado (compatível + categoria certa)
   const jcat=(j.category||"other").toLowerCase();
   const auto=profiles.find(p=>p.categories&&p.categories.includes(jcat))
            ||profiles.find(p=>p.isGeneral||p.type==="general")
            ||profiles[0];
   window._modalSelProfileId=auto?.id||null;
-  el.innerHTML=profiles.map(p=>{
+  const visaBadge=(v)=>v==='h2a'?'<span style="font-size:9px;background:#d1fae5;color:#065f46;border-radius:4px;padding:1px 5px;font-weight:700">H-2A</span>':v==='h2b'?'<span style="font-size:9px;background:#dbeafe;color:#1e40af;border-radius:4px;padding:1px 5px;font-weight:700">H-2B</span>':'<span style="font-size:9px;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 5px;font-weight:700">Ambos</span>';
+  el.innerHTML=visaWarn+profiles.map(p=>{
     const sel=p.id===(auto&&auto.id);
     const badge=p.isGeneral||p.type==="general"?"🌐":"📂";
     const cats=(p.categories||[]).slice(0,2).join(", ")||"Todas as vagas";
@@ -5588,7 +5657,7 @@ function buildModalProfileSlots(j){
     return`<label class="cv-slot${sel?" sel":""}" style="margin-bottom:5px;cursor:pointer;padding:10px 12px" onclick="applyModalProfileById('${p.id}',true)">
       <input type="radio" name="m-prf" value="${p.id}" ${sel?"checked":""} style="accent-color:var(--blue)">
       <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${badge} ${esc(p.name)}</div>
+        <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:5px">${badge} ${esc(p.name)} ${visaBadge(p.visa||'h2b')}</div>
         <div style="font-size:10px;color:var(--t3);margin-top:1px">${esc(cats)} · ${nSubj} assunto(s)</div>
       </div>
     </label>`;
@@ -5612,7 +5681,15 @@ function applyModalProfileById(pid,updateSlots){
   const b=bodies[0]||CFG.body||"Dear Hiring Manager,\n\nBest regards,\n{nome}";
   const subjEl=g("#m-subj");if(subjEl)subjEl.value=fill(s,curJob);
   const bodyEl=g("#m-body");if(bodyEl)bodyEl.value=fill(b,curJob);
-  if(p.resumeIdx!=null)activeResIdx=p.resumeIdx;
+  // FIX #18: detectar variáveis não substituídas e avisar
+  setTimeout(()=>{
+    const subj=g("#m-subj")?.value||"";const body=g("#m-body")?.value||"";
+    const unresolved=[...(subj+body).matchAll(/\{([a-záéíóúãõç_a-z0-9]+)\}/gi)].map(m=>m[0]);
+    if(unresolved.length>0){
+      const warn=g("#m-warn");
+      if(warn)warn.innerHTML=`<div class="alert al-amber" style="margin-top:6px"><i class="ti ti-alert-triangle"></i><span>⚠️ Variável não substituída: ${unresolved.slice(0,3).map(v=>`<code>${esc(v)}</code>`).join(", ")} — revise antes de enviar.</span></div>`;
+    }
+  },50);
   if(p.coverIdx!=null)activeCovIdx=p.coverIdx;
   if(updateSlots)buildCvSlots();
 }
@@ -5659,6 +5736,9 @@ async function doSend(){
     if(!d.ok)throw new Error(d.error||"Erro");
     U.todaySentManual=d.todaySent||U.todaySentManual+1;U.manualRemaining=typeof d.remaining==="number"?d.remaining:Math.max(0,(U.manualLimit||20)-U.todaySentManual);U.manualLimit=d.dailyLimit||U.manualLimit;
     closeModal();
+    // FIX #8: limpar painel de detalhe após envio — evita duplo envio acidental
+    const _sentTo=to;
+    setTimeout(()=>showDetail(`<div class="jd-content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;gap:10px;text-align:center"><div style="font-size:48px">✅</div><div style="font-size:15px;font-weight:800;color:var(--green)">Candidatura enviada!</div><div style="font-size:12px;color:var(--t2)">${esc(_sentTo)}</div><div style="font-size:11px;color:var(--t3);margin-top:4px">${U.manualRemaining} envios manuais restantes hoje</div></div>`),50);
     if(j?.id){
       APPLIED.add(j.id);
         if(tab==="seasonal")_sentSeasonal.add(j.id);
@@ -5761,7 +5841,7 @@ const BUILTIN_TEMPLATES=[
   {id:"bt-warehouse",name:"Warehouse / Depósito",category:"warehouse",subject:"Warehouse Worker Application – {nome}",body:`Dear Hiring Manager,\n\nI am applying for the {vaga} role at {empresa}. I am experienced in warehouse operations including loading, unloading, inventory management, and forklift operation. I am reliable and physically capable.\n\n{nome}\n{telefone} | {email}`},
   {id:"bt-farm",name:"Farm / Agricultura",category:"farm",subject:"Farm Worker Application – {nome}",body:`Dear {empresa},\n\nI am interested in the {vaga} position. I have experience in agricultural work including planting, harvesting, and equipment operation. I am hardworking, dependable, and available for the full season.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
   {id:"bt-beginner",name:"Iniciante (sem experiência)",category:"general",subject:"Entry Level Application – {nome} – {vaga}",body:`Dear Hiring Manager,\n\nI am applying for the {vaga} position at {empresa}. Although I am new to this field, I am a fast learner, highly motivated, and committed to giving my best effort every single day.\n\nI am available immediately and willing to work any schedule.\n\nThank you,\n{nome}\n{telefone} | {email}`},
-  {id:"bt-experienced",name:"Trabalhador Experiente",category:"general",subject:"Experienced {vaga} – H-2B Application – {nome}",body:`Dear Hiring Manager,\n\nWith several years of hands-on experience in {vaga} roles, I am confident in my ability to make an immediate impact at {empresa}. My background includes [your experience], and I consistently deliver quality results.\n\nI am available for the full H-2B season.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
+  {id:"bt-experienced",name:"Trabalhador Experiente",category:"general",subject:"Experienced {vaga} – H-2B Application – {nome}",body:`Dear Hiring Manager,\n\nWith hands-on experience in roles similar to {vaga}, I am confident in my ability to make an immediate contribution at {empresa}. I am hardworking, reliable, and consistently deliver quality results.\n\nI am fully available for the H-2B season and ready to relocate.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
   {id:"bt-bilingual",name:"Bilíngue (PT/EN)",category:"general",subject:"Bilingual Worker – {vaga} – {nome}",body:`Dear Hiring Manager / Prezado Contratante,\n\nI am applying for the {vaga} position at {empresa}. I am bilingual (Portuguese/English) which allows me to communicate effectively in diverse environments.\n\nI am hardworking, adaptable, and available immediately.\n\nBest regards / Atenciosamente,\n{nome}\n{telefone} | {email}`},
   {id:"bt-professional",name:"Apresentação Profissional",category:"general",subject:"Professional Application – {vaga} at {empresa} – {nome}",body:`Dear Hiring Manager,\n\nI am reaching out to express my sincere interest in the {vaga} opportunity at {empresa}. After researching your organization, I am impressed by your reputation and believe my skills align well with your needs.\n\nI bring dedication, professionalism, and a strong commitment to excellence. I am available for the upcoming season and would welcome the chance to speak with you.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
   {id:"bt-seasonal",name:"Seasonal Resumido",category:"general",subject:"Seasonal Worker – {vaga} – Available Now",body:`Hi {empresa} Team,\n\nLooking for seasonal staff? I am available for {vaga} — hardworking, reliable, no visa issues, ready to start.\n\n{nome} | {telefone} | {email}`},
@@ -5775,21 +5855,28 @@ let UTPL=[],UPROFILES=[],tplCurId=null,tplCurBuiltin=false,
     tplCatFilter="all",pickerCatFilter="all",
     tplPickerTarget="manual",editingProfileId=null;
 
-const fill=(tpl,j)=>(tpl||"")
-  .replace(/{vaga}/g,    j?.title||j?.job||"")
-  .replace(/{empresa}/g, j?.company||"")
-  .replace(/{nome}/g,    CFG.name||U?.name||"")
-  .replace(/{pais}/g,    CFG.country||"Brazil")
-  .replace(/{telefone}/g,CFG.phone||"")
-  .replace(/{email}/g,   U?.email||"")
-  .replace(/{cidade}/g,  j?.city||j?.cidade||"")
-  .replace(/{estado}/g,  j?.state||j?.estado||"")
-  .replace(/{city}/g,    j?.city||j?.cidade||"")
-  .replace(/{state}/g,   j?.state||j?.estado||"")
-  .replace(/{wage}/g,    j?.wage||"")
-  .replace(/{salario}/g, j?.wage||"")
-  .replace(/{inicio}/g,  j?.start||j?.beginDate||"")
-  .replace(/{start}/g,   j?.start||j?.beginDate||"");
+const fill=(tpl,j)=>{
+  // FIX #12: {nome} usa CFG.name, fallback para nome do Google (sem email)
+  // Se ambos vazios, usa string vazia — NÃO usa o email do usuário como nome
+  const _nome=(CFG.name||U?.name||"").trim();
+  // Aviso de variável não substituída — detectar após substituição
+  const result=(tpl||"")
+    .replace(/{vaga}/g,    j?.title||j?.job||"")
+    .replace(/{empresa}/g, j?.company||"")
+    .replace(/{nome}/g,    _nome)
+    .replace(/{pais}/g,    CFG.country||"Brazil")
+    .replace(/{telefone}/g,CFG.phone||"")
+    .replace(/{email}/g,   U?.email||"")
+    .replace(/{cidade}/g,  j?.city||j?.cidade||"")
+    .replace(/{estado}/g,  j?.state||j?.estado||"")
+    .replace(/{city}/g,    j?.city||j?.cidade||"")
+    .replace(/{state}/g,   j?.state||j?.estado||"")
+    .replace(/{wage}/g,    j?.wage||"")
+    .replace(/{salario}/g, j?.wage||"")
+    .replace(/{inicio}/g,  j?.start||j?.beginDate||"")
+    .replace(/{start}/g,   j?.start||j?.beginDate||"");
+  return result;
+};
 
 async function loadTplView(){
   try{
@@ -6421,7 +6508,12 @@ function peOnVisaChange(){
 // ── ABRIR EDITOR ────────────────────────────────
 function openProfileEditor(id,presetVisa){
   editingProfileId=id||null;
-  const p=id?UPROFILES.find(x=>x.id===id):null;
+  // FIX #5: se editando perfil existente e UPROFILES estiver vazio, buscar do servidor primeiro
+  let p=id?UPROFILES.find(x=>x.id===id):null;
+  if(id&&!p&&(U.profiles||[]).length>0){
+    p=(U.profiles||[]).find(x=>x.id===id);
+    if(p)UPROFILES=[...new Set([...UPROFILES,...(U.profiles||[])])];
+  }
   clearProfilePdf();
   clearProfileCover();
   g("#pe-title").textContent=p?"Editar Perfil":"Novo Perfil";
@@ -7279,12 +7371,26 @@ function renderLogs(){
     if(diffH<168)return`há ${Math.floor(diffH/24)}d`;
     return`${d}/${m} ${timePart}`.trim();
   }
-  el.innerHTML=filtLogs.map(l=>{
+  const total=filtLogs.length;
+  const truncated=total>500;
+  const shown=filtLogs.slice(0,500);
+  // FIX #36: agrupar logs por data com cabeçalhos
+  let currentDay="";
+  const rows=shown.map(l=>{
+    const parts=(l.date||"").split(" ");const datePart=parts[0]||"";const timePart=parts[1]||"";
+    let dayHeader="";
+    if(datePart&&datePart!==currentDay){
+      currentDay=datePart;
+      const today=new Date().toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}).replace(/\//g,"/");
+      const yesterday=new Date(Date.now()-86400000).toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}).replace(/\//g,"/");
+      const dayLabel=datePart===today?"Hoje":datePart===yesterday?"Ontem":datePart;
+      const dayCount=shown.filter(x=>(x.date||"").startsWith(datePart)).length;
+      dayHeader=`<div style="padding:6px 14px;font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;background:var(--sf2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1">${dayLabel} · ${dayCount} envios</div>`;
+    }
     const statusClass="ls-"+(l.status||"sistema").replace(/[^a-z]/g,"");
     const statusEmoji={enviado:"✅",falhou:"❌",duplicado:"🔁",pausado:"⏸",cancelado:"🚫",sistema:"ℹ️",pulado:"⏩",limite:"📊",erro_anexo:"📎"}[l.status]||"•";
-    // FIX-F35: badge H2A/H2B no log
     const srcBadge=l.source==="h2a"?`<span style="font-size:9px;background:#d1fae5;color:#065f46;border-radius:4px;padding:1px 5px;margin-left:4px;font-weight:700">H-2A</span>`:l.source==="h2b"?`<span style="font-size:9px;background:#dbeafe;color:#1e40af;border-radius:4px;padding:1px 5px;margin-left:4px;font-weight:700">H-2B</span>`:"";
-    return`<div class="log-entry">
+    return dayHeader+`<div class="log-entry">
       <span class="log-status ${statusClass}">${statusEmoji} ${esc(l.status||"–")}</span>
       <div class="log-main">
         <div class="log-company">${esc(l.company||l.jobTitle||"–")}${srcBadge}</div>
@@ -7292,9 +7398,10 @@ function renderLogs(){
         <div class="log-meta">${l.category?`<span class="tag tgr" style="font-size:10px">${esc(l.category)}</span>`:""} ${l.state?`<span class="tag tgr" style="font-size:10px">${esc(l.state)}</span>`:""}</div>
         ${l.error?`<div class="log-error" style="font-size:11px;color:var(--red)">⚠️ ${esc(l.error)}</div>`:""}
       </div>
-      <div class="log-date" title="${esc(l.date||"")}">${fmtLogDate(l.date||"")}</div>
+      <div class="log-date" title="${esc(l.date||"")}">${timePart||fmtLogDate(l.date||"")}</div>
     </div>`;
-  }).join("");
+  });
+  el.innerHTML=rows.join("")+(truncated?`<div style="padding:10px;text-align:center;font-size:12px;color:var(--t3);border-top:1px solid var(--border)">Mostrando 500 de ${total.toLocaleString("pt-BR")} logs · <a href="#" onclick="exportLogs();return false" style="color:var(--blue);font-weight:700">Exportar todos em CSV →</a></div>`:"");
 }
 
 function updateLogStats(){
@@ -7318,7 +7425,7 @@ function loadAutoView(){
   updateAutoUI();buildAutoDocSlots();
   loadTabCounts();
   if(autoSelectedSrc)renderWizardCats(autoSelectedSrc);
-  recalcInterval();
+  if(typeof recalcInterval==="function") recalcInterval();
   // Renderiza painel de perfis no topo da view auto
   _renderAutoProfilesPanel();
 }
@@ -7358,9 +7465,15 @@ async function _renderAutoProfilesPanel(){
         </div>
       </div>
       ${hasOtherVisa?`<div style="font-size:11px;color:var(--amber);margin-bottom:8px;padding:6px 8px;background:var(--amberl);border-radius:6px"><i class="ti ti-info-circle"></i> Você tem perfis do outro visto. Perfis H-2B <strong>não são usados</strong> em vagas H-2A e vice-versa.</div>`:''}
-      <button class="btn btn-primary btn-sm w100" onclick="closeAutoModal();sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(()=>${visaCreateFn},200)},100)">
-        <i class="ti ti-plus"></i> Criar Perfil ${visaLabel}
-      </button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" style="flex:2" onclick="${visaCreateFn};closeAutoModal()">
+          <i class="ti ti-plus"></i> Criar Perfil ${visaLabel} agora
+        </button>
+        <button class="btn btn-secondary btn-sm" style="flex:1;font-size:11px" onclick="closeAutoModal();sv('profile');setTimeout(()=>{switchProfileTab('profiles')},100)">
+          Ver Perfis
+        </button>
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-top:8px;text-align:center">Depois de criar o perfil, volte e ligue o automático novamente</div>
     </div>`;
     return;
   }
@@ -7604,7 +7717,9 @@ function openPreflightModal(){
     ]).then(([countData, sentData])=>{
       const totalWithFilters = countData.filtered ?? countData.total ?? 0;
       const srcSentIds = new Set([
-        ...(autoSelectedSrc==="jan2026" ? (sentData.jan2026||[]) : autoSelectedSrc==="h2a" ? (sentData.h2a||sentData.jul2025||[]) : (sentData.jul2025||[])),
+        ...(autoSelectedSrc==="jan2026" ? (sentData.jan2026||[])
+          : autoSelectedSrc==="h2a"     ? (sentData.h2a||[])   // H-2A NUNCA herda jul2025
+          :                               (sentData.jul2025||[])),
         ...(sentData.autoQueueIds||[])
       ]);
       // Estimativa de já-enviadas dentro dos filtros atuais
@@ -7699,7 +7814,18 @@ async function confirmStartAuto(){
 // ══════════════════════════════════════════════════════
 async function startAuto(overrideStartH, overrideEndH, _mode="now"){
   if(!autoSelectedSrc){toast("Escolha a fonte das vagas! (Passo 1)","r");g("#ws-1")?.scrollIntoView({behavior:"smooth"});return;}
-  const activeProfiles=(U.profiles||UPROFILES||[]).filter(p=>p.active!==false);
+  const allActiveProfiles=(U.profiles||UPROFILES||[]).filter(p=>p.active!==false);
+  // FIX: filtra perfis pelo visa do modal — evita usar perfil H-2B para vagas H-2A
+  allActiveProfiles.forEach(p=>{ if(!p.visa) p.visa='h2b'; }); // migração
+  const visaForThis = _autoVisa || (autoSelectedSrc==='h2a'?'h2a':'h2b');
+  const activeProfiles = allActiveProfiles.filter(p=>p.visa===visaForThis||p.visa==='both');
+  if(!activeProfiles.length && allActiveProfiles.length>0){
+    // Tem perfis mas todos do visa errado
+    const visaLabel=visaForThis==='h2a'?'H-2A':'H-2B';
+    toast(`Nenhum perfil ${visaLabel} ativo. Crie um em Perfil → Perfis de E-mail.`,"r",5000);
+    sv('profile');setTimeout(()=>switchProfileTab('profiles'),200);
+    return;
+  }
   if(!activeProfiles.length){toast("Crie pelo menos 1 perfil ativo antes de iniciar!","r");return;}
   const nowH=new Date().getHours();
   const limit=999999; // sem limite — carrega toda a planilha
@@ -7723,7 +7849,9 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
     try {
       const sentResp = await fetch("/api/sent-ids", {credentials:"include"});
       const sentData = await sentResp.json();
-      const srcSent = autoSelectedSrc==="jan2026" ? (sentData.jan2026||[]) : autoSelectedSrc==="h2a" ? (sentData.h2a||sentData.jul2025||[]) : (sentData.jul2025||[]);
+      const srcSent = autoSelectedSrc==="jan2026" ? (sentData.jan2026||[])
+                    : autoSelectedSrc==="h2a"     ? (sentData.h2a||[])   // H-2A NUNCA herda jul2025
+                    :                               (sentData.jul2025||[]);
       srcSent.forEach(id => sentCaseIds.add(id));
       // Também exclui o que está atualmente na fila do automático
       (sentData.autoQueueIds||[]).forEach(id => sentCaseIds.add(id));
@@ -7832,7 +7960,11 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
       throw new Error(data.error||"Erro ao iniciar");
     }
 
-    U.autoJob={active:true,status:"sending",queueSize:data.queueSize,source:autoSelectedSrc,originalCount:data.queueSize};
+    const newJob={active:true,status:"sending",queueSize:data.queueSize,source:autoSelectedSrc,originalCount:data.queueSize};
+    U.autoJob=newJob;
+    // FIX: atualiza o job específico por visa para que pollAutoStatus e updateAutoDot funcionem
+    if(autoSelectedSrc==='h2a') U.autoJobH2a=newJob;
+    else U.autoJobH2b=newJob;
     // FIX-3: popula _autoQueueIds imediatamente ao iniciar para ocultar do manual
     if(data.queueIds&&data.queueIds.length){_autoQueueIds=new Set(data.queueIds);}else{try{const _as=await fetch("/api/auto/status",{credentials:"include"}).then(r=>r.json());_autoQueueIds=new Set(_as.autoQueueIds||[]);}catch{}}
     _syncAutoQueueVisibility(); // FIX: oculta vagas do manual imediatamente
@@ -7851,7 +7983,58 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
   btn.innerHTML='<i class="ti ti-rocket" style="font-size:20px"></i><span>Iniciar Envio Automático</span>';
 }
 
-// FIX-UX4: mostra escolha rápida H-2B / H-2A antes de abrir modal do automático
+// FIX #47: enviar e-mail de teste para o próprio Gmail do usuário
+function togglePauseTimer(){
+  const m=g("#auto-pause-timer-menu");if(m)m.style.display=m.style.display==="none"?"block":"none";
+}
+async function pauseAutoFor(hours){
+  const src=_curAutoSource();
+  try{
+    await fetch("/api/auto/pause",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:src,resumeAfterMs:hours*3600000})});
+    toast(`⏸ Pausado por ${hours}h — retomará automaticamente`,"au",5000);
+    // Agendar retomada local para feedback
+    setTimeout(async()=>{
+      try{await fetch("/api/auto/resume",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:src})});}catch{}
+    },hours*3600000);
+    U.autoJob={...U.autoJob,active:false,status:"paused"};
+    updateAutoUI();updateLimChip();
+  }catch(e){toast("Erro: "+e.message,"r");}
+}
+  const subjs=peSubjects.length?peSubjects:[(g("#pe-subj-input")?.value||"")];
+  const bodies=peBodies.length?peBodies:[(g("#pe-body-input")?.value||"")];
+  const subj=subjs[0]||"Teste H2BApply";const body=bodies[0]||"";
+  if(!body.trim()){toast("Adicione um corpo de e-mail antes de testar","r");return;}
+  // Preenche variáveis com dados reais do usuário
+  const fakeJob={title:"H-2B Worker (TESTE)",company:"Test Company (TESTE)",state:"FL",city:"Miami"};
+  const filledSubj=fill(subj,fakeJob);const filledBody=fill(body,fakeJob);
+  toast("📧 Enviando e-mail de teste para "+U.email+"...","au",4000);
+  try{
+    const r=await fetch("/api/send",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({to:U.email,subject:"[TESTE] "+filledSubj,message:filledBody+"\n\n---\n⚠️ Este é um e-mail de teste do H2BApply. Não envie para empresas reais.",fromName:CFG.name||U.name||"H2BApply",resumeIdx:activeResIdx||undefined,isTest:true})});
+    const d=await r.json();
+    if(d.ok)toast("✅ Teste enviado! Verifique seu Gmail: "+U.email,"g",5000);
+    else throw new Error(d.error);
+  }catch(e){toast("Erro: "+e.message,"r");}
+}
+let _lastCheckedDayBRT = "";
+function _checkDayReset(){
+  const nowBRT = new Date().toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"});
+  if(_lastCheckedDayBRT && _lastCheckedDayBRT !== nowBRT){
+    // Novo dia BRT — resetar contadores locais
+    U.todaySentManual = 0;
+    U.todaySentAuto = 0;
+    U.manualRemaining = U.manualLimit || 20;
+    U.autoRemaining = U.autoLimit || 10;
+    updateLimChip();
+    updateAutoUI&&updateAutoUI();
+    if(curView==="home")renderHome();
+    toast("🌅 Novo dia! Seus limites foram resetados.","g",5000);
+    console.log("[dayReset] Contadores resetados para novo dia BRT");
+  }
+  _lastCheckedDayBRT = nowBRT;
+}
+setInterval(_checkDayReset, 60000); // checa a cada minuto
+document.addEventListener("DOMContentLoaded",()=>{ _lastCheckedDayBRT=new Date().toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}); });
 function showAutoVisaChoice(){
   // Se só tem um tipo de job ativo, vai direto para ele
   const h2bActive=U.autoJobH2b?.active;
@@ -7916,14 +8099,37 @@ async function resumeAuto(){
     await fetch("/api/auto/resume",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:src})});
     U.autoJob={...U.autoJob,active:true,status:"resuming"};
     updateAutoUI();updateLimChip();startAutoPolling();toast("Retomado ✓","g");
+    // FIX #13: buscar estado real do servidor imediatamente para sincronizar status
+    setTimeout(async()=>{try{const r=await fetch("/api/auto/status",{credentials:"include"});const d=await r.json();if(d.jobH2b!==undefined){U.autoJobH2b=d.jobH2b||null;U.autoJobH2a=d.jobH2a||null;}U.autoJob=src==='h2a'?(d.jobH2a||d.job):(d.jobH2b||d.job);updateAutoUI();updateAutoDot(!!(U.autoJobH2b?.active||U.autoJobH2a?.active||U.autoJob?.active));}catch{}},1500);
   }catch(e){toast("Erro: "+e.message,"r");}
 }
 async function stopAuto(){
-  if(!confirm("Parar o envio completamente? A fila será perdida."))return;
-  const src=_curAutoSource();
+  const h2bActive=U.autoJobH2b?.active||(U.autoJob?.active&&U.autoJob?.source!=='h2a');
+  const h2aActive=U.autoJobH2a?.active||(U.autoJob?.active&&U.autoJob?.source==='h2a');
+  let src=_curAutoSource();
+  // Se ambos ativos, perguntar qual parar
+  if(h2bActive&&h2aActive){
+    const choice=confirm("Parar H-2B e H-2A? (OK = parar ambos, Cancelar = só o exibido)");
+    if(choice){
+      // Para ambos
+      try{
+        await fetch("/api/auto/stop",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:'h2b'})});
+        await fetch("/api/auto/stop",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:'h2a'})});
+        U.autoJob=null;U.autoJobH2b=null;U.autoJobH2a=null;
+        _autoQueueIds=new Set();_syncAutoQueueVisibility();
+        clearInterval(autoInterval);autoInterval=null;
+        if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}
+        updateAutoUI();updateAutoDot(false);updateLimChip();toast("Ambos parados ✓","r");
+        return;
+      }catch(e){toast("Erro: "+e.message,"r");return;}
+    }
+    // Cancelou = para só o exibido (src já está certo)
+  }
+  if(!confirm(`Parar o envio ${src.toUpperCase()} completamente? A fila será perdida.`))return;
   try{
     await fetch("/api/auto/stop",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:src})});
-    U.autoJob=null;
+    if(src==='h2a')U.autoJobH2a=null;else U.autoJobH2b=null;
+    if(!U.autoJobH2b&&!U.autoJobH2a)U.autoJob=null;
     _autoQueueIds=new Set();_syncAutoQueueVisibility();
     clearInterval(autoInterval);autoInterval=null;
     if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}
@@ -7956,8 +8162,15 @@ async function pollAutoStatus(){
     const anyActive=(U.autoJob?.active||U.autoJobH2a?.active||U.autoJobH2b?.active)||false;
     updateAutoDot(anyActive);updateLimChip();renderSidebar();
     if(curView==="auto"&&d.recentLogs?.length)renderRecentLogs(d.recentLogs);
-    if(!anyActive&&autoInterval){clearInterval(autoInterval);autoInterval=null;_autoQueueIds=new Set();}
-  }catch{}
+    // FIX: só para o polling quando nenhum job está ativo E a resposta confirma isso
+    // Antes parava no catch (erro de rede) matando o polling prematuramente
+    if(!anyActive&&autoInterval&&d.job===null&&d.jobH2b===null&&d.jobH2a===null){
+      clearInterval(autoInterval);autoInterval=null;_autoQueueIds=new Set();
+    }
+  }catch(e){
+    // FIX: erro de rede NÃO para o polling — mantém tentando
+    console.warn("[poll] erro de rede, mantendo polling:",e.message);
+  }
 }
   try{
     // Sheet cards: vagas nas abas jan2026/jul2025
@@ -8056,7 +8269,7 @@ function updateAutoUI(){
   if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}
   const tokenErrorStatuses=new Set(["paused_token_revoked","paused_no_session","paused_auth_error","paused_oauth_expired"]);
   if(tokenErrorStatuses.has(j.status)&&sub){
-    sub.innerHTML='<a href="/oauth/start" style="color:#fff;font-weight:800;text-decoration:underline;font-size:13px">👉 Clique aqui para fazer login novamente</a>';
+    sub.innerHTML=`<a href="/oauth/start" style="display:inline-flex;align-items:center;gap:6px;background:#fff;color:#4f46e5;font-weight:800;text-decoration:none;font-size:12px;border-radius:8px;padding:5px 12px;margin-top:4px">🔐 Re-autenticar Gmail agora →</a>`;
   } else if(j.nextSendAt&&(j.status==="waiting_interval"||j.status==="waiting_hour"||j.status==="waiting_limit"||j.status==="waiting_rate_limit")&&sub){
     const updateCountdown=()=>{
       const left=Math.max(0,Math.round((j.nextSendAt-Date.now())/1000));
@@ -8300,6 +8513,12 @@ function _applyPublicStats(d, isFallback=false){
 }
 document.addEventListener("DOMContentLoaded",()=>{loadPublicStats();setInterval(loadPublicStats,30000);});
 async function doLogout(){
+  // FIX #40: confirmar antes de sair — auto continua rodando
+  const anyAutoActive=U.autoJob?.active||U.autoJobH2b?.active||U.autoJobH2a?.active;
+  const msg=anyAutoActive
+    ?"Sair do H2BApply? Seu automático continuará rodando enquanto você estiver deslogado."
+    :"Sair do H2BApply?";
+  if(!confirm(msg))return;
   closeDrawer();
   try{await fetch("/api/disconnect",{credentials:"include"});}catch{}
   U={connected:false};
@@ -8584,7 +8803,14 @@ async function loadInbox(force=false){
   try{
     // Busca até 200 e-mails para garantir que TODAS as respostas apareçam
     // FIX: passa fresh=1 quando force=true para bypassar cache do servidor (90s)
-    const r=await fetch(`/api/inbox?limit=200${force?"&fresh=1":""}`,{credentials:"include"});
+    // FIX #7: verificar status HTTP antes de parsear (evita crash com página HTML de erro)
+    if(r.status===401||r.status===403){
+      if(list)list.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;padding:40px 20px;gap:14px;text-align:center"><div style="font-size:44px">🔐</div><div style="font-size:15px;font-weight:800;color:var(--text)">Sessão expirada</div><div style="font-size:13px;color:var(--t2)">Reconecte sua conta Google para ver as respostas.</div><a href="/oauth/start" class="btn btn-primary" style="padding:10px 22px;font-size:14px;font-weight:700;border-radius:10px;text-decoration:none">Reconectar Gmail</a></div>`;
+      if(sub)sub.textContent="Reconexão necessária";
+      return;
+    }
+    const ct=r.headers.get("content-type")||"";
+    if(!ct.includes("application/json")){throw new Error("Resposta inválida do servidor");}
     const d=await r.json();
     if(!d.ok)throw new Error(d.error||"Erro ao buscar inbox");
     INBOX_EMAILS=d.emails||[];
@@ -9050,6 +9276,12 @@ function closeEmailDetail(){g("#email-detail-overlay").classList.add("gone");_cu
 
 // ── Modal Envio Automático ──────────────────────────────
 async function openAutoModal(){
+  // FIX #22: preencher email do Gmail no wizard
+  setTimeout(()=>{
+    const el=g("#auto-gmail-addr");if(el)el.textContent=U.email||"seu Gmail";
+    // FIX #28: mostrar limite compartilhado
+    const lim=g("#auto-limit-shared");if(lim)lim.textContent=(U.autoLimit||10)+" automáticos";
+  },100);
   // ── Se envio já está ativo: abre direto o painel de monitoramento ──
   if(U.autoJob && U.autoJob.active){
     const ov=g("#auto-modal-overlay");if(!ov)return;
@@ -9718,7 +9950,14 @@ function renderHome(){
   if(sa){if(U.autoJob?.active&&(U.autoJob?.originalCount||0)>0){const _o=U.autoJob.originalCount;const _q=U.autoJob.queueSize||0;const _d=Math.max(0,_o-_q);sa.textContent=`${_d.toLocaleString("pt-BR")}/${_o.toLocaleString("pt-BR")}`;sa.title=`${_d} de ${_o} vagas enviadas`;}else{sa.textContent=`${U.todaySentAuto}/${U.autoLimit}`;}}
   // Atualiza card automático na home
   _updateHomeAutoCard();
-  const sr=g("#home-stat-replies");if(sr){const unread=INBOX_EMAILS.filter(e=>!e.isRead).length;sr.textContent=unread>0?String(unread):"–";}
+  const sr=g("#home-stat-replies");if(sr){
+    const replies=INBOX_EMAILS.filter(e=>e.isReply&&!e.isBounceMail).length;
+    const unread=INBOX_EMAILS.filter(e=>!e.isRead&&e.isReply).length;
+    const totalSentAll=(U.autoStats?.sent||0)+(U.todaySentManual||0);
+    const rateStr=totalSentAll>0&&replies>0?` (${Math.round(replies/totalSentAll*100)}%)`:"";
+    sr.textContent=replies>0?`${replies}${rateStr}`:"–";
+    if(unread>0)sr.textContent+=` +${unread} nova${unread===1?'':'s'}`;
+  }
   // Card de status do automático na home — mostra quando há jobs ativos ou recentes
   const homeAutoCard=g("#home-auto-status-card");
   const homeAutoTitle=g("#home-auto-status-title");
@@ -10120,6 +10359,12 @@ async function _unregisterPushSubscription() {
 
 // Hook: quando notificações são ativadas, registra push VAPID
 async function toggleNotifications() {
+  // FIX #20: iOS Safari sem PWA não suporta push notifications
+  if(window._iosNeedsPWA){
+    const msg=g("#notif-status-msg");
+    if(msg){msg.style.display="";msg.innerHTML='<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e;margin-top:6px"><strong>📱 iPhone/iPad detectado</strong><br>Para receber notificações no iPhone, adicione o app à tela inicial:<br><strong>Safari → Compartilhar (⬆️) → Adicionar à Tela de Início</strong><br>Depois abra o app pela tela inicial e ative as notificações.</div>';}
+    return;
+  }
   if (!_notifEnabled) {
     if ("Notification" in window && Notification.permission !== "granted") {
       const p = await Notification.requestPermission().catch(() => "denied");
@@ -10178,6 +10423,16 @@ function _markPushPrompted() {
 
 // Solicita permissão de push e registra subscription
 async function _autoPushSetup() {
+  // FIX #20: detectar iOS Safari sem PWA — push não funciona nesses casos
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  if(isIOS && isSafari && !isStandalone){
+    // iOS Safari sem PWA: mostra instrução de instalação quando usuário tenta ativar notificações
+    // (não bloqueamos o fluxo agora — só quando o usuário tentar ativar)
+    window._iosNeedsPWA = true;
+    return; // push não funciona no iOS Safari sem instalação como PWA
+  }
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
   if (!("Notification" in window)) return;
   if (!U.connected) return;
@@ -10342,7 +10597,7 @@ function _showSetupChecklist() {
 
   const steps = [
     { done: st.hasName && st.hasPhone, icon: 'ti-user', label: 'Seu nome e WhatsApp', action: "sv('profile')", actionLabel: 'Preencher →' },
-    { done: st.hasCv, icon: 'ti-file-type-pdf', label: 'Currículo PDF', action: "sv('profile');setTimeout(()=>switchProfileTab('profiles'),200)", actionLabel: 'Criar Perfil →' },
+    { done: st.hasCv, icon: 'ti-file-type-pdf', label: 'Currículo PDF', action: "sv('profile');setTimeout(()=>switchProfileTab('docs'),200)", actionLabel: 'Enviar PDF →' },
     { done: st.hasProfile, icon: 'ti-user-circle', label: 'Perfil de e-mail criado', action: "sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(openProfileEditor,200)},200)", actionLabel: 'Criar Perfil →' },
   ];
   const doneCount = steps.filter(s => s.done).length;
@@ -11673,16 +11928,24 @@ Best regards,
       <div style="font-size:48px;margin-bottom:16px">🎉</div>
       <div style="font-size:22px;font-weight:800;margin-bottom:8px;color:var(--navy)">Tudo pronto!</div>
       <div style="font-size:13px;color:var(--t2);margin-bottom:6px;line-height:1.6">Você ganhou <strong style="color:var(--blue)">5 dias VIP grátis</strong>. Agora você pode enviar até 400 candidaturas por dia!</div>
-      <div style="background:linear-gradient(135deg,#eff6ff,#f5f3ff);border:1.5px solid rgba(99,102,241,.2);border-radius:12px;padding:14px;margin-bottom:20px">
-        <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px">O que fazer agora:</div>
-        <div style="font-size:13px;text-align:left;display:flex;flex-direction:column;gap:6px">
-          <div style="display:flex;align-items:center;gap:8px"><i class="ti ti-search" style="color:var(--blue)"></i> Busque vagas por categoria</div>
-          <div style="display:flex;align-items:center;gap:8px"><i class="ti ti-robot" style="color:var(--purple)"></i> Ligue o Envio Automático</div>
-          <div style="display:flex;align-items:center;gap:8px"><i class="ti ti-mail-opened" style="color:var(--green)"></i> Acompanhe as respostas</div>
+      <!-- FIX #24: CTA clara após onboarding -->
+      <div style="background:linear-gradient(135deg,#312e81,#4f46e5);border-radius:14px;padding:16px;margin-bottom:16px;color:#fff;text-align:left">
+        <div style="font-size:13px;font-weight:800;margin-bottom:10px">🚀 Próximo passo obrigatório:</div>
+        <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.15);border-radius:10px;padding:10px 12px;cursor:pointer" onclick="finishOnboarding();setTimeout(showAutoVisaChoice,400)">
+          <div style="font-size:24px">🤖</div>
+          <div>
+            <div style="font-size:14px;font-weight:800">Ligue o Automático agora!</div>
+            <div style="font-size:11px;opacity:.8">Envia para centenas de empresas enquanto você dorme. Pode deslogar depois.</div>
+          </div>
+          <div style="margin-left:auto;font-size:18px">→</div>
         </div>
       </div>
-      <button onclick="finishOnboarding()" class="btn btn-primary w100" style="padding:14px;font-size:15px;background:linear-gradient(135deg,#2563eb,#7c3aed)">
-        <i class="ti ti-rocket"></i> Começar a candidatar!
+      <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:#065f46">
+        ✅ Currículo salvo · ✅ Perfil configurado · ✅ Pronto para candidatar!<br>
+        <strong>Você pode deslogar — o robô continua enviando sozinho por semanas.</strong>
+      </div>
+      <button onclick="finishOnboarding()" class="btn btn-secondary w100" style="padding:12px;font-size:13px">
+        Explorar o app primeiro →
       </button>
     </div>
   </div>
@@ -11690,14 +11953,17 @@ Best regards,
 <div id="gwm" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px">
   <div style="background:#fff;border-radius:20px;max-width:420px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)">
     <div style="text-align:center;margin-bottom:16px">
-      <div style="width:56px;height:56px;border-radius:50%;background:#fef9c3;border:2px solid #fbbf24;display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><i class="ti ti-shield-exclamation" style="font-size:26px;color:#d97706"></i></div>
-      <div style="font-size:17px;font-weight:800;color:#0f172a">Aviso antes de continuar</div>
+      <div style="width:56px;height:56px;border-radius:50%;background:#fef9c3;border:2px solid #fbbf24;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:26px">⚠️</div>
+      <div class="lwarn-title" style="font-size:17px;font-weight:800;color:#0f172a">Aviso antes de continuar</div>
     </div>
-    <div style="background:#f8fafc;border-radius:10px;padding:14px;font-size:13px;color:#374151;line-height:1.6;margin-bottom:14px">
-      <p style="margin-bottom:8px">O sistema está em <strong>verificação oficial pelo Google</strong>. Pode aparecer um aviso de segurança.</p>
-      <p style="margin-bottom:10px;color:#059669;font-weight:600">O site é confiável e usado pela comunidade H2B.</p>
+    <!-- Banner offline — só aparece se servidor não respondeu ainda -->
+    <div id="gwm-offline-banner" style="display:none;background:#fef3c7;border:1.5px solid #fde68a;border-radius:8px;padding:9px 12px;font-size:12px;color:#92400e;margin-bottom:10px;font-weight:600">
+      ⏳ Servidor iniciando... O login vai funcionar mesmo assim — clique em Continuar!
+    </div>
+    <div class="lwarn-confirm" style="background:#f8fafc;border-radius:10px;padding:14px;font-size:13px;color:#374151;line-height:1.6;margin-bottom:14px">
+      <p class="lwarn-sub" style="margin-bottom:8px">O sistema está em <strong>verificação oficial pelo Google</strong>. Pode aparecer um aviso de segurança.<br><span style="color:#059669;font-weight:600">O site é confiável e usado pela comunidade H2B.</span></p>
       <p style="margin-bottom:6px;font-size:12px">Dúvidas? YouTube: <strong>Diego H2B</strong></p>
-      <div style="border-top:1px solid #e2e8f0;padding-top:10px;margin-top:10px;font-size:12px">
+      <div class="lwarn-steps" style="border-top:1px solid #e2e8f0;padding-top:10px;margin-top:10px;font-size:12px">
         <p style="font-weight:700;margin-bottom:6px">Nos próximos passos do Google:</p>
         <p>1. Clique em <strong>"Avançado"</strong></p>
         <p>2. Clique no link para continuar</p>
@@ -11712,36 +11978,39 @@ Best regards,
 </div>
 <script>
 function showGoogleWarnModal(){
-  // FIX-L20: Se servidor offline (GitHub Pages), mostrar aviso específico em vez de travar
-  if(!window._serverOnline){
-    const gwm=document.getElementById("gwm");
-    if(gwm){
-      // Mudar mensagem do modal para informar sobre servidor offline
-      const title=gwm.querySelector(".lwarn-title");
-      if(title)title.textContent="⚠️ Servidor não detectado";
-      const sub=gwm.querySelector(".lwarn-sub");
-      if(sub)sub.innerHTML="Esta página está sendo servida pelo <strong>GitHub Pages</strong>, que não suporta o backend do H2BApply.<br><br>Para fazer login, acesse o app no servidor correto (Railway/Render).";
-      const stepsEl=gwm.querySelector(".lwarn-steps");
-      if(stepsEl)stepsEl.style.display="none";
-      const confirmEl=gwm.querySelector(".lwarn-confirm");
-      if(confirmEl)confirmEl.style.display="none";
-      const okBtn=document.getElementById("gwm-ok");
-      if(okBtn){okBtn.textContent="Entendi";okBtn.onclick=function(){gwm.style.display="none";};}
-      gwm.style.display="flex";
-    } else {
-      alert("⚠️ Servidor offline.\nEsta página está no GitHub Pages, que não executa o backend.\nAcesse o servidor correto para fazer login.");
-    }
-    return;
-  }
-  // FIX-L21: warmup só se servidor online
+  // FIX CRÍTICO: _serverOnline NUNCA bloqueia o login.
+  // O servidor pode estar iniciando (cold start Render/Railway = 3-10s).
+  // O usuário SEMPRE pode tentar o OAuth — o servidor vai estar pronto quando o callback chegar.
   fetch("/api/warmup",{credentials:"include"}).catch(function(){});
   var m=document.getElementById("gwm");
   if(!m){location.href=_getOAuthURL();return;}
+
+  // Restaura o conteúdo correto do modal (pode ter sido alterado por código anterior)
+  const title=m.querySelector(".lwarn-title");
+  if(title)title.textContent="Aviso antes de continuar";
+  const sub=m.querySelector(".lwarn-sub");
+  if(sub)sub.innerHTML='O sistema está em <strong>verificação oficial pelo Google</strong>. Pode aparecer um aviso de segurança.<br><span style="color:#4ade80;font-weight:700">O site é confiável e usado pela comunidade H2B.</span>';
+  const stepsEl=m.querySelector(".lwarn-steps");
+  if(stepsEl)stepsEl.style.display="";
+  const confirmEl=m.querySelector(".lwarn-confirm");
+  if(confirmEl)confirmEl.style.display="";
+
+  // Aviso discreto se servidor parece offline (mas NÃO bloqueia)
+  const offlineBanner=document.getElementById("gwm-offline-banner");
+  if(offlineBanner){
+    offlineBanner.style.display=window._serverOnline?"none":"block";
+  }
+
+  // SEMPRE configura o botão para redirecionar ao OAuth
+  var okBtn=document.getElementById("gwm-ok");
+  if(okBtn){
+    okBtn.textContent="Entendi, Continuar";
+    okBtn.onclick=function(){
+      m.style.display="none";
+      location.href=_getOAuthURL();
+    };
+  }
   m.style.display="flex";
-  document.getElementById("gwm-ok").onclick=function(){
-    m.style.display="none";
-    location.href=_getOAuthURL();
-  };
 }
 </script>
 

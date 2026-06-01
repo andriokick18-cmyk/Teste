@@ -844,7 +844,7 @@ async function serverPushPoll() {
       // FIX: desconta emails que o usuário já marcou como lidos pelo app (persiste entre sessões)
       const dbUsr = getUser(email) || {};
       const pReadSet = new Set(dbUsr.readEmailIds || []);
-      const unread = emails.filter(e => !e.isRead && !pReadSet.has(e.id)).length;
+      const unread = emails.filter(e => !e.isRead && !pReadSet.has(e.id) && !isBounceMail(e)).length; // FIX #14: ignora bounces
       const prev = pushPollState.get(email) ?? -1;
       if (prev >= 0 && unread > prev) {
         const diff = unread - prev;
@@ -1803,9 +1803,11 @@ async function _doAutoSendInner(email, source) {
   if (!target) {
     setAutoJob(email, { ...job, active:false, queue:[], finishedAt:Date.now(), status:"finished" });
     autoTimers.delete(_timerKey(email, source));
-    addLog(email, { status:"sistema", jobTitle:"✅ Fila finalizada", company:`Total: ${job.originalCount||0} vagas processadas. Todas enviadas!` });
-    console.log(`[auto] ${email} finalizado — todas as vagas enviadas`);
+    addLog(email, { status:"sistema", jobTitle:"✅ Fila finalizada", company:`Total: ${job.originalCount||0} vagas processadas. Todas enviadas!`, source:source||'h2b' });
+    console.log(`[auto] ${email}/${source||'h2b'} finalizado — todas as vagas enviadas`);
     sendNotifEmail(email, "finished").catch(e => console.warn("[notif/finished]", e.message));
+    // FIX #27: push notification ao finalizar
+    pushToUser(email,{type:"auto_finished",title:`✅ Automático ${(source||'H-2B').toUpperCase()} concluído!`,body:`${(job.originalCount||0).toLocaleString("pt-BR")} candidaturas enviadas! Abra o app para ver as respostas.`,url:"/?tab=respostas",tag:"h2b-auto-finished"}).catch(()=>{});
     return;
   }
 
@@ -3274,9 +3276,10 @@ const server=http.createServer(async(req,res)=>{
       }
     }
 
-    const stats=getAutoStats(s.user_email);
-    const now2=Date.now();
-    return json(res,200,{connected:true,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",isAdmin:!!p.isAdmin,plan:planKey,planJustExpired,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p)}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[]});
+    const jH2b=getAutoJob(s.user_email,'h2b');
+    const jH2a=getAutoJob(s.user_email,'h2a');
+    const fmtJobSm=j=>j?{active:j.active,status:j.status,queueSize:j.queue?.length||0,source:j.source,startedAt:j.startedAt,lastSentAt:j.lastSentAt,nextSendAt:j.nextSendAt,currentJob:j.currentJob,originalCount:j.originalCount}:null;
+    return json(res,200,{connected:true,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",isAdmin:!!p.isAdmin,plan:planKey,planJustExpired,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p)}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:fmtJobSm(jH2b)||fmtJobSm(jH2a),autoJobH2b:fmtJobSm(jH2b),autoJobH2a:fmtJobSm(jH2a),autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[]});
   }
 
   if(pathname==="/api/onboard"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});setUser(s.user_email,{onboarded:true});return json(res,200,{ok:true});}
@@ -3456,22 +3459,23 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       else if(h.jobId) sentSeasonal.add(h.jobId);
     });
 
-    // Vagas na fila do automático também somem da planilha
-    // (não faz sentido mostrar pra pessoa o que já tá sendo enviado)
-    const autoJob = getAutoJob(s2.user_email);
-    const autoQueue = autoJob?.active ? (autoJob.queue||[]) : [];
-    const autoQueueIds = autoQueue.map(q=>q.id||q.caseNum).filter(Boolean);
-
-    // Adiciona IDs da fila às planilhas (somem das listas)
-    autoQueue.forEach(q => {
-      if(!q.id && !q.caseNum) return;
-      const id = q.id || q.caseNum;
-      // Detecta de qual planilha a vaga veio pelo prefixo do case number
-      const src = autoJob.source || "";
-      if(src==="jan2026" || (q.caseNum||"").startsWith("H-4")) sentJan.add(id);
-      else if(src==="h2a") sentH2A.add(id);
-      else if(src==="jul2025" || (q.caseNum||"").startsWith("H-400")) sentJul.add(id);
-      else sentSeasonal.add(id);
+    // Vagas na fila do automático também somem da planilha (não mostra o que já está sendo enviado)
+    // FIX: considera AMBOS os jobs H2B e H2A
+    const allJobs=[getAutoJob(s2.user_email,'h2b'),getAutoJob(s2.user_email,'h2a')].filter(Boolean);
+    const autoQueueIds=[];
+    allJobs.forEach(autoJob=>{
+      if(!autoJob?.active)return;
+      const autoQueue=autoJob.queue||[];
+      autoQueue.forEach(q=>{
+        if(!q.id&&!q.caseNum)return;
+        const id=q.id||q.caseNum;
+        autoQueueIds.push(id);
+        const src=autoJob.source||"";
+        if(src==="jan2026"||(q.caseNum||"").startsWith("H-4"))sentJan.add(id);
+        else if(src==="h2a")sentH2A.add(id);
+        else if(src==="jul2025"||(q.caseNum||"").startsWith("H-400"))sentJul.add(id);
+        else sentSeasonal.add(id);
+      });
     });
 
     return json(res,200,{
