@@ -3168,7 +3168,8 @@ const server=http.createServer(async(req,res)=>{
       }
       sessions[sid]={access_token:tk.access_token,refresh_token:_rtToUse,expires_at:Date.now()+(tk.expires_in||3600)*1000,user_email:ui.email,user_name:ui.name||ui.email,picture:ui.picture||"",created_at:Date.now()};
       // Salva tokens no banco — usados pelo automático quando o app está fechado
-      const tokenData={cached_access_token:tk.access_token,cached_token_expiry:Date.now()+(tk.expires_in||3600)*1000};
+      // FIX-SESS-RECOVERY: persiste o lastSessionId para recriar sessão após restart do servidor
+      const tokenData={cached_access_token:tk.access_token,cached_token_expiry:Date.now()+(tk.expires_in||3600)*1000,lastSessionId:sid};
       // Sempre salva o melhor refresh_token disponível — nunca deixa undefined entrar
       if (_rtToUse) tokenData.refresh_token = _rtToUse;
       const ex=getUser(ui.email);
@@ -3238,18 +3239,32 @@ const server=http.createServer(async(req,res)=>{
   if(pathname==="/api/status"){
     let s=getSess(req);
 
-    // FIX-F19+F20: Cookie válido mas sessão morreu no deploy (Railway restart)
-    // Tenta recriar a sessão silenciosamente via refresh_token do banco
+    // FIX-SESS-RECOVERY: Cookie válido mas sessão morreu no restart (Render/Railway)
+    // Usa lastSessionId persistido no banco para recriar a sessão sem pedir novo login
     if(!s?.user_email){
       const cookieId=getSessId(req);
       if(cookieId){
-        // Cookie existe mas sessão não — tenta recuperar
-        // Procura email pelo padrão: o cookie pode ter sido gerado para qualquer usuário
-        // Não conseguimos mapear cookieId → email sem persistência, mas podemos checar
-        // se há apenas 1 usuário ativo com refresh_token (caso comum em instâncias pequenas)
-        // Para instâncias maiores, o usuário vai precisar re-logar — esse é o comportamento esperado
+        const matchEmail=Object.keys(DB_USERS).find(e=>DB_USERS[e].lastSessionId===cookieId);
+        if(matchEmail&&DB_USERS[matchEmail]?.refresh_token){
+          try{
+            const newTok=await refreshTokenForUser(matchEmail);
+            sessions[cookieId]={
+              access_token:newTok,
+              refresh_token:DB_USERS[matchEmail].refresh_token,
+              expires_at:Date.now()+3600*1000,
+              user_email:matchEmail,
+              user_name:DB_USERS[matchEmail].name||matchEmail,
+              picture:DB_USERS[matchEmail].picture||'',
+              created_at:Date.now()
+            };
+            s=sessions[cookieId];
+            console.log('[status] Sessao recuperada apos restart: '+matchEmail);
+          }catch(e){
+            console.warn('[status] Falha ao recuperar sessao de '+matchEmail+':',e.message);
+          }
+        }
       }
-      return json(res,200,{connected:false});
+      if(!s?.user_email)return json(res,200,{connected:false});
     }
 
     markOnline(s.user_email);
