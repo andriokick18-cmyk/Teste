@@ -977,7 +977,7 @@ const deleteCv = (e,i) => {
 // ══════════════════════════════════════════════════════════
 //  PLANILHAS COM CATEGORIAS DINÂMICAS
 // ══════════════════════════════════════════════════════════
-let SHEET_JAN = [], SHEET_JUL = [];
+let SHEET_JAN = [], SHEET_JUL = [], SHEET_H2A = [];
 const sheetCache = new Map();
 const SHEET_TTL  = 60*60*1000;
 
@@ -988,6 +988,15 @@ const CATEGORY_GROUPS = [
   { key:"hospitality",label:"🏨 Hospitalidade",   cats:["housekeeper","amusement"],              color:"#8b5cf6" },
   { key:"labor",      label:"🏗️ Trabalho Braçal", cats:["construction","seafood"],              color:"#f59e0b" },
   { key:"water",      label:"🌊 Aquático",         cats:["lifeguard","seafood"],                  color:"#3b82f6" },
+];
+
+// ── Grupos de categorias H2A ──
+const CATEGORY_GROUPS_H2A = [
+  { key:"agri",       label:"🌾 Trabalho Agrícola", cats:["farm_worker","general_farm","crop_worker","harvesting","orchard"], color:"#10b981" },
+  { key:"agri2",      label:"🌱 Hortifruti",        cats:["nursery","greenhouse","vineyard","sod_farm"],                       color:"#059669" },
+  { key:"agri3",      label:"🐄 Pecuária",          cats:["livestock","dairy","poultry","ranch","range_livestock"],            color:"#d97706" },
+  { key:"agri4",      label:"🚜 Equipamentos",      cats:["equipment_operator","irrigation"],                                  color:"#3b82f6" },
+  { key:"agri5",      label:"🏗️ Construção Rural",  cats:["farm_construction","structural_steel","carpenter_helper"],         color:"#7c3aed" },
 ];
 
 const CATEGORY_LABELS = {
@@ -1005,9 +1014,35 @@ const CATEGORY_LABELS = {
   other:        { label:"📋 Outros",                  en:"Other" },
 };
 
+const CATEGORY_LABELS_H2A = {
+  farm_worker:       { label:"🌾 Farm Worker / Trabalhador Rural",      en:"Farm Worker" },
+  general_farm:      { label:"🌾 General Farm / Geral Agrícola",         en:"General Farm" },
+  crop_worker:       { label:"🌽 Crop Worker / Cultura",                 en:"Crop Worker" },
+  harvesting:        { label:"🍎 Harvesting / Colheita",                 en:"Harvesting" },
+  orchard:           { label:"🍎 Orchard Worker / Pomar",                en:"Orchard" },
+  nursery:           { label:"🌱 Nursery / Viveiro",                      en:"Nursery" },
+  greenhouse:        { label:"🏡 Greenhouse / Estufa",                   en:"Greenhouse" },
+  vineyard:          { label:"🍇 Vineyard / Vinhedo",                    en:"Vineyard" },
+  sod_farm:          { label:"🌿 Sod Farm / Gramado",                    en:"Sod Farm" },
+  irrigation:        { label:"💧 Irrigation / Irrigação",                en:"Irrigation" },
+  livestock:         { label:"🐄 Livestock / Pecuária",                  en:"Livestock" },
+  dairy:             { label:"🥛 Dairy / Leiteria",                      en:"Dairy" },
+  poultry:           { label:"🐔 Poultry / Avicultura",                  en:"Poultry" },
+  ranch:             { label:"🤠 Ranch / Rancho",                        en:"Ranch" },
+  range_livestock:   { label:"🐂 Range Livestock / Criação Extensiva",   en:"Range Livestock" },
+  equipment_operator:{ label:"🚜 Equipment Operator / Operador",         en:"Equipment Operator" },
+  farm_construction: { label:"🏗️ Farm Construction / Construção Rural",  en:"Farm Construction" },
+  structural_steel:  { label:"⚙️ Structural Steel / Estrutura Metálica", en:"Structural Steel" },
+  carpenter_helper:  { label:"🪚 Carpenter Helper / Aux. Carpinteiro",   en:"Carpenter Helper" },
+  reforestation:     { label:"🌲 Reforestation / Reflorestamento",       en:"Reforestation" },
+  timber:            { label:"🪵 Timber / Madeira",                       en:"Timber" },
+  supervisor:        { label:"👷 Supervisor / Supervisor Agrícola",       en:"Supervisor" },
+  other:             { label:"📋 Outros / Other",                         en:"Other" },
+};
+
 function loadSheets() {
   let anyLoaded = false;
-  for(const[key,file]of[["jan","jan2026_compact.json"],["jul","jul2025_compact.json"]]){
+  for(const[key,file]of[["jan","jan2026_compact.json"],["jul","jul2025_compact.json"],["h2a","h2a_compact.json"]]){
     const p=path.join(__dirname,file);
     if(fs.existsSync(p)){
       try {
@@ -1016,17 +1051,22 @@ function loadSheets() {
           console.warn(`[sheet] ⚠️ ${file} existe mas está vazio ou inválido`);
           continue;
         }
-        if(key==="jan") SHEET_JAN=d; else SHEET_JUL=d;
-        (key==="jan"?SHEET_JAN:SHEET_JUL).forEach(r=>{if(!r.k)r.k=detectCategory(r.n||"");});
+        if(key==="jan") SHEET_JAN=d;
+        else if(key==="jul") SHEET_JUL=d;
+        else if(key==="h2a") SHEET_H2A=d;
+        const sheet = key==="jan"?SHEET_JAN:key==="jul"?SHEET_JUL:SHEET_H2A;
+        sheet.forEach(r=>{if(!r.k)r.k=detectCategory(r.n||"");});
         console.log(`[sheet] ✅ ${key}: ${d.length} vagas`);
         anyLoaded = true;
       } catch(e) {
         console.warn(`[sheet] ❌ Erro ao ler ${file}:`, e.message);
       }
     } else {
-      // Arquivo não existe — pode ser primeiro deploy ou build-sheets nunca rodou
-      console.warn(`[sheet] ⚠️ ${file} não encontrado. Execute: node build-sheets.js`);
-      console.warn(`[sheet] ⚠️ As planilhas de vagas ficarão vazias até o build rodar.`);
+      if(key!=="h2a") {
+        console.warn(`[sheet] ⚠️ ${file} não encontrado. Execute: node build-sheets.js`);
+      } else {
+        console.warn(`[sheet] ⚠️ h2a_compact.json não encontrado. Copie o arquivo para o diretório do servidor.`);
+      }
     }
   }
   if (!anyLoaded) {
@@ -1055,15 +1095,17 @@ function detectCategory(name) {
   return "other";
 }
 
-function getSheet(n) { return n==="jan2026"?SHEET_JAN:n==="jul2025"?SHEET_JUL:[]; }
+function getSheet(n) { return n==="jan2026"?SHEET_JAN:n==="jul2025"?SHEET_JUL:n==="h2a"?SHEET_H2A:[]; }
 
 function getSheetCategories(sheetName) {
   const arr = getSheet(sheetName);
+  const isH2A = sheetName==="h2a";
+  const labels = isH2A ? CATEGORY_LABELS_H2A : CATEGORY_LABELS;
   const counts = {};
   arr.forEach(r => { const k=r.k||"other"; counts[k]=(counts[k]||0)+1; });
   return Object.entries(counts)
     .sort((a,b)=>b[1]-a[1])
-    .map(([k,count])=>({key:k,label:CATEGORY_LABELS[k]?.label||k,count}));
+    .map(([k,count])=>({key:k,label:labels[k]?.label||k,count}));
 }
 
 // Fisher-Yates shuffle — embaralha sem modificar o array original
@@ -1309,16 +1351,20 @@ function selectProfile(profiles, target, sheet) {
   const jobCat     = (target.category || "other").toLowerCase();
   const jobSheet   = sheet || "";
   const jobVisa    = (target.visa || "").toUpperCase(); // "H-2A" ou "H-2B"
-  const isH2A      = jobVisa === "H-2A" || (target.jobType === "agricultural");
+  const isH2A      = jobVisa === "H-2A" || (target.jobType === "agricultural") || jobSheet === "h2a";
 
   // 1. Perfil específico para H-2A (se vaga for H-2A)
   if (isH2A) {
     const h2aProfiles = active.filter(pr => {
       if (pr.isGeneral) return false;
+      // Perfil com visaMode=h2a (novo campo explícito)
+      if (pr.visaMode === "h2a") return true;
       const prName = (pr.name || "").toLowerCase();
-      // Perfil explicitamente para H-2A
+      // Perfil explicitamente para H-2A por nome
       if (prName.includes("h2a") || prName.includes("h-2a") || prName.includes("farm") || prName.includes("agricult")) return true;
       if (pr.categories && (pr.categories.includes("farm") || pr.categories.includes("h2a") || pr.categories.includes("agricultural"))) return true;
+      // Perfil vinculado à planilha H2A
+      if (pr.sheets && pr.sheets.includes("h2a")) return true;
       return false;
     });
     if (h2aProfiles.length) {
@@ -1330,6 +1376,9 @@ function selectProfile(profiles, target, sheet) {
   // 2. Perfil específico: match por categoria ou título da vaga
   const specific = active.filter(pr => {
     if (pr.isGeneral) return false;
+    // Não usa perfil H2A para vagas H2B e vice-versa (se visaMode definido)
+    if (pr.visaMode === "h2a" && !isH2A) return false;
+    if (pr.visaMode === "h2b" && isH2A) return false;
     const prName = (pr.name || "").toLowerCase();
     // Match por categoria configurada no perfil
     if (pr.categories && pr.categories.length) {
@@ -1350,16 +1399,23 @@ function selectProfile(profiles, target, sheet) {
   // 3. Perfil da categoria: tem essa categoria na lista mas sem match de título
   const byCat = active.filter(pr => {
     if (pr.isGeneral) return false;
+    if (pr.visaMode === "h2a" && !isH2A) return false;
+    if (pr.visaMode === "h2b" && isH2A) return false;
     return pr.categories && pr.categories.includes(jobCat);
   });
   if (byCat.length) return byCat[0];
 
-  // 4. Perfil geral
+  // 4. Perfil geral (isGeneral=true)
   const general = active.filter(pr => pr.isGeneral);
   if (general.length) return general[0];
 
-  // Fallback: qualquer perfil ativo
-  return active[0];
+  // Fallback: qualquer perfil ativo (exceto conflito de visaMode)
+  const noConflict = active.filter(pr => {
+    if (isH2A && pr.visaMode === "h2b") return false;
+    if (!isH2A && pr.visaMode === "h2a") return false;
+    return true;
+  });
+  return noConflict[0] || active[0];
 }
 
 // ── Rotação de assunto sem repetição consecutiva ──────────
@@ -2479,6 +2535,7 @@ const server=http.createServer(async(req,res)=>{
   const serveHtml=f=>{try{const h=fs.readFileSync(path.join(__dirname,f),"utf8");res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-cache"});return res.end(h);}catch{res.writeHead(404);return res.end(f+" não encontrado");}};
   if(pathname==="/"||pathname==="/index.html")return serveHtml("index.html");
   if(pathname==="/admin"||pathname==="/admin.html")return serveHtml("admin.html");
+  if(pathname==="/guia"||pathname==="/guia.html")return serveHtml("guia.html");
 
   // Google Search Console verification
   if(pathname==="/google380652ea59ad95e1.html"){
@@ -2693,6 +2750,21 @@ const server=http.createServer(async(req,res)=>{
     try{const m=fs.readFileSync(path.join(__dirname,"manifest.json"),"utf8");res.writeHead(200,{"Content-Type":"application/manifest+json","Cache-Control":"public, max-age=86400"});return res.end(m);}
     catch{res.writeHead(404);return res.end("manifest.json não encontrado");}
   }
+  // Serve compact JSON files (planilhas de vagas)
+  const COMPACT_JSON_MAP={
+    "/jan2026_compact.json":"jan2026_compact.json",
+    "/jul2025_compact.json":"jul2025_compact.json",
+    "/h2a_compact.json":"h2a_compact.json",
+  };
+  if(COMPACT_JSON_MAP[pathname]){
+    const fp=path.join(__dirname,COMPACT_JSON_MAP[pathname]);
+    if(fs.existsSync(fp)){
+      const data=fs.readFileSync(fp);
+      res.writeHead(200,{"Content-Type":"application/json; charset=utf-8","Cache-Control":"public, max-age=3600","Content-Length":data.length});
+      return res.end(data);
+    }
+    res.writeHead(404);return res.end("[]");
+  }
   if(pathname==="/sw.js"){
     try{const sw=fs.readFileSync(path.join(__dirname,"sw.js"),"utf8");res.writeHead(200,{"Content-Type":"application/javascript","Cache-Control":"no-cache, no-store, must-revalidate","Service-Worker-Allowed":"/"});return res.end(sw);}
     catch{res.writeHead(404);return res.end("sw.js não encontrado");}
@@ -2794,7 +2866,12 @@ const server=http.createServer(async(req,res)=>{
 
   // Categorias dinâmicas de uma planilha
   if(pathname==="/api/category-groups"){
-    return json(res,200,{groups:CATEGORY_GROUPS,labels:CATEGORY_LABELS});
+    const sheet=u.searchParams.get("sheet")||"";
+    const isH2A=sheet==="h2a";
+    return json(res,200,{
+      groups:isH2A?CATEGORY_GROUPS_H2A:CATEGORY_GROUPS,
+      labels:isH2A?CATEGORY_LABELS_H2A:CATEGORY_LABELS
+    });
   }
   if(pathname==="/api/count-jobs"){
     const sheet=u.searchParams.get("sheet")||"";
@@ -3262,15 +3339,15 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
   if(pathname==="/api/sent-ids"&&req.method==="GET"){
     const s2=getSess(req);if(!s2?.user_email)return json(res,401,{error:"Não autenticado."});
     const hist=getHist(s2.user_email);
-    const sentJan=new Set(),sentJul=new Set(),sentSeasonal=new Set();
+    const sentJan=new Set(),sentJul=new Set(),sentH2A=new Set(),sentSeasonal=new Set();
     hist.forEach(h=>{
       if(h.sheetSource==="jan2026"&&h.caseNum) sentJan.add(h.caseNum);
       else if(h.sheetSource==="jul2025"&&h.caseNum) sentJul.add(h.caseNum);
+      else if(h.sheetSource==="h2a"&&h.caseNum) sentH2A.add(h.caseNum);
       else if(h.jobId) sentSeasonal.add(h.jobId);
     });
 
     // Vagas na fila do automático também somem da planilha
-    // (não faz sentido mostrar pra pessoa o que já tá sendo enviado)
     const autoJob = getAutoJob(s2.user_email);
     const autoQueue = autoJob?.active ? (autoJob.queue||[]) : [];
     const autoQueueIds = autoQueue.map(q=>q.id||q.caseNum).filter(Boolean);
@@ -3279,9 +3356,9 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     autoQueue.forEach(q => {
       if(!q.id && !q.caseNum) return;
       const id = q.id || q.caseNum;
-      // Detecta de qual planilha a vaga veio pelo prefixo do case number
       const src = autoJob.source || "";
       if(src==="jan2026" || (q.caseNum||"").startsWith("H-4")) sentJan.add(id);
+      else if(src==="h2a" || (q.caseNum||"").startsWith("H-300")) sentH2A.add(id);
       else if(src==="jul2025" || (q.caseNum||"").startsWith("H-3")) sentJul.add(id);
       else sentSeasonal.add(id);
     });
@@ -3289,6 +3366,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     return json(res,200,{
       jan2026:[...sentJan],
       jul2025:[...sentJul],
+      h2a:[...sentH2A],
       seasonal:[...sentSeasonal],
       autoQueueIds,
       autoQueueSize: autoQueue.length,
@@ -3357,6 +3435,75 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       invalidateUserStatsCache(s.user_email);
       console.log(`[sent/remove] ${s.user_email} removeu vaga jobId=${jobId||"-"} caseNum=${caseNum||"-"} (${before-hist.length} entradas)`);
       return json(res,200,{ok:true,removed:before-hist.length});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  // Remove entrada do histórico por key (key = jobId || "company::job")
+  // Usado pelo frontend em doDeleteHistEntry — remove do HIST e do SENT
+  if(pathname==="/api/history/delete"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {key}=d;
+      if(!key)return json(res,400,{error:"key obrigatório."});
+      let hist=getHist(s.user_email);
+      const before=hist.length;
+      // Identifica as entradas a remover (mesma lógica do frontend)
+      const toRemove=hist.filter(h=>{
+        const k=h.jobId||(h.company+"::"+h.job);
+        return k===key;
+      });
+      // Remove do DB_SENT todos os emails das entradas removidas
+      if(DB_SENT[s.user_email]){
+        for(const h of toRemove){
+          const nd=_normEmail(h.to);
+          if(nd)DB_SENT[s.user_email].delete(nd);
+        }
+        persistSent();
+      }
+      // Remove do DB_HIST
+      hist=hist.filter(h=>{
+        const k=h.jobId||(h.company+"::"+h.job);
+        return k!==key;
+      });
+      DB_HIST[s.user_email]=hist;
+      persist(HIST_FILE,DB_HIST);
+      // Limpa índice de candidaturas
+      const removedAppIds=new Set(toRemove.map(h=>h.appId).filter(Boolean));
+      if(removedAppIds.size>0){
+        const ix=DB_APP_INDEX[s.user_email];
+        if(ix){
+          for(const[k,v]of Object.entries(ix.byThread||{})){if(removedAppIds.has(v))delete ix.byThread[k];}
+          for(const[k,v]of Object.entries(ix.byMsgId||{})){if(removedAppIds.has(v))delete ix.byMsgId[k];}
+          for(const[k,arr]of Object.entries(ix.byTo||{})){ix.byTo[k]=(arr||[]).filter(id=>!removedAppIds.has(id));if(!ix.byTo[k].length)delete ix.byTo[k];}
+          persist(APPIDX_FILE,DB_APP_INDEX);
+        }
+      }
+      invalidateUserStatsCache(s.user_email);
+      console.log(`[history/delete] ${s.user_email} removeu key="${key}" (${before-hist.length} entradas, ${toRemove.length} emails limpos do sent)`);
+      return json(res,200,{ok:true,removed:before-hist.length});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  // Limpa TODO o histórico + DB_SENT do usuário (Reset geral — vagas voltam para a lista)
+  if(pathname==="/api/history/clear"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    try{
+      const total=(DB_HIST[s.user_email]||[]).length;
+      // Apaga histórico
+      delete DB_HIST[s.user_email];
+      persist(HIST_FILE,DB_HIST);
+      // Apaga sent (anti-duplicata) — para que as vagas voltem à lista
+      delete DB_SENT[s.user_email];
+      persistSent();
+      // Limpa índice de candidaturas
+      if(DB_APP_INDEX[s.user_email]){
+        delete DB_APP_INDEX[s.user_email];
+        persist(APPIDX_FILE,DB_APP_INDEX);
+      }
+      invalidateUserStatsCache(s.user_email);
+      console.log(`[history/clear] ${s.user_email} resetou histórico completo (${total} entradas)`);
+      return json(res,200,{ok:true,removed:total});
     }catch(e){return json(res,500,{error:e.message});}
   }
 
@@ -3484,13 +3631,18 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     // Validate and normalize email bodies (no empty)
     const rawBodies=Array.isArray(d.emailBodies)?d.emailBodies:[];
     const emailBodies=rawBodies.map(b=>String(b).trim()).filter(Boolean);
-    // Normalize categories (only known keys)
-    const KNOWN_CATS=["landscape","construction","housekeeper","seafood","farm","golf","amusement","forest","lifeguard","other"];
+    // Normalize categories (only known keys) — includes H2A categories
+    const KNOWN_CATS=["landscape","construction","housekeeper","seafood","farm","golf","amusement","forest","lifeguard","other",
+      "farm_worker","general_farm","crop_worker","harvesting","orchard","nursery","greenhouse","vineyard","sod_farm",
+      "irrigation","livestock","dairy","poultry","ranch","range_livestock","equipment_operator",
+      "farm_construction","structural_steel","carpenter_helper","reforestation","timber","supervisor"];
     const categories=Array.isArray(d.categories)?d.categories.filter(c=>KNOWN_CATS.includes(c)):[];
     // Normalize sheets
-    const KNOWN_SHEETS=["jan2026","jul2025","dol"];
+    const KNOWN_SHEETS=["jan2026","jul2025","h2a","dol"];
     const sheets=Array.isArray(d.sheets)?d.sheets.filter(s=>KNOWN_SHEETS.includes(s)):[];
-    const prf={id:d.id||crypto.randomUUID(),name:String(d.name).slice(0,80),desc:String(d.desc||"").slice(0,200),active:d.active!==false,isGeneral:!!d.isGeneral,subjects,emailBodies,subject:subjects[0]||String(d.subject||"").slice(0,200),body:emailBodies[0]||String(d.body||"").slice(0,5000),categories,sheets,resumeIdx:d.resumeIdx??null,pdfName:d.pdfName?String(d.pdfName).slice(0,200):undefined,pdfSize:d.pdfSize||0,coverIdx:d.coverIdx??null,state:String(d.state||"").slice(0,40),updatedAt:new Date().toISOString(),createdAt:d.createdAt||new Date().toISOString()};if(idx>=0)prfs[idx]=prf;else{if(prfs.length>=20)return json(res,429,{error:"Limite de 20 perfis atingido"});prfs.unshift(prf);}setUser(s.user_email,{profiles:prfs});return json(res,200,{ok:true,profile:prf});}catch(e){return json(res,500,{error:e.message});}}
+    // visaMode: "h2a", "h2b", or undefined (geral — funciona para ambos)
+    const visaMode = ["h2a","h2b"].includes(d.visaMode) ? d.visaMode : undefined;
+    const prf={id:d.id||crypto.randomUUID(),name:String(d.name).slice(0,80),desc:String(d.desc||"").slice(0,200),active:d.active!==false,isGeneral:!!d.isGeneral,visaMode,subjects,emailBodies,subject:subjects[0]||String(d.subject||"").slice(0,200),body:emailBodies[0]||String(d.body||"").slice(0,5000),categories,sheets,resumeIdx:d.resumeIdx??null,pdfName:d.pdfName?String(d.pdfName).slice(0,200):undefined,pdfSize:d.pdfSize||0,coverIdx:d.coverIdx??null,state:String(d.state||"").slice(0,40),updatedAt:new Date().toISOString(),createdAt:d.createdAt||new Date().toISOString()};if(idx>=0)prfs[idx]=prf;else{if(prfs.length>=20)return json(res,429,{error:"Limite de 20 perfis atingido"});prfs.unshift(prf);}setUser(s.user_email,{profiles:prfs});return json(res,200,{ok:true,profile:prf});}catch(e){return json(res,500,{error:e.message});}}
   if(pathname==="/api/profiles/delete"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});try{const d=JSON.parse(await readBody(req));if(!d.id)return json(res,400,{error:"id obrigatório"});const p=getUser(s.user_email)||{};setUser(s.user_email,{profiles:(p.profiles||[]).filter(pr=>pr.id!==d.id)});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
 
   if(pathname==="/api/debug/export"){const s=getSess(req);if(!s?.user_email||(getUser(s.user_email)||{}).isAdmin!==true)return json(res,403,{error:"Acesso negado."});return json(res,200,{ts:new Date().toISOString(),users:DB_USERS,totalUsers:Object.keys(DB_USERS).length,dataDir:DATA_DIR,disk:fs.existsSync("/data")});}
@@ -3856,7 +4008,7 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
   if(pathname.startsWith("/api/admin")){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
     const p=getUser(s.user_email);if(!p?.isAdmin)return json(res,403,{error:"Acesso negado."});
-    if(pathname==="/api/admin/stats"&&req.method==="GET"){const tu=Object.keys(DB_USERS).length;const ts=Object.values(DB_HIST).reduce((n,a)=>n+a.length,0);const ds=todayStr();const tt=Object.values(DB_HIST).reduce((n,a)=>n+a.filter(h=>h.dateStr===ds).length,0);const vu=Object.values(DB_USERS).filter(u=>isVipActive(u)).length;const au=Object.values(DB_AUTO).filter(j=>j.active).length;return json(res,200,{totalUsers:tu,totalSent:ts,todayTotal:tt,vipUsers:vu,activeAutoJobs:au,freeUsers:tu-vu,jobsCached:jobsCache.length,jobsTotal,activeSessions:Object.keys(sessions).filter(k=>!k.startsWith("__")).length,dataDir:DATA_DIR,disk:fs.existsSync("/data"),sheetJan:SHEET_JAN.length,sheetJul:SHEET_JUL.length});}
+    if(pathname==="/api/admin/stats"&&req.method==="GET"){const tu=Object.keys(DB_USERS).length;const ts=Object.values(DB_HIST).reduce((n,a)=>n+a.length,0);const ds=todayStr();const tt=Object.values(DB_HIST).reduce((n,a)=>n+a.filter(h=>h.dateStr===ds).length,0);const vu=Object.values(DB_USERS).filter(u=>isVipActive(u)).length;const au=Object.values(DB_AUTO).filter(j=>j.active).length;return json(res,200,{totalUsers:tu,totalSent:ts,todayTotal:tt,vipUsers:vu,activeAutoJobs:au,freeUsers:tu-vu,jobsCached:jobsCache.length,jobsTotal,activeSessions:Object.keys(sessions).filter(k=>!k.startsWith("__")).length,dataDir:DATA_DIR,disk:fs.existsSync("/data"),sheetJan:SHEET_JAN.length,sheetJul:SHEET_JUL.length,sheetH2A:SHEET_H2A.length});}
     if(pathname==="/api/admin/users"&&req.method==="GET"){const list=Object.values(DB_USERS).map(u=>{const vok=isVipActive(u);const h=getHist(u.email);const autoJob=getAutoJob(u.email);return{email:u.email,name:u.name,picture:u.picture,country:u.country,phone:u.phone,created_at:u.created_at,cvCount:(u.cvs||[]).length,histCount:h.length,todaySent:countManualToday(h)+countAutoToday(h),plan:getPlan(u),isAdmin:!!u.isAdmin,vip:u.vip?{active:vok,expiresAt:u.vip.expiresAt,activatedAt:u.vip.activatedAt,days:u.vip.days||30,plan:u.vip.plan||"vip",manualExpires:u.vip.manualExpires||0,autoExpires:u.vip.autoExpires||0}:null,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0}:null};}).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));return json(res,200,{users:list,total:list.length});}
     if(pathname==="/api/admin/vip/activate"&&req.method==="POST"){try{const d=JSON.parse(await readBody(req));if(!d.email)return json(res,400,{error:"email obrigatório."});const target=getUser(d.email);if(!target)return json(res,404,{error:"Usuário não encontrado."});const days=Math.max(1,Math.min(365,parseInt(d.days||30,10)));const autoDays=Math.max(0,Math.min(365,parseInt(d.autoDays||0,10)));const planName=d.plan||"vip";const now=Date.now();
       // Stack: adiciona manual e/ou auto dias
@@ -4260,8 +4412,12 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
         const hist=getHist(u.email);
         const logs=(DB_LOGS[u.email]||[]).slice(0,8); // mais logs para diagnóstico
         const todaySent=countManualToday(hist)+countAutoToday(hist);
+        // CORREÇÃO: duplicados NÃO são falhas — são comportamento normal e esperado do sistema
+        // "falhou" = erro real (SMTP, quota, token, etc.)
+        // "duplicado" / "pulado" = sistema funcionando corretamente (anti-spam, anti-repetição)
         const todayFailed=(DB_LOGS[u.email]||[]).filter(l=>l.status==="falhou"&&l.ts>now-86400000).length;
         const todaySkipped=(DB_LOGS[u.email]||[]).filter(l=>l.status==="pulado"&&l.ts>now-86400000).length;
+        const todayDuplicates=(DB_LOGS[u.email]||[]).filter(l=>l.status==="duplicado"&&l.ts>now-86400000).length;
         const isOnline=onlineEmails.has(u.email);
         const lastSession=onlineSessions.find(s=>s.user_email===u.email);
         const sessionAge=lastSession?Math.round((now-(lastSession.created_at||0))/60000):null;
@@ -4352,7 +4508,7 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
           todaySentManual:todayManualU,
           todaySentAuto:todayAutoU,
           todaySent:todayManualU+todayAutoU,
-          todayFailed, todaySkipped,
+          todayFailed, todaySkipped, todayDuplicates,
           profileCount:(u.profiles||[]).length,
           hasPdf:h.hasPdf,
           oauthOk:h.oauthOk,
@@ -4407,7 +4563,7 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
         users,
         serverUptime:Math.round(process.uptime()),
         memMB:Math.round(process.memoryUsage().rss/1048576),
-        sheetJan:SHEET_JAN.length,sheetJul:SHEET_JUL.length,
+        sheetJan:SHEET_JAN.length,sheetJul:SHEET_JUL.length,sheetH2A:SHEET_H2A.length,
         jobsCache:jobsCache.length,
         diskOk,dataDir:DATA_DIR,
       });
