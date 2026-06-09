@@ -10,7 +10,7 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{height:100%;scroll-behavior:smooth}
-body{font-family:'DM Sans',system-ui,sans-serif;background:#040a14;color:#e2e8f0;font-size:13px;line-height:1.5;height:100%;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+body{font-family:'DM Sans',system-ui,sans-serif;background:#040a14;color:#e2e8f0;font-size:15px;line-height:1.5;height:100%;overflow-x:hidden;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font-family:inherit}
 a{color:inherit;text-decoration:none}
 :root{
@@ -35,24 +35,24 @@ a{color:inherit;text-decoration:none}
 .content{flex:1;overflow-y:auto;padding:20px;background:var(--bg)}
 .sb-logo{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
 .sb-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
-.sb-logo-text{font-family:'Sora',sans-serif;font-size:14px;font-weight:800;color:#fff}
+.sb-logo-text{font-family:'Sora',sans-serif;font-size:15px;font-weight:800;color:#fff}
 .sb-logo-sub{font-size:9px;color:var(--t3);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-top:1px}
 .sb-nav{padding:8px;flex:1}
-.sb-label{font-size:9px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;padding:10px 6px 4px}
-.sb-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;transition:all .12s;border:none;background:none;width:100%;text-align:left}
+.sb-label{font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;padding:10px 8px 4px}
+.sb-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;font-size:14px;font-weight:600;color:var(--t2);cursor:pointer;transition:all .12s;border:none;background:none;width:100%;text-align:left}
 .sb-item:hover{background:var(--glass2);color:var(--text)}
 .sb-item.active{background:var(--blueg);color:var(--blue);border:1px solid var(--blueb)}
-.sb-item i{font-size:15px;flex-shrink:0}
-.sb-badge{margin-left:auto;font-size:10px;font-weight:800;padding:1px 6px;border-radius:20px;min-width:18px;text-align:center}
+.sb-item i{font-size:17px;flex-shrink:0}
+.sb-badge{margin-left:auto;font-size:12px;font-weight:800;padding:2px 8px;border-radius:20px;min-width:20px;text-align:center}
 .sb-badge-r{background:var(--red);color:#fff}
 .sb-badge-g{background:var(--green);color:#fff}
 .sb-badge-a{background:var(--amber);color:#000}
 .sb-bottom{padding:12px;border-top:1px solid var(--border)}
-.tb-title{font-family:'Sora',sans-serif;font-size:15px;font-weight:800;color:#fff}
+.tb-title{font-family:'Sora',sans-serif;font-size:17px;font-weight:800;color:#fff}
 .tb-right{margin-left:auto;display:flex;align-items:center;gap:10px}
 .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;flex-shrink:0}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.85)}}
-.refresh-btn{background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .14s}
+.refresh-btn{background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:6px 12px;font-size:13px;font-weight:700;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .14s}
 .refresh-btn:hover{background:var(--glass3);color:var(--text)}
 .refresh-btn.spinning i{animation:spin .6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -63,8 +63,8 @@ a{color:inherit;text-decoration:none}
 .stat-card::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,var(--glow,transparent) 0%,transparent 60%);pointer-events:none}
 .stat-card:hover{border-color:var(--border3);transform:translateY(-1px)}
 .stat-val{font-family:'Sora',sans-serif;font-size:28px;font-weight:800;line-height:1;margin-bottom:3px}
-.stat-lbl{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
-.stat-sub{font-size:10px;color:var(--t3);margin-top:3px}
+.stat-lbl{font-size:12px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
+.stat-sub{font-size:12px;color:var(--t3);margin-top:3px}
 .stat-icon{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:28px;opacity:.1}
 .stat-blue{--glow:rgba(59,130,246,.06)}.stat-blue .stat-val{color:var(--blue)}
 .stat-green{--glow:rgba(16,185,129,.06)}.stat-green .stat-val{color:var(--green)}
@@ -74,8 +74,8 @@ a{color:inherit;text-decoration:none}
 .stat-cyan{--glow:rgba(34,211,238,.06)}.stat-cyan .stat-val{color:var(--cyan)}
 .section{margin-bottom:24px}
 .section-hdr{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-.section-title{font-size:13px;font-weight:800;color:#fff;letter-spacing:.02em}
-.section-sub{font-size:11px;color:var(--t3);margin-left:2px}
+.section-title{font-size:15px;font-weight:800;color:#fff;letter-spacing:.02em}
+.section-sub{font-size:13px;color:var(--t3);margin-left:2px}
 .section-actions{margin-left:auto;display:flex;gap:6px}
 .tbl-wrap{background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);overflow:hidden}
 .tbl-toolbar{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -87,13 +87,13 @@ a{color:inherit;text-decoration:none}
 .search-inp:focus{border-color:var(--blue);background:var(--glass3)}
 .filter-sel{background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text);outline:none;cursor:pointer}
 table{width:100%;border-collapse:collapse}
-thead th{padding:9px 12px;font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;text-align:left;background:var(--glass);border-bottom:1px solid var(--border);white-space:nowrap}
+thead th{padding:10px 14px;font-size:12px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;text-align:left;background:var(--glass);border-bottom:1px solid var(--border);white-space:nowrap}
 tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer}
 tbody tr:hover{background:var(--glass2)}
 tbody tr:last-child{border-bottom:none}
-td{padding:10px 12px;vertical-align:middle;font-size:12px}
-.mono{font-family:'JetBrains Mono',monospace;font-size:11px}
-.badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap}
+td{padding:11px 14px;vertical-align:middle;font-size:14px}
+.mono{font-family:'JetBrains Mono',monospace;font-size:13px}
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap}
 .b-green{background:var(--greeng);color:var(--green);border:1px solid var(--greenb)}
 .b-red{background:var(--redg);color:var(--red);border:1px solid var(--redb)}
 .b-amber{background:var(--amberg);color:var(--amber);border:1px solid var(--amberb)}
@@ -101,7 +101,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
 .b-purple{background:var(--purpleg);color:var(--purple);border:1px solid var(--purpleb)}
 .b-gray{background:var(--glass2);color:var(--t2);border:1px solid var(--border2)}
 .b-cyan{background:var(--cyang);color:var(--cyan);border:1px solid rgba(34,211,238,.3)}
-.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:all .14s;font-family:inherit}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:6px;font-size:14px;font-weight:700;border:none;cursor:pointer;transition:all .14s;font-family:inherit}
 .btn:disabled{opacity:.4;pointer-events:none}
 .btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:#2563eb}
 .btn-danger{background:var(--redg);color:var(--red);border:1px solid var(--redb)}.btn-danger:hover{background:var(--red);color:#fff}
@@ -109,8 +109,8 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
 .btn-amber{background:var(--amberg);color:var(--amber);border:1px solid var(--amberb)}.btn-amber:hover{background:var(--amber);color:#000}
 .btn-ghost{background:var(--glass2);color:var(--t2);border:1px solid var(--border2)}.btn-ghost:hover{background:var(--glass3);color:var(--text)}
 .btn-purple{background:var(--purpleg);color:var(--purple);border:1px solid var(--purpleb)}.btn-purple:hover{background:var(--purple);color:#fff}
-.btn-sm{padding:4px 9px;font-size:11px}
-.btn-xs{padding:2px 7px;font-size:10px;border-radius:5px}
+.btn-sm{padding:5px 11px;font-size:13px}
+.btn-xs{padding:3px 9px;font-size:12px;border-radius:5px}
 .status-pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px}
 .sp-ok{background:var(--greeng);color:var(--green);border:1px solid var(--greenb)}
 .sp-err{background:var(--redg);color:var(--red);border:1px solid var(--redb)}
@@ -131,7 +131,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
 .ei-error{background:var(--redg);color:var(--red)}
 .ei-ok{background:var(--greeng);color:var(--green)}
 .event-body{flex:1;min-width:0}
-.event-msg{font-size:12px;font-weight:600;color:var(--text);margin-bottom:1px}
+.event-msg{font-size:14px;font-weight:600;color:var(--text);margin-bottom:1px}
 .event-meta{font-size:10px;color:var(--t3);display:flex;gap:8px;flex-wrap:wrap}
 .event-time{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--t3);white-space:nowrap;flex-shrink:0}
 .empty-state{padding:32px 20px;text-align:center;color:var(--t3);font-size:12px}
@@ -142,7 +142,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
 .modal{background:#0d1629;border:1px solid var(--border2);border-radius:16px;width:100%;max-width:900px;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadowl);animation:fadeIn .18s ease;margin:auto}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
 .modal-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
-.modal-title{font-size:15px;font-weight:800;color:#fff;flex:1}
+.modal-title{font-size:17px;font-weight:800;color:#fff;flex:1}
 .modal-body{flex:1;overflow-y:auto;padding:16px 20px;max-height:75vh}
 .modal-foot{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .modal-foot-left{flex:1;display:flex;gap:8px;flex-wrap:wrap}
@@ -150,7 +150,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
 
 /* TABS */
 .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap}
-.tab-btn{padding:9px 14px;font-size:12px;font-weight:700;color:var(--t2);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .14s;font-family:inherit;white-space:nowrap}
+.tab-btn{padding:10px 16px;font-size:14px;font-weight:700;color:var(--t2);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .14s;font-family:inherit;white-space:nowrap}
 .tab-btn:hover{color:var(--text)}
 .tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
 .tab-content{display:none}.tab-content.active{display:block}
@@ -170,9 +170,9 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
 .detail-card{background:var(--glass);border:1px solid var(--border2);border-radius:8px;padding:14px}
 .detail-card-title{font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:5px}
-.detail-row{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px}
+.detail-row{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
 .detail-row:last-child{border-bottom:none}
-.detail-label{color:var(--t3);min-width:110px;flex-shrink:0;font-size:10px;font-weight:600;padding-top:1px}
+.detail-label{color:var(--t3);min-width:120px;flex-shrink:0;font-size:12px;font-weight:600;padding-top:1px}
 .detail-val{flex:1;color:var(--text);word-break:break-all}
 
 /* STOP REASON BOX */
@@ -226,10 +226,10 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
 
 /* FORM FIELDS */
 .form-group{margin-bottom:12px}
-.form-label{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px}
-.form-inp{background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);outline:none;width:100%;transition:all .14s}
+.form-label{font-size:12px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px}
+.form-inp{background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:9px 12px;font-size:14px;color:var(--text);outline:none;width:100%;transition:all .14s}
 .form-inp:focus{border-color:var(--blue);background:var(--glass3)}
-.form-textarea{background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);outline:none;width:100%;min-height:80px;resize:vertical;transition:all .14s}
+.form-textarea{background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:9px 12px;font-size:14px;color:var(--text);outline:none;width:100%;min-height:80px;resize:vertical;transition:all .14s}
 .form-textarea:focus{border-color:var(--blue);background:var(--glass3)}
 
 /* SEND HISTORY */
@@ -262,7 +262,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
       <button class="sb-item" onclick="showView('events')"><i class="ti ti-alert-triangle"></i>Eventos<span class="sb-badge sb-badge-a" id="sb-events-cnt">0</span></button>
       <div class="sb-label">Usuários</div>
       <button class="sb-item" onclick="showView('users')"><i class="ti ti-users"></i>Todos Usuários</button>
-      <button class="sb-item" onclick="showView('vip')"><i class="ti ti-diamond"></i>VIP & Planos</button>
+      <button class="sb-item" onclick="showView('vip');loadVipList();loadFinanceiro()"><i class="ti ti-diamond"></i>VIP & Planos</button>
       <button class="sb-item" onclick="showView('vencimentos');loadVencimentos()"><i class="ti ti-calendar-time"></i>Vencimentos VIP<span class="sb-badge sb-badge-a" id="sb-venc" style="display:none">!</span></button>
       <div class="sb-label">Sistema</div>
       <button class="sb-item" onclick="showView('codes')"><i class="ti ti-ticket"></i>Códigos Promo</button>
@@ -604,6 +604,7 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
               <select class="filter-sel" id="u-filter-plan" onchange="filterUsers()">
                 <option value="">Todos planos</option>
                 <option value="vipro">VIPro</option>
+                <option value="doublepro">DoublePro</option>
                 <option value="vip">VIP</option>
                 <option value="pro">Pro (Auto)</option>
                 <option value="free">Free</option>
@@ -648,45 +649,240 @@ td{padding:10px 12px;vertical-align:middle;font-size:12px}
         </div>
       </div>
 
-      <!-- VIP -->
+      <!-- VIP & PLANOS — Tela principal reformulada -->
       <div class="view" id="view-vip">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <style>
+        /* ── PLANO SELECTOR ── */
+        .plan-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:12px}
+        .plan-card{background:var(--glass);border:2px solid var(--border2);border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .15s;text-align:center;position:relative}
+        .plan-card:hover{border-color:var(--border3);transform:translateY(-1px)}
+        .plan-card.selected{border-color:var(--purple);background:var(--purpleg)}
+        .plan-card-icon{font-size:22px;margin-bottom:4px}
+        .plan-card-name{font-size:12px;font-weight:800;color:#fff;margin-bottom:2px}
+        .plan-card-desc{font-size:9px;color:var(--t3);line-height:1.4}
+        .plan-card-price{font-size:11px;font-weight:700;color:var(--amber);margin-top:4px}
+        /* ── FINANCEIRO ── */
+        .fin-card{background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:16px;margin-bottom:12px}
+        .fin-title{font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+        .fin-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+        .fin-row:last-child{border-bottom:none}
+        .fin-label{color:var(--t2)}
+        .fin-val{font-weight:700;font-family:'JetBrains Mono',monospace}
+        .fin-total{font-size:15px;font-weight:800;font-family:'Sora',sans-serif}
+        .saldo-positivo{color:var(--green)}
+        .saldo-negativo{color:var(--red)}
+        .saldo-neutro{color:var(--amber)}
+        /* ── VIP LIST ── */
+        .vip-list-item{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;cursor:pointer;transition:background .1s}
+        .vip-list-item:hover{background:var(--glass2)}
+        .vip-list-item:last-child{border-bottom:none}
+        </style>
+
+        <!-- PAINEL FINANCEIRO -->
+        <div id="fin-painel" style="background:linear-gradient(135deg,rgba(16,185,129,.07),rgba(5,150,105,.03));border:1.5px solid rgba(16,185,129,.2);border-radius:14px;padding:16px;margin-bottom:18px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+            <i class="ti ti-coin" style="color:var(--green);font-size:18px"></i>
+            <div style="font-size:14px;font-weight:800;color:#fff">Painel Financeiro — H2BApply</div>
+            <div style="font-size:11px;color:var(--t3);margin-left:4px">Controle de receita e divisão entre sócios</div>
+            <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="loadFinanceiro()"><i class="ti ti-refresh"></i> Atualizar</button>
+            <button class="btn btn-sm" style="background:var(--greeng);border:1px solid var(--greenb);color:var(--green)" onclick="showAddPagamento()"><i class="ti ti-plus"></i> Registrar pagamento</button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">
+            <div class="stat-card stat-red" style="padding:12px;text-align:center">
+              <div class="stat-val" id="fin-custo" style="font-size:20px">R$ 650</div>
+              <div class="stat-lbl">💸 Custo total site</div>
+            </div>
+            <div class="stat-card stat-green" style="padding:12px;text-align:center">
+              <div class="stat-val" id="fin-receita" style="font-size:20px">–</div>
+              <div class="stat-lbl">💰 Total recebido</div>
+            </div>
+            <div class="stat-card" style="padding:12px;text-align:center" id="fin-saldo-card">
+              <div class="stat-val fin-saldo-neutro" id="fin-saldo" style="font-size:20px">–</div>
+              <div class="stat-lbl" id="fin-saldo-lbl">⚖️ Saldo</div>
+            </div>
+            <div class="stat-card stat-blue" style="padding:12px;text-align:center">
+              <div class="stat-val" id="fin-andrio" style="font-size:20px">–</div>
+              <div class="stat-lbl">👤 Andrio recebe</div>
+            </div>
+            <div class="stat-card stat-purple" style="padding:12px;text-align:center">
+              <div class="stat-val" id="fin-diego" style="font-size:20px">–</div>
+              <div class="stat-lbl">👤 Diego recebe</div>
+            </div>
+          </div>
+
+          <!-- Lista de pagamentos registrados -->
+          <div id="fin-pagamentos-wrap">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Pagamentos registrados</div>
+            </div>
+            <div id="fin-pagamentos-list" style="background:rgba(0,0,0,.2);border-radius:8px;overflow:hidden;max-height:180px;overflow-y:auto">
+              <div class="empty-state" style="padding:16px;font-size:11px"><i class="ti ti-loader"></i> Carregando...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FORM REGISTRAR PAGAMENTO (oculto por padrão) -->
+        <div id="fin-add-form" style="display:none;background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:16px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:800;color:#fff;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+            <i class="ti ti-cash" style="color:var(--green)"></i> Registrar novo pagamento recebido
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="form-group">
+              <label class="form-label">Email do usuário</label>
+              <input class="form-inp" id="fin-p-email" placeholder="quem pagou">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Valor pago (R$)</label>
+              <input class="form-inp" id="fin-p-valor" type="number" step="0.01" min="0" placeholder="Ex: 29.90">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Plano adquirido</label>
+              <select class="form-inp" id="fin-p-plano">
+                <option value="vip">⭐ VIP — 30 dias (Manual)</option>
+                <option value="vipro">⭐🤖 VIPro — 30 dias (Manual + Auto)</option>
+                <option value="doublepro">🚀💎 DoublePro — 30 dias</option>
+                <option value="vip60">⭐ VIP — 60 dias</option>
+                <option value="vipro60">⭐🤖 VIPro — 60 dias</option>
+                <option value="outro">Outro / personalizado</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+            <div class="form-group">
+              <label class="form-label">Nota (opcional)</label>
+              <input class="form-inp" id="fin-p-nota" placeholder="Ex: Pix confirmado #1234">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ativar VIP automaticamente?</label>
+              <select class="form-inp" id="fin-p-ativar">
+                <option value="sim">✅ Sim — ativar plano ao registrar</option>
+                <option value="nao">Não — só registrar pagamento</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-success" style="flex:1;justify-content:center" onclick="registrarPagamento()"><i class="ti ti-check"></i> Registrar pagamento e ativar VIP</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('fin-add-form').style.display='none'"><i class="ti ti-x"></i> Cancelar</button>
+          </div>
+          <div id="fin-result" style="display:none;margin-top:8px;font-size:12px;padding:8px;border-radius:6px"></div>
+        </div>
+
+        <!-- ATIVAR VIP (forma manual / avançada) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
           <div>
-            <div class="section-hdr"><i class="ti ti-diamond" style="color:var(--purple)"></i><div class="section-title">Ativar / Editar VIP</div></div>
-            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:16px;display:flex;flex-direction:column;gap:10px">
-              <div class="form-group"><label class="form-label">Email do usuário</label><input class="form-inp" id="vip-email" placeholder="user@gmail.com"></div>
+            <div class="section-hdr">
+              <i class="ti ti-diamond" style="color:var(--purple)"></i>
+              <div class="section-title">Ativar / Renovar Plano</div>
+              <div class="section-sub">Após confirmar pagamento no WhatsApp</div>
+            </div>
+            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:16px;display:flex;flex-direction:column;gap:12px">
+
+              <!-- Email com busca rápida -->
+              <div class="form-group">
+                <label class="form-label">📧 Email do usuário</label>
+                <input class="form-inp" id="vip-email" placeholder="cole o email de quem pagou" oninput="vipEmailSearch(this.value)">
+                <div id="vip-email-hint" style="font-size:10px;color:var(--t3);margin-top:3px"></div>
+              </div>
+
+              <!-- Seletor de plano visual -->
+              <div>
+                <div class="form-label" style="display:block;margin-bottom:6px">📦 Escolha o plano que foi PAGO</div>
+                <div class="plan-cards">
+                  <div class="plan-card" id="pc-vip" onclick="selectPlan('vip')">
+                    <div class="plan-card-icon">⭐</div>
+                    <div class="plan-card-name">VIP</div>
+                    <div class="plan-card-desc">Só envio manual<br>até 200/dia</div>
+                  </div>
+                  <div class="plan-card selected" id="pc-vipro" onclick="selectPlan('vipro')">
+                    <div class="plan-card-icon">⭐🤖</div>
+                    <div class="plan-card-name">VIPro</div>
+                    <div class="plan-card-desc">Manual + Automático<br>200 manual + 200 auto</div>
+                  </div>
+                  <div class="plan-card" id="pc-doublepro" onclick="selectPlan('doublepro')">
+                    <div class="plan-card-icon">🚀💎</div>
+                    <div class="plan-card-name">DoublePro</div>
+                    <div class="plan-card-desc">400 manual + 400 auto<br>2 contas Gmail</div>
+                  </div>
+                  <div class="plan-card" id="pc-pro" onclick="selectPlan('pro')">
+                    <div class="plan-card-icon">🤖</div>
+                    <div class="plan-card-name">Só Auto</div>
+                    <div class="plan-card-desc">Apenas automático<br>sem manual</div>
+                  </div>
+                </div>
+                <input type="hidden" id="vip-plan" value="vipro">
+              </div>
+
+              <!-- Dias -->
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                <div class="form-group"><label class="form-label">Dias VIP Manual</label><input class="form-inp" id="vip-days" type="number" value="30" min="1" max="365"></div>
-                <div class="form-group"><label class="form-label">Dias VIP Auto</label><input class="form-inp" id="vip-auto-days" type="number" value="0" min="0" max="365"></div>
+                <div class="form-group">
+                  <label class="form-label">📅 Dias manual</label>
+                  <input class="form-inp" id="vip-days" type="number" value="30" min="1" max="365">
+                  <div style="font-size:9px;color:var(--t3);margin-top:2px">Preenchido auto pelo plano</div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">🤖 Dias automático</label>
+                  <input class="form-inp" id="vip-auto-days" type="number" value="30" min="0" max="365">
+                  <div style="font-size:9px;color:var(--t3);margin-top:2px">0 = não ativa auto</div>
+                </div>
               </div>
-              <div class="form-group"><label class="form-label">Plano</label>
-                <select class="form-inp" id="vip-plan">
-                  <option value="vipro">⭐🤖 VIPro (Manual + Auto)</option>
-                  <option value="vip">⭐ VIP (só Manual)</option>
-                  <option value="pro">💥 VIPro (só Auto)</option>
-                </select>
+
+              <!-- Nota interna -->
+              <div class="form-group">
+                <label class="form-label">📝 Nota interna (opcional)</label>
+                <input class="form-inp" id="vip-note" placeholder="Ex: PIX R$29,90 confirmado 08/06">
               </div>
-              <div class="form-group"><label class="form-label">Nota interna (opcional)</label><input class="form-inp" id="vip-note" placeholder="Ex: Pagamento PIX #1234"></div>
+
+              <!-- Resumo do que vai fazer -->
+              <div id="vip-preview" style="background:var(--purpleg);border:1px solid var(--purpleb);border-radius:8px;padding:10px;font-size:11px;color:var(--purple)">
+                <strong>⭐🤖 VIPro — 30 dias</strong><br>
+                Manual: 200 emails/dia · Auto: 200 emails/dia<br>
+                <span style="color:var(--t3)">Expira em: <strong style="color:var(--text)" id="vip-preview-date">–</strong></span>
+              </div>
+
               <div style="display:flex;gap:8px">
-                <button class="btn btn-success" style="flex:1;justify-content:center" onclick="activateVip()"><i class="ti ti-diamond"></i> Ativar VIP</button>
-                <button class="btn btn-danger" style="flex:1;justify-content:center" onclick="revokeVip()"><i class="ti ti-ban"></i> Revogar</button>
+                <button class="btn btn-success" style="flex:1;justify-content:center;padding:10px" onclick="activateVip()">
+                  <i class="ti ti-diamond"></i> Ativar Plano
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="revokeVip()" title="Revogar VIP">
+                  <i class="ti ti-ban"></i> Revogar
+                </button>
               </div>
               <div id="vip-result" style="font-size:12px;color:var(--green);display:none;padding:8px;background:var(--greeng);border-radius:6px;border:1px solid var(--greenb)"></div>
             </div>
           </div>
+
+          <!-- VIPs ativos agora + ações extras -->
           <div>
-            <div class="section-hdr"><i class="ti ti-message" style="color:var(--blue)"></i><div class="section-title">Mensagem para Usuário</div></div>
-            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:16px;display:flex;flex-direction:column;gap:10px">
-              <div class="form-group"><label class="form-label">Email do usuário</label><input class="form-inp" id="msg-email" placeholder="user@gmail.com"></div>
-              <div class="form-group"><label class="form-label">Mensagem (aparecerá no app)</label><textarea class="form-textarea" id="msg-text" placeholder="Escreva aqui..." style="min-height:100px"></textarea></div>
+            <div class="section-hdr">
+              <i class="ti ti-list-check" style="color:var(--green)"></i>
+              <div class="section-title">VIPs Ativos Agora</div>
+              <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="loadVipList()"><i class="ti ti-refresh"></i></button>
+            </div>
+            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);overflow:hidden;margin-bottom:14px">
+              <div id="vip-active-list">
+                <div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div>
+              </div>
+            </div>
+
+            <!-- Ferramentas extras -->
+            <div class="section-hdr" style="margin-top:16px">
+              <i class="ti ti-message" style="color:var(--blue)"></i>
+              <div class="section-title">Mensagem para Usuário</div>
+            </div>
+            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:14px;display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+              <div class="form-group"><label class="form-label">Email</label><input class="form-inp" id="msg-email" placeholder="user@gmail.com"></div>
+              <div class="form-group"><label class="form-label">Mensagem (aparece no app)</label><textarea class="form-textarea" id="msg-text" placeholder="Escreva aqui..." style="min-height:70px"></textarea></div>
               <button class="btn btn-primary" style="justify-content:center" onclick="sendAdminMsg()"><i class="ti ti-send"></i> Enviar mensagem</button>
             </div>
-            <div style="margin-top:14px">
-              <div class="section-hdr"><i class="ti ti-trash" style="color:var(--red)"></i><div class="section-title">Limpar Histórico de Enviados</div></div>
-              <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:16px;display:flex;flex-direction:column;gap:10px">
-                <div class="form-group"><label class="form-label">Email do usuário</label><input class="form-inp" id="clear-email" placeholder="user@gmail.com"></div>
-                <button class="btn btn-danger" style="justify-content:center" onclick="clearSent()"><i class="ti ti-refresh"></i> Limpar sent_emails (permite reenvio)</button>
-              </div>
+
+            <div class="section-hdr">
+              <i class="ti ti-trash" style="color:var(--red)"></i>
+              <div class="section-title">Limpar Histórico de Enviados</div>
+            </div>
+            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:14px;display:flex;flex-direction:column;gap:8px">
+              <div class="form-group"><label class="form-label">Email</label><input class="form-inp" id="clear-email" placeholder="user@gmail.com"></div>
+              <button class="btn btn-danger" style="justify-content:center" onclick="clearSent()"><i class="ti ti-refresh"></i> Limpar enviados (permite reenviar)</button>
             </div>
           </div>
         </div>
@@ -2898,7 +3094,7 @@ const ACTION_COLORS = {
 };
 
 function _planBadge(p){
-  return {free:'<span class="badge b-gray">Free</span>',vip:'<span class="badge b-purple">⭐ VIP</span>',pro:'<span class="badge b-cyan">🤖 Pro</span>',vipro:'<span class="badge b-blue">⭐🤖</span>'}[p]||`<span class="badge b-gray">${esc(p||'?')}</span>`;
+  return {free:'<span class="badge b-gray">Free</span>',vip:'<span class="badge b-purple">⭐ VIP</span>',pro:'<span class="badge b-cyan">🤖 Pro</span>',vipro:'<span class="badge b-blue">⭐🤖 VIPro</span>',doublepro:'<span class="badge b-blue" style="background:rgba(250,204,21,.15);color:#fbbf24;border-color:rgba(250,204,21,.3)">🚀💎 DoublePro</span>'}[p]||`<span class="badge b-gray">${esc(p||'?')}</span>`;
 }
 function _hasProblem(u){
   return u.jobStalled || u.oauthOk===false || u.hasPdf===false || u.errors>3;
@@ -3108,7 +3304,7 @@ async function openUser(email){
     const av=document.getElementById('modal-av');
     if(av) av.innerHTML=u.picture?`<img src="${esc(u.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:(u.name||email)[0].toUpperCase();
     const badges=document.getElementById('modal-badges');
-    const planLabel={free:'<span class="badge b-gray">Free</span>',vip:'<span class="badge b-purple">⭐ VIP</span>',pro:'<span class="badge b-cyan">🤖 Pro</span>',vipro:'<span class="badge b-blue">⭐🤖 VIPro</span>'}[u.plan]||'';
+    const planLabel={free:'<span class="badge b-gray">Free</span>',vip:'<span class="badge b-purple">⭐ VIP</span>',pro:'<span class="badge b-cyan">🤖 Pro</span>',vipro:'<span class="badge b-blue">⭐🤖 VIPro</span>',doublepro:'<span class="badge b-blue" style="background:rgba(250,204,21,.15);color:#fbbf24;border-color:rgba(250,204,21,.3)">🚀💎 DoublePro</span>'}[u.plan]||'';
     if(badges) badges.innerHTML=planLabel+(u.isOnline?'<span class="badge b-green">🟢 Online</span>':'<span class="badge b-gray">Offline</span>');
     document.getElementById('modal-restart-btn').style.display=u.hasAuto?'':'none';
     document.getElementById('modal-stop-btn').style.display=u.hasAuto?'':'none';
@@ -3202,6 +3398,19 @@ function renderModalOverview(d,u){
 
   const vip=user.vip||{};
   const vipInfo=vip.active?`<span class="badge b-purple">Ativo até ${vip.manualExpires?new Date(vip.manualExpires).toLocaleDateString('pt-BR'):'–'}</span>`:'<span class="badge b-gray">Sem plano VIP</span>';
+  
+  // Badge de ORIGEM do VIP
+  const vipSource = vip.source || (u?.vip?.source) || 'admin';
+  const vipSourceMap = {
+    'code':   { label:`🎁 Código grátis${vip.usedCode?' — '+vip.usedCode:''}`, cls:'b-amber', tip: vip.codeNote||'Resgatou código promocional' },
+    'trial':  { label:'🆓 Trial automático', cls:'b-blue', tip:'Ganhou trial ao criar conta' },
+    'admin':  { label:'💳 Plano pago', cls:'b-green', tip: vip.note||vip.activatedBy?`Ativado por ${vip.activatedBy||'admin'}`:'' },
+    'referral':{ label:'🤝 Bônus indicação', cls:'b-cyan', tip:'Ganhou dias por indicar usuário' },
+  };
+  const srcInfo = vipSourceMap[vipSource] || vipSourceMap['admin'];
+  const vipOriginBadge = vip.active || vip.manualExpires
+    ? `<span class="badge ${srcInfo.cls}" title="${esc(srcInfo.tip)}" style="cursor:help">${srcInfo.label}</span>`
+    : '';
 
   let html=stopReasonHtml+`
   <div class="detail-grid">
@@ -3214,6 +3423,9 @@ function renderModalOverview(d,u){
       <div class="detail-row"><span class="detail-label">Cidade</span><span class="detail-val">${esc(user.city||'–')}</span></div>
       <div class="detail-row"><span class="detail-label">Plano atual</span><span class="detail-val">${esc(u?.plan||user.plan||'free')}</span></div>
       <div class="detail-row"><span class="detail-label">VIP status</span><span class="detail-val">${vipInfo}</span></div>
+      <div class="detail-row"><span class="detail-label">Origem do plano</span><span class="detail-val">${vipOriginBadge||'<span class="badge b-gray">–</span>'}</span></div>
+      ${vip.usedCode?`<div class="detail-row"><span class="detail-label">Código usado</span><span class="detail-val mono" style="color:var(--amber);font-weight:700">${esc(vip.usedCode)}</span></div>`:''}
+      ${vip.note?`<div class="detail-row"><span class="detail-label">Nota</span><span class="detail-val" style="color:var(--t2);font-style:italic">${esc(vip.note)}</span></div>`:''}
       <div class="detail-row"><span class="detail-label">Admin</span><span class="detail-val">${user.isAdmin?'✅ Sim':'Não'}</span></div>
       <div class="detail-row"><span class="detail-label">Criado em</span><span class="detail-val">${user.created_at?new Date(user.created_at).toLocaleString('pt-BR'):'–'}</span></div>
       <div class="detail-row"><span class="detail-label">Último login</span><span class="detail-val">${user.last_login?new Date(user.last_login).toLocaleString('pt-BR'):'–'}</span></div>
@@ -3794,9 +4006,9 @@ function renderModalEdit(d,u){
     <div>
       <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:8px">Ações administrativas</div>
       <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-amber" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'vip')"><i class="ti ti-diamond"></i> Ativar VIP 30 dias (manual)</button>
-        <button class="btn btn-purple" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'vipro')"><i class="ti ti-diamond"></i> Ativar VIPro 30 dias</button>
-        <button class="btn btn-success" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'pro')"><i class="ti ti-robot"></i> Ativar VIPro 30 dias</button>
+        <button class="btn btn-amber" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'vip')"><i class="ti ti-diamond"></i> Ativar VIP 30 dias (só manual)</button>
+        <button class="btn btn-purple" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'vipro')"><i class="ti ti-robot"></i> Ativar VIPro 30 dias (manual + auto)</button>
+        <button class="btn btn-success" style="justify-content:center" onclick="adminVipQuick('${esc(email)}',30,'doublepro')"><i class="ti ti-rocket"></i> Ativar DoublePro 30 dias</button>
         <button class="btn btn-ghost" style="justify-content:center" onclick="adminClearSentUser('${esc(email)}')"><i class="ti ti-refresh"></i> Limpar histórico de enviados</button>
         <div style="border-top:1px solid var(--border);margin:4px 0"></div>
         <button class="btn btn-danger" style="justify-content:center" onclick="deleteUser('${esc(email)}')"><i class="ti ti-trash"></i> Excluir usuário permanentemente</button>
@@ -3903,9 +4115,10 @@ async function saveUserProfile(email){
 }
 
 async function adminVipQuick(email,days,plan){
-  const autoDays=plan==='pro'||plan==='vipro'?days:0;
+  const autoDays=(plan==='pro'||plan==='vipro'||plan==='doublepro')?days:0;
+  const manualDays=(plan==='pro')?0:days;
   try{
-    const r=await fetch('/api/admin/vip/activate',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,days,autoDays,plan})});
+    const r=await fetch('/api/admin/vip/activate',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,days:manualDays,autoDays,plan})});
     const d=await r.json();
     if(d.ok){toast(`✅ ${plan.toUpperCase()} ativado por ${days} dias`,'ok');await refreshModal();refreshAll();}
     else toast(d.error||'Erro','err');
@@ -3940,16 +4153,24 @@ async function activateVip(){
   const email=document.getElementById('vip-email')?.value.trim();
   const days=parseInt(document.getElementById('vip-days')?.value)||30;
   const autoDays=parseInt(document.getElementById('vip-auto-days')?.value)||0;
-  const plan=document.getElementById('vip-plan')?.value||'vip';
+  const plan=document.getElementById('vip-plan')?.value||'vipro';
   const note=document.getElementById('vip-note')?.value.trim();
-  if(!email){toast('Email obrigatório','err');return;}
+  if(!email){toast('Informe o email do usuário','err');return;}
   try{
     const r=await fetch('/api/admin/vip/activate',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,days,autoDays,plan,note})});
     const d=await r.json();
     if(d.ok){
       toast(`✅ ${plan.toUpperCase()} ativado para ${email}`,'ok');
       const res=document.getElementById('vip-result');
-      if(res){res.style.display='block';res.textContent=`✅ VIP ${plan.toUpperCase()} ativado! Manual expira: ${d.manualExpiresDate||'–'} · Auto expira: ${d.autoExpiresDate||'–'}`;}
+      if(res){
+        res.style.display='block';
+        const manDate = d.manualExpiresDate||'–';
+        const autoDate = d.autoExpiresDate||'–';
+        res.textContent=`✅ ${plan.toUpperCase()} ativado! Manual expira: ${manDate}${autoDays>0?' · Auto expira: '+autoDate:''}`;
+      }
+      // Atualiza listas
+      loadVipList();
+      loadFinanceiro();
       refreshAll();
     }else toast(d.error||'Erro','err');
   }catch(e){toast(e.message,'err');}
@@ -4000,21 +4221,32 @@ async function loadCodes(){
     const d=await r.json();
     if(!d.codes?.length){el.innerHTML='<div class="empty-state"><i class="ti ti-ticket"></i>Nenhum código cadastrado</div>';return;}
     el.innerHTML=`<table><thead><tr>
-      <th>Código</th><th>Manual</th><th>Auto</th><th>Usos</th><th>Nota</th><th>Criado</th><th>Status</th><th>Ações</th>
+      <th>Código</th><th>Manual</th><th>Auto</th><th>Quem usou</th><th>Nota</th><th>Criado</th><th>Status</th><th>Ações</th>
     </tr></thead><tbody>${
-      d.codes.map(c=>`<tr>
-        <td class="mono" style="font-size:14px;font-weight:700;letter-spacing:2px">${esc(c.code)}</td>
-        <td>${c.manualDays||0}d</td>
-        <td>${c.autoDays||0}d</td>
-        <td><span class="badge b-gray">${(c.usedBy||[]).length}/${c.maxUses||1}</span></td>
-        <td style="color:var(--t2);font-size:11px">${esc(c.note||'–')}</td>
-        <td style="font-size:10px;color:var(--t3)">${c.createdAt?new Date(c.createdAt).toLocaleDateString('pt-BR'):'–'}</td>
-        <td>${c.active?'<span class="badge b-green">Ativo</span>':'<span class="badge b-red">Revogado</span>'}</td>
-        <td onclick="event.stopPropagation()" style="white-space:nowrap">
-          ${c.active?`<button class="btn btn-xs btn-danger" onclick="revokeCode('${esc(c.code)}')"><i class="ti ti-ban"></i></button>`:''}
-          <button class="btn btn-xs btn-ghost" onclick="deleteCode('${esc(c.code)}')"><i class="ti ti-trash"></i></button>
-        </td>
-      </tr>`).join('')
+      d.codes.map(c=>{
+        const usedCount = (c.usedBy||[]).length;
+        const usedList = (c.usedBy||[]).slice(0,3).map(e=>`<div style="font-size:10px;color:var(--amber);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">${esc(e)}</div>`).join('');
+        const moreUsed = usedCount > 3 ? `<div style="font-size:10px;color:var(--t3)">+${usedCount-3} outros</div>` : '';
+        return `<tr>
+          <td class="mono" style="font-size:15px;font-weight:800;letter-spacing:2px;color:var(--amber)">${esc(c.code)}</td>
+          <td style="font-size:13px">${c.manualDays||0}d</td>
+          <td style="font-size:13px">${c.autoDays||0}d</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+              <span class="badge ${usedCount>0?'b-amber':'b-gray'}" style="font-size:12px">${usedCount}/${c.maxUses||1} ${usedCount>0?'🎁 usaram':''}</span>
+            </div>
+            ${usedList}${moreUsed}
+            ${usedCount===0?'<span style="font-size:11px;color:var(--t3)">Nenhum uso ainda</span>':''}
+          </td>
+          <td style="color:var(--t2);font-size:12px">${esc(c.note||'–')}</td>
+          <td style="font-size:11px;color:var(--t3)">${c.createdAt?new Date(c.createdAt).toLocaleDateString('pt-BR'):'–'}</td>
+          <td>${c.active?'<span class="badge b-green">Ativo</span>':'<span class="badge b-red">Revogado</span>'}</td>
+          <td onclick="event.stopPropagation()" style="white-space:nowrap">
+            ${c.active?`<button class="btn btn-xs btn-danger" onclick="revokeCode('${esc(c.code)}')"><i class="ti ti-ban"></i></button>`:''}
+            <button class="btn btn-xs btn-ghost" onclick="deleteCode('${esc(c.code)}')"><i class="ti ti-trash"></i></button>
+          </td>
+        </tr>`;
+      }).join('')
     }</tbody></table>`;
   }catch(e){el.innerHTML=`<div class="empty-state" style="color:var(--red)">${e.message}</div>`;}
 }
@@ -4753,18 +4985,25 @@ async function loadVencimentos(){
     return plan !== 'free';
   }).map(u => {
     const vip = u.vip||{};
-    const manExp = vip.manualExpires||0;
-    const autoExp = vip.autoExpires||0;
+    const manExp = (vip.manualExpires && vip.manualExpires > 1000000) ? vip.manualExpires : 0;
+    const autoExp = (vip.autoExpires && vip.autoExpires > 1000000) ? vip.autoExpires : 0;
     const nextExp = Math.max(manExp, autoExp);
-    const daysLeft = nextExp > 0 ? Math.ceil((nextExp - now) / 86400000) : -999;
+    // Se nextExp é 0 (sem data definida), trata como sem vencimento cadastrado
+    const daysLeft = nextExp > 0 ? Math.ceil((nextExp - now) / 86400000) : null;
     return {...u, _manExp:manExp, _autoExp:autoExp, _nextExp:nextExp, _daysLeft:daysLeft};
-  }).sort((a,b)=>a._daysLeft - b._daysLeft);
+  }).sort((a,b)=>{
+    // null (sem data) vai pro final
+    if(a._daysLeft===null && b._daysLeft===null) return 0;
+    if(a._daysLeft===null) return 1;
+    if(b._daysLeft===null) return -1;
+    return a._daysLeft - b._daysLeft;
+  });
   
   // Stats
-  const expired = vipUsers.filter(u=>u._daysLeft<=0).length;
-  const soon7 = vipUsers.filter(u=>u._daysLeft>0&&u._daysLeft<=7).length;
-  const soon30 = vipUsers.filter(u=>u._daysLeft>7&&u._daysLeft<=30).length;
-  const ok = vipUsers.filter(u=>u._daysLeft>30).length;
+  const expired = vipUsers.filter(u=>u._daysLeft!==null && u._daysLeft<=0).length;
+  const soon7 = vipUsers.filter(u=>u._daysLeft!==null && u._daysLeft>0&&u._daysLeft<=7).length;
+  const soon30 = vipUsers.filter(u=>u._daysLeft!==null && u._daysLeft>7&&u._daysLeft<=30).length;
+  const ok = vipUsers.filter(u=>u._daysLeft===null || u._daysLeft>30).length;
   
   const setText2=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
   setText2('venc-cnt-expired',expired);
@@ -4781,10 +5020,10 @@ async function loadVencimentos(){
   
   // Filter
   let filtered = vipUsers;
-  if(filter==='expired') filtered=vipUsers.filter(u=>u._daysLeft<=0);
-  else if(filter==='7d') filtered=vipUsers.filter(u=>u._daysLeft>0&&u._daysLeft<=7);
-  else if(filter==='30d') filtered=vipUsers.filter(u=>u._daysLeft>0&&u._daysLeft<=30);
-  else if(filter==='ok') filtered=vipUsers.filter(u=>u._daysLeft>30);
+  if(filter==='expired') filtered=vipUsers.filter(u=>u._daysLeft!==null && u._daysLeft<=0);
+  else if(filter==='7d') filtered=vipUsers.filter(u=>u._daysLeft!==null && u._daysLeft>0&&u._daysLeft<=7);
+  else if(filter==='30d') filtered=vipUsers.filter(u=>u._daysLeft!==null && u._daysLeft>0&&u._daysLeft<=30);
+  else if(filter==='ok') filtered=vipUsers.filter(u=>u._daysLeft===null || u._daysLeft>30);
   
   if(!filtered.length){
     el.innerHTML='<div class="empty-state"><i class="ti ti-check"></i>Nenhum usuário neste filtro</div>';
@@ -4793,21 +5032,26 @@ async function loadVencimentos(){
   
   el.innerHTML=filtered.map(u=>{
     const dl=u._daysLeft;
-    const cls=dl<=0?'venc-expired':dl<=7?'venc-soon':'venc-ok';
-    const color=dl<=0?'var(--red)':dl<=7?'var(--amber)':dl<=30?'var(--blue)':'var(--green)';
-    const daysLabel=dl<=0?`${Math.abs(dl)}d atrás`:dl===0?'hoje':`${dl}d`;
+    const hasDate = dl !== null;
+    const cls=!hasDate?'venc-ok':dl<=0?'venc-expired':dl<=7?'venc-soon':'venc-ok';
+    const color=!hasDate?'var(--t3)':dl<=0?'var(--red)':dl<=7?'var(--amber)':dl<=30?'var(--blue)':'var(--green)';
+    const daysLabel=!hasDate?'Sem data':dl<=0?`${Math.abs(dl)}d atrás`:dl===0?'hoje':`${dl}d`;
     const manDate=u._manExp>0?new Date(u._manExp).toLocaleDateString('pt-BR'):'–';
     const autoDate=u._autoExp>0?new Date(u._autoExp).toLocaleDateString('pt-BR'):'–';
-    const planBadge={free:'Free',vip:'⭐ VIP',pro:'🤖 Pro',vipro:'⭐🤖 VIPro'}[u.plan||'free']||u.plan;
+    const planBadge={free:'Free',vip:'⭐ VIP',pro:'🤖 Pro',vipro:'⭐🤖 VIPro',doublepro:'🚀💎 DoublePro'}[u.plan||'free']||u.plan;
+    const srcVenc = u.vip?.source||'admin';
+    const srcLabelVenc = srcVenc==='code'?`🎁 Código: ${u.vip?.usedCode||'?'}`:srcVenc==='trial'?'🆓 Trial':srcVenc==='referral'?'🤝 Indicação':'💳 Pago';
+    const srcClsVenc = srcVenc==='code'?'b-amber':srcVenc==='trial'?'b-blue':srcVenc==='referral'?'b-cyan':'b-green';
     return `<div class="venc-card ${cls}" onclick="openUser('${esc(u.email)}')">
       <div class="venc-avatar">${(u.name||u.email||'?')[0].toUpperCase()}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||u.email)}</div>
-        <div style="font-size:10px;color:var(--t3);font-family:monospace">${esc(u.email)}</div>
-        <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
-          <span style="font-size:10px;color:var(--purple)">${planBadge}</span>
-          <span style="font-size:10px;color:var(--t3)">Manual: <strong style="color:var(--t2)">${manDate}</strong></span>
-          <span style="font-size:10px;color:var(--t3)">Auto: <strong style="color:var(--t2)">${autoDate}</strong></span>
+        <div style="font-size:11px;color:var(--t3);font-family:monospace">${esc(u.email)}</div>
+        <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;align-items:center">
+          <span style="font-size:11px;color:var(--purple)">${planBadge}</span>
+          <span class="badge ${srcClsVenc}" style="font-size:10px">${srcLabelVenc}</span>
+          <span style="font-size:11px;color:var(--t3)">Manual: <strong style="color:var(--t2)">${manDate}</strong></span>
+          <span style="font-size:11px;color:var(--t3)">Auto: <strong style="color:var(--t2)">${autoDate}</strong></span>
         </div>
       </div>
       <div class="venc-days" style="color:${color}">${daysLabel}</div>
@@ -5020,6 +5264,297 @@ if(_origShowView){
 setTimeout(()=>{
   if(allUsers.length>0) checkVipExpiryAlert();
 }, 5000);
+
+// ══════════════════════════════════════════════════════════
+//  VIP PLAN SELECTOR — Lógica dos cards de plano
+// ══════════════════════════════════════════════════════════
+const PLAN_CONFIG = {
+  vip:       { manualDays:30, autoDays:0,  label:'⭐ VIP — 30 dias (só manual)',          desc:'Manual: 200/dia · Auto: desativado' },
+  vipro:     { manualDays:30, autoDays:30, label:'⭐🤖 VIPro — 30 dias (manual + auto)',  desc:'Manual: 200/dia · Auto: 200/dia' },
+  doublepro: { manualDays:30, autoDays:30, label:'🚀💎 DoublePro — 30 dias',              desc:'Manual: 400/dia · Auto: 400/dia · 2 Gmails' },
+  pro:       { manualDays:0,  autoDays:30, label:'🤖 Só Auto — 30 dias',                  desc:'Auto: 200/dia · Manual: desativado' },
+};
+
+function selectPlan(planKey) {
+  // Limpa seleção
+  document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('pc-' + planKey)?.classList.add('selected');
+  document.getElementById('vip-plan').value = planKey;
+
+  const cfg = PLAN_CONFIG[planKey] || PLAN_CONFIG.vipro;
+  document.getElementById('vip-days').value = cfg.manualDays;
+  document.getElementById('vip-auto-days').value = cfg.autoDays;
+
+  // Atualiza preview
+  const days = Math.max(cfg.manualDays, cfg.autoDays);
+  const expDate = new Date(Date.now() + days * 86400000);
+  const dateStr = expDate.toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric'});
+  const prev = document.getElementById('vip-preview');
+  const prevDate = document.getElementById('vip-preview-date');
+  if(prev) prev.innerHTML = `<strong>${cfg.label}</strong><br><span style="color:var(--t3)">${cfg.desc}</span>`;
+  if(prevDate) prevDate.textContent = dateStr;
+}
+
+// Atualiza preview quando muda dias manualmente
+function updateVipPreview(){
+  const manDays = parseInt(document.getElementById('vip-days')?.value)||0;
+  const autoDays = parseInt(document.getElementById('vip-auto-days')?.value)||0;
+  const days = Math.max(manDays, autoDays);
+  if(!days) return;
+  const expDate = new Date(Date.now() + days * 86400000);
+  const dateStr = expDate.toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric'});
+  const prevDate = document.getElementById('vip-preview-date');
+  if(prevDate) prevDate.textContent = dateStr;
+}
+
+// Adiciona evento de input nos campos de dias
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('vip-days')?.addEventListener('input', updateVipPreview);
+  document.getElementById('vip-auto-days')?.addEventListener('input', updateVipPreview);
+  // Inicializa VIPro como selecionado por padrão
+  selectPlan('vipro');
+  // Carrega lista de VIPs e financeiro ao iniciar
+  loadVipList();
+  loadFinanceiro();
+});
+
+// Busca email para sugestão de usuário
+async function vipEmailSearch(val){
+  const hint = document.getElementById('vip-email-hint');
+  if(!hint) return;
+  if(!val || val.length < 3) { hint.textContent = ''; return; }
+  // Tenta encontrar na lista em memória
+  const found = allUsers.find(u => u.email && u.email.toLowerCase().includes(val.toLowerCase()));
+  if(found){
+    const vip = found.vip || {};
+    const plan = found.plan || 'free';
+    const manExp = vip.manualExpires ? new Date(vip.manualExpires).toLocaleDateString('pt-BR') : 'sem data';
+    hint.innerHTML = `✅ Usuário encontrado: <strong>${esc(found.name||found.email)}</strong> · Plano atual: <strong style="color:var(--purple)">${plan}</strong> · Manual expira: ${manExp}`;
+    hint.style.color = 'var(--green)';
+    // Preenche campos de mensagem e limpar também
+    if(document.getElementById('msg-email')) document.getElementById('msg-email').value = found.email;
+    if(document.getElementById('clear-email')) document.getElementById('clear-email').value = found.email;
+    if(document.getElementById('fin-p-email')) document.getElementById('fin-p-email').value = found.email;
+  } else {
+    hint.innerHTML = `<span style="color:var(--t3)">Digitando...</span>`;
+    hint.style.color = '';
+  }
+}
+
+// ── Lista de VIPs ativos ──
+async function loadVipList(){
+  const el = document.getElementById('vip-active-list');
+  if(!el) return;
+  let users = allUsers;
+  if(!users.length){
+    try {
+      const r = await fetch('/api/admin/live',{credentials:'include'});
+      const d = await r.json();
+      users = d.users||[];
+    } catch(e) {
+      el.innerHTML = `<div class="empty-state" style="color:var(--red)">Erro: ${esc(e.message)}</div>`;
+      return;
+    }
+  }
+  const now = Date.now();
+  const vips = users.filter(u => (u.plan||'free') !== 'free').sort((a,b) => {
+    const aExp = Math.max(a.vip?.manualExpires||0, a.vip?.autoExpires||0);
+    const bExp = Math.max(b.vip?.manualExpires||0, b.vip?.autoExpires||0);
+    return bExp - aExp; // mais recente primeiro
+  });
+  if(!vips.length){
+    el.innerHTML = '<div class="empty-state" style="font-size:11px"><i class="ti ti-diamond-off"></i> Nenhum VIP ativo</div>';
+    return;
+  }
+  const planBadge = {vip:'⭐ VIP',pro:'🤖 Pro',vipro:'⭐🤖 VIPro',doublepro:'🚀💎 DoublePro'};
+  const getSrcBadge = (u) => {
+    const src = u.vip?.source||'admin';
+    if(src==='code') return `<span class="badge b-amber" style="font-size:10px">🎁 ${u.vip?.usedCode||'Código grátis'}</span>`;
+    if(src==='trial') return `<span class="badge b-blue" style="font-size:10px">🆓 Trial</span>`;
+    if(src==='referral') return `<span class="badge b-cyan" style="font-size:10px">🤝 Indicação</span>`;
+    return `<span class="badge b-green" style="font-size:10px">💳 Pago</span>`;
+  };
+  el.innerHTML = vips.map(u => {
+    const vip = u.vip||{};
+    const manExp = (vip.manualExpires && vip.manualExpires > 1000000) ? vip.manualExpires : 0;
+    const nextExp = Math.max(manExp, vip.autoExpires||0);
+    const daysLeft = nextExp > 0 ? Math.ceil((nextExp - now)/86400000) : null;
+    const color = daysLeft === null ? 'var(--t3)' : daysLeft <= 0 ? 'var(--red)' : daysLeft <= 7 ? 'var(--amber)' : 'var(--green)';
+    const dLabel = daysLeft === null ? 'sem data' : daysLeft <= 0 ? `expirou há ${Math.abs(daysLeft)}d` : `${daysLeft}d`;
+    return `<div class="vip-list-item" onclick="document.getElementById('vip-email').value='${esc(u.email)}';vipEmailSearch('${esc(u.email)}')">
+      <div style="min-width:0;flex:1">
+        <div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||u.email)}</div>
+        <div style="font-size:11px;color:var(--t3);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.email)}</div>
+        <div style="margin-top:3px">${getSrcBadge(u)}</div>
+      </div>
+      <span class="badge b-purple" style="font-size:11px;flex-shrink:0">${planBadge[u.plan||'free']||u.plan}</span>
+      <span style="font-size:12px;font-weight:700;color:${color};font-family:monospace;min-width:60px;text-align:right;flex-shrink:0">${dLabel}</span>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+//  PAINEL FINANCEIRO
+// ══════════════════════════════════════════════════════════
+const FIN_STORAGE_KEY = 'h2bapply_financeiro_v1';
+const FIN_CUSTO_TOTAL = 650; // R$ 650 gasto no site
+
+function finGetData(){
+  try {
+    const raw = localStorage.getItem(FIN_STORAGE_KEY);
+    if(raw) return JSON.parse(raw);
+  } catch(e) {}
+  return { pagamentos: [] };
+}
+
+function finSaveData(data){
+  try {
+    localStorage.setItem(FIN_STORAGE_KEY, JSON.stringify(data));
+  } catch(e) { toast('Erro ao salvar dados financeiros: ' + e.message, 'err'); }
+}
+
+function loadFinanceiro(){
+  const data = finGetData();
+  const pagamentos = data.pagamentos || [];
+
+  const totalRecebido = pagamentos.reduce((s, p) => s + (p.valor||0), 0);
+  const saldo = totalRecebido - FIN_CUSTO_TOTAL;
+
+  // Lucro líquido só é calculado se saldo positivo
+  const lucro = Math.max(0, saldo);
+  const metade = lucro / 2;
+
+  // Atualiza cards
+  const setText = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
+  setText('fin-receita', `R$ ${totalRecebido.toFixed(2).replace('.',',')}`);
+  
+  const saldoEl = document.getElementById('fin-saldo');
+  const saldoLbl = document.getElementById('fin-saldo-lbl');
+  const saldoCard = document.getElementById('fin-saldo-card');
+  if(saldoEl){
+    saldoEl.textContent = `R$ ${Math.abs(saldo).toFixed(2).replace('.',',')}`;
+    saldoEl.className = 'stat-val fin-saldo-' + (saldo > 0 ? 'positivo' : saldo < 0 ? 'negativo' : 'neutro');
+  }
+  if(saldoLbl){
+    if(saldo > 0) saldoLbl.textContent = '✅ Lucro líquido';
+    else if(saldo < 0) saldoLbl.textContent = `⚠️ Falta R$ ${Math.abs(saldo).toFixed(2).replace('.',',')} para cobrir custo`;
+    else saldoLbl.textContent = '⚖️ Custo zerado';
+  }
+  if(saldoCard){
+    saldoCard.className = 'stat-card ' + (saldo > 0 ? 'stat-green' : saldo < 0 ? 'stat-red' : 'stat-amber');
+  }
+
+  setText('fin-andrio', saldo > 0 ? `R$ ${metade.toFixed(2).replace('.',',')}` : `R$ 0,00`);
+  setText('fin-diego',  saldo > 0 ? `R$ ${metade.toFixed(2).replace('.',',')}` : `R$ 0,00`);
+
+  // Lista de pagamentos
+  const listEl = document.getElementById('fin-pagamentos-list');
+  if(listEl){
+    if(!pagamentos.length){
+      listEl.innerHTML = '<div class="empty-state" style="padding:14px;font-size:11px"><i class="ti ti-inbox"></i> Nenhum pagamento registrado ainda.<br>Clique em "+ Registrar pagamento" para começar.</div>';
+    } else {
+      listEl.innerHTML = pagamentos.slice().reverse().map((p, i) => {
+        const idx = pagamentos.length - 1 - i;
+        const date = p.data ? new Date(p.data).toLocaleDateString('pt-BR') : '–';
+        return `<div style="display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);font-size:11px">
+          <div>
+            <div style="font-weight:700;color:#fff">${esc(p.email||'–')}</div>
+            <div style="color:var(--t3);font-size:10px">${esc(p.plano||'–')} · ${esc(p.nota||'')} · ${date}</div>
+          </div>
+          <span style="font-weight:800;color:var(--green);font-family:monospace">R$ ${(p.valor||0).toFixed(2).replace('.',',')}</span>
+          <span class="badge b-green" style="font-size:9px">✅ recebido</span>
+          <button onclick="finRemovePagamento(${idx})" style="background:var(--redg);border:1px solid var(--redb);border-radius:5px;color:var(--red);cursor:pointer;padding:3px 6px;font-size:10px" title="Remover"><i class="ti ti-trash"></i></button>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+function showAddPagamento(){
+  const form = document.getElementById('fin-add-form');
+  if(form){
+    form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    if(form.style.display !== 'none'){
+      // Preenche email se já estava no campo VIP
+      const vipEmail = document.getElementById('vip-email')?.value;
+      if(vipEmail) document.getElementById('fin-p-email').value = vipEmail;
+    }
+  }
+}
+
+async function registrarPagamento(){
+  const email = document.getElementById('fin-p-email')?.value.trim();
+  const valor = parseFloat(document.getElementById('fin-p-valor')?.value) || 0;
+  const planoKey = document.getElementById('fin-p-plano')?.value || 'vipro';
+  const nota = document.getElementById('fin-p-nota')?.value.trim();
+  const ativar = document.getElementById('fin-p-ativar')?.value === 'sim';
+  const resEl = document.getElementById('fin-result');
+
+  if(!email){ toast('Informe o email do usuário', 'err'); return; }
+  if(!valor){ toast('Informe o valor pago', 'err'); return; }
+
+  // Salva no financeiro local
+  const data = finGetData();
+  data.pagamentos.push({
+    email, valor, plano: planoKey, nota,
+    data: new Date().toISOString(),
+    ativarVip: ativar
+  });
+  finSaveData(data);
+
+  // Ativa VIP se solicitado
+  if(ativar){
+    // Mapeia plano para dias
+    const planMap = {
+      vip:{ days:30, autoDays:0, plan:'vip' },
+      vipro:{ days:30, autoDays:30, plan:'vipro' },
+      doublepro:{ days:30, autoDays:30, plan:'doublepro' },
+      vip60:{ days:60, autoDays:0, plan:'vip' },
+      vipro60:{ days:60, autoDays:60, plan:'vipro' },
+      pro:{ days:0, autoDays:30, plan:'pro' },
+      outro:{ days:30, autoDays:0, plan:'vip' },
+    };
+    const cfg = planMap[planoKey] || planMap.vipro;
+    try {
+      const r = await fetch('/api/admin/vip/activate',{
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email, days:cfg.days, autoDays:cfg.autoDays, plan:cfg.plan, note:`Pagamento R$${valor} — ${nota||planoKey}`})
+      });
+      const d = await r.json();
+      if(d.ok){
+        toast(`✅ Pagamento registrado + VIP ${cfg.plan.toUpperCase()} ativado para ${email}`, 'ok');
+        if(resEl){ resEl.style.display='block'; resEl.style.background='var(--greeng)'; resEl.style.color='var(--green)'; resEl.style.borderColor='var(--greenb)'; resEl.textContent=`✅ VIP ativado! Expira: ${d.manualExpiresDate||'–'}`; }
+      } else {
+        toast('Pagamento salvo mas erro ao ativar VIP: ' + (d.error||'erro'), 'warn');
+        if(resEl){ resEl.style.display='block'; resEl.style.background='var(--amberg)'; resEl.style.color='var(--amber)'; resEl.textContent='⚠️ Pagamento salvo mas VIP não foi ativado: ' + (d.error||'erro'); }
+      }
+    } catch(e) {
+      toast('Pagamento salvo mas erro de rede: ' + e.message, 'warn');
+    }
+  } else {
+    toast(`✅ Pagamento de R$ ${valor.toFixed(2)} registrado para ${email}`, 'ok');
+    if(resEl){ resEl.style.display='block'; resEl.style.background='var(--greeng)'; resEl.style.color='var(--green)'; resEl.textContent=`✅ Pagamento registrado! VIP não ativado (manual).`; }
+  }
+
+  loadFinanceiro();
+  loadVipList();
+  refreshAll();
+  
+  // Fecha formulário após 2s
+  setTimeout(() => {
+    document.getElementById('fin-add-form').style.display = 'none';
+  }, 2000);
+}
+
+function finRemovePagamento(idx){
+  if(!confirm('Remover este pagamento do registro?')) return;
+  const data = finGetData();
+  data.pagamentos.splice(idx, 1);
+  finSaveData(data);
+  loadFinanceiro();
+  toast('Pagamento removido', 'warn');
+}
 
 console.log('[admin v15] ✅ 20 melhorias carregadas');
 </script>

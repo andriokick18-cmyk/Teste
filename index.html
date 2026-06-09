@@ -974,6 +974,9 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .ln-cta-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;max-width:400px;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;border-radius:14px;padding:16px 24px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;transition:all .18s;box-shadow:0 8px 32px rgba(59,130,246,.35)}
 .ln-cta-btn:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(59,130,246,.45)}
 .ln-cta-btn:active{transform:translateY(0)}
+.ln-guia-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;max-width:400px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.85);border:1.5px solid rgba(255,255,255,.2);border-radius:14px;padding:13px 24px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .18s;text-decoration:none;margin-top:10px}
+.ln-guia-btn:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.35);color:#fff;transform:translateY(-1px)}
+.ln-guia-btn i{font-size:16px}
 .ln-trust-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--t3)}
 .ln-trust-row span{display:flex;align-items:center;gap:4px}
 .ln-trust-row i{color:var(--green)}
@@ -1294,8 +1297,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 .pesq-src-seasonal{background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.2);color:#4f46e5}
 .pesq-src-jan2026{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);color:#d97706}
 .pesq-src-jul2025{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);color:#1d4ed8}
-.pesq-src-h2a{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:#059669}
-.stab-sheet-h2a.active{border-bottom:2px solid #10b981;color:#10b981}
 .pesq-src-hist{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);color:#059669}
 .pesq-no-results{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;gap:12px;text-align:center}
 .pesq-highlight{background:rgba(250,204,21,.35);border-radius:3px;font-weight:700}
@@ -1423,6 +1424,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <svg width="20" height="20" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
           Começar Grátis com Google
         </button>
+        <a href="/guia" class="ln-guia-btn" target="_blank">
+          <i class="ti ti-book-2"></i>
+          Ler o Guia Completo H-2B & H-2A
+        </a>
         <div id="login-err" style="margin-top:8px;font-size:12px;color:var(--red)"></div>
         <div class="ln-trust-row">
           <span><i class="ti ti-lock"></i> 100% seguro</span>
@@ -1717,7 +1722,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <button class="stab active" id="stab-seasonal" onclick="setTab('seasonal')"><i class="ti ti-globe"></i>Seasonal Jobs<span class="stab-cnt" id="sc-seasonal" style="display:none"></span></button>
           <button class="stab stab-sheet-jan" id="stab-jan2026" onclick="setTab('jan2026')" style="margin-top:8px"><i class="ti ti-sun" style="color:#f59e0b"></i><strong>Jan 2026</strong><span class="stab-cnt" id="sc-jan">–</span></button>
           <button class="stab stab-sheet-jul" id="stab-jul2025" onclick="setTab('jul2025')" style="margin-top:8px"><i class="ti ti-snowflake" style="color:#3b82f6"></i><strong>Jul 2025</strong><span class="stab-cnt" id="sc-jul">–</span></button>
-          <button class="stab stab-sheet-h2a" id="stab-h2a" onclick="setTab('h2a')" style="margin-top:8px"><i class="ti ti-plant" style="color:#10b981"></i><strong>H-2A</strong><span class="stab-cnt" id="sc-h2a">–</span></button>
         </div>
         <div class="search-bar">
           <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="Cargo, empresa, estado..." oninput="onSearch()" autocomplete="off" inputmode="search"></div>
@@ -1837,7 +1841,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <button class="pesq-src-chip" data-src="seasonal" onclick="setPesqSrc('seasonal')"><i class="ti ti-globe" style="font-size:11px"></i> Seasonal</button>
             <button class="pesq-src-chip" data-src="jan2026" onclick="setPesqSrc('jan2026')">☀️ Jan 2026</button>
             <button class="pesq-src-chip" data-src="jul2025" onclick="setPesqSrc('jul2025')">❄️ Jul 2025</button>
-            <button class="pesq-src-chip" data-src="h2a" onclick="setPesqSrc('h2a')">🌾 H-2A</button>
             <button class="pesq-src-chip" data-src="hist" onclick="setPesqSrc('hist')"><i class="ti ti-send" style="font-size:11px"></i> Enviadas</button>
           </div>
         </div>
@@ -2359,11 +2362,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                   <div class="source-btn-label"><strong>Jul 2025</strong> — Inverno</div>
                   <div class="source-btn-count" id="src-jul-cnt">–</div>
                 </button>
-                <button class="source-btn" data-src="h2a" onclick="selectSource('h2a')">
-                  <div class="source-btn-icon">🌾</div>
-                  <div class="source-btn-label"><strong>H-2A</strong> — Agrícola</div>
-                  <div class="source-btn-count" id="src-h2a-cnt">–</div>
-                </button>
               </div>
             </div>
 
@@ -2573,12 +2571,12 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div style="font-size:20px;font-weight:800">Escolha seu Plano</div>
           <div style="font-size:13px;opacity:.75;margin-top:4px">Pague via Pix — ativo em até 24h</div>
         </div>
-        <div class="alert al-purple" style="margin-bottom:14px"><i class="ti ti-robot"></i><div><strong>Todos os planos incluem 10 envios automáticos GRÁTIS/dia!</strong></div></div>
+        <div class="alert al-purple" style="margin-bottom:14px"><i class="ti ti-robot"></i><div><strong>Todos os planos pagos incluem envio automático 24h/dia!</strong> Para enviar +300 emails/dia, adicione um 2º Gmail no seu perfil.</div></div>
         <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
-          <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><div><div style="font-weight:800">Free</div><div style="font-size:12px;color:var(--t2)">20 manual + <strong>10 auto</strong>/dia GRÁTIS</div></div><div style="font-weight:800;color:var(--t2)">R$ 0</div></div>
-          <div style="background:var(--surface);border:2px solid var(--blue);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><div><div style="font-weight:800">⭐ VIP Manual</div><div style="font-size:12px;color:var(--t2)">400 manual + 10 auto/dia</div></div><div style="font-weight:800;color:var(--blue)">R$ 49,90<span style="font-size:12px;font-weight:400;color:var(--t3)">/mês</span></div></div>
-          <div style="background:var(--purplel);border:1.5px solid var(--purpleb);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><div><div style="font-weight:800;color:var(--purple)">🤖 Pro Automático</div><div style="font-size:12px;color:var(--purple)">20 manual + <strong>200 auto</strong>/dia</div></div><div style="font-weight:800;color:var(--purple)">R$ 119,90<span style="font-size:12px;font-weight:400;color:var(--t3)">/mês</span></div></div>
-          <div style="background:var(--bluel);border:1.5px solid var(--blueb);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><div><div style="font-weight:800;color:var(--blue)">⭐🤖 VIPro Completo</div><div style="font-size:12px;color:var(--blue)">400 manual + 200 auto/dia</div></div><div style="font-weight:800;color:var(--blue)">R$ 149,90<span style="font-size:12px;font-weight:400;color:var(--t3)">/mês</span></div></div>
+          <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><div><div style="font-weight:800">🆓 Free</div><div style="font-size:12px;color:var(--t2)">30 manual + <strong>20 auto</strong>/dia — GRÁTIS</div></div><div style="font-weight:800;color:var(--t2)">R$ 0</div></div>
+          <div style="background:var(--surface);border:2px solid var(--blue);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><div><div style="font-weight:800">⭐ VIP Manual</div><div style="font-size:12px;color:var(--t2)">400 manual por dia (sem automático)</div></div><div style="font-weight:800;color:var(--blue)">R$ 100<span style="font-size:12px;font-weight:400;color:var(--t3)">/mês</span></div></div>
+          <div style="background:var(--purplel);border:1.5px solid var(--purpleb);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><div><div style="font-weight:800;color:var(--purple)">🤖 VIPro Automático</div><div style="font-size:12px;color:var(--purple)">200 manual + <strong>200 auto</strong>/dia = 400 total</div></div><div style="font-weight:800;color:var(--purple)">R$ 150<span style="font-size:12px;font-weight:400;color:var(--t3)">/mês</span></div></div>
+          <div style="background:linear-gradient(135deg,rgba(250,204,21,.08),rgba(245,158,11,.05));border:2px solid rgba(250,204,21,.4);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><div><div style="font-weight:800;color:#d97706">🚀💎 DoublePro</div><div style="font-size:12px;color:#92400e">400 manual + <strong>400 auto</strong>/dia (2 Gmails)</div><div style="font-size:11px;color:#92400e;margin-top:2px">📧 Envia 200/dia por cada Gmail cadastrado</div></div><div style="font-weight:800;color:#d97706">R$ 250<span style="font-size:12px;font-weight:400;color:var(--t3)">/mês</span></div></div>
         </div>
         <div class="pix-box">
           <div style="font-size:13px;font-weight:700;color:#14532d;margin-bottom:10px"><i class="ti ti-qrcode"></i> Pagar via Pix</div>
@@ -2779,7 +2777,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                   <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;font-size:12px">
                     <div style="background:#fef9c3;border-radius:6px;padding:6px 8px;border:1px solid #fde68a"><strong>☀️ Jan 2026</strong> — Vagas de Verão nos EUA (temporada principal H-2B). <strong>Mais vagas disponíveis.</strong></div>
                     <div style="background:#e0f2fe;border-radius:6px;padding:6px 8px;border:1px solid #bae6fd"><strong>❄️ Jul 2025</strong> — Vagas de Inverno. Menos vagas, mas ainda válidas.</div>
-                    <div style="background:#d1fae5;border-radius:6px;padding:6px 8px;border:1px solid #a7f3d0"><strong>🌾 H-2A</strong> — Vagas Agrícolas. Mais de 2.800 vagas: farms, orchards, nurseries e mais.</div>
                     <div style="background:#f0fdf4;border-radius:6px;padding:6px 8px;border:1px solid #bbf7d0"><strong>🌿 Seasonal</strong> — Vagas H-2A (agricultura) e outras temporadas.</div>
                   </div>
                 </div>
@@ -2897,22 +2894,22 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                 <div style="background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px;text-align:center">
                   <div style="font-size:18px;margin-bottom:4px">🆓</div>
                   <div style="font-weight:800;color:#374151;font-size:12px">Grátis</div>
-                  <div style="font-size:11px;color:#6b7280;margin-top:4px">20 manuais/dia<br>10 automáticos/dia</div>
+                  <div style="font-size:11px;color:#6b7280;margin-top:4px">30 manuais/dia<br>20 automáticos/dia</div>
                 </div>
                 <div style="background:#fef9c3;border:1.5px solid #fde68a;border-radius:10px;padding:10px;text-align:center">
                   <div style="font-size:18px;margin-bottom:4px">⭐</div>
-                  <div style="font-weight:800;color:#92400e;font-size:12px">VIP R$49/mês</div>
-                  <div style="font-size:11px;color:#78350f;margin-top:4px">400 manuais/dia<br>10 automáticos/dia</div>
-                </div>
-                <div style="background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:10px;padding:10px;text-align:center">
-                  <div style="font-size:18px;margin-bottom:4px">🤖</div>
-                  <div style="font-weight:800;color:#1e40af;font-size:12px">Pro R$119/mês</div>
-                  <div style="font-size:11px;color:#1e3a8a;margin-top:4px">20 manuais/dia<br>200 automáticos/dia</div>
+                  <div style="font-weight:800;color:#92400e;font-size:12px">VIP R$100/mês</div>
+                  <div style="font-size:11px;color:#78350f;margin-top:4px">400 manuais/dia<br>sem automático</div>
                 </div>
                 <div style="background:#fdf4ff;border:1.5px solid #e9d5ff;border-radius:10px;padding:10px;text-align:center">
-                  <div style="font-size:18px;margin-bottom:4px">💎</div>
-                  <div style="font-weight:800;color:#7c3aed;font-size:12px">VIPro R$149/mês</div>
-                  <div style="font-size:11px;color:#6d28d9;margin-top:4px">400 manuais/dia<br>200 automáticos/dia</div>
+                  <div style="font-size:18px;margin-bottom:4px">🤖</div>
+                  <div style="font-weight:800;color:#7c3aed;font-size:12px">VIPro R$150/mês</div>
+                  <div style="font-size:11px;color:#6d28d9;margin-top:4px">200 manuais/dia<br>200 automáticos/dia</div>
+                </div>
+                <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:10px;text-align:center">
+                  <div style="font-size:18px;margin-bottom:4px">🚀</div>
+                  <div style="font-weight:800;color:#d97706;font-size:12px">DoublePro R$250/mês</div>
+                  <div style="font-size:11px;color:#92400e;margin-top:4px">400 manuais/dia<br>400 auto (2 Gmails)</div>
                 </div>
               </div>
               <div style="background:#f0fdf4;border-radius:10px;padding:10px 12px;border:1px solid #86efac">
@@ -2954,7 +2951,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 
               <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
                 <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i>Quantos e-mails devo enviar por dia?</summary>
-                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Quanto mais melhor — mas com qualidade. O sistema tem proteção anti-spam. No plano gratuito são 20 manuais + 10 automáticos por dia. Com VIPro são 400 + 200 por dia. Enviar para muitas empresas aumenta suas chances.</div>
+                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Quanto mais melhor — mas com qualidade. O sistema tem proteção anti-spam. No plano gratuito são 30 manuais + 20 automáticos por dia. Com VIPro são 200 + 200 por dia. Com DoublePro (2 Gmails) são 400 + 400 por dia. Enviar para muitas empresas aumenta suas chances.</div>
               </details>
 
               <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
@@ -3084,7 +3081,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <button onclick="sendIaSuggestion('Recebi um email de uma empresa americana em inglês. Me ajude a entender e responder.')" class="ia-chip">📧 Recebi resposta</button>
           <button onclick="sendIaSuggestion('Escreva um email em inglês de candidatura para uma vaga de Landscaper')" class="ia-chip">✉️ Email inglês</button>
           <button onclick="sendIaSuggestion('Como configurar o Envio Automático do H2BApply? Quais passos seguir?')" class="ia-chip">🤖 Envio Automático</button>
-          <button onclick="sendIaSuggestion('Explique os planos do H2BApply: Free, VIP, Pro e VIPro. Qual compensa mais para mim?')" class="ia-chip">💎 Planos e preços</button>
+          <button onclick="sendIaSuggestion('Explique os planos do H2BApply: Free, VIP, VIPro e DoublePro. Qual compensa mais para mim?')" class="ia-chip">💎 Planos e preços</button>
           <button onclick="sendIaSuggestion('Quais documentos preciso ter para conseguir o visto H-2B?')" class="ia-chip">📋 Documentos</button>
           <button onclick="sendIaSuggestion('Como criar um bom perfil de email no H2BApply? O que colocar no currículo?')" class="ia-chip">📄 Criar perfil</button>
           <button onclick="sendIaSuggestion('O que fazer se o Gmail bloquear minha conta por muitos envios?')" class="ia-chip">🚫 Gmail bloqueou</button>
@@ -3405,24 +3402,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div id="pe-type-hint" style="margin-top:7px;font-size:11px;color:var(--t2);line-height:1.5;padding:7px 10px;background:var(--sf2);border-radius:8px;border-left:3px solid var(--blue)"></div>
         </div>
 
-        <div class="field">
-          <label>Modalidade de Visto <span style="color:var(--t3);font-weight:400">(opcional)</span></label>
-          <div style="display:flex;gap:7px;flex-wrap:wrap">
-            <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;border:2px solid var(--border2);border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;background:var(--sf2);transition:all .15s">
-              <input type="radio" name="pe-visa-mode" value="" id="pe-vm-all" style="accent-color:var(--blue)" checked> 🌐 Todas (H-2B e H-2A)
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;border:2px solid var(--border2);border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;background:var(--sf2);transition:all .15s">
-              <input type="radio" name="pe-visa-mode" value="h2b" id="pe-vm-h2b" style="accent-color:var(--blue)"> 🏢 Apenas H-2B
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;border:2px solid rgba(16,185,129,.4);border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;background:rgba(16,185,129,.06);transition:all .15s">
-              <input type="radio" name="pe-visa-mode" value="h2a" id="pe-vm-h2a" style="accent-color:#10b981"> 🌾 Apenas H-2A (Agrícola)
-            </label>
-          </div>
-          <div id="pe-visa-mode-hint" style="display:none;margin-top:7px;padding:8px 11px;background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:8px;font-size:11px;color:#059669;line-height:1.5">
-            ⚠️ <strong>Recomendado para H-2A:</strong> Use assuntos e corpo do email com foco em vagas agrícolas. Ex: "Candidatura para Vaga H-2A — Farm Worker".
-          </div>
-        </div>
-
         <div style="display:flex;gap:14px;margin-top:4px">
           <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
             <input type="checkbox" id="pe-active" checked style="width:16px;height:16px;accent-color:var(--green)">
@@ -3452,7 +3431,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:4px">
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="jan2026" style="accent-color:var(--blue)"> ☀️ Jan/2026</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="jul2025" style="accent-color:var(--blue)"> ❄️ Jul/2025</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.08);border:1.5px solid rgba(16,185,129,.3);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="h2a" style="accent-color:#10b981"> 🌾 H-2A Agrícola</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="dol" style="accent-color:var(--blue)"> 🔍 DOL Live</label>
           </div>
         </div>
@@ -3474,24 +3452,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="forest" style="accent-color:var(--blue)"> 🌲 Forest</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="warehouse" style="accent-color:var(--blue)"> 📦 Warehouse</label>
             <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="other" style="accent-color:var(--blue)"> 📋 Outros</label>
-          </div>
-          <!-- H2A Categories -->
-          <div style="margin-top:10px;padding-top:8px;border-top:1px dashed var(--border)">
-            <div style="font-size:10px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">🌾 Categorias H-2A (Agrícola)</div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px">
-              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="farm_worker" style="accent-color:#10b981"> 🌾 Farm Worker</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="harvesting" style="accent-color:#10b981"> 🍎 Harvesting</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="orchard" style="accent-color:#10b981"> 🍎 Orchard</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="nursery" style="accent-color:#10b981"> 🌱 Nursery</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="greenhouse" style="accent-color:#10b981"> 🏡 Greenhouse</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="irrigation" style="accent-color:#10b981"> 💧 Irrigation</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="livestock" style="accent-color:#10b981"> 🐄 Livestock</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="dairy" style="accent-color:#10b981"> 🥛 Dairy</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="ranch" style="accent-color:#10b981"> 🤠 Ranch</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="equipment_operator" style="accent-color:#10b981"> 🚜 Equip. Operator</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="farm_construction" style="accent-color:#10b981"> 🏗️ Farm Construction</label>
-              <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.25);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="vineyard" style="accent-color:#10b981"> 🍇 Vineyard</label>
-            </div>
           </div>
         </div>
 
@@ -3768,6 +3728,8 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span id="m-lim-lbl">Envios manuais hoje</span><span id="m-lim-num" style="font-weight:700"></span></div>
         <div class="lbar-bg"><div class="lbar-fill" id="m-lbar"></div></div>
       </div>
+      <!-- Aviso de erro — no topo para sempre ficar visível -->
+      <div id="m-warn"></div>
       <!-- Perfil -->
       <div class="field">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
@@ -3791,7 +3753,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         </div>
         <div id="m-cov-slots"></div>
       </div>
-      <div id="m-warn"></div>
     </div>
     <div class="mfoot">
       <div style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--t2)" id="m-sending"><span class="spin spin-sm"></span>Enviando...</div>
@@ -3853,7 +3814,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <div class="mhdr"><div class="mttl">Termos de Uso</div><button class="mx" onclick="g('#terms-m').classList.add('gone')"><i class="ti ti-x"></i></button></div>
     <div class="mbody" style="font-size:13px;color:var(--t2);line-height:1.7">
       <p><strong>H2BApply</strong> facilita candidaturas H-2B/H-2A via Gmail.</p><br>
-      <p><strong>Planos:</strong> Free (20 manual + 10 auto/dia), VIP R$49,90, Pro R$119,90, VIPro R$149,90.</p><br>
+      <p><strong>Planos:</strong> Free (30 manual + 20 auto/dia), VIP R$100, VIPro R$150, DoublePro R$250.</p><br>
       <p><strong>Não garantimos contratação.</strong> Facilitamos o envio.</p>
     </div>
   </div>
@@ -3888,7 +3849,7 @@ let DOCS=[],activeResIdx=null,activeCovIdx=null;
 let JOBS=[],HIST=[],SAVED=new Set(),APPLIED=new Set();
 
 // ── Sistema de filtro de vagas ──
-var _sentJan=new Set(),_sentJul=new Set(),_sentH2A=new Set(),_sentSeasonal=new Set(),_sentLoaded=false;
+var _sentJan=new Set(),_sentJul=new Set(),_sentSeasonal=new Set(),_sentLoaded=false;
 
 async function _loadSentIds(){
   try{
@@ -3897,7 +3858,6 @@ async function _loadSentIds(){
     var d=await r.json();
     _sentJan=new Set(d.jan2026||[]);
     _sentJul=new Set(d.jul2025||[]);
-    _sentH2A=new Set(d.h2a||[]);
     _sentSeasonal=new Set(d.seasonal||[]);
     _sentLoaded=true;
   }catch(e){}
@@ -3905,7 +3865,6 @@ async function _loadSentIds(){
 function _isSent(cn,sheet){
   if(sheet==="jan2026")return _sentJan.has(cn);
   if(sheet==="jul2025")return _sentJul.has(cn);
-  if(sheet==="h2a")return _sentH2A.has(cn);
   return false;
 }
 function _isSentSeasonal(id){return _sentSeasonal.has(id);}
@@ -3948,11 +3907,12 @@ async function checkStatus(){
   try{
     const r=await fetch("/api/status",{credentials:"include"});const d=await r.json();
     if(d.connected){
-      U={connected:true,email:d.email,name:d.name||d.email,picture:d.picture||"",isAdmin:!!d.isAdmin,plan:d.plan||"free",vip:d.vip||null,todaySentManual:d.todaySentManual||0,manualLimit:d.manualLimit||20,manualRemaining:d.manualRemaining||20,todaySentAuto:d.todaySentAuto||0,autoLimit:d.autoLimit||10,autoRemaining:d.autoRemaining||10,autoEnabled:true,autoJob:d.autoJob||null,autoStats:d.autoStats||{sent:0,failed:0},onboarded:!!d.onboarded,profiles:d.profiles||[]};
+      U={connected:true,email:d.email,name:d.name||d.email,picture:d.picture||"",isAdmin:!!d.isAdmin,plan:d.plan||"free",vip:d.vip||null,todaySentManual:d.todaySentManual||0,manualLimit:d.manualLimit||20,manualRemaining:(d.manualRemaining??20),todaySentAuto:d.todaySentAuto||0,autoLimit:d.autoLimit||10,autoRemaining:(d.autoRemaining??10),autoEnabled:true,autoJob:d.autoJob||null,autoStats:d.autoStats||{sent:0,failed:0},onboarded:!!d.onboarded,profiles:d.profiles||[]};
       UPROFILES=d.profiles||[];if(U)U.profiles=UPROFILES;
       CFG={name:d.name||"",country:d.country||"Brazil",phone:d.phone||"",city:d.city||"",language:d.language||"pt-BR",subject:d.settings?.subject||"",body:d.settings?.body||""};
       DOCS=d.cvs||[];
-      activeResIdx=DOCS.filter(c=>(c.cvType||"resume")==="resume").slice(-1)[0]?.idx||null;
+      // Só redefine activeResIdx se ainda não foi definido (evita sobrescrever seleção do usuário)
+      if(activeResIdx===null) activeResIdx=DOCS.filter(c=>(c.cvType||"resume")==="resume").slice(-1)[0]?.idx||null;
       if(d.readEmailIds?.length)_loadReadStateFromServer(d.readEmailIds);
       // Restore language from server preference
       if(d.language && LANG_DICT && LANG_DICT[d.language]){
@@ -4375,7 +4335,7 @@ function stopRankTimer(){if(_rankTimer){clearInterval(_rankTimer);_rankTimer=nul
 function setTab(t){
   tab=t;fCat="all";
   if(t!=="seasonal"&&fSort!=="random"){fSort="random";g("#so-rand")?.classList.add("on");g("#so-desc")?.classList.remove("on");g("#so-asc")?.classList.remove("on");}
-  ["seasonal","jan2026","jul2025","h2a"].forEach(x=>{g("#stab-"+x)?.classList.toggle("active",x===t);});
+  ["seasonal","jan2026","jul2025"].forEach(x=>{g("#stab-"+x)?.classList.toggle("active",x===t);});
   const isSheet=t!=="seasonal";
   ["ft-all","ft-agri","ft-nonag","fs-all","fs-active","f-wage","f-workers"].forEach(id=>{const el=g("#"+id);if(el)el.style.display=isSheet?"none":"";});
   g("#jlist").innerHTML="";g("#lmore").innerHTML="";
@@ -4429,17 +4389,9 @@ function selectTabCat(cat){
 }
 
 async function loadTabCounts(){
-  const srcMap={"jan2026":"jan","jul2025":"jul","h2a":"h2a"};
-  for(const sh of["jan2026","jul2025","h2a"]){
-    try{
-      const r=await fetch(`/api/sheet-meta?sheet=${sh}&skip=0&top=1`,{credentials:"include"});
-      const d=await r.json();
-      // Update tab stab count
-      const key=srcMap[sh];
-      const tabEl=g("#sc-"+key);if(tabEl&&d.total)tabEl.textContent=d.total>999?Math.round(d.total/1000)+"k":String(d.total);
-      // Update wizard source button count
-      const srcEl=g("#src-"+key+"-cnt");if(srcEl&&d.total)srcEl.textContent=d.total.toLocaleString()+" vagas";
-    }catch{}
+  for(const sh of["jan2026","jul2025"]){
+    try{const r=await fetch(`/api/sheet-meta?sheet=${sh}&skip=0&top=1`,{credentials:"include"});const d=await r.json();const el=g("#sc-"+(sh==="jan2026"?"jan":"jul"));if(el&&d.total)el.textContent=d.total>999?Math.round(d.total/1000)+"k":String(d.total);}catch{}
+    try{const r=await fetch(`/api/sheet-meta?sheet=${sh}&skip=0&top=1`,{credentials:"include"});const d=await r.json();const el=g("#src-"+(sh==="jan2026"?"jan":"jul")+"-cnt");if(el&&d.total)el.textContent=d.total.toLocaleString()+" vagas";}catch{}
   }
 }
 
@@ -4510,7 +4462,7 @@ async function loadSheetMeta(reset=false){
     const cnt=g("#jcount");if(cnt){
       const sentInSheet=HIST.filter(h=>h.sheetSource===tab).length;
       const remaining=Math.max(0,sTotal-sentInSheet);
-      const sheetLabel=tab==="jan2026"?"Jan 2026":tab==="jul2025"?"Jul 2025":"H-2A";
+      const sheetLabel=tab==="jan2026"?"Jan 2026":"Jul 2025";
       cnt.innerHTML=`<strong>${remaining.toLocaleString()}</strong> restantes · <span style="font-size:11px;color:var(--t3)">${sentInSheet>0?`<span style="color:var(--green)">${sentInSheet} enviadas</span> de ${sTotal.toLocaleString()}`:sTotal.toLocaleString()+` total`}</span> · <span style="font-size:11px;color:var(--blue)">${sheetLabel}</span>`;
     }
     const sib=g("#sib-jobs");if(sib){sib.style.display="";sib.textContent=sTotal>999?"999+":String(sTotal);}
@@ -4540,7 +4492,7 @@ function updSheetCounter(){
   const cnt=g("#jcount");if(!cnt||!sTotal)return;
   const sentInSheet=HIST.filter(h=>h.sheetSource===tab).length;
   const remaining=Math.max(0,sTotal-sentInSheet);
-  const sheetLabel=tab==="jan2026"?"Jan 2026":tab==="jul2025"?"Jul 2025":"H-2A";
+  const sheetLabel=tab==="jan2026"?"Jan 2026":"Jul 2025";
   cnt.innerHTML=`<strong>${remaining.toLocaleString()}</strong> restantes · <span style="font-size:11px;color:var(--t3)">${sentInSheet>0?`<span style="color:var(--green)">${sentInSheet} enviadas</span> de ${sTotal.toLocaleString()}`:sTotal.toLocaleString()+` total`}</span> · <span style="font-size:11px;color:var(--blue)">${sheetLabel}</span>`;
 }
 
@@ -4620,8 +4572,10 @@ function getOccupationCategoryByKey(catKey, title){
 }
 
 async function enrichSheet(cards){
-  const toF=cards.filter(c=>!sCache[c.id]).map(c=>c.id);if(!toF.length)return;
-  try{const r=await fetch("/api/sheet-batch",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({cases:toF.slice(0,10)})});const d=await r.json();for(const[cn,job]of Object.entries(d.jobs||{})){if(job){sCache[cn]=job;updSheetCard(cn,job);}}}catch{}
+  // Enriquece com dados do DOL — inclui vagas fromSheet:true (DOL estava offline antes)
+  const toF=cards.filter(c=>!sCache[c.id]||sCache[c.id].fromSheet).map(c=>c.id);if(!toF.length)return;
+  try{const r=await fetch("/api/sheet-batch",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({cases:toF.slice(0,10)})});const d=await r.json();for(const[cn,job]of Object.entries(d.jobs||{})){if(job&&!job.fromSheet){// DOL respondeu com dados reais — substitui cache local
+  sCache[cn]=job;updSheetCard(cn,job);}}}catch{}
 }
 
 function updSheetCard(cn,job){
@@ -4643,12 +4597,34 @@ async function selSheetJob(cn){
   g("#jcard-s_"+cn.replace(/[^a-zA-Z0-9]/g,"_"))?.classList.add("active");
   const loading=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--t3)"><span class="spin spin-lg"></span><div style="font-size:13px;font-weight:600">Carregando detalhes...</div></div>`;
   showDetail(loading);
+  // 1) Cache em memória — mais rápido
   if(sCache[cn]){const j=sCache[cn];selJob=j;showDetail(mkDetailHTML(j));return;}
+  // 2) Já temos o email em sJobs (vem do /api/sheet-meta com email da planilha local)
+  //    Usa imediatamente sem esperar o DOL — compatível com DOL offline
+  const localMeta=sJobs.find(x=>x.id===cn||x.caseNum===cn);
+  if(localMeta&&localMeta.email){
+    const j={...localMeta,fromSheet:true};
+    sCache[cn]=j;selJob=j;showDetail(mkDetailHTML(j));
+    // Tenta enriquecer em background com dados extras do DOL (não bloqueia envio)
+    fetch(`/api/sheet-detail?case=${encodeURIComponent(cn)}`,{credentials:"include"})
+      .then(r=>r.json()).then(d=>{if(d.job){sCache[cn]={...j,...d.job,email:d.job.email||j.email};updSheetCard(cn,sCache[cn]);}}).catch(()=>{});
+    return;
+  }
+  // 3) Fallback: tenta buscar no servidor (que agora usa planilha local primeiro)
   try{
     const r=await fetch(`/api/sheet-detail?case=${encodeURIComponent(cn)}`,{credentials:"include"});const d=await r.json();
     if(d.job){sCache[cn]=d.job;updSheetCard(cn,d.job);selJob=d.job;showDetail(mkDetailHTML(d.job));}
-    else{const meta=sJobs.find(x=>x.id===cn)||{};showDetail(`<div class="jd-content"><div style="font-size:15px;font-weight:800;margin-bottom:8px">${esc(meta.company||cn)}</div><div class="alert al-amber"><i class="ti ti-alert-triangle"></i><div>Vaga em processamento no portal do governo. Tente em alguns minutos.<br><strong>Case:</strong> ${esc(cn)}</div></div><br><a class="btn btn-secondary" href="https://seasonaljobs.dol.gov" target="_blank"><i class="ti ti-external-link"></i> Ver no SeasonalJobs.gov</a></div>`);}
-  }catch(e){showDetail(`<div class="jd-content"><div class="alert al-red"><i class="ti ti-alert-circle"></i>Erro: ${esc(e.message)}</div></div>`);}
+    else if(localMeta){
+      // notFound no DOL mas temos dados locais — usa o que temos
+      const j={...localMeta,fromSheet:true};sCache[cn]=j;selJob=j;showDetail(mkDetailHTML(j));
+    } else {
+      const meta=localMeta||{};showDetail(`<div class="jd-content"><div style="font-size:15px;font-weight:800;margin-bottom:8px">${esc(meta.company||cn)}</div><div class="alert al-amber"><i class="ti ti-alert-triangle"></i><div>Vaga não encontrada no portal. Tente novamente em alguns minutos.<br><strong>Case:</strong> ${esc(cn)}</div></div></div>`);
+    }
+  }catch(e){
+    // Erro de rede (DOL offline) — se tiver dados locais usa, senão mostra erro
+    if(localMeta){const j={...localMeta,fromSheet:true};sCache[cn]=j;selJob=j;showDetail(mkDetailHTML(j));}
+    else{showDetail(`<div class="jd-content"><div class="alert al-red"><i class="ti ti-alert-circle"></i>Erro ao carregar vaga: ${esc(e.message)}</div></div>`);}
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -4875,8 +4851,21 @@ async function doSend(){
       sheetSource:(tab!=="seasonal"?tab:undefined),
       resumeIdx:activeResIdx||undefined,coverIdx:activeCovIdx||undefined};
     const r=await fetch("/api/send",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(pl)});const d=await r.json();
-    if(d.limitReached){g("#m-sending").style.display="none";g("#m-send").disabled=false;warn(d.error+" ");return;}
-    if(!d.ok)throw new Error(d.error||"Erro");
+    // FIX: mostra TODOS os erros de forma visível — esconde spinner e reabilita botão ANTES de mostrar
+    if(!d.ok){
+      g("#m-sending").style.display="none";g("#m-send").disabled=false;
+      const errMsg=d.error||"Erro ao enviar. Tente novamente.";
+      warn(errMsg);
+      // Rola para o topo do modal body para mostrar o aviso
+      const modalBd=g("#modal")?.querySelector(".mbody");if(modalBd)modalBd.scrollTop=0;
+      // Toast adicional para garantir visibilidade no celular
+      if(d.alreadySent)toast("⚠️ Você já enviou para esta empresa.","r");
+      else if(d.inAutoQueue)toast("🤖 Esta empresa está na fila automática.","r");
+      else if(d.duplicate)toast("⚠️ Envio em andamento. Aguarde.","r");
+      else if(d.limitReached)toast("📊 Limite diário atingido.","r");
+      else toast("❌ "+errMsg.slice(0,80),"r");
+      return;
+    }
     U.todaySentManual=d.todaySent||U.todaySentManual+1;U.manualRemaining=typeof d.remaining==="number"?d.remaining:Math.max(0,(U.manualLimit||20)-U.todaySentManual);U.manualLimit=d.dailyLimit||U.manualLimit;
     closeModal();
     if(j?.id){
@@ -4884,7 +4873,6 @@ async function doSend(){
         if(tab==="seasonal")_sentSeasonal.add(j.id);
         else if(tab==="jan2026"&&(j.caseNum||j.id))_sentJan.add(j.caseNum||j.id);
         else if(tab==="jul2025"&&(j.caseNum||j.id))_sentJul.add(j.caseNum||j.id);
-        else if(tab==="h2a"&&(j.caseNum||j.id))_sentH2A.add(j.caseNum||j.id);
       // Seasonal card: fade out e some
       const sc=g("#jcard-"+j.id);
       if(sc){sc.style.transition="opacity .3s ease";sc.style.opacity="0";setTimeout(()=>{sc.style.display="none";sc.style.opacity="";sc.style.transition="";},320);}
@@ -5605,16 +5593,6 @@ function openProfileEditor(id){
   if(typeEl){typeEl.checked=true;}else{const def=document.querySelector('input[name="pe-type"][value="category"]');if(def)def.checked=true;}
   peOnTypeChange();
 
-  // Modalidade de visto (H2A / H2B / all)
-  const vmVal=p?.visaMode||"";
-  const vmEl=document.querySelector(`input[name="pe-visa-mode"][value="${vmVal}"]`);
-  if(vmEl){vmEl.checked=true;}else{const vmDef=document.querySelector('input[name="pe-visa-mode"][value=""]');if(vmDef)vmDef.checked=true;}
-  // Atualiza hint do visaMode
-  document.querySelectorAll('input[name="pe-visa-mode"]').forEach(r=>r.addEventListener('change',function(){
-    const hint=g('#pe-visa-mode-hint');if(hint)hint.style.display=this.value==='h2a'?'':'none';
-  }));
-  const vmHint=g('#pe-visa-mode-hint');if(vmHint)vmHint.style.display=vmVal==='h2a'?'':'none';
-
   // Subjects
   peSubjects=p?.subjects?.length?[...p.subjects]:(p?.subject?[p.subject]:[]);
   peRenderSubjects();
@@ -5858,7 +5836,6 @@ async function saveProfileFromEditor(){
     subject:peSubjects[0]||"",
     body:peBodies[0]||"",
     categories,sheets,resumeIdx,coverIdx,
-    visaMode:document.querySelector('input[name="pe-visa-mode"]:checked')?.value||undefined,
   };
 
   // Upload PDF se novo
@@ -6390,23 +6367,9 @@ async function _renderAutoProfilesPanel(){
   }
 
   const hasGeneral=profiles.some(p=>p.isGeneral||p.type==="general");
-  const hasH2A=profiles.some(p=>p.visaMode==="h2a"||(p.sheets&&p.sheets.includes("h2a")));
-  const isH2ASrc=window.autoSelectedSrc==="h2a";
   const names=profiles.slice(0,3).map(p=>p.name).join(", ")+(profiles.length>3?` +${profiles.length-3}`:"");
 
-  // H2A warning banner quando fonte H2A está selecionada e não há perfil H2A
-  const h2aWarnHtml= isH2ASrc && !hasH2A ? `
-    <div style="background:rgba(16,185,129,.07);border:1.5px solid rgba(16,185,129,.3);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;display:flex;align-items:flex-start;gap:8px;font-size:11px;color:#059669">
-      <span style="font-size:16px;flex-shrink:0">🌾</span>
-      <div style="flex:1">
-        <strong style="display:block;margin-bottom:3px">Recomendado: Perfil H-2A</strong>
-        Crie um perfil específico para vagas agrícolas com assunto e corpo voltados para H-2A. O sistema usará seus perfis existentes, mas um perfil H-2A dedicado aumenta muito a taxa de resposta.
-      </div>
-      <button onclick="closeAutoModal();sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(openProfileEditor,200)},100)" class="btn btn-xs" style="flex-shrink:0;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:#059669;padding:4px 8px;font-size:10px"><i class="ti ti-plus"></i> Criar H-2A</button>
-    </div>` : "";
-
   panel.innerHTML=`
-    ${h2aWarnHtml}
     <div style="background:var(--surface);border:1.5px solid ${hasGeneral?"var(--border)":"var(--amberb)"};border-radius:var(--r);margin-bottom:10px;overflow:hidden">
       <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer" onclick="_toggleAutoPanel()">
         <i class="ti ti-user-circle" style="font-size:16px;color:${hasGeneral?"var(--green)":"var(--amber)"}"></i>
@@ -6425,10 +6388,9 @@ async function _renderAutoProfilesPanel(){
           const ok=(p.subjects?.length>0||p.subject)&&(p.emailBodies?.length>0||p.body);
           const icon=p.isGeneral||p.type==="general"?"🌐":((p.categories||[]).length?"📂":"🌐");
           const cats=(p.categories||[]).slice(0,2).join(", ")||"Todas";
-          const vmBadge=p.visaMode==="h2a"?`<span style="font-size:9px;background:rgba(16,185,129,.15);color:#059669;padding:1px 5px;border-radius:4px;font-weight:700">H-2A</span>`:p.visaMode==="h2b"?`<span style="font-size:9px;background:rgba(59,130,246,.1);color:var(--blue);padding:1px 5px;border-radius:4px;font-weight:700">H-2B</span>`:"";
           return`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px">
             <span>${icon}</span>
-            <div style="flex:1;min-width:0"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)} ${vmBadge}</div><div style="color:var(--t3)">${cats}</div></div>
+            <div style="flex:1;min-width:0"><div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</div><div style="color:var(--t3)">${cats}</div></div>
             <i class="ti ${ok?"ti-check":"ti-alert-triangle"}" style="color:${ok?"var(--green)":"var(--amber)"};font-size:13px"></i>
           </div>`;
         }).join("")}
@@ -6460,24 +6422,6 @@ function selectSource(src){
   document.querySelectorAll(".source-btn").forEach(b=>b.classList.toggle("sel",b.dataset.src===src));
   // Unlock step 2
   unlockWizardStep(2);
-  // Show H2A notice if H2A selected
-  let notice=g("#ws-h2a-notice");
-  if(src==="h2a"){
-    if(!notice){
-      notice=document.createElement("div");
-      notice.id="ws-h2a-notice";
-      notice.style.cssText="margin-top:10px;padding:10px 12px;background:rgba(16,185,129,.08);border:1.5px solid rgba(16,185,129,.25);border-radius:10px;font-size:12px;color:#059669;line-height:1.5";
-      notice.innerHTML="🌾 <strong>Modalidade H-2A selecionada</strong> — Vagas agrícolas dos EUA (visa H-2A). Recomendamos usar um <strong>perfil específico H-2A</strong> para melhores resultados.";
-      const sourceBtns=g("#source-btns");
-      if(sourceBtns)sourceBtns.insertAdjacentElement("afterend",notice);
-    }
-    notice.style.display="";
-  } else {
-    if(notice)notice.style.display="none";
-  }
-  // Clear cached category groups so H2A gets its own groups
-  delete window._catGroups;
-  delete window._catLabels;
   // Load categories for this source
   renderWizardCats(src);
 }
@@ -6486,9 +6430,8 @@ async function renderWizardCats(src){
   const cats=sheetCats[src];if(!cats){
     try{const r=await fetch(`/api/sheet-categories?sheet=${src}`,{credentials:"include"});const d=await r.json();sheetCats[src]=d.categories||[];}catch{sheetCats[src]=[];}
   }
-  // Always load groups for the current source (H2A has different groups)
-  if(!window._catGroups||window._catGroupsSrc!==src){
-    try{const r=await fetch(`/api/category-groups?sheet=${src}`,{credentials:"include"});const d=await r.json();window._catGroups=d.groups||[];window._catLabels=d.labels||{};window._catGroupsSrc=src;}catch{window._catGroups=[];window._catLabels={};}
+  if(!window._catGroups){
+    try{const r=await fetch("/api/category-groups",{credentials:"include"});const d=await r.json();window._catGroups=d.groups||[];window._catLabels=d.labels||{};}catch{window._catGroups=[];window._catLabels={};}
   }
   const el=g("#auto-cat-chips");if(!el)return;
   const catData=sheetCats[src]||[];
@@ -10863,7 +10806,7 @@ function showAutoPreview(){
     </div>
     <div style="padding:16px 20px">
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px">
-        <div style="display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-bottom:1px solid var(--border)"><span style="color:var(--t3)">Fonte de vagas</span><strong>${src==="jan2026"?"☀️ Jan/2026 — Verão":src==="h2a"?"🌾 H-2A — Agrícola":"❄️ Jul/2025 — Inverno"}</strong></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-bottom:1px solid var(--border)"><span style="color:var(--t3)">Fonte de vagas</span><strong>${src==="jan2026"?"☀️ Jan/2026 — Verão":"❄️ Jul/2025 — Inverno"}</strong></div>
         <div style="display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-bottom:1px solid var(--border)"><span style="color:var(--t3)">Categorias</span><strong>${cats}</strong></div>
         <div style="display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-bottom:1px solid var(--border)"><span style="color:var(--t3)">Estado</span><strong>${state}</strong></div>
         <div style="display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-bottom:1px solid var(--border)"><span style="color:var(--t3)">Salário mínimo</span><strong>${minW?("$"+minW+"/h"):"Qualquer"}</strong></div>
@@ -11166,7 +11109,6 @@ console.log("[v14+] Onboarding, FAQ, Preview Auto, Follow-up, Score carregados")
   let _pesqInited = false;        // flag de init
   let _jan2026 = null;            // cache do JSON
   let _jul2025 = null;            // cache do JSON
-  let _h2a = null;                // cache do JSON H2A
   let _pesqLoading = false;
 
   // ── Helpers ──────────────────────────────────────────────
@@ -11198,15 +11140,6 @@ console.log("[v14+] Onboarding, FAQ, Preview Auto, Follow-up, Score carregados")
       if(r.ok) _jul2025 = await r.json();
     } catch(e){ console.warn("[pesq] jul2025 load error",e); _jul2025 = []; }
     return _jul2025 || [];
-  }
-
-  async function _loadH2A(){
-    if(_h2a) return _h2a;
-    try {
-      const r = await fetch("/h2a_compact.json");
-      if(r.ok) _h2a = await r.json();
-    } catch(e){ console.warn("[pesq] h2a load error",e); _h2a = []; }
-    return _h2a || [];
   }
 
   // Busca na API seasonal com query — retorna até 80 resultados
@@ -11294,7 +11227,6 @@ console.log("[v14+] Onboarding, FAQ, Preview Auto, Follow-up, Score carregados")
     seasonal: { label:"Seasonal", cls:"pesq-src-seasonal" },
     jan2026:  { label:"Jan 2026", cls:"pesq-src-jan2026"  },
     jul2025:  { label:"Jul 2025", cls:"pesq-src-jul2025"  },
-    h2a:      { label:"H-2A",     cls:"pesq-src-h2a"      },
     hist:     { label:"Enviado",  cls:"pesq-src-hist"     },
   };
 
@@ -11354,7 +11286,6 @@ console.log("[v14+] Onboarding, FAQ, Preview Auto, Follow-up, Score carregados")
     if(_pesqSrc==="all"||_pesqSrc==="seasonal") promises.push(_searchSeasonal(q).then(r=>results.push(...r)));
     if(_pesqSrc==="all"||_pesqSrc==="jan2026") promises.push(_loadJan2026().then(d=>{ results.push(..._searchCompact(d,q,"jan2026")); }));
     if(_pesqSrc==="all"||_pesqSrc==="jul2025") promises.push(_loadJul2025().then(d=>{ results.push(..._searchCompact(d,q,"jul2025")); }));
-    if(_pesqSrc==="all"||_pesqSrc==="h2a")    promises.push(_loadH2A().then(d=>{ results.push(..._searchCompact(d,q,"h2a")); }));
     if(_pesqSrc==="all"||_pesqSrc==="hist")   results.push(..._searchHist(q)); // síncrono
 
     await Promise.allSettled(promises);
@@ -11363,8 +11294,8 @@ console.log("[v14+] Onboarding, FAQ, Preview Auto, Follow-up, Score carregados")
     const seen = new Set();
     results = results.filter(r=>{ const k=r._src+":"+r._id; if(seen.has(k))return false; seen.add(k); return true; });
 
-    // Ordena: seasonal primeiro, depois jan2026, jul2025, h2a, hist
-    const order = {seasonal:0,jan2026:1,jul2025:2,h2a:3,hist:4};
+    // Ordena: seasonal primeiro, depois jan2026, jul2025, hist
+    const order = {seasonal:0,jan2026:1,jul2025:2,hist:3};
     results.sort((a,b)=>(order[a._src]||9)-(order[b._src]||9));
 
     _pesqLoading = false;
@@ -11392,7 +11323,6 @@ console.log("[v14+] Onboarding, FAQ, Preview Auto, Follow-up, Score carregados")
       if(counts.seasonal) parts.push(`${counts.seasonal} Seasonal`);
       if(counts.jan2026) parts.push(`${counts.jan2026} Jan 2026`);
       if(counts.jul2025) parts.push(`${counts.jul2025} Jul 2025`);
-      if(counts.h2a) parts.push(`${counts.h2a} H-2A`);
       if(counts.hist) parts.push(`${counts.hist} Enviadas`);
       statsText.textContent = `${results.length} resultado${results.length!==1?"s":""} encontrado${results.length!==1?"s":""} — ${parts.join(" · ")}`;
       stats.style.display="flex";
