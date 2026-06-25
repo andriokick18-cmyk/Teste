@@ -1191,24 +1191,33 @@ const SHEETS_META_FILE = path.join(DATA_DIR, "sheets_meta.json");
 let DB_SHEETS_META = {}; // { "jul2026": { name, file, uploaded, count, enriched, enrichedAt } }
 
 // ── Bot de Enriquecimento de Planilhas ──────────────────
-const _enrichBot = {
-  running: false,
-  sheetKey: null,
-  total: 0,
-  done: 0,
-  ok: 0,
-  noEmail: 0,
-  errors: 0,
-  startedAt: null,
-  log: [],         // últimas 100 linhas de log
-  savedAt: null,
-};
+// ── DUAL ENRICH BOT — roda 2 planilhas em paralelo no servidor ──
+// Cada planilha tem estado independente em _enrichBots[key]
+const _enrichBots = {};   // { sheetKey: { running, total, done, ok, noEmail, errors, startedAt, log, savedAt, finished } }
 
-function _enrichLog(msg, type='info'){
+function _getBotState(key){
+  if(!_enrichBots[key]) _enrichBots[key] = {
+    running:false, sheetKey:key, total:0, done:0, ok:0,
+    noEmail:0, errors:0, startedAt:null, log:[], savedAt:null, finished:false
+  };
+  return _enrichBots[key];
+}
+
+// Alias legado para compatibilidade
+const _enrichBot = { get running(){ return Object.values(_enrichBots).some(b=>b.running); } };
+
+function _enrichLog(msg, type='info', key=null){
   const line = { ts: Date.now(), msg, type };
-  _enrichBot.log.push(line);
-  if(_enrichBot.log.length > 200) _enrichBot.log.shift();
-  console.log(`[enrich] ${msg}`);
+  // Logar no bot correto se key fornecida, senão em todos os ativos
+  if(key && _enrichBots[key]){
+    _enrichBots[key].log.push(line);
+    if(_enrichBots[key].log.length > 300) _enrichBots[key].log.shift();
+  } else {
+    // fallback — logar no primeiro bot ativo
+    const active = Object.values(_enrichBots).find(b=>b.running);
+    if(active){ active.log.push(line); if(active.log.length>300) active.log.shift(); }
+  }
+  console.log(`[enrich${key?':'+key:''}] ${msg}`);
 }
 
 
@@ -3349,8 +3358,9 @@ ul li{margin-bottom:6px}
   if(pathname==="/api/admin/enrich/stop"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    _enrichBotState.running=false;
-    _enrichLog("⏹️ Bot parado pelo admin", "warn");
+    // parar todos os bots ativos
+    for(const b of Object.values(_enrichBots)) if(b.running){ b.running=false; }
+    _enrichLog("⏹️ Todos os bots parados pelo admin", "warn");
     return json(res,200,{ok:true});
   }
 
@@ -3360,31 +3370,41 @@ ul li{margin-bottom:6px}
 //  os campos que faltam: ci, d, de, wk, ph, desc, url
 // ════════════════════════════════════════════════════════════
 async function _runEnrichBot(sheetKey, resume=false){
-  if(_enrichBot.running && !resume){
-    _enrichLog("Bot já está rodando","warn"); return;
+  const b = _getBotState(sheetKey);
+
+  // Verificar se essa planilha já foi 100% concluída — não roda de novo
+  if(b.finished && !resume){
+    _enrichLog(`✅ Planilha "${sheetKey}" já foi concluída anteriormente. Ignorando.`, "warn", sheetKey);
+    return;
   }
+
+  if(b.running){
+    _enrichLog(`Bot já está rodando para "${sheetKey}"`, "warn", sheetKey); return;
+  }
+
   const sheet = sheetKey==="jan2026" ? SHEET_JAN
               : sheetKey==="jul2025" ? SHEET_JUL
               : SHEET_EXTRAS[sheetKey];
   if(!sheet || !sheet.length){
-    _enrichLog(`Planilha não encontrada: ${sheetKey}`,"error"); return;
+    _enrichLog(`Planilha não encontrada: ${sheetKey}`, "error", sheetKey); return;
   }
 
-  const startIdx = resume ? Math.max(0,(_enrichBot.done||0)) : 0;
+  const startIdx = resume ? Math.max(0,(b.done||0)) : 0;
 
-  _enrichBot.running   = true;
-  _enrichBot.sheetKey  = sheetKey;
-  _enrichBot.total     = sheet.length;
-  _enrichBot.done      = startIdx;
-  _enrichBot.ok        = resume ? (_enrichBot.ok||0) : 0;
-  _enrichBot.noEmail   = resume ? (_enrichBot.noEmail||0) : 0;
-  _enrichBot.errors    = resume ? (_enrichBot.errors||0) : 0;
-  _enrichBot.startedAt = (resume && _enrichBot.startedAt) ? _enrichBot.startedAt : Date.now();
-  _enrichBot.log       = resume ? _enrichBot.log : [];
-  _enrichBot.savedAt   = null;
+  b.running   = true;
+  b.sheetKey  = sheetKey;
+  b.total     = sheet.length;
+  b.done      = startIdx;
+  b.ok        = resume ? (b.ok||0) : 0;
+  b.noEmail   = resume ? (b.noEmail||0) : 0;
+  b.errors    = resume ? (b.errors||0) : 0;
+  b.startedAt = (resume && b.startedAt) ? b.startedAt : Date.now();
+  b.log       = resume ? b.log : [];
+  b.savedAt   = null;
+  b.finished  = false;
 
-  _enrichLog(`🚀 Bot iniciado: ${sheet.length} vagas — planilha "${sheetKey}"${resume?` (retomando de ${startIdx})`:''}`, "ok");
-  _enrichLog(`🔍 Buscando: email, cidade, datas, workers, telefone, funções, URL`, "info");
+  _enrichLog(`🚀 Bot iniciado: ${sheet.length} vagas — planilha "${sheetKey}"${resume?` (retomando de ${startIdx})`:''}`, "ok", sheetKey);
+  _enrichLog(`🔍 Buscando: email, cidade, datas, workers, telefone, funções, URL`, "info", sheetKey);
 
   // Rotação de User-Agents para evitar fingerprinting do DOL
   const USER_AGENTS = [
@@ -3419,23 +3439,23 @@ async function _runEnrichBot(sheetKey, resume=false){
 
   // Processar UMA VAGA POR VEZ — garante que cada case number é buscado individualmente
   for(let i = startIdx; i < sheet.length; i++){
-    if(!_enrichBot.running) break;
+    if(!b.running) break;
 
     const row = sheet[i];
     const cn  = (row.c||"").toUpperCase();
-    _enrichBot.done = i + 1;
+    b.done = i + 1;
 
     // Loop de retry com backoff exponencial para 403/429
     let attempt = 0;
     let processed = false;
 
-    while(attempt < 6 && !processed && _enrichBot.running){
+    while(attempt < 6 && !processed && b.running){
       if(attempt > 0){
         // Backoff: 15s, 30s, 60s, 120s, 240s
         const waitMs = Math.min(15000 * Math.pow(2, attempt - 1), 240000);
-        _enrichLog(`⏳ [${i+1}/${sheet.length}] ${cn} — retry ${attempt}/5, aguardando ${Math.round(waitMs/1000)}s...`, "warn");
+        _enrichLog(`⏳ [${i+1}/${sheet.length}] ${cn} — retry ${attempt}/5, aguardando ${Math.round(waitMs/1000)}s...`, "warn", sheetKey);
         await new Promise(r=>setTimeout(r, waitMs));
-        if(!_enrichBot.running) break;
+        if(!b.running) break;
       }
       attempt++;
 
@@ -3521,23 +3541,23 @@ async function _runEnrichBot(sheetKey, resume=false){
            .filter(e=>e && e.includes("@") && e!=="n/a" && !e.startsWith("n/a"));
           if(!row.e && emails.length>0){
             row.e = emails[0];
-            _enrichLog(`📧 [${i+1}/${sheet.length}] ${cn}: email → ${row.e}`, "ok");
+            _enrichLog(`📧 [${i+1}/${sheet.length}] ${cn}: email → ${row.e}`, "ok", sheetKey);
           } else if(row.e && emails.length>0 && !emails.includes(row.e)){
             // Manter o existente mas logar que há outros
           }
 
-          _enrichBot.ok++;
+          b.ok++;
           if(!row.e||!row.e.includes("@")){
-            _enrichBot.noEmail++;
-            _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} SEM EMAIL | ${(row.t||"?").slice(0,40)} | ${row.ci||row.s||"?"}`, "warn");
+            b.noEmail++;
+            _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} SEM EMAIL | ${(row.t||"?").slice(0,40)} | ${row.ci||row.s||"?"}`, "warn", sheetKey);
           } else {
             // Log de cada vaga OK — em tempo real
-            _enrichLog(`✅ [${i+1}/${sheet.length}] ${cn} | ${(row.t||"?").slice(0,35)} | ${row.ci||"?"}, ${row.s||"?"} | $${row.w||"?"}/h | ${row.e}`, "info");
+            _enrichLog(`✅ [${i+1}/${sheet.length}] ${cn} | ${(row.t||"?").slice(0,35)} | ${row.ci||"?"}, ${row.s||"?"} | $${row.w||"?"}/h | ${row.e}`, "info", sheetKey);
           }
         } else {
           // Não encontrou na API — case number inválido ou expirado
-          _enrichBot.errors++;
-          _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — não encontrado no DOL`, "warn");
+          b.errors++;
+          _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — não encontrado no DOL`, "warn", sheetKey);
         }
 
       } else if(status===403 || status===429){
@@ -3547,38 +3567,38 @@ async function _runEnrichBot(sheetKey, resume=false){
         // Aumenta delay permanente proporcionalmente
         _interDelay = Math.min(3000 + _consecutive403 * 500, 8000);
         // Não marca processed → while faz retry automático
-        _enrichLog(`🚫 [${i+1}/${sheet.length}] ${cn} — HTTP ${status} (bloqueio DOL, tentativa ${attempt}/5, delay→${_interDelay}ms)`, "warn");
+        _enrichLog(`🚫 [${i+1}/${sheet.length}] ${cn} — HTTP ${status} (bloqueio DOL, tentativa ${attempt}/5, delay→${_interDelay}ms)`, "warn", sheetKey);
       } else {
         // Qualquer outro erro HTTP (404, 500, etc.) — conta como erro, não faz retry
         processed = true;
-        _enrichBot.errors++;
-        _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} — DOL retornou HTTP ${status}`, "warn");
+        b.errors++;
+        _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} — DOL retornou HTTP ${status}`, "warn", sheetKey);
       }
     }catch(e){
       // Erro de rede — pode tentar de novo
       if(attempt < 6){
-        _enrichLog(`🔌 [${i+1}/${sheet.length}] ${cn} — erro de rede (retry ${attempt}/5): ${e.message}`, "warn");
+        _enrichLog(`🔌 [${i+1}/${sheet.length}] ${cn} — erro de rede (retry ${attempt}/5): ${e.message}`, "warn", sheetKey);
         // processed continua false → while faz retry
       } else {
         processed = true;
-        _enrichBot.errors++;
-        _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — falhou após 5 tentativas: ${e.message}`, "error");
+        b.errors++;
+        _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — falhou após 5 tentativas: ${e.message}`, "error", sheetKey);
       }
     }
     } // fim while retry
 
     // Se esgotou retries sem processar (ex: 5x 403 seguidos)
-    if(!processed && _enrichBot.running){
-      _enrichBot.errors++;
-      _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — desistindo após 5 tentativas (DOL bloqueando)`, "error");
+    if(!processed && b.running){
+      b.errors++;
+      _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — desistindo após 5 tentativas (DOL bloqueando)`, "error", sheetKey);
     }
 
     // Salvar a cada 100 vagas processadas
-    if(_enrichBot.done % 100 === 0){
+    if(b.done % 100 === 0){
       _saveEnrichedSheet(sheetKey, sheet);
-      _enrichBot.savedAt = Date.now();
-      const pct = Math.round((_enrichBot.done/sheet.length)*100);
-      _enrichLog(`💾 Salvo: ${_enrichBot.done}/${sheet.length} (${pct}%) — ok:${_enrichBot.ok} semEmail:${_enrichBot.noEmail} delay:${_interDelay}ms`, "ok");
+      b.savedAt = Date.now();
+      const pct = Math.round((b.done/sheet.length)*100);
+      _enrichLog(`💾 Salvo: ${b.done}/${sheet.length} (${pct}%) — ok:${b.ok} semEmail:${b.noEmail} delay:${_interDelay}ms`, "ok", sheetKey);
     }
 
     // Delay adaptativo entre vagas (aumenta quando DOL bloqueia, reduz quando ok)
@@ -3586,23 +3606,24 @@ async function _runEnrichBot(sheetKey, resume=false){
   }
 
   // Finalizar
-  _enrichBot.done    = sheet.length;
-  _enrichBot.running = false;
+  b.done    = sheet.length;
+  b.running = false;
+  b.finished = true;
   _saveEnrichedSheet(sheetKey, sheet);
-  _enrichBot.savedAt = Date.now();
+  b.savedAt = Date.now();
 
   // Atualizar meta para planilhas builtin também (jan2026, jul2025)
   if(!DB_SHEETS_META[sheetKey]){
     DB_SHEETS_META[sheetKey] = {name: sheetKey==="jan2026"?"Janeiro 2026 (H-2B)":"Julho 2025 (H-2B)", file:sheetKey+".json"};
   }
-  DB_SHEETS_META[sheetKey].enriched    = _enrichBot.ok;
+  DB_SHEETS_META[sheetKey].enriched    = b.ok;
   DB_SHEETS_META[sheetKey].enrichedAt  = Date.now();
-  DB_SHEETS_META[sheetKey].enrichedTotal = _enrichBot.total;
+  DB_SHEETS_META[sheetKey].enrichedTotal = b.total;
   fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2));
 
   const semEmail = sheet.filter(r=>!r.e||!r.e.includes("@")).length;
-  _enrichLog(`🏁 CONCLUÍDO! ok:${_enrichBot.ok} | semEmail:${semEmail} | erros:${_enrichBot.errors}`, "ok");
-  _enrichLog(`📥 Baixe a planilha enriquecida no botão "⬇️ Baixar JSON"`, "ok");
+  _enrichLog(`🏁 CONCLUÍDO! ok:${b.ok} | semEmail:${semEmail} | erros:${b.errors}`, "ok", sheetKey);
+  _enrichLog(`📥 Baixe a planilha enriquecida no botão "⬇️ Baixar JSON"`, "ok", sheetKey);
 }
 
 function _saveEnrichedSheet(sheetKey, sheet){
@@ -3616,7 +3637,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
       const fp = path.join(SHEETS_DIR, meta?.file||`${sheetKey}.json`);
       fs.writeFileSync(fp, JSON.stringify(sheet));
     }
-    _enrichBot.savedAt = Date.now();
+    // savedAt atualizado no bot de origem se disponível
   }catch(e){ _enrichLog(`❌ Erro ao salvar: ${e.message}`,"error"); }
 }
 
@@ -3688,52 +3709,106 @@ function _saveEnrichedSheet(sheetKey, sheet){
     return json(res,200,{ok:true});
   }
 
-  // GET /api/admin/enrich/status — status do bot em tempo real
+  // GET /api/admin/enrich/status — status dos bots (todos em paralelo)
   if(pathname==="/api/admin/enrich/status"&&req.method==="GET"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    const b=_enrichBot;
-    const elapsed = b.startedAt ? Math.round((Date.now()-b.startedAt)/1000) : 0;
-    const ratePerSec = elapsed>0 ? (b.done/elapsed).toFixed(1) : 0;
-    const remaining = b.total-b.done;
-    const etaSec = ratePerSec>0 ? Math.round(remaining/ratePerSec) : null;
-    return json(res,200,{
-      ok:true, running:b.running, sheetKey:b.sheetKey,
-      total:b.total, done:b.done, ok:b.ok,
-      noEmail:b.noEmail, errors:b.errors,
-      pct:b.total>0?Math.round((b.done/b.total)*100):0,
-      elapsed, ratePerSec, etaSec,
-      savedAt:b.savedAt,
-      log: b.log.slice(-50), // últimas 50 linhas
+    // Retornar status de TODOS os bots ativos
+    const bots = {};
+    for(const [key, b] of Object.entries(_enrichBots)){
+      const elapsed = b.startedAt ? Math.round((Date.now()-b.startedAt)/1000) : 0;
+      const ratePerSec = elapsed>0 ? (b.done/elapsed).toFixed(1) : 0;
+      const remaining = b.total-b.done;
+      const etaSec = ratePerSec>0 ? Math.round(remaining/ratePerSec) : null;
+      bots[key] = {
+        running:b.running, sheetKey:b.sheetKey, finished:b.finished||false,
+        total:b.total, done:b.done, ok:b.ok,
+        noEmail:b.noEmail, errors:b.errors,
+        pct:b.total>0?Math.round((b.done/b.total)*100):0,
+        elapsed, ratePerSec, etaSec, savedAt:b.savedAt,
+        log: b.log.slice(-60),
+      };
+    }
+    // Compatibilidade legada: também retorna o primeiro bot ativo no campo raiz
+    const firstActive = Object.values(_enrichBots).find(b=>b.running) || Object.values(_enrichBots)[0] || {};
+    return json(res,200,{ ok:true, bots, anyRunning: Object.values(_enrichBots).some(b=>b.running),
+      // legado:
+      running: firstActive.running||false, sheetKey: firstActive.sheetKey||null,
+      total:firstActive.total||0, done:firstActive.done||0,
     });
   }
 
-  // POST /api/admin/enrich/start — iniciar bot
+  // POST /api/admin/enrich/start — iniciar bot(s)
+  // Aceita: { sheetKey: "jan2026" } | { sheetKey: "all" } | { sheetKeys: ["jan2026","jul2025"] }
   if(pathname==="/api/admin/enrich/start"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    let _eb={sheetKey:"jan2026",resume:false};
-    try{const _d=JSON.parse(await readBody(req));_eb.sheetKey=_d.sheetKey||"jan2026";_eb.resume=!!_d.resume;}catch{}
-    const {sheetKey,resume}=_eb;
-    if(_enrichBot.running) return json(res,409,{error:"Bot já está rodando. Aguarde ou pare primeiro."});
-    // Validar sheetKey
+    let body={sheetKey:"jan2026",resume:false,sheetKeys:null};
+    try{const _d=JSON.parse(await readBody(req));Object.assign(body,_d);}catch{}
+    const resume=!!body.resume;
     const validSheets=["jan2026","jul2025",...Object.keys(SHEET_EXTRAS)];
-    if(!validSheets.includes(sheetKey)) return json(res,400,{error:`Planilha "${sheetKey}" não encontrada. Disponíveis: ${validSheets.join(", ")}`});
-    const sheetArr = sheetKey==="jan2026"?SHEET_JAN:sheetKey==="jul2025"?SHEET_JUL:SHEET_EXTRAS[sheetKey];
-    if(!sheetArr||!sheetArr.length) return json(res,400,{error:"Planilha vazia ou não carregada"});
-    json(res,200,{ok:true,message:`Bot iniciado para "${sheetKey}" (${sheetArr.length} vagas)`,total:sheetArr.length});
-    _runEnrichBot(sheetKey, resume).catch(e=>_enrichLog("Erro fatal: "+e.message,"error"));
+    // Determinar lista de planilhas a processar
+    let keysToRun = [];
+    if(body.sheetKey==="all" || body.sheetKeys?.includes("all")){
+      keysToRun = validSheets;
+    } else if(Array.isArray(body.sheetKeys) && body.sheetKeys.length>0){
+      keysToRun = body.sheetKeys.filter(k=>validSheets.includes(k));
+    } else {
+      keysToRun = [body.sheetKey||"jan2026"];
+    }
+    if(!keysToRun.length) return json(res,400,{error:"Nenhuma planilha válida especificada"});
+    const started=[];
+    for(const sheetKey of keysToRun){
+      const b = _getBotState(sheetKey);
+      if(b.running){ started.push({key:sheetKey, status:"já rodando"}); continue; }
+      if(b.finished && !resume){ started.push({key:sheetKey, status:"já concluída — ignorada"}); continue; }
+      const sheetArr = sheetKey==="jan2026"?SHEET_JAN:sheetKey==="jul2025"?SHEET_JUL:SHEET_EXTRAS[sheetKey];
+      if(!sheetArr||!sheetArr.length){ started.push({key:sheetKey, status:"vazia/não encontrada"}); continue; }
+      started.push({key:sheetKey, status:"iniciada", total:sheetArr.length});
+      _runEnrichBot(sheetKey, resume).catch(e=>_enrichLog("Erro fatal: "+e.message,"error", sheetKey));
+    }
+    json(res,200,{ok:true, started, message:`${started.length} planilha(s) processada(s)`});
     return;
   }
 
-  // POST /api/admin/enrich/stop — parar bot
+  // POST /api/admin/enrich/start-all — atalho: inicia TODAS as planilhas em paralelo
+  if(pathname==="/api/admin/enrich/start-all"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    let body={resume:false,force:false};
+    try{const _d=JSON.parse(await readBody(req));Object.assign(body,_d);}catch{}
+    const allKeys=["jan2026","jul2025",...Object.keys(SHEET_EXTRAS)];
+    const started=[];
+    for(const key of allKeys){
+      const b=_getBotState(key);
+      if(b.running){ started.push({key, status:"já rodando"}); continue; }
+      if(b.finished && !body.force && !body.resume){ started.push({key, status:"já concluída — ignorada"}); continue; }
+      const arr=key==="jan2026"?SHEET_JAN:key==="jul2025"?SHEET_JUL:SHEET_EXTRAS[key];
+      if(!arr||!arr.length){ started.push({key, status:"vazia"}); continue; }
+      started.push({key, status:"iniciada", total:arr.length});
+      _runEnrichBot(key, !!body.resume).catch(e=>_enrichLog("Erro: "+e.message,"error",key));
+    }
+    return json(res,200,{ok:true,started,message:`${started.length} planilha(s) processada(s) em paralelo`});
+  }
+
+  // POST /api/admin/enrich/stop — parar bot(s)
+  // { sheetKey: "jan2026" } | { sheetKey: "all" } | omit = para todos
   if(pathname==="/api/admin/enrich/stop"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    try{await readBody(req);}catch{} // consumir body
-    _enrichBot.running=false;
-    _enrichLog("⏹️ Bot parado pelo admin","warn");
-    return json(res,200,{ok:true,message:"Bot parado"});
+    let body={sheetKey:null};
+    try{const _d=JSON.parse(await readBody(req));Object.assign(body,_d);}catch{}
+    const stopped=[];
+    if(!body.sheetKey || body.sheetKey==="all"){
+      // Para TODOS
+      for(const [k,b] of Object.entries(_enrichBots)){
+        if(b.running){ b.running=false; stopped.push(k); _enrichLog("⏹️ Bot parado pelo admin","warn",k); }
+      }
+    } else {
+      const b=_enrichBots[body.sheetKey];
+      if(b && b.running){ b.running=false; stopped.push(body.sheetKey); _enrichLog("⏹️ Bot parado pelo admin","warn",body.sheetKey); }
+    }
+    return json(res,200,{ok:true,stopped,message:`${stopped.length} bot(s) parado(s)`});
   }
 
   // POST /api/admin/sheet/enrich/:key — redireciona para o bot central
@@ -3741,7 +3816,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
     const key=pathname.split("/").pop();
-    if(_enrichBot.running) return json(res,409,{error:"Bot já está rodando. Use /api/admin/enrich/stop para parar."});
+    const _bk=pathname.split("/").pop(); if(_enrichBots[_bk]?.running) return json(res,409,{error:`Bot para "${_bk}" já está rodando.`});
     const sheet = key==="jan2026"?SHEET_JAN:key==="jul2025"?SHEET_JUL:SHEET_EXTRAS[key];
     if(!sheet)return json(res,404,{error:"Planilha não encontrada"});
     try{await readBody(req);}catch{} // consumir body

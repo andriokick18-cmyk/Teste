@@ -266,7 +266,7 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
       <button class="sb-item" onclick="showView('vencimentos');loadVencimentos()"><i class="ti ti-calendar-time"></i>Vencimentos VIP<span class="sb-badge sb-badge-a" id="sb-venc" style="display:none">!</span></button>
       <button class="sb-item" onclick="showView('pedidos');loadPedidos()" style="background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.06));border:1px solid rgba(16,185,129,.3);color:var(--green);font-weight:800"><i class="ti ti-shopping-cart" style="color:var(--green)"></i>Pedidos de Plano<span class="sb-badge sb-badge-g" id="sb-pedidos" style="display:none">0</span></button>
       <div class="sb-label">Sistema</div>
-      <button class="sb-item" onclick="showView('planilhas');loadPlanilhas()"><i class="ti ti-table-import" style="color:var(--green)"></i>Planilhas de Vagas</button>
+      <button class="sb-item" onclick="showView('planilhas');loadPlanilhas();_enrichAutoStartPoll()"><i class="ti ti-table-import" style="color:var(--green)"></i>Planilhas de Vagas</button>
       <button class="sb-item" onclick="showView('emails-invalidos');loadEmailsInvalidos()"><i class="ti ti-mail-x" style="color:var(--red)"></i>Emails Inválidos</button>
       <button class="sb-item" onclick="showView('codes')"><i class="ti ti-ticket"></i>Códigos Promo</button>
       <button class="sb-item" onclick="showView('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
@@ -3021,51 +3021,93 @@ document.addEventListener('DOMContentLoaded',()=>{
   </div>
 </div>
 
-<!-- BOT DE ENRIQUECIMENTO -->
+<!-- BOT DE ENRIQUECIMENTO DUAL — Roda 2 planilhas em paralelo no servidor -->
 <div style="background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(67,56,202,.06));border:1.5px solid rgba(99,102,241,.3);border-radius:14px;padding:16px;margin-bottom:16px">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
     <div style="font-size:28px">🤖</div>
     <div style="flex:1">
       <div style="font-size:14px;font-weight:800;color:#fff">Bot de Enriquecimento DOL</div>
-      <div style="font-size:11px;color:var(--t3)">Acessa seasonaljobs.dol.gov para cada ETA case number e preenche todos os campos</div>
+      <div style="font-size:11px;color:var(--t3)">Roda as 2 planilhas em paralelo • Invisível • Não para se sair da página • Ignora planilha já concluída</div>
     </div>
     <div id="enrich-status-badge" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;color:var(--t2)">⏹ Parado</div>
   </div>
 
-  <!-- Seletor de planilha e controles -->
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-    <select id="enrich-sheet-sel" class="form-inp" style="flex:1;min-width:160px">
-      <option value="jan2026">Jan 2026 (H-2B) — 9.240 vagas</option>
-      <option value="jul2025">Jul 2025 (H-2B) — 2.206 vagas</option>
-    </select>
-    <button id="enrich-btn-start" class="btn btn-primary btn-sm" onclick="enrichStart()"><i class="ti ti-player-play"></i> Iniciar Bot</button>
-    <button id="enrich-btn-resume" class="btn btn-ghost btn-sm" onclick="enrichResume()" style="display:none"><i class="ti ti-player-skip-forward"></i> Retomar</button>
-    <button id="enrich-btn-stop" class="btn btn-ghost btn-sm" onclick="enrichStop()" style="display:none;color:var(--red)"><i class="ti ti-player-stop"></i> Parar</button>
+  <!-- Botão principal: Iniciar AMBAS + Parar Todas -->
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <button id="enrich-btn-all" class="btn btn-primary" style="flex:1" onclick="enrichStartAll()">
+      <i class="ti ti-player-play"></i> Iniciar AMBAS em Paralelo
+    </button>
+    <button id="enrich-btn-resume-all" class="btn btn-ghost" style="display:none" onclick="enrichStartAll(true)">
+      <i class="ti ti-player-skip-forward"></i> Retomar Todas
+    </button>
+    <button id="enrich-btn-stop-all" class="btn btn-ghost" style="display:none;color:var(--red)" onclick="enrichStopAll()">
+      <i class="ti ti-player-stop"></i> Parar Todas
+    </button>
   </div>
 
-  <!-- Barra de progresso -->
-  <div id="enrich-progress-wrap" style="display:none;margin-bottom:10px">
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-bottom:4px">
-      <span id="enrich-progress-label">Processando...</span>
-      <span id="enrich-progress-pct">0%</span>
+  <!-- Painéis individuais por planilha -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+
+    <!-- BOT JAN 2026 -->
+    <div id="bot-panel-jan2026" style="background:rgba(0,0,0,.25);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-size:12px;font-weight:800;color:#fff">☀️ Jan 2026</div>
+          <div style="font-size:10px;color:var(--t3)">9.240 vagas H-2B</div>
+        </div>
+        <div id="bot-badge-jan2026" style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.07);color:var(--t3)">⏹ Parado</div>
+      </div>
+      <div style="background:rgba(255,255,255,.06);border-radius:6px;height:5px;margin-bottom:6px">
+        <div id="bot-bar-jan2026" style="background:linear-gradient(90deg,#6366f1,#4f46e5);height:5px;border-radius:6px;width:0%;transition:.4s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-bottom:6px">
+        <span id="bot-pct-jan2026">0%</span>
+        <span id="bot-label-jan2026">–</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;font-size:10px;text-align:center;margin-bottom:8px">
+        <div><div id="bot-ok-jan2026" style="font-weight:800;color:var(--green)">0</div><div style="color:var(--t3)">✅ OK</div></div>
+        <div><div id="bot-ne-jan2026" style="font-weight:800;color:var(--amber)">0</div><div style="color:var(--t3)">⚠️ s/email</div></div>
+        <div><div id="bot-err-jan2026" style="font-weight:800;color:var(--red)">0</div><div style="color:var(--t3)">❌ Erro</div></div>
+      </div>
+      <div class="enrich-log" id="bot-log-jan2026" style="height:140px">
+        <div class="log-info">Aguardando início...</div>
+      </div>
     </div>
-    <div style="background:rgba(255,255,255,.08);border-radius:8px;height:8px">
-      <div id="enrich-progress-bar" style="background:linear-gradient(90deg,#6366f1,#4f46e5);height:8px;border-radius:8px;width:0%;transition:.3s"></div>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;font-size:11px">
-      <div style="text-align:center"><div id="enrich-stat-ok" style="font-weight:800;color:var(--green);font-size:15px">0</div><div style="color:var(--t3)">✅ OK</div></div>
-      <div style="text-align:center"><div id="enrich-stat-noEmail" style="font-weight:800;color:var(--amber);font-size:15px">0</div><div style="color:var(--t3)">⚠️ Sem email</div></div>
-      <div style="text-align:center"><div id="enrich-stat-err" style="font-weight:800;color:var(--red);font-size:15px">0</div><div style="color:var(--t3)">❌ Erros</div></div>
-      <div style="text-align:center"><div id="enrich-stat-eta" style="font-weight:800;color:var(--blue);font-size:15px">–</div><div style="color:var(--t3)">⏱️ Restante</div></div>
+
+    <!-- BOT JUL 2025 -->
+    <div id="bot-panel-jul2025" style="background:rgba(0,0,0,.25);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-size:12px;font-weight:800;color:#fff">❄️ Jul 2025</div>
+          <div style="font-size:10px;color:var(--t3)">2.206 vagas H-2B</div>
+        </div>
+        <div id="bot-badge-jul2025" style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,.07);color:var(--t3)">⏹ Parado</div>
+      </div>
+      <div style="background:rgba(255,255,255,.06);border-radius:6px;height:5px;margin-bottom:6px">
+        <div id="bot-bar-jul2025" style="background:linear-gradient(90deg,#10b981,#059669);height:5px;border-radius:6px;width:0%;transition:.4s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-bottom:6px">
+        <span id="bot-pct-jul2025">0%</span>
+        <span id="bot-label-jul2025">–</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;font-size:10px;text-align:center;margin-bottom:8px">
+        <div><div id="bot-ok-jul2025" style="font-weight:800;color:var(--green)">0</div><div style="color:var(--t3)">✅ OK</div></div>
+        <div><div id="bot-ne-jul2025" style="font-weight:800;color:var(--amber)">0</div><div style="color:var(--t3)">⚠️ s/email</div></div>
+        <div><div id="bot-err-jul2025" style="font-weight:800;color:var(--red)">0</div><div style="color:var(--t3)">❌ Erro</div></div>
+      </div>
+      <div class="enrich-log" id="bot-log-jul2025" style="height:140px">
+        <div class="log-info">Aguardando início...</div>
+      </div>
     </div>
   </div>
 
-  <!-- Log em tempo real -->
-  <div>
-    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">📋 Log em tempo real</div>
-    <div class="enrich-log" id="enrich-log">
-      <div class="log-info">Aguardando início...</div>
-    </div>
+  <!-- Info: roda no servidor, independente da página -->
+  <div style="background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:8px 12px;font-size:11px;color:#6ee7b7;line-height:1.6">
+    🟢 <strong>Roda no servidor</strong> — fechar essa página não para o bot.<br>
+    🔒 <strong>Planilha concluída</strong> = ignorada automaticamente (não reprocessa).<br>
+    💾 <strong>Salvo a cada 100 vagas</strong> — retomável se o servidor reiniciar.
   </div>
 </div>
 
@@ -8640,40 +8682,66 @@ function rcConcordar(pedidoId,msg){ RoboContabil.concordar(pedidoId,msg); }
 //  ABA: PLANILHAS DE VAGAS
 // ════════════════════════════════════════════════════════════
 // ════ BOT DE ENRIQUECIMENTO — JS ═════════════════════════
+// ══════════════════════════════════════════════════════
+//  DUAL ENRICH BOT — controles e polling no admin
+// ══════════════════════════════════════════════════════
 let _enrichPollTimer = null;
+let _enrichDoneNotified = {}; // { key: true } — para não repetir toast de conclusão
 
+// Iniciar AMBAS as planilhas em paralelo
+function enrichStartAll(resume=false){
+  const msg = resume
+    ? 'Retomar enriquecimento das 2 planilhas (de onde parou)?'
+    : 'Iniciar enriquecimento das 2 planilhas em paralelo?\n\n• Jan 2026 (9.240 vagas)\n• Jul 2025 (2.206 vagas)\n\n✅ Planilhas já concluídas serão ignoradas automaticamente.\n✅ Roda no servidor — fechar a página não para o bot.\n✅ Salvo a cada 100 vagas.';
+  if(!confirm(msg)) return;
+  fetch('/api/admin/enrich/start-all',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({resume:!!resume})
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok){
+      const info = (d.started||[]).map(s=>`${s.key}: ${s.status}`).join('\n');
+      toast('🤖 Bots iniciados!\n'+info,'g');
+      _enrichDoneNotified={};
+      enrichStartPoll();
+    } else toast('Erro: '+(d.error||'?'),'r');
+  }).catch(e=>toast('Erro: '+e.message,'r'));
+}
+
+// Parar TODOS os bots
+function enrichStopAll(){
+  fetch('/api/admin/enrich/stop',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({sheetKey:'all'})
+  }).then(r=>r.json()).then(d=>{
+    if(d.ok) toast('⏹ Todos os bots parados','g');
+  });
+}
+
+// Legado — parar planilha específica
+function enrichStop(key){
+  fetch('/api/admin/enrich/stop',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({sheetKey: key||'all'})
+  }).then(r=>r.json()).then(d=>{ if(d.ok) toast('⏹ Bot parado','g'); });
+}
+
+// Legado — iniciar planilha específica
 function enrichStart(){
-  const key = document.getElementById('enrich-sheet-sel')?.value || 'jan2026';
-  if(!confirm(`Iniciar bot para planilha "${key}"?\n\nO bot vai acessar o DOL para cada ETA case number e preencher:\n• Cidade (ci)\n• Data início/fim (d/de)\n• Número de vagas (wk)\n• Telefone da empresa (ph)\n• Descrição das funções (desc)\n• URL direta da vaga\n\nVagas sem email serão reportadas no log.\n\nIsso pode demorar horas para planilhas grandes. Pode pausar a qualquer momento.`)) return;
-  fetch('/api/admin/enrich/start',{method:'POST',credentials:'include',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({sheetKey:key})
-  }).then(r=>r.json()).then(d=>{
-    if(d.ok){ toast('🤖 Bot iniciado!','g'); enrichStartPoll(); }
-    else toast('Erro: '+(d.error||'?'),'r');
-  }).catch(e=>toast('Erro: '+e.message,'r'));
+  enrichStartAll(false);
 }
-
 function enrichResume(){
-  const key = document.getElementById('enrich-sheet-sel')?.value || 'jan2026';
-  fetch('/api/admin/enrich/start',{method:'POST',credentials:'include',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({sheetKey:key, resume:true})
-  }).then(r=>r.json()).then(d=>{
-    if(d.ok){ toast('🤖 Bot retomado!','g'); enrichStartPoll(); }
-    else toast('Erro: '+(d.error||'?'),'r');
-  }).catch(e=>toast('Erro: '+e.message,'r'));
-}
-
-function enrichStop(){
-  fetch('/api/admin/enrich/stop',{method:'POST',credentials:'include'})
-    .then(r=>r.json()).then(d=>{ if(d.ok) toast('⏹ Bot parado','g'); });
+  enrichStartAll(true);
 }
 
 function enrichStartPoll(){
   clearInterval(_enrichPollTimer);
-  _enrichPollTimer = setInterval(enrichPollStatus, 2000);
+  _enrichPollTimer = setInterval(enrichPollStatus, 2500);
   enrichPollStatus();
+}
+
+// Auto-inicia polling quando a view de planilhas é aberta
+function _enrichAutoStartPoll(){
+  if(!_enrichPollTimer) enrichStartPoll();
 }
 
 async function enrichPollStatus(){
@@ -8684,67 +8752,81 @@ async function enrichPollStatus(){
     if(!d.ok) return;
 
     const g2 = id => document.getElementById(id);
-    const setText = (id,v) => { const e=g2(id); if(e) e.textContent=v; };
+    const setText = (id,v) => { const e=g2(id); if(e) e.textContent=String(v); };
+    const typeClass={ok:'log-ok',warn:'log-warn',error:'log-error',info:'log-info'};
 
-    // Badge de status
+    // Badge geral
     const badge = g2('enrich-status-badge');
     if(badge){
-      if(d.running) badge.innerHTML='<span style="color:#34d399;font-weight:800">⚡ RODANDO</span>';
-      else if(d.done>=d.total&&d.total>0) badge.innerHTML='<span style="color:#34d399">✅ Concluído</span>';
+      if(d.anyRunning) badge.innerHTML='<span style="color:#34d399;font-weight:800">⚡ RODANDO</span>';
       else badge.innerHTML='<span style="color:var(--t2)">⏹ Parado</span>';
     }
 
-    // Botões
-    const btnStart=g2('enrich-btn-start'), btnStop=g2('enrich-btn-stop'), btnResume=g2('enrich-btn-resume');
-    if(btnStart) btnStart.style.display = d.running?'none':'';
-    if(btnStop)  btnStop.style.display  = d.running?'':'none';
-    if(btnResume) btnResume.style.display = (!d.running&&d.done>0&&d.done<d.total)?'':'none';
+    // Botões principais
+    const btnAll     = g2('enrich-btn-all');
+    const btnResuAll = g2('enrich-btn-resume-all');
+    const btnStopAll = g2('enrich-btn-stop-all');
+    const bots = d.bots || {};
+    const anyRunning = d.anyRunning;
+    const anyPaused  = Object.values(bots).some(b=>!b.running && b.done>0 && b.done<b.total);
+    if(btnAll)     btnAll.style.display     = anyRunning ? 'none' : '';
+    if(btnResuAll) btnResuAll.style.display = (!anyRunning && anyPaused) ? '' : 'none';
+    if(btnStopAll) btnStopAll.style.display = anyRunning ? '' : 'none';
 
-    // Progresso — sempre visível se total > 0
-    const wrap = g2('enrich-progress-wrap');
-    if(wrap) wrap.style.display = (d.total>0||d.running) ? '' : 'none';
+    // Atualizar cada painel de planilha
+    for(const key of ['jan2026','jul2025']){
+      const b = bots[key];
+      if(!b) continue;
 
-    const bar = g2('enrich-progress-bar');
-    if(bar) bar.style.width = (d.pct||0)+'%';
-    setText('enrich-progress-pct', (d.pct||0)+'%');
+      // Badge
+      const bdg = g2('bot-badge-'+key);
+      if(bdg){
+        if(b.running) bdg.innerHTML='<span style="color:#34d399;animation:pulse 1s infinite">⚡ Rodando</span>';
+        else if(b.finished||b.done>=b.total&&b.total>0) bdg.innerHTML='<span style="color:#34d399">✅ Concluído</span>';
+        else if(b.done>0) bdg.innerHTML='<span style="color:var(--amber)">⏸ Pausado</span>';
+        else bdg.innerHTML='<span style="color:var(--t3)">⏹ Parado</span>';
+      }
 
-    const elapsed = d.elapsed||0;
-    const elapsedStr = elapsed>60 ? `${Math.floor(elapsed/60)}m${elapsed%60}s` : `${elapsed}s`;
-    setText('enrich-progress-label',
-      d.total>0
-        ? `${(d.done||0).toLocaleString('pt-BR')} / ${d.total.toLocaleString('pt-BR')} vagas · ${d.ratePerSec||0}/s · ${elapsedStr}`
-        : 'Aguardando...'
-    );
+      // Barra
+      const bar = g2('bot-bar-'+key);
+      if(bar) bar.style.width = (b.pct||0)+'%';
+      setText('bot-pct-'+key, (b.pct||0)+'%');
 
-    // Stats cards
-    setText('enrich-stat-ok',      d.ok||0);
-    setText('enrich-stat-noEmail', d.noEmail||0);
-    setText('enrich-stat-err',     d.errors||0);
-    if(d.etaSec && d.etaSec>0){
-      const m=Math.floor(d.etaSec/60), s=d.etaSec%60;
-      setText('enrich-stat-eta', m>0?`${m}m${s}s`:`${s}s`);
-    } else {
-      setText('enrich-stat-eta', d.running?'calc...':'–');
+      // Label
+      const elapsed = b.elapsed||0;
+      const elStr = elapsed>60 ? `${Math.floor(elapsed/60)}m${elapsed%60}s` : (elapsed?`${elapsed}s`:'');
+      setText('bot-label-'+key,
+        b.total>0 ? `${(b.done||0).toLocaleString('pt-BR')}/${b.total.toLocaleString('pt-BR')}${elStr?' · '+elStr:''}` : '–'
+      );
+
+      // Stats
+      setText('bot-ok-'+key,  b.ok||0);
+      setText('bot-ne-'+key,  b.noEmail||0);
+      setText('bot-err-'+key, b.errors||0);
+
+      // Log — rolagem automática
+      const logEl = g2('bot-log-'+key);
+      if(logEl && b.log?.length){
+        const atBottom = logEl.scrollHeight-logEl.scrollTop <= logEl.clientHeight+30;
+        logEl.innerHTML = b.log.map(l=>{
+          const t=new Date(l.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+          return `<div class="${typeClass[l.type]||'log-info'}">[${t}] ${esc(l.msg)}</div>`;
+        }).join('');
+        if(atBottom) logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      // Toast de conclusão (uma vez por key por sessão)
+      if(!b.running && (b.finished||b.done>=b.total&&b.total>0) && !_enrichDoneNotified[key]){
+        _enrichDoneNotified[key]=true;
+        toast(`✅ ${key}: ${b.ok} vagas enriquecidas!`,'g');
+        setTimeout(loadPlanilhas,1500);
+      }
     }
 
-    // Log em tempo real — rolagem automática para o fim
-    const logEl = g2('enrich-log');
-    if(logEl && d.log?.length){
-      const typeClass={ok:'log-ok',warn:'log-warn',error:'log-error',info:'log-info'};
-      const atBottom = logEl.scrollHeight-logEl.scrollTop <= logEl.clientHeight+30;
-      logEl.innerHTML = d.log.map(l=>{
-        const t=new Date(l.ts).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-        return `<div class="${typeClass[l.type]||'log-info'}">[${t}] ${esc(l.msg)}</div>`;
-      }).join('');
-      if(atBottom) logEl.scrollTop = logEl.scrollHeight; // acompanhar automaticamente
-    }
-
-    // Concluído
-    if(!d.running && d.done>=d.total && d.total>0){
+    // Se todos pararam, diminuir frequência do poll
+    if(!anyRunning){
       clearInterval(_enrichPollTimer);
-      _enrichPollTimer=null;
-      toast('✅ Bot concluído! '+d.ok+' vagas enriquecidas.','g');
-      setTimeout(loadPlanilhas,1500);
+      _enrichPollTimer = setInterval(enrichPollStatus, 10000); // checar a cada 10s quando parado
     }
   }catch(e){ console.warn('[enrichPoll]',e.message); }
 }
