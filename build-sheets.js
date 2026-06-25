@@ -177,17 +177,22 @@ function toCompact(rec) {
              : caseNum.startsWith("H-400") ? "H-2B"
              : (rec.visa_class || "H-2B");
 
+  const city = (rec.worksite_city || rec.employer_city || "").trim();
+  const beginDate = (rec.begin_date || rec.start_date || "").slice(0, 10);
+  const endDate   = (rec.end_date || rec.expiration_date || "").slice(0, 10);
   return {
-    c: caseNum,
-    t: title,
-    n: employer,
-    s: state,
-    d: (rec.begin_date || "").slice(0, 10),
-    e: email,
-    w: wage,
+    c:  caseNum,
+    t:  title,
+    n:  employer,
+    s:  state,
+    ci: city,          // cidade
+    d:  beginDate,     // data início
+    de: endDate,       // data fim
+    e:  email,
+    w:  wage,
     wunit,
     wk: workers,
-    k: detectCategoryBest(title, employer),
+    k:  detectCategoryBest(title, employer),
     visa,
     st: (rec.case_status || "").trim(),
   };

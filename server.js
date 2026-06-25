@@ -34,7 +34,9 @@ const CLIENT_SECRET = (process.env.GOOGLE_CLIENT_SECRET || "").trim();
 const APP_URL       = (process.env.APP_URL || "http://localhost:3000").replace(/\/+$/, "");
 const REDIRECT_URI        = APP_URL + "/oauth/callback";
 const REDIRECT_URI_SENDER = APP_URL + "/oauth/add-sender/callback";
-const MAX_SENDER_EMAILS   = 3;
+const MAX_SENDER_EMAILS        = 3; // usuários normais: até 3 emails extras
+const MAX_SENDER_EMAILS_ADMIN  = 5; // admins: até 5 emails extras
+const getMaxSenders = (u) => (u?.isAdmin || isAdminEmail(u?.email||"")) ? MAX_SENDER_EMAILS_ADMIN : MAX_SENDER_EMAILS;
 const MAX_RESUMES         = 3;
 const MAX_COVERS          = 3;
 const PORT          = parseInt(process.env.PORT || "3000", 10);
@@ -42,7 +44,10 @@ const IS_PROD       = APP_URL.startsWith("https://");
 const CONFIGURED    = !!(CLIENT_ID && CLIENT_SECRET);
 const ADMIN_EMAIL   = (process.env.ADMIN_EMAIL || "andrio.kick18@gmail.com").trim().toLowerCase();
 const ADMIN_EMAIL_2 = (process.env.ADMIN_EMAIL_2 || "").trim().toLowerCase();
-const ADMIN_EMAILS  = new Set([ADMIN_EMAIL, ADMIN_EMAIL_2].filter(Boolean));
+// Admins adicionais hardcoded (além do env)
+// Admins adicionais hardcoded — adicione mais emails aqui se necessário
+const ADMIN_EMAILS_EXTRA = ["ndrkick.2@gmail.com","jesuscristh22@gmail.com"].map(e=>e.trim().toLowerCase()).filter(Boolean);
+const ADMIN_EMAILS  = new Set([ADMIN_EMAIL, ADMIN_EMAIL_2, ...ADMIN_EMAILS_EXTRA].filter(Boolean));
 const isAdminEmail  = (e) => ADMIN_EMAILS.has((e||"").trim().toLowerCase());
 
 // ── VAPID — Web Push Notifications ───────────────────────
@@ -55,18 +60,19 @@ const PUSH_ENABLED      = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
 console.log(`[boot] Push VAPID: ${PUSH_ENABLED?"✅ configurado":"⚠️  desativado (configure VAPID_PUBLIC_KEY e VAPID_PRIVATE_KEY)"}`);
 
 // ── Planos ────────────────────────────────────────────────
-//   free  → 20 manual  + 10 auto  /dia (Grátis)
-//   vip   → 300 manual + 10 auto  /dia (só manual pago)
-//   vipro → 300 manual + 200 auto /dia = 500 total/dia
+//   free      → 20 manual  + 10 auto   /dia (Grátis)
+//   vip       → 200 manual + 10 auto   /dia (só manual pago)
+//   vipro     → 200 manual + 200 auto  /dia (manual + automático)
+//   doublepro → 400 manual + 400 auto  /dia (2 contas Gmail)
+//   pro       → 0 manual   + 200 auto  /dia (só auto — legado)
 //
-//   O limite do automático é EXCLUSIVO do automático.
-//   O limite manual é EXCLUSIVO do manual (envio pelo botão).
-//   Eles NÃO se misturam — um não consome o limite do outro.
+//   Os limites de manual e auto são INDEPENDENTES — não se misturam.
 const PLAN_LIMITS = {
-  free:  { manual: 20,  auto: 10  },
-  vip:   { manual: 300, auto: 10  },
-  pro:   { manual: 300, auto: 200 }, // legado — igual ao vipro
-  vipro: { manual: 300, auto: 200 },
+  free:      { manual: 20,  auto: 10  },
+  vip:       { manual: 200, auto: 10  }, // VIP = só manual 200/dia
+  pro:       { manual: 0,   auto: 200 }, // só auto — legado
+  vipro:     { manual: 200, auto: 200 }, // manual + auto 200 cada
+  doublepro: { manual: 400, auto: 400 }, // DoublePro — 2 contas, 400 cada
 };
 // Intervalos base (substituídos pelo cálculo inteligente)
 const AUTO_INTERVAL_MIN = 180_000; // 3 min fallback
@@ -74,8 +80,18 @@ const AUTO_INTERVAL_MAX = 300_000; // 5 min fallback
 // Horário padrão se usuário não configurar
 // Horário de envio REMOVIDO: automático roda 24/7 sem janela de horário
 
-// Intervalo fixo de 3 a 5 minutos — seguro para o Gmail e rápido o suficiente
-function calcSmartInterval() {
+// Intervalo de envio: padrão 3-5 min. Admins podem configurar intervalo menor.
+// adminIntervalSecs: número de segundos entre envios (mín 30s para admins)
+function calcSmartInterval(email) {
+  // Verificar configuração personalizada do admin
+  if (email) {
+    const u = getUser(email);
+    if (u && isAdminVip(u) && u.adminSettings?.intervalSecs) {
+      const secs = Math.max(30, parseInt(u.adminSettings.intervalSecs) || 180);
+      const jitter = secs * 0.15; // ±15% de variação
+      return (secs + (Math.random() * 2 - 1) * jitter) * 1000;
+    }
+  }
   const MIN_MS = 3 * 60 * 1000; // 3 minutos
   const MAX_MS = 5 * 60 * 1000; // 5 minutos
   return MIN_MS + Math.random() * (MAX_MS - MIN_MS);
@@ -146,6 +162,8 @@ const ADMIN_SETTINGS_FILE = path.join(DATA_DIR, "admin_settings.json"); // Admin
 const NOTIF_FILE     = path.join(DATA_DIR, "notifications.json");  // Global notifications from ADM
 const REFERRAL_FILE  = path.join(DATA_DIR, "referrals.json");       // Referral tracking
 const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
+const PEDIDOS_FILE     = path.join(DATA_DIR, "pedidos.json");         // Pedidos de plano dos usuários
+const FINANCEIRO_FILE  = path.join(DATA_DIR, "financeiro.json");      // Dados financeiros (entradas + gastos)
 try { fs.mkdirSync(CVS_DIR, { recursive: true }); } catch {}
 
 console.log(`[boot] H2BApply v13.0 | ${APP_URL} | ${DATA_DIR}`);
@@ -179,10 +197,15 @@ let DB_NOTIF = { notifications: [] };
 // Referrals: { byCode: { code → {ownerEmail, createdAt} }, byEmail: { email → {code, referredBy, joinedAt, paidAt, bonusPaid} } }
 let DB_REFERRAL = { byCode: {}, byEmail: {} };
 let DB_SUGGESTIONS = []; // Array de sugestões dos usuários
+let DB_PEDIDOS     = []; // Array de pedidos de plano
+let DB_FINANCEIRO  = {pagamentos:[],gastos:[]};  // Dados financeiros persistentes
 
 // ── Gemini Chat ─────────────────────────────────────────
 // Limite global de 1500 mensagens/dia para TODOS os usuários
-const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
+// Relê do process.env a cada chamada — garante que o Render não perca a key após boot
+const _GEMINI_API_KEY_BOOT = (process.env.GEMINI_API_KEY || "").trim();
+function getGeminiKey(){ return (process.env.GEMINI_API_KEY || _GEMINI_API_KEY_BOOT || "").trim(); }
+const GEMINI_API_KEY = _GEMINI_API_KEY_BOOT; // mantido para compatibilidade das verificações de status
 const GEMINI_DAILY_LIMIT = parseInt(process.env.GEMINI_DAILY_LIMIT || "1500", 10);
 const GEMINI_USER_DAILY_LIMIT = Math.floor(GEMINI_DAILY_LIMIT / 50); // 1500 ÷ 50 usuários = 30/dia por usuário
 let _geminiCount = { date: "", count: 0 }; // contador global em memória (reseta à meia-noite)
@@ -213,6 +236,167 @@ let rankPosCache = {};
 
 function load(f, def) { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return def; } }
 
+// ══════════════════════════════════════════════════════════
+//  SISTEMA DE INTELIGÊNCIA DE EMAILS — Base Global
+//  Aprende com bounces de TODOS os usuários
+// ══════════════════════════════════════════════════════════
+const INVALID_EMAILS_FILE   = path.join(DATA_DIR, "invalid_emails.json");
+const EMAIL_CORRECTIONS_FILE = path.join(DATA_DIR, "email_corrections.json");
+const TEMP_FAILURES_FILE    = path.join(DATA_DIR, "temp_failures.json");
+
+let DB_INVALID_EMAILS   = {};  // { email: {email,domain,motivo,tipo,first,last,count,users,msg,status} }
+let DB_EMAIL_CORRECTIONS = {}; // { orig: {original,corrected,confidence,count,first,last} }
+let DB_TEMP_FAILURES    = {};  // { email: {email,errors:[],count} }
+
+// Padrões de erro permanente (o endereço não existe)
+const PERM_PATTERNS = [
+  /550[\s-]5\.1\.1/i, /user unknown/i, /no such user/i,
+  /address not found/i, /account does not exist/i, /recipient not found/i,
+  /does not exist/i, /invalid address/i, /user not found/i,
+  /mailbox not found/i, /bad destination/i, /550 unknown/i,
+  /5\.1\.1/i, /5\.1\.2/i, /5\.4\.1/i, /5\.7\.1.*unknown/i,
+  /email account.*does not exist/i, /no mailbox/i
+];
+
+// Padrões de erro temporário (não é lista negra)
+const TEMP_PATTERNS = [
+  /temporary/i, /retry/i, /will retry/i, /delivery incomplete/i,
+  /mailbox full/i, /server unavailable/i, /timeout/i, /4\.\d+\.\d+/i,
+  /try again/i, /busy/i, /too many/i, /rate limit/i, /temporarily/i
+];
+
+// Domínios comuns para correção de typo
+const COMMON_DOMAINS = [
+  'gmail.com','yahoo.com','hotmail.com','outlook.com','icloud.com',
+  'aol.com','protonmail.com','live.com','msn.com','me.com',
+  'yahoo.com.br','hotmail.com.br','bol.com.br','uol.com.br','terra.com.br'
+];
+
+function levenshtein(a,b){
+  const m=a.length,n=b.length;
+  const d=Array.from({length:m+1},(_,i)=>Array.from({length:n+1},(_,j)=>j===0?i:i===0?j:0));
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++) d[i][j]=a[i-1]===b[j-1]?d[i-1][j-1]:1+Math.min(d[i-1][j],d[i][j-1],d[i-1][j-1]);
+  return d[m][n];
+}
+
+function suggestEmailCorrection(email){
+  if(!email||!email.includes('@')) return null;
+  const [local, domain] = email.split('@');
+  if(!domain) return null;
+  // Typo muito óbvio no domínio
+  let best=null, bestDist=99;
+  for(const cd of COMMON_DOMAINS){
+    const dist = levenshtein(domain.toLowerCase(), cd);
+    if(dist>0 && dist<=2 && dist<bestDist){ bestDist=dist; best=cd; }
+  }
+  if(best) return { original:email, corrected:`${local}@${best}`, confidence: bestDist===1?0.95:0.80 };
+  return null;
+}
+
+function classifyBounce(bodyText){
+  if(!bodyText) return null;
+  const text = bodyText.toLowerCase();
+  for(const p of PERM_PATTERNS){ if(p.test(text)) return 'permanent'; }
+  for(const p of TEMP_PATTERNS){ if(p.test(text)) return 'temporary'; }
+  return null;
+}
+
+function processBounce(toEmail, bodyText, fromUser){
+  const now = Date.now();
+  const tipo = classifyBounce(bodyText);
+  if(!tipo) return; // Não é bounce reconhecido
+  
+  if(tipo === 'permanent'){
+    if(!DB_INVALID_EMAILS[toEmail]){
+      DB_INVALID_EMAILS[toEmail] = {
+        email:toEmail, domain:toEmail.split('@')[1]||'',
+        motivo:'Endereço inexistente', tipo:'permanent',
+        first:now, last:now, count:1,
+        users:new Set([fromUser]), msg:bodyText.slice(0,300), status:'invalid'
+      };
+    } else {
+      const e = DB_INVALID_EMAILS[toEmail];
+      e.last=now; e.count++;
+      if(fromUser) e.users.add(fromUser);
+      e.msg = bodyText.slice(0,300);
+    }
+    // Salvar
+    const toSave = {};
+    for(const [k,v] of Object.entries(DB_INVALID_EMAILS)){
+      toSave[k] = {...v, users: [...(v.users instanceof Set ? v.users : new Set(v.users||[]))]};
+    }
+    try{ fs.writeFileSync(INVALID_EMAILS_FILE, JSON.stringify(toSave, null, 2)); }catch{}
+    
+    // Verificar correção possível
+    const correction = suggestEmailCorrection(toEmail);
+    if(correction && correction.confidence >= 0.80){
+      if(!DB_EMAIL_CORRECTIONS[toEmail]){
+        DB_EMAIL_CORRECTIONS[toEmail] = {...correction, count:1, first:now, last:now};
+      } else {
+        DB_EMAIL_CORRECTIONS[toEmail].count++;
+        DB_EMAIL_CORRECTIONS[toEmail].last=now;
+      }
+      try{ fs.writeFileSync(EMAIL_CORRECTIONS_FILE, JSON.stringify(DB_EMAIL_CORRECTIONS,null,2)); }catch{}
+    }
+    console.log(`[bounce] 🔴 PERMANENTE: ${toEmail} (de ${fromUser})`);
+    
+  } else if(tipo === 'temporary'){
+    if(!DB_TEMP_FAILURES[toEmail]) DB_TEMP_FAILURES[toEmail]={email:toEmail,errors:[],count:0};
+    DB_TEMP_FAILURES[toEmail].count++;
+    DB_TEMP_FAILURES[toEmail].errors.push({msg:bodyText.slice(0,200),ts:now,user:fromUser});
+    try{ fs.writeFileSync(TEMP_FAILURES_FILE, JSON.stringify(DB_TEMP_FAILURES,null,2)); }catch{}
+    console.log(`[bounce] 🟡 TEMPORÁRIO: ${toEmail}`);
+  }
+}
+
+function _savePlaniha(key, arr){ _saveEnrichedSheet(key, arr); } // alias unificado
+
+function removeFromSheets(email){
+  if(!email) return;
+  const emailLow = email.toLowerCase().trim();
+  let totalRemoved = 0;
+
+  // Remover do SKIP_SENT_IDS (lista de emails já enviados) para não reprocessar
+  // Os emails inválidos entram no DB_INVALID_EMAILS e são filtrados ANTES do envio
+
+  // Registrar remoção no DB de inválidos
+  if(DB_INVALID_EMAILS[emailLow]){
+    DB_INVALID_EMAILS[emailLow].removedFromSheets = true;
+    DB_INVALID_EMAILS[emailLow].removedAt = Date.now();
+  }
+
+  // Remover dos jobs em memória (se estiver na fila de algum usuário)
+  for(const [sid, sess] of Object.entries(sessions)){
+    if(!sess.autoJob) continue;
+    const queueBefore = (sess.autoJob.queue||[]).length;
+    sess.autoJob.queue = (sess.autoJob.queue||[]).filter(j =>
+      (j.to||'').toLowerCase() !== emailLow
+    );
+    const removed = queueBefore - (sess.autoJob.queue||[]).length;
+    if(removed > 0){
+      totalRemoved += removed;
+      console.log(`[bounce] Removidos ${removed} jobs de ${emailLow} da fila de ${sess.user_email}`);
+    }
+  }
+
+  // Salvar estado atualizado dos inválidos
+  try{
+    const toSave = {};
+    for(const [k,v] of Object.entries(DB_INVALID_EMAILS)){
+      toSave[k] = {...v, users: [...(v.users instanceof Set ? v.users : new Set(v.users||[]))]};
+    }
+    fs.writeFileSync(INVALID_EMAILS_FILE, JSON.stringify(toSave, null, 2));
+  }catch(e){ console.warn('[bounce] erro salvando:', e.message); }
+
+  if(totalRemoved > 0) console.log(`[bounce] Total removido das filas: ${totalRemoved} jobs de ${emailLow}`);
+  return totalRemoved;
+}
+
+function isEmailInvalid(email){
+  const e = DB_INVALID_EMAILS[email?.toLowerCase()];
+  return e && e.status === 'invalid' && e.count >= 1;
+}
+
 function boot() {
   // Migração automática de nomes antigos
   const mig = (newF, oldF, def) => {
@@ -242,6 +426,10 @@ function boot() {
   DB_NOTIF    = load(NOTIF_FILE,    { notifications: [] });
   DB_SUGGESTIONS = load(SUGGESTIONS_FILE, []);
   if(!Array.isArray(DB_SUGGESTIONS)) DB_SUGGESTIONS = [];
+  DB_PEDIDOS = load(PEDIDOS_FILE, []);
+  if(!Array.isArray(DB_PEDIDOS)) DB_PEDIDOS = [];
+  DB_FINANCEIRO = load(FINANCEIRO_FILE, {pagamentos:[],gastos:[]});
+  if(!DB_FINANCEIRO.pagamentos) DB_FINANCEIRO = {pagamentos:[],gastos:[]};
   const rawRef = load(REFERRAL_FILE, { byCode: {}, byEmail: {} });
   DB_REFERRAL = {
     byCode:  (rawRef.byCode  && typeof rawRef.byCode  === 'object') ? rawRef.byCode  : {},
@@ -859,7 +1047,13 @@ setInterval(serverPushPoll, 2 * 60 * 1000);
 
 
 // Verifica se manual VIP está ativo
+function isAdminVip(u) {
+  // Admin sempre tem VIP ativo infinito (sem expiração)
+  return !!(u?.isAdmin || isAdminEmail(u?.email||""));
+}
+
 function isManualVipActive(u) {
+  if (isAdminVip(u)) return true; // Admin = infinito
   if (!u) return false;
   const now = Date.now();
   // Stack novo: vip.manualExpires
@@ -871,6 +1065,7 @@ function isManualVipActive(u) {
 // Verifica se auto VIP (pro/vipro) está ativo
 function isAutoVipActive(u) {
   if (!u) return false;
+  if (isAdminVip(u)) return true; // Admin = infinito
   const now = Date.now();
   // Stack novo: vip.autoExpires
   if (u.vip?.autoExpires && now < u.vip.autoExpires) return true;
@@ -880,18 +1075,30 @@ function isAutoVipActive(u) {
 }
 function isVipActive(u) { return isManualVipActive(u) || isAutoVipActive(u); }
 
+// Admin tem plano máximo para fins de limites diários
+function getAdminPlan() { return "doublepro"; }
+
 // Retorna plano efetivo baseado no stack
 function getPlan(u) {
+  if (isAdminVip(u)) return getAdminPlan(); // Admin = plano máximo sempre
+  // Se o usuário tem plano explicitamente salvo, usa ele (para doublepro funcionar)
+  if (u.plan && u.plan !== 'free' && isVipActive(u)) return u.plan;
   const manual = isManualVipActive(u);
   const auto   = isAutoVipActive(u);
-  if (manual && auto) return "vipro";
-  if (manual) return "vip";
-  if (auto)   return "vipro"; // plano "pro" removido — auto-only = vipro
-  return "free";
+  if (manual && auto) return 'vipro';
+  if (manual) return 'vip';
+  if (auto)   return 'vipro';
+  return 'free';
 }
 
 const getManualLimit = u => PLAN_LIMITS[getPlan(u)]?.manual || 20;
-const getAutoLimit   = u => PLAN_LIMITS[getPlan(u)]?.auto   || 10;
+const getAutoLimit   = u => {
+  if (isAdminVip(u)) {
+    // Admin: respeita senderLimits se configurado, senão 9999
+    return 9999;
+  }
+  return PLAN_LIMITS[getPlan(u)]?.auto || 10;
+};
 
 // Adiciona dias de manual VIP ao stack
 function addManualVipDays(email, days) {
@@ -978,6 +1185,33 @@ const deleteCv = (e,i) => {
 //  PLANILHAS COM CATEGORIAS DINÂMICAS
 // ══════════════════════════════════════════════════════════
 let SHEET_JAN = [], SHEET_JUL = [];
+let SHEET_EXTRAS = {}; // { "jul2026": [...vagas] } — planilhas extras carregadas via admin
+const SHEETS_DIR = path.join(DATA_DIR, "sheets");
+const SHEETS_META_FILE = path.join(DATA_DIR, "sheets_meta.json");
+let DB_SHEETS_META = {}; // { "jul2026": { name, file, uploaded, count, enriched, enrichedAt } }
+
+// ── Bot de Enriquecimento de Planilhas ──────────────────
+const _enrichBot = {
+  running: false,
+  sheetKey: null,
+  total: 0,
+  done: 0,
+  ok: 0,
+  noEmail: 0,
+  errors: 0,
+  startedAt: null,
+  log: [],         // últimas 100 linhas de log
+  savedAt: null,
+};
+
+function _enrichLog(msg, type='info'){
+  const line = { ts: Date.now(), msg, type };
+  _enrichBot.log.push(line);
+  if(_enrichBot.log.length > 200) _enrichBot.log.shift();
+  console.log(`[enrich] ${msg}`);
+}
+
+
 const sheetCache = new Map();
 const SHEET_TTL  = 60*60*1000;
 
@@ -1055,7 +1289,11 @@ function detectCategory(name) {
   return "other";
 }
 
-function getSheet(n) { return n==="jan2026"?SHEET_JAN:n==="jul2025"?SHEET_JUL:[]; }
+function getSheet(n) { return n==="jan2026"?SHEET_JAN:n==="jul2025"?SHEET_JUL:SHEET_EXTRAS[n]||[]; }
+function getAllSheets() {
+  // Retorna TODAS as planilhas combinadas (jan + jul + extras)
+  return [...SHEET_JAN,...SHEET_JUL,...Object.values(SHEET_EXTRAS).flat()];
+}
 
 function getSheetCategories(sheetName) {
   const arr = getSheet(sheetName);
@@ -1118,6 +1356,7 @@ function searchSheet(arr, q, state, category, skip, top, sort) {
         }
       }
     }
+    // Busca direta: empresa, cargo, case number, estado, cidade, descrição
 
     if(impliedCat && (!category||category==="all")){
       // PRIORITY SEARCH — 3 tiers por relevância:
@@ -1227,7 +1466,7 @@ async function fetchByCase(cases) {
 
   // ── PASSO 2: planilha local (SEMPRE, sem depender do DOL) ──
   // Constrói um mapa case→row de todos os sheets carregados
-  const allSheets=[...getSheet("jan2026"),...getSheet("jul2025")];
+  const allSheets = getAllSheets(); // jan2026 + jul2025 + todas as extras
   const sheetByCase=new Map(allSheets.map(r=>[String(r.c||"").toUpperCase(),r]));
   const stillMissing=[];
   for(const c of toFetch){
@@ -1236,10 +1475,12 @@ async function fetchByCase(cases) {
       // Monta job no mesmo formato que normJob() retorna
       const job={
         id:row.c,caseNum:row.c,title:row.t||"Seasonal Worker",
-        company:row.n||"–",city:"–",state:row.s||"–",
+        company:row.n||"–",city:row.ci||"–",state:row.s||"–",
         wage:row.w?`$${row.w}/${row.wunit||"h"}`:"–",
-        workers:row.wk||null,start:row.d||"–",end:"–",
-        email:row.e,phone:"",url:"",active:true,
+        workers:row.wk||null,start:row.d||"–",end:row.de||"–",
+        email:row.e,phone:row.ph||"",
+        url:row.c&&row.c.startsWith("H-")?`https://seasonaljobs.dol.gov/jobs/${row.c}`:"",
+        active:true,
         visa:row.visa||"H-2B",jobType:"non-agricultural",
         soc:"",desc:"",hasEmail:true,category:row.k||"other",
         fromSheet:true
@@ -1300,7 +1541,16 @@ function updateAutoStats(email, delta) {
 function scheduleAuto(email) {
   if(autoTimers.has(email))clearTimeout(autoTimers.get(email));
   const job=getAutoJob(email);
-  if(!job||!job.active||!job.queue?.length){autoTimers.delete(email);return;}
+  if(!job||!job.active){autoTimers.delete(email);return;}
+  // Fila zerada: finalizar com status correto
+  if(!job.queue?.length){
+    setAutoJob(email,{...job,active:false,queue:[],finishedAt:Date.now(),status:"finished"});
+    autoTimers.delete(email);
+    addLog(email,{status:"sistema",jobTitle:"✅ Fila finalizada",company:`Total: ${job.originalCount||0} vagas processadas.`});
+    console.log(`[auto] ${email} fila zerada no scheduleAuto — marcado como finished`);
+    sendNotifEmail(email,"finished").catch(()=>{});
+    return;
+  }
 
   // ── Sem janela de horário: roda 24/7 até zerar a fila ────────────────────
   // Ao atingir o limite diário, aguarda a meia-noite BRT (00:00 = 03:00 UTC)
@@ -1317,9 +1567,11 @@ function scheduleAuto(email) {
   const p=getUser(email)||{};
   // FIX-BUG7: usa o limite registrado no job para não degradar se VIP expirar
   const autoLimit = job.lockedAutoLimit || getAutoLimit(p);
+  // Admin pode ter limite diário por sender customizado
+  const adminSenderLimits = (isAdminVip(p) && p.adminSettings?.senderLimits) ? p.adminSettings.senderLimits : null;
   const todayAuto=countAutoToday(getHist(email));
 
-  if(todayAuto>=autoLimit){
+  if(!isAdminVip(p) && todayAuto>=autoLimit){
     const next = nextMidnightBRT();
     const delay = Math.max(60_000, Math.min(next - Date.now(), 24*60*60*1000)); // entre 1min e 24h
     setAutoJob(email,{...job,status:"waiting_limit",nextSendAt:next.getTime()});
@@ -1510,10 +1762,17 @@ async function _doAutoSendInner(email) {
         addLog(email, { status:"pulado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:"Destinatário é o próprio usuário — auto-envio bloqueado" });
         queue.shift(); continue;
       }
+      // ── VERIFICAR BASE GLOBAL DE EMAILS INVÁLIDOS (bounce intelligence) ──
+      if (isEmailInvalid(_ce.email)) {
+        const invInfo = DB_INVALID_EMAILS[_ce.email];
+        const motivo = invInfo?.motivo || 'Email permanentemente inválido (bounce detectado)';
+        addLog(email, { status:"pulado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:`⚫ Email inválido removido da fila: ${motivo} (${invInfo?.count||1}x detectado)` });
+        queue.shift(); continue;
+      }
       candidate.to = _ce.email; // normalizado
       target = Object.assign({}, candidate); break;
     }
-    addLog(email, { status:"duplicado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:"Email já enviado anteriormente" });
+    addLog(email, { status:"duplicado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:"Email já enviado anteriormente", senderEmail:email });
     queue.shift();
   }
 
@@ -1536,20 +1795,21 @@ async function _doAutoSendInner(email) {
   let accessToken = null;
   let _autoSenderEmail = email; // email que vai realmente enviar (principal ou extra)
 
-  // Prioridade 0: round-robin entre senders extras (se usuário tem extras ativos)
-  // Fazemos isso ANTES de usar a sessão para garantir distribuição igualitária
-  const _userData0 = getUser(email);
-  const _activeSenders = (_userData0?.senderEmails||[]).filter(s=>s.active!==false&&!s.tokenExpired&&!s.blocked);
-  if (_activeSenders.length > 0) {
-    try {
-      const {token:sndTok0, senderEmail:sndEmail0} = await getSenderToken(email, null);
-      if (sndTok0) {
-        accessToken = sndTok0;
-        _autoSenderEmail = sndEmail0;
-        console.log(`[auto] 📧 Round-robin sender: ${sndEmail0}`);
-      }
-    } catch(e) { console.warn("[auto] round-robin erro:", e.message); }
-  }
+  // ── Round-robin REAL: inclui email principal + todos os extras
+  // getSenderToken decide quem envia baseado em menor contagem hoje
+  // Se retornar token=null → principal escolhido, fluxo normal de sessão/refresh
+  // Se retornar token!=null → extra escolhido, usa diretamente
+  try {
+    const {token:sndTok0, senderEmail:sndEmail0} = await getSenderToken(email, null);
+    _autoSenderEmail = sndEmail0; // já define o sender (principal ou extra)
+    if (sndTok0) {
+      accessToken = sndTok0; // extra: tem token direto
+      console.log(`[auto] 🔄 Round-robin → extra: ${sndEmail0}`);
+    } else {
+      console.log(`[auto] 🔄 Round-robin → principal: ${sndEmail0}`);
+      // token=null → fluxo normal de sessão/refresh abaixo para o principal
+    }
+  } catch(e) { console.warn("[auto] round-robin erro:", e.message); }
 
   // Prioridade 1: sessão ativa em memória (só se não usou sender extra)
   const sessArr = Object.values(sessions).filter(s => s.user_email === email && s.access_token);
@@ -1570,7 +1830,7 @@ async function _doAutoSendInner(email) {
     }
   }
 
-  // (round-robin de senders já feito na prioridade 0)
+  // (round-robin já decidiu o sender acima — principal ou extra)
 
   // Prioridade 3: renovar via refresh_token (sempre tenta antes de pausar)
   if (!accessToken) {
@@ -1734,16 +1994,23 @@ async function _doAutoSendInner(email) {
     // Interpola variáveis — novo string a cada chamada
     // Inclui TODAS as variáveis que os templates podem usar
     const tplVars = {
-      vaga:     String(target.title    || ""),
-      empresa:  String(target.company  || ""),
-      nome:     String(p.name || sess?.user_name || ""),
-      pais:     String(p.country || "Brazil"),
-      telefone: String(p.phone || ""),
-      email:    String(email),                          // email do usuário/candidato
-      cidade:   String(target.city    || p.city || ""),
-      estado:   String(target.state   || ""),
-      wage:     String(target.wage    || ""),
-      inicio:   String(target.start   || ""),
+      vaga:       String(target.title    || ""),
+      empresa:    String(target.company  || ""),
+      nome:       String(p.name || sess?.user_name || ""),
+      pais:       String(p.country || "Brazil"),
+      telefone:   String(p.phone || ""),
+      email:      String(email),                        // email do usuário/candidato
+      cidade:     String(target.city    || p.city || ""),
+      estado:     String(target.state   || ""),
+      wage:       String(target.wage    || ""),
+      salario:    String(target.wage    || ""),
+      inicio:     String(target.start   || ""),
+      fim:        String(target.end     || ""),
+      case_number:String(target.caseNum || ""),
+      eta_case:   String(target.caseNum || ""),         // alias
+      url_vaga:   target.caseNum && target.caseNum.startsWith("H-")
+                    ? `https://seasonaljobs.dol.gov/jobs/${target.caseNum}`
+                    : (target.url || ""),               // link direto para a vaga no DOL
     };
     const subject = fillTpl(String(chosenSubject), tplVars);
     const body    = fillTpl(String(rawBody),        tplVars);
@@ -1839,6 +2106,13 @@ async function _doAutoSendInner(email) {
         attachCount: attachments.length,
         category:  target.category,
         state:     target.state,
+        city:      target.city      || "",
+        wage:      target.wage      || "",
+        visa:      target.visa      || target.visaType || "",
+        workers:   target.workers   || null,
+        start:     target.start     || target.beginDate || "",
+        end:       target.end       || target.endDate   || "",
+        caseNum:   target.caseNum   || target.case_number || "",
         source:    job.source,
         profileUsed: selectedProfile?.name || null,
       };
@@ -1862,7 +2136,7 @@ async function _doAutoSendInner(email) {
         })();
       }
 
-      addLog(email, { ...logEntry, status:"enviado", appId, profileUsed:selectedProfile?.name||"", subjectUsed:subject.slice(0,120), attachCount:attachments.length, attempt:retryCount+1 });
+      addLog(email, { ...logEntry, status:"enviado", appId, profileUsed:selectedProfile?.name||"", subjectUsed:subject.slice(0,120), attachCount:attachments.length, attempt:retryCount+1, senderEmail:_autoSenderEmail||email, wage:target.wage||"", city:target.city||"", workers:target.workers||null, start:target.start||"", caseNum:target.caseNum||"" });
       updateAutoStats(email, { sent:(getAutoStats(email).sent||0)+1, startedAt:getAutoStats(email).startedAt||Date.now() });
       // ✅ Heartbeat: registra atividade para o watchdog
       { const h=getHealth(email); h.lastSent=Date.now(); h.errors=0; h.stalledAt=null; h.status="ok"; }
@@ -1957,7 +2231,7 @@ async function _doAutoSendInner(email) {
 
       // Erro definitivo para esta vaga (invalid email, rejected, quota, unknown)
       // Pula a vaga e continua com a próxima — NÃO para o automático
-      addLog(email, { ...logEntry, status: isSkippable ? "pulado" : "falhou", error: errFriendly, profileUsed:selectedProfile?.name||"", subjectUsed:(subject||"").slice(0,120), attachCount:attachments.length, attempt:retryCount+1 });
+      addLog(email, { ...logEntry, status: isSkippable ? "pulado" : "falhou", error: errFriendly, profileUsed:selectedProfile?.name||"", subjectUsed:(subject||"").slice(0,120), attachCount:attachments.length, attempt:retryCount+1, senderEmail:_autoSenderEmail||email, wage:target.wage||"", city:target.city||"" });
       trackJourney(email,'auto_fail',{ok:false,error:errFriendly,detail:`${target?.company||"?"} → ${target?.to||"?"}`});
       updateAutoStats(email, { failed:(getAutoStats(email).failed||0)+1 });
       break;
@@ -1967,7 +2241,7 @@ async function _doAutoSendInner(email) {
   // Agenda próximo envio — sempre relê job do banco
   const updJob = getAutoJob(email);
   if (!updJob || !updJob.active) { autoTimers.delete(email); return; }
-  const interval = calcSmartInterval();
+  const interval = calcSmartInterval(email);
   setAutoJob(email, { ...updJob, status:"waiting_interval", nextSendAt:Date.now()+interval });
   autoTimers.set(email, setTimeout(() => scheduleAuto(email), interval));
 }
@@ -1977,6 +2251,11 @@ const genSubject=title=>{const pfx=["Application for","Interest in","Applying fo
 const fillTpl=(tpl,v)=>(tpl||"")
   .replace(/{vaga}/g,       v.vaga||"")
   .replace(/{empresa}/g,    v.empresa||"")
+  .replace(/{url_vaga}/g,   v.url_vaga||"")
+  .replace(/{case_number}/g,v.case_number||"")
+  .replace(/{eta_case}/g,   v.eta_case||"")
+  .replace(/{salario}/g,    v.salario||"")
+  .replace(/{fim}/g,        v.fim||"")
   .replace(/{nome}/g,       v.nome||"")
   .replace(/{pais}/g,       v.pais||"")
   .replace(/{telefone}/g,   v.telefone||"")
@@ -2214,22 +2493,19 @@ async function refreshSenderToken(ownerEmail, senderEmail) {
 // requestedSender: email específico pedido (manual), ou null (automático = round-robin)
 async function getSenderToken(ownerEmail, requestedSender) {
   const p = getUser(ownerEmail);
-  const senders = (p?.senderEmails || []).filter(s => s.active !== false);
+  const extras = (p?.senderEmails || []).filter(s => s.active !== false);
 
   // ── Envio manual: sender específico pedido pelo usuário ──
   if (requestedSender && requestedSender !== ownerEmail) {
-    const s = senders.find(x => x.email === requestedSender);
+    const s = extras.find(x => x.email === requestedSender);
     if (!s) throw new Error("Email de envio não encontrado ou removido.");
-    // Tenta usar token cacheado
     if (s.access_token && s.token_expiry && Date.now() < s.token_expiry - 120_000) {
       return { token: s.access_token, senderEmail: s.email };
     }
-    // Renova
     try {
       const token = await refreshSenderToken(ownerEmail, s.email);
       return { token, senderEmail: s.email };
     } catch(e) {
-      // Marca como expirado e cai no principal
       const updSenders = (p.senderEmails || []).map(x =>
         x.email === s.email ? { ...x, tokenExpired: true } : x
       );
@@ -2238,9 +2514,10 @@ async function getSenderToken(ownerEmail, requestedSender) {
     }
   }
 
-  // ── Automático: round-robin pelos senders ativos ──
+  // ── Automático: round-robin REAL entre principal + extras ──
+  // O email principal entra no pool junto com os extras
+  // Alternância baseada em contagem de envios de hoje: menor contagem = próximo
   if (!requestedSender) {
-    // Calcula envios de hoje por sender para distribuir igualmente
     const hist = getHist(ownerEmail);
     const today = todayStr();
     const countBySender = {};
@@ -2249,37 +2526,51 @@ async function getSenderToken(ownerEmail, requestedSender) {
         countBySender[h.senderEmail] = (countBySender[h.senderEmail] || 0) + 1;
       }
     }
-    // Ordena: menor contagem primeiro = distribui igualmente
-    const candidates = senders
-      .filter(s => !s.tokenExpired && !s.blocked)
-      .sort((a, b) => (countBySender[a.email] || 0) - (countBySender[b.email] || 0));
 
-    for (const s of candidates) {
-      if (s.email === ownerEmail) continue; // principal tratado abaixo
-      if (s.access_token && s.token_expiry && Date.now() < s.token_expiry - 120_000) {
-        return { token: s.access_token, senderEmail: s.email };
+    // Monta pool completo: principal + extras ativos sem erro
+    // Principal representado como objeto sintético para uniformidade
+    const extrasOk = extras.filter(s => !s.tokenExpired && !s.blocked);
+    const pool = [
+      { email: ownerEmail, isPrincipal: true },  // email principal sempre no pool
+      ...extrasOk.map(s => ({ ...s, isPrincipal: false }))
+    ];
+
+    // Ordena por menor contagem hoje → alterna naturalmente 1,2,1,2...
+    pool.sort((a, b) => (countBySender[a.email] || 0) - (countBySender[b.email] || 0));
+
+    for (const candidate of pool) {
+      if (candidate.isPrincipal) {
+        // Email principal: token vem da sessão/cache/refresh_token (tratado no fluxo principal)
+        return { token: null, senderEmail: ownerEmail };
+      }
+      // Extra: usa token cacheado ou renova
+      if (candidate.access_token && candidate.token_expiry && Date.now() < candidate.token_expiry - 120_000) {
+        console.log(`[sender] 🔄 Round-robin → ${candidate.email} (${countBySender[candidate.email]||0} hoje)`);
+        return { token: candidate.access_token, senderEmail: candidate.email };
       }
       try {
-        const token = await refreshSenderToken(ownerEmail, s.email);
-        return { token, senderEmail: s.email };
+        const token = await refreshSenderToken(ownerEmail, candidate.email);
+        console.log(`[sender] 🔄 Round-robin → ${candidate.email} (token renovado)`);
+        return { token, senderEmail: candidate.email };
       } catch(e) {
         const updSenders = (p.senderEmails || []).map(x =>
-          x.email === s.email ? { ...x, tokenExpired: true } : x
+          x.email === candidate.email ? { ...x, tokenExpired: true } : x
         );
         setUser(ownerEmail, { senderEmails: updSenders });
-        console.warn(`[sender] ⚠️ Sender ${s.email} com token expirado, pulando`);
+        console.warn(`[sender] ⚠️ Sender ${candidate.email} com token expirado, pulando`);
+        // continua para próximo candidato
       }
     }
   }
 
   // ── Fallback final: email principal ──
-  return { token: null, senderEmail: ownerEmail }; // null = usar lógica normal de token do principal
+  return { token: null, senderEmail: ownerEmail };
 }
 
 
 function buildMime({to,subject,text,fromName,fromEmail,attachments=[]}){ // v15-SEC: normaliza to
   to = normalizeEmail(to) || to;
-  const bnd="----H2B"+crypto.randomBytes(8).toString("hex");const b64=s=>Buffer.from(s).toString("base64");const L=[`From: =?UTF-8?B?${b64(fromName)}?= <${fromEmail}>`,`To: ${to}`];L.push(`Subject: =?UTF-8?B?${b64(subject)}?=`,"MIME-Version: 1.0");if(!attachments.length){L.push("Content-Type: text/plain; charset=UTF-8","Content-Transfer-Encoding: 7bit","",text);}else{L.push(`Content-Type: multipart/mixed; boundary="${bnd}"`,"",`--${bnd}`,"Content-Type: text/plain; charset=UTF-8","Content-Transfer-Encoding: 7bit","",text,"");for(const a of attachments){L.push(`--${bnd}`,`Content-Type: application/pdf; name="${a.name}"`,"Content-Transfer-Encoding: base64",`Content-Disposition: attachment; filename="${a.name}"`,"", ...(a.data.match(/.{1,76}/g)||[a.data]),"");}L.push(`--${bnd}--`);}return Buffer.from(L.join("\r\n")).toString("base64").replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
+  const bnd="----H2B"+crypto.randomBytes(8).toString("hex");const b64=s=>Buffer.from(s).toString("base64");const L=[`From: =?UTF-8?B?${b64(fromName)}?= <${fromEmail}>`,`To: ${to}`];L.push(`Subject: =?UTF-8?B?${b64(subject)}?=`,"MIME-Version: 1.0");if(!attachments.length){L.push("Content-Type: text/plain; charset=UTF-8","Content-Transfer-Encoding: 7bit","",text);}else{L.push(`Content-Type: multipart/mixed; boundary="${bnd}"`,"",`--${bnd}`,"Content-Type: text/plain; charset=UTF-8","Content-Transfer-Encoding: 7bit","",text,"");for(const a of attachments){const aMime=a.mime||"application/octet-stream";L.push(`--${bnd}`,`Content-Type: ${aMime}; name="${a.name}"`,"Content-Transfer-Encoding: base64",`Content-Disposition: attachment; filename="${a.name}"`,"", ...(a.data.match(/.{1,76}/g)||[a.data]),"");}L.push(`--${bnd}--`);}return Buffer.from(L.join("\r\n")).toString("base64").replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");}
 
 async function gmailSend(sid,opts){const s=sessions[sid];if(!s?.access_token)throw new Error("Sessão expirada.");if(s.expires_at&&Date.now()>s.expires_at-120_000){try{await refreshToken(sid);}catch{}}const raw=buildMime({...opts,fromEmail:s.user_email});const{status,body}=await httpsReq({hostname:"gmail.googleapis.com",path:"/gmail/v1/users/me/messages/send",method:"POST",headers:{"Authorization":"Bearer "+s.access_token,"Content-Type":"application/json"}},{raw});if(body?.error){const msg=body.error.message||JSON.stringify(body.error);throw new Error(msg);}if(status!==200)throw new Error("Gmail HTTP "+status);return body;}
 
@@ -2319,7 +2610,7 @@ function buildMimeWithHeaders({to,subject,text,fromName,fromEmail,attachments=[]
     L.push("Content-Type: text/plain; charset=UTF-8","Content-Transfer-Encoding: 7bit","",text);
   }else{
     L.push(`Content-Type: multipart/mixed; boundary="${bnd}"`,"",`--${bnd}`,"Content-Type: text/plain; charset=UTF-8","Content-Transfer-Encoding: 7bit","",text,"");
-    for(const a of attachments){L.push(`--${bnd}`,`Content-Type: application/pdf; name="${a.name}"`,"Content-Transfer-Encoding: base64",`Content-Disposition: attachment; filename="${a.name}"`,"", ...(a.data.match(/.{1,76}/g)||[a.data]),"");}
+    for(const a of attachments){const aMime=a.mime||"application/octet-stream";L.push(`--${bnd}`,`Content-Type: ${aMime}; name="${a.name}"`,"Content-Transfer-Encoding: base64",`Content-Disposition: attachment; filename="${a.name}"`,"", ...(a.data.match(/.{1,76}/g)||[a.data]),"");}
     L.push(`--${bnd}--`);
   }
   return Buffer.from(L.join("\r\n")).toString("base64").replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
@@ -2476,8 +2767,52 @@ async function gmailFetchInbox(sid,maxResults=50){
     };
   });
 
-  // Filtra bounces e automáticos
-  return emails.filter(e=>!isBounceMail(e));
+  // Separar bounces para processamento e retornar só respostas reais
+  const bounceMsgs = emails.filter(e => isBounceMail(e));
+  const realReplies = emails.filter(e => !isBounceMail(e));
+
+  // Processar bounces: extrair email que falhou e registrar na base global
+  for(const bounce of bounceMsgs){
+    try{
+      // Extrair email de destino que falhou do corpo/assunto do bounce
+      const fullText = (bounce.subject||'') + ' ' + (bounce.body||bounce.snippet||'');
+      // Padrões para extrair o email que falhou
+      const emailMatches = fullText.match(/(?:to|for|address|recipient|deliver(?:ing|ed)?\s+to):?\s*<?([\w.+%-]+@[\w.-]+\.[a-z]{2,6})>?/gi) || [];
+      const allEmails = [...fullText.matchAll(/[\w.+%-]+@[\w.-]+\.[a-z]{2,6}/g)]
+        .map(m => m[0].toLowerCase())
+        .filter(e => !e.includes('mailer-daemon') && !e.includes('postmaster') && !e.includes('google'));
+
+      // Classificar o tipo de bounce
+      const bodyLower = fullText.toLowerCase();
+      const isPermanent = PERM_PATTERNS.some(p => p.test(bodyLower));
+      const isTemp = TEMP_PATTERNS.some(p => p.test(bodyLower));
+
+      if(isPermanent && allEmails.length > 0){
+        // Pegar o email mais provável (geralmente o primeiro que não é do remetente)
+        const failedEmail = allEmails.find(e =>
+          !e.endsWith('@gmail.com') || !Object.values(sessions).some(s => s.user_email === e)
+        ) || allEmails[0];
+
+        if(failedEmail){
+          const ownerEmail = Object.values(sessions).find(s => s.access_token)?.user_email || 'sistema';
+          processBounce(failedEmail, fullText, ownerEmail);
+          // Remover da planilha global imediatamente
+          removeFromSheets(failedEmail);
+          console.log(`[bounce] 🔴 Email permanentemente inválido detectado: ${failedEmail}`);
+        }
+      } else if(isTemp){
+        const failedEmail = allEmails[0];
+        if(failedEmail){
+          if(!DB_TEMP_FAILURES[failedEmail]) DB_TEMP_FAILURES[failedEmail]={email:failedEmail,errors:[],count:0};
+          DB_TEMP_FAILURES[failedEmail].count++;
+          DB_TEMP_FAILURES[failedEmail].errors.push({msg:fullText.slice(0,200),ts:Date.now()});
+          try{fs.writeFileSync(TEMP_FAILURES_FILE,JSON.stringify(DB_TEMP_FAILURES,null,2));}catch{}
+        }
+      }
+    }catch(e){ console.warn('[bounce] erro processando bounce:', e.message); }
+  }
+
+  return realReplies;
 }
 
 // Marca e-mail como lido
@@ -2518,6 +2853,59 @@ const server=http.createServer(async(req,res)=>{
   if(pathname==="/"||pathname==="/index.html")return serveHtml("index.html");
   if(pathname==="/admin"||pathname==="/admin.html")return serveHtml("admin.html");
   if(pathname==="/guia"||pathname==="/guia.html")return serveHtml("guia.html");
+
+  // ── /ad — painel admin protegido ──────────────────────────
+  // Só emails admin podem acessar. Qualquer outro usuário recebe
+  // uma tela de acesso negado sem revelar que existe um painel.
+  if(pathname==="/ad"||pathname==="/ad.html"){
+    // Verificar sessão do usuário atual
+    const adSess = getSess(req);
+    if(!adSess?.user_email){
+      // Não logado — redirecionar para login com next=/ad
+      res.writeHead(302,{"Location":"/?next=ad"});
+      return res.end();
+    }
+    const adUser = getUser(adSess.user_email);
+    if(!isAdminEmail(adSess.user_email) && !isAdminVip(adUser)){
+      // Logado mas não é admin — tela de erro
+      const errorPage = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Acesso Negado — H2BApply</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#020617;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;padding:20px}
+    .card{background:#0f172a;border:1.5px solid rgba(239,68,68,.3);border-radius:20px;padding:40px 32px;max-width:420px;width:100%;text-align:center}
+    .icon{font-size:64px;margin-bottom:20px}
+    .title{font-size:24px;font-weight:800;color:#fff;margin-bottom:8px}
+    .sub{font-size:14px;color:#94a3b8;line-height:1.6;margin-bottom:24px}
+    .badge{display:inline-block;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;color:#ef4444;margin-bottom:24px}
+    .btn{display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:700;font-size:14px}
+    .email{font-size:11px;color:#475569;margin-top:20px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🔒</div>
+    <div class="badge">⛔ ACESSO RESTRITO</div>
+    <div class="title">Área exclusiva</div>
+    <div class="sub">
+      Esta área é exclusiva para <strong style="color:#fff">funcionários da plataforma H2BApply</strong>.<br><br>
+      Se você é um candidato, acesse o painel principal abaixo.
+    </div>
+    <a href="/" class="btn">← Ir para o app</a>
+    <div class="email">Você está logado como: ${adSess.user_email}</div>
+  </div>
+</body>
+</html>`;
+      res.writeHead(403,{"Content-Type":"text/html; charset=utf-8"});
+      return res.end(errorPage);
+    }
+    // É admin — servir o painel
+    return serveHtml("admin.html");
+  }
 
   // Google Search Console verification
   if(pathname==="/google380652ea59ad95e1.html"){
@@ -2562,7 +2950,7 @@ const server=http.createServer(async(req,res)=>{
   <a href="/" class="back-btn">← Voltar ao App</a>
   <div class="card">
     <h1>Política de Privacidade</h1>
-    <div class="date">Última atualização: Maio de 2026</div>
+    <div class="date">Última atualização: Junho de 2026 — Versão 3.0</div>
 
     <h2>1. Informações que coletamos</h2>
     <p>Ao usar o H2BApply, coletamos as seguintes informações:</p>
@@ -2614,12 +3002,18 @@ const server=http.createServer(async(req,res)=>{
     <h2>8. Contato</h2>
     <p>Para dúvidas sobre privacidade, entre em contato:</p>
     <ul>
-      <li>Email: andrio.kick18@gmail.com</li>
-      <li>Instagram: <a href="https://instagram.com/andrio.k" target="_blank">@andrio.k</a></li>
+      <li>Email: <a href="mailto:suporte@h2bapply.com">suporte@h2bapply.com</a></li>
       <li>WhatsApp: +55 53 98145-3496</li>
+      <li>Instagram: <a href="https://instagram.com/andrio.k" target="_blank">@andrio.k</a></li>
     </ul>
   </div>
-  <div class="footer">© 2026 H2BApply · h2bapply.com</div>
+  <div class="footer">
+    © 2026 H2BApply · <a href="/" style="color:#64748b">h2bapply.com</a>
+    &nbsp;|&nbsp; <a href="/privacy" style="color:#64748b">Privacidade</a>
+    &nbsp;|&nbsp; <a href="/terms" style="color:#64748b">Termos</a>
+    &nbsp;|&nbsp; <a href="/contact" style="color:#64748b">Contato</a>
+    <br><small style="color:#94a3b8">suporte@h2bapply.com</small>
+  </div>
 </div>
 </body>
 </html>`);
@@ -2663,7 +3057,7 @@ const server=http.createServer(async(req,res)=>{
   <a href="/" class="back-btn">← Voltar ao App</a>
   <div class="card">
     <h1>Termos de Uso</h1>
-    <div class="date">Última atualização: Maio de 2026</div>
+    <div class="date">Última atualização: Junho de 2026 — Versão 3.0</div>
 
     <div class="warning">⚠️ <strong>Importante:</strong> O H2BApply é uma ferramenta de candidatura. Não garantimos contratação, aprovação de visto ou resposta de empregadores.</div>
 
@@ -2713,18 +3107,737 @@ const server=http.createServer(async(req,res)=>{
     <h2>8. Alterações nos termos</h2>
     <p>Podemos atualizar estes termos periodicamente. Mudanças significativas serão comunicadas pelo app. O uso continuado após alterações implica aceitação dos novos termos.</p>
 
+    <h2 id="gmail-aviso">8. Aviso sobre uso do Gmail — Responsabilidade do Usuário</h2>
+    <div class="warning">⚠️ <strong>Leia com atenção antes de usar o envio automático.</strong></div>
+    <p>O H2BApply utiliza sua conta Gmail para enviar candidaturas. O Google pode <strong>bloquear temporariamente</strong> contas Gmail que enviam muitos emails em curto período, especialmente quando:</p>
+    <ul>
+      <li>Você usa apenas <strong>1 conta Gmail</strong> para todos os envios</li>
+      <li>O volume de emails é muito alto em um único dia</li>
+      <li>Os emails são enviados para muitos destinatários desconhecidos</li>
+    </ul>
+    <p><strong>Recomendação:</strong> Adicione 2 ou mais contas Gmail na aba Perfil → Gmail para distribuir os envios e reduzir o risco de bloqueio.</p>
+    <p><strong>Isenção de responsabilidade:</strong> O H2BApply não se responsabiliza por bloqueios, suspensões ou limitações impostas pelo Google às contas dos usuários. O risco de bloqueio do Gmail é de <strong>inteira responsabilidade do usuário</strong>. Ao usar o envio automático, você declara estar ciente deste risco e assume total responsabilidade pelo uso da sua conta Gmail.</p>
+
     <h2>9. Contato</h2>
     <ul>
-      <li>Email: andrio.kick18@gmail.com</li>
-      <li>Instagram: <a href="https://instagram.com/andrio.k" target="_blank">@andrio.k</a></li>
+      <li>Email: <a href="mailto:suporte@h2bapply.com">suporte@h2bapply.com</a></li>
       <li>WhatsApp: +55 53 98145-3496</li>
+      <li>Instagram: <a href="https://instagram.com/andrio.k" target="_blank">@andrio.k</a></li>
       <li>Site: <a href="https://h2bapply.com">h2bapply.com</a></li>
     </ul>
   </div>
-  <div class="footer">© 2026 H2BApply · h2bapply.com</div>
+  <div class="footer">
+    © 2026 H2BApply · <a href="/" style="color:#64748b">h2bapply.com</a>
+    &nbsp;|&nbsp; <a href="/privacy" style="color:#64748b">Privacidade</a>
+    &nbsp;|&nbsp; <a href="/terms" style="color:#64748b">Termos</a>
+    &nbsp;|&nbsp; <a href="/contact" style="color:#64748b">Contato</a>
+    <br><small style="color:#94a3b8">suporte@h2bapply.com</small>
+  </div>
 </div>
 </body>
 </html>`);
+  }
+
+  // Página de Exclusão de Dados — exigida pelo Google OAuth
+  if(pathname==="/delete-account"||pathname==="/excluir-conta"){
+    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"public, max-age=3600"});
+    return res.end(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Excluir Conta — H2BApply</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1e293b;background:#f8fafc;line-height:1.7}
+.container{max-width:640px;margin:0 auto;padding:40px 20px}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:32px}
+.logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#4f46e5,#0891b2);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:800}
+h1{font-size:26px;font-weight:800;color:#1e293b;margin-bottom:8px}
+h2{font-size:16px;font-weight:700;color:#374151;margin:24px 0 8px}
+p{font-size:14px;color:#4b5563;margin-bottom:12px}
+ul{font-size:14px;color:#4b5563;margin:0 0 12px 20px}
+ul li{margin-bottom:6px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px;margin-bottom:20px}
+.warning{background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:14px;font-size:13px;color:#991b1b;margin-bottom:20px}
+.email-link{color:#4f46e5;font-weight:700}
+.btn{display:inline-block;background:#4f46e5;color:#fff;padding:11px 24px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;margin-top:8px}
+.footer{text-align:center;margin-top:40px;font-size:12px;color:#94a3b8}
+.date{font-size:12px;color:#94a3b8;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <div class="logo-icon">H</div>
+    <div>
+      <div style="font-size:20px;font-weight:800">H2BApply</div>
+      <div class="date">h2bapply.com</div>
+    </div>
+  </div>
+
+  <h1>Exclusão de Conta e Dados</h1>
+  <p style="color:#64748b;margin-bottom:24px">Esta página explica como solicitar a exclusão da sua conta e de todos os seus dados pessoais na plataforma H2BApply.</p>
+
+  <div class="warning">
+    ⚠️ <strong>Atenção:</strong> A exclusão de conta é permanente e irreversível. Todos os seus dados serão removidos e não poderão ser recuperados.
+  </div>
+
+  <div class="card">
+    <h2>📋 O que será removido</h2>
+    <ul>
+      <li>Seu perfil e informações pessoais (nome, email, cidade, WhatsApp)</li>
+      <li>Todos os currículos e arquivos enviados</li>
+      <li>Histórico completo de candidaturas enviadas</li>
+      <li>Templates de email e perfis de candidatura</li>
+      <li>Configurações da conta e preferências</li>
+      <li>Dados de plano e assinatura</li>
+      <li>Autorização de acesso ao Gmail (revogada automaticamente)</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>🔐 Acesso ao Google</h2>
+    <p>O H2BApply utiliza o <strong>Google OAuth</strong> apenas para autenticação e envio de emails via Gmail. Ao excluir sua conta, revogamos o token de acesso ao seu Gmail. Para garantia adicional, você também pode revogar o acesso diretamente em:</p>
+    <p><a href="https://myaccount.google.com/permissions" target="_blank" class="email-link">myaccount.google.com/permissions</a></p>
+    <p>Busque por "H2BApply" e clique em "Remover acesso".</p>
+  </div>
+
+  <div class="card">
+    <h2>📧 Como solicitar a exclusão</h2>
+    <p><strong>Opção 1 — Pelo aplicativo (mais rápido):</strong></p>
+    <ul>
+      <li>Acesse <a href="https://h2bapply.com" class="email-link">h2bapply.com</a></li>
+      <li>Faça login com sua conta Google</li>
+      <li>Vá em <strong>Configurações → Excluir minha conta</strong></li>
+      <li>Confirme a exclusão — seus dados são removidos imediatamente</li>
+    </ul>
+    <p style="margin-top:12px"><strong>Opção 2 — Por email:</strong></p>
+    <ul>
+      <li>Envie um email para <a href="mailto:suporte@h2bapply.com" class="email-link">suporte@h2bapply.com</a></li>
+      <li>Assunto: "Exclusão de conta — [seu email]"</li>
+      <li>Responderemos em até 48 horas confirmando a exclusão</li>
+    </ul>
+    <a href="mailto:suporte@h2bapply.com?subject=Solicitar exclusão de conta H2BApply" class="btn">📧 Solicitar exclusão por email</a>
+  </div>
+
+  <div class="card">
+    <h2>⏱️ Prazo de exclusão</h2>
+    <p>Após a solicitação, seus dados são excluídos <strong>em até 30 dias</strong>. Durante esse período, sua conta fica desativada e você não recebe nenhuma comunicação da plataforma.</p>
+    <p>Dados de logs de sistema (sem informação pessoal) podem ser mantidos por até 90 dias por questões de segurança.</p>
+  </div>
+
+  <div class="footer">
+    © 2026 H2BApply · <a href="/privacy" style="color:#94a3b8">Privacidade</a> · <a href="/terms" style="color:#94a3b8">Termos</a> · <a href="/contact" style="color:#94a3b8">Contato</a>
+    <br>suporte@h2bapply.com
+  </div>
+</div>
+</body>
+</html>`);
+  }
+
+  // Página de Contato
+  if(pathname==="/contact"||pathname==="/contato"){
+    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"public, max-age=3600"});
+    return res.end(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contato — H2BApply</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1e293b;background:#f8fafc;line-height:1.7}
+  .container{max-width:600px;margin:0 auto;padding:40px 20px}
+  .logo{display:flex;align-items:center;gap:12px;margin-bottom:32px}
+  .logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#4f46e5,#0891b2);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:800}
+  .logo-text{font-size:22px;font-weight:800;color:#1e293b}
+  h1{font-size:28px;font-weight:800;color:#1e293b;margin-bottom:8px}
+  .sub{font-size:14px;color:#64748b;margin-bottom:28px}
+  .card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:28px;margin-bottom:16px}
+  .contact-item{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid #f1f5f9}
+  .contact-item:last-child{border-bottom:none}
+  .contact-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .contact-label{font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em}
+  .contact-value{font-size:15px;font-weight:600;color:#1e293b}
+  .contact-value a{color:#4f46e5;text-decoration:none}
+  .footer{text-align:center;margin-top:32px;font-size:13px;color:#94a3b8}
+  .back-btn{display:inline-flex;align-items:center;gap:6px;background:#4f46e5;color:#fff;padding:10px 20px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none;margin-bottom:24px}
+  .badge{display:inline-block;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#1d4ed8;margin-bottom:20px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <div class="logo-icon">H</div>
+    <div class="logo-text">H2BApply</div>
+  </div>
+  <a href="/" class="back-btn">← Voltar ao App</a>
+  <div class="badge">🌐 Plataforma de candidaturas H-2B/H-2A</div>
+  <h1>Fale Conosco</h1>
+  <p class="sub">Estamos aqui para ajudar com dúvidas sobre o app, planos ou candidaturas.</p>
+  <div class="card">
+    <div class="contact-item">
+      <div class="contact-icon" style="background:#eff6ff">📧</div>
+      <div>
+        <div class="contact-label">Email de suporte</div>
+        <div class="contact-value"><a href="mailto:suporte@h2bapply.com">suporte@h2bapply.com</a></div>
+      </div>
+    </div>
+    <div class="contact-item">
+      <div class="contact-icon" style="background:#f0fdf4">💬</div>
+      <div>
+        <div class="contact-label">WhatsApp</div>
+        <div class="contact-value"><a href="https://wa.me/5553981453496" target="_blank">+55 53 98145-3496</a></div>
+      </div>
+    </div>
+    <div class="contact-item">
+      <div class="contact-icon" style="background:#fdf4ff">📸</div>
+      <div>
+        <div class="contact-label">Instagram</div>
+        <div class="contact-value"><a href="https://instagram.com/andrio.k" target="_blank">@andrio.k</a></div>
+      </div>
+    </div>
+    <div class="contact-item">
+      <div class="contact-icon" style="background:#fefce8">🌐</div>
+      <div>
+        <div class="contact-label">Site</div>
+        <div class="contact-value"><a href="https://h2bapply.com">h2bapply.com</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="background:#fefce8;border-color:#fde68a">
+    <h2 style="font-size:16px;color:#92400e;margin-bottom:10px">⚠️ Aviso sobre Gmail</h2>
+    <p style="font-size:14px;color:#78350f">O uso intensivo de uma única conta Gmail pode gerar bloqueio pelo Google. Sempre adicione 2+ contas Gmail ao app para maior segurança. <a href="/terms#gmail-aviso" style="color:#92400e;font-weight:700">Ver termos de uso →</a></p>
+  </div>
+  <div class="footer">
+    © 2026 H2BApply &nbsp;·&nbsp; <a href="/privacy" style="color:#94a3b8">Privacidade</a> &nbsp;·&nbsp; <a href="/terms" style="color:#94a3b8">Termos</a>
+    <br><small>suporte@h2bapply.com</small>
+  </div>
+</div>
+</body>
+</html>`);
+  }
+
+  // Corrigir valor de um pedido (admin)
+  if(pathname==="/api/admin/pedido-set-valor"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const {pedidoId,valor}=body;
+    if(!pedidoId||!valor)return json(res,400,{error:"pedidoId e valor obrigatórios"});
+    const pd=DB_PEDIDOS.find(x=>x.id===pedidoId);
+    if(!pd)return json(res,404,{error:"Pedido não encontrado"});
+    const vAntes=pd.valorTotal;
+    pd.valorTotal=parseFloat(valor)||0;
+    pd.valorCorrigidoPor=s.user_email;
+    pd.valorCorrigidoEm=Date.now();
+    pd.valorOriginal=pd.valorOriginal||vAntes;
+    persistPedidos();
+    // Atualizar também no financeiro se existir
+    try{
+      const finP=DB_FINANCEIRO.pagamentos.find(x=>x.pedidoId===pedidoId);
+      if(finP){finP.valor=pd.valorTotal;finP.notaCorrecao=`Valor corrigido de R$${vAntes} para R$${pd.valorTotal} por ${s.user_email}`;persistFinanceiro();}
+    }catch{}
+    console.log(`[pedido] valor corrigido: ${pedidoId} R$${vAntes}→R$${pd.valorTotal} por ${s.user_email}`);
+    return json(res,200,{ok:true,valorAntes:vAntes,valorNovo:pd.valorTotal});
+  }
+
+  // ════ BOT DE ENRIQUECIMENTO DE PLANILHAS ════════════════════
+  // [enrich endpoints consolidados abaixo]
+
+  // POST /api/admin/enrich/stop — para o bot
+  if(pathname==="/api/admin/enrich/stop"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    _enrichBotState.running=false;
+    _enrichLog("⏹️ Bot parado pelo admin", "warn");
+    return json(res,200,{ok:true});
+  }
+
+// ════════════════════════════════════════════════════════════
+//  BOT DE ENRIQUECIMENTO DE PLANILHAS
+//  Acessa DOL API para cada ETA case number e preenche todos
+//  os campos que faltam: ci, d, de, wk, ph, desc, url
+// ════════════════════════════════════════════════════════════
+async function _runEnrichBot(sheetKey, resume=false){
+  if(_enrichBot.running && !resume){
+    _enrichLog("Bot já está rodando","warn"); return;
+  }
+  const sheet = sheetKey==="jan2026" ? SHEET_JAN
+              : sheetKey==="jul2025" ? SHEET_JUL
+              : SHEET_EXTRAS[sheetKey];
+  if(!sheet || !sheet.length){
+    _enrichLog(`Planilha não encontrada: ${sheetKey}`,"error"); return;
+  }
+
+  const startIdx = resume ? Math.max(0,(_enrichBot.done||0)) : 0;
+
+  _enrichBot.running   = true;
+  _enrichBot.sheetKey  = sheetKey;
+  _enrichBot.total     = sheet.length;
+  _enrichBot.done      = startIdx;
+  _enrichBot.ok        = resume ? (_enrichBot.ok||0) : 0;
+  _enrichBot.noEmail   = resume ? (_enrichBot.noEmail||0) : 0;
+  _enrichBot.errors    = resume ? (_enrichBot.errors||0) : 0;
+  _enrichBot.startedAt = (resume && _enrichBot.startedAt) ? _enrichBot.startedAt : Date.now();
+  _enrichBot.log       = resume ? _enrichBot.log : [];
+  _enrichBot.savedAt   = null;
+
+  _enrichLog(`🚀 Bot iniciado: ${sheet.length} vagas — planilha "${sheetKey}"${resume?` (retomando de ${startIdx})`:''}`, "ok");
+  _enrichLog(`🔍 Buscando: email, cidade, datas, workers, telefone, funções, URL`, "info");
+
+  // Rotação de User-Agents para evitar fingerprinting do DOL
+  const USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+  ];
+  let _uaIdx = Math.floor(Math.random() * USER_AGENTS.length);
+
+  const getHDR = () => {
+    _uaIdx = (_uaIdx + 1) % USER_AGENTS.length;
+    return {
+      "Accept":"application/json, text/plain, */*",
+      "Accept-Language":"en-US,en;q=0.9",
+      "Accept-Encoding":"identity",
+      "User-Agent": USER_AGENTS[_uaIdx],
+      "Cache-Control":"no-cache",
+      "Pragma":"no-cache",
+      "Referer":"https://seasonaljobs.dol.gov/",
+      "Origin":"https://seasonaljobs.dol.gov",
+      "sec-fetch-dest":"empty",
+      "sec-fetch-mode":"cors",
+      "sec-fetch-site":"same-site",
+    };
+  };
+
+  // Delay entre vagas — aumenta dinamicamente ao pegar 403
+  let _interDelay = 800;
+  let _consecutive403 = 0;
+
+  // Processar UMA VAGA POR VEZ — garante que cada case number é buscado individualmente
+  for(let i = startIdx; i < sheet.length; i++){
+    if(!_enrichBot.running) break;
+
+    const row = sheet[i];
+    const cn  = (row.c||"").toUpperCase();
+    _enrichBot.done = i + 1;
+
+    // Loop de retry com backoff exponencial para 403/429
+    let attempt = 0;
+    let processed = false;
+
+    while(attempt < 6 && !processed && _enrichBot.running){
+      if(attempt > 0){
+        // Backoff: 15s, 30s, 60s, 120s, 240s
+        const waitMs = Math.min(15000 * Math.pow(2, attempt - 1), 240000);
+        _enrichLog(`⏳ [${i+1}/${sheet.length}] ${cn} — retry ${attempt}/5, aguardando ${Math.round(waitMs/1000)}s...`, "warn");
+        await new Promise(r=>setTimeout(r, waitMs));
+        if(!_enrichBot.running) break;
+      }
+      attempt++;
+
+    try{
+      // Buscar case number específico na API do DOL
+      const params = new URLSearchParams({"api-version":"2020-06-30"});
+      params.append("$filter", `case_number eq '${row.c}'`);
+      params.append("$top", "1");
+
+      const {status, body} = await httpsReq({
+        hostname:"api.seasonaljobs.dol.gov",
+        path:"/datahub/?"+params,
+        method:"GET",
+        headers:getHDR()
+      });
+
+      if(status===200){
+        _consecutive403 = 0;
+        // Recupera velocidade gradualmente após 403s
+        if(_interDelay > 800) _interDelay = Math.max(800, _interDelay - 300);
+        const raw = body.value||body.results||body.data||[];
+        const dol = raw[0]||null;
+        processed = true;
+
+        if(dol){
+          // ═══ COLETAR TODOS OS CAMPOS DO SITE seasonaljobs.dol.gov ═══
+          // Visíveis na página: salário, cidade, datas, workers, funções,
+          // telefone, email, endereço worksite, horário, SOC, experiência, requisitos
+
+          // Localização
+          row.ci    = (dol.worksite_city||dol.employer_city||row.ci||"").trim();
+          row.st_ab = (dol.worksite_state||dol.employer_state||row.st_ab||"").trim(); // estado abreviado
+          row.addr  = (dol.worksite_address||dol.employer_address||row.addr||"").trim(); // endereço worksite
+          row.zip   = (dol.worksite_postal_code||dol.employer_postal_code||row.zip||"").trim();
+
+          // Período e vagas
+          row.d     = (dol.begin_date||dol.start_date||row.d||"").slice(0,10);
+          row.de    = (dol.end_date||dol.expiration_date||row.de||"").slice(0,10);
+          row.wk    = parseInt(dol.total_positions||dol.nbr_workers_requested||0)||row.wk||0;
+
+          // Salário
+          row.w     = row.w||(dol.basic_rate_from?String(parseFloat(dol.basic_rate_from).toFixed(2)):"");
+          row.wmax  = dol.basic_rate_to?String(parseFloat(dol.basic_rate_to).toFixed(2)):(row.wmax||"");
+          row.wunit = row.wunit||(dol.pay_range_desc==="Month"?"mês":"h");
+          row.winfo = (dol.wage_offer_description||dol.additional_wage_information||row.winfo||"").slice(0,300);
+
+          // Contato
+          row.ph    = ((dol.apply_phone||dol.employer_phone||row.ph||"")).replace(/[^0-9+()\- ]/g,"").trim();
+          row.ph2   = (dol.employer_phone||row.ph2||"").replace(/[^0-9+()\- ]/g,"").trim();
+          row.site  = (dol.employer_website||dol.apply_url||row.site||"").trim();
+
+          // Cargo e empresa
+          row.s     = (dol.worksite_state||dol.employer_state||row.s||"").toUpperCase().trim();
+          if(dol.job_title) row.t = dol.job_title.trim();
+          row.n     = (dol.employer_business_name||dol.employer_trade_name||row.n||"").trim();
+          row.st    = (dol.case_status||row.st||"").trim();
+          row.soc   = (dol.soc_code||dol.onet_code||row.soc||"").trim(); // código SOC
+          row.socT  = (dol.soc_title||row.socT||"").trim(); // título SOC
+
+          // Descrição das funções (completa)
+          if(dol.job_duties)
+            row.desc = dol.job_duties.replace(/\*\*[^*]+\*\*/g,"").trim().slice(0,1500);
+
+          // Requisitos
+          row.exp   = dol.experience_required==="Yes"?1:0;
+          row.req   = (dol.special_requirements||row.req||"").slice(0,400);
+          row.hrs   = dol.nbr_hours_per_week?String(dol.nbr_hours_per_week):(row.hrs||"");
+          row.sched = (dol.work_schedule||row.sched||"").trim(); // horário (ex: 7:00 A.M. - 1:00 P.M.)
+          row.ft    = dol.full_time_position==="Yes"?"sim":""; // full time?
+
+          // URL oficial da vaga
+          row.url   = `https://seasonaljobs.dol.gov/jobs/${row.c}`;
+
+          // Tipo de visto
+          row.visa  = row.c.startsWith("H-300")?"H-2A":row.c.startsWith("H-400")?"H-2B":(row.visa||"H-2B");
+
+          // Email — todos os campos possíveis do DOL
+          const emails = [
+            dol.apply_email, dol.employer_email,
+            dol.employer_poc_email, dol.attorney_agent_email,
+            dol.employer_contact_email,
+          ].map(e=>(e||"").trim().toLowerCase())
+           .filter(e=>e && e.includes("@") && e!=="n/a" && !e.startsWith("n/a"));
+          if(!row.e && emails.length>0){
+            row.e = emails[0];
+            _enrichLog(`📧 [${i+1}/${sheet.length}] ${cn}: email → ${row.e}`, "ok");
+          } else if(row.e && emails.length>0 && !emails.includes(row.e)){
+            // Manter o existente mas logar que há outros
+          }
+
+          _enrichBot.ok++;
+          if(!row.e||!row.e.includes("@")){
+            _enrichBot.noEmail++;
+            _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} SEM EMAIL | ${(row.t||"?").slice(0,40)} | ${row.ci||row.s||"?"}`, "warn");
+          } else {
+            // Log de cada vaga OK — em tempo real
+            _enrichLog(`✅ [${i+1}/${sheet.length}] ${cn} | ${(row.t||"?").slice(0,35)} | ${row.ci||"?"}, ${row.s||"?"} | $${row.w||"?"}/h | ${row.e}`, "info");
+          }
+        } else {
+          // Não encontrou na API — case number inválido ou expirado
+          _enrichBot.errors++;
+          _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — não encontrado no DOL`, "warn");
+        }
+
+      } else if(status===403 || status===429){
+        // DOL bloqueia com 403 (rate limit/anti-bot) ou 429 (rate limit explícito)
+        // Não conta como erro — vai retry com backoff
+        _consecutive403++;
+        // Aumenta delay permanente proporcionalmente
+        _interDelay = Math.min(3000 + _consecutive403 * 500, 8000);
+        // Não marca processed → while faz retry automático
+        _enrichLog(`🚫 [${i+1}/${sheet.length}] ${cn} — HTTP ${status} (bloqueio DOL, tentativa ${attempt}/5, delay→${_interDelay}ms)`, "warn");
+      } else {
+        // Qualquer outro erro HTTP (404, 500, etc.) — conta como erro, não faz retry
+        processed = true;
+        _enrichBot.errors++;
+        _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} — DOL retornou HTTP ${status}`, "warn");
+      }
+    }catch(e){
+      // Erro de rede — pode tentar de novo
+      if(attempt < 6){
+        _enrichLog(`🔌 [${i+1}/${sheet.length}] ${cn} — erro de rede (retry ${attempt}/5): ${e.message}`, "warn");
+        // processed continua false → while faz retry
+      } else {
+        processed = true;
+        _enrichBot.errors++;
+        _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — falhou após 5 tentativas: ${e.message}`, "error");
+      }
+    }
+    } // fim while retry
+
+    // Se esgotou retries sem processar (ex: 5x 403 seguidos)
+    if(!processed && _enrichBot.running){
+      _enrichBot.errors++;
+      _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — desistindo após 5 tentativas (DOL bloqueando)`, "error");
+    }
+
+    // Salvar a cada 100 vagas processadas
+    if(_enrichBot.done % 100 === 0){
+      _saveEnrichedSheet(sheetKey, sheet);
+      _enrichBot.savedAt = Date.now();
+      const pct = Math.round((_enrichBot.done/sheet.length)*100);
+      _enrichLog(`💾 Salvo: ${_enrichBot.done}/${sheet.length} (${pct}%) — ok:${_enrichBot.ok} semEmail:${_enrichBot.noEmail} delay:${_interDelay}ms`, "ok");
+    }
+
+    // Delay adaptativo entre vagas (aumenta quando DOL bloqueia, reduz quando ok)
+    await new Promise(r=>setTimeout(r, _interDelay));
+  }
+
+  // Finalizar
+  _enrichBot.done    = sheet.length;
+  _enrichBot.running = false;
+  _saveEnrichedSheet(sheetKey, sheet);
+  _enrichBot.savedAt = Date.now();
+
+  // Atualizar meta para planilhas builtin também (jan2026, jul2025)
+  if(!DB_SHEETS_META[sheetKey]){
+    DB_SHEETS_META[sheetKey] = {name: sheetKey==="jan2026"?"Janeiro 2026 (H-2B)":"Julho 2025 (H-2B)", file:sheetKey+".json"};
+  }
+  DB_SHEETS_META[sheetKey].enriched    = _enrichBot.ok;
+  DB_SHEETS_META[sheetKey].enrichedAt  = Date.now();
+  DB_SHEETS_META[sheetKey].enrichedTotal = _enrichBot.total;
+  fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2));
+
+  const semEmail = sheet.filter(r=>!r.e||!r.e.includes("@")).length;
+  _enrichLog(`🏁 CONCLUÍDO! ok:${_enrichBot.ok} | semEmail:${semEmail} | erros:${_enrichBot.errors}`, "ok");
+  _enrichLog(`📥 Baixe a planilha enriquecida no botão "⬇️ Baixar JSON"`, "ok");
+}
+
+function _saveEnrichedSheet(sheetKey, sheet){
+  try{
+    if(sheetKey==="jan2026"){
+      fs.writeFileSync(path.join(__dirname,"jan2026_compact.json"),JSON.stringify(sheet));
+    } else if(sheetKey==="jul2025"){
+      fs.writeFileSync(path.join(__dirname,"jul2025_compact.json"),JSON.stringify(sheet));
+    } else if(SHEET_EXTRAS[sheetKey]){
+      const meta = DB_SHEETS_META[sheetKey];
+      const fp = path.join(SHEETS_DIR, meta?.file||`${sheetKey}.json`);
+      fs.writeFileSync(fp, JSON.stringify(sheet));
+    }
+    _enrichBot.savedAt = Date.now();
+  }catch(e){ _enrichLog(`❌ Erro ao salvar: ${e.message}`,"error"); }
+}
+
+  // ════ GESTÃO DE PLANILHAS DE VAGAS ════════════════════════
+  // GET /api/admin/sheets — lista todas as planilhas
+  if(pathname==="/api/admin/sheets"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const sheets = [
+      {key:"jan2026",name:"Janeiro 2026 (H-2B)",count:SHEET_JAN.length,builtin:true,active:true,
+        enriched:DB_SHEETS_META["jan2026"]?.enriched||0,
+        enrichedAt:DB_SHEETS_META["jan2026"]?.enrichedAt||null},
+      {key:"jul2025",name:"Julho 2025 (H-2B)",count:SHEET_JUL.length,builtin:true,active:true,
+        enriched:DB_SHEETS_META["jul2025"]?.enriched||0,
+        enrichedAt:DB_SHEETS_META["jul2025"]?.enrichedAt||null},
+      ...Object.entries(SHEET_EXTRAS).map(([key,arr])=>({
+        key,name:DB_SHEETS_META[key]?.name||key,count:arr.length,builtin:false,
+        active:true,uploaded:DB_SHEETS_META[key]?.uploaded,
+        enriched:DB_SHEETS_META[key]?.enriched||0,
+        enrichedAt:DB_SHEETS_META[key]?.enrichedAt,
+      }))
+    ];
+    const totalVagas = SHEET_JAN.length + SHEET_JUL.length + Object.values(SHEET_EXTRAS).reduce((s,a)=>s+a.length,0);
+    return json(res,200,{ok:true,sheets,totalVagas});
+  }
+
+  // POST /api/admin/sheet/upload — recebe nova planilha (JSON compacto ou CSV)
+  if(pathname==="/api/admin/sheet/upload"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const{name,key,data}=body;
+    if(!name||!key||!data)return json(res,400,{error:"name, key e data obrigatórios"});
+    // Sanitizar key (só letras, números, hífen, underscore)
+    const safeKey=key.toLowerCase().replace(/[^a-z0-9_-]/g,"");
+    if(!safeKey)return json(res,400,{error:"key inválida"});
+    // Validar dados
+    let vagas;
+    try{ vagas = typeof data==="string"?JSON.parse(data):data; }
+    catch(e){return json(res,400,{error:"JSON inválido: "+e.message});}
+    if(!Array.isArray(vagas))return json(res,400,{error:"data deve ser um array de vagas"});
+    // Garantir campos obrigatórios
+    const valid = vagas.filter(v=>v.c&&v.e&&v.e.includes("@"));
+    if(valid.length<1)return json(res,400,{error:`Nenhuma vaga válida (com case_number e email). Encontradas: ${vagas.length}`});
+    // Enriquecer categorias
+    valid.forEach(r=>{if(!r.k)r.k=detectCategory(r.n||"");r._sheet=safeKey;});
+    // Salvar arquivo
+    const fname=`${safeKey}.json`;
+    const fpath=path.join(SHEETS_DIR,fname);
+    fs.writeFileSync(fpath,JSON.stringify(valid));
+    SHEET_EXTRAS[safeKey]=valid;
+    DB_SHEETS_META[safeKey]={name,file:fname,uploaded:Date.now(),count:valid.length,enriched:0};
+    fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));
+    console.log(`[sheet] ✅ Nova planilha carregada: ${safeKey} (${valid.length} vagas válidas de ${vagas.length})`);
+    addLog(s.user_email,{status:"sistema",jobTitle:`📋 Nova planilha adicionada: ${name}`,company:`${valid.length} vagas válidas — Chave: ${safeKey}`});
+    return json(res,200,{ok:true,key:safeKey,count:valid.length,total:vagas.length});
+  }
+
+  // DELETE /api/admin/sheet/:key — remove planilha extra
+  if(pathname.startsWith("/api/admin/sheet/")&&req.method==="DELETE"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const key=pathname.split("/").pop();
+    if(!SHEET_EXTRAS[key])return json(res,404,{error:"Planilha não encontrada"});
+    delete SHEET_EXTRAS[key];
+    const meta=DB_SHEETS_META[key];
+    if(meta?.file){try{fs.unlinkSync(path.join(SHEETS_DIR,meta.file));}catch{}}
+    delete DB_SHEETS_META[key];
+    fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));
+    return json(res,200,{ok:true});
+  }
+
+  // GET /api/admin/enrich/status — status do bot em tempo real
+  if(pathname==="/api/admin/enrich/status"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const b=_enrichBot;
+    const elapsed = b.startedAt ? Math.round((Date.now()-b.startedAt)/1000) : 0;
+    const ratePerSec = elapsed>0 ? (b.done/elapsed).toFixed(1) : 0;
+    const remaining = b.total-b.done;
+    const etaSec = ratePerSec>0 ? Math.round(remaining/ratePerSec) : null;
+    return json(res,200,{
+      ok:true, running:b.running, sheetKey:b.sheetKey,
+      total:b.total, done:b.done, ok:b.ok,
+      noEmail:b.noEmail, errors:b.errors,
+      pct:b.total>0?Math.round((b.done/b.total)*100):0,
+      elapsed, ratePerSec, etaSec,
+      savedAt:b.savedAt,
+      log: b.log.slice(-50), // últimas 50 linhas
+    });
+  }
+
+  // POST /api/admin/enrich/start — iniciar bot
+  if(pathname==="/api/admin/enrich/start"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    let _eb={sheetKey:"jan2026",resume:false};
+    try{const _d=JSON.parse(await readBody(req));_eb.sheetKey=_d.sheetKey||"jan2026";_eb.resume=!!_d.resume;}catch{}
+    const {sheetKey,resume}=_eb;
+    if(_enrichBot.running) return json(res,409,{error:"Bot já está rodando. Aguarde ou pare primeiro."});
+    // Validar sheetKey
+    const validSheets=["jan2026","jul2025",...Object.keys(SHEET_EXTRAS)];
+    if(!validSheets.includes(sheetKey)) return json(res,400,{error:`Planilha "${sheetKey}" não encontrada. Disponíveis: ${validSheets.join(", ")}`});
+    const sheetArr = sheetKey==="jan2026"?SHEET_JAN:sheetKey==="jul2025"?SHEET_JUL:SHEET_EXTRAS[sheetKey];
+    if(!sheetArr||!sheetArr.length) return json(res,400,{error:"Planilha vazia ou não carregada"});
+    json(res,200,{ok:true,message:`Bot iniciado para "${sheetKey}" (${sheetArr.length} vagas)`,total:sheetArr.length});
+    _runEnrichBot(sheetKey, resume).catch(e=>_enrichLog("Erro fatal: "+e.message,"error"));
+    return;
+  }
+
+  // POST /api/admin/enrich/stop — parar bot
+  if(pathname==="/api/admin/enrich/stop"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    try{await readBody(req);}catch{} // consumir body
+    _enrichBot.running=false;
+    _enrichLog("⏹️ Bot parado pelo admin","warn");
+    return json(res,200,{ok:true,message:"Bot parado"});
+  }
+
+  // POST /api/admin/sheet/enrich/:key — redireciona para o bot central
+  if(pathname.startsWith("/api/admin/sheet/enrich/")&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const key=pathname.split("/").pop();
+    if(_enrichBot.running) return json(res,409,{error:"Bot já está rodando. Use /api/admin/enrich/stop para parar."});
+    const sheet = key==="jan2026"?SHEET_JAN:key==="jul2025"?SHEET_JUL:SHEET_EXTRAS[key];
+    if(!sheet)return json(res,404,{error:"Planilha não encontrada"});
+    try{await readBody(req);}catch{} // consumir body
+    json(res,200,{ok:true,message:`Enriquecimento de ${sheet.length} vagas iniciado`});
+    _runEnrichBot(key,false).catch(e=>_enrichLog("Erro: "+e.message,"error"));
+    return;
+  }
+
+    // GET /api/admin/sheet/download/:key — baixar planilha enriquecida como JSON
+  if(pathname.startsWith("/api/admin/sheet/download/")&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const key=decodeURIComponent(pathname.split("/").pop());
+    const sheet=key==="jan2026"?SHEET_JAN:key==="jul2025"?SHEET_JUL:SHEET_EXTRAS[key];
+    if(!sheet)return json(res,404,{error:"Planilha não encontrada"});
+    const fname=`${key}_enriquecida_${new Date().toISOString().slice(0,10)}.json`;
+    res.writeHead(200,{
+      "Content-Type":"application/json; charset=utf-8",
+      "Content-Disposition":`attachment; filename="${fname}"`,
+      "Cache-Control":"no-cache",
+    });
+    return res.end(JSON.stringify(sheet,null,2));
+  }
+
+  // GET /api/admin/sheet/stats/:key — estatísticas da planilha
+  if(pathname.startsWith("/api/admin/sheet/stats/")&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const key=pathname.split("/").pop();
+    const sheet=key==="jan2026"?SHEET_JAN:key==="jul2025"?SHEET_JUL:SHEET_EXTRAS[key];
+    if(!sheet)return json(res,404,{error:"Planilha não encontrada"});
+    const cats={};sheet.forEach(r=>{const c=r.k||"other";cats[c]=(cats[c]||0)+1;});
+    const states={};sheet.forEach(r=>{const c=r.s||"?";states[c]=(states[c]||0)+1;});
+    const comCity=sheet.filter(r=>r.ci).length;
+    const comDesc=sheet.filter(r=>r.desc).length;
+    return json(res,200,{ok:true,key,
+      total:sheet.length,comEmail:sheet.filter(r=>r.e).length,comCity,comDesc,
+      categorias:Object.entries(cats).sort((a,b)=>b[1]-a[1]),
+      estados:Object.entries(states).sort((a,b)=>b[1]-a[1]).slice(0,10),
+      meta:DB_SHEETS_META[key]||null,
+    });
+  }
+
+  // ── API: Email Intelligence (bounces globais) ──────────
+  if(pathname==="/api/admin/email-intelligence"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const invalids = Object.values(DB_INVALID_EMAILS).map(e=>({
+      ...e, users: [...(e.users instanceof Set ? e.users : new Set(e.users||[]))]
+    })).sort((a,b)=>b.count-a.count);
+    const corrections = Object.values(DB_EMAIL_CORRECTIONS).sort((a,b)=>b.count-a.count);
+    const tempFails   = Object.values(DB_TEMP_FAILURES).sort((a,b)=>b.count-a.count).slice(0,50);
+    // Domínios com mais erros
+    const byDomain={};
+    invalids.forEach(e=>{ byDomain[e.domain]=(byDomain[e.domain]||0)+1; });
+    const topDomains=Object.entries(byDomain).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([d,c])=>({domain:d,count:c}));
+    return json(res,200,{
+      ok:true,
+      totalInvalid:invalids.length,
+      totalCorrections:corrections.length,
+      totalTemp:Object.keys(DB_TEMP_FAILURES).length,
+      invalids: invalids.slice(0,200),
+      corrections: corrections.slice(0,100),
+      tempFails,
+      topDomains,
+      lastUpdated: Date.now()
+    });
+  }
+
+  // Marcar email como inválido manualmente
+  if(pathname==="/api/admin/email-intelligence/mark-invalid"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const {email,motivo}=body;if(!email)return json(res,400,{error:"email obrigatório"});
+    const now=Date.now();
+    DB_INVALID_EMAILS[email.toLowerCase()]={
+      email:email.toLowerCase(),domain:email.split('@')[1]||'',
+      motivo:motivo||'Marcado manualmente pelo admin',tipo:'manual',
+      first:now,last:now,count:1,users:new Set(['admin']),msg:'Manual',status:'invalid'
+    };
+    const toSave={};
+    for(const [k,v] of Object.entries(DB_INVALID_EMAILS)){toSave[k]={...v,users:[...(v.users instanceof Set?v.users:new Set(v.users||[]))]}}
+    try{fs.writeFileSync(INVALID_EMAILS_FILE,JSON.stringify(toSave,null,2));}catch{}
+    return json(res,200,{ok:true});
+  }
+
+  // Remover email da lista negra
+  if(pathname.startsWith("/api/admin/email-intelligence/remove/")&&req.method==="DELETE"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const email=decodeURIComponent(pathname.split('/').pop());
+    delete DB_INVALID_EMAILS[email];
+    const toSave={};
+    for(const [k,v] of Object.entries(DB_INVALID_EMAILS)){toSave[k]={...v,users:[...(v.users instanceof Set?v.users:new Set(v.users||[]))]}}
+    try{fs.writeFileSync(INVALID_EMAILS_FILE,JSON.stringify(toSave,null,2));}catch{}
+    return json(res,200,{ok:true});
   }
 
   // ── PWA: manifest, service worker e ícones ────────────
@@ -2775,12 +3888,13 @@ const server=http.createServer(async(req,res)=>{
   // ── /api/jobs ─────────────────────────────────────────
   if(pathname==="/api/jobs"){
     const opts={query:(u.searchParams.get("q")||"").trim(),state:(u.searchParams.get("state")||"").trim(),jobType:(u.searchParams.get("jobType")||"all"),jobStatus:(u.searchParams.get("jobStatus")||"all"),beginDate:(u.searchParams.get("beginDate")||""),sort:(u.searchParams.get("sort")||"desc")};
+    const _minWageJobs=parseFloat(u.searchParams.get("minWage")||"0")||0;
     const skip=Math.max(0,parseInt(u.searchParams.get("skip")||"0",10));const top=Math.min(50,Math.max(1,parseInt(u.searchParams.get("top")||"25",10)));
     if(Date.now()-lastFetch>CACHE_TTL)refreshCache().catch(()=>{});
     try{const{jobs,total}=await fetchDOL(skip,top,opts);return json(res,200,{jobs,total,skip,from_cache:false});}
     catch(e){
       // DOL offline → planilha local como fallback principal
-      const _shRows=[...getSheet("jan2026"),...getSheet("jul2025")].filter(r=>r.e&&r.e.includes("@"));
+      const _shRows=getAllSheets().filter(r=>r.e&&r.e.includes("@"));
       const _shJobs=_shRows.map(r=>({id:r.c,caseNum:r.c,title:r.t||"Seasonal Worker",company:r.n||"–",city:"–",state:r.s||"–",wage:r.w?`$${r.w}/${r.wunit||"h"}`:"–",workers:r.wk||null,start:r.d||"–",end:"–",email:r.e,phone:"",url:"",active:true,visa:r.visa||"H-2B",hasEmail:true,category:r.k||"other",fromSheet:true}));
       let src=_shJobs.length?_shJobs:jobsCache.length?[...jobsCache]:[...FALLBACK_JOBS];
       const{query:q,state,jobType,jobStatus,beginDate}=opts;
@@ -2789,6 +3903,7 @@ const server=http.createServer(async(req,res)=>{
       if(jobType==="agricultural")src=src.filter(j=>j.visa==="H-2A");if(jobType==="non-agricultural")src=src.filter(j=>j.visa==="H-2B");
       if(jobStatus==="active")src=src.filter(j=>j.active);if(jobStatus==="inactive")src=src.filter(j=>!j.active);
       if(beginDate)src=src.filter(j=>j.start>=beginDate);
+      if(_minWageJobs>0){const _pw=w=>{if(!w)return 0;const m=String(w).replace(/[$,/hrday\s]/gi,"");return parseFloat(m)||0;};src=src.filter(j=>_pw(j.wage)>=_minWageJobs);}
       return json(res,200,{jobs:src.slice(skip,skip+top),total:src.length,skip,from_cache:true});
     }
   }
@@ -2804,25 +3919,32 @@ const server=http.createServer(async(req,res)=>{
     const filterVisa=(u.searchParams.get("visa")||"").trim();
     const filterHasEmail=(u.searchParams.get("hasEmail")||"").trim();
     const filterJobStatus=(u.searchParams.get("jobStatus")||"").trim();
+    const filterCity=(u.searchParams.get("city")||"").trim().toLowerCase();
+    const filterCompany=(u.searchParams.get("company")||"").trim().toLowerCase();
     // DB_SENT has email addresses (not case numbers), so we DON'T filter by caseNum
     // Instead we show all available jobs (sent ones are hidden via HIST in frontend)
     const baseArr=arr; // No server-side sent filtering (would break search)
-    const{total,items}=searchSheet(baseArr,q,state,category,skip,top,sort);
     const catTitles={landscape:"Landscape Worker",construction:"Construction Worker",
       housekeeper:"Housekeeper",seafood:"Seafood Processor",farm:"Farm Worker",
       golf:"Golf Course Worker",amusement:"Amusement Park Worker",
       forest:"Forestry Worker",lifeguard:"Lifeguard",
       food:"Food Service / Bartender",ski:"Ski Resort Worker",other:"Seasonal Worker"};
     const parseW=w=>{if(!w)return 0;const m=String(w).match(/[0-9.]+/);return m?parseFloat(m[0]):0;};
-    // Apply all additional filters
-    let filtered=items;
-    if(minWage>0) filtered=filtered.filter(r=>parseW(r.w)>=minWage);
-    if(minWorkers>0) filtered=filtered.filter(r=>(r.wk||0)>=minWorkers);
-    if(filterVisa) filtered=filtered.filter(r=>(r.st||"").toUpperCase().includes(filterVisa));
-    if(filterHasEmail==="1") filtered=filtered.filter(r=>r.e&&r.e.includes("@"));
-    if(filterHasEmail==="0") filtered=filtered.filter(r=>!r.e);
-    if(filterJobStatus==="active") filtered=filtered.filter(r=>{const st=(r.st||"").toUpperCase();return !st.includes("WITHDRAWN")&&!st.includes("DENIED")&&!st.includes("EXPIRED");});
-    if(filterJobStatus==="inactive") filtered=filtered.filter(r=>{const st=(r.st||"").toUpperCase();return st.includes("WITHDRAWN")||st.includes("DENIED")||st.includes("EXPIRED");});
+    // FIX WAGE: aplicar filtros pesados ANTES da paginação para retornar total correto
+    let preFiltered=baseArr;
+    if(minWage>0) preFiltered=preFiltered.filter(r=>parseW(r.w)>=minWage);
+    if(minWorkers>0) preFiltered=preFiltered.filter(r=>(r.wk||0)>=minWorkers);
+    if(filterVisa) preFiltered=preFiltered.filter(r=>(r.st||"").toUpperCase().includes(filterVisa));
+    if(filterHasEmail==="1") preFiltered=preFiltered.filter(r=>r.e&&r.e.includes("@"));
+    if(filterHasEmail==="0") preFiltered=preFiltered.filter(r=>!r.e);
+    if(filterJobStatus==="active") preFiltered=preFiltered.filter(r=>{const st=(r.st||"").toUpperCase();return !st.includes("WITHDRAWN")&&!st.includes("DENIED")&&!st.includes("EXPIRED");});
+    if(filterJobStatus==="inactive") preFiltered=preFiltered.filter(r=>{const st=(r.st||"").toUpperCase();return st.includes("WITHDRAWN")||st.includes("DENIED")||st.includes("EXPIRED");});
+    if(filterCompany) preFiltered=preFiltered.filter(r=>(r.n||"").toLowerCase().includes(filterCompany));
+    if(filterCity) preFiltered=preFiltered.filter(r=>(r.ci||"").toLowerCase().includes(filterCity));
+    // searchSheet faz q/state/category + paginação no array já pré-filtrado
+    const{total,items}=searchSheet(preFiltered,q,state,category,skip,top,sort);
+    let filtered=items; // já paginado corretamente
+    // total já é o total filtrado (pré-filtro + searchSheet)
     return json(res,200,{jobs:filtered.map(r=>{
       const st=(r.st||"").toUpperCase();
       const visa=(r.visa||"").includes("H-2A")||st.includes("H-2A")?"H-2A":"H-2B";
@@ -2830,7 +3952,28 @@ const server=http.createServer(async(req,res)=>{
       const cat=r.k||"other";
       const occupation=r.t||catTitles[cat]||"Seasonal Worker";
       const emailVal=(r.e||"").toLowerCase().trim();
-      return{id:r.c,caseNum:r.c,company:r.n||"–",state:r.s||"–",start:r.d||"–",status:r.st||"–",category:cat,visa,active,title:occupation,occupation,wage:r.w?`$${r.w}/h`:null,workers:r.wk||null,email:emailVal||null,hasEmail:!!(emailVal&&emailVal.includes("@")),fromSheet:true};
+      return{
+        id:r.c, caseNum:r.c,
+        company:r.n||"–", state:r.s||"–", city:r.ci||"",
+        zip:r.zip||"", addr:r.addr||"",
+        start:r.d||"–", end:r.de||"–",
+        status:r.st||"–", category:cat, visa, active,
+        title:occupation, occupation,
+        wage:r.w?`$${r.w}/${r.wunit||"h"}`:null,
+        wageRaw:r.w||null, wageMax:r.wmax||null,
+        wageInfo:r.winfo||null,
+        workers:r.wk||null,
+        email:emailVal||null, hasEmail:!!(emailVal&&emailVal.includes("@")),
+        phone:r.ph||null, phone2:r.ph2||null,
+        website:r.site||null,
+        desc:r.desc||null,
+        req:r.req||null,
+        soc:r.soc||null, socTitle:r.socT||null,
+        hours:r.hrs||null, schedule:r.sched||null,
+        fullTime:r.ft||null,
+        url:r.c&&r.c.startsWith("H-")?`https://seasonaljobs.dol.gov/jobs/${r.c}`:(r.url||null),
+        fromSheet:true
+      };
     }),total,remainingTotal:baseArr.length,skip,sheet});
   }
 
@@ -2846,12 +3989,14 @@ const server=http.createServer(async(req,res)=>{
     const hasEmail=u.searchParams.get("hasEmail")||"";
     const arr=getSheet(sheet);
     let filtered=arr;
+    const filterCityCount=(u.searchParams.get("city")||"").trim().toLowerCase();
     if(state)filtered=filtered.filter(r=>(r.s||"").toUpperCase()===state);
     if(category&&category!=="all"){const cats=category.split(",").map(c=>c.trim());filtered=filtered.filter(r=>cats.includes(r.k||"other"));}
     if(hasEmail==="yes")filtered=filtered.filter(r=>r.e&&String(r.e).includes("@"));
+    if(filterCityCount)filtered=filtered.filter(r=>(r.ci||"").toLowerCase().includes(filterCityCount));
     const total=filtered.length;
-    // Parse wage: handle "4.50/hr", "14.50", "14" etc
-    const parseW=w=>{if(!w)return 0;const m=String(w).replace(/[^0-9.]/g,"");return parseFloat(m)||0;};
+    // Parse wage consistente com /api/sheet-meta
+    const parseW=w=>{if(!w)return 0;const m=String(w).match(/[0-9.]+/);return m?parseFloat(m[0]):0;};
     const withWage=filtered.filter(r=>parseW(r.w)>=minWage&&parseW(r.w)>0);
     return json(res,200,{total,filtered:minWage>0?withWage.length:total});
   }
@@ -2916,7 +4061,7 @@ const server=http.createServer(async(req,res)=>{
   // ── Ranking: inRankPeriod / calcRanking definidas no escopo global ──
 
   // ── OAuth ─────────────────────────────────────────────
-  if(pathname==="/oauth/start"){if(!CONFIGURED){res.writeHead(302,{Location:"/?err="+encodeURIComponent("Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET.")});return res.end();}const st=crypto.randomBytes(20).toString("hex");
+  if(pathname==="/oauth/start"){if(rateLimit((req.headers["x-forwarded-for"]||"anon")+"_oauth",15,900_000)){res.writeHead(429);return res.end("Rate limit excedido. Tente novamente em 15 minutos.");}if(!CONFIGURED){res.writeHead(302,{Location:"/?err="+encodeURIComponent("Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET.")});return res.end();}const st=crypto.randomBytes(20).toString("hex");
   // ── REFERRAL FIX: salva o ?ref= na sessão pendente para recuperar no callback ──
   const refCodeParam=(u.searchParams.get("ref")||"").trim().toUpperCase().slice(0,16);
   sessions["__p__"+st]={pending:true,ts:Date.now(),...(refCodeParam?{refCode:refCodeParam}:{})};
@@ -2926,7 +4071,7 @@ const server=http.createServer(async(req,res)=>{
   const _hintUser=_loginHint?getUser(_loginHint):null;
   const _hasRt=!!(_hintUser?.refresh_token);
   const _promptVal=_hasRt?"select_account":"consent select_account";
-  const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI,response_type:"code",scope:"https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",access_type:"offline",prompt:_promptVal,state:st});res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();}
+  const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI,response_type:"code",scope:"openid email profile https://www.googleapis.com/auth/gmail.send",access_type:"offline",prompt:_promptVal,state:st});res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();}
 
   if(pathname==="/oauth/callback"){
     const code=u.searchParams.get("code"),error=u.searchParams.get("error");
@@ -3027,11 +4172,12 @@ const server=http.createServer(async(req,res)=>{
     if(!CONFIGURED){res.writeHead(302,{Location:"/?err="+encodeURIComponent("OAuth não configurado.")});return res.end();}
     const p=getUser(s.user_email)||{};
     const totalSenders=1+(p.senderEmails||[]).length;
-    if(totalSenders>=MAX_SENDER_EMAILS){res.writeHead(302,{Location:"/?err="+encodeURIComponent(`Limite de ${MAX_SENDER_EMAILS} emails atingido.`)});return res.end();}
+    const maxSnd=getMaxSenders(p);
+    if(totalSenders>=maxSnd){res.writeHead(302,{Location:"/?err="+encodeURIComponent(`Limite de ${maxSnd} emails atingido.`)});return res.end();}
     const st=crypto.randomBytes(20).toString("hex");
     // Salva o state com o email do dono para vincular no callback
     sessions["__sender__"+st]={ownerEmail:s.user_email,created:Date.now()};
-    const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI_SENDER,response_type:"code",scope:"https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",access_type:"offline",prompt:"consent select_account",state:st});
+    const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI_SENDER,response_type:"code",scope:"openid email profile https://www.googleapis.com/auth/gmail.send",access_type:"offline",prompt:"consent select_account",state:st});
     res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();
   }
 
@@ -3062,7 +4208,8 @@ const server=http.createServer(async(req,res)=>{
       // Bloquear: email já adicionado
       if(existing.find(s=>s.email===newEmail))return fail("Este Gmail já está adicionado à sua conta.");
       // Verificar limite
-      if(1+existing.length>=MAX_SENDER_EMAILS)return fail(`Limite de ${MAX_SENDER_EMAILS} emails atingido.`);
+      const maxSnd2=getMaxSenders(getUser(ownerEmail)||{});
+      if(1+existing.length>=maxSnd2)return fail(`Limite de ${maxSnd2} emails atingido.`);
       const newSender={email:newEmail,label:ui.name||newEmail,access_token:tk.access_token,token_expiry:Date.now()+(tk.expires_in||3600)*1000,refresh_token:tk.refresh_token||null,addedAt:Date.now(),active:true,tokenExpired:false,blocked:false};
       if(!newSender.refresh_token)console.warn(`[sender] ⚠️ refresh_token não recebido para ${newEmail} — pode expirar sem renovar`);
       setUser(ownerEmail,{senderEmails:[...existing,newSender]});
@@ -3102,6 +4249,432 @@ const server=http.createServer(async(req,res)=>{
     }catch(e){return json(res,500,{error:e.message});}
   }
 
+  // ── ADMIN: configurações pessoais de admin (intervalo, limites por sender) ──
+  // ── Admin: financeiro (entradas + gastos) ────────────────
+  if(pathname==="/api/admin/financeiro"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    // Retornar sem imagens (muito pesado) — imagens ficam nos pedidos
+    // Retorna SEMPRE sem imagem base64 (imagens só via /api/pedido/:id)
+    const stripImg = arr => (arr||[]).map(p=>{const c={...p};delete c.img;delete c.comprovante;return c;});
+    const slim={
+      pagamentos: stripImg(DB_FINANCEIRO.pagamentos),
+      gastos:     DB_FINANCEIRO.gastos||[],
+    };
+    return json(res,200,{ok:true,financeiro:slim,pagamentos:slim.pagamentos,gastos:slim.gastos});
+  }
+  if(pathname==="/api/admin/financeiro"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      // SEGURANÇA: nunca substitui arrays completos — só adiciona/atualiza itens
+      if(d.action==='add_pagamento' && d.pagamento){
+        // Adicionar um pagamento individual
+        const pg=d.pagamento;
+        if(!pg.id) pg.id='fin_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);
+        if(!pg.criadoEm) pg.criadoEm=Date.now();
+        DB_FINANCEIRO.pagamentos=DB_FINANCEIRO.pagamentos||[];
+        DB_FINANCEIRO.pagamentos.unshift(pg);
+        persistFinanceiro();
+        return json(res,200,{ok:true,id:pg.id});
+      }
+      if(d.action==='add_gasto' && d.gasto){
+        // Adicionar um gasto individual
+        const gs=d.gasto;
+        if(!gs.id) gs.id='gst_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);
+        if(!gs.criadoEm) gs.criadoEm=Date.now();
+        DB_FINANCEIRO.gastos=DB_FINANCEIRO.gastos||[];
+        DB_FINANCEIRO.gastos.unshift(gs);
+        persistFinanceiro();
+        return json(res,200,{ok:true,id:gs.id});
+      }
+      if(d.action==='delete_pagamento' && d.id){
+        DB_FINANCEIRO.pagamentos=(DB_FINANCEIRO.pagamentos||[]).filter(x=>x.id!==d.id);
+        persistFinanceiro();
+        return json(res,200,{ok:true});
+      }
+      if(d.action==='delete_gasto' && d.id){
+        DB_FINANCEIRO.gastos=(DB_FINANCEIRO.gastos||[]).filter(x=>x.id!==d.id);
+        persistFinanceiro();
+        return json(res,200,{ok:true});
+      }
+      // Legado: substituição completa (mantido para compatibilidade interna)
+      if(d._replace===true){
+        if(d.pagamentos!==undefined)DB_FINANCEIRO.pagamentos=d.pagamentos||[];
+        if(d.gastos!==undefined)DB_FINANCEIRO.gastos=d.gastos||[];
+      }
+      persistFinanceiro();
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  // ── Admin: editar campo de usuário ───────────────────────
+  if(pathname==="/api/admin/set-user-field"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {email,field,value}=d;
+      if(!email||!field)return json(res,400,{error:"email e field obrigatórios"});
+      const ALLOWED=['name','phone','city','country','isAdmin','whatsapp'];
+      if(!ALLOWED.includes(field))return json(res,400,{error:"Campo não permitido: "+field});
+      const target=getUser(email);if(!target)return json(res,404,{error:"Usuário não encontrado"});
+      setUser(email,{[field]:value});
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  // ── Admin: revogar VIP ────────────────────────────────────
+  if(pathname==="/api/admin/revoke-vip"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {email}=d;if(!email)return json(res,400,{error:"email obrigatório"});
+      setUser(email,{plan:'free',vip:{active:false,manualExpires:0,autoExpires:0}});
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  // ── Admin: definir plano ──────────────────────────────────
+  if(pathname==="/api/admin/set-plan"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {email,plan}=d;if(!email||!plan)return json(res,400,{error:"email e plan obrigatórios"});
+      const VALID_PLANS=['free','vip','vipro','doublepro','pro'];
+      if(!VALID_PLANS.includes(plan))return json(res,400,{error:"Plano inválido"});
+      const tgt=getUser(email);if(!tgt)return json(res,404,{error:"Usuário não encontrado"});
+      if(plan!=='free'){addManualVipDays(email,30);if(['vipro','doublepro','pro'].includes(plan))addAutoVipDays(email,30);}
+      setUser(email,{plan,vip:{...(tgt.vip||{}),active:plan!=='free',plan,source:'admin',activatedBy:s.user_email}});
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  // ── Admin: push para usuário ──────────────────────────────
+  if(pathname==="/api/admin/push-user"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {email,title,body}=d;if(!email||!title)return json(res,400,{error:"email e title obrigatórios"});
+      await pushToUser(email,{type:"admin_notif",title,body:body||"",icon:"/icon-192.png"});
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  // ── Admin: limpar PDFs ─────────────────────────────────────
+  if(pathname==="/api/admin/reset-pdfs"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {email}=d;if(!email)return json(res,400,{error:"email obrigatório"});
+      const tgt=getUser(email);if(!tgt)return json(res,404,{error:"Usuário não encontrado"});
+      (tgt.cvs||[]).forEach(c=>{try{deleteCv(email,c.idx);}catch{}});
+      setUser(email,{cvs:[]});
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  // ── Admin: deletar usuário ─────────────────────────────────
+  if(pathname==="/api/admin/delete-user"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    if(!isAdminEmail(s.user_email))return json(res,403,{error:"Apenas admins hardcoded podem deletar contas."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {email}=d;if(!email)return json(res,400,{error:"email obrigatório"});
+      if(isAdminEmail(email))return json(res,403,{error:"Não é possível deletar uma conta admin."});
+      delUser(email);
+      delete DB_HIST[email];persist(HIST_FILE,DB_HIST);
+      delete DB_SENT[email];persistSent();
+      delete DB_LOGS[email];persistLogs();
+      delete DB_AUTO[email];persist(AUTO_FILE,DB_AUTO);
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  // ── Admin: limpar sent de usuário ──────────────────────────
+  if(pathname==="/api/admin/clear-sent"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {email}=d;if(!email)return json(res,400,{error:"email obrigatório"});
+      DB_SENT[email]=new Set();persistSent();
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  // ── Admin: definir limite auto de usuário ──────────────────
+  if(pathname==="/api/admin/set-auto-limit"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {email,limit}=d;if(!email||!limit)return json(res,400,{error:"obrigatórios: email, limit"});
+      const job=getAutoJob(email);
+      if(job)setAutoJob(email,{...job,lockedAutoLimit:parseInt(limit)});
+      setUser(email,{customAutoLimit:parseInt(limit)});
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  if(pathname==="/api/admin/my-settings"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!p||!isAdminVip(p))return json(res,403,{error:"Acesso negado. Apenas admins."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const current=p.adminSettings||{};
+      const updated={...current};
+      // Intervalo entre envios (segundos, mín 30)
+      if(d.intervalSecs!==undefined){updated.intervalSecs=Math.max(30,parseInt(d.intervalSecs)||180);}
+      // Limites por sender {email: N}
+      if(d.senderLimits!==undefined&&typeof d.senderLimits==="object"){
+        updated.senderLimits={};
+        for(const [em,lim] of Object.entries(d.senderLimits)){
+          const n=parseInt(lim);if(n>0&&n<=9999)updated.senderLimits[em.toLowerCase().trim()]=n;
+        }
+      }
+      setUser(s.user_email,{adminSettings:updated});
+      return json(res,200,{ok:true,adminSettings:updated});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  // ── ADMIN: ranking entre admins ──────────────────────────────────────────────
+  if(pathname==="/api/admin/my-ranking"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!p||!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    const period=["day","week","month","all"].includes(u.searchParams.get("period"))?u.searchParams.get("period"):"day";
+    const list=calcAdminRanking(period);
+    const myPos=list.findIndex(r=>r.email===s.user_email);
+    return json(res,200,{ok:true,list,period,myPos:myPos>=0?myPos+1:null,total:list.length});
+  }
+
+  if(pathname==="/api/admin/my-settings"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!p||!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    return json(res,200,{ok:true,adminSettings:p.adminSettings||{}});
+  }
+
+  // ── PEDIDOS DE PLANO ───────────────────────────────────────
+  // POST /api/pedido — usuário cria pedido de plano
+  if(pathname==="/api/pedido"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      // Por padrão, o pedido pertence a quem está logado (fluxo normal: usuário comprando seu próprio plano).
+      // Exceção: ADMIN pode criar um pedido retroativo EM NOME de outro usuário (fluxo "Regularizar" do
+      // Robô Contábil), enviando userEmail no corpo. Só admin pode usar esse override — usuário comum jamais
+      // pode forjar o userEmail de outra pessoa.
+      let targetEmail=s.user_email;
+      if(d.userEmail){
+        const reqUser=getUser(s.user_email);
+        const reqIsAdmin=isAdminVip(reqUser)||isAdminEmail(s.user_email);
+        const te=(d.userEmail||"").trim().toLowerCase();
+        if(reqIsAdmin && te){
+          // Admin pode criar pedido para qualquer email válido
+          // (usuário pode não estar no DB local ainda)
+          targetEmail=te;
+        }
+      }
+      const pedido={
+        id:"ped_"+Date.now().toString(36)+"_"+crypto.randomBytes(4).toString("hex"),
+        createdAt:Date.now(),
+        status:"pendente", // pendente | pago | ativo | cancelado | expirado
+        userEmail:targetEmail,
+        criadoPor:s.user_email, // quem de fato fez a chamada (admin ou o próprio usuário)
+        userName:d.userName||"",
+        userWhatsapp:d.userWhatsapp||"",
+        userPhone:d.userPhone||"",
+        userCity:d.userCity||"",
+        userState:d.userState||"",
+        userAddress:d.userAddress||"",
+        plano:d.plano||"vipro",          // vip | vipro | doublepro
+        dias:parseInt(d.dias)||30,        // 30 | 60 | 90 | 365
+        valorTotal:parseFloat(d.valorTotal)||0,
+        desconto:parseFloat(d.desconto)||0,
+        comprovante:(()=>{
+          const c=d.comprovante;
+          if(!c) return null;
+          // Limitar tamanho: max 8MB em base64 (~6MB de arquivo real)
+          if(typeof c==='string' && c.length>10_700_000) return null;
+          // Validar que começa com base64 válido
+          if(typeof c==='string' && !/^[A-Za-z0-9+/]/.test(c.slice(0,10))) return null;
+          return c;
+        })(),
+        comprovanteType:(()=>{
+          const t=d.comprovanteType||'image/jpeg';
+          const allowed=['image/jpeg','image/jpg','image/png','image/webp','application/pdf'];
+          return allowed.includes(t)?t:'image/jpeg';
+        })(),
+        nota:d.nota||"",
+        notaAdmin:"",
+        ativadoPor:null,
+        ativadoEm:null,
+        pagoEm:d.pagoEm||null,
+      };
+      DB_PEDIDOS.unshift(pedido);
+      persistPedidos();
+      // Log interno (registrado no histórico do usuário do plano, não de quem clicou)
+      addLog(targetEmail,{status:"sistema",jobTitle:`💳 ${targetEmail!==s.user_email?"Pedido regularizado pelo admin":"Novo pedido de plano"}: ${pedido.plano} ${pedido.dias}d — R$${pedido.valorTotal}`,company:"Pedido #"+pedido.id.slice(-8).toUpperCase()});
+      // Push + Email para admins (em background)
+      ;(async()=>{
+        try{
+          const admins=[...ADMIN_EMAILS];
+          for(const ae of admins){
+            await pushToUser(ae,{type:"new_order",title:"💳 Novo pedido de plano!",body:`${pedido.userName||pedido.userEmail} solicitou ${pedido.plano} por ${pedido.dias} dias — R$${pedido.valorTotal}`,icon:"/icon-192.png"}).catch(()=>{});
+          }
+        }catch(e){console.warn("[pedido] push err:",e.message);}
+        // Email para admins
+        try{
+          let adminToken=null;
+          // Tentar token de sessão ativa do admin
+          const adminSessEntry=Object.values(sessions).find(ss=>ss.user_email===ADMIN_EMAIL&&ss.access_token);
+          adminToken=adminSessEntry?.access_token;
+          // Se não tem token de sessão, tentar refresh
+          if(!adminToken){try{adminToken=await refreshTokenForUser(ADMIN_EMAIL);}catch{}}
+          if(adminToken){
+            const emailSubject=`💳 Novo pedido de plano — ${pedido.userName||pedido.userEmail} quer ${pedido.plano} por ${pedido.dias}d`;
+            const emailText=`💳 NOVO PEDIDO DE PLANO RECEBIDO!
+
+👤 Usuário: ${pedido.userName||"?"}
+📧 Email: ${pedido.userEmail||"?"}
+📱 WhatsApp: ${pedido.userWhatsapp||"?"}
+🏙️ Cidade: ${pedido.userCity||"?"}
+
+📦 Plano: ${pedido.plano.toUpperCase()} — ${pedido.dias} dias — R$${pedido.valorTotal}${pedido.desconto>0?" ("+pedido.desconto+"% desconto)":""}
+📝 Nota: ${pedido.nota||"Sem observação"}
+🆔 Pedido: #${pedido.id.slice(-8).toUpperCase()}
+⏰ Recebido: ${new Date().toLocaleString("pt-BR")}
+${pedido.comprovante?"📸 Comprovante: ANEXADO a este email":"⚠️ Comprovante: NÃO enviado ainda"}
+
+✅ Para ativar: h2bapply.com/ad → Pedidos de Plano → Ativar
+${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado retroativamente por admin: ${pedido.criadoPor}`:""}
+
+— Sistema H2BApply`;
+
+            // Preparar anexo do comprovante se existir
+            let attachments = [];
+            if(pedido.comprovante && typeof pedido.comprovante === "string" && pedido.comprovante.startsWith("data:")){
+              try{
+                // Extrair base64 puro do data URL
+                const matches = pedido.comprovante.match(/^data:([^;]+);base64,(.+)$/);
+                if(matches){
+                  const mimeType = matches[1]; // ex: image/jpeg
+                  const base64Data = matches[2];
+                  const ext = mimeType.includes("pdf")?"pdf":mimeType.includes("png")?"png":"jpg";
+                  attachments = [{
+                    name: `comprovante_${pedido.id.slice(-8).toUpperCase()}.${ext}`,
+                    data: base64Data,
+                    mime: mimeType,
+                  }];
+                }
+              }catch(e){ console.warn("[pedido] erro processando comprovante:",e.message); }
+            }
+
+            for(const toEmail of [...ADMIN_EMAILS]){
+              try{
+                // buildMime com anexo se comprovante existir
+                const raw=buildMime({
+                  to:toEmail,
+                  subject:emailSubject,
+                  fromName:"H2BApply 💳",
+                  fromEmail:ADMIN_EMAIL,
+                  text:emailText,
+                  attachments, // array vazio se não tiver comprovante
+                });
+                await httpsReq({hostname:"gmail.googleapis.com",path:"/gmail/v1/users/me/messages/send",method:"POST",headers:{"Authorization":"Bearer "+adminToken,"Content-Type":"application/json"}},{raw});
+                console.log("[pedido] ✅ Email"+(attachments.length?" c/ comprovante":"")+" enviado para:",toEmail);
+              }catch(e){console.warn("[pedido] email err →",toEmail,":",e.message);}
+            }
+          }
+        }catch(e){console.warn("[pedido] email geral err:",e.message);}
+      })();
+      return json(res,200,{ok:true,pedidoId:pedido.id});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  // GET /api/pedidos — lista todos os pedidos (admin) ou só do usuário
+  if(pathname==="/api/pedidos"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);
+    const isAdm=isAdminVip(p);
+    let list=isAdm?DB_PEDIDOS:DB_PEDIDOS.filter(pd=>pd.userEmail===s.user_email);
+    // Filtros (admin)
+    const statusF=u.searchParams.get("status")||"";
+    const planoF=u.searchParams.get("plano")||"";
+    if(statusF)list=list.filter(pd=>pd.status===statusF);
+    if(planoF)list=list.filter(pd=>pd.plano===planoF);
+    // Remover base64 do comprovante para listagem (muito pesado)
+    const slim=list.map(pd=>({...pd,comprovante:pd.comprovante?true:false}));
+    return json(res,200,{ok:true,pedidos:slim,total:list.length});
+  }
+  // GET /api/pedido/:id — detalhe de um pedido incluindo comprovante
+  if(pathname.startsWith("/api/pedido/")&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const pid=decodeURIComponent(pathname.slice("/api/pedido/".length));
+    const pd=DB_PEDIDOS.find(x=>x.id===pid);
+    if(!pd)return json(res,404,{error:"Pedido não encontrado."});
+    const p=getUser(s.user_email);
+    if(!isAdminVip(p)&&pd.userEmail!==s.user_email)return json(res,403,{error:"Acesso negado."});
+    return json(res,200,{ok:true,pedido:pd});
+  }
+  // PATCH /api/pedido/:id — admin atualiza status do pedido
+  if(pathname.startsWith("/api/pedido/")&&req.method==="PATCH"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    const pid=decodeURIComponent(pathname.slice("/api/pedido/".length));
+    const idx=DB_PEDIDOS.findIndex(x=>x.id===pid);
+    if(idx<0)return json(res,404,{error:"Pedido não encontrado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const pd=DB_PEDIDOS[idx];
+      if(d.status)pd.status=d.status;
+      if(d.notaAdmin!==undefined)pd.notaAdmin=d.notaAdmin;
+      if(d.status==="ativo"&&!pd.ativadoEm){
+        pd.ativadoPor=s.user_email;pd.ativadoEm=Date.now();
+        // Ativar plano do usuário
+        const planoMap={vip:"vip",vipro:"vipro",doublepro:"doublepro"};
+        const planoKey=planoMap[pd.plano]||"vipro";
+        const dias=pd.dias||30;
+        if(["vipro","doublepro","pro"].includes(planoKey)){
+          addManualVipDays(pd.userEmail,dias);
+          addAutoVipDays(pd.userEmail,dias);
+        } else {
+          addManualVipDays(pd.userEmail,dias);
+        }
+        const tgt=getUser(pd.userEmail)||{};
+        setUser(pd.userEmail,{plan:planoKey,vip:{...(tgt.vip||{}),active:true,plan:planoKey,source:"payment",note:`Pedido #${pd.id.slice(-8).toUpperCase()} — ${dias}d`,activatedBy:s.user_email}});
+        // Registrar entrada no financeiro automaticamente
+        const entradaAuto={
+          id:"fin_"+Date.now().toString(36),
+          email:pd.userEmail,
+          nome:pd.userName||pd.userEmail,
+          plano:pd.plano,
+          dias:dias,
+          valor:pd.valorTotal||0,
+          desconto:pd.desconto||0,
+          nota:`Pedido #${pd.id.slice(-8).toUpperCase()} — ${pd.plano} ${dias}d`,
+          data:new Date().toISOString(),
+          dataPagamento:pd.pagoEm?new Date(pd.pagoEm).toISOString():new Date().toISOString(),
+          pedidoId:pd.id,
+          source:"pedido_automatico",
+          whatsapp:pd.userWhatsapp||""
+        };
+        if(!DB_FINANCEIRO.pagamentos)DB_FINANCEIRO.pagamentos=[];
+        // Evitar duplicata (se o pedido já foi registrado)
+        const jaExiste=DB_FINANCEIRO.pagamentos.some(x=>x.pedidoId===pd.id);
+        if(!jaExiste){
+          DB_FINANCEIRO.pagamentos.unshift(entradaAuto);
+          persistFinanceiro();
+          console.log("[financeiro] ✅ Entrada registrada automaticamente:",pd.userEmail,"R$",pd.valorTotal);
+        }
+        // Notif ao usuário
+        try{await pushToUser(pd.userEmail,{type:"plan_activated",title:"🎉 Seu plano foi ativado!",body:`Plano ${pd.plano} ativo por ${dias} dias. Bom trabalho!`,icon:"/icon-192.png"});}catch{}
+        addLog(pd.userEmail,{status:"sistema",jobTitle:`🎉 Plano ${pd.plano} ativado por ${dias} dias`,company:`Ativado por ${s.user_email}`});
+      }
+      if(d.status==="cancelado"){pd.canceladoPor=s.user_email;pd.canceladoEm=Date.now();}
+      DB_PEDIDOS[idx]=pd;
+      persistPedidos();
+      return json(res,200,{ok:true,pedido:pd});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
   // ── /api/status ───────────────────────────────────────
   if(pathname==="/api/status"){
     const s=getSess(req);if(!s?.user_email)return json(res,200,{connected:false});
@@ -3109,16 +4682,74 @@ const server=http.createServer(async(req,res)=>{
     const p=getUser(s.user_email);if(!p)return json(res,200,{connected:false,reason:"user_not_found"});
     const vipOk=isVipActive(p);
     const planKey=getPlan(p);const {todayManual:sentManual,todayAuto:sentAuto}=getUserStatsCached(s.user_email);
+    const h=getHist(s.user_email);
+    const totalSent=h.length;const totalManual=h.filter(x=>x.type==="manual").length;const totalAutoHist=h.filter(x=>x.type==="auto").length;const totalReplies=h.filter(x=>x.type==="reply").length;
     const manualLimit=getManualLimit(p),autoLimit=getAutoLimit(p);
     const autoJob=getAutoJob(s.user_email);
     const stats=getAutoStats(s.user_email);
     const now2=Date.now();
-    return json(res,200,{connected:true,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",isAdmin:!!p.isAdmin,plan:planKey,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p)}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[],senderEmails:(p.senderEmails||[]).map(s=>({email:s.email,label:s.label||"",active:s.active!==false,tokenExpired:!!s.tokenExpired,blocked:!!s.blocked,addedAt:s.addedAt}))});
+    return json(res,200,{connected:true,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",whatsapp:p.whatsapp||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",rankName:p.rankName||"",appAvatarId:p.appAvatarId||"",h2bProfile:p.h2bProfile||{},age:p.age||0,isAdmin:!!p.isAdmin,plan:planKey,totalSent,totalManual,totalAutoHist,totalReplies,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p)}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[],senderEmails:(p.senderEmails||[]).map(s=>({email:s.email,label:s.label||"",active:s.active!==false,tokenExpired:!!s.tokenExpired,blocked:!!s.blocked,addedAt:s.addedAt})),adminSettings:isAdminVip(p)?{intervalSecs:(p.adminSettings?.intervalSecs||180),senderLimits:(p.adminSettings?.senderLimits||{}),maxSenders:getMaxSenders(p)}:null});
   }
 
   if(pathname==="/api/onboard"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});setUser(s.user_email,{onboarded:true});return json(res,200,{ok:true});}
-  if(pathname==="/api/settings"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});try{const d=JSON.parse(await readBody(req));const upd={};if(d.name!==undefined){upd.name=String(d.name).slice(0,200);s.user_name=upd.name;}if(d.country!==undefined)upd.country=String(d.country).slice(0,100);if(d.phone!==undefined)upd.phone=String(d.phone).slice(0,50);/* cc field removed */if(d.city!==undefined)upd.city=String(d.city).slice(0,100);if(d.language!==undefined)upd.language=String(d.language).slice(0,10);if(d.settings){const p=getUser(s.user_email)||{};upd.settings={...(p.settings||{}),...d.settings};}setUser(s.user_email,upd);return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
-  if(pathname==="/api/cv/upload"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});if(rateLimit(s.user_email+"_cv",10,3600_000))return json(res,429,{error:"Muitos uploads. Tente novamente em 1 hora."});try{const d=JSON.parse(await readBody(req));if(!d.base64||!d.name)return json(res,400,{error:"base64 e name obrigatórios."});// Tamanho: base64 representa ~75% dos bytes reais
+  // GET /api/check-rankname?name=X — verifica disponibilidade de apelido
+  if(pathname==="/api/check-rankname"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const name=(u.searchParams.get("name")||"").trim();
+    if(name.length<3)return json(res,200,{available:false,reason:"Mínimo 3 caracteres"});
+    if(name.length>30)return json(res,200,{available:false,reason:"Máximo 30 caracteres"});
+    if(!/^[a-zA-ZÀ-ú0-9 _\-]+$/.test(name))return json(res,200,{available:false,reason:"Só letras, números, espaço, _ e -"});
+    const low=name.toLowerCase();
+    const conflict=Object.entries(DB_USERS).find(([e,usr])=>e!==s.user_email&&(usr.rankName||"").toLowerCase()===low);
+    return json(res,200,{available:!conflict,reason:conflict?"Nome já em uso":"Disponível!"});
+  }
+
+  if(pathname==="/api/settings"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    try{
+      const d=JSON.parse(await readBody(req));const upd={};
+      if(d.name!==undefined){upd.name=String(d.name).slice(0,200);s.user_name=upd.name;}
+      if(d.country!==undefined)upd.country=String(d.country).slice(0,100);
+      if(d.phone!==undefined)upd.phone=String(d.phone).slice(0,50);
+      if(d.whatsapp!==undefined)upd.whatsapp=String(d.whatsapp).slice(0,50);
+      if(d.age!==undefined){const a=parseInt(d.age)||0;if(a>=10&&a<=100)upd.age=a;}
+      if(d.city!==undefined)upd.city=String(d.city).slice(0,100);
+      if(d.language!==undefined)upd.language=String(d.language).slice(0,10);
+      if(d.appAvatarId!==undefined)upd.appAvatarId=String(d.appAvatarId).slice(0,10);
+      // rankName: validação de unicidade
+      if(d.rankName!==undefined){
+        const rn=String(d.rankName).trim().slice(0,30);
+        if(rn.length>0){
+          if(rn.length<3)return json(res,400,{error:"Apelido precisa ter ao menos 3 caracteres."});
+          if(!/^[a-zA-ZÀ-ú0-9 _\-]+$/.test(rn))return json(res,400,{error:"Apelido só pode ter letras, números, espaço, _ e -"});
+          // Checar unicidade (case-insensitive, ignorar o próprio usuário)
+          const rnLow=rn.toLowerCase();
+          const conflict=Object.entries(DB_USERS).find(([e,u])=>e!==s.user_email&&(u.rankName||"").toLowerCase()===rnLow);
+          if(conflict)return json(res,409,{error:"Este apelido já está em uso. Escolha outro!"});
+        }
+        upd.rankName=rn;
+      }
+      // h2bProfile: objeto completo
+      if(d.h2bProfile){
+        const cur=getUser(s.user_email)||{};
+        const hbp=d.h2bProfile;
+        upd.h2bProfile={
+          ...(cur.h2bProfile||{}),
+          experiencedH2B:!!hbp.experiencedH2B,
+          h2bSeasons:Math.max(0,parseInt(hbp.h2bSeasons)||0),
+          englishLevel:["none","basic","intermediate","advanced"].includes(hbp.englishLevel)?hbp.englishLevel:"basic",
+          preferredArea:String(hbp.preferredArea||"general").slice(0,50),
+          usaTrips:!!hbp.usaTrips,
+          hasDriverLicense:!!hbp.hasDriverLicense,
+          availability:["immediate","1month","3months"].includes(hbp.availability)?hbp.availability:"immediate",
+        };
+      }
+      if(d.settings){const p=getUser(s.user_email)||{};upd.settings={...(p.settings||{}),...d.settings};}
+      setUser(s.user_email,upd);
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  if(pathname==="/api/cv/upload"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Sessão expirada. Faça login novamente.",sessionExpired:true,code:"SESSION_EXPIRED"});if(rateLimit(s.user_email+"_cv",10,3600_000))return json(res,429,{error:"Muitos uploads. Tente novamente em 1 hora."});try{const d=JSON.parse(await readBody(req));if(!d.base64||!d.name)return json(res,400,{error:"base64 e name obrigatórios."});// Tamanho: base64 representa ~75% dos bytes reais
 const estimatedBytes=Math.round(d.base64.length*0.75);if(d.base64.length>14_000_000)return json(res,400,{error:"Arquivo maior que 10MB."});if(estimatedBytes<1000)return json(res,400,{error:"Arquivo muito pequeno ou corrompido."});// Valida magic bytes %PDF (mais robusto: verifica os 4 primeiros bytes do binário real)
 const pdfBuf=Buffer.from(d.base64.slice(0,8),"base64");if(pdfBuf.length<4||pdfBuf[0]!==0x25||pdfBuf[1]!==0x50||pdfBuf[2]!==0x44||pdfBuf[3]!==0x46)return json(res,400,{error:"Arquivo inválido: não é um PDF. Envie um arquivo .pdf válido."});// Nome seguro
 const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)return json(res,400,{error:"Nome do arquivo inválido."});const p=getUser(s.user_email)||{};const cvs=p.cvs||[];const cvType=d.cvType||"resume";const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filter(c=>(c.cvType||"resume")===cvType);if(sameType.length>=typeLimit)return json(res,429,{error:`Limite de ${typeLimit} ${cvType==="cover"?"cover letters":"currículos"} atingido. Exclua um antes de enviar outro.`,limitReached:true,cvType,limit:typeLimit});const idx=Date.now();const meta={idx,name:safeName,size:estimatedBytes,date:new Date().toISOString(),cvType,b64:d.base64};cvs.push(meta);saveCv(s.user_email,idx,d.base64);setUser(s.user_email,{cvs});trackJourney(s.user_email,'pdf_upload',{detail:`PDF: ${safeName} ~${Math.round(estimatedBytes/1024)}KB`,meta:{name:safeName,idx,cvType}});
@@ -3185,7 +4816,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       let actualSenderEmail=s.user_email;
       let r;
       if(requestedSender&&requestedSender!==s.user_email){
-        // Enviar via email extra
+        // Enviar via email extra especificado manualmente pelo usuário
         try{
           const{token:senderTok,senderEmail:usedEmail}=await getSenderToken(s.user_email,requestedSender);
           if(senderTok){
@@ -3198,12 +4829,36 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
             r=gb2;
           }else{r=await gmailSendWithThread(sid,{to:toEmail,subject:d.subject,text:d.message,fromName:d.fromName||p.name||s.user_name||"H2BApply",attachments,threadHeaders,threadId:isReply?(d.threadId||null):null});}
         }catch(e2){
-          // Se sender extra falhou, tenta principal
           console.warn("[send] Sender extra falhou, usando principal:",e2.message);
           actualSenderEmail=s.user_email;
           r=await gmailSendWithThread(sid,{to:toEmail,subject:d.subject,text:d.message,fromName:d.fromName||p.name||s.user_name||"H2BApply",attachments,threadHeaders,threadId:isReply?(d.threadId||null):null});
         }
+      }else if(!requestedSender && !isReply){
+        // ── Round-robin automático no envio MANUAL (sem sender especificado) ──
+        // Alterna entre principal e extras igualmente, igual ao automático
+        try{
+          const{token:rrTok,senderEmail:rrEmail}=await getSenderToken(s.user_email,null);
+          actualSenderEmail=rrEmail;
+          if(rrTok&&rrEmail!==s.user_email){
+            // Extra escolhido pelo round-robin
+            const rawRR=buildMimeWithHeaders({to:toEmail,subject:d.subject,text:d.message,fromName:d.fromName||p.name||s.user_name||"H2BApply",fromEmail:rrEmail,attachments,threadHeaders});
+            const payloadRR={raw:rawRR};
+            const{status:gsRR,body:gbRR}=await httpsReq({hostname:"gmail.googleapis.com",path:"/gmail/v1/users/me/messages/send",method:"POST",headers:{"Authorization":"Bearer "+rrTok,"Content-Type":"application/json"}},payloadRR);
+            if(gbRR?.error)throw new Error(gbRR.error.message||JSON.stringify(gbRR.error));
+            if(gsRR!==200)throw new Error("Gmail HTTP "+gsRR);
+            r=gbRR;
+            console.log(`[send/manual] 🔄 Round-robin manual → ${rrEmail}`);
+          }else{
+            // Principal escolhido pelo round-robin
+            r=await gmailSendWithThread(sid,{to:toEmail,subject:d.subject,text:d.message,fromName:d.fromName||p.name||s.user_name||"H2BApply",attachments,threadHeaders,threadId:isReply?(d.threadId||null):null});
+          }
+        }catch(e3){
+          console.warn("[send/manual] Round-robin falhou, usando principal:",e3.message);
+          actualSenderEmail=s.user_email;
+          r=await gmailSendWithThread(sid,{to:toEmail,subject:d.subject,text:d.message,fromName:d.fromName||p.name||s.user_name||"H2BApply",attachments,threadHeaders,threadId:isReply?(d.threadId||null):null});
+        }
       }else{
+        // isReply=true: sempre usa email principal (manter conversa no mesmo remetente)
         r=await gmailSendWithThread(sid,{to:toEmail,subject:d.subject,text:d.message,fromName:d.fromName||p.name||s.user_name||"H2BApply",attachments,threadHeaders,threadId:isReply?(d.threadId||null):null});
       }
 
@@ -3230,7 +4885,9 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
           attachCount: attachments.length,
           type: "manual",
           senderEmail: actualSenderEmail,
-          sheetSource: d.sheetSource||undefined
+          sheetSource: d.sheetSource||undefined,
+          // FIX: salvar caseNum para que /api/sent-ids possa filtrar a vaga da planilha
+          caseNum: d.caseNum || ""
         };
         addHist(s.user_email, histEntry);
         indexApp(s.user_email, histEntry);
@@ -3257,7 +4914,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
         const newSent=sent+1;const newLim=getManualLimit(p);
         _manualSendInFlight.delete(dedupKey);
         invalidateUserStatsCache(s.user_email);
-        return json(res,200,{ok:true,messageId:r.id,appId,threadId:r.threadId||null,todaySent:newSent,dailyLimit:newLim,remaining:Math.max(0,newLim-newSent),countedAsManual:true});
+        return json(res,200,{ok:true,messageId:r.id,appId,threadId:r.threadId||null,todaySent:newSent,dailyLimit:newLim,remaining:Math.max(0,newLim-newSent),countedAsManual:true,caseNum:d.caseNum||"",sheetSource:d.sheetSource||""});
       }else{
         // Resposta: não conta, só confirma sucesso
         console.log(`[reply] ✅ ${s.user_email} → ${toEmail} (thread: ${d.threadId||"?"})`);
@@ -3310,26 +4967,36 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     const s2=getSess(req);if(!s2?.user_email)return json(res,401,{error:"Não autenticado."});
     const hist=getHist(s2.user_email);
     const sentJan=new Set(),sentJul=new Set(),sentSeasonal=new Set();
+
     hist.forEach(h=>{
-      if(h.sheetSource==="jan2026"&&h.caseNum) sentJan.add(h.caseNum);
-      else if(h.sheetSource==="jul2025"&&h.caseNum) sentJul.add(h.caseNum);
-      else if(h.jobId) sentSeasonal.add(h.jobId);
+      const cn  = h.caseNum||"";
+      const src = h.sheetSource||"";
+      const id  = h.jobId||h.id||"";
+
+      if(src==="jan2026" || (!src && (cn.startsWith("H-4")||cn.startsWith("H-5")||cn.startsWith("H-6")))){
+        if(cn) sentJan.add(cn);
+      } else if(src==="jul2025" || (!src && cn.startsWith("H-3"))){
+        if(cn) sentJul.add(cn);
+      } else if(cn && !src){
+        // caseNum sem planilha detectada — adiciona em ambas por segurança
+        sentJan.add(cn); sentJul.add(cn);
+      }
+      // Seasonal: sempre adiciona por jobId
+      if(id) sentSeasonal.add(id);
     });
 
     // Vagas na fila do automático também somem da planilha
-    // (não faz sentido mostrar pra pessoa o que já tá sendo enviado)
     const autoJob = getAutoJob(s2.user_email);
     const autoQueue = autoJob?.active ? (autoJob.queue||[]) : [];
     const autoQueueIds = autoQueue.map(q=>q.id||q.caseNum).filter(Boolean);
 
-    // Adiciona IDs da fila às planilhas (somem das listas)
     autoQueue.forEach(q => {
       if(!q.id && !q.caseNum) return;
       const id = q.id || q.caseNum;
-      // Detecta de qual planilha a vaga veio pelo prefixo do case number
+      const cn = q.caseNum||"";
       const src = autoJob.source || "";
-      if(src==="jan2026" || (q.caseNum||"").startsWith("H-400")) sentJan.add(id);
-      else if(src==="jul2025" || (q.caseNum||"").startsWith("H-300")) sentJul.add(id);
+      if(src==="jan2026"||cn.startsWith("H-4")||cn.startsWith("H-5")) sentJan.add(id);
+      else if(src==="jul2025"||cn.startsWith("H-3")) sentJul.add(id);
       else sentSeasonal.add(id);
     });
 
@@ -3339,7 +5006,6 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       seasonal:[...sentSeasonal],
       autoQueueIds,
       autoQueueSize: autoQueue.length,
-      // Aviso para o frontend mostrar ao usuário
       autoQueueNotice: autoQueue.length > 0
         ? `⚡ ${autoQueue.length} vaga${autoQueue.length>1?"s estão":"está"} oculta${autoQueue.length>1?"s":""} da lista porque já ${autoQueue.length>1?"estão":"está"} na sua fila de envio automático.`
         : null
@@ -3623,7 +5289,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       return json(res,409,{error:"Envio automático já está em andamento. Pause ou pare antes de iniciar novamente.",alreadyRunning:true,queueSize:existingJob.queue?.length||0});
     }
     const p=getUser(s.user_email)||{};const h=getHist(s.user_email);const todayAuto=countAutoToday(h);const autoLimit=getAutoLimit(p);
-    if(todayAuto>=autoLimit)return json(res,429,{error:`Limite de ${autoLimit} automáticos/dia atingido.`,limitReached:true});
+    if(!isAdminVip(p)&&todayAuto>=autoLimit)return json(res,429,{error:`Limite de ${autoLimit} automáticos/dia atingido.`,limitReached:true});
     try{
       const d=JSON.parse(await readBody(req));
       // ── Validação: perfil válido ──────────────────────────
@@ -3736,8 +5402,8 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       // Fallback: busca na planilha local pelo case number
       if(d.cases&&d.cases.length&&!queue.length){
         console.log(`[auto] Construindo fila de ${d.cases.length} vagas via caseMeta+planilha local...`);
-        // Combina os dois sheets para cobertura total sem depender do DOL
-        const allSheetRows2 = [...getSheet("jan2026"), ...getSheet("jul2025")];
+        // Combina TODOS os sheets: jan2026 + jul2025 + planilhas extras carregadas
+        const allSheetRows2 = getAllSheets();
         const sheetByCase = new Map(allSheetRows2.map(r=>[String(r.c||"").toUpperCase(), r]));
         let noEmailCount = 0;
         for(const cn of d.cases){
@@ -3760,14 +5426,16 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
             company: meta.company || row?.n || "",
             category: meta.category || row?.k || "other",
             state: meta.state || row?.s || "",
-            city: meta.city || "",
-            wage: meta.wage || (row?.w ? `$${row.w}/h` : "") ,
+            city: meta.city || row?.ci || row?.d || "",   // ci = cidade, d = legado
+            wage: meta.wage || (row?.w ? `$${row.w}/${row.wunit||'h'}` : ""),
             visa: meta.visa || row?.visa || "",
             start: meta.start || row?.d || "",
-            end: meta.end || "",
+            end: meta.end || row?.de || "",
             workers: meta.workers || row?.wk || null,
             desc: (meta.desc||"").slice(0,500),
-            caseNum: cn
+            caseNum: cn,
+            url: cn.startsWith("H-") ? `https://seasonaljobs.dol.gov/jobs/${cn}` : "",
+            sheetOrigin: row?._sheet || "local",  // rastrear de qual planilha veio
           });
         }
         console.log(`[auto] ✅ ${queue.length} vagas com email de ${d.cases.length} cases (${noEmailCount} sem email ignoradas)`);
@@ -3806,7 +5474,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       // Evita que múltiplos usuários simultâneos enviem para as mesmas empresas ao mesmo tempo
       queue = shuffleArray(queue);
       // mode removido — sempre 24/7
-const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,filteredCount:queue.length,resumeIdx:jobResumeIdx,coverIdx:jobCoverIdx,bodyTemplate:d.bodyTemplate||p.settings?.body||"",subjects:Array.isArray(d.subjects)&&d.subjects.length?d.subjects:null,emailBodies:Array.isArray(d.emailBodies)&&d.emailBodies.length?d.emailBodies:null,status:"starting",lastSentAt:null,finishedAt:null,source:d.source||"manual",category:d.category||"all",filters:d.filters||{},queueFingerprint,rotState:{lastSubjIdx:-1,lastBodyIdx:-1},lockedAutoLimit:getAutoLimit(p)};
+const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,filteredCount:queue.length,resumeIdx:jobResumeIdx,coverIdx:jobCoverIdx,bodyTemplate:d.bodyTemplate||p.settings?.body||"",subjects:Array.isArray(d.subjects)&&d.subjects.length?d.subjects:null,emailBodies:Array.isArray(d.emailBodies)&&d.emailBodies.length?d.emailBodies:null,status:"starting",lastSentAt:null,finishedAt:null,source:d.source||"manual",category:d.category||"all",filters:d.filters||{},queueFingerprint,rotState:{lastSubjIdx:-1,lastBodyIdx:-1},lockedAutoLimit:isAdminVip(p)?9999:getAutoLimit(p)};
       setAutoJob(s.user_email,job);
       autoStats.set(s.user_email,{sent:0,failed:0,skipped:0,startedAt:Date.now()});
       addLog(s.user_email,{status:"sistema",jobTitle:`Envio automático iniciado: ${queue.length} vagas`,company:`Fonte: ${d.source||"manual"} | Categoria: ${d.category||"all"}`,source:d.source||"manual",category:d.category||"all"});
@@ -3849,9 +5517,13 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
     res.writeHead(200,{"Content-Type":"application/json"});
     return res.end(JSON.stringify({ok:true,uptime:Math.round(process.uptime()),memMB:Math.round(process.memoryUsage().rss/1024/1024),users:Object.keys(DB_USERS).length,activeJobs,ts:Date.now()}));
   }
-  if(pathname==="/api/auto/status"&&req.method==="GET"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const j=getAutoJob(s.user_email);const h=getHist(s.user_email);const p=getUser(s.user_email)||{};const stats=getAutoStats(s.user_email);const logs=(DB_LOGS[s.user_email]||[]).slice(0,5);// últimos 5 logs para dashboard
+  if(pathname==="/api/auto/status"&&req.method==="GET"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const j=getAutoJob(s.user_email);const h=getHist(s.user_email);const p=getUser(s.user_email)||{};const stats=getAutoStats(s.user_email);const allLogs=DB_LOGS[s.user_email]||[];
+    const logs=allLogs.slice(0,15);// últimos 15 logs para dashboard
+    const logStats={sent:allLogs.filter(l=>l.status==="enviado").length,failed:allLogs.filter(l=>l.status==="falhou").length,dup:allLogs.filter(l=>l.status==="duplicado").length,skip:allLogs.filter(l=>l.status==="pulado").length};
+    const todayLogs=allLogs.filter(l=>{const d=new Date(l.ts||0);return d.toDateString()===new Date().toDateString();});
+    const todayStats={sent:todayLogs.filter(l=>l.status==="enviado").length,failed:todayLogs.filter(l=>l.status==="falhou").length};
     // jSH/jEH removidos — sem janela de horário
-    const autoQueueIds=j&&j.active?(j.queue||[]).map(q=>q.id||q.caseNum).filter(Boolean):[];return json(res,200,{job:j?{active:j.active,status:j.status,queueSize:j.queue?.length||0,originalCount:j.originalCount,filteredCount:j.filteredCount,startedAt:j.startedAt,lastSentAt:j.lastSentAt,nextSendAt:j.nextSendAt,currentJob:j.currentJob,source:j.source,category:j.category,}:null,todayAuto:countAutoToday(h),autoLimit:getAutoLimit(p),stats,recentLogs:logs,autoQueueIds:autoQueueIds});}
+    const autoQueueIds=j&&j.active?(j.queue||[]).map(q=>q.id||q.caseNum).filter(Boolean):[];return json(res,200,{job:j?{active:j.active,status:j.status,queueSize:j.queue?.length||0,originalCount:j.originalCount,filteredCount:j.filteredCount,startedAt:j.startedAt,lastSentAt:j.lastSentAt,nextSendAt:j.nextSendAt,currentJob:j.currentJob,source:j.source,category:j.category,}:null,todayAuto:countAutoToday(h),autoLimit:getAutoLimit(p),stats,recentLogs:logs,logStats,todayStats,autoQueueIds:autoQueueIds});}
 
   // ── INBOX: Respostas recebidas no Gmail ───────────────────
   if(pathname==="/api/inbox"&&req.method==="GET"){
@@ -3975,42 +5647,89 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
     const p=getUser(s.user_email);if(!p?.isAdmin)return json(res,403,{error:"Acesso negado."});
     if(pathname==="/api/admin/stats"&&req.method==="GET"){const tu=Object.keys(DB_USERS).length;const ts=Object.values(DB_HIST).reduce((n,a)=>n+a.length,0);const ds=todayStr();const tt=Object.values(DB_HIST).reduce((n,a)=>n+a.filter(h=>h.dateStr===ds).length,0);const vu=Object.values(DB_USERS).filter(u=>isVipActive(u)).length;const au=Object.values(DB_AUTO).filter(j=>j.active).length;return json(res,200,{totalUsers:tu,totalSent:ts,todayTotal:tt,vipUsers:vu,activeAutoJobs:au,freeUsers:tu-vu,jobsCached:jobsCache.length,jobsTotal,activeSessions:Object.keys(sessions).filter(k=>!k.startsWith("__")).length,dataDir:DATA_DIR,disk:fs.existsSync("/data"),sheetJan:SHEET_JAN.length,sheetJul:SHEET_JUL.length});}
     if(pathname==="/api/admin/users"&&req.method==="GET"){const list=Object.values(DB_USERS).map(u=>{const vok=isVipActive(u);const h=getHist(u.email);const autoJob=getAutoJob(u.email);return{email:u.email,name:u.name,picture:u.picture,country:u.country,phone:u.phone,created_at:u.created_at,cvCount:(u.cvs||[]).length,histCount:h.length,todaySent:countManualToday(h)+countAutoToday(h),plan:getPlan(u),isAdmin:!!u.isAdmin,vip:u.vip?{active:vok,expiresAt:u.vip.expiresAt,activatedAt:u.vip.activatedAt,days:u.vip.days||30,plan:u.vip.plan||"vip",manualExpires:u.vip.manualExpires||0,autoExpires:u.vip.autoExpires||0,source:u.vip.source||"admin",usedCode:u.vip.usedCode||null,codeNote:u.vip.codeNote||null,activatedBy:u.vip.activatedBy||null,note:u.vip.note||null}:null,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0}:null};}).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));return json(res,200,{users:list,total:list.length});}
-    if(pathname==="/api/admin/vip/activate"&&req.method==="POST"){try{const d=JSON.parse(await readBody(req));if(!d.email)return json(res,400,{error:"email obrigatório."});const target=getUser(d.email);if(!target)return json(res,404,{error:"Usuário não encontrado."});const days=Math.max(1,Math.min(365,parseInt(d.days||30,10)));const autoDays=Math.max(0,Math.min(365,parseInt(d.autoDays||0,10)));const planName=d.plan||"vip";const now=Date.now();
-      // Stack: adiciona manual e/ou auto dias
-      let manualExpires=target.vip?.manualExpires&&target.vip.manualExpires>now?target.vip.manualExpires:now;
-      let autoExpires=target.vip?.autoExpires&&target.vip.autoExpires>now?target.vip.autoExpires:now;
-      if(planName==="vip"||planName==="vipro")manualExpires+=days*86400_000;
-      if(planName==="pro"||planName==="vipro")autoExpires+=days*86400_000;
-      // Se autoDays especificado separado
-      if(autoDays>0)autoExpires+=autoDays*86400_000;
-      const vip={...(target.vip||{}),active:true,manualExpires,autoExpires,activatedAt:now,activatedBy:s.user_email,note:d.note||"",days,autoDays,plan:planName,source:'admin'};
+    if(pathname==="/api/admin/vip/activate"&&req.method==="POST"){try{
+      const d=JSON.parse(await readBody(req));
+      if(!d.email)return json(res,400,{error:"email obrigatório."});
+      const target=getUser(d.email);
+      if(!target)return json(res,404,{error:"Usuário não encontrado."});
+      const days=Math.max(0,Math.min(365,parseInt(d.days||30,10)));
+      const autoDays=Math.max(0,Math.min(365,parseInt(d.autoDays||0,10)));
+      const planName=d.plan||"vip";
+      const now=Date.now();
+
+      // Lógica CORRETA de acumulação:
+      // - days = dias de acesso MANUAL
+      // - autoDays = dias de acesso AUTOMÁTICO
+      // - Para cada tipo, soma sobre o que já existe (se ainda ativo) ou começa de hoje
+      // - NUNCA soma days em auto E autoDays em auto ao mesmo tempo
+
+      const curManual=(target.vip?.manualExpires&&target.vip.manualExpires>now)?target.vip.manualExpires:now;
+      const curAuto  =(target.vip?.autoExpires&&target.vip.autoExpires>now)?target.vip.autoExpires:now;
+
+      // manualExpires: soma days (se o plano tem manual)
+      const manualExpires = days>0 ? curManual + days*86400_000 : (target.vip?.manualExpires||0);
+
+      // autoExpires: soma APENAS autoDays (não days) — evita o bug do 60 dias
+      const autoExpires   = autoDays>0 ? curAuto + autoDays*86400_000 : (target.vip?.autoExpires||0);
+
+      const vip={...(target.vip||{}),active:true,manualExpires,autoExpires,
+        activatedAt:now,activatedBy:s.user_email,
+        note:d.note||"",days,autoDays,plan:planName,source:'admin'};
       setUser(d.email,{plan:planName,vip});
-      console.log(`[admin] Stack ${planName} → ${d.email} (manual:${days}d auto:${autoDays}d)`);
-      // ── Referral: se ativar 30 dias, conta como compra de plano ──
-      if(days>=30){
-        try{
-          const ref=DB_REFERRAL.byEmail[d.email];
-          if(ref?.referredBy && !ref.bonus2Paid){
-            const ownerEmail=ref.referredBy;
-            const owner=getUser(ownerEmail);
-            if(owner){
-              const nowR=Date.now();
-              const curExp=Math.max(nowR,owner.vip?.manualExpires||0);
-              setUser(ownerEmail,{vip:{...(owner.vip||{}),active:true,manualExpires:curExp+5*86400_000,activatedAt:nowR,note:"Bônus indicação compra +5d"}});
-              ref.paidAt=new Date().toISOString();
-              ref.bonus2Paid=true;
-              persist(REFERRAL_FILE,DB_REFERRAL);
-              console.log(`[referral] compra 30d: ${d.email} → indicador ${ownerEmail} +5d VIP`);
-            }
+      console.log(`[admin] ✅ Ativou ${planName} → ${d.email} (manual:${days}d→${new Date(manualExpires).toLocaleDateString('pt-BR')} auto:${autoDays}d→${autoExpires>now?new Date(autoExpires).toLocaleDateString('pt-BR'):'–'})`);
+
+      // Bônus de indicação
+      try{
+        const refKey=`ref:${d.email}`;
+        const refData=DB_USERS[refKey];
+        if(refData?.ownerEmail&&days>=30){
+          const ownerEmail=refData.ownerEmail;
+          const owner=getUser(ownerEmail);
+          if(owner){
+            const nowR=Date.now();
+            const curExp=Math.max(nowR,owner.vip?.manualExpires||0);
+            setUser(ownerEmail,{vip:{...(owner.vip||{}),active:true,manualExpires:curExp+5*86400_000,activatedAt:nowR,note:"Bônus indicação compra +5d"}});
+            console.log(`[ref] Bônus +5d para ${ownerEmail} por compra de ${d.email}`);
           }
-        }catch(re){console.warn("[referral] Erro na ativação:",re.message);}
-      }
-      return json(res,200,{ok:true,vip,days,autoDays,manualExpiresDate:new Date(manualExpires).toLocaleDateString("pt-BR"),autoExpiresDate:autoExpires>now?new Date(autoExpires).toLocaleDateString("pt-BR"):null});}catch(e){return json(res,500,{error:e.message});}}
+        }
+      }catch(e2){console.warn("[ref] erro bônus:",e2.message);}
+
+      return json(res,200,{ok:true,vip,days,autoDays,
+        manualExpiresDate:manualExpires>now?new Date(manualExpires).toLocaleDateString("pt-BR"):null,
+        autoExpiresDate:autoExpires>now?new Date(autoExpires).toLocaleDateString("pt-BR"):null});
+    }catch(e){return json(res,500,{error:e.message});}}
+
     if(pathname==="/api/admin/vip/revoke"&&req.method==="POST"){try{const d=JSON.parse(await readBody(req));if(!d.email)return json(res,400,{error:"email obrigatório."});if(autoTimers.has(d.email)){clearTimeout(autoTimers.get(d.email));autoTimers.delete(d.email);}delAutoJob(d.email);setUser(d.email,{plan:"free",vip:{active:false,revokedAt:Date.now(),manualExpires:0,autoExpires:0}});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
+
+    if(pathname==="/api/admin/vip/set-expiry"&&req.method==="POST"){try{
+      const d=JSON.parse(await readBody(req));
+      if(!d.email)return json(res,400,{error:"email obrigatório."});
+      const target=getUser(d.email);
+      if(!target)return json(res,404,{error:"Usuário não encontrado."});
+      const now=Date.now();
+      const manualDays=parseInt(d.manualDays||0,10);
+      const autoDays=parseInt(d.autoDays||0,10);
+      const manualExpires=manualDays>0?now+manualDays*86400000:0;
+      const autoExpires=autoDays>0?now+autoDays*86400000:0;
+      let planName=target.vip?.plan||"vip";
+      if(d.plan)planName=d.plan;
+      else if(manualDays>0&&autoDays>0)planName="vipro";
+      else if(manualDays>0)planName="vip";
+      else if(autoDays>0)planName="pro";
+      const vip={...(target.vip||{}),active:true,manualExpires,autoExpires,
+        adjustedAt:now,adjustedBy:s.user_email,
+        note:d.note||(target.vip?.note||""),
+        plan:planName,source:target.vip?.source||"admin",
+        usedCode:target.vip?.usedCode||null};
+      setUser(d.email,{plan:planName,vip});
+      console.log("[admin] set-expiry "+d.email+" manual:"+manualDays+"d auto:"+autoDays+"d plano:"+planName);
+      return json(res,200,{ok:true,vip,planName,
+        manualExpiresDate:manualExpires>0?new Date(manualExpires).toLocaleDateString("pt-BR"):null,
+        autoExpiresDate:autoExpires>0?new Date(autoExpires).toLocaleDateString("pt-BR"):null});
+    }catch(e){return json(res,500,{error:e.message});}}
     if(pathname.startsWith("/api/admin/user/")&&req.method==="DELETE"){const te=decodeURIComponent(pathname.split("/").pop());if(te===s.user_email)return json(res,400,{error:"Não pode deletar a si mesmo."});const t=getUser(te);if(t)(t.cvs||[]).forEach(c=>deleteCv(te,c.idx));if(autoTimers.has(te)){clearTimeout(autoTimers.get(te));autoTimers.delete(te);}delUser(te);delHist(te);if(DB_AUTO[te]){delete DB_AUTO[te];persist(AUTO_FILE,DB_AUTO);}if(DB_SENT[te]){delete DB_SENT[te];persistSent();}// BUG-011 CORRIGIDO: limpa dados órfãos ao deletar usuário
 if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB_APP_INDEX[te];persist(APPIDX_FILE,DB_APP_INDEX);}if(DB_PUSH[te]){delete DB_PUSH[te];persistPush();}if(DB_NOTES[te]){delete DB_NOTES[te];persist(NOTES_FILE,DB_NOTES);}if(DB_ALERTS[te]){delete DB_ALERTS[te];persist(ALERTS_FILE,DB_ALERTS);}return json(res,200,{ok:true});}
     if(pathname==="/api/admin/message"&&req.method==="POST"){try{const d=JSON.parse(await readBody(req));if(!d.email||!d.text)return json(res,400,{error:"email e text obrigatórios."});const target=getUser(d.email);if(!target)return json(res,404,{error:"Usuário não encontrado."});setUser(d.email,{adminMessage:{text:d.text,date:new Date().toISOString(),from:s.user_email}});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
-    if(pathname==="/api/admin/clear-sent"&&req.method==="POST"){try{const d=JSON.parse(await readBody(req));if(!d.email)return json(res,400,{error:"email obrigatório."});if(DB_SENT[d.email]){delete DB_SENT[d.email];persistSent();}return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
 
     // ── ADMIN LIVE MONITOR ────────────────────────────────────
     // ── ADMIN: Jornada individual ─────────────────────────────────────────────
@@ -4785,7 +6504,11 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
     // Candidaturas por estado (top 3)
     const byState={};h.filter(e=>e.state).forEach(e=>{byState[e.state]=(byState[e.state]||0)+1;});
     const topStates=Object.entries(byState).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([s,n])=>({state:s,count:n}));
-    return json(res,200,{name:found.name||"Usuário",picture:found.picture||"",plan:getPlan(found),
+    return json(res,200,{
+      name:found.rankName||found.name||"Usuário",
+      picture:found.appAvatarId?"":found.picture||"",
+      appAvatarId:found.appAvatarId||"",
+      plan:getPlan(found),
       isOnline:isOnlineUser(foundEmail),totalSends:totS,totalResponses:totR,responseRate:respRate,
       streak,memberSince,last7:l7,topStates,adminBadge:DB_RANK_BADGES[foundEmail]||null});
   }
@@ -4907,7 +6630,7 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
 
   if(pathname==="/api/gemini/chat" && req.method==="POST"){
     const s=getSess(req); if(!s?.user_email) return json(res,401,{error:"Não autenticado"});
-    if(!GEMINI_API_KEY) return json(res,503,{error:"Gemini API não configurada. Configure GEMINI_API_KEY no servidor."});
+    if(!getGeminiKey()) return json(res,503,{error:"Gemini API não configurada. Configure GEMINI_API_KEY no servidor."});
     // Verifica limite global diário
     const today=todayStrBRT();
     if(_geminiCount.date!==today){ _geminiCount={date:today,count:0}; }
@@ -4956,7 +6679,7 @@ Pagamento via PIX para Andrio Kickhofel (telefone: 53981453496). Após pagar, en
 - Perfil Geral (🌐): usado como fallback para qualquer vaga sem perfil específico
 - Perfil por Categoria (📂): landscape, construction, housekeeper, seafood, farm, golf, amusement, forest, lifeguard, etc.
 - Cada perfil precisa: nome, currículo PDF (obrigatório), mínimo 3 assuntos, mínimo 3 corpos de e-mail
-- Variáveis automáticas nos templates: {nome}, {vaga}, {empresa}, {pais}, {telefone}, {email}, {cidade}, {estado}, {wage}
+- Variáveis automáticas nos templates: {nome}, {vaga}, {empresa}, {pais}, {telefone}, {email}, {cidade}, {estado}, {wage}, {salario}, {inicio}, {fim}, {case_number}, {url_vaga}
 
 === CATEGORIAS DE VAGAS ===
 - Landscape/Landscaper (jardim, gramado) — mais comum no H-2B
@@ -5027,7 +6750,7 @@ O H2BApply NÃO garante contratação, entrevista ou aprovação de visto — ap
       let lastErr="";
       for(const modelName of GEMINI_MODELS){
         try{
-          const geminiUrl=`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+          const geminiUrl=`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${getGeminiKey()}`;
           const payload={
             system_instruction:{parts:[{text:systemPrompt}]},
             contents,
@@ -5062,6 +6785,102 @@ O H2BApply NÃO garante contratação, entrevista ou aprovação de visto — ap
       return json(res,200,{ok:true,text,remaining,used:_geminiCount.count,total:GEMINI_DAILY_LIMIT});
     }catch(e){
       console.error("[gemini] error:",e.message);
+      return json(res,500,{error:"Erro interno: "+e.message});
+    }
+  }
+
+
+  // ── ANÁLISE DE COMPROVANTE — Gemini Vision ─────────────────────────────
+  // Recebe imagem base64 de comprovante PIX e extrai: valor, data, remetente, destinatário
+  if(pathname==="/api/admin/analyse-comprovante" && req.method==="POST"){
+    const s=getSess(req); if(!s?.user_email) return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email); if(!isAdminVip(p)) return json(res,403,{error:"Acesso negado"});
+    if(!getGeminiKey()) return json(res,503,{error:"Gemini API não configurada."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {base64, mimeType="image/jpeg", pedidoId} = d;
+      if(!base64) return json(res,400,{error:"base64 obrigatório"});
+      // Limite: 6MB em base64 (~4.5MB de imagem) para não explodir no Gemini
+      if(base64.length > 8_000_000) return json(res,400,{error:"Imagem muito grande. Máximo 6MB."});
+
+      const prompt = `Você é um contador especialista em comprovantes de pagamento PIX brasileiros.
+Analise esta imagem de comprovante e extraia as informações.
+
+Responda SOMENTE com JSON válido, sem texto extra, sem markdown, sem explicação:
+{
+  "valido": true/false,
+  "valor": <numero decimal ou null>,
+  "data": "<DD/MM/YYYY ou null>",
+  "hora": "<HH:MM:SS ou null>",
+  "remetente": "<nome completo ou null>",
+  "destinatario": "<nome completo ou null>",
+  "banco_remetente": "<nome do banco ou null>",
+  "banco_destinatario": "<nome do banco ou null>",
+  "tipo": "<pix_recebido|pix_enviado|ted|doc|outro>",
+  "id_transacao": "<ID E2E ou null>",
+  "motivo_invalido": "<se valido=false, explicar por quê>"
+}
+
+REGRAS:
+- valido=false se: não for comprovante de pagamento, imagem ilegível, valor ausente
+- valor deve ser número (ex: 150.00 para R$ 150,00)
+- Se for comprovante de Pix RECEBIDO e destinatário for ANDRIO KICKHOFEL, valido=true
+- Extraia exatamente o que está escrito na imagem`;
+
+      const GEMINI_MODELS_VIS = ["gemini-2.0-flash","gemini-2.5-flash-lite","gemini-2.5-flash"];
+      let result = null;
+      let lastErr = "";
+
+      for(const modelName of GEMINI_MODELS_VIS){
+        try{
+          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${getGeminiKey()}`;
+          const payload = {
+            contents:[{
+              role:"user",
+              parts:[
+                { inline_data:{ mime_type: mimeType, data: base64 } },
+                { text: prompt }
+              ]
+            }],
+            generationConfig:{ temperature:0.1, maxOutputTokens:600 }
+          };
+          const body = JSON.stringify(payload);
+          const url  = new URL(geminiUrl);
+          const opts = { hostname:url.hostname, path:url.pathname+url.search, method:"POST",
+            headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(body)} };
+
+          const raw = await new Promise((resolve,reject)=>{
+            const req2=https.request(opts,resp=>{
+              const ch=[];
+              resp.on("data",c=>ch.push(c));
+              resp.on("end",()=>{try{resolve({status:resp.statusCode,body:JSON.parse(Buffer.concat(ch).toString())});}catch{reject(new Error("Resposta inválida"));}});
+            });
+            req2.on("error",reject);
+            req2.setTimeout(30000,()=>{req2.destroy();reject(new Error("Timeout"));});
+            req2.write(body); req2.end();
+          });
+
+          if(raw.status===200){
+            const txt = (raw.body?.candidates?.[0]?.content?.parts?.[0]?.text||"").trim();
+            const clean = txt.replace(/```json|```/g,"").trim();
+            try{
+              result = JSON.parse(clean);
+              console.log(`[analyse-comp] ✅ modelo=${modelName} pedido=${pedidoId||"?"} valor=${result.valor}`);
+              break;
+            }catch(e){lastErr="JSON parse error: "+clean.slice(0,80);}
+          } else {
+            lastErr = raw.body?.error?.message||`HTTP ${raw.status}`;
+            console.warn(`[analyse-comp] ❌ ${modelName}: ${lastErr}`);
+            // Se for erro de quota/auth — não tentar próximo modelo
+            if(raw.status===403||raw.status===401) break;
+          }
+        }catch(e){ lastErr=e.message; console.warn(`[analyse-comp] ❌ ${modelName}: ${e.message}`); }
+      }
+
+      if(!result) return json(res,502,{error:`IA falhou em todos os modelos. Último erro: ${lastErr}. Verifique GEMINI_API_KEY no Render.`});
+      return json(res,200,{ok:true, analise:result, pedidoId});
+    }catch(e){
+      console.error("[analyse-comp] error:",e.message);
       return json(res,500,{error:"Erro interno: "+e.message});
     }
   }
@@ -6133,7 +7952,7 @@ function calcRanking(period, category, myEmail) {
   const rows = [];
   for (const [email, user] of Object.entries(DB_USERS)) {
     if (DB_RANK_HIDDEN[email]) continue;
-    if (user.isAdmin) continue;
+    if (user.isAdmin || isAdminEmail(email)) continue; // excluir todos os admins do ranking público
     const hist = getHist(email);
     const ph = hist.filter(e => inRankPeriod(e, period));
 
@@ -6156,7 +7975,10 @@ function calcRanking(period, category, myEmail) {
     if (score === 0 && period !== "all") continue;
     if (totS + totR === 0 && period === "all") continue;
     rows.push({
-      email, name: user.name || "Usuário", picture: user.picture || "",
+      email,
+      name: user.rankName || user.name || "Usuário",
+      picture: user.appAvatarId ? "" : (user.picture || ""),
+      appAvatarId: user.appAvatarId || "",
       plan: getPlan(user),
       sends,       // auto + manual no período
       autoSends,   // só auto no período
@@ -6178,7 +8000,7 @@ function calcRanking(period, category, myEmail) {
     const pos = i + 1, pp = prev[r.email];
     const change = pp !== undefined ? pp - pos : null;
     return {
-      pos, name: r.name, picture: r.picture, plan: r.plan,
+      pos, name: r.name, picture: r.picture, appAvatarId: r.appAvatarId||"", plan: r.plan,
       sends: r.sends, autoSends: r.autoSends, manualSends: r.manualSends,
       responses: r.responses, totalSends: r.totalSends,
       totalAutoSends: r.totalAutoSends, totalManualSends: r.totalManualSends,
@@ -6197,6 +8019,50 @@ function calcRanking(period, category, myEmail) {
     }
   }
   return { list, myPos, total: rows.length };
+}
+
+// Ranking exclusivo de admins (só visível para admins na aba Admin)
+function calcAdminRanking(period) {
+  const rows = [];
+  for (const [email, user] of Object.entries(DB_USERS)) {
+    if (!user.isAdmin && !isAdminEmail(email)) continue; // só admins
+    const hist = getHist(email);
+    const ph = hist.filter(e => inRankPeriod(e, period));
+    const autoSends   = ph.filter(e => e.type === "auto").length;
+    const manualSends = ph.filter(e => e.type === "manual").length;
+    const sends = autoSends + manualSends;
+    const replies = ph.filter(e => e.type === "reply").length;
+    const totS = hist.filter(e => e.type !== "reply").length;
+    const totR = hist.filter(e => e.type === "reply").length;
+    const respRate = totS > 0 ? Math.round((totR / totS) * 100) : 0;
+    rows.push({
+      email, name: user.name || "Admin", picture: user.picture || "",
+      plan: "admin",
+      sends, autoSends, manualSends,
+      responses: replies,
+      totalSends: totS, totalResponses: totR,
+      responseRate: respRate,
+      score: sends,
+      isOnline: isOnlineUser(email),
+    });
+  }
+  rows.sort((a, b) => b.score !== a.score ? b.score - a.score : b.totalSends - a.totalSends);
+  return rows.map((r, i) => ({ pos: i + 1, ...r }));
+}
+
+// ════════════════════════════════════════════════════════════
+//  SISTEMA DE PEDIDOS DE PLANO
+//  Usuário solicita → admin revisa e ativa
+// ════════════════════════════════════════════════════════════
+function persistPedidos() { try{const tmp=PEDIDOS_FILE+".tmp";require("fs").writeFileSync(tmp,JSON.stringify(DB_PEDIDOS,null,2));require("fs").renameSync(tmp,PEDIDOS_FILE);}catch(e){console.warn("[pedidos]",e.message);} }
+function persistFinanceiro() {
+  try{
+    // Salva sem imagens base64 inline para não explodir o arquivo
+    // As imagens ficam como referência de pedido (já persistidas nos pedidos)
+    const tmp=FINANCEIRO_FILE+".tmp";
+    require("fs").writeFileSync(tmp,JSON.stringify(DB_FINANCEIRO,null,2));
+    require("fs").renameSync(tmp,FINANCEIRO_FILE);
+  }catch(e){console.warn("[financeiro]",e.message);}
 }
 
 // ── BOOT ─────────────────────────────────────────────────
@@ -6255,4 +8121,153 @@ server.listen(PORT,"0.0.0.0",()=>{
   if(!CONFIGURED)console.log("\n⚠️  Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET!\n");
   setTimeout(refreshCache,3000);
   setTimeout(()=>reactivateAutoJobs().catch(e=>console.error("[boot] reactivate error:",e.message)),6000);
-});
+});  if(pathname==="/privacy"){
+    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"public, max-age=86400"});
+    return res.end(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de Privacidade — H2BApply</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1e293b;background:#f8fafc;line-height:1.8}
+.container{max-width:740px;margin:0 auto;padding:40px 20px}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:32px}
+.logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#4f46e5,#0891b2);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:800}
+h1{font-size:28px;font-weight:800;color:#1e293b;margin-bottom:6px}
+.date{font-size:13px;color:#94a3b8;margin-bottom:28px}
+h2{font-size:17px;font-weight:700;color:#1e293b;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #e2e8f0}
+p{font-size:14px;color:#374151;margin-bottom:12px}
+ul{font-size:14px;color:#374151;margin:0 0 14px 22px}
+li{margin-bottom:6px}
+.highlight{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin:14px 0;font-size:13px;color:#1e40af}
+.footer{text-align:center;margin-top:48px;padding-top:20px;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8}
+a{color:#4f46e5}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">
+    <div class="logo-icon">H</div>
+    <div>
+      <div style="font-size:20px;font-weight:800">H2BApply</div>
+      <div style="font-size:12px;color:#64748b">Plataforma de candidaturas H-2B/H-2A</div>
+    </div>
+  </div>
+
+  <h1>Política de Privacidade</h1>
+  <div class="date">Última atualização: Junho de 2026 — Versão 3.0 | <a href="/terms">Termos de Uso</a> | <a href="/contact">Contato</a></div>
+
+  <div class="highlight">
+    🔒 O H2BApply utiliza <strong>Google Sign-In (OAuth 2.0)</strong>, <strong>Gmail API</strong> para envio de emails, e armazena dados exclusivamente para a prestação do serviço de candidaturas H-2B/H-2A.
+  </div>
+
+  <h2>1. Quem Somos</h2>
+  <p>H2BApply (<a href="https://h2bapply.com">h2bapply.com</a>) é uma plataforma que auxilia candidatos brasileiros a enviar candidaturas para vagas H-2B e H-2A nos EUA. Responsáveis: Andrio Kickhofel e Diego Cardoso. Contato: <a href="mailto:suporte@h2bapply.com">suporte@h2bapply.com</a>.</p>
+
+  <h2>2. Uso do Google Login (OAuth 2.0)</h2>
+  <p>Utilizamos o <strong>Google Sign-In</strong> para autenticação. Ao fazer login com sua conta Google, coletamos:</p>
+  <ul>
+    <li><strong>Nome e foto de perfil</strong> — para exibir no painel do aplicativo</li>
+    <li><strong>Endereço de email Google</strong> — para identificar sua conta na plataforma</li>
+    <li><strong>Token OAuth</strong> — para enviar emails de candidatura em seu nome via Gmail API</li>
+  </ul>
+  <p><strong>Scopes (permissões) utilizados:</strong></p>
+  <ul>
+    <li><code>openid</code> — autenticação do usuário</li>
+    <li><code>email</code> — identificação da conta</li>
+    <li><code>profile</code> — nome e foto do perfil</li>
+    <li><code>gmail.send</code> — envio de emails de candidatura em seu nome</li>
+  </ul>
+  <p>Não solicitamos acesso para ler, modificar ou excluir emails. Apenas enviamos em seu nome, com sua autorização explícita.</p>
+
+  <h2>3. Uso da Gmail API</h2>
+  <p>A <strong>Gmail API</strong> é utilizada exclusivamente para:</p>
+  <ul>
+    <li>Enviar emails de candidatura para empregadores H-2B/H-2A nos EUA</li>
+    <li>O envio é feito usando sua própria conta Gmail, com seu nome como remetente</li>
+    <li>Você controla quais emails são enviados e pode pausar ou parar a qualquer momento</li>
+  </ul>
+  <p>Nunca acessamos, lemos, copiamos ou modificamos seus emails pessoais. O único uso é envio de candidaturas.</p>
+
+  <h2>4. Dados Coletados</h2>
+  <p>Coletamos os seguintes dados para prestação do serviço:</p>
+  <ul>
+    <li><strong>Dados de conta:</strong> nome, email, foto de perfil (via Google)</li>
+    <li><strong>Dados de perfil:</strong> WhatsApp, telefone, cidade, país (informados por você)</li>
+    <li><strong>Currículos:</strong> arquivos PDF enviados por você para candidaturas</li>
+    <li><strong>Histórico de candidaturas:</strong> empresa, cargo, email de destino, data de envio</li>
+    <li><strong>Configurações:</strong> preferências de plano, templates de email</li>
+    <li><strong>Dados de sessão:</strong> tokens de autenticação armazenados com segurança</li>
+  </ul>
+  <p>Não coletamos dados bancários, documentos de identidade ou informações sensíveis não relacionadas ao serviço.</p>
+
+  <h2>5. Como Usamos os Dados</h2>
+  <ul>
+    <li>Autenticação e identificação do usuário na plataforma</li>
+    <li>Envio de emails de candidatura para vagas H-2B/H-2A</li>
+    <li>Exibição do histórico de candidaturas enviadas</li>
+    <li>Melhoria e manutenção da plataforma</li>
+    <li>Comunicação de suporte e notificações importantes</li>
+  </ul>
+  <p><strong>Nunca vendemos, alugamos ou compartilhamos seus dados com terceiros para fins comerciais.</strong></p>
+
+  <h2>6. Compartilhamento de Dados</h2>
+  <p>Seus dados são compartilhados apenas com:</p>
+  <ul>
+    <li><strong>Google LLC</strong> — para autenticação (OAuth) e envio via Gmail API</li>
+    <li><strong>Render.com</strong> — infraestrutura de hospedagem segura com criptografia</li>
+    <li><strong>Empregadores americanos</strong> — apenas o conteúdo dos emails que você autoriza enviar</li>
+  </ul>
+
+  <h2>7. Retenção de Dados</h2>
+  <ul>
+    <li>Dados ativos: mantidos enquanto a conta estiver ativa</li>
+    <li>Após exclusão da conta: dados removidos em até 30 dias</li>
+    <li>Logs de sistema (sem dados pessoais): até 90 dias por segurança</li>
+  </ul>
+
+  <h2>8. Seus Direitos</h2>
+  <ul>
+    <li><strong>Acessar</strong> seus dados: disponíveis no painel do aplicativo</li>
+    <li><strong>Corrigir</strong> seus dados: nas configurações do perfil</li>
+    <li><strong>Excluir</strong> seus dados: via <a href="/delete-account">página de exclusão</a> ou email para suporte</li>
+    <li><strong>Revogar</strong> acesso ao Google: em <a href="https://myaccount.google.com/permissions" target="_blank">myaccount.google.com/permissions</a></li>
+    <li><strong>Exportar</strong> seus dados: entre em contato com suporte</li>
+  </ul>
+
+  <h2>9. Como Excluir Sua Conta</h2>
+  <p>Para excluir sua conta e todos os seus dados:</p>
+  <ul>
+    <li>Acesse <strong>Configurações → Excluir minha conta</strong> no aplicativo, ou</li>
+    <li>Envie email para <a href="mailto:suporte@h2bapply.com">suporte@h2bapply.com</a> com assunto "Exclusão de conta"</li>
+    <li>Veja detalhes em: <a href="/delete-account">h2bapply.com/delete-account</a></li>
+  </ul>
+
+  <h2>10. Segurança</h2>
+  <p>Utilizamos HTTPS em todas as comunicações, criptografia de tokens OAuth, e armazenamento seguro no servidor. Não armazenamos senhas do Google — o acesso é gerenciado exclusivamente pelo OAuth 2.0 do Google.</p>
+
+  <h2>11. Cookies e Sessão</h2>
+  <p>Utilizamos apenas cookies de sessão necessários para manter o login ativo. Não utilizamos cookies de rastreamento ou publicidade.</p>
+
+  <h2>12. Alterações nesta Política</h2>
+  <p>Podemos atualizar esta política periodicamente. Notificamos usuários sobre mudanças significativas por email. A data de atualização é sempre exibida no topo desta página.</p>
+
+  <h2>13. Contato</h2>
+  <ul>
+    <li>Email: <a href="mailto:suporte@h2bapply.com">suporte@h2bapply.com</a></li>
+    <li>Site: <a href="https://h2bapply.com">h2bapply.com</a></li>
+    <li>WhatsApp: +55 53 98145-3496</li>
+  </ul>
+
+  <div class="footer">
+    © 2026 H2BApply · <a href="/">Início</a> · <a href="/terms">Termos de Uso</a> · <a href="/contact">Contato</a> · <a href="/delete-account">Excluir Conta</a>
+    <br>suporte@h2bapply.com
+  </div>
+</div>
+</body>
+</html>`);
+  }
+
+  
