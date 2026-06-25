@@ -1592,6 +1592,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <button class="sb-item active" id="si-home" onclick="sv('home')"><i class="ti ti-home-2"></i>Home</button>
         <button class="sb-item" onclick="window.open('/guia','_blank')" style="background:linear-gradient(135deg,rgba(16,185,129,.10),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.28);border-radius:10px;font-weight:800;color:#059669;margin-bottom:4px"><i class="ti ti-book-2" style="font-size:15px;color:#059669"></i>Guia H-2B & H-2A<span style="margin-left:auto;font-size:9px;background:#059669;color:#fff;padding:1px 6px;border-radius:99px;font-weight:800">NOVO</span></button>
         <button class="sb-item" id="si-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i>Envio Manual<span class="sb-badge sb-badge-b" id="sib-jobs" style="display:none"></span></button>
+        <button class="sb-item" id="si-pesquisa" onclick="sv('pesquisa')"><i class="ti ti-search"></i>Pesquisar Vagas<span class="sb-badge sb-badge-b" id="sib-pesquisa" style="display:none"></span></button>
         <button class="sb-item" id="si-saved" onclick="sv('saved')"><i class="ti ti-bookmark"></i>Salvas<span class="sb-badge sb-badge-b" id="sib-saved" style="display:none"></span></button>
       </div>
       <div class="sb-sec">
@@ -1654,6 +1655,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <button class="home-shortcut hs-jobs" onclick="sv('jobs')">
               <div class="home-shortcut-icon"><i class="ti ti-send" style="color:var(--blue)"></i></div>
               <div class="home-shortcut-label">Manual</div>
+            </button>
+            <button class="home-shortcut hs-pesquisa" onclick="sv('pesquisa')">
+              <div class="home-shortcut-icon"><i class="ti ti-search" style="color:#0891b2"></i></div>
+              <div class="home-shortcut-label">Pesquisar</div>
             </button>
             <button class="home-shortcut hs-respostas" onclick="sv('respostas')">
               <div class="home-shortcut-icon"><i class="ti ti-mail-opened" style="color:var(--green)"></i></div>
@@ -1830,6 +1835,61 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       </div></div>
 
       <!-- ══ PESQUISAR VAGAS ══ -->
+      <div class="view gone" id="v-pesquisa">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#0c1a40,#1a3a6b);color:#fff;padding:12px 16px 10px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div>
+            <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px"><i class="ti ti-search"></i> Pesquisar Vagas</div>
+            <div style="font-size:11px;opacity:.7;margin-top:1px">Busca em todas as fontes: Seasonal, Jan 2026, Jul 2025</div>
+          </div>
+          <button id="pesq-clear-btn" onclick="clearPesquisa()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);padding:6px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:none"><i class="ti ti-x"></i> Limpar</button>
+        </div>
+
+        <!-- Barra de busca principal -->
+        <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:12px 14px;flex-shrink:0">
+          <div style="position:relative;margin-bottom:10px">
+            <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--blue);font-size:16px;pointer-events:none"></i>
+            <input class="input" id="pesq-input" type="text" placeholder="Empresa, e-mail, ETA case number, cargo, estado..." style="padding-left:38px;font-size:14px;height:46px;border-color:var(--blue);border-width:2px;box-shadow:0 0 0 3px rgba(59,130,246,.1)" oninput="doPesquisa()" autocomplete="off" inputmode="search">
+            <button onclick="doPesquisaBtn()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Buscar</button>
+          </div>
+          <!-- Chips de fonte -->
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            <button class="pesq-src-chip active" data-src="all" onclick="setPesqSrc('all')">🌐 Todas as fontes</button>
+            <button class="pesq-src-chip" data-src="seasonal" onclick="setPesqSrc('seasonal')"><i class="ti ti-globe" style="font-size:11px"></i> Seasonal</button>
+            <button class="pesq-src-chip" data-src="jan2026" onclick="setPesqSrc('jan2026')">☀️ Jan 2026</button>
+            <button class="pesq-src-chip" data-src="jul2025" onclick="setPesqSrc('jul2025')">❄️ Jul 2025</button>
+            <button class="pesq-src-chip" data-src="hist" onclick="setPesqSrc('hist')"><i class="ti ti-send" style="font-size:11px"></i> Enviadas</button>
+          </div>
+        </div>
+
+        <!-- Stats da busca -->
+        <div id="pesq-stats" style="background:var(--sf2);border-bottom:1px solid var(--border);padding:7px 14px;font-size:12px;color:var(--t2);flex-shrink:0;display:none;align-items:center;gap:8px">
+          <i class="ti ti-info-circle" style="color:var(--blue);font-size:14px;flex-shrink:0"></i>
+          <span id="pesq-stats-text"></span>
+        </div>
+
+        <!-- Lista de resultados -->
+        <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch" id="pesq-list">
+          <!-- Estado inicial -->
+          <div id="pesq-empty-state" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;gap:16px;text-align:center">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(139,92,246,.1));display:flex;align-items:center;justify-content:center;border:2px solid rgba(99,102,241,.15)">
+              <i class="ti ti-search" style="font-size:28px;color:var(--blue)"></i>
+            </div>
+            <div>
+              <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px">Pesquise qualquer coisa</div>
+              <div style="font-size:13px;color:var(--t3);line-height:1.6;max-width:300px">Digite o nome da empresa, um e-mail recebido, o ETA case number, o cargo ou o estado para encontrar todas as vagas correspondentes</div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:320px">
+              <button onclick="setPesqExample('cerminara')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">cerminara</button>
+              <button onclick="setPesqExample('H-400-26001')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">H-400-26001</button>
+              <button onclick="setPesqExample('landscaping@')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">landscaping@...</button>
+              <button onclick="setPesqExample('FLORIDA')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">FLORIDA</button>
+              <button onclick="setPesqExample('landscape')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">landscape</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ══ RESPOSTAS ══ -->
       <div class="view gone" id="v-respostas">
         <!-- Header -->
@@ -2134,7 +2194,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               </div>
               <div class="field-row">
                 <div class="field"><label>Cidade</label><input class="input" id="cfg-city" type="text"></div>
-                <div class="field"><label>Estado</label><input class="input" id="cfg-state" type="text" placeholder="Ex: SP, MG, RJ"></div>
                 <div class="field"><label>WhatsApp <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>WhatsApp</strong><br>Com DDI. Ex: +55 85 99999-9999.<br>Aparece na assinatura dos e-mails.')">?</span></label><input class="input" id="cfg-phone" type="tel" inputmode="tel"></div>
               </div>
               <div class="field-row">
@@ -3566,6 +3625,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <button class="bn active" id="bn-home" onclick="sv('home')"><i class="ti ti-home-2"></i><span>Home</span></button>
     <button class="bn" id="bn-tutorial" onclick="sv('tutorial')"><i class="ti ti-book-2" style="font-size:20px;color:#059669"></i><span style="color:#059669;font-weight:700;font-size:9px">Tutorial</span></button>
     <button class="bn" id="bn-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i><span>Manual</span></button>
+    <button class="bn" id="bn-pesquisa" onclick="sv('pesquisa')"><i class="ti ti-search"></i><span>Pesquisar</span></button>
     <!-- AUTO — CTA central destacado -->
     <button class="bn bn-auto" id="bn-auto" onclick="openAutoModal()">
       <div class="bn-auto-ring"><i class="ti ti-robot"></i></div>
@@ -4176,6 +4236,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <button class="d-item" onclick="closeDrawer();sv('home')"><i class="ti ti-home-2"></i>Home</button>
     <a class="d-item" href="/guia" target="_blank" style="background:linear-gradient(135deg,rgba(16,185,129,.10),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.28);border-radius:var(--r);font-weight:800;color:#059669;margin-bottom:4px;text-decoration:none"><i class="ti ti-book-2" style="color:#059669"></i>Guia H-2B & H-2A<span style="margin-left:auto;font-size:9px;background:#059669;color:#fff;padding:1px 6px;border-radius:99px">NOVO</span></a>
     <button class="d-item" onclick="closeDrawer();sv('jobs')"><i class="ti ti-send"></i>Envio Manual</button>
+    <button class="d-item" onclick="closeDrawer();sv('pesquisa')"><i class="ti ti-search"></i>Pesquisar Vagas</button>
     <button class="d-item" onclick="closeDrawer();sv('respostas')" style="color:var(--green);font-weight:700"><i class="ti ti-mail-opened" style="color:var(--green)"></i>Respostas</button>
     <button class="d-item" onclick="closeDrawer();sv('ranking')" style="color:#b45309;font-weight:700"><i class="ti ti-trophy" style="color:#f59e0b"></i>Ranking</button>
     <button class="d-item" onclick="closeDrawer();sv('hist')"><i class="ti ti-send"></i>Candidaturas Enviadas</button>
@@ -4489,7 +4550,7 @@ function renderDrawer(){
 // ═══════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════
-const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","indicar","notificacoes","redeem","tutorial","iaChat","sugestoes"];
+const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","indicar","notificacoes","redeem","tutorial","iaChat","sugestoes"];
 function sv(v,...args){
   // ── "auto" abre modal em vez da view ──
   if(v==="auto"){if(typeof openAutoModal==="function"){openAutoModal();return;}}
@@ -4502,6 +4563,7 @@ function sv(v,...args){
   if(v==="plans")renderPlanStatusCard();
   if(v==="home")renderHome();
   if(v==="ranking"){loadRanking(true);startRankTimer();}else{stopRankTimer();}
+  if(v==="pesquisa"){initPesquisaView();}
   if(v==="tutorial"){/*view própria*/}
   if(v==="redeem"){/*view própria*/}
   if(v==="indicar"){loadReferralView();}
@@ -5423,7 +5485,7 @@ function updDocBadge(){const n=DOCS.length;const b=g("#sib-docs");if(b){b.style.
 //  PROFILE / TEMPLATE
 // ═══════════════════════════════════════════
 function loadProfile(){
-  g("#cfg-name").value=CFG.name||U.name||"";g("#cfg-country").value=CFG.country||"Brazil";g("#cfg-phone").value=CFG.phone||"";g("#cfg-city").value=CFG.city||"";if(g("#cfg-state"))g("#cfg-state").value=CFG.state||U.state||"";g("#cfg-lang").value=CFG.language||"pt-BR";
+  g("#cfg-name").value=CFG.name||U.name||"";g("#cfg-country").value=CFG.country||"Brazil";g("#cfg-phone").value=CFG.phone||"";g("#cfg-city").value=CFG.city||"";g("#cfg-lang").value=CFG.language||"pt-BR";
   // Novos campos
   const wEl=g("#cfg-whatsapp");if(wEl)wEl.value=U.whatsapp||"";
   const rnEl=g("#cfg-rankname");if(rnEl)rnEl.value=U.rankName||"";
@@ -5448,12 +5510,12 @@ function loadProfile(){
   const ppb=g("#p-plan-badge");if(ppb)ppb.innerHTML=planBadgeHTML();
 }
 async function saveProfile(){
-  CFG.name=g("#cfg-name").value.trim();CFG.country=g("#cfg-country").value.trim();CFG.phone=g("#cfg-phone").value.trim();CFG.city=g("#cfg-city").value.trim();CFG.state=(g("#cfg-state")?.value||"").trim().toUpperCase();CFG.language=g("#cfg-lang").value;
+  CFG.name=g("#cfg-name").value.trim();CFG.country=g("#cfg-country").value.trim();CFG.phone=g("#cfg-phone").value.trim();CFG.city=g("#cfg-city").value.trim();CFG.language=g("#cfg-lang").value;
   const newWhatsapp=(g("#cfg-whatsapp")?.value||"").trim();
   const newRankName=(g("#cfg-rankname")?.value||"").trim();
   const newAvatar=g(".prf-av.selected")?.dataset?.av||"";
   try{
-    const body={name:CFG.name,country:CFG.country,phone:CFG.phone,city:CFG.city,state:CFG.state||"",language:CFG.language};
+    const body={name:CFG.name,country:CFG.country,phone:CFG.phone,city:CFG.city,language:CFG.language};
     if(newWhatsapp)body.whatsapp=newWhatsapp;
     // RankName: só enviar se mudou
     if(newRankName&&newRankName!==U.rankName)body.rankName=newRankName;
@@ -8720,7 +8782,7 @@ async function renderLinkedAppCard(email, fromEmail){
     openBtn.onclick=function(){
       closeEmailDetail();
       // Navega para pesquisa com query pré-preenchida
-      sv("jobs");
+      sv("pesquisa");
       setTimeout(()=>{
         const inp=document.getElementById("pesq-input");
         if(inp){inp.value=pesqQuery;inp.dispatchEvent(new Event("input"));}
@@ -10955,13 +11017,9 @@ console.log('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas');
           <input class="input" id="ob-city" type="text" placeholder="Sua cidade">
         </div>
         <div class="field">
-          <label style="font-size:11px;font-weight:700;color:var(--t2)">🏛️ Estado *</label>
-          <input class="input" id="ob-state" type="text" placeholder="Ex: SP, MG, RJ">
+          <label style="font-size:11px;font-weight:700;color:var(--t2)">🌍 País *</label>
+          <input class="input" id="ob-country" type="text" placeholder="Brazil" value="Brazil">
         </div>
-      </div>
-      <div class="field" style="margin-bottom:8px">
-        <label style="font-size:11px;font-weight:700;color:var(--t2)">🌍 País *</label>
-        <input class="input" id="ob-country" type="text" placeholder="Brazil" value="Brazil">
       </div>
 
       <button onclick="obSavePersonal()" class="btn btn-primary w100" style="padding:13px;font-size:14px;margin-top:4px">Continuar →</button>
@@ -11847,7 +11905,6 @@ function showOnboarding(){
   const emailDisp=g("#ob-email-display");if(emailDisp)emailDisp.value=U.email||"";
   const ageEl=g("#ob-age");if(ageEl&&!ageEl.value&&U.age)ageEl.value=U.age;
   const cityEl=g("#ob-city");if(cityEl&&!cityEl.value)cityEl.value=CFG.city||"";
-  const stateEl=g("#ob-state");if(stateEl&&!stateEl.value)stateEl.value=CFG.state||U.state||"";
   
   ov.style.display="flex";
   _goObStep(1);
@@ -11883,23 +11940,21 @@ async function obSavePersonal(){
   const name=(g("#ob-name")?.value||"").trim();
   const phone=(g("#ob-phone")?.value||"").trim();
   const city=(g("#ob-city")?.value||"").trim();
-  const state=(g("#ob-state")?.value||"").trim().toUpperCase();
   const country=(g("#ob-country")?.value||"").trim()||"Brazil";
   const age=parseInt(g("#ob-age")?.value||"0");
 
   if(!name){toast("Informe seu nome completo","r");g("#ob-name")?.focus();return;}
   if(!phone){toast("Informe seu WhatsApp","r");g("#ob-phone")?.focus();return;}
   if(!city){toast("Informe sua cidade","r");g("#ob-city")?.focus();return;}
-  if(!state){toast("Informe seu estado","r");g("#ob-state")?.focus();return;}
   if(!age||age<18||age>80){toast("Informe uma idade válida (18-80)","r");g("#ob-age")?.focus();return;}
 
   try{
     const r=await fetch("/api/settings",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({name,phone,whatsapp:phone,city,state,country,age,language:CFG.language||"pt-BR"})});
+      body:JSON.stringify({name,phone,whatsapp:phone,city,country,age,language:CFG.language||"pt-BR"})});
     const d=await r.json();
     if(d.ok){
-      CFG.name=name;CFG.phone=phone;CFG.city=city;CFG.state=state;CFG.country=country;
-      U.name=name;U.phone=phone;U.whatsapp=phone;U.age=age;U.state=state;
+      CFG.name=name;CFG.phone=phone;CFG.city=city;CFG.country=country;
+      U.name=name;U.phone=phone;U.whatsapp=phone;U.age=age;
       const nameEl2=g("#cfg-name");if(nameEl2)nameEl2.value=name;
       const phoneEl2=g("#cfg-phone");if(phoneEl2)phoneEl2.value=phone;
       const cityEl2=g("#cfg-city");if(cityEl2)cityEl2.value=city;
@@ -13550,6 +13605,7 @@ function applyLang(){
   // ── BOTTOM NAV ──
   _si('bn-home','span',t('home'));
   _si('bn-jobs','span',t('manual'));
+  _si('bn-pesquisa','span',t('search'));
   _si('bn-respostas','span',t('responses'));
   _si('bn-ranking','span',t('ranking'));
 
@@ -13613,10 +13669,16 @@ function applyLang(){
   _sFirstSpan('#v-hist .al-blue span, #v-hist [style*="info-circle"] + span',t('hist_info'));
 
   // ── SEARCH VIEW ──
+  document.querySelectorAll('#v-pesquisa [style*="font-size:16px"]').forEach(el=>{
+    if(el.textContent.match(/Pesquisar Vagas|Search Jobs|Buscar Empleos/)){
+      // Has icon, preserve it
+      const ic=el.querySelector('i');
       el.textContent=' '+t('search_jobs');
       if(ic) el.prepend(ic);
     }
   });
+  document.querySelectorAll('#v-pesquisa [style*="opacity:.7"]').forEach(el=>{
+    if(el.textContent.match(/Busca em|Search across|Busca en/)) el.textContent=t('search_sub');
   });
   _sBtnText('pesq-clear-btn', t('clear'));
   _sPlaceholder('pesq-input',t('search_ph'));
