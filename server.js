@@ -34,9 +34,16 @@ const CLIENT_SECRET = (process.env.GOOGLE_CLIENT_SECRET || "").trim();
 const APP_URL       = (process.env.APP_URL || "http://localhost:3000").replace(/\/+$/, "");
 const REDIRECT_URI        = APP_URL + "/oauth/callback";
 const REDIRECT_URI_SENDER = APP_URL + "/oauth/add-sender/callback";
-const MAX_SENDER_EMAILS        = 3; // usuários normais: até 3 emails extras
-const MAX_SENDER_EMAILS_ADMIN  = 5; // admins: até 5 emails extras
-const getMaxSenders = (u) => (u?.isAdmin || isAdminEmail(u?.email||"")) ? MAX_SENDER_EMAILS_ADMIN : MAX_SENDER_EMAILS;
+const MAX_SENDER_EMAILS_FREE   = 1; // free: apenas o email principal (0 extras)
+const MAX_SENDER_EMAILS_VIP    = 2; // pagantes: email principal + 1 extra = 2 total
+const MAX_SENDER_EMAILS_ADMIN  = 6; // admins: email principal + 5 extras = 6 total
+// getMaxSenders retorna o TOTAL de emails (principal + extras)
+const getMaxSenders = (u) => {
+  if(u?.isAdmin || isAdminEmail(u?.email||"")) return MAX_SENDER_EMAILS_ADMIN;
+  const plan = (u?.plan||"free").toLowerCase();
+  if(["vip","vipro","doublepro","vip_pro","double_pro"].includes(plan)) return MAX_SENDER_EMAILS_VIP;
+  return MAX_SENDER_EMAILS_FREE; // free: só o email principal
+};
 const MAX_RESUMES         = 3;
 const MAX_COVERS          = 3;
 const PORT          = parseInt(process.env.PORT || "3000", 10);
@@ -164,6 +171,9 @@ const REFERRAL_FILE  = path.join(DATA_DIR, "referrals.json");       // Referral 
 const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
 const PEDIDOS_FILE     = path.join(DATA_DIR, "pedidos.json");         // Pedidos de plano dos usuários
 const FINANCEIRO_FILE  = path.join(DATA_DIR, "financeiro.json");      // Dados financeiros (entradas + gastos)
+const BLOCKED_FILE     = path.join(DATA_DIR, "blocked_emails.json");  // Emails banidos permanentemente
+const TRIAL_USED_FILE  = path.join(DATA_DIR, "trial_used.json");       // Histórico anti-abuse: phones/IPs que já receberam trial
+const KB_FILE          = path.join(DATA_DIR, "knowledge_base.json");  // Base de Conhecimento Permanente (IA↔IA)
 try { fs.mkdirSync(CVS_DIR, { recursive: true }); } catch {}
 
 console.log(`[boot] H2BApply v13.0 | ${APP_URL} | ${DATA_DIR}`);
@@ -199,6 +209,11 @@ let DB_REFERRAL = { byCode: {}, byEmail: {} };
 let DB_SUGGESTIONS = []; // Array de sugestões dos usuários
 let DB_PEDIDOS     = []; // Array de pedidos de plano
 let DB_FINANCEIRO  = {pagamentos:[],gastos:[]};  // Dados financeiros persistentes
+let DB_BLOCKED     = {emails:[]};               // Emails banidos permanentemente
+let DB_TRIAL_USED  = {phones:{},ips:{}};        // Anti-abuse: {phones:{"+5511...":"email"}, ips:{"1.2.3.4":["email1","email2"]}}
+// Base de Conhecimento Permanente — transferência de conhecimento entre IAs e versões
+// Estrutura: { entries: [{ id, problema, solucao, motivo, impacto, modulos, versao, data, autor }] }
+let DB_KB = { entries: [] };
 
 // ── Gemini Chat ─────────────────────────────────────────
 // Limite global de 1500 mensagens/dia para TODOS os usuários
@@ -430,6 +445,153 @@ function boot() {
   if(!Array.isArray(DB_PEDIDOS)) DB_PEDIDOS = [];
   DB_FINANCEIRO = load(FINANCEIRO_FILE, {pagamentos:[],gastos:[]});
   if(!DB_FINANCEIRO.pagamentos) DB_FINANCEIRO = {pagamentos:[],gastos:[]};
+  DB_BLOCKED = load(BLOCKED_FILE, {emails:[]});
+  if(!Array.isArray(DB_BLOCKED.emails)) DB_BLOCKED = {emails:[]};
+  DB_TRIAL_USED = load(TRIAL_USED_FILE, {phones:{},ips:{}});
+  if(!DB_TRIAL_USED.phones) DB_TRIAL_USED.phones={};
+  if(!DB_TRIAL_USED.ips) DB_TRIAL_USED.ips={};
+
+  // ── Emails Inválidos (bounces) — carregado do disco, persiste entre deploys ──
+  const _rawInvalid = load(INVALID_EMAILS_FILE, {});
+  DB_INVALID_EMAILS = {};
+  for(const [k,v] of Object.entries(_rawInvalid)){
+    DB_INVALID_EMAILS[k] = {...v, users: new Set(Array.isArray(v.users)?v.users:(v.users?[v.users]:[]))};
+  }
+  DB_EMAIL_CORRECTIONS = load(EMAIL_CORRECTIONS_FILE, {});
+  DB_TEMP_FAILURES = load(TEMP_FAILURES_FILE, {});
+  const _invalidCount = Object.keys(DB_INVALID_EMAILS).length;
+  const _tempCount = Object.keys(DB_TEMP_FAILURES).length;
+  if(_invalidCount||_tempCount) console.log(`[bounce] ✅ ${_invalidCount} emails inválidos | ${_tempCount} falhas temporárias carregados do disco`);
+
+  // ── Base de Conhecimento Permanente (KB) ──────────────────────────────────
+  // Carregada do disco; se vazia, popula com entradas fundadoras do projeto
+  DB_KB = load(KB_FILE, { entries: [] });
+  if(!DB_KB || !Array.isArray(DB_KB.entries)) DB_KB = { entries: [] };
+  // Garante entradas fundadoras sempre presentes (idempotente)
+  const _kbFoundingIds = new Set(DB_KB.entries.map(e => e.id));
+  const _kbFounding = [
+    {
+      id: "KB-001", versao: "V811", data: "2026-06-26", autor: "Claude/Andrio",
+      problema: "Robôs classificados como 'travados' quando na verdade estavam aguardando limite diário (waiting_limit), rate limit (waiting_rate_limit), intervalo (waiting_interval) ou retry de token (waiting_token_retry).",
+      solucao: "Adicionar exclusão de status de espera legítimos no critério de detecção de travamento em todos os pontos: auditoria Gemini, Central de Incidentes e restart-all-stalled.",
+      motivo: "O critério original usava apenas lastSentAt > 2h sem verificar se havia uma espera programada válida.",
+      impacto: "Saúde do sistema subiu de 35/100 para 65/100. Zero falsos positivos de travamento. restart-all-stalled parou de reiniciar workers saudáveis.",
+      modulos: ["server.js: linha ~6930 (snapshot auditoria)", "server.js: linha ~4286 (Central de Incidentes)", "server.js: /api/admin/restart-all-stalled"],
+      tags: ["automação", "watchdog", "falso-positivo", "travamento"]
+    },
+    {
+      id: "KB-002", versao: "V812", data: "2026-06-26", autor: "Claude/Andrio",
+      problema: "Tokens expirados de usuários inativos (>10 dias sem acesso) geravam alertas críticos, tickets na Central de Incidentes, logs ruidosos e emails de notificação desnecessários — poluindo o painel admin e gastando recursos.",
+      solucao: "Aplicar filtro de inatividade em 6 pontos do sistema: (1) Central de Incidentes gera ticket apenas para inativos ≤10 dias; (2) Watchdog diagnoseJob faz pausa silenciosa para inativos >10 dias; (3) sendNotifEmail token_revoked só dispara para ativos ≤10 dias; (4) Snapshot Gemini inclui diasInativo, ultimoAcesso e tokenProblemaReal; (5+6) Dossiê Gemini distingue token-problema-real vs token-inativo-ignorado.",
+      motivo: "Regra de negócio: usuário inativo >10 dias provavelmente abandonou o app ou está em pausa voluntária. Não vale gerar ruído. Usuário ativo nos últimos 3 dias com token quebrado é urgente.",
+      impacto: "Painel admin limpo. Gemini foca nos problemas reais. Notificações só chegam para quem vai agir.",
+      modulos: ["server.js: Central de Incidentes (~linha 4278)", "server.js: diagnoseJob (~linha 7854)", "server.js: sendNotifEmail (~linha 1863)", "server.js: snapshot auditoria (~linha 6957)"],
+      tags: ["token", "inatividade", "notificação", "auditoria", "ruído"]
+    },
+    {
+      id:"KB-003",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Scope OAuth limitado a gmail.send impedia leitura do inbox. Sistema retornava 403 (falta de permissão) mas tratava como TOKEN_EXPIRED, criando loop eterno de reconexão sem resolver o problema.",
+      solucao:"Adicionar gmail.readonly e gmail.modify ao scope OAuth em /oauth/start e /oauth/add-sender. Implementar campo scopeVersion:2 nos usuários. Forçar prompt=consent para usuários sem os novos escopos. Retry automático com refresh quando 401. /api/inbox retorna HTTP 401 com flag tokenExpired:true explícita.",
+      impacto:"Inbox de respostas passou a funcionar. Detecção de bounces ativada. Loop de reconexão eliminado.",
+      modulos:["server.js: /oauth/start scope","server.js: gmailFetchInbox","server.js: /api/inbox"],
+      tags:["oauth","gmail","scope","inbox","token"]
+    },
+    {
+      id:"KB-004",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"DB_INVALID_EMAILS (bounces) nunca era carregado do disco no boot — always started vazio. Tudo que foi detectado antes de um restart era perdido. DB_EMAIL_CORRECTIONS e DB_TEMP_FAILURES também nunca persistiam entre deploys.",
+      solucao:"Adicionar load(INVALID_EMAILS_FILE), load(EMAIL_CORRECTIONS_FILE) e load(TEMP_FAILURES_FILE) no boot(). Serializar Sets de users como Array no disco. Logar quantos registros foram recuperados.",
+      impacto:"Bounces persistem entre deploys. Base Global de Emails Inválidos acumula dados corretamente.",
+      modulos:["server.js: boot()","server.js: DB_INVALID_EMAILS"],
+      tags:["bounce","invalid-emails","persistência","boot"]
+    },
+    {
+      id:"KB-005",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Startup Bounce Scan: ao iniciar o servidor, bounces acumulados durante downtime nunca eram processados. Usuários com tokens válidos tinham bounces pendentes no inbox que nunca eram detectados.",
+      solucao:"20s após boot, varrer inbox de todos os usuários com refresh_token. Criar sessão temporária __bounce_scan__email, chamar gmailFetchInbox, deletar sessão. Pausa 2s entre usuários para não saturar Gmail API.",
+      impacto:"Bounces do período de downtime são capturados imediatamente ao reiniciar.",
+      modulos:["server.js: server.listen callback (Startup Bounce Scan)"],
+      tags:["bounce","boot","startup","gmail","inbox"]
+    },
+    {
+      id:"KB-006",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"scheduleAuto usava lockedAutoLimit (salvo quando VIP estava ativo) ignorando expiração do plano. Job continuava enviando com limite alto (200/dia) mesmo após VIP expirar. Nenhum watchdog parava jobs de free users.",
+      solucao:"scheduleAuto verifica isAutoVipActive() a cada ciclo — para imediatamente se expirou. Substituir lockedAutoLimit por getAutoLimit(p) em tempo real (exceto admin). vipExpiryWatchdog roda a cada 1h varrendo todos os jobs ativos de free users e parando.",
+      impacto:"Trial abuse eliminado. Free users não conseguem mais usar automático após plano expirar.",
+      modulos:["server.js: scheduleAuto","server.js: vipExpiryWatchdog"],
+      tags:["vip","trial","automático","abuso","limite"]
+    },
+    {
+      id:"KB-007",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Trial multi-conta: usuário podia criar conta2@gmail.com e ganhar novo trial. Nenhum rastreamento de IP ou telefone impedia re-uso.",
+      solucao:"DB_TRIAL_USED {phones:{}, ips:{}} persiste em trial_used.json. No OAuth callback, verificar IPs: se ≥2 contas já usaram trial do mesmo IP, bloquear. Quando usuário salva telefone em /api/settings, registrar no phones. Rotas admin: GET /api/admin/trial-abuse e POST /api/admin/revoke-trial.",
+      impacto:"Trial abuse por multi-conta reduzido. Admin pode ver IPs suspeitos e revogar manualmente.",
+      modulos:["server.js: OAuth callback","server.js: /api/settings","server.js: /api/admin/trial-abuse"],
+      tags:["trial","abuse","ip","telefone","multi-conta"]
+    },
+    {
+      id:"KB-008",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Central de Incidentes ficava presa em 'Carregando...' por 4 bugs: (1) API retornava 'open' mas frontend esperava 'pending'; (2) severity 'critical'/'warning' não existiam no CSS (só error/warn/info); (3) campo 'user' mas frontend esperava 'userEmail'; (4) _resolvedIncidents nunca era aplicado na resposta GET.",
+      solucao:"API agora retorna pending:open, missionsPending, severity error/warn/info, userEmail. GET /api/admin/incidents filtra _resolvedIncidents antes de retornar.",
+      impacto:"Central de Incidentes funciona corretamente. Incidentes resolvidos não reaparecem.",
+      modulos:["server.js: /api/admin/incidents GET","admin.html: loadIncidentes"],
+      tags:["incidentes","admin","bug","severidade"]
+    },
+    {
+      id:"KB-009",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Modal de detalhe da aba Enviadas (hist-detail-overlay) ficava sem abrir. Os elementos #hd-title, #hd-body, #hd-foot existiam no CSS e JS mas nunca foram criados no HTML. openHistDetail() entrava em erro silencioso na primeira linha.",
+      solucao:"Criar HTML estático do modal hist-detail-overlay no body. Expandir infoItems com todos os campos: email (clicável), telefone (clicável), salário, localização, vagas, período, visto, SOC, ETA Case. Gerar URL SeasonalJobs.gov automaticamente pelo case number.",
+      impacto:"Cards de enviadas abrem e mostram todos os dados coletados da planilha DOL.",
+      modulos:["index.html: hist-detail-overlay HTML","index.html: openHistDetail()"],
+      tags:["modal","enviadas","histórico","DOL","dados"]
+    },
+    {
+      id:"KB-010",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"SHEET_EXTRAS (planilhas uploadadas pelo admin) eram perdidas a cada restart — nunca carregadas do disco no boot. _autoEnrichCycle era hardcoded para jan2026 e jul2025, ignorando extras. Sem watchdog de enriquecimento.",
+      solucao:"loadSheets() agora carrega DB_SHEETS_META + SHEET_EXTRAS do disco. _autoEnrichCycle é função global que varre jan2026+jul2025+extras dinamicamente. Critério 1x por planilha via enrichedAt. Watchdog a cada 30min. Upload de planilha dispara trigger imediato em 3s.",
+      impacto:"Planilhas extras sobrevivem a restarts. Enriquecimento DOL completamente automático e contínuo.",
+      modulos:["server.js: loadSheets()","server.js: _autoEnrichCycle","server.js: server.listen"],
+      tags:["planilhas","enriquecimento","DOL","boot","extras"]
+    },
+    {
+      id:"KB-011",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"authErrorWatchdog: usuários com paused_auth_error ficavam sem notificação. Admin precisava manualmente identificar cada um, copiar email e enviar mensagem.",
+      solucao:"MSGS_AUTH_ERROR com 3 variações. authErrorWatchdog a cada 3h: detecta paused_auth_error há >12h em usuários ativos ≤30 dias e envia sendNotifEmail automático. Rota POST /api/admin/notify-auth-error para 1-click. Botão 'Notificar usuário' na Central de Incidentes. Botão 'Notif. reconexão' no modal quando status=paused_auth_error.",
+      impacto:"Usuários com auth_error são notificados automaticamente. Admin pode notificar com 1 clique.",
+      modulos:["server.js: authErrorWatchdog","server.js: MSGS_AUTH_ERROR","admin.html: adminNotifyAuthError"],
+      tags:["auth-error","notificação","watchdog","paused"]
+    },
+    {
+      id:"KB-012",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Robô de Auditoria analisava dados mínimos e o relatório era cortado (maxOutputTokens:4000). Gemini não tinha memória cumulativa entre auditorias. Dossiê não incluía bounces, logs de erro, financeiro detalhado, engajamento.",
+      solucao:"maxOutputTokens:8000. Dossiê expandido com: emails inválidos, logs de erro 24h, financeiro (conversão, pedidos atrasados, trial ativo), engajamento 7 dias, planilhas e enriquecimento. Seção APRENDIZADOS no prompt — Gemini escreve 3-5 aprendizados que são extraídos e salvos na KB automaticamente (treinamento incremental).",
+      impacto:"Relatório completo sem corte. Gemini aprende com cada auditoria e melhora análises futuras.",
+      modulos:["server.js: /api/admin/auditoria-gemini","server.js: KB_FILE"],
+      tags:["gemini","auditoria","kb","aprendizado","treinamento"]
+    },
+    {
+      id:"KB-013",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Painel admin sem alertas proativos. Pedidos pendentes >24h e usuários com auth_error não tinham destaque visual no dashboard.",
+      solucao:"Banner vermelho dinâmico no topo do dashboard (admin-alert-banner) que busca /api/admin/pedidos-criticos e conta auth_error nos dados ao vivo. Aba ⚡ Críticos nos pedidos (aparece automaticamente, navega para ela se houver). Tempo 'há Xh/Xd' e destaque vermelho nos cards de pedido crítico.",
+      impacto:"Admin vê problemas urgentes imediatamente ao abrir o painel.",
+      modulos:["admin.html: updateDashboard","admin.html: pedidos view","server.js: /api/admin/pedidos-criticos"],
+      tags:["admin","dashboard","pedidos","alertas","visual"]
+    },
+    {
+      id:"KB-014",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"UX do usuário: sem feedback visual de status críticos. Sem indicador de VIP expirando. Sem banner offline. Aba de enviadas sem dados completos. Sem X para limpar busca. Perfil sem estatísticas.",
+      solucao:"20 melhorias UX implementadas: banner offline (pílula fixa), banner VIP expirando ≤3 dias (faixa âmbar no topo), X para limpar busca no histórico, scroll to top ao trocar aba, copiar email do remetente no inbox (1 clique), toast quando auto é pausado por VIP ou auth_error, mini-stats no perfil (total/auto/respostas), barra de progresso com dias estimados.",
+      impacto:"UX muito melhorada. Usuário recebe feedback claro sobre status críticos.",
+      modulos:["index.html: múltiplos componentes","index.html: renderHome","index.html: updateAutoUI"],
+      tags:["ux","visual","feedback","offline","vip","progresso"]
+    }
+  ];
+
+  for(const entry of _kbFounding){
+    if(!_kbFoundingIds.has(entry.id)) DB_KB.entries.unshift(entry);
+  }
+  persist(KB_FILE, DB_KB);
+  console.log(`[kb] ✅ Base de Conhecimento: ${DB_KB.entries.length} entrada(s) carregada(s)`);
+  // ─────────────────────────────────────────────────────────────────────────
   const rawRef = load(REFERRAL_FILE, { byCode: {}, byEmail: {} });
   DB_REFERRAL = {
     byCode:  (rawRef.byCode  && typeof rawRef.byCode  === 'object') ? rawRef.byCode  : {},
@@ -1039,7 +1201,18 @@ async function serverPushPoll() {
         await pushToUser(email, payload);
       }
       pushPollState.set(email, unread);
-    } catch(e) { /* sessão pode ter expirado */ }
+    } catch(e) {
+      // FIX: se token expirado, tenta refresh silencioso antes de desistir
+      if(e.message==="TOKEN_EXPIRED"||e.message.includes("TOKEN_EXPIRED")||e.message.includes("Sessão expirada")){
+        const sessArr=Object.entries(sessions).filter(([,s])=>s.user_email===email&&s.access_token);
+        if(sessArr.length){
+          const [sid]=sessArr[0];
+          try{ await refreshToken(sid); }catch(re){ console.warn(`[push-poll] refresh falhou para ${email}:`,re.message); }
+        }
+      } else {
+        console.warn(`[push-poll] erro para ${email}:`,e.message);
+      }
+    }
   }
 }
 // Executa poll a cada 2 minutos
@@ -1191,33 +1364,24 @@ const SHEETS_META_FILE = path.join(DATA_DIR, "sheets_meta.json");
 let DB_SHEETS_META = {}; // { "jul2026": { name, file, uploaded, count, enriched, enrichedAt } }
 
 // ── Bot de Enriquecimento de Planilhas ──────────────────
-// ── DUAL ENRICH BOT — roda 2 planilhas em paralelo no servidor ──
-// Cada planilha tem estado independente em _enrichBots[key]
-const _enrichBots = {};   // { sheetKey: { running, total, done, ok, noEmail, errors, startedAt, log, savedAt, finished } }
+const _enrichBot = {
+  running: false,
+  sheetKey: null,
+  total: 0,
+  done: 0,
+  ok: 0,
+  noEmail: 0,
+  errors: 0,
+  startedAt: null,
+  log: [],         // últimas 100 linhas de log
+  savedAt: null,
+};
 
-function _getBotState(key){
-  if(!_enrichBots[key]) _enrichBots[key] = {
-    running:false, sheetKey:key, total:0, done:0, ok:0,
-    noEmail:0, errors:0, startedAt:null, log:[], savedAt:null, finished:false
-  };
-  return _enrichBots[key];
-}
-
-// Alias legado para compatibilidade
-const _enrichBot = { get running(){ return Object.values(_enrichBots).some(b=>b.running); } };
-
-function _enrichLog(msg, type='info', key=null){
+function _enrichLog(msg, type='info'){
   const line = { ts: Date.now(), msg, type };
-  // Logar no bot correto se key fornecida, senão em todos os ativos
-  if(key && _enrichBots[key]){
-    _enrichBots[key].log.push(line);
-    if(_enrichBots[key].log.length > 300) _enrichBots[key].log.shift();
-  } else {
-    // fallback — logar no primeiro bot ativo
-    const active = Object.values(_enrichBots).find(b=>b.running);
-    if(active){ active.log.push(line); if(active.log.length>300) active.log.shift(); }
-  }
-  console.log(`[enrich${key?':'+key:''}] ${msg}`);
+  _enrichBot.log.push(line);
+  if(_enrichBot.log.length > 200) _enrichBot.log.shift();
+  console.log(`[enrich] ${msg}`);
 }
 
 
@@ -1249,9 +1413,20 @@ const CATEGORY_LABELS = {
 };
 
 function loadSheets() {
+  // ── Carrega DB_SHEETS_META do disco ──
+  if(fs.existsSync(SHEETS_META_FILE)){
+    try{ DB_SHEETS_META = JSON.parse(fs.readFileSync(SHEETS_META_FILE,"utf8")); }catch{}
+  }
+
   let anyLoaded = false;
   for(const[key,file]of[["jan","jan2026_compact.json"],["jul","jul2025_compact.json"]]){
-    const p=path.join(__dirname,file);
+    // PRIORIDADE: /data/ (disco persistente, sobrevive deploys)
+    // FALLBACK: __dirname (arquivo original do código, sem enriquecimento)
+    const pData = path.join(DATA_DIR, file);   // /data/jan2026_compact.json
+    const pSrc  = path.join(__dirname, file);   // /opt/render/.../jan2026_compact.json
+    const p = fs.existsSync(pData) ? pData : pSrc; // preferir /data/
+    if(p===pData) console.log(`[sheet] 📂 Carregando ${file} de /data/ (enriquecido)`);
+    else console.log(`[sheet] 📂 Carregando ${file} de código (original)`);
     if(fs.existsSync(p)){
       try {
         const d=JSON.parse(fs.readFileSync(p,"utf8"));
@@ -1267,14 +1442,31 @@ function loadSheets() {
         console.warn(`[sheet] ❌ Erro ao ler ${file}:`, e.message);
       }
     } else {
-      // Arquivo não existe — pode ser primeiro deploy ou build-sheets nunca rodou
       console.warn(`[sheet] ⚠️ ${file} não encontrado. Execute: node build-sheets.js`);
-      console.warn(`[sheet] ⚠️ As planilhas de vagas ficarão vazias até o build rodar.`);
     }
   }
   if (!anyLoaded) {
-    console.warn("[sheet] ❌ NENHUMA planilha carregada. Vagas das abas Jan/Jul estarão vazias.");
-    console.warn("[sheet] ❌ Execute 'node build-sheets.js' para baixar as vagas do DOL.");
+    console.warn("[sheet] ❌ NENHUMA planilha builtin carregada. Execute 'node build-sheets.js'.");
+  }
+
+  // ── Carrega planilhas EXTRAS do disco (/data/sheets/*.json) ──
+  if(fs.existsSync(SHEETS_DIR)){
+    let extrasLoaded = 0;
+    for(const [metaKey, meta] of Object.entries(DB_SHEETS_META)){
+      if(metaKey==="jan2026"||metaKey==="jul2025") continue;
+      if(!meta?.file) continue;
+      const fp = path.join(SHEETS_DIR, meta.file);
+      if(!fs.existsSync(fp)) continue;
+      try{
+        const d = JSON.parse(fs.readFileSync(fp,"utf8"));
+        if(!Array.isArray(d)||d.length===0) continue;
+        d.forEach(r=>{if(!r.k)r.k=detectCategory(r.n||"");r._sheet=metaKey;});
+        SHEET_EXTRAS[metaKey] = d;
+        extrasLoaded++;
+        console.log(`[sheet] ✅ extra ${metaKey}: ${d.length} vagas`);
+      }catch(e){ console.warn(`[sheet] ❌ Erro ao ler extra ${metaKey}:`, e.message); }
+    }
+    if(extrasLoaded>0) console.log(`[sheet] ✅ ${extrasLoaded} planilha(s) extra(s) carregada(s) do disco`);
   }
 }
 
@@ -1574,8 +1766,21 @@ function scheduleAuto(email) {
   }
 
   const p=getUser(email)||{};
-  // FIX-BUG7: usa o limite registrado no job para não degradar se VIP expirar
-  const autoLimit = job.lockedAutoLimit || getAutoLimit(p);
+
+  // ── FIX CRÍTICO: parar automático se VIP/plano auto expirou ─────────────
+  // lockedAutoLimit era salvo no início do job quando VIP estava ativo.
+  // Mas se o VIP expirar enquanto o job roda, precisamos parar imediatamente.
+  if(!isAdminVip(p) && !isAutoVipActive(p)){
+    setAutoJob(email,{...job,active:false,status:"paused_no_vip",finishedAt:Date.now()});
+    autoTimers.delete(email);
+    addLog(email,{status:"pausado",jobTitle:"⛔ Automático pausado — plano expirado",company:"Renove seu plano VIPro para continuar o envio automático.",error:"Plano auto expirado"});
+    console.log(`[auto] ⛔ ${email} VIP auto expirou — automático PARADO`);
+    sendNotifEmail(email,"vip_expired").catch(()=>{});
+    return;
+  }
+
+  // Limite: usa o atual do plano (não o lockedAutoLimit) para que expiração surta efeito
+  const autoLimit = isAdminVip(p) ? 9999 : getAutoLimit(p);
   // Admin pode ter limite diário por sender customizado
   const adminSenderLimits = (isAdminVip(p) && p.adminSettings?.senderLimits) ? p.adminSettings.senderLimits : null;
   const todayAuto=countAutoToday(getHist(email));
@@ -1858,8 +2063,16 @@ async function _doAutoSendInner(email) {
           autoTimers.delete(email);
           addLog(email, { status:"pausado", company:"Sistema", to:"", jobTitle:"🔐 Acesso Google revogado — faça login novamente", error: msg });
           console.warn(`[auto] ❌ Token revogado para ${email} — pausa definitiva`);
-          // Notifica usuário por email para que saiba que precisa fazer login novamente
-          sendNotifEmail(email, "token_revoked").catch(e => console.warn("[notif/token_revoked]", e.message));
+          // Notifica usuário por email APENAS se ativo nos últimos 10 dias
+          { const _u = getUser(email);
+            const _lastSeen = _u?.lastSeenAt || new Date(_u?.created_at||0).getTime();
+            const _inactiveDays = (Date.now() - _lastSeen) / 86400000;
+            if (_inactiveDays <= 10) {
+              sendNotifEmail(email, "token_revoked").catch(e => console.warn("[notif/token_revoked]", e.message));
+            } else {
+              console.log(`[notif] token_revoked ignorado — ${email} inativo ${Math.round(_inactiveDays)}d`);
+            }
+          }
         } else {
           // Erro temporário (rede, timeout) — agenda nova tentativa em 5min sem pausar
           const curJob = getAutoJob(email);
@@ -2711,8 +2924,8 @@ function extractText(payload){
 }
 
 async function gmailFetchInbox(sid,maxResults=50){
-  const token=await gmailGetToken(sid);
-  const headers={"Authorization":"Bearer "+token};
+  let token=await gmailGetToken(sid);
+  let headers={"Authorization":"Bearer "+token};
 
   // Busca mensagens na INBOX que são respostas (tem In-Reply-To ou Reference)
   // q: in:inbox -from:me — mensagens recebidas, não enviadas por mim
@@ -2720,9 +2933,26 @@ async function gmailFetchInbox(sid,maxResults=50){
   const q=encodeURIComponent("in:inbox -from:me");
   const listPath=`/gmail/v1/users/me/messages?maxResults=${maxResults}&q=${q}`;
 
-  const{status:ls,body:lb}=await httpsReq({hostname:"gmail.googleapis.com",path:listPath,method:"GET",headers});
+  let{status:ls,body:lb}=await httpsReq({hostname:"gmail.googleapis.com",path:listPath,method:"GET",headers});
+
+  // FIX: 401 = token expirado → tentar refresh automático antes de falhar
+  if(ls===401){
+    try{
+      await refreshToken(sid);
+      const s2=sessions[sid];
+      if(s2?.access_token){
+        headers={"Authorization":"Bearer "+s2.access_token};
+        const retry=await httpsReq({hostname:"gmail.googleapis.com",path:listPath,method:"GET",headers});
+        ls=retry.status; lb=retry.body;
+      }
+    }catch(re){ throw new Error("TOKEN_EXPIRED"); }
+    if(ls===401)throw new Error("TOKEN_EXPIRED");
+  }
+
+  // FIX: 403 = problema de scope (falta gmail.readonly) — mensagem específica para orientar reconexão
+  if(ls===403)throw new Error("TOKEN_EXPIRED");
+
   if(ls===429)throw new Error("Gmail: muitas requisições (429). Aguarde 1 minuto e tente novamente.");
-  if(ls===401||ls===403)throw new Error("TOKEN_EXPIRED");
   if(ls!==200)throw new Error("Gmail list HTTP "+ls);
 
   const messages=lb.messages||[];
@@ -2781,46 +3011,49 @@ async function gmailFetchInbox(sid,maxResults=50){
   const realReplies = emails.filter(e => !isBounceMail(e));
 
   // Processar bounces: extrair email que falhou e registrar na base global
+  let _bouncesProcessed = 0;
+  const _ownerEmail = sessions[sid]?.user_email || 'sistema';
+
   for(const bounce of bounceMsgs){
     try{
-      // Extrair email de destino que falhou do corpo/assunto do bounce
       const fullText = (bounce.subject||'') + ' ' + (bounce.body||bounce.snippet||'');
-      // Padrões para extrair o email que falhou
-      const emailMatches = fullText.match(/(?:to|for|address|recipient|deliver(?:ing|ed)?\s+to):?\s*<?([\w.+%-]+@[\w.-]+\.[a-z]{2,6})>?/gi) || [];
-      const allEmails = [...fullText.matchAll(/[\w.+%-]+@[\w.-]+\.[a-z]{2,6}/g)]
-        .map(m => m[0].toLowerCase())
-        .filter(e => !e.includes('mailer-daemon') && !e.includes('postmaster') && !e.includes('google'));
 
-      // Classificar o tipo de bounce
+      // Extração melhorada: padrões específicos de bounce primeiro
+      const specificMatches = [...fullText.matchAll(
+        /(?:to|for|address|recipient|deliver(?:ing|ed)?\s+to|failed.*to|message.*to)\s*:?\s*<?([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,6})>?/gi
+      )].map(m=>m[1].toLowerCase());
+
+      const allEmails = [...fullText.matchAll(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,6}/g)]
+        .map(m => m[0].toLowerCase())
+        .filter(e =>
+          !e.includes('mailer-daemon') && !e.includes('postmaster') &&
+          !e.includes('google') && !e.includes('noreply') && !e.endsWith('@gmail.com')
+        );
+
       const bodyLower = fullText.toLowerCase();
       const isPermanent = PERM_PATTERNS.some(p => p.test(bodyLower));
       const isTemp = TEMP_PATTERNS.some(p => p.test(bodyLower));
 
-      if(isPermanent && allEmails.length > 0){
-        // Pegar o email mais provável (geralmente o primeiro que não é do remetente)
-        const failedEmail = allEmails.find(e =>
-          !e.endsWith('@gmail.com') || !Object.values(sessions).some(s => s.user_email === e)
-        ) || allEmails[0];
+      // Email candidato: padrão específico tem prioridade sobre regex geral
+      const candidateEmail = specificMatches[0] || allEmails[0];
 
-        if(failedEmail){
-          const ownerEmail = Object.values(sessions).find(s => s.access_token)?.user_email || 'sistema';
-          processBounce(failedEmail, fullText, ownerEmail);
-          // Remover da planilha global imediatamente
-          removeFromSheets(failedEmail);
-          console.log(`[bounce] 🔴 Email permanentemente inválido detectado: ${failedEmail}`);
-        }
-      } else if(isTemp){
-        const failedEmail = allEmails[0];
-        if(failedEmail){
-          if(!DB_TEMP_FAILURES[failedEmail]) DB_TEMP_FAILURES[failedEmail]={email:failedEmail,errors:[],count:0};
-          DB_TEMP_FAILURES[failedEmail].count++;
-          DB_TEMP_FAILURES[failedEmail].errors.push({msg:fullText.slice(0,200),ts:Date.now()});
-          try{fs.writeFileSync(TEMP_FAILURES_FILE,JSON.stringify(DB_TEMP_FAILURES,null,2));}catch{}
-        }
+      if(isPermanent && candidateEmail){
+        processBounce(candidateEmail, fullText, _ownerEmail);
+        removeFromSheets(candidateEmail);
+        _bouncesProcessed++;
+        console.log(`[bounce] 🔴 Permanente (${_ownerEmail}): ${candidateEmail}`);
+      } else if(isTemp && candidateEmail){
+        if(!DB_TEMP_FAILURES[candidateEmail]) DB_TEMP_FAILURES[candidateEmail]={email:candidateEmail,errors:[],count:0,user:_ownerEmail};
+        DB_TEMP_FAILURES[candidateEmail].count++;
+        DB_TEMP_FAILURES[candidateEmail].errors.push({msg:fullText.slice(0,200),ts:Date.now(),user:_ownerEmail});
+        try{fs.writeFileSync(TEMP_FAILURES_FILE,JSON.stringify(DB_TEMP_FAILURES,null,2));}catch{}
+        console.log(`[bounce] 🟡 Temporário (${_ownerEmail}): ${candidateEmail}`);
       }
     }catch(e){ console.warn('[bounce] erro processando bounce:', e.message); }
   }
 
+  // Expõe contagem para o startup scan
+  realReplies._bouncesProcessed = _bouncesProcessed;
   return realReplies;
 }
 
@@ -3358,9 +3591,8 @@ ul li{margin-bottom:6px}
   if(pathname==="/api/admin/enrich/stop"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    // parar todos os bots ativos
-    for(const b of Object.values(_enrichBots)) if(b.running){ b.running=false; }
-    _enrichLog("⏹️ Todos os bots parados pelo admin", "warn");
+    _enrichBotState.running=false;
+    _enrichLog("⏹️ Bot parado pelo admin", "warn");
     return json(res,200,{ok:true});
   }
 
@@ -3370,41 +3602,31 @@ ul li{margin-bottom:6px}
 //  os campos que faltam: ci, d, de, wk, ph, desc, url
 // ════════════════════════════════════════════════════════════
 async function _runEnrichBot(sheetKey, resume=false){
-  const b = _getBotState(sheetKey);
-
-  // Verificar se essa planilha já foi 100% concluída — não roda de novo
-  if(b.finished && !resume){
-    _enrichLog(`✅ Planilha "${sheetKey}" já foi concluída anteriormente. Ignorando.`, "warn", sheetKey);
-    return;
+  if(_enrichBot.running && !resume){
+    _enrichLog("Bot já está rodando","warn"); return;
   }
-
-  if(b.running){
-    _enrichLog(`Bot já está rodando para "${sheetKey}"`, "warn", sheetKey); return;
-  }
-
   const sheet = sheetKey==="jan2026" ? SHEET_JAN
               : sheetKey==="jul2025" ? SHEET_JUL
               : SHEET_EXTRAS[sheetKey];
   if(!sheet || !sheet.length){
-    _enrichLog(`Planilha não encontrada: ${sheetKey}`, "error", sheetKey); return;
+    _enrichLog(`Planilha não encontrada: ${sheetKey}`,"error"); return;
   }
 
-  const startIdx = resume ? Math.max(0,(b.done||0)) : 0;
+  const startIdx = resume ? Math.max(0,(_enrichBot.done||0)) : 0;
 
-  b.running   = true;
-  b.sheetKey  = sheetKey;
-  b.total     = sheet.length;
-  b.done      = startIdx;
-  b.ok        = resume ? (b.ok||0) : 0;
-  b.noEmail   = resume ? (b.noEmail||0) : 0;
-  b.errors    = resume ? (b.errors||0) : 0;
-  b.startedAt = (resume && b.startedAt) ? b.startedAt : Date.now();
-  b.log       = resume ? b.log : [];
-  b.savedAt   = null;
-  b.finished  = false;
+  _enrichBot.running   = true;
+  _enrichBot.sheetKey  = sheetKey;
+  _enrichBot.total     = sheet.length;
+  _enrichBot.done      = startIdx;
+  _enrichBot.ok        = resume ? (_enrichBot.ok||0) : 0;
+  _enrichBot.noEmail   = resume ? (_enrichBot.noEmail||0) : 0;
+  _enrichBot.errors    = resume ? (_enrichBot.errors||0) : 0;
+  _enrichBot.startedAt = (resume && _enrichBot.startedAt) ? _enrichBot.startedAt : Date.now();
+  _enrichBot.log       = resume ? _enrichBot.log : [];
+  _enrichBot.savedAt   = null;
 
-  _enrichLog(`🚀 Bot iniciado: ${sheet.length} vagas — planilha "${sheetKey}"${resume?` (retomando de ${startIdx})`:''}`, "ok", sheetKey);
-  _enrichLog(`🔍 Buscando: email, cidade, datas, workers, telefone, funções, URL`, "info", sheetKey);
+  _enrichLog(`🚀 Bot iniciado: ${sheet.length} vagas — planilha "${sheetKey}"${resume?` (retomando de ${startIdx})`:''}`, "ok");
+  _enrichLog(`🔍 Buscando: email, cidade, datas, workers, telefone, funções, URL`, "info");
 
   // Rotação de User-Agents para evitar fingerprinting do DOL
   const USER_AGENTS = [
@@ -3439,23 +3661,23 @@ async function _runEnrichBot(sheetKey, resume=false){
 
   // Processar UMA VAGA POR VEZ — garante que cada case number é buscado individualmente
   for(let i = startIdx; i < sheet.length; i++){
-    if(!b.running) break;
+    if(!_enrichBot.running) break;
 
     const row = sheet[i];
     const cn  = (row.c||"").toUpperCase();
-    b.done = i + 1;
+    _enrichBot.done = i + 1;
 
     // Loop de retry com backoff exponencial para 403/429
     let attempt = 0;
     let processed = false;
 
-    while(attempt < 6 && !processed && b.running){
+    while(attempt < 6 && !processed && _enrichBot.running){
       if(attempt > 0){
         // Backoff: 15s, 30s, 60s, 120s, 240s
         const waitMs = Math.min(15000 * Math.pow(2, attempt - 1), 240000);
-        _enrichLog(`⏳ [${i+1}/${sheet.length}] ${cn} — retry ${attempt}/5, aguardando ${Math.round(waitMs/1000)}s...`, "warn", sheetKey);
+        _enrichLog(`⏳ [${i+1}/${sheet.length}] ${cn} — retry ${attempt}/5, aguardando ${Math.round(waitMs/1000)}s...`, "warn");
         await new Promise(r=>setTimeout(r, waitMs));
-        if(!b.running) break;
+        if(!_enrichBot.running) break;
       }
       attempt++;
 
@@ -3541,23 +3763,23 @@ async function _runEnrichBot(sheetKey, resume=false){
            .filter(e=>e && e.includes("@") && e!=="n/a" && !e.startsWith("n/a"));
           if(!row.e && emails.length>0){
             row.e = emails[0];
-            _enrichLog(`📧 [${i+1}/${sheet.length}] ${cn}: email → ${row.e}`, "ok", sheetKey);
+            _enrichLog(`📧 [${i+1}/${sheet.length}] ${cn}: email → ${row.e}`, "ok");
           } else if(row.e && emails.length>0 && !emails.includes(row.e)){
             // Manter o existente mas logar que há outros
           }
 
-          b.ok++;
+          _enrichBot.ok++;
           if(!row.e||!row.e.includes("@")){
-            b.noEmail++;
-            _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} SEM EMAIL | ${(row.t||"?").slice(0,40)} | ${row.ci||row.s||"?"}`, "warn", sheetKey);
+            _enrichBot.noEmail++;
+            _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} SEM EMAIL | ${(row.t||"?").slice(0,40)} | ${row.ci||row.s||"?"}`, "warn");
           } else {
             // Log de cada vaga OK — em tempo real
-            _enrichLog(`✅ [${i+1}/${sheet.length}] ${cn} | ${(row.t||"?").slice(0,35)} | ${row.ci||"?"}, ${row.s||"?"} | $${row.w||"?"}/h | ${row.e}`, "info", sheetKey);
+            _enrichLog(`✅ [${i+1}/${sheet.length}] ${cn} | ${(row.t||"?").slice(0,35)} | ${row.ci||"?"}, ${row.s||"?"} | $${row.w||"?"}/h | ${row.e}`, "info");
           }
         } else {
           // Não encontrou na API — case number inválido ou expirado
-          b.errors++;
-          _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — não encontrado no DOL`, "warn", sheetKey);
+          _enrichBot.errors++;
+          _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — não encontrado no DOL`, "warn");
         }
 
       } else if(status===403 || status===429){
@@ -3567,38 +3789,38 @@ async function _runEnrichBot(sheetKey, resume=false){
         // Aumenta delay permanente proporcionalmente
         _interDelay = Math.min(3000 + _consecutive403 * 500, 8000);
         // Não marca processed → while faz retry automático
-        _enrichLog(`🚫 [${i+1}/${sheet.length}] ${cn} — HTTP ${status} (bloqueio DOL, tentativa ${attempt}/5, delay→${_interDelay}ms)`, "warn", sheetKey);
+        _enrichLog(`🚫 [${i+1}/${sheet.length}] ${cn} — HTTP ${status} (bloqueio DOL, tentativa ${attempt}/5, delay→${_interDelay}ms)`, "warn");
       } else {
         // Qualquer outro erro HTTP (404, 500, etc.) — conta como erro, não faz retry
         processed = true;
-        b.errors++;
-        _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} — DOL retornou HTTP ${status}`, "warn", sheetKey);
+        _enrichBot.errors++;
+        _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} — DOL retornou HTTP ${status}`, "warn");
       }
     }catch(e){
       // Erro de rede — pode tentar de novo
       if(attempt < 6){
-        _enrichLog(`🔌 [${i+1}/${sheet.length}] ${cn} — erro de rede (retry ${attempt}/5): ${e.message}`, "warn", sheetKey);
+        _enrichLog(`🔌 [${i+1}/${sheet.length}] ${cn} — erro de rede (retry ${attempt}/5): ${e.message}`, "warn");
         // processed continua false → while faz retry
       } else {
         processed = true;
-        b.errors++;
-        _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — falhou após 5 tentativas: ${e.message}`, "error", sheetKey);
+        _enrichBot.errors++;
+        _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — falhou após 5 tentativas: ${e.message}`, "error");
       }
     }
     } // fim while retry
 
     // Se esgotou retries sem processar (ex: 5x 403 seguidos)
-    if(!processed && b.running){
-      b.errors++;
-      _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — desistindo após 5 tentativas (DOL bloqueando)`, "error", sheetKey);
+    if(!processed && _enrichBot.running){
+      _enrichBot.errors++;
+      _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — desistindo após 5 tentativas (DOL bloqueando)`, "error");
     }
 
     // Salvar a cada 100 vagas processadas
-    if(b.done % 100 === 0){
+    if(_enrichBot.done % 100 === 0){
       _saveEnrichedSheet(sheetKey, sheet);
-      b.savedAt = Date.now();
-      const pct = Math.round((b.done/sheet.length)*100);
-      _enrichLog(`💾 Salvo: ${b.done}/${sheet.length} (${pct}%) — ok:${b.ok} semEmail:${b.noEmail} delay:${_interDelay}ms`, "ok", sheetKey);
+      _enrichBot.savedAt = Date.now();
+      const pct = Math.round((_enrichBot.done/sheet.length)*100);
+      _enrichLog(`💾 Salvo: ${_enrichBot.done}/${sheet.length} (${pct}%) — ok:${_enrichBot.ok} semEmail:${_enrichBot.noEmail} delay:${_interDelay}ms`, "ok");
     }
 
     // Delay adaptativo entre vagas (aumenta quando DOL bloqueia, reduz quando ok)
@@ -3606,38 +3828,45 @@ async function _runEnrichBot(sheetKey, resume=false){
   }
 
   // Finalizar
-  b.done    = sheet.length;
-  b.running = false;
-  b.finished = true;
+  _enrichBot.done    = sheet.length;
+  _enrichBot.running = false;
   _saveEnrichedSheet(sheetKey, sheet);
-  b.savedAt = Date.now();
+  _enrichBot.savedAt = Date.now();
 
   // Atualizar meta para planilhas builtin também (jan2026, jul2025)
   if(!DB_SHEETS_META[sheetKey]){
     DB_SHEETS_META[sheetKey] = {name: sheetKey==="jan2026"?"Janeiro 2026 (H-2B)":"Julho 2025 (H-2B)", file:sheetKey+".json"};
   }
-  DB_SHEETS_META[sheetKey].enriched    = b.ok;
+  DB_SHEETS_META[sheetKey].enriched    = _enrichBot.ok;
   DB_SHEETS_META[sheetKey].enrichedAt  = Date.now();
-  DB_SHEETS_META[sheetKey].enrichedTotal = b.total;
+  DB_SHEETS_META[sheetKey].enrichedTotal = _enrichBot.total;
   fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2));
 
   const semEmail = sheet.filter(r=>!r.e||!r.e.includes("@")).length;
-  _enrichLog(`🏁 CONCLUÍDO! ok:${b.ok} | semEmail:${semEmail} | erros:${b.errors}`, "ok", sheetKey);
-  _enrichLog(`📥 Baixe a planilha enriquecida no botão "⬇️ Baixar JSON"`, "ok", sheetKey);
+  _enrichLog(`🏁 CONCLUÍDO! ok:${_enrichBot.ok} | semEmail:${semEmail} | erros:${_enrichBot.errors}`, "ok");
+  _enrichLog(`📥 Baixe a planilha enriquecida no botão "⬇️ Baixar JSON"`, "ok");
 }
 
 function _saveEnrichedSheet(sheetKey, sheet){
   try{
-    if(sheetKey==="jan2026"){
-      fs.writeFileSync(path.join(__dirname,"jan2026_compact.json"),JSON.stringify(sheet));
-    } else if(sheetKey==="jul2025"){
-      fs.writeFileSync(path.join(__dirname,"jul2025_compact.json"),JSON.stringify(sheet));
+    // Salva SEMPRE em /data/ (disco persistente — sobrevive a deploys)
+    // E também em __dirname para leitura imediata sem precisar recarregar
+    const dataPath = path.join(DATA_DIR, sheetKey==="jan2026"?"jan2026_compact.json":"jul2025_compact.json");
+    const srcPath  = path.join(__dirname, sheetKey==="jan2026"?"jan2026_compact.json":"jul2025_compact.json");
+    const payload  = JSON.stringify(sheet);
+
+    if(sheetKey==="jan2026"||sheetKey==="jul2025"){
+      // Salva no disco persistente (/data/) — não é sobrescrito no deploy
+      fs.writeFileSync(dataPath, payload);
+      // Salva também na pasta do código (para leitura imediata neste boot)
+      try{fs.writeFileSync(srcPath, payload);}catch{}
+      _enrichLog(`💾 Salvo em /data/ e código: ${sheet.length} vagas`, "ok");
     } else if(SHEET_EXTRAS[sheetKey]){
       const meta = DB_SHEETS_META[sheetKey];
       const fp = path.join(SHEETS_DIR, meta?.file||`${sheetKey}.json`);
-      fs.writeFileSync(fp, JSON.stringify(sheet));
+      fs.writeFileSync(fp, payload); // extras já ficam em /data/sheets/
     }
-    // savedAt atualizado no bot de origem se disponível
+    _enrichBot.savedAt = Date.now();
   }catch(e){ _enrichLog(`❌ Erro ao salvar: ${e.message}`,"error"); }
 }
 
@@ -3646,22 +3875,44 @@ function _saveEnrichedSheet(sheetKey, sheet){
   if(pathname==="/api/admin/sheets"&&req.method==="GET"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    // Calcular stats reais de enriquecimento contando campos preenchidos
+    const _enrichStats=(arr)=>{
+      if(!arr||!arr.length)return{withCity:0,withPhone:0,withDesc:0,withDate:0};
+      return{
+        withCity:arr.filter(r=>r.ci).length,
+        withPhone:arr.filter(r=>r.ph).length,
+        withDesc:arr.filter(r=>r.desc).length,
+        withDate:arr.filter(r=>r.d&&r.d!=="–").length,
+      };
+    };
+    const janStats=_enrichStats(SHEET_JAN);
+    const julStats=_enrichStats(SHEET_JUL);
     const sheets = [
       {key:"jan2026",name:"Janeiro 2026 (H-2B)",count:SHEET_JAN.length,builtin:true,active:true,
-        enriched:DB_SHEETS_META["jan2026"]?.enriched||0,
-        enrichedAt:DB_SHEETS_META["jan2026"]?.enrichedAt||null},
+        enriched:DB_SHEETS_META["jan2026"]?.enriched||janStats.withCity,
+        enrichedAt:DB_SHEETS_META["jan2026"]?.enrichedAt||null,
+        stats:janStats,
+        enrichPct:SHEET_JAN.length>0?Math.round((janStats.withCity/SHEET_JAN.length)*100):0},
       {key:"jul2025",name:"Julho 2025 (H-2B)",count:SHEET_JUL.length,builtin:true,active:true,
-        enriched:DB_SHEETS_META["jul2025"]?.enriched||0,
-        enrichedAt:DB_SHEETS_META["jul2025"]?.enrichedAt||null},
-      ...Object.entries(SHEET_EXTRAS).map(([key,arr])=>({
-        key,name:DB_SHEETS_META[key]?.name||key,count:arr.length,builtin:false,
-        active:true,uploaded:DB_SHEETS_META[key]?.uploaded,
-        enriched:DB_SHEETS_META[key]?.enriched||0,
-        enrichedAt:DB_SHEETS_META[key]?.enrichedAt,
-      }))
+        enriched:DB_SHEETS_META["jul2025"]?.enriched||julStats.withCity,
+        enrichedAt:DB_SHEETS_META["jul2025"]?.enrichedAt||null,
+        stats:julStats,
+        enrichPct:SHEET_JUL.length>0?Math.round((julStats.withCity/SHEET_JUL.length)*100):0},
+      ...Object.entries(SHEET_EXTRAS).map(([key,arr])=>{
+        const st=_enrichStats(arr);
+        return{key,name:DB_SHEETS_META[key]?.name||key,count:arr.length,builtin:false,
+          active:true,uploaded:DB_SHEETS_META[key]?.uploaded,
+          enriched:DB_SHEETS_META[key]?.enriched||st.withCity,
+          enrichedAt:DB_SHEETS_META[key]?.enrichedAt,
+          stats:st,
+          enrichPct:arr.length>0?Math.round((st.withCity/arr.length)*100):0};
+      })
     ];
     const totalVagas = SHEET_JAN.length + SHEET_JUL.length + Object.values(SHEET_EXTRAS).reduce((s,a)=>s+a.length,0);
-    return json(res,200,{ok:true,sheets,totalVagas});
+    const totalEnriched = sheets.reduce((s,sh)=>s+(sh.stats?.withCity||0),0);
+    // Status do bot em tempo real
+    const botStatus={running:_enrichBot.running,sheetKey:_enrichBot.sheetKey,done:_enrichBot.done,total:_enrichBot.total,pct:_enrichBot.total>0?Math.round((_enrichBot.done/_enrichBot.total)*100):0};
+    return json(res,200,{ok:true,sheets,totalVagas,totalEnriched,botStatus});
   }
 
   // POST /api/admin/sheet/upload — recebe nova planilha (JSON compacto ou CSV)
@@ -3692,6 +3943,11 @@ function _saveEnrichedSheet(sheetKey, sheet){
     fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));
     console.log(`[sheet] ✅ Nova planilha carregada: ${safeKey} (${valid.length} vagas válidas de ${vagas.length})`);
     addLog(s.user_email,{status:"sistema",jobTitle:`📋 Nova planilha adicionada: ${name}`,company:`${valid.length} vagas válidas — Chave: ${safeKey}`});
+    // Dispara enriquecimento automático imediato (não espera o watchdog de 30min)
+    if(typeof _autoEnrichCycle === "function"){
+      setTimeout(()=>_autoEnrichCycle().catch(e=>console.error("[auto-enrich] trigger upload erro:",e.message)), 3000);
+      console.log(`[auto-enrich] 🔔 Enriquecimento de "${safeKey}" agendado em 3s`);
+    }
     return json(res,200,{ok:true,key:safeKey,count:valid.length,total:vagas.length});
   }
 
@@ -3709,106 +3965,52 @@ function _saveEnrichedSheet(sheetKey, sheet){
     return json(res,200,{ok:true});
   }
 
-  // GET /api/admin/enrich/status — status dos bots (todos em paralelo)
+  // GET /api/admin/enrich/status — status do bot em tempo real
   if(pathname==="/api/admin/enrich/status"&&req.method==="GET"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    // Retornar status de TODOS os bots ativos
-    const bots = {};
-    for(const [key, b] of Object.entries(_enrichBots)){
-      const elapsed = b.startedAt ? Math.round((Date.now()-b.startedAt)/1000) : 0;
-      const ratePerSec = elapsed>0 ? (b.done/elapsed).toFixed(1) : 0;
-      const remaining = b.total-b.done;
-      const etaSec = ratePerSec>0 ? Math.round(remaining/ratePerSec) : null;
-      bots[key] = {
-        running:b.running, sheetKey:b.sheetKey, finished:b.finished||false,
-        total:b.total, done:b.done, ok:b.ok,
-        noEmail:b.noEmail, errors:b.errors,
-        pct:b.total>0?Math.round((b.done/b.total)*100):0,
-        elapsed, ratePerSec, etaSec, savedAt:b.savedAt,
-        log: b.log.slice(-60),
-      };
-    }
-    // Compatibilidade legada: também retorna o primeiro bot ativo no campo raiz
-    const firstActive = Object.values(_enrichBots).find(b=>b.running) || Object.values(_enrichBots)[0] || {};
-    return json(res,200,{ ok:true, bots, anyRunning: Object.values(_enrichBots).some(b=>b.running),
-      // legado:
-      running: firstActive.running||false, sheetKey: firstActive.sheetKey||null,
-      total:firstActive.total||0, done:firstActive.done||0,
+    const b=_enrichBot;
+    const elapsed = b.startedAt ? Math.round((Date.now()-b.startedAt)/1000) : 0;
+    const ratePerSec = elapsed>0 ? (b.done/elapsed).toFixed(1) : 0;
+    const remaining = b.total-b.done;
+    const etaSec = ratePerSec>0 ? Math.round(remaining/ratePerSec) : null;
+    return json(res,200,{
+      ok:true, running:b.running, sheetKey:b.sheetKey,
+      total:b.total, done:b.done, ok:b.ok,
+      noEmail:b.noEmail, errors:b.errors,
+      pct:b.total>0?Math.round((b.done/b.total)*100):0,
+      elapsed, ratePerSec, etaSec,
+      savedAt:b.savedAt,
+      log: b.log.slice(-50), // últimas 50 linhas
     });
   }
 
-  // POST /api/admin/enrich/start — iniciar bot(s)
-  // Aceita: { sheetKey: "jan2026" } | { sheetKey: "all" } | { sheetKeys: ["jan2026","jul2025"] }
+  // POST /api/admin/enrich/start — iniciar bot
   if(pathname==="/api/admin/enrich/start"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    let body={sheetKey:"jan2026",resume:false,sheetKeys:null};
-    try{const _d=JSON.parse(await readBody(req));Object.assign(body,_d);}catch{}
-    const resume=!!body.resume;
+    let _eb={sheetKey:"jan2026",resume:false};
+    try{const _d=JSON.parse(await readBody(req));_eb.sheetKey=_d.sheetKey||"jan2026";_eb.resume=!!_d.resume;}catch{}
+    const {sheetKey,resume}=_eb;
+    if(_enrichBot.running) return json(res,409,{error:"Bot já está rodando. Aguarde ou pare primeiro."});
+    // Validar sheetKey
     const validSheets=["jan2026","jul2025",...Object.keys(SHEET_EXTRAS)];
-    // Determinar lista de planilhas a processar
-    let keysToRun = [];
-    if(body.sheetKey==="all" || body.sheetKeys?.includes("all")){
-      keysToRun = validSheets;
-    } else if(Array.isArray(body.sheetKeys) && body.sheetKeys.length>0){
-      keysToRun = body.sheetKeys.filter(k=>validSheets.includes(k));
-    } else {
-      keysToRun = [body.sheetKey||"jan2026"];
-    }
-    if(!keysToRun.length) return json(res,400,{error:"Nenhuma planilha válida especificada"});
-    const started=[];
-    for(const sheetKey of keysToRun){
-      const b = _getBotState(sheetKey);
-      if(b.running){ started.push({key:sheetKey, status:"já rodando"}); continue; }
-      if(b.finished && !resume){ started.push({key:sheetKey, status:"já concluída — ignorada"}); continue; }
-      const sheetArr = sheetKey==="jan2026"?SHEET_JAN:sheetKey==="jul2025"?SHEET_JUL:SHEET_EXTRAS[sheetKey];
-      if(!sheetArr||!sheetArr.length){ started.push({key:sheetKey, status:"vazia/não encontrada"}); continue; }
-      started.push({key:sheetKey, status:"iniciada", total:sheetArr.length});
-      _runEnrichBot(sheetKey, resume).catch(e=>_enrichLog("Erro fatal: "+e.message,"error", sheetKey));
-    }
-    json(res,200,{ok:true, started, message:`${started.length} planilha(s) processada(s)`});
+    if(!validSheets.includes(sheetKey)) return json(res,400,{error:`Planilha "${sheetKey}" não encontrada. Disponíveis: ${validSheets.join(", ")}`});
+    const sheetArr = sheetKey==="jan2026"?SHEET_JAN:sheetKey==="jul2025"?SHEET_JUL:SHEET_EXTRAS[sheetKey];
+    if(!sheetArr||!sheetArr.length) return json(res,400,{error:"Planilha vazia ou não carregada"});
+    json(res,200,{ok:true,message:`Bot iniciado para "${sheetKey}" (${sheetArr.length} vagas)`,total:sheetArr.length});
+    _runEnrichBot(sheetKey, resume).catch(e=>_enrichLog("Erro fatal: "+e.message,"error"));
     return;
   }
 
-  // POST /api/admin/enrich/start-all — atalho: inicia TODAS as planilhas em paralelo
-  if(pathname==="/api/admin/enrich/start-all"&&req.method==="POST"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    let body={resume:false,force:false};
-    try{const _d=JSON.parse(await readBody(req));Object.assign(body,_d);}catch{}
-    const allKeys=["jan2026","jul2025",...Object.keys(SHEET_EXTRAS)];
-    const started=[];
-    for(const key of allKeys){
-      const b=_getBotState(key);
-      if(b.running){ started.push({key, status:"já rodando"}); continue; }
-      if(b.finished && !body.force && !body.resume){ started.push({key, status:"já concluída — ignorada"}); continue; }
-      const arr=key==="jan2026"?SHEET_JAN:key==="jul2025"?SHEET_JUL:SHEET_EXTRAS[key];
-      if(!arr||!arr.length){ started.push({key, status:"vazia"}); continue; }
-      started.push({key, status:"iniciada", total:arr.length});
-      _runEnrichBot(key, !!body.resume).catch(e=>_enrichLog("Erro: "+e.message,"error",key));
-    }
-    return json(res,200,{ok:true,started,message:`${started.length} planilha(s) processada(s) em paralelo`});
-  }
-
-  // POST /api/admin/enrich/stop — parar bot(s)
-  // { sheetKey: "jan2026" } | { sheetKey: "all" } | omit = para todos
+  // POST /api/admin/enrich/stop — parar bot
   if(pathname==="/api/admin/enrich/stop"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    let body={sheetKey:null};
-    try{const _d=JSON.parse(await readBody(req));Object.assign(body,_d);}catch{}
-    const stopped=[];
-    if(!body.sheetKey || body.sheetKey==="all"){
-      // Para TODOS
-      for(const [k,b] of Object.entries(_enrichBots)){
-        if(b.running){ b.running=false; stopped.push(k); _enrichLog("⏹️ Bot parado pelo admin","warn",k); }
-      }
-    } else {
-      const b=_enrichBots[body.sheetKey];
-      if(b && b.running){ b.running=false; stopped.push(body.sheetKey); _enrichLog("⏹️ Bot parado pelo admin","warn",body.sheetKey); }
-    }
-    return json(res,200,{ok:true,stopped,message:`${stopped.length} bot(s) parado(s)`});
+    try{await readBody(req);}catch{} // consumir body
+    _enrichBot.running=false;
+    _enrichLog("⏹️ Bot parado pelo admin","warn");
+    return json(res,200,{ok:true,message:"Bot parado"});
   }
 
   // POST /api/admin/sheet/enrich/:key — redireciona para o bot central
@@ -3816,7 +4018,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
     const key=pathname.split("/").pop();
-    const _bk=pathname.split("/").pop(); if(_enrichBots[_bk]?.running) return json(res,409,{error:`Bot para "${_bk}" já está rodando.`});
+    if(_enrichBot.running) return json(res,409,{error:"Bot já está rodando. Use /api/admin/enrich/stop para parar."});
     const sheet = key==="jan2026"?SHEET_JAN:key==="jul2025"?SHEET_JUL:SHEET_EXTRAS[key];
     if(!sheet)return json(res,404,{error:"Planilha não encontrada"});
     try{await readBody(req);}catch{} // consumir body
@@ -3970,10 +4172,11 @@ function _saveEnrichedSheet(sheetKey, sheet){
     catch(e){
       // DOL offline → planilha local como fallback principal
       const _shRows=getAllSheets().filter(r=>r.e&&r.e.includes("@"));
-      const _shJobs=_shRows.map(r=>({id:r.c,caseNum:r.c,title:r.t||"Seasonal Worker",company:r.n||"–",city:"–",state:r.s||"–",wage:r.w?`$${r.w}/${r.wunit||"h"}`:"–",workers:r.wk||null,start:r.d||"–",end:"–",email:r.e,phone:"",url:"",active:true,visa:r.visa||"H-2B",hasEmail:true,category:r.k||"other",fromSheet:true}));
+      // FIX: usar todos os campos enriquecidos (ci, de, ph, desc, url) — não hardcoded
+      const _shJobs=_shRows.map(r=>({id:r.c,caseNum:r.c,title:r.t||"Seasonal Worker",company:r.n||"–",city:r.ci||"–",state:r.s||"–",wage:r.w?`$${r.w}/${r.wunit||"h"}`:"–",workers:r.wk||null,start:r.d||"–",end:r.de||"–",email:r.e,phone:r.ph||"",phone2:r.ph2||"",url:r.c&&r.c.startsWith("H-")?`https://seasonaljobs.dol.gov/jobs/${r.c}`:"",desc:r.desc||"",soc:r.soc||"",active:true,visa:r.visa||"H-2B",hasEmail:true,category:r.k||"other",fromSheet:true}));
       let src=_shJobs.length?_shJobs:jobsCache.length?[...jobsCache]:[...FALLBACK_JOBS];
       const{query:q,state,jobType,jobStatus,beginDate}=opts;
-      if(q){const ql=q.toLowerCase();src=src.filter(j=>j.title.toLowerCase().includes(ql)||j.company.toLowerCase().includes(ql)||j.state.toLowerCase().includes(ql)||j.desc.toLowerCase().includes(ql));}
+      if(q){const ql=q.toLowerCase();src=src.filter(j=>(j.title||"").toLowerCase().includes(ql)||(j.company||"").toLowerCase().includes(ql)||(j.state||"").toLowerCase().includes(ql)||(j.city||"").toLowerCase().includes(ql)||(j.desc||"").toLowerCase().includes(ql)||(j.phone||"").includes(ql));}
       if(state)src=src.filter(j=>j.state.toUpperCase()===state.toUpperCase());
       if(jobType==="agricultural")src=src.filter(j=>j.visa==="H-2A");if(jobType==="non-agricultural")src=src.filter(j=>j.visa==="H-2B");
       if(jobStatus==="active")src=src.filter(j=>j.active);if(jobStatus==="inactive")src=src.filter(j=>!j.active);
@@ -4136,17 +4339,19 @@ function _saveEnrichedSheet(sheetKey, sheet){
   // ── Ranking: inRankPeriod / calcRanking definidas no escopo global ──
 
   // ── OAuth ─────────────────────────────────────────────
-  if(pathname==="/oauth/start"){if(rateLimit((req.headers["x-forwarded-for"]||"anon")+"_oauth",15,900_000)){res.writeHead(429);return res.end("Rate limit excedido. Tente novamente em 15 minutos.");}if(!CONFIGURED){res.writeHead(302,{Location:"/?err="+encodeURIComponent("Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET.")});return res.end();}const st=crypto.randomBytes(20).toString("hex");
+  if(pathname==="/oauth/start"){if(rateLimit((req.headers["x-forwarded-for"]||"anon")+"_oauth",30,900_000)){res.writeHead(302,{Location:"/?err="+encodeURIComponent("Muitas tentativas de login. Aguarde 15 minutos e tente novamente.")});return res.end();}if(!CONFIGURED){res.writeHead(302,{Location:"/?err="+encodeURIComponent("Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET.")});return res.end();}const st=crypto.randomBytes(20).toString("hex");
   // ── REFERRAL FIX: salva o ?ref= na sessão pendente para recuperar no callback ──
   const refCodeParam=(u.searchParams.get("ref")||"").trim().toUpperCase().slice(0,16);
   sessions["__p__"+st]={pending:true,ts:Date.now(),...(refCodeParam?{refCode:refCodeParam}:{})};
   // Se o usuário já tem refresh_token salvo, não força consent (login silencioso).
   // Se é a primeira vez (sem refresh_token), exige consent para obter o refresh_token.
+  // FIX v2: se usuário não tem scopeVersion>=2 (novos escopos gmail.readonly+modify), força consent
   const _loginHint=(u.searchParams.get("login_hint")||"").trim().toLowerCase();
   const _hintUser=_loginHint?getUser(_loginHint):null;
   const _hasRt=!!(_hintUser?.refresh_token);
-  const _promptVal=_hasRt?"select_account":"consent select_account";
-  const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI,response_type:"code",scope:"openid email profile https://www.googleapis.com/auth/gmail.send",access_type:"offline",prompt:_promptVal,state:st});res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();}
+  const _hasNewScopes=(_hintUser?.scopeVersion||0)>=2;
+  const _promptVal=(_hasRt&&_hasNewScopes)?"select_account":"consent select_account";
+  const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI,response_type:"code",scope:"openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify",access_type:"offline",prompt:_promptVal,state:st});res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();}
 
   if(pathname==="/oauth/callback"){
     const code=u.searchParams.get("code"),error=u.searchParams.get("error");
@@ -4159,6 +4364,10 @@ function _saveEnrichedSheet(sheetKey, sheet){
       if(tk.error)return fail(tk.error_description||tk.error);if(!tk.access_token)return fail("Token não recebido.");
       const{body:ui}=await httpsReq({hostname:"www.googleapis.com",path:"/oauth2/v2/userinfo",method:"GET",headers:{"Authorization":"Bearer "+tk.access_token}});
       if(!ui.email)return fail("E-mail não obtido.");
+      // ── Verificar se email está banido permanentemente ──
+      if(DB_BLOCKED.emails.includes(ui.email.trim().toLowerCase())){
+        return fail("Conta suspensa permanentemente. Contate o suporte.");
+      }
       const sid="sess_"+crypto.randomBytes(24).toString("hex");
       // FIX: preserva o refresh_token existente no banco se o Google não mandou um novo
       // O Google só envia refresh_token na primeira autenticação; re-logins omitem.
@@ -4179,13 +4388,26 @@ function _saveEnrichedSheet(sheetKey, sheet){
       const ex=getUser(ui.email);
       if(!ex){
         const now=Date.now();
+        // ── Anti-abuse: verificar se este IP já recebeu trial antes ──────────
+        const _clientIp = (req.headers["x-forwarded-for"]||req.socket?.remoteAddress||"").split(",")[0].trim();
+        const _ipPrevEmails = DB_TRIAL_USED.ips[_clientIp]||[];
+        const _ipAbuse = _ipPrevEmails.length >= 2; // mesmo IP, 2+ contas já usaram trial
         // Novos usuários ganham dias de VIP manual grátis (configurável pelo admin)
-        const trialDays = DB_ADMIN_SETTINGS.newUserTrialEnabled ? (DB_ADMIN_SETTINGS.newUserTrialDays || 2) : 0;
-        const trialAutoDays = trialDays; // mesmo período — 2 dias VIPro completo
+        const trialDays = (DB_ADMIN_SETTINGS.newUserTrialEnabled && !_ipAbuse) ? (DB_ADMIN_SETTINGS.newUserTrialDays || 2) : 0;
+        const trialAutoDays = trialDays;
         const newUserVip = trialDays > 0
           ? {manualExpires:now+trialDays*86400_000,autoExpires:now+trialDays*86400_000,active:true,activatedAt:now,plan:"vipro",note:`Trial boas-vindas ${trialDays}d VIPro`,source:'trial',days:trialDays,autoDays:trialDays}
           : null;
-        setUser(ui.email,{...tokenData,email:ui.email,name:ui.name||ui.email,picture:ui.picture||"",country:"Brazil",phone:"",cc:"",city:"",language:"pt-BR",cvs:[],created_at:new Date().toISOString(),plan:newUserVip?"vipro":"free",vip:newUserVip||null,saved:[],onboarded:false,isAdmin:isAdminEmail(ui.email),settings:{subject:"Application for {vaga} – {nome}",body:"Dear Hiring Manager,\n\nMy name is {nome} and I am writing to express my strong interest in the {vaga} position at {empresa}.\n\nI am from {pais} and fully available to start on the requested date.\n\nPlease find my resume attached.\n\nBest regards,\n{nome}\n{telefone}",followupSubject:"Following up: {vaga} at {empresa}",followupBody:"Dear Hiring Manager,\n\nFollowing up on {vaga} at {empresa}.\n\nBest regards,\n{nome}"}});
+        if(_ipAbuse){
+          console.log(`[trial] ⚠️ IP ${_clientIp} já usou trial em ${_ipPrevEmails.join(", ")} — bloqueado para ${ui.email}`);
+        }
+        // Registrar IP no histórico de trial (mesmo sem receber trial, para rastrear)
+        if(trialDays>0){
+          if(!DB_TRIAL_USED.ips[_clientIp]) DB_TRIAL_USED.ips[_clientIp]=[];
+          if(!DB_TRIAL_USED.ips[_clientIp].includes(ui.email)) DB_TRIAL_USED.ips[_clientIp].push(ui.email);
+          try{fs.writeFileSync(TRIAL_USED_FILE,JSON.stringify(DB_TRIAL_USED,null,2));}catch{}
+        }
+        setUser(ui.email,{...tokenData,email:ui.email,name:ui.name||ui.email,picture:ui.picture||"",country:"Brazil",phone:"",cc:"",city:"",language:"pt-BR",cvs:[],created_at:new Date().toISOString(),plan:newUserVip?"vipro":"free",vip:newUserVip||null,saved:[],onboarded:false,isAdmin:isAdminEmail(ui.email),scopeVersion:2,lastLoginAt:Date.now(),_trialBlockedByIp:_ipAbuse||undefined,settings:{subject:"Application for {vaga} – {nome}",body:"Dear Hiring Manager,\n\nMy name is {nome} and I am writing to express my strong interest in the {vaga} position at {empresa}.\n\nI am from {pais} and fully available to start on the requested date.\n\nPlease find my resume attached.\n\nBest regards,\n{nome}\n{telefone}",followupSubject:"Following up: {vaga} at {empresa}",followupBody:"Dear Hiring Manager,\n\nFollowing up on {vaga} at {empresa}.\n\nBest regards,\n{nome}"}});
         console.log("[oauth] ✅ Novo:",ui.email,"| trial:",trialDays,"d VIPro");
         trackJourney(ui.email,'first_login',{detail:`Novo. Trial:${trialDays}d`,meta:{name:ui.name}});
         pushGlobalEvent('new_user',ui.email,`Novo: ${ui.name||ui.email}`,"info");
@@ -4228,7 +4450,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
         // Evita revogar VIP de usuários com schema misto (manualExpires novo + expiresAt legado)
         const vipStillActive = isVipActive(ex);
         const vipDowngrade = ex.vip?.active && !vipStillActive ? {vip:{...ex.vip,active:false},plan:"free"} : {};
-        setUser(ui.email,{...tokenData,picture:ui.picture||ex.picture,isAdmin:isAdminEmail(ui.email),...vipDowngrade});
+        setUser(ui.email,{...tokenData,picture:ui.picture||ex.picture,isAdmin:isAdminEmail(ui.email),...vipDowngrade,scopeVersion:2,lastLoginAt:Date.now()});
         console.log("[oauth] Login:",ui.email,"| refresh_token salvo:",!!tokenData.refresh_token,"| vip:",vipStillActive?"ativo":"inativo","| Total:",Object.keys(DB_USERS).length);
       }
       const cookieStr=makeCookieStr(sid);const page=makeCallbackPage(sid);
@@ -4252,7 +4474,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
     const st=crypto.randomBytes(20).toString("hex");
     // Salva o state com o email do dono para vincular no callback
     sessions["__sender__"+st]={ownerEmail:s.user_email,created:Date.now()};
-    const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI_SENDER,response_type:"code",scope:"openid email profile https://www.googleapis.com/auth/gmail.send",access_type:"offline",prompt:"consent select_account",state:st});
+    const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI_SENDER,response_type:"code",scope:"openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify",access_type:"offline",prompt:"consent select_account",state:st});
     res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();
   }
 
@@ -4324,7 +4546,332 @@ function _saveEnrichedSheet(sheetKey, sheet){
     }catch(e){return json(res,500,{error:e.message});}
   }
 
+  // ── Admin: Central de Incidentes ─────────────────────────
+  if(pathname==="/api/admin/incidents"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{
+      const now=Date.now();
+      const allUsers=Object.values(DB_USERS||{});
+      const incidents=[];
+      const missions=[];
+      // ── Gerar incidentes automaticamente baseado no estado atual ──
+      const TOKEN_INACTIVE_IGNORE_MS  = 10 * 24 * 60 * 60 * 1000; // >10 dias inativo → ignorar
+      const TOKEN_ACTIVE_ALERT_MS     =  3 * 24 * 60 * 60 * 1000; // ≤3 dias → problema real
+      for(const u of allUsers){
+        if(!u||!u.email)continue;
+        const email=u.email;
+        const job=getAutoJob(email);
+        // Token expirado — só alerta se usuário ativo nos últimos 10 dias
+        if(u.cached_token_expiry && u.cached_token_expiry < now){
+          const lastSeen = u.lastSeenAt || new Date(u.created_at||0).getTime();
+          const inactiveMs = now - lastSeen;
+          if(inactiveMs <= TOKEN_INACTIVE_IGNORE_MS){ // ignorar inativos >10 dias
+            const severity = inactiveMs <= TOKEN_ACTIVE_ALERT_MS ? 'critical' : 'warning';
+            incidents.push({id:'tok_'+email,type:'token_expired',severity:'error',status:'open',
+              userEmail:email,name:u.name||email,
+              title:'Token Gmail expirado',
+              detail:`Token expirou em ${new Date(u.cached_token_expiry).toLocaleString('pt-BR')}. Último acesso há ${Math.round(inactiveMs/86400000)}d. Automático parado.`,
+              createdAt:now});
+            missions.push({id:'mis_tok_'+email,incidentId:'tok_'+email,type:'token',
+              title:`Reativar token: ${u.name||email}`,
+              action:'Peça ao usuário fazer login novamente em h2bapply.com'});
+          }
+        }
+        // Automático travado (rodando há mais de 2h sem envio)
+        if(job&&job.active&&job.lastSentAt&&(now-job.lastSentAt)>7200000&&!["waiting_limit","waiting_rate_limit","waiting_interval","waiting_token_retry"].includes(job?.status)){
+          incidents.push({id:'stuck_'+email,type:'auto_stuck',severity:'warn',status:'open',
+            userEmail:email,name:u.name||email,
+            title:'Automático travado',
+            detail:`Último envio há ${Math.round((now-job.lastSentAt)/3600000)}h. Pode estar bloqueado pelo Gmail.`,
+            createdAt:now});
+        }
+        // Plano VIP vencido mas ainda aparece como ativo
+        if(u.vip&&u.vip.active){
+          const exp=Math.max(u.vip.manualExpires||0,u.vip.autoExpires||0);
+          if(exp>0&&exp<now){
+            incidents.push({id:'vip_exp_'+email,type:'vip_expired',severity:'warn',status:'open',
+              userEmail:email,name:u.name||email,
+              title:'VIP vencido sem atualização',
+              detail:`Plano ${u.plan} venceu em ${new Date(exp).toLocaleString('pt-BR')} mas conta ainda marca ativo.`,
+              createdAt:now});
+            missions.push({id:'mis_vip_'+email,incidentId:'vip_exp_'+email,type:'vip',
+              title:`Corrigir plano: ${u.name||email}`,
+              action:'Vá em VIP & Planos → ajuste o plano manualmente'});
+          }
+        }
+        // Usuário sem CV com automático ativo
+        if(job&&job.active&&(!u.cvs||u.cvs.length===0)){
+          incidents.push({id:'nocv_'+email,type:'no_cv',severity:'info',status:'open',
+            userEmail:email,name:u.name||email,
+            title:'Automático sem currículo',
+            detail:'Usuário está com automático ativo mas sem nenhum CV cadastrado.',
+            createdAt:now});
+        }
+      }
+      // Incidentes de sistema
+      if(!getGeminiKey()){
+        incidents.push({id:'sys_gemini',type:'system',severity:'error',status:'open',
+          title:'Gemini API não configurada',
+          detail:'GEMINI_API_KEY ausente no Render. Robô de Auditoria e IA Chat inoperantes.',
+          createdAt:now});
+        missions.push({id:'mis_gemini',incidentId:'sys_gemini',type:'system',
+          title:'Configurar GEMINI_API_KEY',
+          action:'Render Dashboard → Environment → adicionar GEMINI_API_KEY'});
+      }
+      // Aplicar incidentes resolvidos/deletados (memória entre requests)
+      const resolved = global._resolvedIncidents || {};
+      const finalIncidents = incidents
+        .filter(i => !resolved[i.id]?.deleted)
+        .map(i => resolved[i.id] ? {...i, status:'resolved', resolvedAt:resolved[i.id].resolvedAt, resolvedBy:resolved[i.id].resolvedBy} : i);
+      const finalMissions = missions.filter(m => !resolved[m.incidentId]);
+
+      const open = finalIncidents.filter(i=>i.status==='open').length;
+      const missionsPending = finalMissions.length;
+      const rules={autoDetect:true,tokenExpiry:true,autoStuck:true,vipExpired:true,noCV:true};
+      return json(res,200,{ok:true,incidents:finalIncidents,missions:finalMissions,rules,open,pending:open,missionsPending,total:finalIncidents.length});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  // ── Admin: resolver incidente específico ──────────────────
+  if(pathname.startsWith("/api/admin/incidents/")&&pathname.endsWith("/resolve")&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const id=decodeURIComponent(pathname.split("/api/admin/incidents/")[1].replace("/resolve",""));
+      // Persiste resolução em memória (os incidentes são gerados dinamicamente, então apenas logamos)
+      if(!global._resolvedIncidents)global._resolvedIncidents={};
+      global._resolvedIncidents[id]={resolvedAt:Date.now(),resolvedBy:s.user_email,note:d?.note||""};
+      const saveAsRule=d?.saveAsRule;
+      if(saveAsRule&&d?.ruleText){
+        if(!DB_INCIDENTS_RULES){}; // DB_INCIDENTS_RULES pode não existir
+        console.log(`[incidents] Regra salva: ${d.ruleText}`);
+      }
+      console.log(`[incidents] Incidente ${id} resolvido por ${s.user_email}`);
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  // ── Admin: deletar incidente ──────────────────────────────
+  if(pathname.startsWith("/api/admin/incidents/")&&req.method==="DELETE"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{
+      const id=decodeURIComponent(pathname.split("/api/admin/incidents/")[1]);
+      if(!global._resolvedIncidents)global._resolvedIncidents={};
+      global._resolvedIncidents[id]={resolvedAt:Date.now(),resolvedBy:s.user_email,deleted:true};
+      console.log(`[incidents] Incidente ${id} deletado por ${s.user_email}`);
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  // ── Admin: limpar todos incidentes resolvidos ─────────────
+  if(pathname==="/api/admin/incidents/clear"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    global._resolvedIncidents={};
+    console.log(`[incidents] Todos incidentes limpos por ${s.user_email}`);
+    return json(res,200,{ok:true});
+  }
+
+  // ── Admin: desbanir email ─────────────────────────────────
+  if(pathname==="/api/admin/unban-email"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    if(!isAdminEmail(s.user_email))return json(res,403,{error:"Apenas admins podem desbanir."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {email}=d;if(!email)return json(res,400,{error:"email obrigatório"});
+      const emailLow=email.trim().toLowerCase();
+      DB_BLOCKED.emails=DB_BLOCKED.emails.filter(e=>e!==emailLow);
+      persist(BLOCKED_FILE,DB_BLOCKED);
+      console.log(`[admin] ✅ Email desbanido: ${emailLow}`);
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  // ── Admin: ver histórico anti-abuse de trial ──────────────
+  if(pathname==="/api/admin/trial-abuse"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    if(!isAdminEmail(s.user_email))return json(res,403,{error:"Apenas admins."});
+    // IPs com múltiplas contas usando trial
+    const suspectIps=Object.entries(DB_TRIAL_USED.ips||{})
+      .filter(([,emails])=>emails.length>1)
+      .map(([ip,emails])=>({ip,emails,count:emails.length}))
+      .sort((a,b)=>b.count-a.count);
+    return json(res,200,{ok:true,phones:DB_TRIAL_USED.phones||{},ips:DB_TRIAL_USED.ips||{},suspectIps,totalPhones:Object.keys(DB_TRIAL_USED.phones||{}).length,totalIps:Object.keys(DB_TRIAL_USED.ips||{}).length});
+  }
+
+  // ── Admin: revogar trial de usuário específico ────────────
+  if(pathname==="/api/admin/revoke-trial"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    if(!isAdminEmail(s.user_email))return json(res,403,{error:"Apenas admins."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {email,reason}=d;if(!email)return json(res,400,{error:"email obrigatório"});
+      const u=getUser(email);if(!u)return json(res,404,{error:"Usuário não encontrado"});
+      // Para o automático imediatamente
+      if(autoTimers.has(email)){clearTimeout(autoTimers.get(email));autoTimers.delete(email);}
+      const job=getAutoJob(email);
+      if(job?.active) setAutoJob(email,{...job,active:false,status:"paused_no_vip",finishedAt:Date.now()});
+      // Revoga VIP/trial
+      setUser(email,{plan:"free",vip:{active:false,manualExpires:0,autoExpires:0,revokedAt:Date.now(),revokedBy:s.user_email,revokeReason:reason||"Trial abuse"}});
+      addLog(email,{status:"sistema",jobTitle:"⛔ Trial revogado pelo admin",company:reason||"Uso indevido de trial detectado"});
+      console.log(`[trial] ⛔ Trial de ${email} revogado por ${s.user_email}: ${reason||"abuse"}`);
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  // ── Admin: notificar usuário com paused_auth_error (1-click) ──────────────
+  if(pathname==="/api/admin/notify-auth-error"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    if(!isAdminEmail(s.user_email))return json(res,403,{error:"Apenas admins."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const {email}=d;if(!email)return json(res,400,{error:"email obrigatório"});
+      await sendNotifEmail(email,"auth_error");
+      console.log(`[admin] 📧 Email auth_error enviado para ${email} por ${s.user_email}`);
+      return json(res,200,{ok:true,message:`Email enviado para ${email}`});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  // ── Admin: pedidos críticos (pendentes >24h) ──────────────────────────────
+  if(pathname==="/api/admin/pedidos-criticos"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    const now=Date.now();
+    const criticos=(DB_PEDIDOS||[]).filter(pd=>pd.status==="pendente"&&(now-(pd.createdAt||0))>24*3600_000)
+      .map(pd=>({id:pd.id,userEmail:pd.userEmail,plano:pd.plano,valor:pd.valorTotal,
+        horas:Math.round((now-(pd.createdAt||0))/3600000),createdAt:pd.createdAt}))
+      .sort((a,b)=>b.horas-a.horas);
+    return json(res,200,{ok:true,criticos,total:criticos.length});
+  }
+
   // ── ADMIN: configurações pessoais de admin (intervalo, limites por sender) ──
+
+  // ── M01: Health summary rápido ───────────────────────────
+  if(pathname==="/api/admin/health-summary"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    const now=Date.now();
+    const users=Object.values(DB_USERS||{});
+    const authErrUsers=Object.entries(DB_AUTO||{}).filter(([,j])=>j?.status==="paused_auth_error").map(([e])=>e);
+    const pendCriticos=(DB_PEDIDOS||[]).filter(pd=>pd.status==="pendente"&&(now-(pd.createdAt||0))>24*3600_000);
+    const vipExpiring=users.filter(u=>{const exp=Math.max(u.vip?.manualExpires||0,u.vip?.autoExpires||0);return exp>0&&exp>now&&exp<now+3*86400_000;});
+    return json(res,200,{ok:true,score:authErrUsers.length===0&&pendCriticos.length===0?100:Math.max(60,100-authErrUsers.length*5-pendCriticos.length*10),authErrCount:authErrUsers.length,pedidosCriticos:pendCriticos.length,vipExpiring:vipExpiring.length,totalUsers:users.length,activeAuto:Object.values(DB_AUTO||{}).filter(j=>j?.active).length,timestamp:now});
+  }
+
+  // ── M02: Notificar TODOS com auth_error de uma vez ───────
+  if(pathname==="/api/admin/notify-all-auth-error"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    if(!isAdminEmail(s.user_email))return json(res,403,{error:"Apenas admins."});
+    const authErrEmails=Object.entries(DB_AUTO||{}).filter(([,j])=>j?.status==="paused_auth_error").map(([e])=>e);
+    let sent=0;const failed=[];
+    for(const email of authErrEmails){
+      try{await sendNotifEmail(email,"auth_error");sent++;await new Promise(r=>setTimeout(r,2000));}
+      catch(e){failed.push(email);}
+    }
+    console.log(`[admin] notify-all-auth-error: ${sent} enviados, ${failed.length} falhas por ${s.user_email}`);
+    return json(res,200,{ok:true,sent,failed,total:authErrEmails.length});
+  }
+
+  // ── M03: Log de ações admin ───────────────────────────────
+  if(!global._adminActionLog)global._adminActionLog=[];
+  if(pathname==="/api/admin/action-log"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    if(!isAdminEmail(s.user_email))return json(res,403,{error:"Apenas admins."});
+    return json(res,200,{ok:true,log:global._adminActionLog.slice(0,100)});
+  }
+
+  // ── M04: Exportar usuários como CSV ──────────────────────
+  if(pathname==="/api/admin/users/export"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    if(!isAdminEmail(s.user_email))return json(res,403,{error:"Apenas admins."});
+    const now=Date.now();
+    const rows=[["Email","Nome","Plano","VIP Ativo","VIP Expira","Criado em","Último acesso","Total Enviados","Auto Rodando","Token OK"]];
+    for(const u of Object.values(DB_USERS||{})){
+      if(!u?.email)continue;
+      const job=getAutoJob(u.email);
+      const vipOk=isVipActive(u);
+      const vipExp=Math.max(u.vip?.manualExpires||0,u.vip?.autoExpires||0);
+      const tokenOk=u.cached_token_expiry&&u.cached_token_expiry>now;
+      const hist=getHist(u.email);
+      const total=Object.values(hist||{}).reduce((a,arr)=>a+(arr?.length||0),0);
+      rows.push([u.email,u.name||"",u.plan||"free",vipOk?"Sim":"Não",vipExp?new Date(vipExp).toLocaleDateString("pt-BR"):"",u.created_at?u.created_at.slice(0,10):"",u.lastSeenAt?new Date(u.lastSeenAt).toLocaleDateString("pt-BR"):"",total,job?.active?"Sim":"Não",tokenOk?"Sim":"Não"]);
+    }
+    const csv=rows.map(r=>r.map(c=>'"'+String(c||"").replace(/"/g,'""')+'"').join(",")).join("\n");
+    res.writeHead(200,{"Content-Type":"text/csv; charset=utf-8","Content-Disposition":`attachment; filename="usuarios_${new Date().toISOString().slice(0,10)}.csv"`});
+    return res.end("\uFEFF"+csv); // BOM para Excel
+  }
+
+  // ── M05: Métricas diárias para gráfico (últimos 30 dias) ─
+  if(pathname==="/api/admin/metrics/daily"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    const days=parseInt(new URL("http://x"+pathname+new URL("http://x"+(s.user_email||"")+"?"+req.url.split("?")[1]||"").search).searchParams.get("days")||"30");
+    const result=[];
+    for(let i=days-1;i>=0;i--){
+      const d=new Date();d.setDate(d.getDate()-i);
+      const ds=d.toISOString().slice(0,10).replace(/-/g,"");
+      let total=0,manual=0,auto=0,newUsers=0;
+      for(const u of Object.values(DB_USERS||{})){
+        if(!u)continue;
+        if(u.created_at&&u.created_at.slice(0,10)===d.toISOString().slice(0,10))newUsers++;
+        const hist=getHist(u.email);
+        for(const arr of Object.values(hist||{})){
+          for(const h of (arr||[])){
+            if((h.dateStr||"").replace(/-/g,"")===ds){total++;if(h.type==="auto")auto++;else manual++;}
+          }
+        }
+      }
+      result.push({date:d.toISOString().slice(0,10),total,manual,auto,newUsers});
+    }
+    return json(res,200,{ok:true,metrics:result});
+  }
+
+  // ── M06: Stats detalhados do usuário logado ───────────────
+  if(pathname==="/api/me/stats"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const u=getUser(s.user_email);if(!u)return json(res,404,{error:"Usuário não encontrado."});
+    const hist=getHist(s.user_email);
+    const allEntries=Object.values(hist||{}).flat();
+    const now=Date.now();
+    const last7=allEntries.filter(h=>h.dateStr&&new Date(h.dateStr)>new Date(Date.now()-7*86400000));
+    const last30=allEntries.filter(h=>h.dateStr&&new Date(h.dateStr)>new Date(Date.now()-30*86400000));
+    const byState={};allEntries.forEach(h=>{if(h.state){byState[h.state]=(byState[h.state]||0)+1;}});
+    const topStates=Object.entries(byState).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([s,c])=>({state:s,count:c}));
+    return json(res,200,{ok:true,total:allEntries.length,manual:allEntries.filter(h=>h.type!=="auto").length,auto:allEntries.filter(h=>h.type==="auto").length,last7days:last7.length,last30days:last30.length,topStates,memberSince:u.created_at,streak:calcStreak(allEntries)});
+  }
+
+  // ── M07: Verificar vagas sem resposta há 7d (follow-up) ──
+  if(pathname==="/api/followup/check"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const hist=getHist(s.user_email);
+    const now=Date.now();
+    const sevenDaysAgo=now-7*86400_000;
+    const inboxEmails=new Set((INBOX_EMAILS||[]).map(e=>(e.from||"").toLowerCase()));
+    const followups=[];
+    for(const [key,entries] of Object.entries(hist||{})){
+      if(!entries?.length)continue;
+      const last=entries[0];
+      const lastDate=new Date(last.date||0).getTime()||0;
+      if(lastDate<sevenDaysAgo&&lastDate>0){
+        const toEmail=(last.to||"").toLowerCase();
+        const hasReply=inboxEmails.has(toEmail);
+        if(!hasReply)followups.push({jobId:last.jobId||key,job:last.job||"",company:last.company||"",to:last.to||"",sentAt:last.date,daysSince:Math.round((now-lastDate)/86400000)});
+      }
+    }
+    return json(res,200,{ok:true,followups:followups.slice(0,50),total:followups.length});
+  }
+
+  // ── M08: Marcar ação admin no log ─────────────────────────
+  // (helper usado internamente, mas também exposto como webhook)
+  function _logAdminAction(adminEmail,action,target,detail){
+    if(!global._adminActionLog)global._adminActionLog=[];
+    global._adminActionLog.unshift({ts:Date.now(),admin:adminEmail,action,target:target||"",detail:detail||""});
+    if(global._adminActionLog.length>500)global._adminActionLog.length=500;
+  }
+
   // ── Admin: financeiro (entradas + gastos) ────────────────
   if(pathname==="/api/admin/financeiro"&&req.method==="GET"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
@@ -4463,7 +5010,14 @@ function _saveEnrichedSheet(sheetKey, sheet){
       delete DB_SENT[email];persistSent();
       delete DB_LOGS[email];persistLogs();
       delete DB_AUTO[email];persist(AUTO_FILE,DB_AUTO);
-      return json(res,200,{ok:true});
+      // ── Banir email permanentemente — não consegue recriar conta ──
+      const emailLow = email.trim().toLowerCase();
+      if(!DB_BLOCKED.emails.includes(emailLow)){
+        DB_BLOCKED.emails.push(emailLow);
+        persist(BLOCKED_FILE, DB_BLOCKED);
+      }
+      console.log(`[admin] 🚫 Email banido permanentemente: ${emailLow}`);
+      return json(res,200,{ok:true,banned:true});
     }catch(e){return json(res,500,{error:e.message});}
   }
   // ── Admin: limpar sent de usuário ──────────────────────────
@@ -4763,7 +5317,7 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
     const autoJob=getAutoJob(s.user_email);
     const stats=getAutoStats(s.user_email);
     const now2=Date.now();
-    return json(res,200,{connected:true,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",whatsapp:p.whatsapp||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",rankName:p.rankName||"",appAvatarId:p.appAvatarId||"",h2bProfile:p.h2bProfile||{},age:p.age||0,isAdmin:!!p.isAdmin,plan:planKey,totalSent,totalManual,totalAutoHist,totalReplies,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p)}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[],senderEmails:(p.senderEmails||[]).map(s=>({email:s.email,label:s.label||"",active:s.active!==false,tokenExpired:!!s.tokenExpired,blocked:!!s.blocked,addedAt:s.addedAt})),adminSettings:isAdminVip(p)?{intervalSecs:(p.adminSettings?.intervalSecs||180),senderLimits:(p.adminSettings?.senderLimits||{}),maxSenders:getMaxSenders(p)}:null});
+    return json(res,200,{connected:true,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",whatsapp:p.whatsapp||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",rankName:p.rankName||"",appAvatarId:p.appAvatarId||"",h2bProfile:p.h2bProfile||{},age:p.age||0,isAdmin:!!p.isAdmin,plan:planKey,totalSent,totalManual,totalAutoHist,totalReplies,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p)}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[],senderEmails:(p.senderEmails||[]).map(s=>({email:s.email,label:s.label||"",active:s.active!==false,tokenExpired:!!s.tokenExpired,blocked:!!s.blocked,addedAt:s.addedAt})),senderMax:getMaxSenders(p),adminSettings:isAdminVip(p)?{intervalSecs:(p.adminSettings?.intervalSecs||180),senderLimits:(p.adminSettings?.senderLimits||{}),maxSenders:getMaxSenders(p)}:null});
   }
 
   if(pathname==="/api/onboard"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});setUser(s.user_email,{onboarded:true});return json(res,200,{ok:true});}
@@ -4785,7 +5339,20 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
       const d=JSON.parse(await readBody(req));const upd={};
       if(d.name!==undefined){upd.name=String(d.name).slice(0,200);s.user_name=upd.name;}
       if(d.country!==undefined)upd.country=String(d.country).slice(0,100);
-      if(d.phone!==undefined)upd.phone=String(d.phone).slice(0,50);
+      if(d.phone!==undefined){
+        upd.phone=String(d.phone).slice(0,50);
+        // Registrar telefone no DB_TRIAL_USED quando usuário que teve trial cadastra phone
+        const _ph=upd.phone.replace(/\D/g,"");
+        if(_ph.length>=8){
+          const _curU=getUser(s.user_email);
+          const _hadTrial=_curU?.vip?.source==="trial"||(_curU?.vip?.note||"").includes("Trial");
+          if(_hadTrial&&!DB_TRIAL_USED.phones[_ph]){
+            DB_TRIAL_USED.phones[_ph]=s.user_email;
+            try{fs.writeFileSync(TRIAL_USED_FILE,JSON.stringify(DB_TRIAL_USED,null,2));}catch{}
+            console.log(`[trial] 📱 Telefone ${_ph} vinculado ao trial de ${s.user_email}`);
+          }
+        }
+      }
       if(d.whatsapp!==undefined)upd.whatsapp=String(d.whatsapp).slice(0,50);
       if(d.age!==undefined){const a=parseInt(d.age)||0;if(a>=10&&a<=100)upd.age=a;}
       if(d.city!==undefined)upd.city=String(d.city).slice(0,100);
@@ -5563,13 +6130,68 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
   if(pathname==="/api/auto/resume"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const j=getAutoJob(s.user_email);if(!j)return json(res,404,{error:"Nenhum job."});setAutoJob(s.user_email,{...j,active:true,status:"resuming"});addLog(s.user_email,{status:"sistema",jobTitle:"Envio retomado",company:""});scheduleAuto(s.user_email);return json(res,200,{ok:true});}
   if(pathname==="/api/auto/stop"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});if(autoTimers.has(s.user_email)){clearTimeout(autoTimers.get(s.user_email));autoTimers.delete(s.user_email);}addLog(s.user_email,{status:"cancelado",jobTitle:"Envio cancelado pelo usuário",company:""});delAutoJob(s.user_email);return json(res,200,{ok:true});}
 
+  // ══════════════════════════════════════════════════════════
+  //  BASE DE CONHECIMENTO PERMANENTE — rotas admin
+  //  GET  /api/admin/kb          → lista todas as entradas
+  //  POST /api/admin/kb          → adiciona nova entrada
+  //  DELETE /api/admin/kb/:id    → remove entrada por ID
+  // ══════════════════════════════════════════════════════════
+  if(pathname==="/api/admin/kb"&&req.method==="GET"){
+    const s=getSess(req);
+    if(!s?.user_email||!isAdminEmail(s.user_email))return json(res,403,{error:"Acesso negado."});
+    return json(res,200,{ok:true,total:DB_KB.entries.length,entries:DB_KB.entries});
+  }
+  if(pathname==="/api/admin/kb"&&req.method==="POST"){
+    const s=getSess(req);
+    if(!s?.user_email||!isAdminEmail(s.user_email))return json(res,403,{error:"Acesso negado."});
+    let body=""; req.on("data",c=>body+=c); await new Promise(r=>req.on("end",r));
+    let d; try{ d=JSON.parse(body); }catch{ return json(res,400,{error:"JSON inválido."}); }
+    if(!d.problema||!d.solucao)return json(res,400,{error:"Campos obrigatórios: problema, solucao."});
+    const nextNum = (DB_KB.entries.length>0
+      ? Math.max(...DB_KB.entries.map(e=>parseInt((e.id||"KB-000").replace("KB-",""))||0))+1
+      : 1);
+    const entry = {
+      id: `KB-${String(nextNum).padStart(3,"0")}`,
+      versao: d.versao||"manual",
+      data: new Date().toISOString().slice(0,10),
+      autor: d.autor||s.user_email,
+      problema: d.problema,
+      solucao: d.solucao,
+      motivo: d.motivo||"",
+      impacto: d.impacto||"",
+      modulos: Array.isArray(d.modulos)?d.modulos:[],
+      tags: Array.isArray(d.tags)?d.tags:[]
+    };
+    DB_KB.entries.unshift(entry);
+    persist(KB_FILE, DB_KB);
+    console.log(`[kb] Nova entrada adicionada: ${entry.id} — ${entry.problema.slice(0,60)}`);
+    return json(res,200,{ok:true,entry});
+  }
+  if(pathname.startsWith("/api/admin/kb/")&&req.method==="DELETE"){
+    const s=getSess(req);
+    if(!s?.user_email||!isAdminEmail(s.user_email))return json(res,403,{error:"Acesso negado."});
+    const kbId=pathname.replace("/api/admin/kb/","");
+    const before=DB_KB.entries.length;
+    DB_KB.entries=DB_KB.entries.filter(e=>e.id!==kbId);
+    if(DB_KB.entries.length===before)return json(res,404,{error:"Entrada não encontrada."});
+    persist(KB_FILE,DB_KB);
+    console.log(`[kb] Entrada removida: ${kbId}`);
+    return json(res,200,{ok:true,removed:kbId});
+  }
+
   // ── ADMIN: Reinicia todos os workers travados de uma vez ───────────────────────
   if(pathname==="/api/admin/restart-all-stalled"&&req.method==="POST"){
     const s=getSess(req);
     if(!s?.user_email||!isAdminEmail(s.user_email))return json(res,403,{error:"Acesso negado."});
-    let restarted=0, tokensFailed=0;
+    let restarted=0, tokensFailed=0, skipped=0;
+    const SAFE_WAIT_STATUSES = new Set(["waiting_limit","waiting_rate_limit","waiting_interval","waiting_token_retry"]);
     for(const[email,job] of Object.entries(DB_AUTO)){
       if(!job.active||!job.queue?.length) continue;
+      // BUG3-FIX: não reiniciar quem está em espera legítima (limite diário, rate limit, etc.)
+      const hasActiveTimer = autoTimers.has(email);
+      const hasNextSendFuture = job.nextSendAt && job.nextSendAt > Date.now();
+      const isLegitWait = SAFE_WAIT_STATUSES.has(job.status) && (hasActiveTimer || hasNextSendFuture);
+      if(isLegitWait){ skipped++; continue; }
       // Renova token antes de reiniciar
       const u=getUser(email);
       if(u?.refresh_token){
@@ -5582,8 +6204,8 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
       scheduleAuto(email);
       restarted++;
     }
-    console.log(`[admin/restart-all] ${restarted} workers reiniciados, ${tokensFailed} tokens falharam`);
-    return json(res,200,{ok:true,restarted,tokensFailed});
+    console.log(`[admin/restart-all] ${restarted} workers reiniciados, ${skipped} em espera legítima ignorados, ${tokensFailed} tokens falharam`);
+    return json(res,200,{ok:true,restarted,skipped,tokensFailed});
   }
 
   // ── HEALTH CHECK — para Render/Railway não reiniciar o container ──────────────
@@ -5648,6 +6270,8 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
         return json(res,200,{ok:true,emails:cached.emails,total:cached.emails.length,unread:cached.emails.filter(em=>!em.isRead).length,fromCache:true,cacheError:e.message});
       }
       const isRateLimit=e.message.includes("429")||e.message.includes("muitas requisições");
+      const isTokenErr=e.message==="TOKEN_EXPIRED"||e.message.includes("TOKEN_EXPIRED")||e.message.includes("Sessão expirada");
+      if(isTokenErr)return json(res,401,{error:"TOKEN_EXPIRED",tokenExpired:true,message:"Sua conexão com o Gmail expirou. Reconecte para ver as respostas."});
       return json(res,isRateLimit?429:500,{error:isRateLimit?"Gmail bloqueou temporariamente. Aguarde 1 minuto e tente novamente.":"Erro ao buscar inbox: "+e.message});
     }
   }
@@ -6543,9 +7167,10 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
     const totalUsers=Object.keys(DB_USERS).length;
     const vipUsers=Object.values(DB_USERS).filter(u=>isVipActive(u)).length;
     const allHist=Object.values(DB_HIST);
-    const todaySent=allHist.reduce((n,a)=>n+a.filter(h=>h.dateStr===ds&&h.type!=="auto").length,0);
+    const _todayManual=allHist.reduce((n,a)=>n+a.filter(h=>h.dateStr===ds&&h.type==="manual").length,0);
     const todayAuto=allHist.reduce((n,a)=>n+a.filter(h=>h.dateStr===ds&&h.type==="auto").length,0);
-    const totalSent=allHist.reduce((n,a)=>n+a.filter(h=>h.type!=="auto").length,0);
+    const todaySent=_todayManual+todayAuto;
+    const totalSent=allHist.reduce((n,a)=>n+a.filter(h=>h.type!=="reply").length,0);
     const totalAuto=allHist.reduce((n,a)=>n+a.filter(h=>h.type==="auto").length,0);
     // Preview do ranking diário para landing page (top 5 sem dados sensíveis)
     const { list: rankPreview } = calcRanking("day", "sends", null);
@@ -6867,95 +7492,458 @@ O H2BApply NÃO garante contratação, entrevista ou aprovação de visto — ap
 
   // ── ANÁLISE DE COMPROVANTE — Gemini Vision ─────────────────────────────
   // Recebe imagem base64 de comprovante PIX e extrai: valor, data, remetente, destinatário
-  if(pathname==="/api/admin/analyse-comprovante" && req.method==="POST"){
+  // ── ROBÔ DE AUDITORIA — Gemini analisa todo o sistema ────
+  if(pathname==="/api/admin/auditoria-gemini" && req.method==="POST"){
     const s=getSess(req); if(!s?.user_email) return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email); if(!isAdminVip(p)) return json(res,403,{error:"Acesso negado"});
-    if(!getGeminiKey()) return json(res,503,{error:"Gemini API não configurada."});
+    if(!getGeminiKey()) return json(res,503,{error:"Gemini API não configurada. Configure GEMINI_API_KEY no Render."});
     try{
-      const d=JSON.parse(await readBody(req));
-      const {base64, mimeType="image/jpeg", pedidoId} = d;
-      if(!base64) return json(res,400,{error:"base64 obrigatório"});
-      // Limite: 6MB em base64 (~4.5MB de imagem) para não explodir no Gemini
-      if(base64.length > 8_000_000) return json(res,400,{error:"Imagem muito grande. Máximo 6MB."});
+      const now=Date.now();
+      const allUsers=Object.values(DB_USERS||{});
+      // ── Montar dossiê completo do sistema ──
+      const usersSnapshot = allUsers.map(u=>{
+        if(!u||!u.email) return null;
+        const job=getAutoJob(u.email);
+        const _hist=getHist(u.email);
+        const sentToday=countAutoToday(_hist)||0;
+        const sentManual=countManualToday(_hist)||0;
+        const tokenOk=u.cached_token_expiry&&u.cached_token_expiry>now;
+        const vipOk=isManualVipActive(u)||isAutoVipActive(u);
+        const vipExp=Math.max(u.vip?.manualExpires||0,u.vip?.autoExpires||0);
+        return {
+          email:u.email,name:u.name||u.email,plan:u.plan||'free',
+          vipAtivo:vipOk,vipExpira:vipExp?new Date(vipExp).toISOString().slice(0,10):null,
+          tokenValido:tokenOk,
+          tokenExpiraEm:u.cached_token_expiry?new Date(u.cached_token_expiry).toISOString().slice(0,16):null,
+          autoRodando:job?.active||false,
+          autoStatus:job?.status||'inativo',
+          autoFilaSize:job?.queue?.length||0,
+          enviosAuto:sentToday,
+          enviosManuais:sentManual,
+          totalHistorico:(Object.keys(DB_HIST[u.email]||{})).length,
+          cvs:u.cvs?.length||0,
+          emailsExtra:u.senderEmails?.length||0,
+          ultimoEnvioAuto:job?.lastSentAt?new Date(job.lastSentAt).toISOString().slice(0,16):null,
+          travado:job?.active&&job?.lastSentAt&&(now-job.lastSentAt)>7200000&&!["waiting_limit","waiting_rate_limit","waiting_interval","waiting_token_retry"].includes(job?.status),
+          statusAuto:job?.status||"inativo",
+          aguardandoLimite:job?.status==="waiting_limit",
+          aguardandoRateLimit:job?.status==="waiting_rate_limit",
+          proximoEnvio:job?.nextSendAt?new Date(job.nextSendAt).toISOString().slice(0,16):null,
+          membro:u.created_at?u.created_at.slice(0,10):null,
+          diasInativo:Math.round((now-(u.lastSeenAt||new Date(u.created_at||0).getTime()))/86400000),
+          ultimoAcesso:u.lastSeenAt?new Date(u.lastSeenAt).toISOString().slice(0,10):null,
+          tokenProblemaReal:!!(u.cached_token_expiry&&u.cached_token_expiry<now&&(now-(u.lastSeenAt||0))<=(10*86400000))
+        };
+      }).filter(Boolean);
 
-      const prompt = `Você é um contador especialista em comprovantes de pagamento PIX brasileiros.
-Analise esta imagem de comprovante e extraia as informações.
+      const pedidosPendentes=(DB_PEDIDOS||[]).filter(pd=>pd.status==='pendente').length;
+      const pedidosAtivos=(DB_PEDIDOS||[]).filter(pd=>pd.status==='ativo').length;
+      const totalReceita=(DB_PEDIDOS||[]).filter(pd=>pd.status==='ativo').reduce((a,pd)=>a+(pd.valorTotal||0),0);
+      const usersComToken=usersSnapshot.filter(u=>u.tokenValido).length;
+      const usersAutoRodando=usersSnapshot.filter(u=>u.autoRodando).length;
+      const usersTravados=usersSnapshot.filter(u=>u.travado).length;
+      const usersTokenProblemaReal=usersSnapshot.filter(u=>u.tokenProblemaReal).length; // token expirado + ativo ≤10 dias
+      const usersTokenInativoIgnorado=usersSnapshot.filter(u=>u.cached_token_expiry&&u.cached_token_expiry<Date.now()&&u.diasInativo>10).length;
+      const usersAguardandoLimite=usersSnapshot.filter(u=>u.aguardandoLimite).length;
+      const usersAguardandoRateLimit=usersSnapshot.filter(u=>u.aguardandoRateLimit).length;
+      const usersSemCV=usersSnapshot.filter(u=>u.cvs===0&&u.autoRodando).length;
 
-Responda SOMENTE com JSON válido, sem texto extra, sem markdown, sem explicação:
-{
-  "valido": true/false,
-  "valor": <numero decimal ou null>,
-  "data": "<DD/MM/YYYY ou null>",
-  "hora": "<HH:MM:SS ou null>",
-  "remetente": "<nome completo ou null>",
-  "destinatario": "<nome completo ou null>",
-  "banco_remetente": "<nome do banco ou null>",
-  "banco_destinatario": "<nome do banco ou null>",
-  "tipo": "<pix_recebido|pix_enviado|ted|doc|outro>",
-  "id_transacao": "<ID E2E ou null>",
-  "motivo_invalido": "<se valido=false, explicar por quê>"
-}
+      const dossie=`
+SISTEMA H2BAPPLY — DOSSIÊ COMPLETO PARA AUDITORIA
+Data/Hora: ${new Date().toISOString()}
+==============================================
 
-REGRAS:
-- valido=false se: não for comprovante de pagamento, imagem ilegível, valor ausente
-- valor deve ser número (ex: 150.00 para R$ 150,00)
-- Se for comprovante de Pix RECEBIDO e destinatário for ANDRIO KICKHOFEL, valido=true
-- Extraia exatamente o que está escrito na imagem`;
+CONTEXTO DO SISTEMA:
+H2BApply é um SaaS brasileiro que automatiza envio de candidaturas H-2B e H-2A (vistos de trabalho americano).
+Usuários conectam Gmail via OAuth, cadastram CVs, e o sistema envia emails automaticamente para empregadores nos EUA.
 
-      const GEMINI_MODELS_VIS = ["gemini-2.0-flash","gemini-2.5-flash-lite","gemini-2.5-flash"];
-      let result = null;
-      let lastErr = "";
+PLANOS DISPONÍVEIS:
+- FREE: 20 manual + 10 auto/dia (grátis)
+- VIP: 200 manual + 10 auto/dia (R$49,90/mês)
+- VIPro: 200 manual + 200 auto/dia (R$149,90/mês)
+- DoublePro: 400 manual + 400 auto/dia (R$249,90/mês)
+VIP e auto expiram JUNTOS em data unificada.
 
-      for(const modelName of GEMINI_MODELS_VIS){
+==============================================
+GUIA DE FUNCIONAMENTO — LEIA ANTES DE ANALISAR
+==============================================
+
+COMO FUNCIONA O ENVIO AUTOMATICO:
+1. Usuario configura perfil + faz upload do CV (PDF obrigatorio)
+2. Usuario conecta Gmail via OAuth (gera refresh_token permanente)
+3. Usuario inicia fila automatica com vagas selecionadas
+4. Sistema envia emails em intervalos (padrao 180s entre envios)
+5. Ao atingir limite diario, aguarda meia-noite BRT e retoma automaticamente
+6. Watchdog verifica a cada 2min se workers estao saudaveis
+
+STATUS NORMAIS DO AUTOMATICO (NAO sao problemas):
+- "waiting_limit"       → Atingiu limite diario. Aguarda meia-noite BRT. NORMAL E ESPERADO.
+- "waiting_rate_limit"  → Gmail pediu pausa temporaria. Retoma em minutos. NORMAL.
+- "waiting_interval"    → Aguardando intervalo entre envios. NORMAL.
+- "waiting_token_retry" → Erro temporario de rede no token. Tenta novamente em 5min. NORMAL.
+- "finished"            → Fila concluida. Todos os emails enviados. SUCESSO.
+
+STATUS QUE INDICAM PROBLEMA REAL:
+- "paused_auth_error"       → Autenticacao falhou repetidamente. Usuario precisa relogar.
+- "paused_token_revoked"    → Usuario revogou acesso no Google. Precisa reconectar.
+- "paused_oauth_expired"    → Token expirou e nao foi possivel renovar. Relogin necessario.
+- "paused_account_suspended"→ Conta Gmail suspensa pelo Google.
+- "stalled"                 → Worker travado genuinamente (sem progresso ha >20min sem razao valida).
+
+SOBRE TOKENS DO GMAIL:
+- O refresh_token e permanente — nao expira enquanto usuario nao revogar acesso.
+- O access_token expira em 1h — renovado automaticamente pelo sistema.
+- "tokenValido: false" NAO significa problema se usuario esta inativo ha >10 dias.
+- Token expirado + usuario ativo (<=3 dias) = PROBLEMA URGENTE.
+- Token expirado + usuario inativo (>10 dias) = IGNORAR, usuario provavelmente parou de usar.
+
+SOBRE ROBOS "TRAVADOS":
+- A metrica "travado" so conta jobs com mais de 2h sem atividade E sem status de espera legitimo.
+- 30 robos em "waiting_limit" NAO sao travados — estao aguardando o novo dia normalmente.
+- O watchdog reinicia automaticamente workers realmente travados a cada 2min.
+- Se "travados genuinamente" = 0, o sistema esta saudavel.
+
+SOBRE USUARIOS INATIVOS:
+- Muitos usuarios se cadastram, testam e param de usar — isso e normal em SaaS.
+- Usuario sem lastSeenAt recente (>10 dias) nao deve gerar alarmes de token ou automacao.
+- Foco da analise deve ser em usuarios ATIVOS nos ultimos 3-10 dias.
+
+SOBRE A FILA DE ENVIO:
+- Cada usuario tem sua propria fila independente (DB_AUTO).
+- A fila e persistida em disco — sobrevive a reinicializacoes do servidor.
+- Vagas ja enviadas sao filtradas automaticamente da fila (DB_SENT).
+- Emails invalidos sao pulados e registrados como "pulado" nos logs.
+
+SOBRE PEDIDOS DE PLANO:
+- Pedidos "pendente" = pagamento aguardando confirmacao manual do admin.
+- Pedidos "ativo" = plano em vigor e usuario com acesso VIP.
+- O admin precisa ativar manualmente apos confirmar pagamento.
+
+O QUE REALMENTE IMPORTA ANALISAR:
+1. Usuarios ATIVOS (<=10 dias) com token quebrado — nao conseguem enviar.
+2. Workers genuinamente travados (status stalled, nao waiting_limit).
+3. Usuarios pagantes (VIP/VIPro/DoublePro) com problemas — impacto financeiro direto.
+4. Pedidos pendentes ha muitos dias — risco de chargeback e insatisfacao.
+5. Usuarios com CV ausente e automatico ativo — envios vao falhar silenciosamente.
+
+O QUE NAO PRECISA DE ATENCAO:
+- Usuarios FREE inativos com token expirado.
+- "waiting_limit" contado como problema.
+- Usuarios que nunca enviaram nada (podem ser cadastros abandonados).
+- Tokens expirados de quem nao acessa ha >10 dias.
+
+==============================================
+ARQUITETURA COMPLETA DO SISTEMA H2BAPPLY
+==============================================
+
+STACK TECNICA:
+- Backend: Node.js puro (sem framework), ~17.000 linhas em server.js
+- Frontend: SPA vanilla HTML/CSS/JS em index.html (~15.000 linhas) + admin.html (~10.000 linhas)
+- Storage: JSON flat-file em /data (persistente no Render.com)
+- Auth: Google OAuth 2.0 com scopes: gmail.send + gmail.readonly + gmail.modify
+- Email: Gmail API via HTTP direto (sem lib)
+- IA: Gemini API (gemini-2.0-flash / 2.5-flash-lite / 2.5-flash)
+- Deploy: Render.com com GitHub CI/CD, disk /data 1GB
+
+ARQUIVOS DE DADOS (/data/):
+- h2b_users.json: todos os usuários e configurações
+- h2b_auto.json: jobs de automático ativos
+- h2b_hist_[email].json: histórico de envios por usuário
+- h2b_sent_[email].json: set de emails já enviados (anti-duplicata)
+- h2b_logs_[email].json: logs de operação por usuário
+- blocked_emails.json: emails banidos permanentemente
+- invalid_emails.json: bounces detectados (DB_INVALID_EMAILS)
+- temp_failures.json: falhas temporárias de entrega
+- trial_used.json: IPs e telefones que já usaram trial
+- sheets_meta.json: metadados das planilhas de vagas
+- knowledge_base.json: base de conhecimento do Gemini (aprendizados)
+- pedidos.json: pedidos de plano dos usuários
+- financeiro.json: receitas e gastos
+- referral.json: sistema de indicações
+
+PLANILHAS DE VAGAS:
+- jan2026_compact.json: vagas H-2B Janeiro 2026 (campos: c=caseNum, t=title, n=company, ci=city, s=state, w=wage, wunit, wk=workers, d=startDate, de=endDate, e=email, ph=phone, k=category, visa, url)
+- jul2025_compact.json: vagas H-2B Julho 2025
+- SHEET_EXTRAS: planilhas adicionais uploadadas pelo admin em /data/sheets/
+- Enriquecimento DOL: bot _autoEnrichCycle busca dados em api.seasonaljobs.dol.gov automaticamente, 1x por planilha
+
+PLANOS E LIMITES:
+- FREE: 20 manual + 10 auto/dia (grátis, trial 2 dias VIPro no primeiro login)
+- VIP: 200 manual + 50 auto/dia (R$89,90/mês - legado)
+- VIPro: 200 manual + 200 auto/dia (R$149,90/mês - principal)
+- DoublePro: 400 manual + 400 auto/dia (R$249,90/mês - 2 Gmails)
+- Trial: 2 dias VIPro no primeiro login (controlado por scopeVersion, IP e telefone)
+
+SISTEMA MULTI-GMAIL:
+- Usuários podem ter até 3 Gmails (1 principal + 2 extras via /oauth/add-sender)
+- Round-robin por menor número de envios hoje
+- Fallback automático para principal se extras falham
+- senderEmail salvo em cada entrada do histórico
+
+SISTEMA DE BOUNCES (emails inválidos):
+- gmailFetchInbox separa respostas reais de bounces via isBounceMail()
+- PERM_PATTERNS detecta bounces permanentes (user unknown, mailbox not found, etc.)
+- TEMP_PATTERNS detecta falhas temporárias
+- Bounce permanente → processBounce() → removeFromSheets() → salvo em DB_INVALID_EMAILS
+- Base Global de Emails Inválidos: nenhum usuário pode enviar para emails na lista
+- Startup scan 20s após boot para capturar bounces do período offline
+
+WATCHDOGS ATIVOS (intervalos):
+- serverPushPoll: a cada 2min — detecta novas respostas no inbox e envia push notification
+- tokenGuardianRun: a cada 10min — renova tokens expirados de jobs ativos
+- vipExpiryWatchdog: a cada 1h — para automático de users sem plano válido
+- authErrorWatchdog: a cada 3h — notifica users com paused_auth_error há >12h
+- _autoEnrichCycle watchdog: a cada 30min — verifica planilhas pendentes de enriquecimento
+- Backup: a cada 10min — persiste todos os DBs em disk
+
+SISTEMA DE NOTIFICAÇÕES:
+- Push via Web Push API (service worker)
+- Email via Gmail API do admin (sendNotifEmail)
+- Tipos: stalled, finished, token_revoked, auth_error, vip_expired
+- Lock de 22h por tipo por usuário (não spam)
+- In-app: adminMessage no painel do usuário
+
+CENTRAL DE INCIDENTES (admin):
+- Gerada dinamicamente de DB_USERS + DB_AUTO a cada GET
+- Tipos: token_expired, auto_stuck, vip_expired, no_cv, system
+- Severidade: error (crítico), warn (atenção), info (informação)
+- Incidentes resolvidos persistem em global._resolvedIncidents (memória)
+- Missões: tarefas acionáveis ligadas a cada incidente
+- Botão 1-click "Notificar usuário" para auth_error e token_expired
+
+ROBÔ DE AUDITORIA (Gemini):
+- Coleta snapshot completo: usuários, jobs, logs 24h, bounces, financeiro, engajamento 7d, planilhas
+- Envia dossiê + KB + guia ao Gemini (gemini-2.0-flash first)
+- Extrai aprendizados da seção 🧠 e salva na knowledge_base.json
+- maxOutputTokens: 8000 para relatório completo
+- KB tem prioridade: não reportar o que já foi resolvido
+
+SISTEMA DE PEDIDOS:
+- Usuário cria pedido → status pendente
+- Admin confirma pagamento → ativa plano manualmente
+- Aba ⚡ Críticos: pedidos pendentes >24h com alerta visual
+- Integração com Robô Contábil: análise de comprovantes via Gemini Vision
+
+RANKING E GAMIFICAÇÃO:
+- Ranking semanal/mensal/total por emails enviados
+- Apelidos únicos (rankName)
+- Sistema de indicações (referral) com bônus de +5 dias VIP
+- Badges e streaks de dias consecutivos
+
+RESUMO GERAL:
+- Total usuários: ${usersSnapshot.length}
+- Usuários com token Gmail válido: ${usersComToken}
+- Automático rodando agora: ${usersAutoRodando}
+- Robôs travados (>2h sem envio, genuinamente): ${usersTravados}
+- Robôs aguardando limite diário (normal): ${usersAguardandoLimite}
+- Robôs aguardando rate limit Gmail (normal): ${usersAguardandoRateLimit}
+- Token expirado com usuário ATIVO (≤10 dias) — problema real: ${usersTokenProblemaReal}
+- Token expirado com usuário INATIVO (>10 dias) — ignorado: ${usersTokenInativoIgnorado}
+- Usuários sem CV com auto ativo: ${usersSemCV}
+- Pedidos pendentes: ${pedidosPendentes}
+- Planos ativos: ${pedidosAtivos}
+- Receita total: R$${totalReceita.toFixed(2)}
+- Gemini API: ${getGeminiKey()?'✅ Configurada':'❌ AUSENTE'}
+
+USUÁRIOS DETALHADOS (${usersSnapshot.length} total):
+${JSON.stringify(usersSnapshot, null, 2)}
+
+PEDIDOS RECENTES (últimos 20):
+${JSON.stringify((DB_PEDIDOS||[]).slice(-20).map(pd=>({
+  id:pd.id,user:pd.userEmail,plano:pd.plano,status:pd.status,
+  valor:pd.valorTotal,data:pd.createdAt?String(pd.createdAt).slice(0,10):null
+})), null, 2)}
+
+EMAILS INVÁLIDOS (bounces detectados):
+Total na base: ${Object.keys(DB_INVALID_EMAILS||{}).length}
+Por tipo: permanentes=${Object.values(DB_INVALID_EMAILS||{}).filter(e=>e.tipo==='permanente'||e.tipo==='bloqueado').length} temporários=${Object.values(DB_TEMP_FAILURES||{}).length}
+Top 5 domínios com bounce: ${(()=>{const d={};Object.values(DB_INVALID_EMAILS||{}).forEach(e=>{const dom=(e.email||'').split('@')[1]||'?';d[dom]=(d[dom]||0)+1;});return Object.entries(d).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>k+'('+v+')').join(', ')||'nenhum';})()}
+
+LOGS DE SISTEMA (últimas 24h — erros e avisos):
+${(()=>{
+  const since=Date.now()-86400000;
+  const errs=[];
+  for(const [email,logs] of Object.entries(DB_LOGS||{})){
+    (logs||[]).filter(l=>l.ts>since&&(l.status==='erro'||l.status==='cancelado'||l.error)).slice(0,3).forEach(l=>{
+      errs.push({user:email,status:l.status,job:l.jobTitle,error:l.error,ts:new Date(l.ts).toISOString().slice(11,16)});
+    });
+  }
+  return JSON.stringify(errs.slice(0,30), null, 2)||'[]';
+})()}
+
+FINANCEIRO RESUMO:
+Receita ativa (planos em vigor): R$${(DB_PEDIDOS||[]).filter(pd=>pd.status==='ativo').reduce((a,pd)=>a+(pd.valorTotal||0),0).toFixed(2)}
+Pedidos pendentes há >3 dias: ${(DB_PEDIDOS||[]).filter(pd=>pd.status==='pendente'&&(Date.now()-(pd.createdAt||0))>3*86400000).length}
+Usuários pagantes (VIP/VIPro/DoublePro ativos): ${Object.values(DB_USERS||{}).filter(u=>isVipActive(u)&&u.plan!=='free').length}
+Conversão free→pago: ${((Object.values(DB_USERS||{}).filter(u=>isVipActive(u)&&u.plan!=='free').length/Math.max(1,Object.keys(DB_USERS||{}).length))*100).toFixed(1)}%
+Trial ativo atualmente: ${Object.values(DB_USERS||{}).filter(u=>u.vip?.source==='trial'&&isVipActive(u)).length} usuários
+
+PLANILHAS DE VAGAS:
+jan2026: ${(typeof SHEET_JAN!=='undefined'?SHEET_JAN.length:0)} vagas | jul2025: ${(typeof SHEET_JUL!=='undefined'?SHEET_JUL.length:0)} vagas
+Extras: ${Object.keys(SHEET_EXTRAS||{}).map(k=>k+'('+((SHEET_EXTRAS[k]||[]).length)+'vagas)').join(', ')||'nenhuma'}
+Enriquecimento DOL rodando: ${typeof _enrichBot!=='undefined'&&_enrichBot.running?'SIM - '+_enrichBot.done+'/'+_enrichBot.total:'não'}
+
+INDICADORES DE ENGAJAMENTO (últimos 7 dias):
+${(()=>{
+  const since7=Date.now()-7*86400000;
+  const ativos7=Object.values(DB_USERS||{}).filter(u=>u.lastSeenAt&&u.lastSeenAt>since7).length;
+  const enviadores7=Object.values(DB_LOGS||{}).filter(logs=>(logs||[]).some(l=>l.ts>since7&&l.status==='enviado')).length;
+  const totalEnvios7=Object.values(DB_LOGS||{}).reduce((a,logs)=>a+(logs||[]).filter(l=>l.ts>since7&&l.status==='enviado').length,0);
+  return `Usuários ativos (7d): ${ativos7} | Enviaram email (7d): ${enviadores7} | Total emails enviados (7d): ${totalEnvios7}`;
+})()}
+
+BASE DE CONHECIMENTO PERMANENTE (${DB_KB.entries.length} entradas — leia ANTES de analisar):
+ATENCAO: Estes problemas JA foram resolvidos. NAO os reporte como novos.
+${(()=>{ const _kbFmt=DB_KB.entries.map(e=>"["+e.id+" | "+e.versao+" | "+e.data+"]\nProblema: "+e.problema+"\nSolucao: "+e.solucao+"\nImpacto: "+e.impacto+"\nModulos: "+(e.modulos||[]).join(", ")); return _kbFmt.join("\n---\n"); })()}
+`;
+
+      // ── Treinamento incremental: adiciona aprendizados da auditoria anterior à KB ──
+      const _auditLearnings = DB_KB.entries.filter(e=>e.tipo==='auditoria_aprendizado').slice(-5).map(e=>e.solucao).join('\n- ');
+
+      const prompt=`Você é o ANALISTA SÊNIOR E ARQUITETO DO H2BAPPLY — um SaaS brasileiro que automatiza candidaturas H-2B e H-2A (vistos de trabalho nos EUA). Você tem MEMÓRIA CUMULATIVA: cada análise que você faz é aprendida e melhora a próxima.
+
+${dossie}
+
+═══════════════════════════════════════════════════
+APRENDIZADOS DAS ÚLTIMAS AUDITORIAS (sua memória):
+═══════════════════════════════════════════════════
+${_auditLearnings || '(Primeira auditoria — sem histórico ainda)'}
+
+═══════════════════════════════════════════════════
+REGRAS ABSOLUTAS:
+═══════════════════════════════════════════════════
+1. Leia o GUIA DE FUNCIONAMENTO antes de tudo — define o que é normal vs problema real
+2. Leia a BASE DE CONHECIMENTO — problemas JÁ resolvidos, não repita-os
+3. "waiting_limit" = saudável, NÃO é travamento
+4. Token expirado + inativo >10 dias = ignorar
+5. Analise O SISTEMA INTEIRO: usuários, filas, financeiro, planilhas, bounces, logs
+
+═══════════════════════════════════════════════════
+SUA MISSÃO COMPLETA:
+═══════════════════════════════════════════════════
+1. SAÚDE DO SISTEMA: nota 0-100 com justificativa real
+2. PROBLEMAS CRÍTICOS: apenas o que precisa de ação HOJE
+3. ANÁLISE DE USUÁRIOS: examine CADA usuário ativo (≤10 dias) e identifique padrões
+4. SAÚDE FINANCEIRA: receita, conversão, pedidos parados, trial abuse
+5. QUALIDADE DOS DADOS: emails inválidos/bounces, planilhas incompletas, CVs ausentes
+6. SUGESTÕES ARQUITETURAIS: melhorias que você detecta no funcionamento do sistema
+7. TREINAMENTO: ao final, escreva 3-5 aprendizados novos desta análise (seção especial)
+
+═══════════════════════════════════════════════════
+FORMATO DO RELATÓRIO:
+═══════════════════════════════════════════════════
+
+## 🏥 SAÚDE GERAL: [nota]/100
+[Justificativa com base nos dados reais desta análise]
+
+## 🚨 PROBLEMAS CRÍTICOS
+[Problemas que precisam de ação HOJE — com email do usuário afetado quando aplicável]
+
+## ⚠️ AVISOS
+[Situações que merecem atenção nos próximos dias]
+
+## 📊 MÉTRICAS DO SISTEMA
+[Quadro completo: usuários, envios, bounces, financeiro, planilhas, engajamento]
+
+## 👥 ANÁLISE DE USUÁRIOS ATIVOS
+[Examine cada usuário ativo (≤10 dias), agrupe por padrão: saudáveis / com problema token / sem CV / trial expirado]
+[TOP 3 urgentes com: nome, email, problema específico, ação recomendada]
+
+## 💰 SAÚDE FINANCEIRA
+[Receita atual, conversão free→pago, pedidos parados, risco de chargeback, trial abuse]
+
+## 🔍 QUALIDADE DOS DADOS
+[Emails inválidos/bounces acumulados, planilhas não enriquecidas, CVs faltando, templates ausentes]
+
+## 💡 SUGESTÕES DE MELHORIA ARQUITETURAL
+[Ideias concretas para melhorar o sistema — verificar se NÃO estão na KB antes de sugerir]
+[Inclua: UX, performance, negócio, retenção, anti-abuse]
+
+## ✅ O QUE ESTÁ FUNCIONANDO BEM
+[Reconheça implementações corretas — importante para o fundador saber o que não quebrar]
+
+## 📋 RESUMO EXECUTIVO
+[3-5 frases para o fundador tomar decisões imediatas]
+
+## 🧠 NOVOS APRENDIZADOS PARA MEMÓRIA CUMULATIVA
+[Escreva exatamente 3-5 aprendizados NOVOS desta análise, no formato:]
+APRENDIZADO: [descrição concisa do padrão ou problema identificado]
+[Estes serão salvos automaticamente para melhorar a próxima auditoria]`;
+
+      const GEMINI_MODELS=["gemini-2.0-flash","gemini-2.5-flash-lite","gemini-2.5-flash"];
+      let texto=null; let lastErr="";
+
+      for(const modelName of GEMINI_MODELS){
         try{
-          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${getGeminiKey()}`;
-          const payload = {
-            contents:[{
-              role:"user",
-              parts:[
-                { inline_data:{ mime_type: mimeType, data: base64 } },
-                { text: prompt }
-              ]
-            }],
-            generationConfig:{ temperature:0.1, maxOutputTokens:600 }
+          const geminiUrl=`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${getGeminiKey()}`;
+          const payload={
+            contents:[{role:"user",parts:[{text:prompt}]}],
+            generationConfig:{temperature:0.3,maxOutputTokens:8000}
           };
-          const body = JSON.stringify(payload);
-          const url  = new URL(geminiUrl);
-          const opts = { hostname:url.hostname, path:url.pathname+url.search, method:"POST",
-            headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(body)} };
+          const body=JSON.stringify(payload);
+          const url=new URL(geminiUrl);
+          const opts={hostname:url.hostname,path:url.pathname+url.search,method:"POST",
+            headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(body)}};
 
-          const raw = await new Promise((resolve,reject)=>{
+          const raw=await new Promise((resolve,reject)=>{
             const req2=https.request(opts,resp=>{
               const ch=[];
               resp.on("data",c=>ch.push(c));
               resp.on("end",()=>{try{resolve({status:resp.statusCode,body:JSON.parse(Buffer.concat(ch).toString())});}catch{reject(new Error("Resposta inválida"));}});
             });
             req2.on("error",reject);
-            req2.setTimeout(30000,()=>{req2.destroy();reject(new Error("Timeout"));});
-            req2.write(body); req2.end();
+            req2.setTimeout(60000,()=>{req2.destroy();reject(new Error("Timeout 60s"));});
+            req2.write(body);req2.end();
           });
 
           if(raw.status===200){
-            const txt = (raw.body?.candidates?.[0]?.content?.parts?.[0]?.text||"").trim();
-            const clean = txt.replace(/```json|```/g,"").trim();
-            try{
-              result = JSON.parse(clean);
-              console.log(`[analyse-comp] ✅ modelo=${modelName} pedido=${pedidoId||"?"} valor=${result.valor}`);
-              break;
-            }catch(e){lastErr="JSON parse error: "+clean.slice(0,80);}
+            texto=(raw.body?.candidates?.[0]?.content?.parts?.[0]?.text||"").trim();
+            if(texto){console.log(`[auditoria] ✅ modelo=${modelName}`);break;}
           } else {
-            lastErr = raw.body?.error?.message||`HTTP ${raw.status}`;
-            console.warn(`[analyse-comp] ❌ ${modelName}: ${lastErr}`);
-            // Se for erro de quota/auth — não tentar próximo modelo
-            if(raw.status===403||raw.status===401) break;
+            lastErr=raw.body?.error?.message||`HTTP ${raw.status}`;
+            if(raw.status===403||raw.status===401)break;
           }
-        }catch(e){ lastErr=e.message; console.warn(`[analyse-comp] ❌ ${modelName}: ${e.message}`); }
+        }catch(e){lastErr=e.message;}
       }
 
-      if(!result) return json(res,502,{error:`IA falhou em todos os modelos. Último erro: ${lastErr}. Verifique GEMINI_API_KEY no Render.`});
-      return json(res,200,{ok:true, analise:result, pedidoId});
+      if(!texto) return json(res,502,{error:`Gemini falhou: ${lastErr}`});
+      _geminiCount.count++;
+
+      // ── Treinamento incremental: extrair aprendizados e salvar na KB ──────
+      try{
+        const _learningSection = texto.match(/##\s*🧠\s*NOVOS APRENDIZADOS[\s\S]*?APRENDIZADO:(.*?)(?=\n##|$)/gi);
+        if(_learningSection&&_learningSection.length){
+          const _aprendizados = [...texto.matchAll(/APRENDIZADO:\s*(.+)/g)].map(m=>m[1].trim()).filter(Boolean);
+          for(const ap of _aprendizados.slice(0,5)){
+            if(ap.length>10&&ap.length<500){
+              const _kbEntry={
+                id:'audit_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+                versao:'auto-auditoria',data:new Date().toISOString().slice(0,10),
+                tipo:'auditoria_aprendizado',
+                problema:'Padrão detectado pela auditoria automática',
+                solucao:ap,impacto:'médio',
+                modulos:['auditoria','gemini'],
+                geradoPor:'gemini-audit'
+              };
+              if(!DB_KB.entries.find(e=>e.solucao===ap)){
+                DB_KB.entries.push(_kbEntry);
+                console.log('[auditoria] 🧠 Novo aprendizado salvo na KB:',ap.slice(0,80));
+              }
+            }
+          }
+          // Manter apenas os últimos 20 aprendizados de auditoria (evitar acúmulo)
+          const _auditEntries = DB_KB.entries.filter(e=>e.tipo==='auditoria_aprendizado');
+          if(_auditEntries.length>20){
+            const _toRemove=_auditEntries.slice(0,_auditEntries.length-20).map(e=>e.id);
+            DB_KB.entries=DB_KB.entries.filter(e=>!_toRemove.includes(e.id));
+          }
+          try{fs.writeFileSync(KB_FILE,JSON.stringify(DB_KB,null,2));}catch{}
+        }
+      }catch(kbErr){ console.warn('[auditoria] erro ao salvar KB:',kbErr.message); }
+
+      return json(res,200,{ok:true,relatorio:texto,geradoEm:new Date().toISOString(),totalUsuarios:usersSnapshot.length,usersAutoRodando,usersTravados,pedidosPendentes});
     }catch(e){
-      console.error("[analyse-comp] error:",e.message);
+      console.error("[auditoria-gemini]",e.message);
       return json(res,500,{error:"Erro interno: "+e.message});
     }
   }
@@ -7477,6 +8465,51 @@ Equipe H2BApply` },
 const _notifLock = new Set(); // email+tipo
 
 // Mensagens para token revogado — usuário precisa fazer login novamente
+const MSGS_AUTH_ERROR = [
+  { sub:"🚨 {nome}, seu robô parou — reconecte o Gmail agora!", body:`{nome}!
+
+Seu robô do H2BApply tentou enviar suas candidaturas mas encontrou um erro de autenticação no Gmail e pausou automaticamente.
+
+📋 Você tem uma fila de candidaturas esperando para ser enviada!
+
+✅ Para reativar em 1 minuto:
+1. Acesse h2bapply.com
+2. Faça login com o Google novamente
+3. O robô retoma de onde parou automaticamente!
+
+Não perca tempo — as vagas H-2B têm prazo! 🇺🇸💪
+
+Equipe H2BApply 🤖` },
+
+  { sub:"⚠️ {nome}, ação necessária — erro de autenticação no Gmail", body:`Oi {nome}!
+
+O sistema detectou um erro de autenticação no seu Gmail e pausou o envio automático para proteger sua conta.
+
+Sua fila de candidaturas está salva e aguardando! 📋
+
+🔄 Solução rápida:
+→ Acesse h2bapply.com
+→ Clique em "Entrar com Google"
+→ Pronto! O robô volta a trabalhar!
+
+Qualquer dúvida, responda este email.
+
+Equipe H2BApply` },
+
+  { sub:"🔑 {nome}! Autenticação do Gmail falhou — reative o robô", body:`{nome}!!
+
+Detectamos que o acesso ao seu Gmail foi interrompido por um erro de autenticação. Isso pode acontecer quando as configurações de segurança do Google mudam.
+
+A solução é simples e rápida:
+🔐 Entre em h2bapply.com → faça login com Google → robô volta a correr!
+
+Suas candidaturas anteriores estão salvas e a fila continua te esperando! 💪
+
+Bora lá! 🇺🇸🚀
+
+Equipe H2BApply 🤖` },
+];
+
 const MSGS_TOKEN_REVOKED = [
   { sub:"🔐 {nome}, seu automático pausou — precisa de 1 minutinho!", body:`{nome}!
 
@@ -7532,9 +8565,10 @@ async function sendNotifEmail(userEmail, tipo) {
   try {
     const p = getUser(userEmail);
     const nome = (p?.name || userEmail.split("@")[0] || "amigo").split(" ")[0];
-    const msgs = tipo === "stalled"       ? MSGS_STALLED
+    const msgs = (tipo === "stalled"       ? MSGS_STALLED
                : tipo === "token_revoked" ? MSGS_TOKEN_REVOKED
-               : MSGS_FINISHED;
+               : tipo === "auth_error"    ? MSGS_AUTH_ERROR
+               : MSGS_FINISHED);
     // Escolhe variação aleatória
     const idx = Math.floor(Math.random() * msgs.length);
     const msg = msgs[idx];
@@ -7725,9 +8759,20 @@ async function diagnoseJob(email) {
     pushGlobalEvent("no_pdf", email, "PDF do currículo não encontrado — envio automático pode falhar", "warn");
   } else { h.hasPdf = true; }
 
-  // 2. Checa OAuth/token
+  // 2. Checa OAuth/token — só age se usuário ativo nos últimos 10 dias
   const hasToken = !!(user?.refresh_token || user?.cached_access_token);
   if (!hasToken && h.oauthOk !== false) {
+    const lastSeen = user?.lastSeenAt || new Date(user?.created_at||0).getTime();
+    const inactiveDays = (Date.now() - lastSeen) / 86400000;
+    if (inactiveDays > 10) {
+      // Usuário inativo >10 dias: pausa silenciosa sem log ruidoso, sem notif
+      h.oauthOk = false;
+      setAutoJob(email, { ...job, active:false, status:"paused_oauth_expired" });
+      autoTimers.delete(email);
+      console.log(`[watchdog] ${email} token inválido mas inativo ${Math.round(inactiveDays)}d — pausa silenciosa`);
+      return;
+    }
+    // Usuário ativo: alerta real
     h.oauthOk = false;
     addLog(email, { status:"pausado", jobTitle:"🔐 Autenticação expirada", company:"Watchdog: faça login novamente para retomar o envio automático", error:"Sem refresh_token" });
     pushGlobalEvent("oauth_invalid", email, "Autenticação expirada — automático pausado", "error");
@@ -7963,6 +9008,60 @@ async function tokenGuardianRun() {
 }
 setInterval(tokenGuardianRun, 10 * 60 * 1000); // a cada 10 minutos (era 15)
 
+// ── Watchdog de VIP expirado — para automático de quem não pagou ────────────
+// Roda a cada hora. Para qualquer job ativo de usuário sem plano auto válido.
+// Essa é a rede de segurança contra trial que continua rodando após expirar.
+async function vipExpiryWatchdog(){
+  const now = Date.now();
+  let stopped = 0;
+  for(const [email, job] of Object.entries(DB_AUTO)){
+    if(!job?.active) continue;
+    const u = getUser(email);
+    if(!u) continue;
+    if(isAdminVip(u)) continue; // admin nunca para
+    if(isAutoVipActive(u)) continue; // VIP ativo = ok
+    // VIP expirou e job ainda ativo → parar agora
+    if(autoTimers.has(email)){clearTimeout(autoTimers.get(email));autoTimers.delete(email);}
+    setAutoJob(email,{...job,active:false,status:"paused_no_vip",finishedAt:now});
+    addLog(email,{status:"pausado",jobTitle:"⛔ Automático pausado — plano expirado",company:"Renove seu plano VIPro para continuar o envio automático.",error:"Plano auto expirado"});
+    console.log(`[vip-watchdog] ⛔ ${email} sem plano auto — job parado`);
+    stopped++;
+  }
+  if(stopped>0) console.log(`[vip-watchdog] Parou ${stopped} job(s) de usuários sem plano`);
+}
+setInterval(()=>vipExpiryWatchdog().catch(e=>console.error("[vip-watchdog]",e.message)), 60*60*1000); // a cada 1h
+
+// ── Watchdog de paused_auth_error — notifica usuário após 12h parado ─────────
+// Roda a cada 3h. Se job parado por auth_error há >12h e usuário ativo ≤30 dias,
+// envia email de notificação automática pedindo para reconectar o Gmail.
+const _authErrNotifiedAt = {}; // {email: timestamp} — cooldown de 24h por usuário
+async function authErrorWatchdog(){
+  const now = Date.now();
+  let notified = 0;
+  for(const [email, job] of Object.entries(DB_AUTO)){
+    if(!job?.active && job?.status==="paused_auth_error"){
+      const pausedAt = job.finishedAt || job.lastSentAt || 0;
+      const pausedMs = now - pausedAt;
+      if(pausedMs < 12*3600_000) continue; // menos de 12h — ainda cedo
+      const lastNotif = _authErrNotifiedAt[email] || 0;
+      if(now - lastNotif < 22*3600_000) continue; // já notificou nas últimas 22h
+      const u = getUser(email);
+      if(!u) continue;
+      const diasInativo = Math.round((now-(u.lastSeenAt||0))/86400000);
+      if(diasInativo > 30) continue; // usuário inativo >30 dias — não notifica
+      try{
+        await sendNotifEmail(email, "auth_error");
+        _authErrNotifiedAt[email] = now;
+        notified++;
+        console.log(`[auth-watchdog] 📧 Notificado ${email} sobre paused_auth_error (${Math.round(pausedMs/3600000)}h parado)`);
+      }catch(e){ console.warn(`[auth-watchdog] erro notif ${email}:`, e.message); }
+      await new Promise(r=>setTimeout(r,2000)); // pausa entre emails
+    }
+  }
+  if(notified>0) console.log(`[auth-watchdog] ✅ ${notified} usuários notificados sobre auth_error`);
+}
+setInterval(()=>authErrorWatchdog().catch(e=>console.error("[auth-watchdog]",e.message)), 3*60*60*1000); // a cada 3h
+
 // ══════════════════════════════════════════════════════════
 //  FUNÇÕES UTILITÁRIAS GLOBAIS (stats, ranking)
 //  Movidas para escopo global para reutilização entre rotas
@@ -8143,6 +9242,33 @@ function persistFinanceiro() {
 // ── BOOT ─────────────────────────────────────────────────
 boot();loadSheets();
 
+// ── Migração automática: copiar planilhas enriquecidas para /data/ ──────────
+// Se o bot já enriqueceu (enrichedAt no meta) mas o arquivo em /data/ não existe,
+// significa que o enriquecimento foi feito antes desta correção.
+// Copia o arquivo de __dirname para /data/ para que deploys futuros carreguem corretamente.
+(function migrateEnrichedSheets(){
+  for(const[key,file]of[["jan2026","jan2026_compact.json"],["jul2025","jul2025_compact.json"]]){
+    const dataPath=path.join(DATA_DIR,file);
+    const srcPath=path.join(__dirname,file);
+    if(!fs.existsSync(dataPath)&&fs.existsSync(srcPath)){
+      try{
+        const data=JSON.parse(fs.readFileSync(srcPath,"utf8"));
+        // Só migra se o arquivo tem dados enriquecidos (campo ci preenchido em pelo menos 10%)
+        const withCity=data.filter(r=>r.ci).length;
+        const pct=data.length>0?Math.round(withCity/data.length*100):0;
+        if(pct>=10){
+          fs.writeFileSync(dataPath,JSON.stringify(data));
+          console.log(`[migrate] ✅ ${file} copiado para /data/ (${pct}% enriquecido, ${data.length} vagas)`);
+        } else {
+          console.log(`[migrate] ⚠️ ${file} sem enriquecimento significativo (${pct}%) — não migrado`);
+        }
+      }catch(e){console.warn(`[migrate] Erro ao migrar ${file}:`,e.message);}
+    } else if(fs.existsSync(dataPath)){
+      console.log(`[migrate] ✅ ${file} já existe em /data/ — ok`);
+    }
+  }
+})();
+
 // ── Graceful shutdown: persiste TODOS os bancos ──────────
 function flushAll() {
   console.log("[shutdown] Persistindo dados...");
@@ -8187,6 +9313,56 @@ process.on("unhandledRejection",(reason)=>{
   try{pushGlobalEvent("unhandled_rejection",null,String(reason?.message||reason).slice(0,200),"warn");}catch(_){}
 });
 
+
+// ── Motor de Enriquecimento Autônomo ─────────────────────────────────────
+// Verifica e processa TODAS as planilhas pendentes (1x por planilha).
+// Roda invisível no servidor — não depende de sessão, página aberta ou login.
+// Builtins (jan2026, jul2025) + extras (uploadadas via admin).
+// Critério: enrichedAt ausente no DB_SHEETS_META = pendente.
+async function _autoEnrichCycle(){
+  if(_enrichBot.running){ return; } // já rodando, aguarda
+
+  const allSheetKeys = ["jan2026","jul2025",...Object.keys(SHEET_EXTRAS)];
+
+  for(const sheetKey of allSheetKeys){
+    if(_enrichBot.running) break;
+
+    const sheet = getSheet(sheetKey);
+    if(!sheet||!sheet.length) continue;
+
+    // REGRA: só enriquece se nunca foi concluído (enrichedAt ausente no meta)
+    const meta = DB_SHEETS_META[sheetKey]||{};
+    if(meta.enrichedAt) continue; // já enriquecida — pula
+
+    const withEmail = sheet.filter(r=>r.e&&r.e.includes("@")).length;
+    const withoutEmail = sheet.length - withEmail;
+    const pct = Math.round((withEmail/sheet.length)*100);
+
+    if(withoutEmail === 0){
+      // 100% completo mas sem enrichedAt — marca agora para não rever
+      if(!DB_SHEETS_META[sheetKey]) DB_SHEETS_META[sheetKey]={name:sheetKey};
+      DB_SHEETS_META[sheetKey].enrichedAt=Date.now();
+      DB_SHEETS_META[sheetKey].enriched=withEmail;
+      DB_SHEETS_META[sheetKey].enrichedTotal=sheet.length;
+      try{fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));}catch{}
+      console.log(`[auto-enrich] ${sheetKey}: ✅ já completo (${pct}%) — marcado concluído`);
+      continue;
+    }
+
+    // Tem vagas sem email — inicia bot de enriquecimento
+    const resume = withEmail > 0;
+    const startIdx = resume ? Math.max(0, withEmail - 5) : 0;
+    console.log(`[auto-enrich] 🚀 ${sheetKey}: ${withoutEmail} pendentes (${pct}% completo) — idx ${startIdx}`);
+    await _runEnrichBot(sheetKey, resume).catch(e=>console.error(`[auto-enrich] ${sheetKey}:`,e.message));
+    console.log(`[auto-enrich] ✅ ${sheetKey}: concluído`);
+
+    // Pausa 60s entre planilhas para não saturar DOL API
+    if(allSheetKeys.indexOf(sheetKey) < allSheetKeys.length-1){
+      await new Promise(r=>setTimeout(r,60000));
+    }
+  }
+}
+
 server.listen(PORT,"0.0.0.0",()=>{
   console.log(`\n✅  H2BApply v13.1 — ${APP_URL} (porta ${PORT})`);
   console.log(`    👤 Usuários: ${Object.keys(DB_USERS).length}`);
@@ -8196,153 +9372,57 @@ server.listen(PORT,"0.0.0.0",()=>{
   if(!CONFIGURED)console.log("\n⚠️  Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET!\n");
   setTimeout(refreshCache,3000);
   setTimeout(()=>reactivateAutoJobs().catch(e=>console.error("[boot] reactivate error:",e.message)),6000);
-});  if(pathname==="/privacy"){
-    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"public, max-age=86400"});
-    return res.end(`<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Política de Privacidade — H2BApply</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1e293b;background:#f8fafc;line-height:1.8}
-.container{max-width:740px;margin:0 auto;padding:40px 20px}
-.logo{display:flex;align-items:center;gap:12px;margin-bottom:32px}
-.logo-icon{width:48px;height:48px;background:linear-gradient(135deg,#4f46e5,#0891b2);border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:800}
-h1{font-size:28px;font-weight:800;color:#1e293b;margin-bottom:6px}
-.date{font-size:13px;color:#94a3b8;margin-bottom:28px}
-h2{font-size:17px;font-weight:700;color:#1e293b;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid #e2e8f0}
-p{font-size:14px;color:#374151;margin-bottom:12px}
-ul{font-size:14px;color:#374151;margin:0 0 14px 22px}
-li{margin-bottom:6px}
-.highlight{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin:14px 0;font-size:13px;color:#1e40af}
-.footer{text-align:center;margin-top:48px;padding-top:20px;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8}
-a{color:#4f46e5}
-</style>
-</head>
-<body>
-<div class="container">
-  <div class="logo">
-    <div class="logo-icon">H</div>
-    <div>
-      <div style="font-size:20px;font-weight:800">H2BApply</div>
-      <div style="font-size:12px;color:#64748b">Plataforma de candidaturas H-2B/H-2A</div>
-    </div>
-  </div>
 
-  <h1>Política de Privacidade</h1>
-  <div class="date">Última atualização: Junho de 2026 — Versão 3.0 | <a href="/terms">Termos de Uso</a> | <a href="/contact">Contato</a></div>
+  // ── Startup Bounce Scan — verifica inbox de todos os usuários com token ──
+  // Roda 20s após boot para dar tempo do reactivate e cache carregarem.
+  // Para cada usuário com refresh_token, renova token e escaneia inbox por bounces.
+  // Bounces encontrados → registrados em DB_INVALID_EMAILS → removidos das planilhas.
+  setTimeout(async()=>{
+    const usersWithToken = Object.values(DB_USERS).filter(u=>u&&u.email&&u.refresh_token);
+    if(!usersWithToken.length){ console.log("[bounce-scan] nenhum usuário com token, pulando"); return; }
+    console.log(`[bounce-scan] 🔍 Iniciando scan de bounces para ${usersWithToken.length} usuário(s)...`);
+    let totalBounces=0, totalUsers=0;
+    for(const u of usersWithToken){
+      try{
+        // Renova token diretamente via refresh_token (sem precisar de sessão ativa)
+        const freshToken = await refreshTokenForUser(u.email).catch(()=>null);
+        if(!freshToken){ console.log(`[bounce-scan] ${u.email}: token inválido, pulando`); continue; }
+        // Cria sessão temporária para gmailFetchInbox
+        const _tmpSid = "__bounce_scan__"+u.email;
+        sessions[_tmpSid] = {access_token:freshToken, user_email:u.email, expires_at:Date.now()+3500_000};
+        try{
+          // Busca apenas as últimas 50 mensagens para não sobrecarregar
+          const emails = await gmailFetchInbox(_tmpSid, 50);
+          // gmailFetchInbox já processa bounces internamente e chama processBounce()
+          totalBounces += (emails._bouncesProcessed||0);
+          totalUsers++;
+          console.log(`[bounce-scan] ✅ ${u.email}: ${emails.length} mensagens verificadas`);
+        }finally{
+          delete sessions[_tmpSid]; // limpa sessão temporária
+        }
+        // Pausa 2s entre usuários para não sobrecarregar Gmail API
+        await new Promise(r=>setTimeout(r,2000));
+      }catch(e){
+        console.warn(`[bounce-scan] ${u.email}: ${e.message}`);
+      }
+    }
+    console.log(`[bounce-scan] ✅ Concluído: ${totalUsers} usuários verificados | ${Object.keys(DB_INVALID_EMAILS).length} emails inválidos na base`);
+  }, 20000); // 20s após boot
 
-  <div class="highlight">
-    🔒 O H2BApply utiliza <strong>Google Sign-In (OAuth 2.0)</strong>, <strong>Gmail API</strong> para envio de emails, e armazena dados exclusivamente para a prestação do serviço de candidaturas H-2B/H-2A.
-  </div>
+  // ── Auto-Enriquecimento DOL — Motor Autônomo ─────────────────────────
+  // REGRAS:
+  //   • Roda 1x por planilha (controle via DB_SHEETS_META[key].enrichedAt)
+  //   • Cobre TODAS as planilhas: builtins + extras uploadadas
+  //   • Invisível ao usuário — roda 100% server-side sem necessitar sessão
+  //   • Persiste no disco — sobrevive a restart/deploy
+  //   • Watchdog a cada 30min verifica novas planilhas pendentes
+  //   • Admin pode pausar via botão Parar; watchdog retoma automaticamente
 
-  <h2>1. Quem Somos</h2>
-  <p>H2BApply (<a href="https://h2bapply.com">h2bapply.com</a>) é uma plataforma que auxilia candidatos brasileiros a enviar candidaturas para vagas H-2B e H-2A nos EUA. Responsáveis: Andrio Kickhofel e Diego Cardoso. Contato: <a href="mailto:suporte@h2bapply.com">suporte@h2bapply.com</a>.</p>
+  // Dispara o ciclo 15s após boot
+  setTimeout(()=>_autoEnrichCycle().catch(e=>console.error("[auto-enrich] boot cycle erro:",e.message)), 15000);
 
-  <h2>2. Uso do Google Login (OAuth 2.0)</h2>
-  <p>Utilizamos o <strong>Google Sign-In</strong> para autenticação. Ao fazer login com sua conta Google, coletamos:</p>
-  <ul>
-    <li><strong>Nome e foto de perfil</strong> — para exibir no painel do aplicativo</li>
-    <li><strong>Endereço de email Google</strong> — para identificar sua conta na plataforma</li>
-    <li><strong>Token OAuth</strong> — para enviar emails de candidatura em seu nome via Gmail API</li>
-  </ul>
-  <p><strong>Scopes (permissões) utilizados:</strong></p>
-  <ul>
-    <li><code>openid</code> — autenticação do usuário</li>
-    <li><code>email</code> — identificação da conta</li>
-    <li><code>profile</code> — nome e foto do perfil</li>
-    <li><code>gmail.send</code> — envio de emails de candidatura em seu nome</li>
-  </ul>
-  <p>Não solicitamos acesso para ler, modificar ou excluir emails. Apenas enviamos em seu nome, com sua autorização explícita.</p>
-
-  <h2>3. Uso da Gmail API</h2>
-  <p>A <strong>Gmail API</strong> é utilizada exclusivamente para:</p>
-  <ul>
-    <li>Enviar emails de candidatura para empregadores H-2B/H-2A nos EUA</li>
-    <li>O envio é feito usando sua própria conta Gmail, com seu nome como remetente</li>
-    <li>Você controla quais emails são enviados e pode pausar ou parar a qualquer momento</li>
-  </ul>
-  <p>Nunca acessamos, lemos, copiamos ou modificamos seus emails pessoais. O único uso é envio de candidaturas.</p>
-
-  <h2>4. Dados Coletados</h2>
-  <p>Coletamos os seguintes dados para prestação do serviço:</p>
-  <ul>
-    <li><strong>Dados de conta:</strong> nome, email, foto de perfil (via Google)</li>
-    <li><strong>Dados de perfil:</strong> WhatsApp, telefone, cidade, país (informados por você)</li>
-    <li><strong>Currículos:</strong> arquivos PDF enviados por você para candidaturas</li>
-    <li><strong>Histórico de candidaturas:</strong> empresa, cargo, email de destino, data de envio</li>
-    <li><strong>Configurações:</strong> preferências de plano, templates de email</li>
-    <li><strong>Dados de sessão:</strong> tokens de autenticação armazenados com segurança</li>
-  </ul>
-  <p>Não coletamos dados bancários, documentos de identidade ou informações sensíveis não relacionadas ao serviço.</p>
-
-  <h2>5. Como Usamos os Dados</h2>
-  <ul>
-    <li>Autenticação e identificação do usuário na plataforma</li>
-    <li>Envio de emails de candidatura para vagas H-2B/H-2A</li>
-    <li>Exibição do histórico de candidaturas enviadas</li>
-    <li>Melhoria e manutenção da plataforma</li>
-    <li>Comunicação de suporte e notificações importantes</li>
-  </ul>
-  <p><strong>Nunca vendemos, alugamos ou compartilhamos seus dados com terceiros para fins comerciais.</strong></p>
-
-  <h2>6. Compartilhamento de Dados</h2>
-  <p>Seus dados são compartilhados apenas com:</p>
-  <ul>
-    <li><strong>Google LLC</strong> — para autenticação (OAuth) e envio via Gmail API</li>
-    <li><strong>Render.com</strong> — infraestrutura de hospedagem segura com criptografia</li>
-    <li><strong>Empregadores americanos</strong> — apenas o conteúdo dos emails que você autoriza enviar</li>
-  </ul>
-
-  <h2>7. Retenção de Dados</h2>
-  <ul>
-    <li>Dados ativos: mantidos enquanto a conta estiver ativa</li>
-    <li>Após exclusão da conta: dados removidos em até 30 dias</li>
-    <li>Logs de sistema (sem dados pessoais): até 90 dias por segurança</li>
-  </ul>
-
-  <h2>8. Seus Direitos</h2>
-  <ul>
-    <li><strong>Acessar</strong> seus dados: disponíveis no painel do aplicativo</li>
-    <li><strong>Corrigir</strong> seus dados: nas configurações do perfil</li>
-    <li><strong>Excluir</strong> seus dados: via <a href="/delete-account">página de exclusão</a> ou email para suporte</li>
-    <li><strong>Revogar</strong> acesso ao Google: em <a href="https://myaccount.google.com/permissions" target="_blank">myaccount.google.com/permissions</a></li>
-    <li><strong>Exportar</strong> seus dados: entre em contato com suporte</li>
-  </ul>
-
-  <h2>9. Como Excluir Sua Conta</h2>
-  <p>Para excluir sua conta e todos os seus dados:</p>
-  <ul>
-    <li>Acesse <strong>Configurações → Excluir minha conta</strong> no aplicativo, ou</li>
-    <li>Envie email para <a href="mailto:suporte@h2bapply.com">suporte@h2bapply.com</a> com assunto "Exclusão de conta"</li>
-    <li>Veja detalhes em: <a href="/delete-account">h2bapply.com/delete-account</a></li>
-  </ul>
-
-  <h2>10. Segurança</h2>
-  <p>Utilizamos HTTPS em todas as comunicações, criptografia de tokens OAuth, e armazenamento seguro no servidor. Não armazenamos senhas do Google — o acesso é gerenciado exclusivamente pelo OAuth 2.0 do Google.</p>
-
-  <h2>11. Cookies e Sessão</h2>
-  <p>Utilizamos apenas cookies de sessão necessários para manter o login ativo. Não utilizamos cookies de rastreamento ou publicidade.</p>
-
-  <h2>12. Alterações nesta Política</h2>
-  <p>Podemos atualizar esta política periodicamente. Notificamos usuários sobre mudanças significativas por email. A data de atualização é sempre exibida no topo desta página.</p>
-
-  <h2>13. Contato</h2>
-  <ul>
-    <li>Email: <a href="mailto:suporte@h2bapply.com">suporte@h2bapply.com</a></li>
-    <li>Site: <a href="https://h2bapply.com">h2bapply.com</a></li>
-    <li>WhatsApp: +55 53 98145-3496</li>
-  </ul>
-
-  <div class="footer">
-    © 2026 H2BApply · <a href="/">Início</a> · <a href="/terms">Termos de Uso</a> · <a href="/contact">Contato</a> · <a href="/delete-account">Excluir Conta</a>
-    <br>suporte@h2bapply.com
-  </div>
-</div>
-</body>
-</html>`);
-  }
-
-  
+  // Watchdog a cada 30 minutos — captura planilhas novas ou que travaram
+  setInterval(()=>{
+    _autoEnrichCycle().catch(e=>console.error("[auto-enrich] watchdog erro:",e.message));
+  }, 30 * 60 * 1000);
+});

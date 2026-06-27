@@ -258,15 +258,13 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
     <div class="sb-nav">
       <div class="sb-label">Monitor</div>
       <button class="sb-item active" onclick="showView('dashboard')"><i class="ti ti-dashboard"></i>Dashboard<span class="sb-badge sb-badge-r" id="sb-alerts" style="display:none">0</span></button>
-      <button class="sb-item" onclick="showView('ia-admin')" style="background:linear-gradient(135deg,rgba(8,145,178,.12),rgba(6,182,212,.06));border:1px solid rgba(8,145,178,.25);color:#0891b2;font-weight:800"><i class="ti ti-brain" style="color:#0891b2"></i>IA Admin<span style="font-size:9px;background:#0891b2;color:#fff;padding:1px 5px;border-radius:99px;margin-left:auto">IA</span></button>
       <button class="sb-item" onclick="showView('workers')"><i class="ti ti-robot"></i>Automáticos<span class="sb-badge sb-badge-g" id="sb-workers">0</span></button>
-      <button class="sb-item" onclick="showView('events')"><i class="ti ti-alert-triangle"></i>Eventos<span class="sb-badge sb-badge-a" id="sb-events-cnt" style="display:none">0</span></button>
+      <button class="sb-item" onclick="showView('events')"><i class="ti ti-alert-triangle"></i>Eventos<span class="sb-badge sb-badge-a" id="sb-events-cnt">0</span></button>
       <div class="sb-label">Usuários</div>
       <button class="sb-item" onclick="showView('users')"><i class="ti ti-users"></i>Todos Usuários</button>
       <button class="sb-item" onclick="showView('vip');loadVipList();loadFinanceiro()"><i class="ti ti-diamond"></i>VIP & Planos</button>
       <button class="sb-item" onclick="showView('vencimentos');loadVencimentos()"><i class="ti ti-calendar-time"></i>Vencimentos VIP<span class="sb-badge sb-badge-a" id="sb-venc" style="display:none">!</span></button>
       <button class="sb-item" onclick="showView('pedidos');loadPedidos()" style="background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.06));border:1px solid rgba(16,185,129,.3);color:var(--green);font-weight:800"><i class="ti ti-shopping-cart" style="color:var(--green)"></i>Pedidos de Plano<span class="sb-badge sb-badge-g" id="sb-pedidos" style="display:none">0</span></button>
-      <button class="sb-item" onclick="showView('pedidos-lixeira');loadPedidosLixeira()" style="font-size:11px;color:var(--t3)"><i class="ti ti-trash" style="color:var(--t3)"></i>Lixeira de Pedidos <span class="sb-badge sb-badge-r" id="sb-lixeira" style="display:none">0</span></button>
       <div class="sb-label">Sistema</div>
       <button class="sb-item" onclick="showView('planilhas');loadPlanilhas()"><i class="ti ti-table-import" style="color:var(--green)"></i>Planilhas de Vagas</button>
       <button class="sb-item" onclick="showView('emails-invalidos');loadEmailsInvalidos()"><i class="ti ti-mail-x" style="color:var(--red)"></i>Emails Inválidos</button>
@@ -276,10 +274,6 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
       <button class="sb-item" onclick="showView('indicacoes')"><i class="ti ti-users-group"></i>Indicações</button>
       <button class="sb-item" onclick="showView('sugestoes');loadSugestoes()"><i class="ti ti-bulb"></i>Sugestões<span class="sb-badge sb-badge-a" id="sb-sugestoes" style="display:none">0</span></button>
       <button class="sb-item" onclick="showView('settings')"><i class="ti ti-settings"></i>Configurações</button>
-      <button class="sb-item" onclick="showView('incidentes');loadIncidentes()" style="background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(220,38,38,.08));border:1px solid rgba(239,68,68,.3);color:#f87171;font-weight:800">
-        <i class="ti ti-alert-octagon" style="color:#f87171"></i>Central de Incidentes
-        <span class="sb-badge sb-badge-r" id="sb-incidentes" style="display:none">0</span>
-      </button>
       <div class="sb-label" style="margin-top:4px">🔬 QA</div>
       <button class="sb-item" onclick="showView('logs-export')" style="font-size:11px"><i class="ti ti-download" style="color:var(--green)"></i>Logs & Export</button>
       <button class="sb-item" id="sb-robot-item" onclick="showView('robot')" style="background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(99,102,241,.08));border:1px solid rgba(167,139,250,.3);color:#a78bfa;font-weight:800">
@@ -287,7 +281,7 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
         <span id="sb-robot-live" style="display:none;width:7px;height:7px;border-radius:50%;background:#10b981;animation:pulse 1.5s infinite;margin-left:auto"></span>
       </button>
       <button class="sb-item" onclick="showView('robo-contabil')" style="background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(5,150,105,.08));border:1px solid rgba(16,185,129,.3);color:var(--green);font-weight:800">
-        <i class="ti ti-report-money" style="color:var(--green)"></i>🔍 Robô de Auditoria
+        <i class="ti ti-report-money" style="color:var(--green)"></i>🤖 Robô Contábil
         <span id="sb-contabil-alert" style="display:none;width:7px;height:7px;border-radius:50%;background:var(--amber);animation:pulse 1.5s infinite;margin-left:auto"></span>
       </button>
     </div>
@@ -306,7 +300,6 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
       <div class="tb-right">
         <div class="tb-time" id="clock">–</div>
         <div class="tb-uptime" id="uptime-badge">⏱ –</div>
-        <button onclick="openAdminSearch()" title="Busca global (Ctrl+K)" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;color:var(--t2);cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px"><i class="ti ti-search" style="font-size:13px"></i></button>
         <button class="refresh-btn" id="refresh-btn" onclick="refreshAll()"><i class="ti ti-refresh"></i> Atualizar</button>
         <label style="font-size:11px;color:var(--t3);display:flex;align-items:center;gap:5px;cursor:pointer">
           <input type="checkbox" id="auto-refresh" checked style="accent-color:var(--blue)"> Auto
@@ -319,44 +312,14 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
       <!-- DASHBOARD -->
       <div class="view active" id="view-dashboard">
         <div id="alert-banners"></div>
-        <!-- COCKPIT DE PRIORIDADES -->
-        <div id="cockpit-panel" style="margin-bottom:16px;display:none">
-          <div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
-            <span><i class="ti ti-alert-octagon" style="color:var(--red)"></i> Prioridades</span>
-            <button onclick="loadCockpit()" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:11px"><i class="ti ti-refresh"></i></button>
-          </div>
-          <!-- Banner dinâmico: pedidos críticos + auth_error -->
-          <div id="admin-alert-banner" style="display:none;background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(239,68,68,.05));border:1.5px solid rgba(239,68,68,.4);border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:6px">
-            <div style="font-size:12px;font-weight:800;color:#f87171;display:flex;align-items:center;gap:6px"><i class="ti ti-alert-triangle"></i> Atenção imediata necessária</div>
-            <div id="admin-alert-body" style="font-size:11px;color:var(--t2);display:flex;flex-direction:column;gap:4px"></div>
-          </div>
-          <div id="cockpit-critico" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
-          <div id="cockpit-atencao" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
-          <div id="cockpit-info" style="display:flex;flex-direction:column;gap:4px"></div>
-        </div>
         <div class="stat-grid" id="stat-grid">
-          <div class="stat-card stat-blue" title="Usuários com sessão ativa agora (acessaram nos últimos 30min)"><i class="ti ti-users stat-icon"></i><div class="stat-val" id="s-online">–</div><div class="stat-lbl">Online agora</div><div class="stat-sub" id="s-sessions">– sessões ativas</div></div>
-          <div class="stat-card stat-green" title="Jobs automáticos rodando — aguardando limite diário não conta como problema"><i class="ti ti-robot stat-icon"></i><div class="stat-val" id="s-auto">–</div><div class="stat-lbl">Automáticos ativos</div><div class="stat-sub" id="s-auto-sub">– enviando agora</div></div>
-          <div class="stat-card stat-amber" title="Jobs travados (>2h sem envio) + aguardando limite diário (normal)"><i class="ti ti-alert-triangle stat-icon"></i><div class="stat-val" id="s-stalled">–</div><div class="stat-lbl">Travadas / Aguardando</div><div class="stat-sub" id="s-waiting">– aguard. meia-noite</div></div>
+          <div class="stat-card stat-blue"><i class="ti ti-users stat-icon"></i><div class="stat-val" id="s-online">–</div><div class="stat-lbl">Online agora</div><div class="stat-sub" id="s-sessions">– sessões ativas</div></div>
+          <div class="stat-card stat-green"><i class="ti ti-robot stat-icon"></i><div class="stat-val" id="s-auto">–</div><div class="stat-lbl">Automáticos ativos</div><div class="stat-sub" id="s-auto-sub">– enviando agora</div></div>
+          <div class="stat-card stat-amber"><i class="ti ti-alert-triangle stat-icon"></i><div class="stat-val" id="s-stalled">–</div><div class="stat-lbl">Travadas / Aguardando</div><div class="stat-sub" id="s-waiting">– aguard. meia-noite</div></div>
           <div class="stat-card" style="--glow:rgba(6,182,212,.06);background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:14px 16px;"><i class="ti ti-list-numbers stat-icon" style="color:var(--cyan);opacity:.2"></i><div class="stat-val" id="s-queue-total" style="color:var(--cyan)">–</div><div class="stat-lbl">Vagas na fila total</div><div class="stat-sub" id="s-queue-sent">– enviadas de filas</div></div>
           <div class="stat-card stat-cyan"><i class="ti ti-send stat-icon"></i><div class="stat-val" id="s-today">–</div><div class="stat-lbl">Enviados hoje</div><div class="stat-sub" id="s-total">– total geral</div></div>
           <div class="stat-card stat-purple"><i class="ti ti-users stat-icon"></i><div class="stat-val" id="s-users">–</div><div class="stat-lbl">Total usuários</div><div class="stat-sub" id="s-vip">– planos ativos</div></div>
           <div class="stat-card stat-red" id="s-disk-card"><i class="ti ti-server stat-icon"></i><div class="stat-val" id="s-mem">–</div><div class="stat-lbl">RAM usada</div><div class="stat-sub" id="s-disk">✅ /data</div></div>
-        </div>
-        <!-- M23: Cards de métricas de conversão -->
-        <div id="conversion-cards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
-          <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;text-align:center">
-            <div style="font-size:18px;font-weight:900;color:#a5b4fc" id="mc-conversion">–</div>
-            <div style="font-size:10px;color:var(--t3);font-weight:600;margin-top:2px">Conversão free→pago</div>
-          </div>
-          <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;text-align:center">
-            <div style="font-size:18px;font-weight:900;color:#6ee7b7" id="mc-ticket">–</div>
-            <div style="font-size:10px;color:var(--t3);font-weight:600;margin-top:2px">Ticket médio</div>
-          </div>
-          <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;text-align:center">
-            <div style="font-size:18px;font-weight:900;color:#fcd34d" id="mc-trial">–</div>
-            <div style="font-size:10px;color:var(--t3);font-weight:600;margin-top:2px">Trial ativos</div>
-          </div>
         </div>
         <!-- AÇÕES RÁPIDAS ADMIN -->
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
@@ -456,7 +419,6 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
                 <option value="warn">🟡 Alertas</option>
                 <option value="info">🔵 Info</option>
               </select>
-              <button class="btn btn-ghost btn-sm" onclick="clearEventsCache()" title="Limpar cache de eventos"><i class="ti ti-trash"></i> Limpar</button>
             </div>
           </div>
           <div class="tbl-wrap">
@@ -646,7 +608,6 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             <!-- Filtros -->
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
               <div class="search-wrap" style="flex:1;min-width:160px"><i class="ti ti-search"></i><input class="search-inp" id="u-search" placeholder="Email, nome..." oninput="filterUsers()"></div>
-              <button onclick="exportUsersCSV()" style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#a5b4fc;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px"><i class="ti ti-file-download" style="font-size:14px"></i> CSV</button>
               <select class="filter-sel" id="u-filter-plan" onchange="filterUsers()">
                 <option value="">Todos planos</option>
                 <option value="vipro">VIPro</option>
@@ -2771,143 +2732,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 <!-- ══════════════════════════════════════════════════════
      ROBÔ CONTÁBIL — RH & Contabilidade H2BApply
 ══════════════════════════════════════════════════════ -->
-<div class="view" id="view-incidentes">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-    <div>
-      <div style="font-size:18px;font-weight:900;color:#f87171;display:flex;align-items:center;gap:8px">
-        <i class="ti ti-alert-octagon"></i> Central de Incidentes
-      </div>
-      <div style="font-size:12px;color:var(--t3);margin-top:2px">Todo erro detectado pelos robôs aparece aqui — nenhum problema fica em silêncio</div>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-ghost btn-sm" onclick="loadIncidentes()"><i class="ti ti-refresh"></i> Atualizar</button>
-      <button class="btn btn-ghost btn-sm" style="color:var(--amber);border-color:rgba(245,158,11,.3)" onclick="notificarTodosAuthError(this)" title="Envia email de reconexão para todos com paused_auth_error"><i class="ti ti-mail-forward"></i> Notificar todos</button>
-      <button class="btn btn-ghost btn-sm" onclick="toggleIncTab('missoes')" id="btn-tab-missoes"><i class="ti ti-list-check"></i> Missões</button>
-      <button class="btn btn-ghost btn-sm" onclick="toggleIncTab('regras')" id="btn-tab-regras"><i class="ti ti-brain"></i> Regras</button>
-      <button class="btn btn-danger btn-sm" onclick="clearIncResolvidos()"><i class="ti ti-trash"></i> Limpar Resolvidos</button>
-    </div>
-  </div>
-
-  <!-- STATS -->
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
-    <div style="background:rgba(239,68,68,.1);border:1.5px solid rgba(239,68,68,.3);border-radius:12px;padding:12px;text-align:center">
-      <div style="font-size:26px;font-weight:900;color:#f87171" id="inc-stat-open">-</div>
-      <div style="font-size:11px;color:var(--t3)">Abertos</div>
-    </div>
-    <div style="background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.3);border-radius:12px;padding:12px;text-align:center">
-      <div style="font-size:26px;font-weight:900;color:var(--amber)" id="inc-stat-missions">-</div>
-      <div style="font-size:11px;color:var(--t3)">Missões</div>
-    </div>
-    <div style="background:rgba(16,185,129,.1);border:1.5px solid rgba(16,185,129,.3);border-radius:12px;padding:12px;text-align:center">
-      <div style="font-size:26px;font-weight:900;color:var(--green)" id="inc-stat-resolved">-</div>
-      <div style="font-size:11px;color:var(--t3)">Resolvidos</div>
-    </div>
-    <div style="background:rgba(99,102,241,.1);border:1.5px solid rgba(99,102,241,.3);border-radius:12px;padding:12px;text-align:center">
-      <div style="font-size:26px;font-weight:900;color:#818cf8" id="inc-stat-rules">-</div>
-      <div style="font-size:11px;color:var(--t3)">Regras</div>
-    </div>
-  </div>
-
-  <!-- TAB: INCIDENTES -->
-  <div id="inc-tab-incidentes">
-    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-      <select id="inc-filter-status" onchange="renderIncList()" style="background:var(--sf2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 10px;font-size:12px">
-        <option value="all">Todos status</option>
-        <option value="open">🔴 Abertos</option>
-        <option value="resolved">✅ Resolvidos</option>
-      </select>
-      <select id="inc-filter-sev" onchange="renderIncList()" style="background:var(--sf2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 10px;font-size:12px">
-        <option value="all">Todas severidades</option>
-        <option value="error">🔴 Erro</option>
-        <option value="warn">🟡 Aviso</option>
-        <option value="info">🔵 Info</option>
-      </select>
-      <select id="inc-filter-robot" onchange="renderIncList()" style="background:var(--sf2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 10px;font-size:12px">
-        <option value="all">Todos robôs</option>
-        <option value="Automático Gmail">📧 Automático Gmail</option>
-        <option value="Robô Contábil">🤖 Robô Contábil</option>
-        <option value="Watchdog">🐕 Watchdog</option>
-      </select>
-    </div>
-    <div id="inc-list" style="display:flex;flex-direction:column;gap:10px">
-      <div style="text-align:center;padding:40px;color:var(--t3)">Carregando...</div>
-    </div>
-  </div>
-
-  <!-- TAB: MISSÕES -->
-  <div id="inc-tab-missoes" style="display:none">
-    <div style="font-size:14px;font-weight:700;color:var(--amber);margin-bottom:12px;display:flex;align-items:center;gap:6px">
-      <i class="ti ti-list-check"></i> Fila de Missões — Execute em ordem
-    </div>
-    <div style="font-size:12px;color:var(--t3);margin-bottom:12px">Cada missão representa uma ação que o admin precisa tomar. Resolva de cima para baixo.</div>
-    <div id="inc-missions-list" style="display:flex;flex-direction:column;gap:10px"></div>
-  </div>
-
-  <!-- TAB: REGRAS -->
-  <div id="inc-tab-regras" style="display:none">
-    <div style="font-size:14px;font-weight:700;color:#818cf8;margin-bottom:8px;display:flex;align-items:center;gap:6px">
-      <i class="ti ti-brain"></i> Regras Aprendidas
-    </div>
-    <div style="font-size:12px;color:var(--t3);margin-bottom:12px">O sistema aprende com suas decisões e as aplica automaticamente nas próximas ocorrências similares.</div>
-    <div id="inc-rules-list" style="display:flex;flex-direction:column;gap:8px"></div>
-  </div>
-</div>
-
-<div class="view" id="view-pedidos-lixeira">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:10px;flex-wrap:wrap">
-    <div>
-      <div style="font-size:18px;font-weight:900;color:var(--red);display:flex;align-items:center;gap:8px"><i class="ti ti-trash"></i> Lixeira de Pedidos</div>
-      <div style="font-size:12px;color:var(--t3);margin-top:2px">Pedidos excluídos ficam aqui. Restaure ou apague permanentemente.</div>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-ghost btn-sm" onclick="loadPedidosLixeira()"><i class="ti ti-refresh"></i> Atualizar</button>
-      <button class="btn btn-ghost btn-sm" onclick="showView('pedidos');loadPedidos()"><i class="ti ti-arrow-left"></i> Voltar aos Pedidos</button>
-    </div>
-  </div>
-  <div id="lixeira-list" style="display:flex;flex-direction:column;gap:0">
-    <div style="text-align:center;padding:40px;color:var(--t3)">Carregando...</div>
-  </div>
-</div>
-
-<div class="view" id="view-ia-admin">
-  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-    <div style="width:44px;height:44px;background:linear-gradient(135deg,#0891b2,#06b6d4);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🧠</div>
-    <div>
-      <div style="font-size:18px;font-weight:900;color:#0891b2">IA Admin</div>
-      <div style="font-size:12px;color:var(--t3)">Pergunte sobre o sistema — responde com dados reais ao vivo</div>
-    </div>
-  </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-    <button class="btn btn-ghost btn-sm" onclick="iaAdminAsk('Quem precisa de atenção agora?')">🚨 Atenção</button>
-    <button class="btn btn-ghost btn-sm" onclick="iaAdminAsk('Quem tem problema com OAuth ou Gmail?')">🔐 OAuth</button>
-    <button class="btn btn-ghost btn-sm" onclick="iaAdminAsk('Quais pedidos estão pendentes de aprovação?')">💳 Pendentes</button>
-    <button class="btn btn-ghost btn-sm" onclick="iaAdminAsk('Quantos envios foram feitos hoje no total?')">📊 Envios hoje</button>
-    <button class="btn btn-ghost btn-sm" onclick="iaAdminAsk('Quais incidentes estão abertos?')">🚨 Incidentes</button>
-    <button class="btn btn-ghost btn-sm" onclick="iaAdminAsk('Qual é o resumo geral do sistema agora?')">📋 Resumo</button>
-  </div>
-  <div id="ia-admin-msgs" style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;min-height:280px;max-height:480px;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;margin-bottom:12px">
-    <div style="text-align:center;color:var(--t3);font-size:13px;padding:30px 0" data-ph="1">
-      <i class="ti ti-brain" style="font-size:36px;display:block;margin-bottom:8px;color:#0891b2;opacity:.5"></i>
-      Pergunte qualquer coisa sobre o sistema.<br><span style="font-size:11px">Usa dados reais ao vivo.</span>
-    </div>
-  </div>
-  <div style="display:flex;gap:8px">
-    <input id="ia-admin-input" class="inp" placeholder="Ex: Quem pagou hoje? Quais robôs falharam? Quantos VIPs ativos?" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();iaAdminSend();}">
-    <button class="btn btn-primary" onclick="iaAdminSend()" id="ia-admin-btn"><i class="ti ti-send"></i></button>
-  </div>
-</div>
-
 <div id="view-robo-contabil" class="view">
-  <!-- Botão Reconciliação Financeira -->
-  <div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-    <div>
-      <div style="font-size:13px;font-weight:700;color:#818cf8">🔍 Reconciliação Financeira</div>
-      <div style="font-size:11px;color:var(--t3)">Verifica inconsistências: VIPs sem pedido, pedidos sem lançamento, vencimentos errados</div>
-    </div>
-    <button class="btn btn-ghost btn-sm" onclick="reconciliarFinanceiro()" style="color:#818cf8;border-color:rgba(99,102,241,.3)"><i class="ti ti-refresh"></i> Reconciliar agora</button>
-  </div>
-  <div id="reconcile-result" style="display:none;margin-bottom:12px"></div>
-
 <style>
 .rc-hero{background:linear-gradient(135deg,#052e16,#065f46,#047857);border-radius:14px;padding:20px;margin-bottom:18px;color:#fff}
 .rc-title{font-family:'Sora',sans-serif;font-size:20px;font-weight:800;display:flex;align-items:center;gap:10px}
@@ -2955,30 +2780,33 @@ document.addEventListener('DOMContentLoaded',()=>{
 <!-- Hero -->
 <div class="rc-hero">
   <div class="rc-title">
-    <div style="width:40px;height:40px;background:linear-gradient(135deg,#1e3a5f,#2563eb);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🔍</div>
-    Robô de Auditoria — Diagnóstico do Sistema
+    <div style="width:40px;height:40px;background:linear-gradient(135deg,#065f46,#10b981);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🤖</div>
+    Robô Contábil — RH &amp; Contabilidade
   </div>
   <div class="rc-sub">
-    Coleta dados de todos os usuários, robôs, planos e erros do sistema em tempo real e envia para o Gemini analisar. Gera relatório completo para download e envio ao desenvolvedor.<br>
-    <strong style="color:#93c5fd">⚠️ Este robô NUNCA altera dados — apenas lê e analisa.</strong>
+    Analisa comprovantes com IA real, verifica valores, detecta divergências, calcula divisão 50/50 entre sócios e gera relatório completo.<br>
+    <strong style="color:#6ee7b7">⚠️ Este robô NUNCA reseta envios diários nem altera planos sem sua aprovação.</strong>
   </div>
   <div id="rc-gemini-status" style="margin-top:10px;font-size:11px;opacity:.8">
-    <span class="spin spin-sm"></span> Verificando Gemini...
+    <span class="spin spin-sm"></span> Verificando IA...
   </div>
   <div class="rc-btns">
-    <button class="rc-btn rc-btn-run" id="rc-btn-run" onclick="rcStart()"><i class="ti ti-scan"></i> Auditar Sistema Agora</button>
+    <button class="rc-btn rc-btn-run" id="rc-btn-run" onclick="rcStart()"><i class="ti ti-player-play"></i> Iniciar Análise Completa</button>
     <button class="rc-btn rc-btn-stop" id="rc-btn-stop" onclick="rcStop()" style="display:none"><i class="ti ti-player-stop"></i> Parar</button>
-    <button class="rc-btn rc-btn-ghost" onclick="rcExport()"><i class="ti ti-download"></i> Baixar Relatório</button>
     <button class="rc-btn rc-btn-ghost" onclick="rcClearLog()"><i class="ti ti-trash"></i> Limpar</button>
+    <button class="rc-btn rc-btn-ghost" onclick="rcExport()"><i class="ti ti-download"></i> Exportar Relatório</button>
+    <button class="rc-btn rc-btn-ghost" onclick="rcAnalyseNow('comprovantes')"><i class="ti ti-photo"></i> Só Comprovantes</button>
+    <button class="rc-btn rc-btn-ghost" onclick="rcAnalyseNow('financeiro')"><i class="ti ti-chart-bar"></i> Só Financeiro</button>
+    <button class="rc-btn rc-btn-ghost" onclick="rcCarregarAuditoriaGlobal(true)"><i class="ti ti-moon"></i> Auditoria Global (noturna)</button>
   </div>
 </div>
 
 <!-- Stats mini -->
 <div class="rc-stat-mini">
-  <div class="rc-sm"><div class="rc-sm-val rc-log-ok" id="rcs-ok">–</div><div class="rc-sm-lbl">✅ Robôs OK</div></div>
-  <div class="rc-sm"><div class="rc-sm-val rc-log-err" id="rcs-crit">–</div><div class="rc-sm-lbl">❌ Problemas</div></div>
-  <div class="rc-sm"><div class="rc-sm-val rc-log-warn" id="rcs-warn">–</div><div class="rc-sm-lbl">⚠️ Travados</div></div>
-  <div class="rc-sm"><div class="rc-sm-val" id="rcs-total">–</div><div class="rc-sm-lbl">👥 Usuários</div></div>
+  <div class="rc-sm"><div class="rc-sm-val rc-log-ok" id="rcs-ok">–</div><div class="rc-sm-lbl">✅ OK</div></div>
+  <div class="rc-sm"><div class="rc-sm-val rc-log-err" id="rcs-crit">–</div><div class="rc-sm-lbl">❌ Críticos</div></div>
+  <div class="rc-sm"><div class="rc-sm-val rc-log-warn" id="rcs-warn">–</div><div class="rc-sm-lbl">⚠️ Avisos</div></div>
+  <div class="rc-sm"><div class="rc-sm-val" id="rcs-total">–</div><div class="rc-sm-lbl">📸 Analisados</div></div>
 </div>
 
 <!-- Progresso -->
@@ -2988,6 +2816,16 @@ document.addEventListener('DOMContentLoaded',()=>{
     <span id="rc-prog-pct">0%</span>
   </div>
   <div class="rc-prog-bar"><div class="rc-prog-fill" id="rc-prog-fill"></div></div>
+</div>
+
+<!-- SEÇÃO: AUDITORIA GLOBAL NOTURNA (roda sozinha às 03h BRT — "modo sobrevivência") -->
+<div class="rc-section" id="rc-auditoria-global-section" style="display:none">
+  <div class="rc-section-hdr">
+    <i class="ti ti-moon" style="color:#a78bfa"></i>
+    <span class="rc-section-title">Auditoria Global (madrugada)</span>
+    <span id="rc-auditoria-global-meta" style="font-size:11px;color:var(--t3);margin-left:auto"></span>
+  </div>
+  <div class="rc-section-body" id="rc-auditoria-global-body"></div>
 </div>
 
 <!-- SEÇÃO: ALERTAS -->
@@ -3077,7 +2915,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     <button class="rc-btn-ghost rc-btn" style="padding:4px 10px;font-size:11px" onclick="rcClearLog()">Limpar</button>
   </div>
   <div class="rc-section-body">
-    <div class="rc-log" id="rc-log">Clique em <strong>Auditar Sistema Agora</strong> para o Gemini analisar todos os usuários, robôs e erros do sistema...</div>
+    <div class="rc-log" id="rc-log">Clique em <strong>Iniciar Análise Completa</strong> para começar...</div>
   </div>
 </div>
 
@@ -3196,77 +3034,49 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 <!-- BOT DE ENRIQUECIMENTO -->
 <div style="background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(67,56,202,.06));border:1.5px solid rgba(99,102,241,.3);border-radius:14px;padding:16px;margin-bottom:16px">
-
-  <!-- Header com status em destaque -->
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-    <div style="font-size:28px" id="enrich-icon">🤖</div>
-    <div style="flex:1;min-width:0">
+    <div style="font-size:28px">🤖</div>
+    <div style="flex:1">
       <div style="font-size:14px;font-weight:800;color:#fff">Bot de Enriquecimento DOL</div>
-      <div style="font-size:11px;color:var(--t3)">Acessa seasonaljobs.dol.gov para cada ETA case number e preenche todos os campos automaticamente — roda em background mesmo com a página fechada</div>
+      <div style="font-size:11px;color:var(--t3)">Acessa seasonaljobs.dol.gov para cada ETA case number e preenche todos os campos</div>
     </div>
-    <div id="enrich-status-badge" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;color:var(--t2);white-space:nowrap">⏹ Parado</div>
+    <div id="enrich-status-badge" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;color:var(--t2)">⏹ Parado</div>
   </div>
 
-  <!-- Planilha atual sendo processada -->
-  <div id="enrich-current-sheet" style="display:none;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.3);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#a5b4fc;display:flex;align-items:center;gap:8px">
-    <span class="spin spin-sm" style="border-color:rgba(99,102,241,.3);border-top-color:#6366f1"></span>
-    <span id="enrich-current-sheet-label">Processando planilha...</span>
-  </div>
-
-  <!-- Seletor de planilha e controles manuais -->
+  <!-- Seletor de planilha e controles -->
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-    <select id="enrich-sheet-sel" class="form-inp" style="flex:1;min-width:140px;font-size:12px">
-      <option value="jan2026">Jan 2026 (H-2B)</option>
-      <option value="jul2025">Jul 2025 (H-2B)</option>
+    <select id="enrich-sheet-sel" class="form-inp" style="flex:1;min-width:160px">
+      <option value="jan2026">Jan 2026 (H-2B) — 9.240 vagas</option>
+      <option value="jul2025">Jul 2025 (H-2B) — 2.206 vagas</option>
     </select>
-    <button id="enrich-btn-start" class="btn btn-primary btn-sm" onclick="enrichStart()"><i class="ti ti-player-play"></i> Forçar início</button>
+    <button id="enrich-btn-start" class="btn btn-primary btn-sm" onclick="enrichStart()"><i class="ti ti-player-play"></i> Iniciar Bot</button>
     <button id="enrich-btn-resume" class="btn btn-ghost btn-sm" onclick="enrichResume()" style="display:none"><i class="ti ti-player-skip-forward"></i> Retomar</button>
-    <button id="enrich-btn-stop" class="btn btn-ghost btn-sm" onclick="enrichStop()" style="display:none;color:var(--red);border-color:rgba(239,68,68,.3)"><i class="ti ti-player-stop"></i> Parar</button>
+    <button id="enrich-btn-stop" class="btn btn-ghost btn-sm" onclick="enrichStop()" style="display:none;color:var(--red)"><i class="ti ti-player-stop"></i> Parar</button>
   </div>
 
-  <!-- Barra de progresso — sempre visível quando há dados -->
-  <div id="enrich-progress-wrap" style="display:none;margin-bottom:12px">
-    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-bottom:6px">
+  <!-- Barra de progresso -->
+  <div id="enrich-progress-wrap" style="display:none;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-bottom:4px">
       <span id="enrich-progress-label">Processando...</span>
-      <span id="enrich-progress-pct" style="font-weight:700;color:var(--blue)">0%</span>
+      <span id="enrich-progress-pct">0%</span>
     </div>
-    <div style="background:rgba(255,255,255,.08);border-radius:8px;height:10px;overflow:hidden">
-      <div id="enrich-progress-bar" style="background:linear-gradient(90deg,#6366f1,#4f46e5);height:10px;border-radius:8px;width:0%;transition:.5s ease"></div>
+    <div style="background:rgba(255,255,255,.08);border-radius:8px;height:8px">
+      <div id="enrich-progress-bar" style="background:linear-gradient(90deg,#6366f1,#4f46e5);height:8px;border-radius:8px;width:0%;transition:.3s"></div>
     </div>
-    <!-- Stats grid -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px">
-      <div style="background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:8px;padding:8px;text-align:center">
-        <div id="enrich-stat-ok" style="font-weight:900;color:var(--green);font-size:18px">0</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:2px">✅ OK</div>
-      </div>
-      <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:8px;text-align:center">
-        <div id="enrich-stat-noEmail" style="font-weight:900;color:var(--amber);font-size:18px">0</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:2px">⚠️ Sem email</div>
-      </div>
-      <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:8px;text-align:center">
-        <div id="enrich-stat-err" style="font-weight:900;color:var(--red);font-size:18px">0</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:2px">❌ Erros</div>
-      </div>
-      <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:8px;text-align:center">
-        <div id="enrich-stat-eta" style="font-weight:900;color:var(--blue);font-size:18px">–</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:2px">⏱ Restante</div>
-      </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;font-size:11px">
+      <div style="text-align:center"><div id="enrich-stat-ok" style="font-weight:800;color:var(--green);font-size:15px">0</div><div style="color:var(--t3)">✅ OK</div></div>
+      <div style="text-align:center"><div id="enrich-stat-noEmail" style="font-weight:800;color:var(--amber);font-size:15px">0</div><div style="color:var(--t3)">⚠️ Sem email</div></div>
+      <div style="text-align:center"><div id="enrich-stat-err" style="font-weight:800;color:var(--red);font-size:15px">0</div><div style="color:var(--t3)">❌ Erros</div></div>
+      <div style="text-align:center"><div id="enrich-stat-eta" style="font-weight:800;color:var(--blue);font-size:15px">–</div><div style="color:var(--t3)">⏱️ Restante</div></div>
     </div>
   </div>
 
-  <!-- LOG EM TEMPO REAL — sempre visível -->
+  <!-- Log em tempo real -->
   <div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-      <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em">📋 Log em tempo real</div>
-      <div style="display:flex;gap:6px">
-        <button onclick="document.getElementById('enrich-log').scrollTop=document.getElementById('enrich-log').scrollHeight" style="background:none;border:1px solid var(--border2);border-radius:5px;padding:2px 7px;font-size:10px;color:var(--t3);cursor:pointer">↓ Fim</button>
-        <button onclick="document.getElementById('enrich-log').scrollTop=0" style="background:none;border:1px solid var(--border2);border-radius:5px;padding:2px 7px;font-size:10px;color:var(--t3);cursor:pointer">↑ Início</button>
-      </div>
+    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">📋 Log em tempo real</div>
+    <div class="enrich-log" id="enrich-log">
+      <div class="log-info">Aguardando início...</div>
     </div>
-    <div class="enrich-log" id="enrich-log" style="height:260px">
-      <div class="log-info">⏳ Verificando status do bot...</div>
-    </div>
-    <div style="font-size:10px;color:var(--t3);margin-top:5px;text-align:right" id="enrich-log-footer">O bot roda em background — feche a página sem preocupação</div>
   </div>
 </div>
 
@@ -3329,16 +3139,9 @@ function showView(name) {
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
   const v = document.getElementById('view-'+name);
   if(v) v.classList.add('active');
-  const titles={dashboard:'Dashboard','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'Eventos & Crashes',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',indicacoes:'Indicações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas'};
+  const titles={dashboard:'Dashboard',workers:'Automáticos',events:'Eventos & Crashes',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',indicacoes:'Indicações',pedidos:'Pedidos de Plano','robo-contabil':'🤖 Robô Contábil — RH & Contabilidade','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas'};
   setText('view-title', titles[name]||name);
   if(name==='robo-contabil' && typeof rcCheckGeminiStatus==='function') setTimeout(rcCheckGeminiStatus,300);
-  if(name==='incidentes'){
-    // Garantir que a view está no DOM antes de carregar
-    const vInc=document.getElementById('view-incidentes');
-    const content=document.getElementById('content');
-    if(vInc&&content&&vInc.parentElement!==content) content.appendChild(vInc);
-    loadIncidentes();
-  }
   document.querySelectorAll('.sb-item').forEach(b=>{if(b.getAttribute('onclick')?.includes(`'${name}'`))b.classList.add('active');});
   if(name==='users'){ renderUsersTable(); loadJourneyFeed(); }
   if(name==='logs-export') loadLogsPreview();
@@ -3346,22 +3149,11 @@ function showView(name) {
   if(name==='events') renderEventsView();
   if(name==='codes') loadCodes();
   if(name==='ranking') loadRankingAdmin();
-  if(name==='planilhas'){
-    // Verifica se bot está rodando e inicia poll automático
-    fetch('/api/admin/enrich/status',{credentials:'include'})
-      .then(r=>r.json()).then(d=>{
-        if(d.ok&&(d.running||d.total>0)){
-          if(!_enrichPollTimer) enrichStartPoll();
-        }
-      }).catch(()=>{});
-  }
   if(name==='settings') loadSettings();
   if(name==='notificacoes'){ loadAdminNotifs(); loadAutoNotifLog(); }
   if(name==='indicacoes') loadAdminReferrals();
   if(name==='vip') {} // static
   if(name==='pedidos') loadPedidos();
-  if(name==='pedidos-lixeira') loadPedidosLixeira();
-  if(name==='ia-admin') document.getElementById('ia-admin-input')?.focus();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3376,33 +3168,9 @@ async function refreshAll() {
     if(r.status===403){document.body.innerHTML='<div style="padding:60px;text-align:center;color:#ef4444;font-size:18px;font-family:sans-serif">⛔ Acesso negado — somente administradores</div>';return;}
     liveData = await r.json();
     allEvents = liveData.globalEvents||[];
-    // Persistir eventos para não perder ao reiniciar
-    if(allEvents.length>0){
-      try{localStorage.setItem('h2b_adm_events',JSON.stringify(allEvents.slice(0,100)));}catch(e){}
-    } else {
-      // Restaurar do localStorage se servidor reiniciou
-      try{
-        const saved=localStorage.getItem('h2b_adm_events');
-        if(saved){const arr=JSON.parse(saved);if(arr.length>0){allEvents=arr.map(e=>({...e,_fromCache:true}));}}
-      }catch(e){}
-    }
     allUsers  = liveData.users||[];
 
     updateDashboard();
-
-    // Atualizar badge de incidentes em background
-    try{
-      const incR=await fetch('/api/admin/incidents',{credentials:'include'});
-      const incD=await incR.json();
-      if(incD.ok){
-        const badge=document.getElementById('sb-incidentes');
-        if(badge){
-          if(incD.pending>0){badge.textContent=incD.pending;badge.style.display='';}
-          else badge.style.display='none';
-        }
-        if(typeof incData!=='undefined'){incData=incD;if(currentView==='incidentes'){renderIncList();renderIncMissions();renderIncRules();}}
-      }
-    }catch(e){}
 
     // Get admin email from live data
     const adminEl = document.getElementById('admin-email');
@@ -3468,43 +3236,6 @@ function updateDashboard() {
     setText('s-disk', d.dataDir?`✅ ${d.dataDir}`:'✅ persistente');
   }
 
-  _updateConversionCards();
-  // ── Banner dinâmico de alertas críticos ──────────────────────
-  (async()=>{
-    const banner=document.getElementById('admin-alert-banner');
-    const bannerBody=document.getElementById('admin-alert-body');
-    if(!banner||!bannerBody) return;
-    const items=[];
-    // Pedidos pendentes há >24h
-    try{
-      const r=await fetch('/api/admin/pedidos-criticos',{credentials:'include'});
-      const d=await r.json();
-      if(d.ok&&d.total>0){
-        items.push(`<div style="display:flex;align-items:center;justify-content:space-between"><span>💳 <strong>${d.total} pedido(s)</strong> pendentes há mais de 24h — R$${d.criticos.reduce((a,p)=>a+(p.valor||0),0).toFixed(2)}</span><button onclick="showView('pedidos');pedSetTab('pendente',null)" style="background:rgba(239,68,68,.2);color:#f87171;border:1px solid rgba(239,68,68,.4);border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">Ver pedidos →</button></div>`);
-      }
-    }catch{}
-    // Usuários com paused_auth_error há >12h
-    const authErrUsers=(liveData?.users||[]).filter(u=>u.autoStatus==='paused_auth_error');
-    if(authErrUsers.length>0){
-      items.push(`<div style="display:flex;align-items:center;justify-content:space-between"><span>🔑 <strong>${authErrUsers.length} usuário(s)</strong> com erro de autenticação — fila pausada</span><button onclick="showView('incidentes')" style="background:rgba(239,68,68,.2);color:#f87171;border:1px solid rgba(239,68,68,.4);border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">Ver incidentes →</button></div>`);
-    }
-    // VIPs expirando em ≤3 dias
-    const _vipExp=(liveData?.users||[]).filter(u=>{
-      if(!u.vip||u.plan==='free')return false;
-      const exp=Math.max(u.vipManual||0,u.vipAuto||0);
-      return exp>Date.now()&&exp<Date.now()+3*86400000;
-    });
-    if(_vipExp.length>0){
-      items.push(`<div style="display:flex;align-items:center;justify-content:space-between"><span>👑 <strong>${_vipExp.length} plano(s)</strong> VIP vencendo em ≤3 dias</span><button onclick="showView('vencimentos')" style="background:rgba(245,158,11,.2);color:var(--amber);border:1px solid rgba(245,158,11,.4);border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">Ver vencimentos →</button></div>`);
-    }
-    if(items.length>0){
-      banner.style.display='flex';
-      bannerBody.innerHTML=items.join('');
-    } else {
-      banner.style.display='none';
-    }
-  })();
-
   // Alert banners
   const banners = document.getElementById('alert-banners');
   if(banners){
@@ -3521,19 +3252,8 @@ function updateDashboard() {
   }
 
   // Sidebar badges
-  const wEl=document.getElementById('sb-workers');
-  if(wEl){
-    const wc=d.activeAutoCount||0;
-    wEl.textContent=wc;
-    wEl.style.background=wc>0?'rgba(16,185,129,.2)':'rgba(107,114,128,.2)';
-    wEl.style.color=wc>0?'var(--green)':'var(--t3)';
-  }
-  const evEl=document.getElementById('sb-events-cnt');
-  if(evEl){
-    const evErr=allEvents.filter(e=>e.level==='error').length;
-    evEl.textContent=evErr||'0';
-    evEl.style.display=evErr>0?'':'none';
-  }
+  const wEl=document.getElementById('sb-workers'); if(wEl) wEl.textContent=d.activeAutoCount||'0';
+  const evEl=document.getElementById('sb-events-cnt'); if(evEl) evEl.textContent=allEvents.filter(e=>e.level==='error').length||'0';
   const alertsEl=document.getElementById('sb-alerts');
   if(alertsEl){
     const noOauthLen=(d.users||[]).filter(u=>u.hasAuto&&u.oauthOk===false).length;
@@ -3545,7 +3265,6 @@ function updateDashboard() {
 
   renderDashWorkers();
   renderDashEvents();
-  loadCockpit();
 }
 
 function renderDashWorkers(){
@@ -3680,7 +3399,6 @@ function buildWorkersTable(workers){
       <td style="padding:10px 8px;white-space:nowrap" onclick="event.stopPropagation()">
         ${u.hasAuto||u.autoStatus?`<button class="btn btn-xs btn-success" onclick="forceRestart('${esc(u.email)}')" title="Reiniciar worker"><i class="ti ti-refresh"></i></button>`:''}
         ${u.hasAuto?`<button class="btn btn-xs btn-danger" onclick="forceStop('${esc(u.email)}')" title="Parar automático"><i class="ti ti-player-stop"></i></button>`:''}
-        ${u.oauthOk===false?`<button class="btn btn-xs" style="background:rgba(239,68,68,.15);color:var(--red);border-color:rgba(239,68,68,.3)" onclick="autoHeal('${esc(u.email)}','fix_oauth','Notificar usuário para reconectar Gmail')" title="Corrigir OAuth"><i class="ti ti-lock"></i></button>`:''}
         <button class="btn btn-xs btn-ghost" onclick="openUser('${esc(u.email)}')" title="Ver detalhes completos"><i class="ti ti-eye"></i></button>
       </td>
     </tr>`;
@@ -3903,7 +3621,6 @@ function renderEventItem(ev){
       <div class="event-msg">${esc(ev.msg)}</div>
       <div class="event-meta">
         ${ev.email?`<span>👤 <strong>${esc(ev.email.split('@')[0])}</strong>@…</span>`:''}
-        ${ev._fromCache?'<span style="font-size:9px;color:var(--t4);font-style:italic">cache</span>':''}
         <span class="badge b-gray" style="font-size:9px">${label}</span>
       </div>
     </div>
@@ -3916,16 +3633,7 @@ function renderEventsView(){
   const f=document.getElementById('ev-filter')?.value||'';
   let ev=allEvents;
   if(f) ev=ev.filter(e=>e.level===f);
-  if(!ev.length){
-    const f=document.getElementById('ev-filter')?.value||'';
-    el.innerHTML=`<div class="empty-state" style="padding:40px 20px;text-align:center">
-      <i class="ti ti-${f?'filter-off':'shield-check'}" style="font-size:40px;color:var(--t4);display:block;margin-bottom:12px"></i>
-      <div style="font-size:14px;font-weight:700;color:var(--t2);margin-bottom:6px">${f?'Nenhum evento com esse filtro':'Sistema sem eventos críticos'}</div>
-      <div style="font-size:12px;color:var(--t3);margin-bottom:16px">${f?'Tente remover o filtro para ver todos os eventos.':'Os eventos aparecem aqui quando o watchdog detecta erros, OAuth expirado, filas travadas, etc.'}</div>
-      <button onclick="refreshAll()" class="btn btn-ghost btn-sm"><i class="ti ti-refresh"></i> Atualizar agora</button>
-    </div>`;
-    return;
-  }
+  if(!ev.length){el.innerHTML='<div class="empty-state"><i class="ti ti-check"></i>Nenhum evento</div>';return;}
   el.innerHTML=ev.map(renderEventItem).join('');
 }
 function filterEvents(){renderEventsView();}
@@ -4191,7 +3899,6 @@ async function openUser(email){
     renderModalHistory(d);
     renderModalEnviados(d,u);
     renderModalHealth(d,u);
-    setTimeout(_updateModalAuthBtn,100);
     renderModalJourney(d,u);
     renderModalEdit(d,u);
     renderModalCompras(d,u);
@@ -6539,11 +6246,17 @@ if(_origShowView){
   window.showView = function(name){
     _origShowView(name);
     if(name==='vencimentos') loadVencimentos();
-    // Robô de Auditoria: só verificar status do Gemini, não rodar automaticamente
+    // Robô Contábil: auto-rodar análise quando abre a aba
     if(name==='robo-contabil'){
       clearInterval(window._rcAutoRefresh);
-      setTimeout(()=>{ if(typeof rcCheckGeminiStatus==='function') rcCheckGeminiStatus(); }, 300);
+      // Rodar imediatamente (com delay pra view aparecer)
+      setTimeout(()=>{ if(typeof rcStart==='function') rcStart(); }, 600);
+      // Auto-refresh a cada 5 minutos
+      window._rcAutoRefresh = setInterval(()=>{
+        if(typeof rcStart==='function') rcStart();
+      }, 5*60*1000);
     } else {
+      // Parar o auto-refresh quando sair da aba
       clearInterval(window._rcAutoRefresh);
     }
     // Update topbar online count when switching back to dashboard
@@ -7224,6 +6937,50 @@ function finRemoveGasto(idx){
 console.log('[admin v15] ✅ 20 melhorias carregadas');
 
 
+function renderPedidoCard(pd){
+  const sl=PED_STATUS_LABELS[pd.status]||{label:pd.status,cls:'b-gray'};
+  const plano=PLAN_PRICES[pd.plano]||{name:pd.plano,desc:''};
+  const dt=pd.createdAt?new Date(pd.createdAt).toLocaleString('pt-BR'):'–';
+  const temComp=pd.comprovante===true||typeof pd.comprovante==='string';
+  const wppNum=(pd.userWhatsapp||'').replace(/\D/g,'');
+  const wppLink=wppNum?`https://wa.me/${wppNum.startsWith('55')?wppNum:'55'+wppNum}`:'';
+  return`<div class="ped-card">
+    <div class="ped-hdr">
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:800;color:#fff">${esc(plano.name)} — ${pd.dias}d</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:1px">${esc(pd.userName||pd.userEmail||'–')} · <span class="mono">${esc(pd.userEmail||'')}</span></div>
+      </div>
+      <span class="badge ${sl.cls}">${sl.label}</span>
+      <div style="font-size:18px;font-weight:800;color:var(--green);margin-left:8px">R$ ${(pd.valorTotal||0).toFixed(2)}</div>
+      ${pd.desconto>0?`<span class="badge b-amber" style="margin-left:4px">-${pd.desconto}% desc</span>`:''}
+      <div class="ped-id" style="margin-left:8px">#${(pd.id||'').slice(-8).toUpperCase()}</div>
+    </div>
+    <div class="ped-body">
+      <div class="ped-row"><span class="ped-lbl">WhatsApp</span><span class="ped-val">${wppLink?`<a href="${wppLink}" target="_blank" style="color:#25d366;font-weight:800;display:flex;align-items:center;gap:4px"><i class="ti ti-brand-whatsapp"></i>${esc(pd.userWhatsapp)}</a>`:esc(pd.userWhatsapp||'–')}</span></div>
+      <div class="ped-row"><span class="ped-lbl">Telefone</span><span class="ped-val">${esc(pd.userPhone||'–')}</span></div>
+      <div class="ped-row"><span class="ped-lbl">Cidade/Estado</span><span class="ped-val">${esc([pd.userCity,pd.userState].filter(Boolean).join(', ')||'–')}</span></div>
+      <div class="ped-row"><span class="ped-lbl">Plano solicitado</span><span class="ped-val">${esc(plano.name)}</span></div>
+      <div class="ped-row"><span class="ped-lbl">Período</span><span class="ped-val">${pd.dias}d ${pd.dias===365?'(1 ano)':pd.dias===90?'(3 meses)':pd.dias===60?'(2 meses)':'(1 mês)'}</span></div>
+      <div class="ped-row"><span class="ped-lbl">Solicitado em</span><span class="ped-val">${dt}</span></div>
+      ${pd.nota?`<div class="ped-row" style="grid-column:1/-1"><span class="ped-lbl">Nota do usuário</span><span class="ped-val" style="color:var(--t2)">${esc(pd.nota)}</span></div>`:''}
+      ${pd.notaAdmin?`<div class="ped-row" style="grid-column:1/-1"><span class="ped-lbl">Nota admin</span><span class="ped-val" style="color:var(--amber)">${esc(pd.notaAdmin)}</span></div>`:''}
+      ${pd.ativadoPor?`<div class="ped-row"><span class="ped-lbl">Ativado por</span><span class="ped-val" style="color:var(--green)">${esc(pd.ativadoPor)} em ${pd.ativadoEm?new Date(pd.ativadoEm).toLocaleDateString('pt-BR'):'–'}</span></div>`:''}
+    </div>
+    <div class="ped-foot">
+      ${temComp?`<button class="btn btn-ghost btn-sm" onclick="verComprovante('${pd.id}')"><i class="ti ti-photo"></i> Ver comprovante</button>`:'<span style="font-size:11px;color:var(--red);display:flex;align-items:center;gap:4px"><i class="ti ti-photo-off"></i> Sem comprovante</span>'}
+      <button class="btn btn-ghost btn-sm" onclick="openUser('${esc(pd.userEmail||'')}')"><i class="ti ti-user"></i> Perfil do usuário</button>
+      ${wppLink?`<a href="${wppLink}?text=${encodeURIComponent('Olá '+esc(pd.userName||'')+'! Seu pedido de '+esc(plano.name)+' foi recebido.')}" target="_blank" class="btn btn-ghost btn-sm" style="color:#25d366;border-color:rgba(37,211,102,.3);text-decoration:none"><i class="ti ti-brand-whatsapp"></i> Contatar</a>`:''}
+      ${pd.status==='pendente'||pd.status==='pago'?`
+        <button class="btn btn-success btn-sm" onclick="aprovarPedido('${pd.id}')"><i class="ti ti-check"></i> Ativar plano</button>
+        <button class="btn btn-danger btn-sm" onclick="cancelarPedido('${pd.id}')"><i class="ti ti-x"></i> Cancelar</button>
+        <button class="btn btn-amber btn-sm" onclick="marcarPago('${pd.id}')"><i class="ti ti-cash"></i> Marcar como pago</button>
+      `:''}
+      <input class="inp" placeholder="Nota admin..." id="nota-ped-${pd.id}" style="flex:1;font-size:12px;min-width:180px">
+      <button class="btn btn-ghost btn-sm" onclick="salvarNotaAdmin('${pd.id}')"><i class="ti ti-device-floppy"></i> Salvar nota</button>
+    </div>
+  </div>`;
+}
+
 async function aprovarPedido(id){
   if(!confirm('Ativar plano deste pedido? O VIP será adicionado automaticamente.'))return;
   try{
@@ -7256,320 +7013,6 @@ async function salvarNotaAdmin(id){
     const r=await fetch('/api/pedido/'+id,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({notaAdmin:nota})});
     const d=await r.json();
     if(d.ok)toast('Nota salva','g');else toast('Erro','r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-// ══════════════════════════════════════════════════════════════
-//  CENTRAL DE INCIDENTES — JS
-// ══════════════════════════════════════════════════════════════
-let incData={incidents:[],missions:[],rules:{}};
-let resolveTarget=null;
-
-async function loadIncidentes(){
-  const el=document.getElementById('inc-list');
-  try{
-    const r=await fetch('/api/admin/incidents',{credentials:'include'});
-    if(!r.ok){
-      if(el)el.innerHTML=`<div style="text-align:center;padding:40px;color:var(--red)">⚠️ Erro HTTP ${r.status} — tente atualizar a página</div>`;
-      return;
-    }
-    const d=await r.json();
-    if(!d.ok){
-      if(el)el.innerHTML=`<div style="text-align:center;padding:40px;color:var(--red)">⚠️ ${esc(d.error||'Erro ao carregar incidentes')}</div>`;
-      return;
-    }
-    incData=d;
-    // Atualizar badge
-    const badge=document.getElementById('sb-incidentes');
-    if(badge){
-      if(d.pending>0){badge.textContent=d.pending;badge.style.display='';}
-      else badge.style.display='none';
-    }
-    // Stats
-    setText('inc-stat-open',d.pending||0);
-    setText('inc-stat-missions',d.missionsPending||0);
-    const resolved=(d.incidents||[]).filter(i=>i.status==='resolved').length;
-    setText('inc-stat-resolved',resolved);
-    setText('inc-stat-rules',Object.keys(d.rules||{}).length);
-    renderIncList();
-    renderIncMissions();
-    renderIncRules();
-  }catch(e){
-    console.error('[incidentes]',e);
-    if(el)el.innerHTML=`<div style="text-align:center;padding:40px;color:var(--red)">❌ Erro de conexão: ${esc(e.message)}<br><button onclick="loadIncidentes()" class="btn btn-ghost btn-sm" style="margin-top:10px">Tentar novamente</button></div>`;
-  }
-}
-
-function toggleIncTab(tab){
-  ['incidentes','missoes','regras'].forEach(t=>{
-    const el=document.getElementById('inc-tab-'+t);
-    if(el) el.style.display=t===tab?'':'none';
-  });
-  // Mostrar incidentes tab se clicar em tab ativo
-  if(document.getElementById('inc-tab-'+tab)?.style.display==='none'){
-    document.getElementById('inc-tab-'+tab).style.display='';
-  }
-}
-
-const INC_TYPE_LABELS={
-  oauth_expired:'🔐 OAuth Expirado',too_many_errors:'❌ Muitos Erros',
-  gemini_fail:'🤖 Gemini Falhou',comprovante_invalido:'🧾 Comprovante Inválido',
-  pagamento_sem_plano:'💰 Pagamento s/ Plano',usuario_duplicado:'👥 Duplicata',
-  planilha_erro:'📋 Erro Planilha',banco_erro:'💾 Erro Banco',
-  gmail_falha:'📧 Gmail Falhou',manual:'🔧 Manual'
-};
-const INC_SEV_COLOR={error:'#f87171',warn:'#fbbf24',info:'#60a5fa'};
-const INC_SEV_BG={error:'rgba(239,68,68,.1)',warn:'rgba(245,158,11,.1)',info:'rgba(96,165,250,.1)'};
-const INC_SEV_BORDER={error:'rgba(239,68,68,.3)',warn:'rgba(245,158,11,.3)',info:'rgba(96,165,250,.3)'};
-
-function renderIncList(){
-  const el=document.getElementById('inc-list');if(!el)return;
-  const stF=document.getElementById('inc-filter-status')?.value||'all';
-  const sevF=document.getElementById('inc-filter-sev')?.value||'all';
-  const robF=document.getElementById('inc-filter-robot')?.value||'all';
-  let list=(incData.incidents||[]);
-  if(stF!=='all') list=list.filter(i=>i.status===stF);
-  if(sevF!=='all') list=list.filter(i=>i.severity===sevF);
-  if(robF!=='all') list=list.filter(i=>i.robot===robF);
-  if(!list.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3);font-size:14px">✅ Nenhum incidente encontrado</div>';return;}
-  el.innerHTML=list.map(inc=>{
-    const sev=inc.severity||'warn';
-    const isOpen=inc.status==='open';
-    const dt=inc.createdAt?new Date(inc.createdAt).toLocaleString('pt-BR'):'';
-    const rddt=inc.resolvedAt?new Date(inc.resolvedAt).toLocaleString('pt-BR'):'';
-    return`<div style="background:${INC_SEV_BG[sev]};border:1.5px solid ${INC_SEV_BORDER[sev]};border-radius:12px;padding:14px 16px">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap">
-        <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:800;color:${INC_SEV_COLOR[sev]};margin-bottom:3px">${esc(inc.title||'?')}</div>
-          <div style="font-size:11px;color:var(--t3);display:flex;gap:10px;flex-wrap:wrap">
-            <span>${INC_TYPE_LABELS[inc.type]||inc.type||'-'}</span>
-            <span>🤖 ${esc(inc.robot||'-')}</span>
-            ${inc.userEmail?`<span>👤 ${esc(inc.userEmail)}</span>`:''}
-            <span>🕐 ${dt}</span>
-          </div>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
-          <span style="font-size:10px;padding:3px 8px;border-radius:20px;font-weight:700;background:${isOpen?'rgba(239,68,68,.2)':'rgba(16,185,129,.2)'};color:${isOpen?'#f87171':' #34d399'}">${isOpen?'🔴 ABERTO':'✅ RESOLVIDO'}</span>
-        </div>
-      </div>
-      <div style="font-size:12px;color:var(--t2);margin-bottom:10px">${esc(inc.description||'')}</div>
-      ${inc.suggestedAction?`<div style="font-size:11px;color:var(--t3);background:var(--sf2);padding:6px 10px;border-radius:6px;margin-bottom:10px">💡 ${esc(inc.suggestedAction)}</div>`:''}
-      ${!isOpen&&inc.resolution?`<div style="font-size:11px;color:var(--green);margin-bottom:6px">✅ Resolução: ${esc(inc.resolution)} — ${esc(inc.resolvedBy||'')} em ${rddt}</div>`:''}
-      ${!isOpen&&inc.adminNote?`<div style="font-size:11px;color:var(--t3);margin-bottom:6px">📝 ${esc(inc.adminNote)}</div>`:''}
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${isOpen&&(inc.options||[]).length?`<button class="btn btn-primary btn-sm" onclick="openResolveModal('${esc(inc.id)}')"><i class="ti ti-check"></i> Resolver</button>`:''}
-        ${inc.userEmail&&isOpen&&(inc.type==='token_expired'||inc.type==='auto_stuck')?`<button class="btn btn-ghost btn-sm" style="color:var(--amber);border-color:rgba(245,158,11,.3)" onclick="adminNotifyAuthError('${esc(inc.userEmail)}',this)"><i class="ti ti-mail"></i> Notificar usuário</button>`:''}
-        ${inc.userEmail?`<button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText('${esc(inc.userEmail)}');toast('Email copiado','g')"><i class="ti ti-copy"></i> Copiar email</button>`:''}
-        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteIncident('${esc(inc.id)}')"><i class="ti ti-trash"></i></button>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function renderIncMissions(){
-  const el=document.getElementById('inc-missions-list');if(!el)return;
-  const list=(incData.missions||[]).filter(m=>m.status==='pending');
-  if(!list.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--t3)">🎉 Nenhuma missão pendente!</div>';return;}
-  el.innerHTML=list.map((m,i)=>{
-    const sev=m.severity||'warn';
-    return`<div style="background:var(--surface);border:1.5px solid ${INC_SEV_BORDER[sev]};border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px">
-      <div style="font-size:20px;font-weight:900;color:${INC_SEV_COLOR[sev]};min-width:28px">#${i+1}</div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:700;color:var(--text)">${esc(m.title||'?')}</div>
-        <div style="font-size:11px;color:var(--t3)">${esc(m.robot||'')}${m.userEmail?' — '+esc(m.userEmail):''}</div>
-      </div>
-      <button class="btn btn-primary btn-sm" onclick="openResolveModal('${esc(m.incidentId||m.id)}')">Resolver →</button>
-    </div>`;
-  }).join('');
-}
-
-function renderIncRules(){
-  const el=document.getElementById('inc-rules-list');if(!el)return;
-  const rules=incData.rules||{};
-  const keys=Object.keys(rules);
-  if(!keys.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--t3)">Nenhuma regra aprendida ainda. Resolva incidentes marcando "Salvar como regra".</div>';return;}
-  el.innerHTML=keys.map(k=>{
-    const rule=rules[k];
-    const dt=rule.learnedAt?new Date(rule.learnedAt).toLocaleString('pt-BR'):'';
-    return`<div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:700;color:#818cf8">${k.split('__')[0]||k}</div>
-        <div style="font-size:11px;color:var(--t2)">Decisão: <strong>${esc(rule.decision||'?')}</strong> · Aplicada ${rule.count||1}x · ${dt}</div>
-      </div>
-      <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteRule('${esc(k)}')"><i class="ti ti-trash"></i></button>
-    </div>`;
-  }).join('');
-}
-
-function openResolveModal(incidentId){
-  const incident=(incData.incidents||[]).find(i=>i.id===incidentId);
-  if(!incident)return;
-  resolveTarget=incident;
-  document.getElementById('inc-resolve-title').textContent=incident.title||'Resolver Incidente';
-  document.getElementById('inc-resolve-desc').textContent=incident.description||'';
-  const optEl=document.getElementById('inc-resolve-options');
-  const opts=incident.options||[];
-  optEl.innerHTML=opts.map(o=>`<button class="btn btn-secondary" style="text-align:left;justify-content:flex-start;padding:10px 14px;font-size:13px" onclick="selectResolution('${esc(o.value)}',this)">${esc(o.label)}</button>`).join('');
-  if(!opts.length) optEl.innerHTML='<button class="btn btn-secondary" onclick="selectResolution('ignore',this)">Marcar como resolvido</button>';
-  document.getElementById('inc-resolve-note').value='';
-  document.getElementById('inc-resolve-save-rule').checked=false;
-  document.getElementById('inc-resolve-selected').value='';
-  const modal=document.getElementById('inc-resolve-modal');
-  modal.style.display='flex';
-}
-
-let selectedResolution='';
-function selectResolution(val, btn){
-  selectedResolution=val;
-  document.getElementById('inc-resolve-options').querySelectorAll('button').forEach(b=>{
-    b.style.background=b===btn?'rgba(99,102,241,.3)':'';
-    b.style.borderColor=b===btn?'rgba(99,102,241,.6)':'';
-  });
-}
-
-function closeResolveModal(){
-  document.getElementById('inc-resolve-modal').style.display='none';
-  resolveTarget=null;selectedResolution='';
-}
-
-async function submitResolveIncident(){
-  if(!resolveTarget)return;
-  if(!selectedResolution){toast('Escolha uma ação primeiro','r');return;}
-  const note=document.getElementById('inc-resolve-note').value;
-  const saveRule=document.getElementById('inc-resolve-save-rule').checked;
-  try{
-    const r=await fetch('/api/admin/incidents/'+resolveTarget.id+'/resolve',{
-      method:'POST',credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({resolution:selectedResolution,note,saveRule})
-    });
-    const d=await r.json();
-    if(d.ok){
-      toast('✅ Incidente resolvido'+(d.actionResult?' — '+d.actionResult:''),'g');
-      closeResolveModal();
-      loadIncidentes();
-    } else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-
-async function deleteIncident(id){
-  if(!confirm('Excluir este incidente?'))return;
-  try{
-    const r=await fetch('/api/admin/incidents/'+id,{method:'DELETE',credentials:'include'});
-    const d=await r.json();
-    if(d.ok){toast('Excluído','r');loadIncidentes();}
-    else toast('Erro','r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-
-async function notificarTodosAuthError(btn){
-  const n=document.querySelectorAll('[data-type="token_expired"],[data-type="auto_stuck"]').length;
-  if(!confirm('Enviar email de reconexão para TODOS os usuários com erro de autenticação?'))return;
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader"></i> Enviando...';}
-  try{
-    const r=await fetch('/api/admin/notify-all-auth-error',{method:'POST',credentials:'include'});
-    const d=await r.json();
-    if(d.ok){toast(`✅ ${d.sent} emails enviados (${d.failed?.length||0} falhas)`,'g');}
-    else toast('Erro: '+(d.error||'falha'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-  finally{if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-mail-forward"></i> Notificar todos';}}
-}
-
-async function adminNotifyAuthError(email,btn){
-  if(!confirm(`Enviar email de reconexão do Gmail para ${email}?`))return;
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader"></i> Enviando...';}
-  try{
-    const r=await fetch('/api/admin/notify-auth-error',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-    const d=await r.json();
-    if(d.ok){toast('✅ Email enviado para '+email,'g');if(btn){btn.innerHTML='<i class="ti ti-check"></i> Enviado!';btn.style.color='var(--green)';}}
-    else{toast('Erro: '+(d.error||'falha'),'r');if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-mail"></i> Notificar usuário';}}
-  }catch(e){toast('Erro: '+e.message,'r');if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-mail"></i> Notificar usuário';}}
-}
-
-async function clearIncResolvidos(){
-  if(!confirm('Limpar todos os incidentes resolvidos?'))return;
-  try{
-    const r=await fetch('/api/admin/incidents/clear',{method:'POST',credentials:'include'});
-    const d=await r.json();
-    if(d.ok){toast('Resolvidos limpos','g');loadIncidentes();}
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-
-async function deleteRule(key){
-  if(!confirm('Apagar esta regra?'))return;
-  try{
-    const r=await fetch('/api/admin/robot-rules/'+encodeURIComponent(key),{method:'DELETE',credentials:'include'});
-    const d=await r.json();
-    if(d.ok){toast('Regra removida','r');loadIncidentes();}
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-
-// ── FIM CENTRAL DE INCIDENTES ──────────────────────────────────────────────
-
-async function excluirPedidoLixeira(id, nome){
-  if(!confirm(`⚠️ CUIDADO ao excluir!\n\nO pedido de "${nome}" será movido para a lixeira.\n\nO plano do usuário NÃO será removido.\nVocê poderá restaurar ou excluir permanentemente da lixeira.\n\nConfirmar?`))return;
-  try{
-    const r=await fetch('/api/pedido/'+id,{method:'DELETE',credentials:'include'});
-    const d=await r.json();
-    if(d.ok){
-      toast('🗑️ Pedido movido para lixeira','r');
-      const badge=document.getElementById('sb-lixeira');
-      if(badge&&d.lixeiraCount>0){badge.textContent=d.lixeiraCount;badge.style.display='';}
-      loadPedidos();
-    } else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-// Alias legado
-async function excluirPedido(id, nome){ return excluirPedidoLixeira(id,nome); }
-
-async function loadPedidosLixeira(){
-  try{
-    const r=await fetch('/api/admin/pedidos-lixeira',{credentials:'include'});
-    const d=await r.json();
-    if(!d.ok)return;
-    const el=document.getElementById('lixeira-list');
-    const badge=document.getElementById('sb-lixeira');
-    if(badge){if(d.total>0){badge.textContent=d.total;badge.style.display='';}else badge.style.display='none';}
-    if(!el)return;
-    if(!d.lixeira?.length){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)">🗑️ Lixeira vazia</div>';return;}
-    el.innerHTML=d.lixeira.map(pd=>{
-      const dt=pd.deletedAt?new Date(pd.deletedAt).toLocaleString('pt-BR'):'–';
-      const dtOrig=pd.createdAt?new Date(pd.createdAt).toLocaleString('pt-BR'):'–';
-      return`<div style="background:var(--surface);border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:14px 16px;margin-bottom:10px">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:800;color:var(--red)">${esc(pd.plano?.toUpperCase()||'?')} — ${pd.dias||30}d</div>
-            <div style="font-size:11px;color:var(--t3)">${esc(pd.userName||pd.userEmail||'–')} · ${esc(pd.userEmail||'')}</div>
-            <div style="font-size:10px;color:var(--t3)">Criado: ${dtOrig} · Excluído: ${dt} por ${esc(pd.deletedBy||'?')}</div>
-          </div>
-          <div style="font-size:16px;font-weight:800;color:var(--t2)">R$ ${(pd.valorTotal||0).toFixed(2)}</div>
-          ${pd.viaDiego?`<span style="background:rgba(99,102,241,.2);color:#818cf8;border:1px solid rgba(99,102,241,.4);border-radius:6px;padding:2px 8px;font-size:10px;font-weight:800">💎 VIA DIEGO</span>`:''}
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" onclick="restaurarPedido('${pd.id}')"><i class="ti ti-restore"></i> Restaurar</button>
-          <button class="btn btn-danger btn-sm" onclick="excluirPermanente('${pd.id}','${esc(pd.userName||pd.userEmail||'?')}')"><i class="ti ti-trash"></i> Excluir para sempre</button>
-        </div>
-      </div>`;
-    }).join('');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-
-async function restaurarPedido(id){
-  if(!confirm('Restaurar este pedido para a lista principal?'))return;
-  try{
-    const r=await fetch('/api/pedido/'+id+'/restaurar',{method:'POST',credentials:'include'});
-    const d=await r.json();
-    if(d.ok){toast('✅ Pedido restaurado','g');loadPedidosLixeira();loadPedidos();}
-    else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-
-async function excluirPermanente(id, nome){
-  if(!confirm(`🚨 EXCLUSÃO PERMANENTE\n\nO pedido de "${nome}" será apagado para sempre.\nEsta ação NÃO pode ser desfeita.\n\nTem CERTEZA?`))return;
-  try{
-    const r=await fetch('/api/pedido/'+id+'/lixeira',{method:'DELETE',credentials:'include'});
-    const d=await r.json();
-    if(d.ok){toast('🗑️ Excluído permanentemente','r');loadPedidosLixeira();}
-    else toast('Erro: '+(d.error||'?'),'r');
   }catch(e){toast('Erro: '+e.message,'r');}
 }
 async function verComprovante(id){
@@ -7846,167 +7289,82 @@ const PED_STATUS_LABELS = {
   cancelado: { label:'❌ Cancelado', cls:'b-red' },
 };
 
-// ── Estado global da tela de pedidos ──
-let _pedTodos = [];
-let _pedTabAtual = 'pendente';
-let _pedCriticosNotificado = false;
-
 async function loadPedidos(){
-  const listEl=document.getElementById('ped-list');
-  const statsEl=document.getElementById('ped-stats');
-  if(listEl)listEl.innerHTML='<div class="pv2-empty"><span style="display:inline-block;width:22px;height:22px;border:2px solid var(--blue);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite"></span></div>';
-  try{
-    const r=await fetch('/api/pedidos',{credentials:'include'});
-    const d=await r.json();
-    _pedTodos=(d.pedidos||[]).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
-    const pend=_pedTodos.filter(p=>p.status==='pendente').length;
-    const pago=_pedTodos.filter(p=>p.status==='pago').length;
-    const ativ=_pedTodos.filter(p=>p.status==='ativo').length;
-    const totalVal=_pedTodos.filter(p=>p.status==='ativo'||p.status==='pago').reduce((s,p)=>s+(p.valorTotal||0),0);
-    if(statsEl) statsEl.innerHTML=`
-      <div class="pv2-stat" onclick="pedSetTabByStatus('pendente')">
-        <div class="pv2-stat-val" style="color:var(--amber)">${pend}</div>
-        <div class="pv2-stat-lbl">⏳ Pendentes</div>
-      </div>
-      <div class="pv2-stat" onclick="pedSetTabByStatus('pago')">
-        <div class="pv2-stat-val" style="color:var(--blue)">${pago}</div>
-        <div class="pv2-stat-lbl">💰 Pagos</div>
-      </div>
-      <div class="pv2-stat" onclick="pedSetTabByStatus('ativo')">
-        <div class="pv2-stat-val" style="color:var(--green)">${ativ}</div>
-        <div class="pv2-stat-lbl">✅ Ativos</div>
-      </div>
-      <div class="pv2-stat" onclick="pedSetTabByStatus('todos')">
-        <div class="pv2-stat-val" style="color:#a78bfa">R$${totalVal.toFixed(0)}</div>
-        <div class="pv2-stat-lbl">💎 Total recebido</div>
-      </div>`;
-    const sbPed=document.getElementById('sb-pedidos');
-    if(sbPed){if(pend>0){sbPed.style.display='';sbPed.textContent=String(pend);}else sbPed.style.display='none';}
-    const badgePend=document.getElementById('pv2-badge-pendente');
-    if(badgePend){if(pend>0){badgePend.style.display='';badgePend.textContent=String(pend);}else badgePend.style.display='none';}
-    // Aba Críticos: pedidos pendentes há >24h
-    const agora=Date.now();
-    const criticos=_pedTodos.filter(p=>p.status==='pendente'&&(agora-(p.createdAt||0))>24*3600_000);
-    const tabCritico=document.getElementById('pv2-tab-critico');
-    const badgeCritico=document.getElementById('pv2-badge-critico');
-    if(tabCritico){tabCritico.style.display=criticos.length?'':'none';}
-    if(badgeCritico){if(criticos.length){badgeCritico.style.display='';badgeCritico.textContent=String(criticos.length);}else badgeCritico.style.display='none';}
-    // Se há críticos, mudar para aba críticos automaticamente na 1ª carga
-    if(criticos.length&&_pedTabAtual==='pendente'&&!_pedCriticosNotificado){
-      _pedCriticosNotificado=true;
-      _pedTabAtual='critico';
-      document.querySelectorAll('.pv2-tab').forEach(t=>t.classList.remove('active'));
-      if(tabCritico)tabCritico.classList.add('active');
-    }
-    pedFiltrar();
-  }catch(e){
-    if(listEl)listEl.innerHTML=`<div class="pv2-empty" style="color:var(--red)"><i class="ti ti-alert-circle"></i><div>${e.message}</div></div>`;
-  }
-}
-
-function pedSetTab(tab,el){
-  _pedTabAtual=tab;
-  document.querySelectorAll('.pv2-tab').forEach(t=>t.classList.remove('active'));
-  if(el)el.classList.add('active');
-  pedFiltrar();
-}
-
-function pedSetTabByStatus(status){
-  _pedTabAtual=status;
-  const tabs=document.querySelectorAll('.pv2-tab');
-  tabs.forEach(t=>t.classList.remove('active'));
-  const map={pendente:0,ativo:1,pago:2,todos:3};
-  if(tabs[map[status]])tabs[map[status]].classList.add('active');
-  pedFiltrar();
-}
-
-function pedFiltrar(){
-  const busca=(document.getElementById('pv2-search')?.value||'').toLowerCase().trim();
+  const statusF=document.getElementById('ped-filter-status')?.value||'';
   const planoF=document.getElementById('ped-filter-plano')?.value||'';
   const listEl=document.getElementById('ped-list');
-  if(!listEl) return;
-  const now=Date.now();
-  let lista=_pedTodos.filter(pd=>{
-    if(_pedTabAtual==='critico') return pd.status==='pendente'&&(now-(pd.createdAt||0))>24*3600_000;
-    if(_pedTabAtual!=='todos'&&pd.status!==_pedTabAtual) return false;
-    if(planoF&&pd.plano!==planoF) return false;
-    if(busca){
-      const hay=(pd.userName||'').toLowerCase()+(pd.userEmail||'').toLowerCase()+(pd.userWhatsapp||'').toLowerCase();
-      if(!hay.includes(busca)) return false;
+  const statsEl=document.getElementById('ped-stats');
+  if(listEl)listEl.innerHTML='<div class="empty-state"><span style="display:inline-block;width:20px;height:20px;border:2px solid var(--blue);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite"></span></div>';
+  try{
+    let url='/api/pedidos';
+    const params=[];
+    if(statusF)params.push('status='+statusF);
+    if(planoF)params.push('plano='+planoF);
+    if(params.length)url+='?'+params.join('&');
+    const r=await fetch(url,{credentials:'include'});
+    const d=await r.json();
+    const pedidos=d.pedidos||[];
+    // Stats
+    if(statsEl){
+      const pend=pedidos.filter(p=>p.status==='pendente').length;
+      const pago=pedidos.filter(p=>p.status==='pago').length;
+      const ativ=pedidos.filter(p=>p.status==='ativo').length;
+      const totalVal=pedidos.filter(p=>p.status==='ativo'||p.status==='pago').reduce((s,p)=>s+(p.valorTotal||0),0);
+      statsEl.innerHTML=`
+        <div class="stat-card stat-amber"><div class="stat-val">${pend}</div><div class="stat-lbl">Pendentes</div></div>
+        <div class="stat-card stat-blue"><div class="stat-val">${pago}</div><div class="stat-lbl">Pagos</div></div>
+        <div class="stat-card stat-green"><div class="stat-val">${ativ}</div><div class="stat-lbl">Ativos</div></div>
+        <div class="stat-card stat-purple"><div class="stat-val">R$${totalVal.toFixed(0)}</div><div class="stat-lbl">Total recebido</div></div>`;
     }
-    return true;
-  });
-  if(!lista.length){
-    listEl.innerHTML=`<div class="pv2-empty"><i class="ti ti-inbox"></i><div>${_pedTabAtual==='pendente'?'Nenhum pedido pendente 🎉':'Nenhum pedido encontrado'}</div></div>`;
-    return;
-  }
-  listEl.innerHTML=lista.map(pd=>renderPedidoCard(pd)).join('');
-}
-
-function pedToggle(id){
-  const card=document.getElementById('pvc-'+id);
-  if(card) card.classList.toggle('expanded');
+    const sbPed=document.getElementById('sb-pedidos');
+    if(sbPed){const pend2=pedidos.filter(p=>p.status==='pendente').length;if(pend2>0){sbPed.style.display='';sbPed.textContent=String(pend2);}else sbPed.style.display='none';}
+    if(!pedidos.length){if(listEl)listEl.innerHTML='<div class="empty-state"><i class="ti ti-shopping-cart"></i><div>Nenhum pedido ainda</div></div>';return;}
+    if(listEl)listEl.innerHTML=pedidos.map(pd=>renderPedidoCard(pd)).join('');
+  }catch(e){if(listEl)listEl.innerHTML=`<div class="empty-state" style="color:var(--red)"><i class="ti ti-alert-circle"></i>${esc(e.message)}</div>`;}
 }
 
 function renderPedidoCard(pd){
-  const planCls={vip:'pv2-plan-vip',vipro:'pv2-plan-vipro',doublepro:'pv2-plan-doublepro'}[pd.plano]||'pv2-plan-vip';
+  const sl=PED_STATUS_LABELS[pd.status]||{label:pd.status,cls:'b-gray'};
   const plano=PLAN_PRICES[pd.plano]||{name:pd.plano,desc:''};
-  const statusCls={pendente:'is-pendente',ativo:'is-ativo',cancelado:'is-cancelado',pago:'is-pago'}[pd.status]||'';
-  const dt=pd.createdAt?new Date(pd.createdAt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):'–';
-  const _agoMs=Date.now()-(pd.createdAt||0);
-  const _agoH=Math.round(_agoMs/3600000);
-  const _agoLbl=_agoH<1?'agora':_agoH<24?`há ${_agoH}h`:`há ${Math.round(_agoH/24)}d`;
-  const _isCritico=pd.status==='pendente'&&_agoMs>24*3600000;
+  const dt=pd.createdAt?new Date(pd.createdAt).toLocaleString('pt-BR'):'–';
   const temComp=pd.comprovante===true||typeof pd.comprovante==='string';
   const wppNum=(pd.userWhatsapp||'').replace(/\D/g,'');
-  const wppBase=wppNum?`https://wa.me/${wppNum.startsWith('55')?wppNum:'55'+wppNum}`:'';
-  const wppMsg=wppBase?`${wppBase}?text=${encodeURIComponent('Olá '+(pd.userName||'')+'! Aqui é o suporte do H2BApply. Seu pedido de '+plano.name+' foi recebido.')}`:'' ;
-  const periodo=pd.dias===365?'1 ano':pd.dias===90?'3 meses':pd.dias===60?'2 meses':'1 mês';
-  const idCurto=(pd.id||'').slice(-8).toUpperCase();
-  const acoesPendente=pd.status==='pendente'||pd.status==='pago'?`
-    <button class="pv2-btn pv2-btn-ativar" onclick="aprovarPedido('${pd.id}')"><i class="ti ti-check"></i> Ativar plano</button>
-    ${wppMsg?`<a href="${wppMsg}" target="_blank" class="pv2-btn pv2-btn-wpp"><i class="ti ti-brand-whatsapp"></i> Contatar</a>`:''}
-    <button class="pv2-btn pv2-btn-ghost" onclick="marcarPago('${pd.id}')"><i class="ti ti-cash"></i> Pago</button>
-    <button class="pv2-btn pv2-btn-cancel" onclick="cancelarPedido('${pd.id}')"><i class="ti ti-x"></i> Cancelar</button>
-  `:`${wppMsg?`<a href="${wppMsg}" target="_blank" class="pv2-btn pv2-btn-wpp"><i class="ti ti-brand-whatsapp"></i> Contatar</a>`:''}`;
-  return`<div class="pv2-card ${statusCls}" id="pvc-${pd.id}">
-  <div class="pv2-top" onclick="pedToggle('${pd.id}')">
-    <span class="pv2-plan-badge ${planCls}">${esc(plano.name)}</span>
-    <div class="pv2-user">
-      <div class="pv2-user-name">${esc(pd.userName||pd.userEmail||'–')}${pd.viaDiego?' <span class=\"pv2-diego\">DIEGO</span>':''}</div>
-      <div class="pv2-user-email">${esc(pd.userEmail||'')}</div>
+  const wppLink=wppNum?`https://wa.me/${wppNum.startsWith('55')?wppNum:'55'+wppNum}`:'';
+  return`<div class="ped-card">
+    <div class="ped-hdr">
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:800;color:#fff">${esc(plano.name)} — ${pd.dias}d</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:1px">${esc(pd.userName||pd.userEmail||'–')} · <span class="mono">${esc(pd.userEmail||'')}</span></div>
+      </div>
+      <span class="badge ${sl.cls}">${sl.label}</span>
+      <div style="font-size:18px;font-weight:800;color:var(--green);margin-left:8px">R$ ${(pd.valorTotal||0).toFixed(2)}</div>
+      ${pd.desconto>0?`<span class="badge b-amber" style="margin-left:4px">-${pd.desconto}% desc</span>`:''}
+      <div class="ped-id" style="margin-left:8px">#${(pd.id||'').slice(-8).toUpperCase()}</div>
     </div>
-    <div style="text-align:right;flex-shrink:0">
-      <div class="pv2-valor">R$ ${(pd.valorTotal||0).toFixed(2)}</div>
-      <div class="pv2-date" style="${_isCritico?'color:#f87171;font-weight:700':''}">${_isCritico?'⚡ ':''} ${dt} (${_agoLbl})</div>
+    <div class="ped-body">
+      <div class="ped-row"><span class="ped-lbl">WhatsApp</span><span class="ped-val">${wppLink?`<a href="${wppLink}" target="_blank" style="color:#25d366;font-weight:800;display:flex;align-items:center;gap:4px"><i class="ti ti-brand-whatsapp"></i>${esc(pd.userWhatsapp)}</a>`:esc(pd.userWhatsapp||'–')}</span></div>
+      <div class="ped-row"><span class="ped-lbl">Telefone</span><span class="ped-val">${esc(pd.userPhone||'–')}</span></div>
+      <div class="ped-row"><span class="ped-lbl">Cidade/Estado</span><span class="ped-val">${esc([pd.userCity,pd.userState].filter(Boolean).join(', ')||'–')}</span></div>
+      <div class="ped-row"><span class="ped-lbl">Plano solicitado</span><span class="ped-val">${esc(plano.name)}</span></div>
+      <div class="ped-row"><span class="ped-lbl">Período</span><span class="ped-val">${pd.dias}d ${pd.dias===365?'(1 ano)':pd.dias===90?'(3 meses)':pd.dias===60?'(2 meses)':'(1 mês)'}</span></div>
+      <div class="ped-row"><span class="ped-lbl">Solicitado em</span><span class="ped-val">${dt}</span></div>
+      ${pd.nota?`<div class="ped-row" style="grid-column:1/-1"><span class="ped-lbl">Nota do usuário</span><span class="ped-val" style="color:var(--t2)">${esc(pd.nota)}</span></div>`:''}
+      ${pd.notaAdmin?`<div class="ped-row" style="grid-column:1/-1"><span class="ped-lbl">Nota admin</span><span class="ped-val" style="color:var(--amber)">${esc(pd.notaAdmin)}</span></div>`:''}
+      ${pd.ativadoPor?`<div class="ped-row"><span class="ped-lbl">Ativado por</span><span class="ped-val" style="color:var(--green)">${esc(pd.ativadoPor)} em ${pd.ativadoEm?new Date(pd.ativadoEm).toLocaleDateString('pt-BR'):'–'}</span></div>`:''}
     </div>
-    <i class="ti ti-chevron-down pv2-chevron"></i>
-  </div>
-  <div class="pv2-detail">
-    <div class="pv2-info-grid">
-      <div class="pv2-info-row"><span class="pv2-info-lbl">WhatsApp</span><span class="pv2-info-val">${wppBase?`<a href="${wppBase}" target="_blank" style="color:#25d366;display:flex;align-items:center;gap:4px"><i class="ti ti-brand-whatsapp"></i>${esc(pd.userWhatsapp)}</a>`:esc(pd.userWhatsapp||'–')}</span></div>
-      <div class="pv2-info-row"><span class="pv2-info-lbl">Período</span><span class="pv2-info-val">${pd.dias}d (${periodo})</span></div>
-      <div class="pv2-info-row"><span class="pv2-info-lbl">Cidade/Estado</span><span class="pv2-info-val">${esc([pd.userCity,pd.userState].filter(Boolean).join(', ')||'–')}</span></div>
-      <div class="pv2-info-row"><span class="pv2-info-lbl">ID do pedido</span><span class="pv2-info-val" style="font-family:monospace;font-size:11px">#${idCurto}</span></div>
-      ${pd.desconto>0?`<div class="pv2-info-row"><span class="pv2-info-lbl">Desconto</span><span class="pv2-info-val" style="color:var(--amber)">-${pd.desconto}%</span></div>`:''}
-      ${pd.ativadoPor?`<div class="pv2-info-row" style="grid-column:1/-1"><span class="pv2-info-lbl">Ativado por</span><span class="pv2-info-val" style="color:var(--green)">${esc(pd.ativadoPor)} em ${pd.ativadoEm?new Date(pd.ativadoEm).toLocaleDateString('pt-BR'):'–'}</span></div>`:''}
-      ${pd.nota?`<div class="pv2-info-row" style="grid-column:1/-1"><span class="pv2-info-lbl">Nota do usuário</span><span class="pv2-info-val" style="color:var(--t2)">${esc(pd.nota)}</span></div>`:''}
+    <div class="ped-foot">
+      ${temComp?`<button class="btn btn-ghost btn-sm" onclick="verComprovante('${pd.id}')"><i class="ti ti-photo"></i> Ver comprovante</button>`:'<span style="font-size:11px;color:var(--red);display:flex;align-items:center;gap:4px"><i class="ti ti-photo-off"></i> Sem comprovante</span>'}
+      <button class="btn btn-ghost btn-sm" onclick="openUser('${esc(pd.userEmail||'')}')"><i class="ti ti-user"></i> Perfil do usuário</button>
+      ${wppLink?`<a href="${wppLink}?text=${encodeURIComponent('Olá '+esc(pd.userName||'')+'! Seu pedido de '+esc(plano.name)+' foi recebido.')}" target="_blank" class="btn btn-ghost btn-sm" style="color:#25d366;border-color:rgba(37,211,102,.3);text-decoration:none"><i class="ti ti-brand-whatsapp"></i> Contatar</a>`:''}
+      ${pd.status==='pendente'||pd.status==='pago'?`
+        <button class="btn btn-success btn-sm" onclick="aprovarPedido('${pd.id}')"><i class="ti ti-check"></i> Ativar plano</button>
+        <button class="btn btn-danger btn-sm" onclick="cancelarPedido('${pd.id}')"><i class="ti ti-x"></i> Cancelar</button>
+        <button class="btn btn-amber btn-sm" onclick="marcarPago('${pd.id}')"><i class="ti ti-cash"></i> Marcar como pago</button>
+      `:''}
+      <input class="inp" placeholder="Nota admin..." id="nota-ped-${pd.id}" style="flex:1;font-size:12px;min-width:180px">
+      <button class="btn btn-ghost btn-sm" onclick="salvarNotaAdmin('${pd.id}')"><i class="ti ti-device-floppy"></i> Salvar nota</button>
     </div>
-    ${pd.notaAdmin?`<div class="pv2-nota-admin">📝 ${esc(pd.notaAdmin)}</div>`:''}
-    <div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap">
-      ${temComp?`<button class="pv2-btn pv2-btn-ghost" onclick="verComprovante('${pd.id}')"><i class="ti ti-photo"></i> Ver comprovante</button>`:`<span class="pv2-comp-no"><i class="ti ti-photo-off"></i> Sem comprovante</span>`}
-      <button class="pv2-btn pv2-btn-ghost" onclick="openUser('${esc(pd.userEmail||'')}')"><i class="ti ti-user"></i> Ver perfil</button>
-    </div>
-    <div class="pv2-nota-row">
-      <input class="pv2-nota-inp" placeholder="Adicionar nota admin... (Enter para salvar)" id="nota-ped-${pd.id}" value="${esc(pd.notaAdmin||'')}" onkeydown="if(event.key==='Enter')salvarNotaAdmin('${pd.id}')">
-    </div>
-    <div class="pv2-actions">
-      ${acoesPendente}
-      <button class="pv2-btn pv2-btn-ghost" onclick="salvarNotaAdmin('${pd.id}')" style="margin-left:auto"><i class="ti ti-device-floppy"></i> Salvar nota</button>
-      <button class="pv2-btn pv2-btn-trash" onclick="excluirPedidoLixeira('${pd.id}','${esc(pd.userName||pd.userEmail||'?')}')" title="Mover para lixeira"><i class="ti ti-trash"></i></button>
-    </div>
-  </div>
-</div>`;
+  </div>`;
 }
 
 async function aprovarPedido(id){
@@ -8069,85 +7427,6 @@ function openWhatsAppFromModal(){
     const tel=prompt('Número do WhatsApp deste usuário (com DDD):');
     if(tel){const n=tel.replace(/\D/g,'');const wn=n.startsWith('55')?n:'55'+n;window.open('https://wa.me/'+wn,'_blank');}
   }
-}
-
-// M24: Busca global admin
-function openAdminSearch(){
-  const m=document.getElementById('admin-search-modal');
-  if(m){m.style.display='flex';setTimeout(()=>document.getElementById('admin-search-input')?.focus(),100);}
-}
-function closeAdminSearch(){const m=document.getElementById('admin-search-modal');if(m)m.style.display='none';}
-function runAdminSearch(q){
-  const el=document.getElementById('admin-search-results');if(!el)return;
-  if(!q||q.length<2){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Digite ao menos 2 caracteres...</div>';return;}
-  const qL=q.toLowerCase();
-  const userHits=(allUsers||[]).filter(u=>(u.email||'').includes(qL)||(u.name||'').toLowerCase().includes(qL)).slice(0,5);
-  const pedHits=(liveData?.pedidos||[]).filter(p=>(p.userEmail||'').includes(qL)||(p.userName||'').toLowerCase().includes(qL)).slice(0,3);
-  if(!userHits.length&&!pedHits.length){el.innerHTML='<div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Nenhum resultado encontrado</div>';return;}
-  let html='';
-  if(userHits.length){html+='<div style="padding:8px 16px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase">Usuários</div>';
-    html+=userHits.map(u=>`<div onclick="openUserModal('${u.email}');closeAdminSearch()" style="padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .1s" onmouseover="this.style.background='var(--sf2)'" onmouseout="this.style.background=''">
-      <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:13px;flex-shrink:0">${(u.name||u.email||'?')[0].toUpperCase()}</div>
-      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||u.email)}</div>
-      <div style="font-size:11px;color:var(--t3)">${esc(u.email)} · ${u.plan||'free'}</div></div>
-    </div>`).join('');}
-  if(pedHits.length){html+='<div style="padding:8px 16px;font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;border-top:1px solid var(--border)">Pedidos</div>';
-    html+=pedHits.map(p=>`<div onclick="showView('pedidos');closeAdminSearch()" style="padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:10px" onmouseover="this.style.background='var(--sf2)'" onmouseout="this.style.background=''">
-      <i class="ti ti-shopping-cart" style="color:var(--green);font-size:16px"></i>
-      <div><div style="font-size:13px;font-weight:700;color:var(--text)">${esc(p.userName||p.userEmail)}</div>
-      <div style="font-size:11px;color:var(--t3)">${p.plano||''} · R$${(p.valorTotal||0).toFixed(2)} · ${p.status}</div></div>
-    </div>`).join('');}
-  el.innerHTML=html;
-}
-// Shortcut: Ctrl+K ou / para abrir busca
-document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='k'){e.preventDefault();openAdminSearch();}if(e.key==='/'&&document.activeElement===document.body){e.preventDefault();openAdminSearch();}});
-
-// M23: Atualizar cards de conversão
-function _updateConversionCards(){
-  const users=allUsers||[];
-  const pagantes=users.filter(u=>u.plan&&u.plan!=='free').length;
-  const total=users.length||1;
-  const conv=((pagantes/total)*100).toFixed(1)+'%';
-  const ativos=(liveData?.pedidos||[]).filter(p=>p.status==='ativo');
-  const ticket=ativos.length?'R$'+(ativos.reduce((a,p)=>a+(p.valorTotal||0),0)/ativos.length).toFixed(0):'–';
-  const trial=users.filter(u=>u.vip?.source==='trial'&&(Math.max(u.vip?.manualExpires||0,u.vip?.autoExpires||0)>Date.now())).length;
-  const mc=id=>document.getElementById(id);
-  if(mc('mc-conversion'))mc('mc-conversion').textContent=conv;
-  if(mc('mc-ticket'))mc('mc-ticket').textContent=ticket;
-  if(mc('mc-trial'))mc('mc-trial').textContent=trial;
-}
-
-async function loadMetricsChart(){
-  toast('Gráfico de métricas em breve...','');
-}
-
-async function exportUsersCSV(){
-  try{
-    toast('Gerando CSV...','');
-    const r=await fetch('/api/admin/users/export',{credentials:'include'});
-    if(!r.ok){toast('Erro ao exportar','r');return;}
-    const blob=await r.blob();
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download='usuarios_h2bapply.csv';a.click();
-    URL.revokeObjectURL(url);toast('✅ CSV exportado!','g');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-
-function copyModalWpp(btn){
-  const user=currentModalData?.user||{};
-  const phone=user.phone||user.whatsapp||'';
-  const num=phone.replace(/\D/g,'');
-  if(!num){toast('Usuário sem WhatsApp cadastrado','r');return;}
-  navigator.clipboard.writeText(num.startsWith('55')?num:'55'+num);
-  toast('WhatsApp copiado!','g');
-  if(btn){const orig=btn.innerHTML;btn.innerHTML='<i class="ti ti-check"></i> Copiado!';setTimeout(()=>btn.innerHTML=orig,2000);}
-}
-
-function _updateModalAuthBtn(){
-  const authBtn=document.getElementById('modal-notify-auth-btn');
-  if(!authBtn)return;
-  const job=currentModalData?.job;
-  authBtn.style.display=(job&&(job.autoStatus==='paused_auth_error'||job.status==='paused_auth_error'))?'':'none';
 }
 
 async function adminResetDailyUser(email){
@@ -8374,9 +7653,26 @@ function renderModalCompras(d,u){
 const RoboContabil = (function(){
   'use strict';
 
-  // ── Tabela de preços e descontos ────────────────────────
-  const PRECOS   = { vip:100, vipro:150, doublepro:250 };
-  const DESCONTOS= { 30:0, 60:5, 90:10, 365:20 };
+  // ── Mapa de planos: preço-base e descontos ───────────────
+  // [FIX] Antes hardcoded aqui (e em mais 2 lugares do arquivo, com valores
+  // divergentes). Agora é carregado de DB_ADMIN_SETTINGS no servidor via
+  // GET /api/admin/settings (robotPlanPrices/robotPlanDiscounts) — única
+  // fonte de verdade, editável em /ad → Configurações. Os valores abaixo
+  // só servem de fallback caso a chamada ao servidor falhe.
+  let PRECOS    = { vip:100, vipro:150, doublepro:250 };
+  let DESCONTOS = { 30:0, 60:5, 90:10, 365:20 };
+  let _planConfigLoaded = false;
+
+  async function loadPlanConfig(){
+    try{
+      const r = await fetch('/api/admin/settings',{credentials:'include'});
+      if(!r.ok) return;
+      const d = await r.json();
+      if(d?.settings?.robotPlanPrices)    PRECOS    = d.settings.robotPlanPrices;
+      if(d?.settings?.robotPlanDiscounts) DESCONTOS = d.settings.robotPlanDiscounts;
+      _planConfigLoaded = true;
+    }catch(e){ console.warn('[rc] não foi possível carregar config de planos do servidor, usando fallback local:', e.message); }
+  }
 
   // Gastos fixos conhecidos do site (para categorização automática)
   const GASTOS_SITE_KEYWORDS = [
@@ -8474,6 +7770,19 @@ const RoboContabil = (function(){
     }
   }
 
+  // ── PROPOR RECONSTRUÇÃO (servidor calcula plano/dias/vencimento/confiança) ─
+  async function propostaReconstrucao(opts){
+    try{
+      const r = await fetch('/api/admin/robo-contabil/propor',{
+        method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(opts)
+      });
+      if(!r.ok) return null;
+      const d = await r.json();
+      return d.ok ? d.proposta : null;
+    }catch(e){ console.warn('[rc] propor falhou:', e.message); return null; }
+  }
+
   // ── ANÁLISE PRINCIPAL ────────────────────────────────────
   async function runAnalysis(mode='all'){
     if(_running){ rcLog('warn','Análise já em andamento. Aguarde.'); return; }
@@ -8530,7 +7839,14 @@ const RoboContabil = (function(){
 
       setProgress(16,'Carregando configurações...');
       const settingsD = await fetchJSON('/api/admin/settings');
-      const trialDays = settingsD?.newUserTrialDays || 2;
+      // [FIX] a rota devolve {settings:{...}}, não os campos direto na raiz —
+      // antes isso fazia trialDays cair sempre no fallback (2 dias).
+      const trialDays = settingsD?.settings?.newUserTrialDays || 2;
+      // Mapa de planos: única fonte de verdade é a configuração do servidor.
+      if(settingsD?.settings?.robotPlanPrices)    PRECOS    = settingsD.settings.robotPlanPrices;
+      if(settingsD?.settings?.robotPlanDiscounts) DESCONTOS = settingsD.settings.robotPlanDiscounts;
+      _planConfigLoaded = true;
+      rcLog('ok',`⚙️ Mapa de planos carregado do servidor: ${Object.entries(PRECOS).map(([k,v])=>k+'=R$'+v).join(', ')}`);
 
       // ── 2. AUDITORIA DE COMPROVANTES ─────────────────────
       if(mode==='all' || mode==='comprovantes'){
@@ -8660,6 +7976,18 @@ const RoboContabil = (function(){
           const temDesc    = (pd.desconto||0) > 0;
           const notaDesc   = /desconto|promo|bônus|bonus|acordo|amigo|indicaç|cortesia|gratuidade/i.test(pd.nota||'');
 
+          // ── MOTOR DE RECONSTRUÇÃO: pede ao servidor a proposta (plano provável,
+          // dias, vencimento e score de confiança) a partir do comprovante. Isto
+          // alimenta o painel de decisão (AÇÃO RECOMENDADA) abaixo.
+          let proposta = null;
+          try{
+            proposta = await propostaReconstrucao({ pedidoId: pd.id, email: pd.userEmail, analiseIA });
+          }catch(e){ /* painel de decisão fica sem proposta — não bloqueia a auditoria */ }
+          if(proposta){
+            window._rcPropostas = window._rcPropostas || {};
+            window._rcPropostas[pd.id] = proposta;
+          }
+
           let resultado = '✅ OK';
           let alertaTipo = null;
 
@@ -8711,6 +8039,23 @@ const RoboContabil = (function(){
             totalPendente += pd.valorTotal || 0;
           }
 
+          // ── PAINEL DE DECISÕES: se o motor de reconstrução sugeriu uma ação
+          // (criar pedido, ativar, renovar, corrigir vencimento/valor ou revisão
+          // manual) e o pedido ainda não está totalmente resolvido, mostra um
+          // alerta dedicado com confiança + botão "Concordar e aplicar".
+          if(proposta && (pd.status!=='ativo' || ['corrigir_valor','corrigir_vencimento','revisao_manual'].includes(proposta.acaoRecomendada))){
+            if(proposta.acaoRecomendada==='revisao_manual') warnCount++;
+            alertas.push({
+              tipo: proposta.confidence<80?'warn':'info',
+              pedidoId: pd.id,
+              titulo: `🤖 ${proposta.acaoLabel} — ${pd.userName||pd.userEmail}`,
+              detalhe: `Confiança ${proposta.confidence}% (${proposta.confidenceMotivo}) · Plano provável: ${proposta.planoProvavel} ${proposta.diasProvaveis}d · Valor R$${proposta.valor.toFixed(2)}`,
+              email: pd.userEmail, wpp: pd.userWhatsapp||'',
+              acoes: ['ver_pedido','reconstruir'],
+              proposta,
+            });
+          }
+
           compGaleria.push({
             id:pd.id, email:pd.userEmail, nome:pd.userName||pd.userEmail,
             plano:pd.plano, dias:pd.dias, status:pd.status,
@@ -8720,7 +8065,7 @@ const RoboContabil = (function(){
             destinatarioIA:analiseIA?.destinatario||null,
             bancoIA:analiseIA?.banco_remetente||null,
             compImg: compImg ? `data:${compType};base64,${compImg}` : null,
-            compType, analiseIA, resultado, diasAtras,
+            compType, analiseIA, resultado, diasAtras, proposta,
             criadoEm:pd.createdAt, pagoEm:pd.pagoEm, wpp:pd.userWhatsapp||'',
           });
 
@@ -8731,6 +8076,7 @@ const RoboContabil = (function(){
             valorIA, dataIA:analiseIA?.data||null,
             remetenteIA:analiseIA?.remetente||null,
             temComp:true, compOk: compValido !== false,
+            confidence: proposta?.confidence ?? null, acaoRecomendada: proposta?.acaoLabel ?? null,
             resultado, diasAtras, criadoEm:pd.createdAt, wpp:pd.userWhatsapp||'',
           });
 
@@ -8771,42 +8117,36 @@ const RoboContabil = (function(){
           const pds = (pedidosPorUser[u.email]||[]).filter(p=>p.status!=='cancelado');
           const totalPago = pds.reduce((s,p)=>s+(p.valorTotal||0),0);
           const ultPed = pds[0];
-          const expMs  = u.planExpiry ? new Date(u.planExpiry).getTime() : null;
+          // [FIX] u.planExpiry/u.planActivatedAt NÃO EXISTEM na resposta de /api/admin/live —
+          // o vencimento real fica em u.vip.manualExpires / u.vip.autoExpires. Isso fazia
+          // "dias restantes" mostrar sempre 0 para todo mundo, mascarando o vencimento real.
+          const vipManual = u.vip?.manualExpires || 0;
+          const vipAuto   = u.vip?.autoExpires   || 0;
+          // Usa o vencimento relevante pro plano (vip=manual, pro=auto, vipro/doublepro=o maior dos dois)
+          const expMs  = ['vipro','doublepro'].includes(u.plan)
+            ? Math.max(vipManual, vipAuto) || null
+            : (u.plan==='pro' ? (vipAuto||null) : (vipManual||null));
           const dLeft  = daysLeft(expMs);
-          const dUsed  = expMs ? daysDiff(u.planActivatedAt||Date.now(), Date.now()) : 0;
+          const dUsed  = expMs ? daysDiff(ultPed?.ativadoEm||ultPed?.createdAt||Date.now(), Date.now()) : 0;
           const dTotal = ultPed?.dias || 30;
+          const semVencimento = !vipManual && !vipAuto;
 
           // Verificação contábil
           let contStatus = 'ok', contMsg = '';
-          if(!pds.length){
-            contStatus='duvida'; contMsg='Plano ativo sem pedido vinculado'; warnCount++;
-            // Gerar alerta de reconstrução
-            alertas.push({
-              tipo:'warn',
-              titulo:`🔨 Plano sem pedido — ${u.name||u.email}`,
-              detalhe:`Usuário tem plano ${u.plan} ativo mas nenhum pedido cadastrado. Receita não contabilizada. Valor estimado: R$${(PRECOS[u.plan]||150).toFixed(2)}`,
-              pedidoId: null,
-              wpp: u.whatsapp||u.phone||'',
-              acoes:['criar_pedido_retroativo'],
-              emailUsuario: u.email,
-              nomeUsuario: u.name||u.email,
-              planoUsuario: u.plan,
-              diasUsuario: dTotal,
-              valorEstimadoUsuario: PRECOS[u.plan]||150,
-            });
-          }
+          if(!pds.length){ contStatus='duvida'; contMsg='Plano ativo sem pedido vinculado'; warnCount++; }
           else if(pds.some(p=>!p.comprovante&&p.status!=='cancelado')){
             contStatus='duvida'; contMsg='Pedido sem comprovante'; warnCount++;
+          } else if(semVencimento){
+            contStatus='duvida'; contMsg='Plano ativo sem vencimento registrado (vip.manualExpires/autoExpires ausentes)'; warnCount++;
           }
 
           userAccounting.push({
             email:u.email, name:u.name||u.email,
             plano:u.plan, dias:dTotal,
             totalPago, expiry:expMs,
-            dLeft, dUsed, dTotal,
+            dLeft, dUsed, dTotal, semVencimento,
             contStatus, contMsg,
             pedidos: pds.length,
-            ultimoPedidoId: pds[0]?.id || null,
             temComp: pds.every(p=>p.comprovante||p.status==='cancelado'),
           });
         }
@@ -8929,7 +8269,7 @@ const RoboContabil = (function(){
         ac.includes('contatar_wpp')&&a.wpp ? `<a class="rc-btn-inline" style="color:#25d366;border-color:#25d366;text-decoration:none" href="https://wa.me/${a.wpp.replace(/\D/g,'')}" target="_blank">💬 WhatsApp</a>` : '',
         ac.includes('concordar')&&a.concordarMsg ? `<button class="rc-btn-inline" style="color:var(--t2);border-color:var(--t2)" onclick="rcConcordar('${a.pedidoId}','${esc(a.concordarMsg)}')">✓ Concordar</button>` : '',
         ac.includes('ajustar')           ? `<button class="rc-btn-inline" style="color:var(--amber);border-color:var(--amber)" onclick="showPedido('${a.pedidoId}')">✏️ Ajustar Valor</button>` : '',
-        ac.includes('criar_pedido_retroativo') && a.emailUsuario ? `<button class="rc-btn-inline" style="color:#c4b5fd;border-color:rgba(139,92,246,.5)" onclick="rcCriarPedidoRetroativo('${esc(a.emailUsuario)}','${esc(a.nomeUsuario||'')}','${esc(a.planoUsuario||'vipro')}',${a.diasUsuario||30},${a.valorEstimadoUsuario||150})">🔨 Criar Pedido Retroativo</button>` : '',
+        ac.includes('reconstruir')&&a.proposta ? `<button class="rc-btn-inline" style="color:${a.proposta.confidence>=90?'var(--green)':a.proposta.confidence>=80?'var(--amber)':'var(--red)'};border-color:currentColor" onclick="rcReconstruir('${a.pedidoId}')">${esc(a.proposta.acaoLabel)} · ${a.proposta.confidence}%</button>` : '',
       ].filter(Boolean).join('');
 
       return `<div class="rc-alert rc-alert-${a.tipo==='crit'?'crit':a.tipo==='warn'?'warn':a.tipo==='ok'?'ok':'info'}">
@@ -9167,12 +8507,11 @@ const RoboContabil = (function(){
             <th style="padding:8px 6px;text-align:center">Dias restantes</th>
             <th style="padding:8px 6px;text-align:center">Vence</th>
             <th style="padding:8px 6px;text-align:center">Status</th>
-            <th style="padding:8px 6px;text-align:center">Ação Sugerida</th>
           </tr>
         </thead>
         <tbody>
         ${rows.map(r=>`
-          <tr id="rcrow_${r.email.replace(/[@.+]/g,'_')}" style="border-bottom:1px solid var(--border);${r.contStatus==='duvida'?'background:rgba(245,158,11,.06)':''}" >
+          <tr style="border-bottom:1px solid var(--border);${r.contStatus==='duvida'?'background:rgba(245,158,11,.06)':''}">
             <td style="padding:7px 6px">
               <div style="font-weight:700;color:#fff">${esc(r.name)}</div>
               <div style="font-size:10px;color:var(--t3)">${esc(r.email)}</div>
@@ -9187,15 +8526,7 @@ const RoboContabil = (function(){
             <td style="padding:7px 6px;text-align:center">
               ${r.contStatus==='ok'
                 ? '<span style="color:var(--green);font-weight:700">✅ OK</span>'
-                : `<span style="color:var(--amber);font-weight:700" title="${esc(r.contMsg)}">⚠️ ${esc(r.contMsg||'Verificar')}</span>`}
-            </td>
-            <td style="padding:7px 6px;text-align:center">
-              ${!r.pedidos
-                ? `<button onclick="rcCriarPedidoRetroativo('${esc(r.email)}','${esc(r.name)}','${r.plano||'vipro'}',${r.dias||30},${r.totalPago||0})"
-                     style="font-size:10px;padding:4px 8px;background:rgba(139,92,246,.2);border:1px solid rgba(139,92,246,.4);color:#c4b5fd;border-radius:6px;cursor:pointer;font-family:inherit;white-space:nowrap">🔨 Criar pedido</button>`
-                : r.contStatus!=='ok'
-                  ? '<span style="font-size:10px;color:var(--t3)">Revisar pedido</span>'
-                  : '–'}
+                : `<span style="color:var(--amber);font-weight:700" title="${esc(r.contMsg)}">⚠️ Verificar</span>`}
             </td>
           </tr>`).join('')}
         </tbody>
@@ -9245,8 +8576,8 @@ const RoboContabil = (function(){
                           'rgba(16,185,129,.25)';
       return `<div style="border:1.5px solid ${borderColor};border-radius:10px;overflow:hidden;background:rgba(255,255,255,.03)">
         ${d.compImg
-          ? `<div id="rcthumb_${d.id}" style="height:130px;overflow:hidden;position:relative;background:#000;cursor:zoom-in" onclick="rcZoomImg('${d.id}')" title="Clique para ampliar"><img src="${d.compImg}" style="width:100%;height:130px;object-fit:cover;display:block" onerror="rcThumbError(this,'${d.id}')"></div>`
-          : `<div style="height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;color:var(--red);background:rgba(239,68,68,.05);gap:4px"><span style="font-size:26px">📸</span>Sem imagem<button onclick="rcCarregarThumb('${d.id}')" style="font-size:10px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.4);color:var(--blue);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:inherit;margin-top:4px">🔄 Buscar</button></div>`}
+          ? `<img src="${d.compImg}" style="width:100%;height:130px;object-fit:cover;cursor:zoom-in;display:block" onclick="rcZoomImg('${d.id}')" title="Clique para ampliar" onerror="rcAutoReprocessImg(this,'${d.id}')">`+`<div style="display:none;height:130px;flex-direction:column;align-items:center;justify-content:center;background:rgba(245,158,11,.05);color:var(--amber);font-size:12px;gap:6px;text-align:center;padding:0 10px"><i class='ti ti-photo-off' style='font-size:24px'></i><span class="rc-img-fail-motivo">Comprovante não carregou</span><button onclick="rcVerCompFull('${d.id}','Ver')" style="font-size:10px;background:rgba(245,158,11,.15);border:1px solid var(--amber);color:var(--amber);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:inherit">Tentar novamente</button></div>`
+          : `<div style="height:130px;display:flex;align-items:center;justify-content:center;font-size:32px;background:rgba(239,68,68,.05)">📸<br><span style="font-size:11px;color:var(--red);display:block;text-align:center;margin-top:4px">Sem imagem</span></div>`}
         <div style="padding:8px 10px">
           <div style="font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.nome)}</div>
           <div style="font-size:10px;color:var(--t3);margin-bottom:4px">${esc(d.email)}</div>
@@ -9274,7 +8605,12 @@ const RoboContabil = (function(){
     ov.onclick = ()=>ov.remove();
     const info = `${comp.nome} · ${fmtMoney(comp.valorIA||comp.valorDeclarado)} · ${comp.dataIA||'?'} · ${comp.remetenteIA||'?'}`;
     ov.innerHTML=`<div style="max-width:90vw;max-height:90vh;display:flex;flex-direction:column;align-items:center;gap:8px">
-      <img src="${comp.compImg}" style="max-width:100%;max-height:80vh;border-radius:8px;object-fit:contain" onerror="this.outerHTML='<div style=\'color:var(--amber);font-size:14px;padding:20px;text-align:center\'>⚠️ Imagem não disponível</div>'">
+      <img src="${comp.compImg}" style="max-width:100%;max-height:80vh;border-radius:8px;object-fit:contain" onerror="rcAutoReprocessImg(this,'${pedidoId}')">
+      <div style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--amber);font-size:14px;padding:30px;text-align:center">
+        <i class="ti ti-photo-off" style="font-size:32px"></i>
+        <span class="rc-img-fail-motivo">⚠️ Imagem não disponível</span>
+        <button onclick="rcVerCompFull('${pedidoId}','Comprovante')" style="font-size:11px;background:rgba(245,158,11,.15);border:1px solid var(--amber);color:var(--amber);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit">Tentar novamente</button>
+      </div>
       <div style="font-size:12px;color:rgba(255,255,255,.7);text-align:center">${esc(info)}</div>
       <div style="font-size:11px;color:${comp.resultado&&comp.resultado.startsWith('✅')?'#6ee7b7':'#fca5a5'}">${esc(comp.resultado||'–')}</div>
     </div>`;
@@ -9366,10 +8702,14 @@ const RoboContabil = (function(){
     searchGaleria: (q)=>{ _rcBuscaAtiva=(q||'').toLowerCase(); renderGaleriaFiltro(_rcFiltroAtivo); },
     zoomImg: rcZoomImg,
     concordar: rcConcordar,
+    // [NOVO] config de planos compartilhada — única fonte de verdade (servidor)
+    getPlanConfig: () => ({ PRECOS, DESCONTOS }),
+    valorEsperado,
+    loadPlanConfig,
   };
 })();
 
-// rcStart e rcStop agora usam o novo Robô de Auditoria (definido acima)
+function rcStart(){ RoboContabil.run('all'); }
 
 // Verificar status da IA quando a view do robô é aberta
 async function rcCheckGeminiStatus(){
@@ -9379,132 +8719,15 @@ async function rcCheckGeminiStatus(){
     const r = await fetch('/api/gemini/status',{credentials:'include'});
     const d = r.ok ? await r.json() : null;
     if(d?.configured){
-      el.innerHTML = `✅ <strong style="color:#93c5fd">Gemini configurado</strong> — ${d.remaining} chamadas restantes hoje (${d.used}/${d.total} usadas)`;
+      el.innerHTML = '✅ <strong style="color:#6ee7b7">Gemini IA configurada</strong> — análise de comprovantes funcionando · <a href="#" onclick="abrirGeminiDiagnostics();return false;" style="color:#93c5fd;text-decoration:underline">Ver diagnóstico detalhado</a>';
     } else {
-      el.innerHTML = '❌ <strong style="color:#fca5a5">GEMINI_API_KEY não configurada</strong> — configure no <a href="https://render.com" target="_blank" style="color:#93c5fd">Render → Environment</a>';
+      el.innerHTML = '❌ <strong style="color:#fca5a5">GEMINI_API_KEY não configurada</strong> — a IA não conseguirá analisar comprovantes. <a href="https://render.com" target="_blank" style="color:#93c5fd">Configure no Render → Environment</a>';
+      el.style.fontSize = '12px';
     }
   }catch(e){
-    el.innerHTML = '⚠️ Não foi possível verificar Gemini';
+    el.innerHTML = '⚠️ Não foi possível verificar status da IA';
   }
 }
-
-let _rcRunning = false;
-let _rcAbort = false;
-
-function rcStop(){ _rcAbort = true; _rcRunning = false; rcLog('warn','⛔ Auditoria interrompida pelo admin'); rcSetRunning(false); }
-function rcClearLog(){ const el=document.getElementById('rc-log'); if(el) el.innerHTML='Pronto para nova auditoria.'; }
-function rcSetRunning(running){
-  _rcRunning=running;
-  const btnRun=document.getElementById('rc-btn-run');
-  const btnStop=document.getElementById('rc-btn-stop');
-  const prog=document.getElementById('rc-prog2');
-  if(btnRun) btnRun.style.display=running?'none':'';
-  if(btnStop) btnStop.style.display=running?'':'none';
-  if(prog) prog.style.display=running?'block':'none';
-}
-
-function rcLog(type, msg){
-  const el=document.getElementById('rc-log');
-  if(!el) return;
-  const ts=new Date().toLocaleTimeString('pt-BR');
-  const cls=type==='ok'?'rc-log-ok':type==='err'?'rc-log-err':type==='warn'?'rc-log-warn':'rc-log-info';
-  el.innerHTML += `\n<span class="${cls}">[${ts}] ${msg}</span>`;
-  el.scrollTop=el.scrollHeight;
-}
-
-function rcExport(){
-  const el=document.getElementById('rc-log');
-  if(!el||!el.textContent.trim()){toast('Nenhum relatório para exportar','w');return;}
-  const txt=el.innerText||el.textContent;
-  const blob=new Blob([txt],{type:'text/plain;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='auditoria_h2bapply_'+new Date().toISOString().slice(0,10)+'.txt';
-  a.click();
-}
-
-async function rcStart(){
-  if(_rcRunning){toast('Auditoria já rodando...','w');return;}
-  _rcAbort=false;
-  _rcRunning=true;
-  rcSetRunning(true);
-  const el=document.getElementById('rc-log');
-  if(el) el.innerHTML='';
-
-  // Atualizar labels de progresso
-  const progLabel=document.getElementById('rc-prog-label');
-  const progPct=document.getElementById('rc-prog-pct');
-  const progFill=document.getElementById('rc-prog-fill');
-  if(progLabel) progLabel.textContent='Coletando dados do sistema...';
-  if(progPct) progPct.textContent='0%';
-  if(progFill) progFill.style.width='0%';
-
-  rcLog('info','🔍 Iniciando coleta de dados do sistema...');
-  rcLog('info','📊 Lendo usuários, robôs, planos, logs e filas...');
-  if(progFill) progFill.style.width='20%';
-  if(progPct) progPct.textContent='20%';
-
-  await new Promise(r=>setTimeout(r,500));
-  if(_rcAbort){rcSetRunning(false);return;}
-
-  rcLog('info','🤖 Enviando dossiê completo para o Gemini analisar...');
-  if(progLabel) progLabel.textContent='Gemini analisando sistema...';
-  if(progFill) progFill.style.width='50%';
-  if(progPct) progPct.textContent='50%';
-
-  try{
-    const r=await fetch('/api/admin/auditoria-gemini',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});
-    const d=await r.json();
-
-    if(!r.ok||!d.ok){
-      rcLog('err','❌ Erro: '+(d.error||'Falha desconhecida'));
-      rcSetRunning(false);
-      return;
-    }
-
-    if(progFill) progFill.style.width='100%';
-    if(progPct) progPct.textContent='100%';
-    if(progLabel) progLabel.textContent='Auditoria concluída!';
-
-    // Atualizar stats
-    const autoRodando=d.usersAutoRodando||0;
-    const travados=d.usersTravados||0;
-    const total=d.totalUsuarios||0;
-    const ok=autoRodando-travados;
-    const el2=document.getElementById('rcs-ok'); if(el2) el2.textContent=ok>=0?ok:'–';
-    const el3=document.getElementById('rcs-crit'); if(el3) el3.textContent=d.pedidosPendentes||0;
-    const el4=document.getElementById('rcs-warn'); if(el4) el4.textContent=travados;
-    const el5=document.getElementById('rcs-total'); if(el5) el5.textContent=total;
-
-    rcLog('ok','✅ Gemini concluiu a análise! Relatório gerado:');
-    rcLog('info','──────────────────────────────────────────');
-
-    // Mostrar relatório linha a linha
-    const linhas=(d.relatorio||'').split('\n');
-    for(const linha of linhas){
-      if(_rcAbort) break;
-      const tipo=linha.startsWith('## 🚨')||linha.startsWith('## ❌')?'err':
-                 linha.startsWith('## ⚠️')?'warn':
-                 linha.startsWith('## ✅')||linha.startsWith('## 🏥')?'ok':'info';
-      if(el) el.innerHTML+=`\n<span class="rc-log-${tipo}">${esc(linha)}</span>`;
-      el.scrollTop=el.scrollHeight;
-    }
-
-    rcLog('info','──────────────────────────────────────────');
-    rcLog('ok',`✅ Auditoria concluída em ${new Date(d.geradoEm).toLocaleString('pt-BR')}`);
-    rcLog('info','💡 Baixe o relatório e envie para o desenvolvedor para melhorias!');
-    toast('✅ Auditoria do Gemini concluída! Baixe o relatório.','g');
-
-  }catch(e){
-    rcLog('err','❌ Erro de conexão: '+e.message);
-  }finally{
-    rcSetRunning(false);
-  }
-}
-
-function rcAnalyseNow(){ rcStart(); }
-
-
 
 // ── Painel de Diagnóstico Gemini (/api/admin/gemini-diagnostics) ──────────
 async function abrirGeminiDiagnostics(){
@@ -9557,6 +8780,57 @@ async function abrirGeminiDiagnostics(){
   }
 }
 
+function rcStop(){ RoboContabil.stop(); }
+function rcClearLog(){ RoboContabil.clearLog(); }
+function rcExport(){ RoboContabil.export(); }
+function rcAnalyseNow(mode){ RoboContabil.run(mode); }
+// [FIX] Esta função era um no-op: "RoboContabil.concordar&&RoboContabil.run;" apenas
+// avalia a expressão e descarta o resultado — o botão "✅ Ativar" dos alertas nunca
+// ativava nada. Agora busca o pedido e delega para rcAtivarPedidoDireto, que já
+// funciona corretamente (PATCH /api/pedido/:id com status=ativo).
+async function ativarPedidoRC(pedidoId){
+  if(!pedidoId) return;
+  try{
+    const rGet = await fetch('/api/pedido/'+pedidoId,{credentials:'include'});
+    const dGet = await rGet.json();
+    const email = dGet?.pedido?.userEmail || '';
+    return rcAtivarPedidoDireto(pedidoId, email);
+  }catch(e){ toast('Erro ao carregar pedido: '+e.message,'r'); }
+}
+function verCompRC(pedidoId){ RoboContabil.zoomImg(pedidoId); }
+function rcConcordar(pedidoId,msg){ RoboContabil.concordar(pedidoId,msg); }
+// ── Reconstrução automática a partir do comprovante (botão "🤖 Ação recomendada") ──
+async function rcReconstruir(pedidoId){
+  const proposta = (window._rcPropostas||{})[pedidoId];
+  if(!proposta) return toast('Proposta não encontrada — rode a análise novamente','r');
+  const venc = new Date(proposta.vencimentoPropostoManual).toLocaleDateString('pt-BR');
+  const vencAtual = proposta.vencimentoAtualManual ? new Date(proposta.vencimentoAtualManual).toLocaleDateString('pt-BR') : '—';
+  const resumo = [
+    `Usuário: ${proposta.nome} (${proposta.email})`,
+    `Plano provável: ${proposta.planoProvavel} · ${proposta.diasProvaveis} dias`,
+    `Valor: R$${proposta.valor.toFixed(2)} (esperado R$${proposta.valorEsperado.toFixed(2)} · diferença ${proposta.diferencaPct}%)`,
+    `Vencimento: ${vencAtual} → ${venc}`,
+    `Confiança: ${proposta.confidence}% — ${proposta.confidenceMotivo}`,
+    '',
+    `Ação recomendada: ${proposta.acaoLabel}`,
+    '',
+    'Concordar e aplicar esta reconstrução agora?',
+  ].join('\n');
+  if(!confirm(resumo)) return;
+  try{
+    const r = await fetch('/api/admin/robo-contabil/aplicar',{
+      method:'POST', credentials:'include', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        email: proposta.email, plano: proposta.planoProvavel, dias: proposta.diasProvaveis,
+        valor: proposta.valor, pedidoId: proposta.pedidoId, confidence: proposta.confidence,
+        acaoRecomendada: proposta.acaoRecomendada,
+      })
+    });
+    const d = await r.json();
+    if(d.ok){ toast(`✅ Reconstrução aplicada: ${proposta.email}`,'g'); setTimeout(()=>rcStart(),800); }
+    else toast('Erro: '+(d.error||'?'),'r');
+  }catch(e){ toast('Erro: '+e.message,'r'); }
+}
 
 // ════════════════════════════════════════════════════════════
 //  ABA: PLANILHAS DE VAGAS
@@ -9608,34 +8882,12 @@ async function enrichPollStatus(){
     const g2 = id => document.getElementById(id);
     const setText = (id,v) => { const e=g2(id); if(e) e.textContent=v; };
 
-    // Badge de status + indicador de planilha atual
+    // Badge de status
     const badge = g2('enrich-status-badge');
     if(badge){
-      if(d.running){
-        badge.style.background='rgba(52,211,153,.15)';badge.style.borderColor='rgba(52,211,153,.4)';
-        badge.innerHTML='<span style="color:#34d399;font-weight:800">⚡ RODANDO</span>';
-      } else if(d.done>=d.total&&d.total>0){
-        badge.style.background='rgba(52,211,153,.1)';badge.style.borderColor='rgba(52,211,153,.3)';
-        badge.innerHTML='<span style="color:#34d399">✅ Concluído</span>';
-      } else {
-        badge.style.background='rgba(255,255,255,.05)';badge.style.borderColor='rgba(255,255,255,.1)';
-        badge.innerHTML='<span style="color:var(--t2)">⏹ Parado</span>';
-      }
-    }
-    // Mostrar planilha atual sendo processada
-    const sheetLabel = g2('enrich-current-sheet-label');
-    const sheetDiv = g2('enrich-current-sheet');
-    if(sheetLabel && d.sheetKey){
-      const sheetNames={'jan2026':'Janeiro 2026 (H-2B)','jul2025':'Julho 2025 (H-2B)'};
-      sheetLabel.textContent=`Processando: ${sheetNames[d.sheetKey]||d.sheetKey} — vaga ${d.done||0} de ${d.total||0}`;
-    }
-    if(sheetDiv) sheetDiv.style.display = d.running?'flex':'none';
-    // Atualizar footer do log
-    const logFooter = g2('enrich-log-footer');
-    if(logFooter){
-      if(d.running) logFooter.textContent=`🔄 Última atualização: ${new Date().toLocaleTimeString('pt-BR')} — Atualizando a cada 2s`;
-      else if(d.savedAt) logFooter.textContent=`💾 Último salvamento: ${new Date(d.savedAt).toLocaleTimeString('pt-BR')} — O bot roda em background`;
-      else logFooter.textContent='O bot roda em background — feche a página sem preocupação';
+      if(d.running) badge.innerHTML='<span style="color:#34d399;font-weight:800">⚡ RODANDO</span>';
+      else if(d.done>=d.total&&d.total>0) badge.innerHTML='<span style="color:#34d399">✅ Concluído</span>';
+      else badge.innerHTML='<span style="color:var(--t2)">⏹ Parado</span>';
     }
 
     // Botões
@@ -9673,27 +8925,6 @@ async function enrichPollStatus(){
 
     // Log em tempo real — rolagem automática para o fim
     const logEl = g2('enrich-log');
-    if(logEl && !d.running){
-      // Buscar estado real das planilhas via API sheets
-      if(!d.log || !d.log.length){
-        fetch('/api/admin/sheets',{credentials:'include'}).then(r=>r.json()).then(sd=>{
-          if(!sd.ok)return;
-          const allDone=(sd.sheets||[]).every(sh=>sh.enrichPct>=100||sh.enrichedAt);
-          const anyPending=(sd.sheets||[]).some(sh=>!sh.enrichedAt&&(sh.enrichPct||0)<100);
-          if(allDone && !anyPending){
-            logEl.innerHTML=`<div class="log-ok">[Sistema] ✅ Todas as planilhas já foram enriquecidas com dados do DOL. Nenhuma ação necessária.<br><br>` +
-              (sd.sheets||[]).map(sh=>`<span style="color:var(--t3)">• ${sh.name}: ${sh.enrichPct||100}% — Atualizado em ${sh.enrichedAt?new Date(sh.enrichedAt).toLocaleString('pt-BR'):'–'}</span>`).join('<br>') +
-              `<br><br><span style="color:var(--t3)">Use "Forçar início" + Re-enriquecer apenas se os dados estiverem desatualizados.</span></div>`;
-          } else if(d.done>0&&d.total>0){
-            logEl.innerHTML=`<div class="log-warn">[Sistema] Bot pausado em ${d.done}/${d.total} vagas (${d.pct||0}%). Use "Retomar" para continuar.</div>`;
-          } else {
-            logEl.innerHTML='<div class="log-info">[Sistema] Bot aguardando. O enriquecimento automático roda 15s após o servidor iniciar e a cada 30min.</div>';
-          }
-        }).catch(()=>{
-          logEl.innerHTML='<div class="log-info">[Sistema] Bot aguardando. Clique em "Forçar início" para rodar agora.</div>';
-        });
-      }
-    }
     if(logEl && d.log?.length){
       const typeClass={ok:'log-ok',warn:'log-warn',error:'log-error',info:'log-info'};
       const atBottom = logEl.scrollHeight-logEl.scrollTop <= logEl.clientHeight+30;
@@ -9726,13 +8957,16 @@ async function loadPlanilhas(){
     setText('pl-total-vagas', d.totalVagas?.toLocaleString('pt-BR')||'?');
     setText('pl-total-sheets', d.sheets?.length||0);
     setText('pl-com-email', d.totalVagas?.toLocaleString('pt-BR')||'?');
-    setText('pl-com-cidade', d.totalEnriched>0 ? d.totalEnriched.toLocaleString('pt-BR') : '–');
-    // Se bot está rodando segundo a API, iniciar poll
-    if(d.botStatus?.running && !_enrichPollTimer) enrichStartPoll();
+    // calcular enriquecidas (aproximado: sheets que já foram pelo bot)
+    const totalEnriched = (d.sheets||[]).reduce((s,sh)=>{
+      if(sh.key==='jan2026'||sh.key==='jul2025') return s; // builtin sem meta
+      return s+(sh.enriched||0);
+    },0);
+    setText('pl-com-cidade', totalEnriched>0 ? totalEnriched.toLocaleString('pt-BR') : '–');
 
     if(!list) return;
     list.innerHTML = (d.sheets||[]).map(sh=>{
-      const pct = sh.enrichPct||0; // já calculado pela API com dados reais
+      const pct = sh.enriched && sh.count ? Math.round(sh.enriched/sh.count*100) : 0;
       const uploadedStr = sh.uploaded ? new Date(sh.uploaded).toLocaleDateString('pt-BR') : '–';
       const enrichedStr = sh.enrichedAt ? new Date(sh.enrichedAt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : null;
       const enrichedCount = sh.enriched || 0;
@@ -9755,23 +8989,17 @@ async function loadPlanilhas(){
           </div>
         </div>
 
-        <!-- Barra de enriquecimento com stats reais -->
+        <!-- Barra de enriquecimento -->
         <div style="margin-bottom:10px">
           <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-bottom:4px">
             <span>🔍 Enriquecimento DOL</span>
-            <span style="color:${sh.enrichPct>=100?'var(--green)':sh.enrichPct>30?'var(--amber)':'var(--t3)'};font-weight:700">
-              ${sh.enrichPct>=100?'✅ 100% completo':sh.enrichPct>0?`${sh.enrichPct}% (${(sh.stats?.withCity||0).toLocaleString('pt-BR')} vagas)`:'⚪ Aguardando bot'}
+            <span style="color:${enrichedStr?'var(--green)':pct>0?'var(--amber)':'var(--t3)'};font-weight:${enrichedStr?'700':'400'}">
+              ${enrichedStr?`✅ Atualizado em ${enrichedStr}`:pct>0?`${pct}% enriquecido`:'⚪ Não enriquecido'}
             </span>
           </div>
-          <div style="background:rgba(255,255,255,.08);border-radius:6px;height:8px;overflow:hidden">
-            <div style="background:${sh.enrichPct>=100?'var(--green)':sh.enrichPct>30?'var(--amber)':'var(--blue)'};height:8px;border-radius:6px;width:${sh.enrichPct||0}%;transition:.5s ease"></div>
+          <div style="background:rgba(255,255,255,.08);border-radius:6px;height:6px">
+            <div style="background:${pct>80?'var(--green)':pct>30?'var(--amber)':'var(--t3)'};height:6px;border-radius:6px;width:${pct}%;transition:.3s"></div>
           </div>
-          ${sh.stats?.withCity>0?`<div style="display:flex;gap:10px;margin-top:6px;font-size:10px;color:var(--t3)">
-            <span>🏙️ ${(sh.stats.withCity||0).toLocaleString('pt-BR')} cidades</span>
-            <span>📞 ${(sh.stats.withPhone||0).toLocaleString('pt-BR')} telefones</span>
-            <span>📅 ${(sh.stats.withDate||0).toLocaleString('pt-BR')} datas</span>
-            <span>📝 ${(sh.stats.withDesc||0).toLocaleString('pt-BR')} descrições</span>
-          </div>`:''}
         </div>
 
         <!-- Ações -->
@@ -10266,6 +9494,102 @@ let _lerComprovantes = true; // pode desativar para análise rápida
 
 
 // Ver comprovante em tela cheia
+// ══════════════════════════════════════════════════════════
+//  GALERIA DE COMPROVANTES — reprocessamento automático
+//  Se a imagem não carregar: 1) verifica storage (busca de novo no servidor,
+//  fonte de verdade) 2) verifica se o campo comprovante existe e não está
+//  truncado/corrompido 3) verifica permissão (401/403) 4) tenta novamente
+//  uma vez 5) se persistir, sinaliza para revisão manual.
+// ══════════════════════════════════════════════════════════
+async function rcReprocessarImagem(id){
+  try{
+    const r = await fetch('/api/pedido/'+id, {credentials:'include', cache:'no-store'});
+    if(r.status===401||r.status===403) return {ok:false, motivo:'Sem permissão para acessar este comprovante (sessão expirada?)'};
+    if(!r.ok) return {ok:false, motivo:`Servidor retornou erro ${r.status} ao buscar o comprovante`};
+    const d = await r.json();
+    const comp = d?.pedido?.comprovante;
+    if(!comp) return {ok:false, motivo:'Este pedido não tem comprovante salvo no banco (storage vazio)'};
+    if(comp.length<100) return {ok:false, motivo:'Comprovante salvo está corrompido ou truncado'};
+    const mime = d.pedido.comprovanteType||'image/jpeg';
+    return {ok:true, src:`data:${mime};base64,${comp}`};
+  }catch(e){ return {ok:false, motivo:'Falha de rede ao reprocessar: '+e.message}; }
+}
+async function rcAutoReprocessImg(imgEl, pedidoId){
+  if(!imgEl) return;
+  if(imgEl.dataset.rcRetried){
+    // Já tentamos reprocessar uma vez e continua falhando — desiste e sinaliza revisão manual.
+    imgEl.style.display='none';
+    const fallback = imgEl.nextElementSibling;
+    if(fallback){
+      fallback.style.display='flex';
+      const m = fallback.querySelector('.rc-img-fail-motivo');
+      if(m) m.textContent = imgEl.dataset.rcMotivo||'Comprovante indisponível mesmo após reprocessamento';
+    }
+    return;
+  }
+  imgEl.dataset.rcRetried = '1';
+  const res = await rcReprocessarImagem(pedidoId);
+  if(res.ok){
+    imgEl.src = res.src; // dados frescos do servidor — se falhar de novo, cai no guard acima
+  } else {
+    imgEl.dataset.rcMotivo = res.motivo;
+    imgEl.dispatchEvent(new Event('error'));
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  AUDITORIA GLOBAL NOTURNA — "MODO SOBREVIVÊNCIA"
+//  Roda sozinha às 03h (servidor) e também pode ser disparada daqui.
+//  Nunca assume que os dados estão corretos: varre todo o banco.
+// ══════════════════════════════════════════════════════════
+async function rcCarregarAuditoriaGlobal(forcar){
+  const sec  = document.getElementById('rc-auditoria-global-section');
+  const body = document.getElementById('rc-auditoria-global-body');
+  const meta = document.getElementById('rc-auditoria-global-meta');
+  if(sec) sec.style.display='';
+  if(body) body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3)"><span class="spin spin-sm"></span> '+(forcar?'Executando auditoria global agora...':'Carregando última auditoria...')+'</div>';
+  try{
+    const r = await fetch('/api/admin/robo-contabil/auditoria-global',{method:forcar?'POST':'GET',credentials:'include'});
+    const d = await r.json();
+    if(!d.ok){ if(body) body.innerHTML = `<div class="empty-state" style="padding:16px;font-size:12px">Erro: ${esc(d.error||'?')}</div>`; return; }
+    renderAuditoriaGlobal(d.report, d.lastRun, meta, body);
+    if(forcar) toast('✅ Auditoria global executada','g');
+  }catch(e){ if(body) body.innerHTML = `<div class="empty-state" style="padding:16px;font-size:12px">Erro: ${esc(e.message)}</div>`; }
+}
+
+function renderAuditoriaGlobal(report, lastRun, meta, body){
+  if(!body) return;
+  if(!report){
+    body.innerHTML = '<div class="empty-state" style="padding:16px;font-size:12px">Nenhuma auditoria executada ainda — roda sozinha todo dia às 03h (horário de Brasília), ou clique no botão para executar agora.</div>';
+    return;
+  }
+  if(meta) meta.textContent = 'Última execução: '+(lastRun?new Date(lastRun).toLocaleString('pt-BR'):'–');
+  const blocos = [
+    ['🛒 Usuários sem pedido',          report.semPedido||[]],
+    ['📜 Usuários sem histórico',        report.semHistorico||[]],
+    ['⏳ Usuários sem vencimento',       report.semVencimento||[]],
+    ['💰 Valor divergente',              report.valorDivergente||[]],
+    ['📸 Comprovante sem plano',         report.comprovanteSemPlano||[]],
+    ['🧾 Plano sem comprovante',         report.planoSemComprovante||[]],
+  ];
+  const detalheLinha = x => `${esc(x.email||'')}${x.plano?' · '+esc(x.plano):''}${x.diffPct!=null?' · diferença '+x.diffPct+'%':''}${x.valorDeclarado!=null?' · declarado R$'+x.valorDeclarado+' / esperado R$'+x.valorEsperado:''}`;
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+      ${blocos.map(([label,arr])=>`<div class="rc-sm"><div class="rc-sm-val" style="color:${arr.length?'var(--amber)':'var(--green)'}">${arr.length}</div><div class="rc-sm-lbl">${label}</div></div>`).join('')}
+    </div>
+    ${blocos.some(([,arr])=>arr.length) ? blocos.filter(([,arr])=>arr.length).map(([label,arr])=>`
+      <details style="margin-bottom:8px">
+        <summary style="cursor:pointer;font-size:12px;font-weight:700;color:var(--t2)">${label} (${arr.length})</summary>
+        <div style="font-size:11px;color:var(--t3);padding:8px 0 0 16px">
+          ${arr.slice(0,50).map(x=>`<div style="padding:3px 0;border-bottom:1px solid var(--border)">${detalheLinha(x)}</div>`).join('')}
+          ${arr.length>50?`<div style="padding:3px 0;opacity:.6">+ ${arr.length-50} outros...</div>`:''}
+        </div>
+      </details>
+    `).join('') : '<div class="empty-state" style="padding:10px;font-size:12px;color:var(--green)">✅ Nenhuma inconsistência encontrada na última auditoria.</div>'}
+    <button class="rc-btn rc-btn-ghost" style="margin-top:8px" onclick="rcCarregarAuditoriaGlobal(true)"><i class="ti ti-refresh"></i> Executar agora</button>
+  `;
+}
+
 async function rcVerCompFull(id, nome){
   try{
     const r=await fetch('/api/pedido/'+id,{credentials:'include'});
@@ -10303,41 +9627,6 @@ async function rcBaixarComp(id, nome){
   }catch(e){toast('Erro: '+e.message,'r');}
 }
 
-// ── Galeria: thumbnail falhou (data URL muito grande ou corrompida) ───────────
-function rcThumbError(imgEl, pedidoId){
-  const wrap = imgEl.parentElement;
-  if(!wrap) return;
-  wrap.innerHTML = `<div style="height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(245,158,11,.05);color:var(--amber);font-size:12px;gap:6px" onclick="event.stopPropagation()">
-    <i class="ti ti-photo-off" style="font-size:24px"></i>
-    Comprovante não carregou
-    <button onclick="rcCarregarThumb('${pedidoId}')" style="font-size:10px;background:rgba(245,158,11,.15);border:1px solid var(--amber);color:var(--amber);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:inherit">🔄 Tentar novamente</button>
-  </div>`;
-}
-
-// Recarregar thumbnail via fetch direto (evita data URL enorme no DOM)
-async function rcCarregarThumb(pedidoId){
-  const wrap = document.getElementById('rcthumb_'+pedidoId);
-  if(wrap) wrap.innerHTML = '<div style="height:130px;display:flex;align-items:center;justify-content:center;color:var(--t3);font-size:12px">⏳ Carregando...</div>';
-  try{
-    const r = await fetch('/api/pedido/'+pedidoId,{credentials:'include'});
-    const d = await r.json();
-    if(!d.ok || !d.pedido?.comprovante){
-      if(wrap) wrap.innerHTML = '<div style="height:130px;display:flex;align-items:center;justify-content:center;color:var(--red);font-size:11px;padding:8px;text-align:center">❌ Comprovante não encontrado no servidor</div>';
-      return;
-    }
-    const mime = d.pedido.comprovanteType||'image/jpeg';
-    const src  = 'data:'+mime+';base64,'+d.pedido.comprovante;
-    // Atualizar também o cache em _rcCompDados para que o zoom funcione
-    if(window._rcCompDados){
-      const entry = window._rcCompDados.find(x=>x.id===pedidoId);
-      if(entry) entry.compImg = src;
-    }
-    if(wrap) wrap.innerHTML = `<img src="${src}" style="width:100%;height:130px;object-fit:cover;display:block;cursor:zoom-in" onclick="rcZoomImg('${pedidoId}')" title="Clique para ampliar">`;
-  }catch(e){
-    if(wrap) wrap.innerHTML = `<div style="height:130px;display:flex;align-items:center;justify-content:center;color:var(--red);font-size:11px">❌ Erro: ${e.message}</div>`;
-  }
-}
-
 // Carregar imagem sob demanda
 async function rcCarregarImg(id, container){
   if(container) container.innerHTML='<div style="text-align:center;padding:10px;color:var(--t3);font-size:12px">⏳ Carregando...</div>';
@@ -10356,83 +9645,6 @@ async function rcCarregarImg(id, container){
         </div>
       </div>`;
   }catch(e){toast('Erro: '+e.message,'r');}
-}
-
-// ── MOTOR DE RECONSTRUÇÃO: criar pedido retroativo ──────────────────────────
-async function rcCriarPedidoRetroativo(email, nome, plano, dias, valorEstimado){
-  const planLabel = {vip:'⭐ VIP',vipro:'🤖 VIPro',doublepro:'💎 DoublePro'};
-  const precos    = {vip:100,vipro:150,doublepro:250};
-  const valorSugerido = valorEstimado > 0 ? valorEstimado : (precos[plano]||150);
-
-  const confirmMsg =
-    `🔨 CRIAR PEDIDO RETROATIVO\n\n` +
-    `Usuário: ${nome}\n` +
-    `Email: ${email}\n` +
-    `Plano: ${planLabel[plano]||plano}\n` +
-    `Dias: ${dias}\n` +
-    `Valor estimado: R$ ${valorSugerido.toFixed(2)}\n\n` +
-    `Este pedido será marcado como PAGO e terá a observação:\n` +
-    `"Pedido reconstruído automaticamente pela auditoria"\n\n` +
-    `Confirmar criação?`;
-
-  if(!confirm(confirmMsg)) return;
-
-  const valorFinal = parseFloat(prompt(`Valor do pagamento (R$):`, valorSugerido.toFixed(2)));
-  if(isNaN(valorFinal) || valorFinal === null) return;
-
-  try{
-    const body = {
-      userEmail:  email,
-      userName:   nome,
-      plano:      plano,
-      dias:       dias,
-      valorTotal: valorFinal,
-      nota:       'Pedido reconstruído automaticamente pela auditoria — criado via Robô Contábil',
-      pagoEm:     Date.now(),
-    };
-    const r = await fetch('/api/pedido',{
-      method:'POST', credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(body)
-    });
-    const d = await r.json();
-    if(!d.ok) return toast('Erro ao criar pedido: '+(d.error||'?'),'r');
-
-    const pedidoId = d.pedido?.id;
-    toast(`✅ Pedido retroativo criado para ${nome}`,'g');
-
-    // Ativar plano automaticamente?
-    if(confirm(`Pedido criado!\n\nDeseja ativar o plano agora?\n(${dias} dias de ${planLabel[plano]||plano})`)){
-      const r2 = await fetch('/api/admin/vip/activate',{
-        method:'POST', credentials:'include',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({email, days:dias, plan:plano, pedidoId})
-      });
-      const d2 = await r2.json();
-      if(d2.ok){
-        toast(`🎉 Plano ativado! ${nome} — ${dias}d de ${planLabel[plano]||plano}`,'g');
-        // Marcar pedido como ativo
-        if(pedidoId){
-          await fetch('/api/pedido/'+pedidoId,{
-            method:'PATCH', credentials:'include',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({status:'ativo',notaAdmin:'✅ Ativado via reconstrução de auditoria'})
-          });
-        }
-      } else {
-        toast('Erro ao ativar plano: '+(d2.error||'?'),'r');
-      }
-    }
-
-    // Atualizar linha na tabela
-    const rowId = 'rcrow_'+email.replace(/[@.+]/g,'_');
-    const row = document.getElementById(rowId);
-    if(row){
-      row.style.background = 'rgba(16,185,129,.08)';
-      const acaoCell = row.querySelector('td:last-child');
-      if(acaoCell) acaoCell.innerHTML = '<span style="color:var(--green);font-size:10px">✅ Pedido criado</span>';
-    }
-  }catch(e){ toast('Erro: '+e.message,'r'); }
 }
 
 // Corrigir valor de um pedido direto da galeria
@@ -10592,8 +9804,11 @@ async function rcConfirmarRegularizacao(email){
 
   if(!valor){ toast('Informe o valor pago','r'); return; }
 
-  const PRECOS = { vip:100, vipro:150, doublepro:250 };
-  const DESCONTOS = { 30:0, 60:5, 90:10, 365:20 };
+  // [FIX] Antes esta função tinha sua PRÓPRIA tabela de preços hardcoded,
+  // que podia divergir da configuração real do servidor. Agora reaproveita
+  // a mesma config que o RoboContabil carregou de /api/admin/settings.
+  await RoboContabil.loadPlanConfig();
+  const { PRECOS, DESCONTOS } = RoboContabil.getPlanConfig();
   const base = PRECOS[plano]||150;
   const desc = DESCONTOS[dias]||0;
   const meses = dias===365?12:dias/30;
@@ -10733,8 +9948,12 @@ function rcMarkOk(email, btn){
   }
   toast(`✓ ${email} marcado como verificado`,'g');
 }
-// rcConcordar delegado ao RoboContabil — ver definição acima em RoboContabil.concordar
-// (função duplicada removida — a versão correta que salva via PATCH /api/pedido/:id está no módulo)
+// [FIX] Removida duplicata de rcConcordar(msg) que existia aqui — ela sobrescrevia
+// silenciosamente a função real rcConcordar(pedidoId,msg) (definida mais acima, que
+// delega para RoboContabil.concordar e persiste via PATCH /api/pedido/:id). Como
+// JavaScript usa a ÚLTIMA declaração de função com o mesmo nome no mesmo escopo,
+// todo clique em "Concordar" estava caindo nesta versão falsa, que só mostrava um
+// prompt()+toast() e nunca chamava o servidor — por isso "abria mas não persistia".
 
 // ══════════════════════════════════════════════════════════
 //  FIX ESTRUTURAL: mover views órfãs para dentro do #content
@@ -10748,7 +9967,7 @@ function rcMarkOk(email, btn){
     const content = document.getElementById('content');
     if(!content) return false;
     let moved = 0;
-    ['view-pedidos','view-robo-contabil','view-planilhas','view-emails-invalidos','view-incidentes','view-pedidos-lixeira','view-ia-admin'].forEach(id=>{
+    ['view-pedidos','view-robo-contabil','view-planilhas','view-emails-invalidos'].forEach(id=>{
       const v = document.getElementById(id);
       if(v && v.parentElement !== content){
         content.appendChild(v);
@@ -10773,147 +9992,6 @@ function rcMarkOk(email, btn){
     };
   }
 })();
-
-// ── IA ADMIN JS ──────────────────────────────────────────────────────────
-async function iaAdminAsk(q){document.getElementById('ia-admin-input').value=q;await iaAdminSend();}
-async function iaAdminSend(){
-  const inp=document.getElementById('ia-admin-input');
-  const btn=document.getElementById('ia-admin-btn');
-  const q=inp?.value?.trim();if(!q)return;
-  inp.value='';inp.disabled=true;if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i>';}
-  const msgs=document.getElementById('ia-admin-msgs');
-  if(!msgs)return;
-  msgs.querySelectorAll('[data-ph]').forEach(x=>x.remove());
-  const add=(role,txt)=>{
-    const d=document.createElement('div');
-    d.style.cssText=role==='user'
-      ?'background:rgba(8,145,178,.12);border:1px solid rgba(8,145,178,.2);border-radius:10px;padding:10px 14px;font-size:13px;align-self:flex-end;max-width:85%'
-      :'background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:13px;max-width:92%;line-height:1.6;white-space:pre-wrap';
-    d.textContent=txt;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;
-  };
-  add('user',q);
-  const typing=document.createElement('div');
-  typing.id='ia-typing';typing.style.cssText='color:var(--t3);font-size:12px;padding:4px 0';
-  typing.innerHTML='<i class="ti ti-brain" style="color:#0891b2"></i> Analisando dados do sistema...';
-  msgs.appendChild(typing);msgs.scrollTop=msgs.scrollHeight;
-  try{
-    const r=await fetch('/api/admin/ia-query',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})});
-    const d=await r.json();
-    document.getElementById('ia-typing')?.remove();
-    add('model',d.ok?d.text:'❌ '+(d.error||'Erro na IA'));
-  }catch(e){document.getElementById('ia-typing')?.remove();add('model','❌ '+e.message);}
-  finally{inp.disabled=false;if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-send"></i>';}inp.focus();}
-}
-// ── FIM IA ADMIN ─────────────────────────────────────────────────────────
-
-// ── COCKPIT DASHBOARD ─────────────────────────────────────────────────────
-let _cockpitLoading = false;
-async function loadCockpit(){
-  if(_cockpitLoading) return;
-  _cockpitLoading = true;
-  try{
-    const r = await fetch('/api/admin/cockpit',{credentials:'include'});
-    const d = await r.json();
-    if(!d.ok){_cockpitLoading=false;return;}
-    
-    const panel = document.getElementById('cockpit-panel');
-    if(panel) panel.style.display = '';
-    
-    const mkItem = (item,cls) => {
-      const bg = cls==='critico'?'rgba(239,68,68,.1)':cls==='atencao'?'rgba(245,158,11,.1)':'rgba(99,102,241,.08)';
-      const border = cls==='critico'?'rgba(239,68,68,.3)':cls==='atencao'?'rgba(245,158,11,.3)':'rgba(99,102,241,.2)';
-      const linkBtn = item.link ? `<button onclick="showView('${item.link}')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:11px;padding:0;font-family:inherit;text-decoration:underline">Ver →</button>` : '';
-      return `<div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:12px">
-        <span style="font-size:14px">${item.icone}</span>
-        <span style="flex:1;color:var(--text)">${esc(item.msg)}</span>
-        ${linkBtn}
-      </div>`;
-    };
-    
-    const elC = document.getElementById('cockpit-critico');
-    const elA = document.getElementById('cockpit-atencao');
-    const elI = document.getElementById('cockpit-info');
-    
-    if(elC) elC.innerHTML = d.prioridades.critico.length
-      ? d.prioridades.critico.map(i=>mkItem(i,'critico')).join('')
-      : '';
-    if(elA) elA.innerHTML = d.prioridades.atencao.length
-      ? d.prioridades.atencao.slice(0,5).map(i=>mkItem(i,'atencao')).join('')
-      : '';
-    if(elI) elI.innerHTML = d.prioridades.info.map(i=>mkItem(i,'info')).join('');
-    
-    // Atualizar badge geral
-    const total = d.prioridades.critico.length + d.prioridades.atencao.length;
-    const alertsEl = document.getElementById('sb-alerts');
-    if(alertsEl){
-      alertsEl.style.display = total>0?'':'none';
-      alertsEl.textContent = total||'0';
-    }
-  }catch(e){console.error('[cockpit]',e);}
-  finally{_cockpitLoading=false;}
-}
-
-// ── AUTOCORREÇÃO DE JOBS ───────────────────────────────────────────────────
-async function autoHeal(email, action, desc){
-  if(!confirm(`Executar: ${desc}
-Usuário: ${email}?`)) return;
-  try{
-    const r=await fetch('/api/admin/auto-heal',{method:'POST',credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email,action})});
-    const d=await r.json();
-    if(d.ok){toast('✅ '+d.result,'g');refreshAll();}
-    else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-// ── FIM COCKPIT ───────────────────────────────────────────────────────────
-
-// ── RECONCILIAÇÃO FINANCEIRA ─────────────────────────────────────────────
-async function reconciliarFinanceiro(){
-  const btn = event.target.closest('button');
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Analisando...';}
-  try{
-    const r=await fetch('/api/admin/financeiro/reconciliar',{method:'POST',credentials:'include'});
-    const d=await r.json();
-    const el=document.getElementById('reconcile-result');
-    if(!el)return;
-    el.style.display='';
-    if(!d.ok){el.innerHTML=`<div style="color:var(--red);font-size:12px">❌ Erro: ${esc(d.error||'?')}</div>`;return;}
-    let html=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px">`;
-    html+=`<div style="font-size:12px;font-weight:700;margin-bottom:8px">📊 Resultado: ${d.totalProblemas} problemas encontrados | ${d.totalCorrecoes} corrigidos automaticamente</div>`;
-    if(d.correcoes.length){
-      html+=`<div style="font-size:11px;color:var(--green);margin-bottom:6px">✅ Corrigidos: ${d.correcoes.join(" · ")}</div>`;
-    }
-    if(d.problemas.length){
-      html+=`<div style="font-size:11px;font-weight:700;color:var(--amber);margin-bottom:4px">⚠️ Pendentes:</div>`;
-      html+=d.problemas.slice(0,10).map(p=>`<div style="font-size:11px;color:var(--t2);padding:3px 0;border-bottom:1px solid var(--border)">${esc(p.msg)}</div>`).join('');
-    } else {
-      html+=`<div style="font-size:11px;color:var(--green)">✅ Tudo reconciliado! Nenhuma inconsistência encontrada.</div>`;
-    }
-    html+=`</div>`;
-    el.innerHTML=html;
-    if(d.totalCorrecoes>0) toast('✅ '+d.totalCorrecoes+' correções aplicadas automaticamente','g');
-  }catch(e){toast('Erro: '+e.message,'r');}
-  finally{if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-refresh"></i> Reconciliar agora';}}
-}
-
-// ── COCKPIT LOAD (já definido mas garantindo estar disponível) ─────────────
-if(typeof loadCockpit==='undefined'){
-  window.loadCockpit=async function(){};
-}
-// ── FIM PARTE 2 ───────────────────────────────────────────────────────────
-
-// ── EVENTOS: limpar cache e melhorar UX ──────────────────────────────────
-function clearEventsCache(){
-  try{localStorage.removeItem('h2b_adm_events');}catch(e){}
-  allEvents=[];
-  renderEventsView();
-  toast('Cache de eventos limpo','g');
-}
-
-// Sobrescrever filterEvents para usar a nova versão
-function filterEvents(){renderEventsView();}
-// ─────────────────────────────────────────────────────────────────────────
 </script>
 
 <!-- ══ USER DETAIL MODAL (completo) ══ -->
@@ -10921,123 +9999,46 @@ function filterEvents(){renderEventsView();}
      VIEW: PEDIDOS DE PLANO
 ══════════════════════════════════════════════════════ -->
 <div id="view-pedidos" class="view">
-<style>
-/* ── PEDIDOS v2 ─────────────────────────────────── */
-.pv2-header{margin-bottom:14px}
-.pv2-title{font-size:20px;font-weight:800;color:#fff;display:flex;align-items:center;gap:10px}
-.pv2-sub{font-size:12px;color:var(--t3);margin-top:2px}
-.pv2-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
-.pv2-stat{background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;text-align:center;cursor:pointer;transition:border-color .14s}
-.pv2-stat:hover{border-color:rgba(255,255,255,.2)}
-.pv2-stat.active{border-color:var(--blue)!important;background:rgba(59,130,246,.08)}
-.pv2-stat-val{font-size:22px;font-weight:800;color:#fff}
-.pv2-stat-lbl{font-size:10px;color:var(--t3);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-.pv2-tabs{display:flex;gap:4px;margin-bottom:12px;background:rgba(0,0,0,.2);border-radius:10px;padding:4px}
-.pv2-tab{flex:1;padding:7px 0;text-align:center;font-size:12px;font-weight:700;border-radius:7px;cursor:pointer;color:var(--t3);border:none;background:transparent;transition:all .14s;display:flex;align-items:center;justify-content:center;gap:5px}
-.pv2-tab.active{background:var(--glass2);color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
-.pv2-tab .pv2-badge{background:var(--red);color:#fff;border-radius:99px;font-size:9px;padding:1px 5px;font-weight:800}
-.pv2-toolbar{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
-.pv2-search{flex:1;min-width:160px;background:var(--glass2);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;font-size:12px;color:var(--text);font-family:inherit}
-.pv2-select{background:var(--glass2);border:1px solid var(--border2);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--text);font-family:inherit}
-/* Card compacto */
-.pv2-card{background:var(--glass);border:1px solid var(--border2);border-radius:12px;overflow:hidden;margin-bottom:8px;transition:border-color .14s}
-.pv2-card:hover{border-color:rgba(255,255,255,.15)}
-.pv2-card.is-pendente{border-left:3px solid var(--amber)}
-.pv2-card.is-ativo{border-left:3px solid var(--green)}
-.pv2-card.is-cancelado{border-left:3px solid var(--red);opacity:.7}
-.pv2-card.is-pago{border-left:3px solid var(--blue)}
-.pv2-top{display:flex;align-items:center;gap:8px;padding:10px 14px;cursor:pointer;user-select:none}
-.pv2-plan-badge{padding:3px 9px;border-radius:6px;font-size:11px;font-weight:800;white-space:nowrap}
-.pv2-plan-vip{background:rgba(234,179,8,.15);color:#fde047;border:1px solid rgba(234,179,8,.3)}
-.pv2-plan-vipro{background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(99,102,241,.3)}
-.pv2-plan-doublepro{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.3)}
-.pv2-user{flex:1;min-width:0}
-.pv2-user-name{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pv2-user-email{font-size:10px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pv2-valor{font-size:16px;font-weight:800;color:var(--green);white-space:nowrap}
-.pv2-date{font-size:10px;color:var(--t3);white-space:nowrap}
-.pv2-chevron{font-size:14px;color:var(--t3);transition:transform .2s;flex-shrink:0}
-.pv2-card.expanded .pv2-chevron{transform:rotate(180deg)}
-/* Detalhes expandidos */
-.pv2-detail{display:none;border-top:1px solid var(--border);padding:10px 14px 0}
-.pv2-card.expanded .pv2-detail{display:block}
-.pv2-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-bottom:10px}
-.pv2-info-row{display:flex;flex-direction:column;gap:1px}
-.pv2-info-lbl{font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em}
-.pv2-info-val{font-size:12px;font-weight:600;color:var(--text)}
-.pv2-nota-row{margin-bottom:8px}
-.pv2-nota-inp{width:100%;background:rgba(0,0,0,.2);border:1px solid var(--border2);border-radius:7px;padding:6px 10px;font-size:12px;color:var(--text);font-family:inherit;box-sizing:border-box}
-/* Ações */
-.pv2-actions{display:flex;gap:6px;padding:8px 0 10px;flex-wrap:wrap}
-.pv2-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .12s;white-space:nowrap}
-.pv2-btn-ativar{background:var(--green);color:#fff}.pv2-btn-ativar:hover{background:#059669}
-.pv2-btn-wpp{background:rgba(37,211,102,.15);color:#25d366;border:1px solid rgba(37,211,102,.3)}.pv2-btn-wpp:hover{background:rgba(37,211,102,.25)}
-.pv2-btn-ghost{background:rgba(255,255,255,.06);color:var(--t2);border:1px solid var(--border2)}.pv2-btn-ghost:hover{background:rgba(255,255,255,.12)}
-.pv2-btn-cancel{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.25)}.pv2-btn-cancel:hover{background:rgba(239,68,68,.22)}
-.pv2-btn-trash{background:transparent;color:var(--t3);border:1px solid transparent;padding:6px 8px}.pv2-btn-trash:hover{color:var(--red);border-color:rgba(239,68,68,.3)}
-.pv2-comp-ok{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--green)}
-.pv2-comp-no{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--red)}
-.pv2-nota-admin{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:6px;padding:5px 9px;font-size:11px;color:var(--amber);margin-bottom:6px}
-.pv2-diego{background:rgba(99,102,241,.15);color:#a5b4fc;border:1px solid rgba(99,102,241,.3);border-radius:5px;padding:1px 7px;font-size:10px;font-weight:800}
-.pv2-empty{text-align:center;padding:40px 20px;color:var(--t3);font-size:13px}
-.pv2-empty i{font-size:36px;display:block;margin-bottom:10px;opacity:.4}
-</style>
-
-<!-- Header -->
-<div class="pv2-header">
-  <div class="pv2-title">
-    <i class="ti ti-shopping-cart" style="color:var(--green)"></i>
-    Pedidos de Plano
-    <button class="btn btn-ghost btn-sm" onclick="loadPedidos()" style="margin-left:auto"><i class="ti ti-refresh"></i></button>
+  <style>
+  .ped-card{background:var(--glass);border:1px solid var(--border2);border-radius:12px;overflow:hidden;margin-bottom:10px;transition:border-color .14s}
+  .ped-card:hover{border-color:rgba(99,102,241,.4)}
+  .ped-hdr{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)}
+  .ped-id{font-family:monospace;font-size:10px;color:var(--t3)}
+  .ped-body{padding:12px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .ped-row{font-size:12px;display:flex;flex-direction:column;gap:2px}
+  .ped-lbl{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em}
+  .ped-val{font-weight:600;color:var(--text)}
+  .ped-foot{display:flex;gap:6px;padding:8px 16px;flex-wrap:wrap;border-top:1px solid var(--border);background:rgba(0,0,0,.15)}
+  </style>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+    <i class="ti ti-shopping-cart" style="font-size:22px;color:var(--green)"></i>
+    <div>
+      <div style="font-size:18px;font-weight:800;color:#fff">Pedidos de Plano</div>
+      <div style="font-size:12px;color:var(--t3)">Solicitações feitas pelos usuários — revise e ative</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <select id="ped-filter-status" onchange="loadPedidos()" style="background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text)">
+        <option value="">Todos os status</option>
+        <option value="pendente">⏳ Pendente</option>
+        <option value="pago">💰 Pago</option>
+        <option value="ativo">✅ Ativo</option>
+        <option value="cancelado">❌ Cancelado</option>
+      </select>
+      <select id="ped-filter-plano" onchange="loadPedidos()" style="background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text)">
+        <option value="">Todos os planos</option>
+        <option value="vip">⭐ VIP Manual</option>
+        <option value="vipro">🤖 VIPro</option>
+        <option value="doublepro">💎 DoublePro</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="loadPedidos()"><i class="ti ti-refresh"></i></button>
+    </div>
   </div>
-  <div class="pv2-sub">Clique em um pedido para ver detalhes e agir</div>
-</div>
-
-<!-- Stats clicáveis -->
-<div class="pv2-stats" id="ped-stats"></div>
-
-<!-- Abas por status -->
-<div class="pv2-tabs" id="pv2-tabs">
-  <button class="pv2-tab" id="pv2-tab-critico" onclick="pedSetTab('critico',this)" style="color:#f87171;display:none">
-    ⚡ Críticos <span class="pv2-badge" id="pv2-badge-critico" style="display:none">0</span>
-  </button>
-  <button class="pv2-tab active" onclick="pedSetTab('pendente',this)">
-    ⏳ Pendentes <span class="pv2-badge" id="pv2-badge-pendente" style="display:none">0</span>
-  </button>
-  <button class="pv2-tab" onclick="pedSetTab('ativo',this)">✅ Ativos</button>
-  <button class="pv2-tab" onclick="pedSetTab('pago',this)">💰 Pagos</button>
-  <button class="pv2-tab" onclick="pedSetTab('todos',this)">Todos</button>
-</div>
-
-<!-- Toolbar busca + filtro plano -->
-<div class="pv2-toolbar">
-  <input class="pv2-search" type="text" id="pv2-search" placeholder="🔍 Buscar por nome ou email..." oninput="pedFiltrar()">
-  <select class="pv2-select" id="ped-filter-plano" onchange="pedFiltrar()">
-    <option value="">Todos os planos</option>
-    <option value="vip">⭐ VIP Manual</option>
-    <option value="vipro">🤖 VIPro</option>
-    <option value="doublepro">💎 DoublePro</option>
-  </select>
-</div>
-
-<!-- Lista -->
-<div id="ped-list"><div class="pv2-empty"><i class="ti ti-loader"></i>Carregando...</div></div>
+  <!-- Stats rápidas -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px" id="ped-stats"></div>
+  <!-- Lista -->
+  <div id="ped-list"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
 
 </div><!-- /view-pedidos -->
-
-<!-- M24: Modal busca global admin -->
-<div id="admin-search-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9000;align-items:flex-start;justify-content:center;padding:60px 16px;backdrop-filter:blur(4px)" onclick="if(event.target===this)closeAdminSearch()">
-  <div style="background:var(--surface);border-radius:16px;width:100%;max-width:560px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6)">
-    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
-      <i class="ti ti-search" style="color:var(--t3);font-size:18px"></i>
-      <input type="text" id="admin-search-input" placeholder="Buscar usuário, email, pedido..." oninput="runAdminSearch(this.value)" style="flex:1;background:none;border:none;font-size:15px;color:var(--text);font-family:inherit;outline:none">
-      <button onclick="closeAdminSearch()" style="background:none;border:none;color:var(--t3);font-size:20px;cursor:pointer">×</button>
-    </div>
-    <div id="admin-search-results" style="max-height:400px;overflow-y:auto;padding:8px 0">
-      <div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Digite para buscar...</div>
-    </div>
-  </div>
-</div>
 <div class="modal-overlay" id="user-modal" style="display:none" onclick="if(event.target===this)closeUserModal()">
   <div class="modal">
     <div class="modal-hdr">
@@ -11103,10 +10104,8 @@ function filterEvents(){renderEventsView();}
         <span style="font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;flex-shrink:0">📱 Contato:</span>
         <button class="btn btn-success btn-sm" id="modal-wpp-btn" onclick="openWhatsAppFromModal()" style="background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.4);color:#25d366"><i class="ti ti-brand-whatsapp"></i> WhatsApp</button>
         <button class="btn btn-ghost btn-sm" onclick="if(currentModalEmail)copyEmail(currentModalEmail,this)"><i class="ti ti-copy"></i> Copiar email</button>
-        <button class="btn btn-ghost btn-sm" id="modal-copy-wpp-btn" onclick="copyModalWpp(this)" title="Copiar número do WhatsApp"><i class="ti ti-copy"></i> Copiar WPP</button>
         <button class="btn btn-ghost btn-sm" onclick="adminSendNotifToUser(currentModalEmail)"><i class="ti ti-bell"></i> Notificação push</button>
         <button class="btn btn-ghost btn-sm" onclick="adminSendMessage(currentModalEmail)"><i class="ti ti-message"></i> Mensagem no app</button>
-        <button class="btn btn-ghost btn-sm" id="modal-notify-auth-btn" style="display:none;color:var(--amber);border-color:rgba(245,158,11,.3)" onclick="adminNotifyAuthError(currentModalEmail,this)"><i class="ti ti-mail"></i> Notif. reconexão</button>
         <button class="btn btn-ghost btn-sm" onclick="switchModalTab('compras')"><i class="ti ti-shopping-cart"></i> Ver compras</button>
       </div>
       <!-- Linha 4: Dados + outros -->
@@ -11124,29 +10123,5 @@ function filterEvents(){renderEventsView();}
     </div>
   </div>
 </div>
-<!-- MODAL RESOLUÇÃO INCIDENTE -->
-<div id="inc-resolve-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)">
-  <div style="background:var(--surface);width:100%;max-width:520px;max-height:88dvh;overflow-y:auto;border-radius:20px 20px 0 0;padding:20px 18px 32px;animation:slideUp .2s ease">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div style="font-size:16px;font-weight:800;color:#f87171" id="inc-resolve-title">Resolver Incidente</div>
-      <button onclick="closeResolveModal()" style="background:var(--sf2);border:1px solid var(--border);border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t2)">×</button>
-    </div>
-    <div style="font-size:12px;color:var(--t2);margin-bottom:16px;line-height:1.6" id="inc-resolve-desc"></div>
-    <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:8px">Escolha uma ação:</div>
-    <div id="inc-resolve-options" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
-    <input type="hidden" id="inc-resolve-selected">
-    <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:6px">Nota (opcional):</div>
-    <textarea id="inc-resolve-note" placeholder="Observação sobre esta decisão..." style="width:100%;background:var(--sf2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px;font-size:12px;resize:vertical;min-height:56px;font-family:inherit;margin-bottom:10px"></textarea>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
-      <input type="checkbox" id="inc-resolve-save-rule" style="width:16px;height:16px;accent-color:#818cf8">
-      <label for="inc-resolve-save-rule" style="font-size:12px;color:var(--t2);cursor:pointer">🧠 Salvar como regra — aplicar automaticamente em casos similares</label>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-primary" onclick="submitResolveIncident()" style="flex:1">✅ Confirmar Resolução</button>
-      <button class="btn btn-ghost" onclick="closeResolveModal()">Cancelar</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>

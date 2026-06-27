@@ -1403,7 +1403,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 <div class="star-bg"></div>
 
 <!-- ════ LANDING PREMIUM ════ -->
-<div id="landing" style="display:none">
+<div id="landing" style="display:flex">
 
   <!-- ── NAVBAR LANDING ── -->
   <div class="ln-nav">
@@ -1592,6 +1592,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <button class="sb-item active" id="si-home" onclick="sv('home')"><i class="ti ti-home-2"></i>Home</button>
         <button class="sb-item" onclick="window.open('/guia','_blank')" style="background:linear-gradient(135deg,rgba(16,185,129,.10),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.28);border-radius:10px;font-weight:800;color:#059669;margin-bottom:4px"><i class="ti ti-book-2" style="font-size:15px;color:#059669"></i>Guia H-2B & H-2A<span style="margin-left:auto;font-size:9px;background:#059669;color:#fff;padding:1px 6px;border-radius:99px;font-weight:800">NOVO</span></button>
         <button class="sb-item" id="si-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i>Envio Manual<span class="sb-badge sb-badge-b" id="sib-jobs" style="display:none"></span></button>
+        <button class="sb-item" id="si-pesquisa" onclick="sv('pesquisa')"><i class="ti ti-search"></i>Pesquisar Vagas<span class="sb-badge sb-badge-b" id="sib-pesquisa" style="display:none"></span></button>
         <button class="sb-item" id="si-saved" onclick="sv('saved')"><i class="ti ti-bookmark"></i>Salvas<span class="sb-badge sb-badge-b" id="sib-saved" style="display:none"></span></button>
       </div>
       <div class="sb-sec">
@@ -1655,6 +1656,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <div class="home-shortcut-icon"><i class="ti ti-send" style="color:var(--blue)"></i></div>
               <div class="home-shortcut-label">Manual</div>
             </button>
+            <button class="home-shortcut hs-pesquisa" onclick="sv('pesquisa')">
+              <div class="home-shortcut-icon"><i class="ti ti-search" style="color:#0891b2"></i></div>
+              <div class="home-shortcut-label">Pesquisar</div>
+            </button>
             <button class="home-shortcut hs-respostas" onclick="sv('respostas')">
               <div class="home-shortcut-icon"><i class="ti ti-mail-opened" style="color:var(--green)"></i></div>
               <div class="home-shortcut-label">Respostas</div>
@@ -1703,6 +1708,11 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div class="home-section-title">Últimas Respostas</div>
           <div class="home-quick-replies" id="home-quick-replies">
             <div style="padding:18px;text-align:center;color:var(--t3);font-size:13px"><span class="spin spin-sm"></span></div>
+          </div>
+          <!-- Follow-ups sugeridos -->
+          <div id="home-followup-section" style="display:none">
+            <div class="home-section-title" style="display:flex;align-items:center;justify-content:space-between"><span>🔄 Follow-ups Sugeridos</span><span style="font-size:11px;color:var(--amber);font-weight:700" id="home-followup-count"></span></div>
+            <div id="home-followup-list" style="margin:0 14px 14px;background:var(--surface);border:1.5px solid rgba(245,158,11,.3);border-radius:var(--rl);overflow:hidden"></div>
           </div>
           <!-- Conta -->
           <div class="home-section-title">Conta</div>
@@ -1811,9 +1821,9 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
           <div style="font-size:18px;font-weight:800">Candidaturas Enviadas</div>
           <div style="display:flex;gap:6px;align-items:center">
-            <button class="fbtn on" id="ht-all"    onclick="setHistTab('all')">Todas</button>
-            <button class="fbtn"    id="ht-manual" onclick="setHistTab('manual')">Manual</button>
-            <button class="fbtn"    id="ht-auto"   onclick="setHistTab('auto')">🤖 Auto</button>
+            <button class="fbtn on" id="ht-all"    onclick="setHistTab('all')"><span id="htab-lbl-all">Todas</span></button>
+            <button class="fbtn"    id="ht-manual" onclick="setHistTab('manual')"><span id="htab-lbl-manual">Manual</span></button>
+            <button class="fbtn"    id="ht-auto"   onclick="setHistTab('auto')"><span id="htab-lbl-auto">🤖 Auto</span></button>
             <button class="btn btn-secondary btn-sm" onclick="confirmClearHist()" title="Resetar — vagas voltam para a lista" style="padding:5px 11px;font-size:12px;border-color:var(--amber);color:var(--amber)"><i class="ti ti-refresh"></i> Reset</button>
           </div>
         </div>
@@ -1823,13 +1833,69 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         </div>
         <div style="position:relative;margin-bottom:12px">
           <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:15px;pointer-events:none"></i>
-          <input class="input" id="hist-search" type="text" placeholder="Buscar empresa, cargo ou e-mail..." oninput="renderHist()" style="padding-left:33px;font-size:13px">
+          <input class="input" id="hist-search" type="text" placeholder="Buscar empresa, cargo ou e-mail..." oninput="renderHist();document.getElementById('hist-search-clear').style.display=this.value?'flex':'none'" style="padding-left:33px;padding-right:32px;font-size:13px">
+          <button id="hist-search-clear" onclick="document.getElementById('hist-search').value='';renderHist();this.style.display='none'" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--t3);font-size:16px;width:24px;height:24px;align-items:center;justify-content:center;border-radius:50%">×</button>
         </div>
         <div id="hist-summary" style="font-size:12px;color:var(--t3);margin-bottom:10px"></div>
         <div id="hist-list"></div>
       </div></div>
 
       <!-- ══ PESQUISAR VAGAS ══ -->
+      <div class="view gone" id="v-pesquisa">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#0c1a40,#1a3a6b);color:#fff;padding:12px 16px 10px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div>
+            <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px"><i class="ti ti-search"></i> Pesquisar Vagas</div>
+            <div style="font-size:11px;opacity:.7;margin-top:1px">Busca em todas as fontes: Seasonal, Jan 2026, Jul 2025</div>
+          </div>
+          <button id="pesq-clear-btn" onclick="clearPesquisa()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);padding:6px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:none"><i class="ti ti-x"></i> Limpar</button>
+        </div>
+
+        <!-- Barra de busca principal -->
+        <div style="background:var(--surface);border-bottom:1px solid var(--border);padding:12px 14px;flex-shrink:0">
+          <div style="position:relative;margin-bottom:10px">
+            <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--blue);font-size:16px;pointer-events:none"></i>
+            <input class="input" id="pesq-input" type="text" placeholder="Empresa, e-mail, ETA case number, cargo, estado..." style="padding-left:38px;font-size:14px;height:46px;border-color:var(--blue);border-width:2px;box-shadow:0 0 0 3px rgba(59,130,246,.1)" oninput="doPesquisa()" autocomplete="off" inputmode="search">
+            <button onclick="doPesquisaBtn()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Buscar</button>
+          </div>
+          <!-- Chips de fonte -->
+          <div style="display:flex;gap:5px;flex-wrap:wrap">
+            <button class="pesq-src-chip active" data-src="all" onclick="setPesqSrc('all')">🌐 Todas as fontes</button>
+            <button class="pesq-src-chip" data-src="seasonal" onclick="setPesqSrc('seasonal')"><i class="ti ti-globe" style="font-size:11px"></i> Seasonal</button>
+            <button class="pesq-src-chip" data-src="jan2026" onclick="setPesqSrc('jan2026')">☀️ Jan 2026</button>
+            <button class="pesq-src-chip" data-src="jul2025" onclick="setPesqSrc('jul2025')">❄️ Jul 2025</button>
+            <button class="pesq-src-chip" data-src="hist" onclick="setPesqSrc('hist')"><i class="ti ti-send" style="font-size:11px"></i> Enviadas</button>
+          </div>
+        </div>
+
+        <!-- Stats da busca -->
+        <div id="pesq-stats" style="background:var(--sf2);border-bottom:1px solid var(--border);padding:7px 14px;font-size:12px;color:var(--t2);flex-shrink:0;display:none;align-items:center;gap:8px">
+          <i class="ti ti-info-circle" style="color:var(--blue);font-size:14px;flex-shrink:0"></i>
+          <span id="pesq-stats-text"></span>
+        </div>
+
+        <!-- Lista de resultados -->
+        <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch" id="pesq-list">
+          <!-- Estado inicial -->
+          <div id="pesq-empty-state" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;gap:16px;text-align:center">
+            <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(139,92,246,.1));display:flex;align-items:center;justify-content:center;border:2px solid rgba(99,102,241,.15)">
+              <i class="ti ti-search" style="font-size:28px;color:var(--blue)"></i>
+            </div>
+            <div>
+              <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px">Pesquise qualquer coisa</div>
+              <div style="font-size:13px;color:var(--t3);line-height:1.6;max-width:300px">Digite o nome da empresa, um e-mail recebido, o ETA case number, o cargo ou o estado para encontrar todas as vagas correspondentes</div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:320px">
+              <button onclick="setPesqExample('cerminara')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">cerminara</button>
+              <button onclick="setPesqExample('H-400-26001')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">H-400-26001</button>
+              <button onclick="setPesqExample('landscaping@')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">landscaping@...</button>
+              <button onclick="setPesqExample('FLORIDA')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">FLORIDA</button>
+              <button onclick="setPesqExample('landscape')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">landscape</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ══ RESPOSTAS ══ -->
       <div class="view gone" id="v-respostas">
         <!-- Header -->
@@ -2125,6 +2191,21 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <div style="font-size:13px;opacity:.75" id="p-email">–</div>
               <div id="p-plan-badge" style="margin-top:4px"></div>
             </div>
+            <!-- Mini-stats de candidaturas -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 4px">
+              <div style="background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center">
+                <div style="font-size:18px;font-weight:900;color:var(--blue)" id="pstat-total">–</div>
+                <div style="font-size:10px;color:var(--t3);font-weight:600;margin-top:2px">Total enviados</div>
+              </div>
+              <div style="background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center">
+                <div style="font-size:18px;font-weight:900;color:var(--green)" id="pstat-auto">–</div>
+                <div style="font-size:10px;color:var(--t3);font-weight:600;margin-top:2px">Automáticos</div>
+              </div>
+              <div style="background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center">
+                <div style="font-size:18px;font-weight:900;color:var(--amber)" id="pstat-replies">–</div>
+                <div style="font-size:10px;color:var(--t3);font-weight:600;margin-top:2px">Respostas</div>
+              </div>
+            </div>
             <div style="height:12px"></div>
             <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-bottom:12px">
               <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px">Dados pessoais</div>
@@ -2134,7 +2215,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               </div>
               <div class="field-row">
                 <div class="field"><label>Cidade</label><input class="input" id="cfg-city" type="text"></div>
-                <div class="field"><label>Estado</label><input class="input" id="cfg-state" type="text" placeholder="Ex: SP, MG, RJ"></div>
                 <div class="field"><label>WhatsApp <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>WhatsApp</strong><br>Com DDI. Ex: +55 85 99999-9999.<br>Aparece na assinatura dos e-mails.')">?</span></label><input class="input" id="cfg-phone" type="tel" inputmode="tel"></div>
               </div>
               <div class="field-row">
@@ -2143,6 +2223,22 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               </div>
             </div>
             <button class="btn btn-primary w100" onclick="saveProfile()"><i class="ti ti-check"></i> Salvar dados</button>
+
+            <!-- ══ GMAIL EXTRA (apenas pagantes) ══ -->
+            <div id="profile-sender-section" style="background:var(--surface);border:1.5px solid rgba(59,130,246,.2);border-radius:var(--rl);padding:16px 18px;margin-top:12px;display:none">
+              <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-mail-forward" style="font-size:13px"></i> Gmail Extra para Envios</div>
+              <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Adicione um segundo Gmail. O automático distribui os envios entre os dois emails, reduzindo risco de spam.</div>
+              <div id="profile-sender-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+              <button class="btn btn-outline btn-sm w100" id="profile-add-sender-btn" onclick="location.href='/oauth/add-sender'" style="display:none">
+                <i class="ti ti-brand-google" style="color:#ea4335;font-size:14px"></i> Conectar Gmail Extra
+              </button>
+              <div id="profile-sender-limit-msg" style="display:none;font-size:12px;color:var(--green);font-weight:600;text-align:center">✅ Gmail extra conectado</div>
+            </div>
+            <!-- ══ AVISO FREE ══ -->
+            <div id="profile-sender-free" style="background:var(--amberl);border:1.5px solid var(--amberb);border-radius:var(--rl);padding:14px 16px;margin-top:12px;display:none">
+              <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;margin-bottom:6px">🔒 Gmail Extra — VIP Exclusivo</div>
+              <div style="font-size:12px;color:var(--t2)">Usuários pagantes (VIP, VIPro, DoublePro) podem conectar um Gmail extra para diversificar os envios e reduzir spam. <strong style="color:var(--amber)">Faça upgrade para ativar.</strong></div>
+            </div>
 
             <!-- ══ RANKING & AVATAR ══ -->
             <div style="background:var(--surface);border:1.5px solid rgba(124,58,237,.25);border-radius:var(--rl);padding:16px 18px;margin-top:12px">
@@ -2496,8 +2592,15 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             </div>
             <!-- Progress -->
             <div style="margin-bottom:12px">
-              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:4px"><span>Progresso</span><span id="dash-pct">0%</span></div>
-              <div class="auto-prog-bg"><div class="auto-prog-fill" id="dash-prog" style="width:0%"></div></div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:4px">
+                <span>Progresso da fila</span>
+                <span id="dash-pct" style="font-weight:800;color:var(--blue)">0%</span>
+              </div>
+              <div class="auto-prog-bg" style="height:10px"><div class="auto-prog-fill" id="dash-prog" style="width:0%;height:100%"></div></div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:4px">
+                <span id="dash-prog-sent-lbl">0 enviados</span>
+                <span id="dash-prog-days-lbl" style="color:var(--amber);font-weight:700"></span>
+              </div>
             </div>
             <!-- Intervalo e sender info (extra, admin vê mais) -->
             <div id="auto-extra-info" style="display:none;background:var(--sf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;margin-bottom:10px;font-size:11px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
@@ -3566,6 +3669,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <button class="bn active" id="bn-home" onclick="sv('home')"><i class="ti ti-home-2"></i><span>Home</span></button>
     <button class="bn" id="bn-tutorial" onclick="sv('tutorial')"><i class="ti ti-book-2" style="font-size:20px;color:#059669"></i><span style="color:#059669;font-weight:700;font-size:9px">Tutorial</span></button>
     <button class="bn" id="bn-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i><span>Manual</span></button>
+    <button class="bn" id="bn-pesquisa" onclick="sv('pesquisa')"><i class="ti ti-search"></i><span>Pesquisar</span></button>
     <!-- AUTO — CTA central destacado -->
     <button class="bn bn-auto" id="bn-auto" onclick="openAutoModal()">
       <div class="bn-auto-ring"><i class="ti ti-robot"></i></div>
@@ -4159,7 +4263,23 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
   </div>
 </div>
 
-<!-- ══ DRAWER ══ -->
+<!-- ══ MODAL: Detalhe de candidatura enviada ══ -->
+<div id="hist-detail-overlay" onclick="if(event.target===this)closeHistDetail()" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:220;padding:0;backdrop-filter:blur(3px)">
+  <div class="hist-detail-modal" style="background:var(--surface);width:100%;max-width:560px;max-height:93dvh;display:flex;flex-direction:column;overflow:hidden;border-radius:20px 20px 0 0;box-shadow:var(--shadowl)">
+    <!-- Header -->
+    <div style="padding:18px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:17px;font-weight:800;color:var(--text);line-height:1.3;margin-bottom:3px" id="hd-title">–</div>
+        <div style="font-size:13px;color:var(--t2);font-weight:600;display:flex;align-items:center;gap:5px"><i class="ti ti-building" style="font-size:12px"></i><span id="hd-company">–</span></div>
+      </div>
+      <button onclick="closeHistDetail()" style="background:var(--sf2);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--t2)"><i class="ti ti-x" style="font-size:16px"></i></button>
+    </div>
+    <!-- Body scrollável -->
+    <div id="hd-body" style="flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:10px"></div>
+    <!-- Footer fixo com ações -->
+    <div id="hd-foot" style="padding:12px 18px 18px;display:flex;gap:8px;flex-shrink:0;border-top:1px solid var(--border)"></div>
+  </div>
+</div>
 <div class="drawer-ov" id="dov" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer">
   <div style="padding:16px 14px 12px;border-bottom:1px solid rgba(99,102,241,.12);background:linear-gradient(135deg,#f5f7ff,#edf0ff)">
@@ -4176,6 +4296,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <button class="d-item" onclick="closeDrawer();sv('home')"><i class="ti ti-home-2"></i>Home</button>
     <a class="d-item" href="/guia" target="_blank" style="background:linear-gradient(135deg,rgba(16,185,129,.10),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.28);border-radius:var(--r);font-weight:800;color:#059669;margin-bottom:4px;text-decoration:none"><i class="ti ti-book-2" style="color:#059669"></i>Guia H-2B & H-2A<span style="margin-left:auto;font-size:9px;background:#059669;color:#fff;padding:1px 6px;border-radius:99px">NOVO</span></a>
     <button class="d-item" onclick="closeDrawer();sv('jobs')"><i class="ti ti-send"></i>Envio Manual</button>
+    <button class="d-item" onclick="closeDrawer();sv('pesquisa')"><i class="ti ti-search"></i>Pesquisar Vagas</button>
     <button class="d-item" onclick="closeDrawer();sv('respostas')" style="color:var(--green);font-weight:700"><i class="ti ti-mail-opened" style="color:var(--green)"></i>Respostas</button>
     <button class="d-item" onclick="closeDrawer();sv('ranking')" style="color:#b45309;font-weight:700"><i class="ti ti-trophy" style="color:#f59e0b"></i>Ranking</button>
     <button class="d-item" onclick="closeDrawer();sv('hist')"><i class="ti ti-send"></i>Candidaturas Enviadas</button>
@@ -4214,6 +4335,17 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 </div>
 
 <div id="tw"></div>
+
+<!-- Banner offline -->
+<div id="offline-banner" style="display:none;position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:#1e293b;color:#f8fafc;padding:8px 18px;border-radius:99px;font-size:12px;font-weight:700;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4);gap:7px;align-items:center;border:1px solid rgba(255,255,255,.1)">
+  <i class="ti ti-wifi-off" style="color:#f87171"></i> Sem conexão — verificando...
+</div>
+
+<!-- Banner VIP expirando -->
+<div id="vip-expiry-banner" style="display:none;position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#f59e0b,#d97706);color:#fff;padding:7px 16px;font-size:12px;font-weight:700;z-index:9990;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.2)">
+  <i class="ti ti-crown"></i> <span id="vip-expiry-text"></span> — <a href="#" onclick="sv('plans');this.parentElement.parentElement.style.display='none'" style="color:#fff;text-decoration:underline">Renovar agora</a>
+  <button onclick="this.parentElement.style.display='none'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;cursor:pointer;font-size:16px">×</button>
+</div>
 
 <script>
 function esc(s){if(!s&&s!==0)return"";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
@@ -4279,19 +4411,44 @@ const LOG_PAGE=50;
 //  BOOT
 // ═══════════════════════════════════════════
 addEventListener("DOMContentLoaded",async()=>{
+  // ── Banner offline ─────────────────────────────────────────
+  const _offBanner=g("#offline-banner");
+  function _updateOnlineStatus(){
+    if(_offBanner){_offBanner.style.display=navigator.onLine?"none":"flex";}
+    if(!navigator.onLine)toast("📶 Sem conexão com a internet","r");
+  }
+  window.addEventListener("online",()=>{_updateOnlineStatus();toast("✅ Conexão restaurada","g");});
+  window.addEventListener("offline",_updateOnlineStatus);
+  if(!navigator.onLine&&_offBanner)_offBanner.style.display="flex";
   const ps=new URLSearchParams(location.search);
   const err=ps.get("err");
-  if(err){const el=g("#login-err");if(el){el.style.display="block";el.textContent=err;}}
+  if(err){
+    const el=g("#login-err");
+    if(el){
+      el.style.display="block";
+      el.style.padding="10px 14px";
+      el.style.background="rgba(239,68,68,.15)";
+      el.style.border="1px solid rgba(239,68,68,.4)";
+      el.style.borderRadius="10px";
+      el.style.fontWeight="600";
+      el.textContent="⚠️ "+err;
+      setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:"center"}),300);
+    }
+    history.replaceState({},"","/");
+  }
   if(ps.get("ok"))history.replaceState({},"","/");
   await checkStatus();
   setInterval(function(){fetch("/api/warmup",{credentials:"include"}).catch(function(){});},4*60*1000);
 });
 
 async function checkStatus(){
+  // Esconde landing enquanto verifica sessão (evita flash para usuário já logado)
+  const _land=g("#landing");if(_land)_land.style.visibility="hidden";
   try{
     const r=await fetch("/api/status",{credentials:"include"});const d=await r.json();
+    if(_land)_land.style.visibility="";
     if(d.connected){
-      U={connected:true,email:d.email,name:d.name||d.email,picture:d.picture||"",isAdmin:!!d.isAdmin,plan:d.plan||"free",vip:d.vip||null,todaySentManual:d.todaySentManual||0,manualLimit:d.manualLimit||20,manualRemaining:(d.manualRemaining??20),todaySentAuto:d.todaySentAuto||0,autoLimit:d.autoLimit||10,autoRemaining:(d.autoRemaining??10),autoEnabled:true,autoJob:d.autoJob||null,autoStats:d.autoStats||{sent:0,failed:0},onboarded:!!d.onboarded,profiles:d.profiles||[],senderEmails:d.senderEmails||[],adminSettings:d.adminSettings||null,totalSent:d.totalSent||0,totalManual:d.totalManual||0,totalAutoHist:d.totalAutoHist||0,totalReplies:d.totalReplies||0,
+      U={connected:true,email:d.email,name:d.name||d.email,picture:d.picture||"",isAdmin:!!d.isAdmin,plan:d.plan||"free",vip:d.vip||null,todaySentManual:d.todaySentManual||0,manualLimit:d.manualLimit||20,manualRemaining:(d.manualRemaining??20),todaySentAuto:d.todaySentAuto||0,autoLimit:d.autoLimit||10,autoRemaining:(d.autoRemaining??10),autoEnabled:true,autoJob:d.autoJob||null,autoStats:d.autoStats||{sent:0,failed:0},onboarded:!!d.onboarded,profiles:d.profiles||[],senderEmails:d.senderEmails||[],senderMax:d.senderMax||1,adminSettings:d.adminSettings||null,totalSent:d.totalSent||0,totalManual:d.totalManual||0,totalAutoHist:d.totalAutoHist||0,totalReplies:d.totalReplies||0,
   // Novos campos
   whatsapp:d.whatsapp||"",rankName:d.rankName||"",appAvatarId:d.appAvatarId||"",h2bProfile:d.h2bProfile||{},phone:d.phone||""};
       UPROFILES=d.profiles||[];if(U)U.profiles=UPROFILES;
@@ -4318,7 +4475,7 @@ async function checkStatus(){
     }else{showLanding();}
   }catch(e){console.warn("[boot]",e);showLanding();}
 }
-function showLanding(){g("#landing").style.display="flex";g("#app").style.display="none";const sf=g("#site-footer");if(sf)sf.style.display="flex";}
+function showLanding(){const ld=g("#landing");ld.style.visibility="";ld.style.display="flex";g("#app").style.display="none";const sf=g("#site-footer");if(sf)sf.style.display="flex";}
 
 function renderOnboardChecklist(){/* removido */}
 
@@ -4489,11 +4646,13 @@ function renderDrawer(){
 // ═══════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════
-const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","indicar","notificacoes","redeem","tutorial","iaChat","sugestoes"];
+const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","indicar","notificacoes","redeem","tutorial","iaChat","sugestoes"];
 function sv(v,...args){
   // ── "auto" abre modal em vez da view ──
   if(v==="auto"){if(typeof openAutoModal==="function"){openAutoModal();return;}}
   curView=v;
+  // Scroll to top ao mudar de aba
+  const appEl=g("#app");if(appEl)appEl.scrollTop=0;window.scrollTo(0,0);
   VIEWS.forEach(id=>{const ve=g("#v-"+id);if(ve)ve.classList.toggle("gone",id!==v);const si=g("#si-"+id);if(si)si.classList.toggle("active",id===v);const bn=g("#bn-"+id);if(bn)bn.classList.toggle("active",id===v);});
   if(v==="plans"){setTimeout(()=>updatePlanCalc&&updatePlanCalc(),100);}if(v==="hist")renderHist();if(v==="saved")renderSaved();if(v==="profile"){loadProfile();loadTplView();setTimeout(()=>{_loadSoundPref();renderSoundSelector();},100);}
   if(v==="respostas"){loadInbox();setTimeout(()=>{_renderInboxNotifTabBtn();},100);}
@@ -4502,6 +4661,7 @@ function sv(v,...args){
   if(v==="plans")renderPlanStatusCard();
   if(v==="home")renderHome();
   if(v==="ranking"){loadRanking(true);startRankTimer();}else{stopRankTimer();}
+  if(v==="pesquisa"){initPesquisaView();}
   if(v==="tutorial"){/*view própria*/}
   if(v==="redeem"){/*view própria*/}
   if(v==="indicar"){loadReferralView();}
@@ -5423,9 +5583,15 @@ function updDocBadge(){const n=DOCS.length;const b=g("#sib-docs");if(b){b.style.
 //  PROFILE / TEMPLATE
 // ═══════════════════════════════════════════
 function loadProfile(){
-  g("#cfg-name").value=CFG.name||U.name||"";g("#cfg-country").value=CFG.country||"Brazil";g("#cfg-phone").value=CFG.phone||"";g("#cfg-city").value=CFG.city||"";if(g("#cfg-state"))g("#cfg-state").value=CFG.state||U.state||"";g("#cfg-lang").value=CFG.language||"pt-BR";
+  g("#cfg-name").value=CFG.name||U.name||"";g("#cfg-country").value=CFG.country||"Brazil";g("#cfg-phone").value=CFG.phone||"";g("#cfg-city").value=CFG.city||"";g("#cfg-lang").value=CFG.language||"pt-BR";
+  // Mini-stats do perfil
+  const _ps=g("#pstat-total");if(_ps)_ps.textContent=(U.totalSent||HIST.length||0).toLocaleString("pt-BR");
+  const _pa=g("#pstat-auto");if(_pa)_pa.textContent=(U.totalAutoHist||0).toLocaleString("pt-BR");
+  const _pr=g("#pstat-replies");if(_pr)_pr.textContent=(U.totalReplies||INBOX_EMAILS.filter(e=>e.isReply).length||0).toLocaleString("pt-BR");
   // Novos campos
   const wEl=g("#cfg-whatsapp");if(wEl)wEl.value=U.whatsapp||"";
+  // ── Gmail Extra: mostrar seção conforme plano ──
+  _renderProfileSenderSection();
   const rnEl=g("#cfg-rankname");if(rnEl)rnEl.value=U.rankName||"";
   // Avatar
   if(U.appAvatarId){
@@ -5447,13 +5613,81 @@ function loadProfile(){
   const pav=g("#pav");if(pav){if(U.picture){pav.innerHTML=`<img src="${esc(U.picture)}" style="width:100%;height:100%;object-fit:cover">`;pav.style.cssText="width:50px;height:50px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.3);margin-bottom:8px";}else{pav.textContent=(U.name||"?")[0].toUpperCase();}}
   const ppb=g("#p-plan-badge");if(ppb)ppb.innerHTML=planBadgeHTML();
 }
+function _renderProfileSenderSection(){
+  const secVip=document.getElementById("profile-sender-section");
+  const secFree=document.getElementById("profile-sender-free");
+  const addBtn=document.getElementById("profile-add-sender-btn");
+  const limitMsg=document.getElementById("profile-sender-limit-msg");
+  const listEl=document.getElementById("profile-sender-list");
+  if(!secVip||!secFree) return;
+
+  const isPaid=U.plan&&U.plan!=="free";
+  const senderMax=U.senderMax||1; // total permitido (principal + extras)
+  const senders=U.senderEmails||[];
+  const totalSenders=1+senders.length; // 1 = email principal
+
+  if(!isPaid){
+    secVip.style.display="none";
+    secFree.style.display="block";
+    return;
+  }
+  secVip.style.display="block";
+  secFree.style.display="none";
+
+  // Renderizar lista de emails extras conectados
+  if(listEl){
+    if(senders.length===0){
+      listEl.innerHTML='<div style="font-size:12px;color:var(--t3);padding:4px 0">Nenhum Gmail extra conectado ainda.</div>';
+    } else {
+      listEl.innerHTML=senders.map(s=>`
+        <div style="display:flex;align-items:center;gap:8px;background:var(--sf2);border:1px solid var(--border);border-radius:8px;padding:9px 12px">
+          <i class="ti ti-mail" style="color:var(--blue);font-size:14px"></i>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12px;font-weight:700;color:var(--t1);word-break:break-all">${esc(s.email)}</div>
+            <div style="font-size:10px;color:${s.tokenExpired?"var(--red)":"var(--green)"}">${s.tokenExpired?"⚠️ Token expirado — reconecte":"✅ Conectado"}</div>
+          </div>
+          <button onclick="_removeSenderEmail('${esc(s.email)}')" style="background:none;border:none;cursor:pointer;color:var(--red);padding:4px" title="Remover">
+            <i class="ti ti-trash" style="font-size:14px"></i>
+          </button>
+        </div>`).join("");
+    }
+  }
+
+  // Botão adicionar
+  if(addBtn){
+    const canAdd=totalSenders<senderMax;
+    addBtn.style.display=canAdd?"":"none";
+  }
+  if(limitMsg){
+    const atLimit=totalSenders>=senderMax&&senders.length>0;
+    limitMsg.style.display=atLimit?"block":"none";
+  }
+}
+
+async function _removeSenderEmail(email){
+  if(!confirm("Remover o Gmail extra "+email+"?")) return;
+  try{
+    const r=await fetch("/api/sender/"+encodeURIComponent(email),{method:"DELETE",credentials:"include"});
+    const d=await r.json();
+    if(d.ok){
+      U.senderEmails=(U.senderEmails||[]).filter(s=>s.email!==email);
+      _renderProfileSenderSection();
+      toast("Gmail extra removido","g");
+    } else toast(d.error||"Erro ao remover","r");
+  }catch(e){toast("Erro: "+e.message,"r");}
+}
+
 async function saveProfile(){
-  CFG.name=g("#cfg-name").value.trim();CFG.country=g("#cfg-country").value.trim();CFG.phone=g("#cfg-phone").value.trim();CFG.city=g("#cfg-city").value.trim();CFG.state=(g("#cfg-state")?.value||"").trim().toUpperCase();CFG.language=g("#cfg-lang").value;
+  CFG.name=g("#cfg-name").value.trim();CFG.country=g("#cfg-country").value.trim();CFG.phone=g("#cfg-phone").value.trim();CFG.city=g("#cfg-city").value.trim();CFG.language=g("#cfg-lang").value;
   const newWhatsapp=(g("#cfg-whatsapp")?.value||"").trim();
   const newRankName=(g("#cfg-rankname")?.value||"").trim();
   const newAvatar=g(".prf-av.selected")?.dataset?.av||"";
+  // Feedback visual no botão durante salvamento
+  const saveBtn=document.querySelector("[onclick='saveProfile()']")||document.querySelector('[onclick="saveProfile()"]');
+  const origHtml=saveBtn?saveBtn.innerHTML:"";
+  if(saveBtn){saveBtn.disabled=true;saveBtn.innerHTML='<i class="ti ti-loader" style="animation:spin 1s linear infinite"></i> Salvando...';}
   try{
-    const body={name:CFG.name,country:CFG.country,phone:CFG.phone,city:CFG.city,state:CFG.state||"",language:CFG.language};
+    const body={name:CFG.name,country:CFG.country,phone:CFG.phone,city:CFG.city,language:CFG.language};
     if(newWhatsapp)body.whatsapp=newWhatsapp;
     // RankName: só enviar se mudou
     if(newRankName&&newRankName!==U.rankName)body.rankName=newRankName;
@@ -5461,12 +5695,21 @@ async function saveProfile(){
     const r=await fetch("/api/settings",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
     const d=await r.json();
     if(d.ok){
-      toast("Perfil salvo ✓","g");
+      // Feedback sucesso no botão
+      if(saveBtn){saveBtn.innerHTML='<i class="ti ti-check"></i> Dados salvos!';}
+      setTimeout(()=>{if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML=origHtml||'<i class="ti ti-check"></i> Salvar dados';}},2200);
+      toast("✅ Dados salvos com sucesso!","g");
       U.name=CFG.name||U.name;U.whatsapp=newWhatsapp||U.whatsapp;
       if(newRankName)U.rankName=newRankName;if(newAvatar)U.appAvatarId=newAvatar;
       renderHdr();renderSidebar();renderDrawer();
-    } else throw new Error(d.error);
-  }catch(e){toast("Erro: "+e.message,"r");}
+    } else {
+      if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML=origHtml;}
+      throw new Error(d.error);
+    }
+  }catch(e){
+    if(saveBtn){saveBtn.disabled=false;saveBtn.innerHTML=origHtml;}
+    toast("❌ Erro ao salvar: "+e.message,"r");
+  }
 }
 
 // ── Auxiliares da aba Perfil H2B ────────────────────────
@@ -6580,6 +6823,12 @@ function setHistTab(t){histTab=t;["all","manual","auto"].forEach(k=>g("#ht-"+k)?
 function renderHist(){
   const el=g("#hist-list");if(!el)return;
   const q=(g("#hist-search")?.value||"").toLowerCase().trim();
+  // Atualizar contadores dos tabs
+  const _hManual=HIST.filter(h=>h.type!=="auto").length;
+  const _hAuto=HIST.filter(h=>h.type==="auto").length;
+  const _tAll=g("#htab-lbl-all");if(_tAll)_tAll.textContent=`Todos (${HIST.length})`;
+  const _tMan=g("#htab-lbl-manual");if(_tMan)_tMan.textContent=`Manual (${_hManual})`;
+  const _tAut=g("#htab-lbl-auto");if(_tAut)_tAut.textContent=`Auto (${_hAuto})`;
   let list=histTab==="manual"?HIST.filter(h=>h.type!=="auto"):histTab==="auto"?HIST.filter(h=>h.type==="auto"):HIST;
   if(q)list=list.filter(h=>(h.job||"").toLowerCase().includes(q)||(h.company||"").toLowerCase().includes(q)||(h.to||"").toLowerCase().includes(q));
 
@@ -6652,7 +6901,7 @@ function _buildHistGroups(){
     const key=h.jobId||(h.company+"::"+h.job);
     if(!_histGroups[key]){
       const sn=h.jobSnapshot||{};
-      _histGroups[key]={entries:[],jobId:h.jobId,job:h.job||sn.title,company:h.company||sn.company,to:h.to||sn.sourceEmail,type:h.type,state:h.state||sn.state,wage:h.wage||sn.wage,visa:h.visa||sn.visa,city:h.city||sn.city,start:h.start||sn.start,end:h.end||sn.end,workers:h.workers||sn.workers,desc:h.desc||sn.desc,email:h.email||sn.sourceEmail,caseNum:h.caseNum||sn.caseNum,soc:h.soc||sn.soc,url:h.url||sn.url};
+      _histGroups[key]={entries:[],jobId:h.jobId,job:h.job||sn.title,company:h.company||sn.company,to:h.to||sn.sourceEmail,type:h.type,state:h.state||sn.state,wage:h.wage||sn.wage,visa:h.visa||sn.visa,city:h.city||sn.city,start:h.start||sn.start,end:h.end||sn.end,workers:h.workers||sn.workers,desc:h.desc||sn.desc,email:h.email||sn.sourceEmail,phone:h.phone||sn.phone||"",caseNum:h.caseNum||sn.caseNum,soc:h.soc||sn.soc,url:h.url||sn.url,category:h.category||sn.category||""};
     }
     _histGroups[key].entries.push(h);
   });
@@ -6667,16 +6916,18 @@ function openHistDetail(key,showDates=false){
   const count=gr.entries.length;
   const isAuto=gr.entries.some(e=>e.type==="auto");
 
-  // Info grid
+  // Info grid — exibe TODOS os campos coletados da planilha DOL
+  const _dolUrl = gr.url ? `https://${(gr.url||"").replace(/^https?:\/\//,"")}` : (gr.caseNum?`https://seasonaljobs.dol.gov/jobs/${esc(gr.caseNum)}`:"");
   const infoItems=[
-    gr.email||gr.to?`<div class="info-box"><div class="info-lbl">E-mail</div><div class="info-val" style="font-size:12px;color:var(--blue)">${esc(gr.email||gr.to||"–")}</div></div>`:"",
-    gr.wage&&gr.wage!=="–"?`<div class="info-box"><div class="info-lbl">Salário</div><div class="info-val">${esc(gr.wage)}</div></div>`:"",
-    gr.city||gr.state?`<div class="info-box"><div class="info-lbl">Local</div><div class="info-val">${esc([gr.city,gr.state].filter(Boolean).join(", "))}</div></div>`:"",
-    gr.workers?`<div class="info-box"><div class="info-lbl">Vagas</div><div class="info-val">${esc(String(gr.workers))} posição(ões)</div></div>`:"",
-    gr.start&&gr.end?`<div class="info-box"><div class="info-lbl">Período</div><div class="info-val" style="font-size:12px">${esc(gr.start)} → ${esc(gr.end)}</div></div>`:"",
-    gr.soc?`<div class="info-box"><div class="info-lbl">Ocupação</div><div class="info-val" style="font-size:11px">${esc(gr.soc)}</div></div>`:"",
-    gr.visa?`<div class="info-box"><div class="info-lbl">Visto</div><div class="info-val"><span class="tag ${gr.visa==="H-2A"?"ta":"tb"}">${esc(gr.visa)}</span></div></div>`:"",
-    gr.caseNum?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">ETA Case</div><div class="info-val" style="font-size:11px;font-family:monospace">${esc(gr.caseNum)}</div></div>`:"",
+    gr.email||gr.to?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl"><i class="ti ti-mail" style="font-size:10px"></i> E-mail da empresa</div><div class="info-val" style="font-size:12px"><a href="mailto:${esc(gr.email||gr.to)}" style="color:var(--blue);text-decoration:none">${esc(gr.email||gr.to||"–")}</a></div></div>`:"",
+    gr.phone?`<div class="info-box"><div class="info-lbl"><i class="ti ti-phone" style="font-size:10px"></i> Telefone</div><div class="info-val" style="font-size:12px"><a href="tel:${esc(gr.phone)}" style="color:var(--green);text-decoration:none">${esc(gr.phone)}</a></div></div>`:"",
+    gr.wage&&gr.wage!=="–"?`<div class="info-box"><div class="info-lbl"><i class="ti ti-currency-dollar" style="font-size:10px"></i> Salário</div><div class="info-val" style="color:var(--green);font-weight:800">${esc(gr.wage)}</div></div>`:"",
+    gr.city||gr.state?`<div class="info-box"><div class="info-lbl"><i class="ti ti-map-pin" style="font-size:10px"></i> Localização</div><div class="info-val">${esc([gr.city,gr.state].filter(Boolean).join(", "))}</div></div>`:"",
+    gr.workers?`<div class="info-box"><div class="info-lbl"><i class="ti ti-users" style="font-size:10px"></i> Vagas abertas</div><div class="info-val" style="font-weight:700">${esc(String(gr.workers))} posição(ões)</div></div>`:"",
+    gr.start||gr.end?`<div class="info-box" style="${gr.start&&gr.end?'':''}" ><div class="info-lbl"><i class="ti ti-calendar" style="font-size:10px"></i> Período</div><div class="info-val" style="font-size:12px">${gr.start&&gr.end?esc(gr.start)+" → "+esc(gr.end):esc(gr.start||gr.end)}</div></div>`:"",
+    gr.visa?`<div class="info-box"><div class="info-lbl"><i class="ti ti-id-badge" style="font-size:10px"></i> Visto</div><div class="info-val"><span class="tag ${gr.visa==="H-2A"?"ta":"tb"}" style="font-size:11px">${esc(gr.visa)}</span></div></div>`:"",
+    gr.soc?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl"><i class="ti ti-briefcase" style="font-size:10px"></i> Ocupação SOC</div><div class="info-val" style="font-size:11px">${esc(gr.soc)}</div></div>`:"",
+    gr.caseNum?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl"><i class="ti ti-hash" style="font-size:10px"></i> ETA Case Number</div><div class="info-val" style="font-size:11px;font-family:monospace;color:var(--blue)">${esc(gr.caseNum)}</div></div>`:"",
   ].filter(Boolean).join("");
 
   // Datas de envio
@@ -6693,7 +6944,7 @@ function openHistDetail(key,showDates=false){
   </div>`;
 
   g("#hd-body").innerHTML=`
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span class="hcard-sent-badge" style="cursor:pointer" onclick="toggleHistDates()">
         <i class="ti ti-send" style="font-size:12px"></i> ${count}× enviado${count>1?"s":""} — ver datas ▾
       </span>
@@ -6701,20 +6952,24 @@ function openHistDetail(key,showDates=false){
       ${gr.visa?`<span class="tag ${gr.visa==="H-2A"?"ta":"tb"}" style="font-size:10px">${esc(gr.visa)}</span>`:""}
     </div>
     ${datesHTML}
-    ${infoItems?`<div class="info-grid" style="margin-bottom:14px">${infoItems}</div>`:""}
-    ${gr.desc?`<div style="font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:14px;white-space:pre-wrap;max-height:180px;overflow-y:auto;padding:10px;background:var(--sf2);border-radius:var(--r);border:1px solid var(--border)">${esc(gr.desc)}</div>`:""}
-    ${gr.url?`<a class="btn btn-secondary btn-sm" href="https://${(gr.url||"").replace(/^https?:\/\//,"")}" target="_blank" rel="noopener" style="margin-bottom:6px"><i class="ti ti-external-link"></i> Ver vaga original</a>`:""}
-    ${gr.caseNum?`<button class="btn btn-secondary btn-sm" style="margin-bottom:6px" onclick="fetchHistJobDOL('${esc(gr.caseNum)}',this)"><i class="ti ti-search"></i> Buscar dados completos (DOL)</button>`:""}
-    <div id="hd-dol-extra" style="margin-top:8px"></div>
+    ${infoItems?`<div class="info-grid" style="margin:10px 0">${infoItems}</div>`:""}
+    ${gr.desc?`<details style="margin-bottom:8px"><summary style="font-size:12px;font-weight:700;color:var(--t2);cursor:pointer;padding:8px;background:var(--sf2);border-radius:8px;border:1px solid var(--border)"><i class="ti ti-file-text" style="font-size:11px"></i> Descrição da vaga</summary><div style="font-size:12px;color:var(--t2);line-height:1.7;margin-top:6px;white-space:pre-wrap;max-height:200px;overflow-y:auto;padding:10px;background:var(--sf2);border-radius:0 0 8px 8px;border:1px solid var(--border);border-top:none">${esc(gr.desc)}</div></details>`:""}
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${_dolUrl?`<a class="btn btn-secondary btn-sm" href="${_dolUrl}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Ver vaga em SeasonalJobs.gov</a>`:""}
+      ${gr.caseNum?`<button class="btn btn-secondary btn-sm" onclick="fetchHistJobDOL('${esc(gr.caseNum)}',this)"><i class="ti ti-refresh"></i> Atualizar dados do DOL</button>`:""}
+    </div>
+    <div id="hd-dol-extra" style="margin-top:4px"></div>
   `;
 
   // Footer com botão de reenviar + excluir individual
   const canResend=!!(gr.to||gr.email);
   const jobForResend=JSON.stringify({id:gr.jobId,title:gr.job,company:gr.company,email:gr.to||gr.email,city:gr.city||"",state:gr.state||"",wage:gr.wage||"",visa:gr.visa||"H-2B",hasEmail:canResend,url:gr.url||""}).replace(/'/g,"&#39;");
+  const _wppShare=gr.to||gr.email?`https://wa.me/?text=${encodeURIComponent('Mandei currículo para '+esc(gr.company||'empresa')+' via H2BApply! 🇺🇸')}`:null;
   g("#hd-foot").innerHTML=
     `<button class="btn btn-danger btn-sm" onclick="deleteHistEntry('${esc(key)}')" title="Excluir esta candidatura do histórico" style="padding:9px 13px"><i class="ti ti-trash"></i></button>`+
     (canResend
       ?`<button class="btn btn-secondary" style="flex:1" onclick="closeHistDetail()">Fechar</button>
+         ${_wppShare?`<a href="${_wppShare}" target="_blank" class="btn btn-ghost btn-sm" style="padding:9px 10px;color:#25d366;border-color:rgba(37,211,102,.3)"><i class="ti ti-brand-whatsapp"></i></a>`:''}
          <button class="btn btn-primary" style="flex:2" onclick="closeHistDetail();openModalFromHist(${esc2(jobForResend)})"><i class="ti ti-send"></i> Reenviar</button>`
       :`<button class="btn btn-primary" style="flex:1" onclick="closeHistDetail()">Fechar</button>`);
 
@@ -7537,10 +7792,18 @@ async function pollAutoStatus(){
   if(curView!=="auto"&&!U.autoJob?.active)return;
   try{
     const r=await fetch("/api/auto/status",{credentials:"include"});const d=await r.json();
+    // Detectar mudança de status para mostrar toast
+    const _prevStatus=U.autoJob?.status;
     if(d.job)U.autoJob={...d.job};else U.autoJob=null;
     // FIX: fila zerada + ativo = concluído (server pode demorar até detectar)
     if(U.autoJob&&U.autoJob.active&&(U.autoJob.queueSize===0||U.autoJob.queueSize===null)){
       U.autoJob={...U.autoJob,status:"finished",active:false};
+    }
+    // Toast para status importantes que mudaram
+    if(U.autoJob?.status!==_prevStatus){
+      if(U.autoJob?.status==="paused_no_vip")toast("⛔ Automático pausado — plano expirou. Renove em Planos.","r");
+      if(U.autoJob?.status==="paused_auth_error")toast("🔑 Automático pausado — erro de autenticação. Faça login novamente.","r");
+      if(U.autoJob?.status==="finished"&&_prevStatus!=="finished"){const _frases=["🎉 Fila concluída! Você aplicou para todas as vagas.","🏆 Missão cumprida! Aguarde as respostas chegarem.","✅ Todas as candidaturas enviadas! O sucesso está a caminho. 🇺🇸","🚀 Fila zerada! Você deu um grande passo hoje."];toast(_frases[Math.floor(Math.random()*_frases.length)],"g");}
     }
     U.todaySentAuto=d.todayAuto||0;U.autoLimit=d.autoLimit||10;U.autoStats=d.stats||{sent:0,failed:0};
     // FIX-3: Atualiza set de vagas na fila automática para ocultar do manual
@@ -7663,6 +7926,12 @@ function updateAutoUI(){
   }
   el("#dash-pct",pct+"%");
   const prog=g("#dash-prog");if(prog)prog.style.width=pct+"%";
+  // Labels da barra de progresso melhorada
+  const sentLbl=g("#dash-prog-sent-lbl");if(sentLbl)sentLbl.textContent=`${(orig-qs).toLocaleString()} de ${orig.toLocaleString()} enviados`;
+  const daysLbl=g("#dash-prog-days-lbl");if(daysLbl){
+    const _lim=U.autoLimit||10;const _daysEst=_lim>0&&qs>0?Math.ceil(qs/_lim):null;
+    daysLbl.textContent=_daysEst&&_daysEst>0?`~${_daysEst} dia${_daysEst>1?"s":""} restante${_daysEst>1?"s":""}`:qs===0?"✅ Concluído!":"";
+  }
 
   // Info extra para admin: intervalo e sender
   const extraInfo=g("#auto-extra-info");
@@ -7715,9 +7984,9 @@ function showLoginWarning(){location.href=_getOAuthURL();}
 async function loadPublicStats(){
   try{
     const r=await fetch("/api/public-stats");const d=await r.json();
-    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v.toLocaleString("pt-BR");};
-    set("ps-users",d.totalUsers||0);set("ps-today",d.todaySent||0);set("ps-auto-today",d.todayAuto||0);
-    set("ps-total",d.totalSent||0);set("ps-total-auto",d.totalAuto||0);set("ps-vip",d.vipUsers||0);
+    const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=(v||0).toLocaleString("pt-BR");};
+    set("ps-users",d.totalUsers);set("ps-today",d.todaySent);set("ps-auto-today",d.todayAuto);
+    set("ps-total",d.totalSent);set("ps-total-auto",d.totalAuto);set("ps-vip",d.vipUsers);
     // Update trial badge
     const tb=document.getElementById("trial-badge-txt");
     if(tb)tb.textContent=d.trialEnabled?`${d.trialDays||5} dias de VIP GRÁTIS`:"10 envios automáticos GRÁTIS";
@@ -7761,11 +8030,18 @@ async function loadPublicStats(){
         <div style="text-align:center;margin-top:10px">
           <span style="font-size:11px;color:var(--t3)">Entre para ver sua posição completa</span>
         </div>`;
+    }else if(prev){
+      prev.innerHTML=`<div style="padding:24px 16px;text-align:center">
+        <div style="font-size:28px;margin-bottom:8px">🏆</div>
+        <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,.7);margin-bottom:4px">Ranking zerado hoje!</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.4)">Seja o primeiro a enviar candidaturas hoje e lidere o ranking.</div>
+        <button onclick="showGoogleWarnModal()" style="margin-top:14px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">Começar agora</button>
+      </div>`;
     }
   }catch{}
 }
 document.addEventListener("DOMContentLoaded",()=>{loadPublicStats();setInterval(loadPublicStats,30000);});
-async function doLogout(){closeDrawer();await fetch("/api/disconnect",{credentials:"include"});U={connected:false};clearInterval(autoInterval);g("#app").style.display="none";g("#landing").style.display="flex";}
+async function doLogout(){closeDrawer();await fetch("/api/disconnect",{credentials:"include"});U={connected:false};clearInterval(autoInterval);showLanding();}
 function copyPix(){navigator.clipboard.writeText(PIX).then(()=>toast("Pix copiado ✓","g")).catch(()=>toast("Copie manualmente","r"));}
 
 
@@ -8040,6 +8316,17 @@ async function loadInbox(force=false){
     // FIX: passa fresh=1 quando force=true para bypassar cache do servidor (90s)
     const r=await fetch(`/api/inbox?limit=200${force?"&fresh=1":""}`,{credentials:"include"});
     const d=await r.json();
+    // FIX: detecta token expirado via HTTP 401 OU flag tokenExpired OU string (3 camadas de segurança)
+    if(r.status===401||d.tokenExpired||d.error==="TOKEN_EXPIRED"){
+      const _showTokenErr=()=>{
+        if(list)list.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;padding:40px 20px;gap:14px;text-align:center"><i class="ti ti-lock-open" style="font-size:44px;color:var(--amber)"></i><div style="font-size:15px;font-weight:800;color:var(--text)">Sessão do Gmail expirada</div><div style="font-size:13px;color:var(--t2)">Sua conexão com o Gmail expirou. Reconecte para ver as respostas.</div><a href="/oauth/start" class="btn btn-primary" style="padding:10px 22px;font-size:14px;font-weight:700;border-radius:10px;text-decoration:none"><i class="ti ti-brand-google"></i> Reconectar Gmail</a></div>`;
+        if(sub)sub.textContent="Reconexão necessária";
+      };
+      _showTokenErr();
+      INBOX_LOADING=false;
+      if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-refresh"></i>';}
+      return;
+    }
     if(!d.ok)throw new Error(d.error||"Erro ao buscar inbox");
     INBOX_EMAILS=d.emails||[];
     _mergeReadState(); // aplica estado local de leitura
@@ -8054,8 +8341,8 @@ async function loadInbox(force=false){
     // Atualiza Home se estiver ativa
     _renderHomeReplies();
   }catch(e){
-    // FIX: TOKEN_EXPIRED → mostra botão de reconectar ao invés de erro genérico
-    const isTokenErr = e.message === "TOKEN_EXPIRED" || e.message.includes("TOKEN_EXPIRED") || e.message.includes("Sessão expirada") || e.message.includes("401") || e.message.includes("403");
+    // Fallback: detecção por string caso erro venha de outro caminho
+    const isTokenErr = e.message==="TOKEN_EXPIRED"||e.message.includes("TOKEN_EXPIRED")||e.message.includes("Sessão expirada");
     if(isTokenErr){
       if(list)list.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;padding:40px 20px;gap:14px;text-align:center"><i class="ti ti-lock-open" style="font-size:44px;color:var(--amber)"></i><div style="font-size:15px;font-weight:800;color:var(--text)">Sessão do Gmail expirada</div><div style="font-size:13px;color:var(--t2)">Sua conexão com o Gmail expirou. Reconecte para ver as respostas.</div><a href="/oauth/start" class="btn btn-primary" style="padding:10px 22px;font-size:14px;font-weight:700;border-radius:10px;text-decoration:none"><i class="ti ti-brand-google"></i> Reconectar Gmail</a></div>`;
       if(sub)sub.textContent="Reconexão necessária";
@@ -8190,6 +8477,9 @@ function renderInbox(){
             <div class="icard-actions">
               <button class="icard-action-btn" onclick="event.stopPropagation();toggleStar('${e.id}')" title="${isStarred?"Remover favorito":"Favoritar"}">
                 <i class="ti ${isStarred?"ti-star-filled":"ti-star"} icard-star" style="${isStarred?"color:#f59e0b":""}"></i>
+              </button>
+              <button class="icard-action-btn" onclick="event.stopPropagation();navigator.clipboard.writeText('${esc(e.fromEmail||e.from||"")}');toast('Email copiado!','g')" title="Copiar email do remetente">
+                <i class="ti ti-copy" style="font-size:13px"></i>
               </button>
               <button class="icard-action-btn" onclick="event.stopPropagation();toggleReadEmail('${e.id}')" title="${isUnread?"Marcar como lido":"Marcar como não lido"}">
                 <i class="ti ${isUnread?"ti-mail-opened":"ti-mail"}"></i>
@@ -8706,32 +8996,50 @@ async function renderLinkedAppCard(email, fromEmail){
   if(miniEl)miniEl.style.display="block";
   email.linkedApp=email.linkedApp||linked;
 
-  // ── Botão "Abrir Vaga" → vai para Pesquisar Vagas com dados da vaga ──
-  // Remove botão anterior se existir
-  const oldBtn=document.getElementById("ed-open-job-btn");
-  if(oldBtn)oldBtn.remove();
-  // Monta query: usa e-mail de destino ou empresa para buscar
+  // Remove botões anteriores
+  document.getElementById("ed-open-job-btn")?.remove();
+  document.getElementById("ed-dol-btn")?.remove();
+
+  const btnsWrap=document.createElement("div");
+  btnsWrap.style.cssText="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;";
+
+  // ── Botão 1: Abrir no SeasonalJobs DOL (link direto da vaga) ──
+  const vagaUrl=snap.url||linked.url||linked.jobSnapshot?.url||"";
+  if(vagaUrl){
+    const dolBtn=document.createElement("a");
+    dolBtn.id="ed-dol-btn";
+    dolBtn.href=vagaUrl;
+    dolBtn.target="_blank";
+    dolBtn.rel="noopener noreferrer";
+    dolBtn.style.cssText="display:inline-flex;align-items:center;gap:6px;background:#1a56db;color:#fff;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:700;text-decoration:none;";
+    dolBtn.innerHTML='<i class="ti ti-external-link" style="font-size:13px"></i> Ver Vaga no SeasonalJobs';
+    btnsWrap.appendChild(dolBtn);
+  }
+
+  // ── Botão 2: Abrir na pesquisa interna ──
   const pesqQuery=linked.to||snap.company||co||"";
-  if(pesqQuery&&miniEl){
+  if(pesqQuery){
     const openBtn=document.createElement("button");
     openBtn.id="ed-open-job-btn";
-    openBtn.className="ed-open-job-btn";
-    openBtn.innerHTML='<i class="ti ti-external-link" style="font-size:13px"></i> Abrir Vaga na Pesquisa';
+    openBtn.style.cssText="display:inline-flex;align-items:center;gap:6px;background:var(--sf2);border:1px solid var(--border);color:var(--t1);border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;";
+    openBtn.innerHTML='<i class="ti ti-search" style="font-size:13px"></i> Pesquisar Empresa';
     openBtn.onclick=function(){
       closeEmailDetail();
-      // Navega para pesquisa com query pré-preenchida
-      sv("jobs");
+      sv("pesquisa");
       setTimeout(()=>{
         const inp=document.getElementById("pesq-input");
         if(inp){inp.value=pesqQuery;inp.dispatchEvent(new Event("input"));}
       },120);
     };
-    // Insere após o card de vaga colapsável (ed-lnk-expanded pai)
+    btnsWrap.appendChild(openBtn);
+  }
+
+  if(btnsWrap.children.length>0){
     const expandedPanel=document.getElementById("ed-lnk-expanded");
     if(expandedPanel&&expandedPanel.parentNode){
-      expandedPanel.parentNode.insertAdjacentElement("afterend",openBtn);
-    } else {
-      miniEl.appendChild(openBtn);
+      expandedPanel.parentNode.insertAdjacentElement("afterend",btnsWrap);
+    } else if(miniEl){
+      miniEl.appendChild(btnsWrap);
     }
   }
 }
@@ -9139,6 +9447,18 @@ function sendEmailReply(){
 function renderHome(){
   _showWelcome();
 
+  // Banner VIP expirando em ≤3 dias
+  const _vipBanner=g("#vip-expiry-banner");
+  const _vipText=g("#vip-expiry-text");
+  if(_vipBanner&&_vipText&&U.vip&&U.connected){
+    const _vipExp=Math.max(U.vip.manualExpires||0,U.vip.autoExpires||0);
+    const _daysLeft=_vipExp?Math.ceil((_vipExp-Date.now())/86400000):-1;
+    if(_daysLeft>=0&&_daysLeft<=3){
+      _vipText.textContent=_daysLeft===0?"Seu plano vence HOJE!":_daysLeft===1?"Seu plano vence amanhã!":(`Seu plano vence em ${_daysLeft} dias`);
+      _vipBanner.style.display="flex";
+    } else {_vipBanner.style.display="none";}
+  }
+
   // Saudação por hora
   const hr=new Date().getHours();
   const gr=hr>=6&&hr<12?"☀️ Bom dia":hr>=12&&hr<18?"🌤️ Boa tarde":hr>=18?"🌙 Boa noite":"🌙 Madrugada";
@@ -9162,6 +9482,9 @@ function renderHome(){
   if(sa)sa.textContent=U.isAdmin?`${U.todaySentAuto} ∞`:`${U.todaySentAuto}/${U.autoLimit}`;
   const sr=g("#home-stat-replies");if(sr){const unread=INBOX_EMAILS.filter(e=>!e.isRead).length;sr.textContent=unread>0?String(unread):"–";}
   const st=g("#home-stat-total");if(st)st.textContent=(U.totalSent||HIST.length||0).toLocaleString("pt-BR");
+  // Streak de dias consecutivos
+  const _streakEl=g("#home-stat-streak");
+  if(_streakEl){const _str=calcStreak&&typeof calcStreak==="function"?0:0;_streakEl.textContent=HIST.length>0?"🔥":"–";}
   // Card Auto
   const ac=g("#home-auto-card");const at=g("#home-auto-title");const as=g("#home-auto-sub");const ai=g("#home-auto-icon");
   if(ac){
@@ -9194,6 +9517,31 @@ function renderHome(){
   if(rb){rb.style.display=unread?"":"none";rb.textContent=String(unread);}
   // Últimas respostas
   _renderHomeReplies();
+  // Carregar follow-ups sugeridos
+  _loadHomeFollowups();
+}
+
+async function _loadHomeFollowups(){
+  try{
+    const r=await fetch('/api/followup/check',{credentials:'include'});
+    const d=await r.json();
+    const sec=g('#home-followup-section');
+    const list=g('#home-followup-list');
+    const cnt=g('#home-followup-count');
+    if(!sec||!list)return;
+    if(!d.ok||!d.total){sec.style.display='none';return;}
+    sec.style.display='';
+    if(cnt)cnt.textContent=d.total+' vaga(s) sem resposta há 7+ dias';
+    list.innerHTML=d.followups.slice(0,5).map(f=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer" onclick="sv('hist')">
+        <div style="width:32px;height:32px;border-radius:9px;background:rgba(245,158,11,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-refresh" style="color:var(--amber);font-size:15px"></i></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.company||f.job||'–')}</div>
+          <div style="font-size:11px;color:var(--t3)">Enviado há ${f.daysSince} dias · sem resposta</div>
+        </div>
+        <i class="ti ti-chevron-right" style="font-size:14px;color:var(--t3)"></i>
+      </div>`).join('');
+  }catch{}
 }
 
 function _renderHomeReplies(){
@@ -10955,13 +11303,9 @@ console.log('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas');
           <input class="input" id="ob-city" type="text" placeholder="Sua cidade">
         </div>
         <div class="field">
-          <label style="font-size:11px;font-weight:700;color:var(--t2)">🏛️ Estado *</label>
-          <input class="input" id="ob-state" type="text" placeholder="Ex: SP, MG, RJ">
+          <label style="font-size:11px;font-weight:700;color:var(--t2)">🌍 País *</label>
+          <input class="input" id="ob-country" type="text" placeholder="Brazil" value="Brazil">
         </div>
-      </div>
-      <div class="field" style="margin-bottom:8px">
-        <label style="font-size:11px;font-weight:700;color:var(--t2)">🌍 País *</label>
-        <input class="input" id="ob-country" type="text" placeholder="Brazil" value="Brazil">
       </div>
 
       <button onclick="obSavePersonal()" class="btn btn-primary w100" style="padding:13px;font-size:14px;margin-top:4px">Continuar →</button>
@@ -11184,7 +11528,7 @@ Best regards,
     </div>
     <div style="display:flex;gap:8px">
       <button onclick="document.getElementById('gwm').style.display='none'" style="flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#6b7280;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancelar</button>
-      <button id="gwm-ok" style="flex:2;padding:10px;border:none;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Entendi, Continuar</button>
+      <button id="gwm-ok" onclick="document.getElementById('gwm').style.display='none';location.href=_getOAuthURL();" style="flex:2;padding:10px;border:none;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Entendi, Continuar</button>
     </div>
   </div>
 </div>
@@ -11192,11 +11536,8 @@ Best regards,
 function showGoogleWarnModal(){
   fetch("/api/warmup",{credentials:"include"}).catch(function(){});
   var m=document.getElementById("gwm");
+  if(!m){location.href=_getOAuthURL();return;}
   m.style.display="flex";
-  document.getElementById("gwm-ok").onclick=function(){
-    m.style.display="none";
-    location.href=_getOAuthURL();
-  };
 }
 </script>
 
@@ -11358,9 +11699,12 @@ function termsDecline(){
   if(typeof toast==="function")toast("Você precisa aceitar os Termos para usar a H2BApply.","r");
 }
 // Interceptar modal do Google para mostrar termos primeiro
-var _origGwm=window.showGoogleWarnModal;
 window.showGoogleWarnModal=function(){
-  showTerms(function(){if(_origGwm)_origGwm();else location.href="/oauth/start";});
+  showTerms(function(){
+    var m=document.getElementById("gwm");
+    if(m){fetch("/api/warmup",{credentials:"include"}).catch(function(){});m.style.display="flex";}
+    else{location.href="/oauth/start";}
+  });
 };
 </script>
 
@@ -11847,7 +12191,6 @@ function showOnboarding(){
   const emailDisp=g("#ob-email-display");if(emailDisp)emailDisp.value=U.email||"";
   const ageEl=g("#ob-age");if(ageEl&&!ageEl.value&&U.age)ageEl.value=U.age;
   const cityEl=g("#ob-city");if(cityEl&&!cityEl.value)cityEl.value=CFG.city||"";
-  const stateEl=g("#ob-state");if(stateEl&&!stateEl.value)stateEl.value=CFG.state||U.state||"";
   
   ov.style.display="flex";
   _goObStep(1);
@@ -11883,23 +12226,21 @@ async function obSavePersonal(){
   const name=(g("#ob-name")?.value||"").trim();
   const phone=(g("#ob-phone")?.value||"").trim();
   const city=(g("#ob-city")?.value||"").trim();
-  const state=(g("#ob-state")?.value||"").trim().toUpperCase();
   const country=(g("#ob-country")?.value||"").trim()||"Brazil";
   const age=parseInt(g("#ob-age")?.value||"0");
 
   if(!name){toast("Informe seu nome completo","r");g("#ob-name")?.focus();return;}
   if(!phone){toast("Informe seu WhatsApp","r");g("#ob-phone")?.focus();return;}
   if(!city){toast("Informe sua cidade","r");g("#ob-city")?.focus();return;}
-  if(!state){toast("Informe seu estado","r");g("#ob-state")?.focus();return;}
   if(!age||age<18||age>80){toast("Informe uma idade válida (18-80)","r");g("#ob-age")?.focus();return;}
 
   try{
     const r=await fetch("/api/settings",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({name,phone,whatsapp:phone,city,state,country,age,language:CFG.language||"pt-BR"})});
+      body:JSON.stringify({name,phone,whatsapp:phone,city,country,age,language:CFG.language||"pt-BR"})});
     const d=await r.json();
     if(d.ok){
-      CFG.name=name;CFG.phone=phone;CFG.city=city;CFG.state=state;CFG.country=country;
-      U.name=name;U.phone=phone;U.whatsapp=phone;U.age=age;U.state=state;
+      CFG.name=name;CFG.phone=phone;CFG.city=city;CFG.country=country;
+      U.name=name;U.phone=phone;U.whatsapp=phone;U.age=age;
       const nameEl2=g("#cfg-name");if(nameEl2)nameEl2.value=name;
       const phoneEl2=g("#cfg-phone");if(phoneEl2)phoneEl2.value=phone;
       const cityEl2=g("#cfg-city");if(cityEl2)cityEl2.value=city;
@@ -13550,6 +13891,7 @@ function applyLang(){
   // ── BOTTOM NAV ──
   _si('bn-home','span',t('home'));
   _si('bn-jobs','span',t('manual'));
+  _si('bn-pesquisa','span',t('search'));
   _si('bn-respostas','span',t('responses'));
   _si('bn-ranking','span',t('ranking'));
 
@@ -13566,11 +13908,10 @@ function applyLang(){
   _sSection('.home-section-title','Hoje','Today','Hoy',t('today'));
   _sSection('.home-section-title','Conta','Account','Cuenta',t('account'));
   _sSection('.home-section-title','Últimas Respostas','Latest Replies','Últimas Respuestas',t('latest_replies'));
-  // Home shortcut labels
+  // Home shortcut labels — ordem: Manual, Pesquisar, Respostas, Automático, Ranking, Perfil, Guia Visto
   const sc=document.querySelectorAll('.home-shortcut .home-shortcut-label');
-  const scK=['manual','manual_lbl','search','search_lbl','responses','responses_lbl','auto_lbl','auto_lbl','ranking','ranking','profile','profile_lbl'];
-  const scT=[t('manual'),t('manual'),t('search'),t('search'),t('responses'),t('responses'),t('auto_lbl'),t('auto_lbl'),t('ranking'),t('ranking'),t('profile'),t('profile')];
-  sc.forEach((el,i)=>{if(scT[i])el.textContent=scT[i];});
+  const scT=[t('manual'),t('search'),t('responses'),t('auto_lbl'),t('ranking'),t('profile')];
+  sc.forEach((el,i)=>{if(i<scT.length&&scT[i])el.textContent=scT[i];});
   // Home stat labels
   document.querySelectorAll('.home-stat-lbl').forEach((el,i)=>{
     const labels=[t('manual'),t('auto_lbl'),t('responses')];
@@ -13613,10 +13954,16 @@ function applyLang(){
   _sFirstSpan('#v-hist .al-blue span, #v-hist [style*="info-circle"] + span',t('hist_info'));
 
   // ── SEARCH VIEW ──
+  document.querySelectorAll('#v-pesquisa [style*="font-size:16px"]').forEach(el=>{
+    if(el.textContent.match(/Pesquisar Vagas|Search Jobs|Buscar Empleos/)){
+      // Has icon, preserve it
+      const ic=el.querySelector('i');
       el.textContent=' '+t('search_jobs');
       if(ic) el.prepend(ic);
     }
   });
+  document.querySelectorAll('#v-pesquisa [style*="opacity:.7"]').forEach(el=>{
+    if(el.textContent.match(/Busca em|Search across|Busca en/)) el.textContent=t('search_sub');
   });
   _sBtnText('pesq-clear-btn', t('clear'));
   _sPlaceholder('pesq-input',t('search_ph'));
