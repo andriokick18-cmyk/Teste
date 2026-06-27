@@ -3612,18 +3612,25 @@ async function _runEnrichBot(sheetKey, resume=false){
     _enrichLog(`Planilha não encontrada: ${sheetKey}`,"error"); return;
   }
 
-  const startIdx = resume ? Math.max(0,(_enrichBot.done||0)) : 0;
+  // startIdx real: conta vagas que JÁ TÊM email no disco
+  // Assim, após deploy/reinício, retoma exatamente de onde o disco parou
+  const alreadyDone = sheet.filter(r => r.e && r.e.includes("@")).length;
+  const startIdx = resume
+    ? Math.max(0, alreadyDone > 0 ? alreadyDone - 5 : 0) // volta 5 para garantir sem gap
+    : 0;
 
   _enrichBot.running   = true;
   _enrichBot.sheetKey  = sheetKey;
   _enrichBot.total     = sheet.length;
   _enrichBot.done      = startIdx;
-  _enrichBot.ok        = resume ? (_enrichBot.ok||0) : 0;
+  _enrichBot.ok        = resume ? alreadyDone : 0;
   _enrichBot.noEmail   = resume ? (_enrichBot.noEmail||0) : 0;
   _enrichBot.errors    = resume ? (_enrichBot.errors||0) : 0;
   _enrichBot.startedAt = (resume && _enrichBot.startedAt) ? _enrichBot.startedAt : Date.now();
   _enrichBot.log       = resume ? _enrichBot.log : [];
   _enrichBot.savedAt   = null;
+
+  _enrichLog(`📌 Ponto de retomada: ${startIdx}/${sheet.length} (${alreadyDone} vagas já têm email no disco)`, "info");
 
   _enrichLog(`🚀 Bot iniciado: ${sheet.length} vagas — planilha "${sheetKey}"${resume?` (retomando de ${startIdx})`:''}`, "ok");
   _enrichLog(`🔍 Buscando: email, cidade, datas, workers, telefone, funções, URL`, "info");
@@ -3815,12 +3822,14 @@ async function _runEnrichBot(sheetKey, resume=false){
       _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — desistindo após 5 tentativas (DOL bloqueando)`, "error");
     }
 
-    // Salvar a cada 100 vagas processadas
-    if(_enrichBot.done % 100 === 0){
-      _saveEnrichedSheet(sheetKey, sheet);
-      _enrichBot.savedAt = Date.now();
+    // Salvar após CADA VAGA processada — zero perda de dados
+    // O disco persistente /data/ garante que sobrevive a deploy, reinício e fechamento do browser
+    _saveEnrichedSheet(sheetKey, sheet);
+    _enrichBot.savedAt = Date.now();
+    // Log de progresso a cada 10 vagas (não poluir o log a cada 1)
+    if(_enrichBot.done % 10 === 0){
       const pct = Math.round((_enrichBot.done/sheet.length)*100);
-      _enrichLog(`💾 Salvo: ${_enrichBot.done}/${sheet.length} (${pct}%) — ok:${_enrichBot.ok} semEmail:${_enrichBot.noEmail} delay:${_interDelay}ms`, "ok");
+      _enrichLog(`💾 [${_enrichBot.done}/${sheet.length}] ${pct}% — ok:${_enrichBot.ok} semEmail:${_enrichBot.noEmail} delay:${_interDelay}ms`, "ok");
     }
 
     // Delay adaptativo entre vagas (aumenta quando DOL bloqueia, reduz quando ok)
@@ -9330,22 +9339,20 @@ async function _autoEnrichCycle(){
     const sheet = getSheet(sheetKey);
     if(!sheet||!sheet.length) continue;
 
-    // REGRA: só enriquece se nunca foi concluído (enrichedAt ausente no meta)
-    const meta = DB_SHEETS_META[sheetKey]||{};
-    if(meta.enrichedAt) continue; // já enriquecida — pula
-
+    // REGRA: verificar progresso REAL pelo disco (contagem de vagas com email)
+    // Ignora enrichedAt — ele pode estar errado se houve deploy no meio
     const withEmail = sheet.filter(r=>r.e&&r.e.includes("@")).length;
     const withoutEmail = sheet.length - withEmail;
     const pct = Math.round((withEmail/sheet.length)*100);
 
     if(withoutEmail === 0){
-      // 100% completo mas sem enrichedAt — marca agora para não rever
+      // 100% real — marca como concluído e pula
       if(!DB_SHEETS_META[sheetKey]) DB_SHEETS_META[sheetKey]={name:sheetKey};
       DB_SHEETS_META[sheetKey].enrichedAt=Date.now();
       DB_SHEETS_META[sheetKey].enriched=withEmail;
       DB_SHEETS_META[sheetKey].enrichedTotal=sheet.length;
       try{fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));}catch{}
-      console.log(`[auto-enrich] ${sheetKey}: ✅ já completo (${pct}%) — marcado concluído`);
+      console.log(`[auto-enrich] ${sheetKey}: ✅ 100% completo (${withEmail}/${sheet.length}) — nada a fazer`);
       continue;
     }
 

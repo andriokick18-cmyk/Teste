@@ -1476,7 +1476,105 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <div style="height:100%;background:linear-gradient(90deg,#4f46e5,#7c3aed);border-radius:99px;animation:h2bBar 1.2s ease-out forwards"></div>
   </div>
 </div>
-<style>@keyframes h2bBar{0%{width:0}100%{width:100%}}</style>
+<style>@keyframes h2bBar{0%{width:0}100%{width:100%}}
+/* ═══════════════════════════════════════
+   V816 — Layout estilo Instagram/Facebook
+   ═══════════════════════════════════════ */
+
+/* Header — fixo, mais alto, espaçado */
+.app-hdr{
+  position:sticky;top:0;z-index:100;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  padding:0 14px;height:56px;
+  display:flex;align-items:center;gap:8px;
+  box-shadow:0 1px 8px rgba(0,0,0,.06);
+}
+.hdr-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+
+/* Avatar no header — estilo Instagram */
+.av-btn{
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:14px;color:#fff;
+  cursor:pointer;flex-shrink:0;
+  border:2.5px solid transparent;
+  background-clip:padding-box;
+  position:relative;overflow:hidden;
+  transition:transform .15s,box-shadow .15s;
+}
+.av-btn:hover{transform:scale(1.07);box-shadow:0 2px 12px rgba(99,102,241,.35)}
+.av-btn img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+/* Bottom nav — 4 itens, limpo */
+.bottom-nav{
+  display:flex;align-items:stretch;
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  height:60px;
+  position:fixed;bottom:0;left:0;right:0;z-index:90;
+  padding-bottom:env(safe-area-inset-bottom);
+  box-shadow:0 -2px 16px rgba(0,0,0,.06);
+}
+.bn{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;border:none;background:none;
+  cursor:pointer;color:var(--t3);font-size:10px;font-weight:600;
+  font-family:inherit;padding:0;transition:color .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.bn i{font-size:22px;line-height:1}
+.bn.active,.bn:active{color:var(--blue)}
+.bn.active i{color:var(--blue)}
+
+/* Botão automático central — elevado */
+.bn-auto{
+  color:var(--t2);position:relative;
+  margin-top:-12px;
+}
+.bn-auto-ring{
+  width:52px;height:52px;border-radius:50%;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 18px rgba(99,102,241,.45);
+  position:relative;
+}
+.bn-auto-ring i{font-size:22px;color:#fff}
+.bn-auto.is-active .bn-auto-ring{
+  background:linear-gradient(135deg,#059669,#10b981);
+  box-shadow:0 4px 18px rgba(5,150,105,.4);
+}
+.bn-auto span.bn-dot{
+  position:absolute;top:4px;right:4px;
+  width:10px;height:10px;border-radius:50%;
+  background:#4ade80;border:2px solid var(--surface);
+  display:none;
+}
+.bn-auto span.bn-dot.is-auto{display:block}
+.bn-auto>span:last-child{font-size:9px;margin-top:2px;color:var(--t3)}
+
+/* Avatar no bottom nav */
+.bn-av-wrap{
+  width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;border:2.5px solid var(--border);
+}
+.bn-av-wrap img{width:100%;height:100%;object-fit:cover}
+.bn-av-wrap i{font-size:18px;color:#fff}
+
+/* Sidebar desktop — simplificada */
+@media(min-width:768px){
+  .bottom-nav{display:none}
+  .sidebar{display:flex;flex-direction:column;width:220px;min-width:220px}
+  /* sb-profile card */
+  .sb-profile{padding:8px 6px 4px}
+}
+
+/* Chip de limite — header */
+.lchip{display:none} /* removido do header — info está no botão Planos */
+</style>
 <script>
 (function(){
   var done=false;
@@ -1642,71 +1740,76 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 </div>
 
 <div id="app" style="display:none">
-  <div class="app-hdr">
-    <div class="app-logo-icon"><i class="ti ti-briefcase"></i></div>
-    <span class="app-logo-text">H2BApply</span>
-    <div class="hdr-right">
-      <button id="lang-btn" onclick="toggleLangMenu()" title="Idioma / Language" style="background:var(--sf2);border:1.5px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;flex-shrink:0"><i class="ti ti-language" style="font-size:13px"></i><span id="lang-label">PT</span></button>
-      <div id="lang-menu" style="display:none;position:absolute;top:52px;right:60px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:300;min-width:160px;overflow:hidden">
+  <div class="app-hdr" id="app-hdr">
+    <!-- Logo -->
+    <div style="display:flex;align-items:center;gap:7px;flex:1">
+      <div class="app-logo-icon"><i class="ti ti-briefcase"></i></div>
+      <span class="app-logo-text">H2BApply</span>
+    </div>
+    <!-- Direita: lang + planos + avatar -->
+    <div class="hdr-right" style="gap:8px">
+      <!-- Idioma -->
+      <button id="lang-btn" onclick="toggleLangMenu()" title="Idioma" style="background:var(--sf2);border:1.5px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;flex-shrink:0"><i class="ti ti-language" style="font-size:13px"></i><span id="lang-label">PT</span></button>
+      <div id="lang-menu" style="display:none;position:absolute;top:56px;right:100px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:300;min-width:160px;overflow:hidden">
         <button onclick="setAppLang('pt')" class="lang-opt" data-lang="pt">🇧🇷 Português</button>
         <button onclick="setAppLang('en')" class="lang-opt" data-lang="en">🇺🇸 English</button>
         <button onclick="setAppLang('es')" class="lang-opt" data-lang="es">🇲🇽 Español</button>
       </div>
-      <div class="lchip lc-ok" id="hdr-lim" onclick="sv('plans')" style="cursor:pointer"></div>
-      <div class="av-btn" id="hdr-av" onclick="openDrawer()" title="Menu completo">?</div>
+      <!-- Botão Planos — destaque -->
+      <button id="hdr-plans-btn" onclick="sv('plans')" style="display:none;align-items:center;gap:5px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:20px;padding:6px 13px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
+        <i class="ti ti-diamond" style="font-size:13px"></i>
+        <span id="hdr-plans-label">Planos</span>
+      </button>
+      <!-- Avatar — abre drawer (igual Instagram) -->
+      <div class="av-btn" id="hdr-av" onclick="openDrawer()" title="Meu perfil e menu" style="cursor:pointer;position:relative">
+        ?
+        <span id="hdr-av-dot" style="display:none;position:absolute;bottom:0;right:0;width:10px;height:10px;background:#4ade80;border:2px solid var(--surface);border-radius:50%"></span>
+      </div>
     </div>
   </div>
 
   <div class="app-body">
     <!-- SIDEBAR desktop -->
     <div class="sidebar">
-      <!-- Profile -->
+      <!-- Avatar + nome clicável (abre perfil) — estilo Facebook desktop -->
       <div class="sb-profile" id="sb-prof" style="display:none">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <button onclick="sv('profile')" style="display:flex;align-items:center;gap:10px;width:100%;background:var(--sf2);border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left;font-family:inherit;transition:background .15s" onmouseenter="this.style.background='var(--sf3)'" onmouseleave="this.style.background='var(--sf2)'">
           <div class="sb-av" id="sb-av">?</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="sb-name">–</div>
-            <div style="font-size:10px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="sb-email">–</div>
-            <div id="sb-plan-badge" style="margin-top:3px"></div>
+            <div style="font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t1)" id="sb-name">–</div>
+            <div id="sb-plan-badge" style="margin-top:2px"></div>
           </div>
-        </div>
-        <div style="display:flex;gap:4px">
-          <button class="btn btn-secondary btn-sm" onclick="sv('profile')" style="flex:1;font-size:11px;padding:5px 9px"><i class="ti ti-user"></i> Perfil</button>
-          <button class="btn btn-danger btn-sm" onclick="doLogout()" style="font-size:11px;padding:5px 9px"><i class="ti ti-logout"></i></button>
-        </div>
+          <i class="ti ti-chevron-right" style="font-size:14px;color:var(--t3);flex-shrink:0"></i>
+        </button>
       </div>
-      <!-- AUTO BUTTON — MAIN CTA -->
-      <button class="sb-item sb-auto-btn" id="sb-auto-btn" onclick="openAutoModal()">
-        <i class="ti ti-robot" style="font-size:16px"></i>
-        <span style="flex:1">Envio Automático</span>
-        <span id="sb-auto-dot" style="display:none;width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulseDot 2s infinite"></span>
-      </button>
-      <div class="sb-sec">
-        <div class="sb-lbl">Navegação</div>
-        <button class="sb-item" id="si-tutorial" onclick="sv('tutorial')" style="background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.07));border:1.5px solid rgba(16,185,129,.3);border-radius:10px;font-weight:800;color:#059669;margin-bottom:4px"><i class="ti ti-book-2" style="font-size:15px;color:#059669"></i>Tutorial — Como Usar <span style="margin-left:auto;font-size:9px;background:#059669;color:#fff;padding:1px 6px;border-radius:99px;font-weight:800">GUIA</span></button>
+
+      <!-- PRINCIPAL: as 3 ações do dia -->
+      <div class="sb-sec" style="margin-top:6px">
+        <button class="sb-item sb-auto-btn" id="sb-auto-btn" onclick="openAutoModal()">
+          <i class="ti ti-robot" style="font-size:16px"></i>
+          <span style="flex:1">Automático</span>
+          <span id="sb-auto-dot" style="display:none;width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulseDot 2s infinite"></span>
+        </button>
         <button class="sb-item active" id="si-home" onclick="sv('home')"><i class="ti ti-home-2"></i>Home</button>
-        <button class="sb-item" onclick="window.open('/guia','_blank')" style="background:linear-gradient(135deg,rgba(16,185,129,.10),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.28);border-radius:10px;font-weight:800;color:#059669;margin-bottom:4px"><i class="ti ti-book-2" style="font-size:15px;color:#059669"></i>Guia H-2B & H-2A<span style="margin-left:auto;font-size:9px;background:#059669;color:#fff;padding:1px 6px;border-radius:99px;font-weight:800">NOVO</span></button>
-        <button class="sb-item" id="si-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i>Envio Manual<span class="sb-badge sb-badge-b" id="sib-jobs" style="display:none"></span></button>
-        <button class="sb-item" id="si-pesquisa" onclick="sv('pesquisa')"><i class="ti ti-search"></i>Buscar Vagas<span class="sb-badge sb-badge-b" id="sib-pesquisa" style="display:none"></span></button>
-        <button class="sb-item" id="si-saved" onclick="sv('saved')"><i class="ti ti-bookmark"></i>Salvas<span class="sb-badge sb-badge-b" id="sib-saved" style="display:none"></span></button>
-      </div>
-      <div class="sb-sec">
-        <div class="sb-lbl">Atividade</div>
+        <button class="sb-item" id="si-jobs" onclick="sv('jobs')"><i class="ti ti-send" style="color:var(--blue)"></i>Envio Manual<span class="sb-badge sb-badge-b" id="sib-jobs" style="display:none"></span></button>
         <button class="sb-item" id="si-respostas" onclick="sv('respostas')" style="color:var(--green);font-weight:700"><i class="ti ti-mail-opened" style="color:var(--green)"></i>Respostas<span class="sb-badge" id="sib-respostas" style="display:none;background:var(--green);color:#fff"></span></button>
-        <button class="sb-item" id="si-hist" onclick="sv('hist')"><i class="ti ti-send"></i>Enviadas<span class="sb-badge sb-badge-g" id="sib-hist" style="display:none"></span></button>
-        <button class="sb-item" id="si-ranking" onclick="sv('ranking')" style="color:#d97706;font-weight:700"><i class="ti ti-trophy" style="color:#f59e0b"></i>Ranking <span class="sb-badge" style="margin-left:auto;font-size:10px;font-weight:800;padding:1px 7px;border-radius:20px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff">🔥</span></button>
+        <button class="sb-item" id="si-ranking" onclick="sv('ranking')" style="color:#d97706;font-weight:700"><i class="ti ti-trophy" style="color:#f59e0b"></i>Ranking</button>
       </div>
+
+      <!-- PLANOS — destaque -->
       <div class="sb-sec">
-        <div class="sb-lbl">Conta</div>
-        <button class="sb-item" id="si-profile" onclick="sv('profile')"><i class="ti ti-user"></i>Perfil</button>
-        <button class="sb-item sb-item-plans" id="si-plans" onclick="sv('plans')" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.07));border:1.5px solid rgba(99,102,241,.3);border-radius:var(--r);font-weight:800;color:#4f46e5;margin-top:4px"><i class="ti ti-diamond" style="font-size:16px;color:#4f46e5"></i>Contratar Plano</button>
-        <button class="sb-item" id="si-logs" onclick="sv('logs')" style="color:var(--t3);font-size:12px"><i class="ti ti-list-details" style="font-size:14px"></i>Logs Automático<span class="sb-badge sb-badge-r" id="sib-logs" style="display:none"></span></button>
-        <button class="sb-item" id="si-indicar" onclick="sv('indicar')"><i class="ti ti-users-group"></i>Indicar Amigos<span class="sb-badge" id="sib-indicar" style="display:none;background:var(--green);color:#fff"></span></button>
-        <button class="sb-item" id="si-redeem" onclick="sv('redeem')" style="background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(109,40,217,.06));border:1.5px solid rgba(139,92,246,.25);border-radius:10px;font-weight:800;color:#7c3aed"><i class="ti ti-ticket" style="font-size:15px;color:#7c3aed"></i>Resgatar Código<span style="margin-left:auto;font-size:9px;background:#7c3aed;color:#fff;padding:1px 6px;border-radius:99px">NOVO</span></button>
-        <button class="sb-item" id="si-notificacoes" onclick="sv('notificacoes')"><i class="ti ti-bell"></i>Notificações<span class="sb-badge" id="sib-notificacoes" style="display:none;background:#7c3aed;color:#fff"></span></button>
-        <button class="sb-item" id="si-iaChat" onclick="sv('iaChat')" style="background:linear-gradient(135deg,rgba(8,145,178,.1),rgba(6,182,212,.06));border:1.5px solid rgba(8,145,178,.25);border-radius:10px;font-weight:800;color:#0891b2"><i class="ti ti-brain" style="font-size:15px;color:#0891b2"></i>IA Chat H2B<span style="margin-left:auto;font-size:9px;background:#0891b2;color:#fff;padding:1px 6px;border-radius:99px">IA</span></button>
-        <button class="sb-item" id="si-sugestoes" onclick="sv('sugestoes')" style="background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(109,40,217,.05));border:1.5px solid rgba(124,58,237,.2);border-radius:10px;font-weight:700;color:#7c3aed"><i class="ti ti-bulb" style="font-size:15px;color:#7c3aed"></i>Sugestões para Devs</button>
+        <button class="sb-item" id="si-plans" onclick="sv('plans')" style="background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(124,58,237,.08));border:1.5px solid rgba(99,102,241,.3);border-radius:var(--r);font-weight:800;color:#4f46e5"><i class="ti ti-diamond" style="font-size:16px;color:#4f46e5"></i>Planos & Upgrade</button>
       </div>
+
+      <!-- MAIS — tudo agrupado num único item "Ver mais" -->
+      <div class="sb-sec">
+        <div class="sb-lbl">Mais</div>
+        <button class="sb-item" id="si-hist" onclick="sv('hist')"><i class="ti ti-history"></i>Enviadas<span class="sb-badge sb-badge-g" id="sib-hist" style="display:none"></span></button>
+        <button class="sb-item" id="si-indicar" onclick="sv('indicar')"><i class="ti ti-users-group"></i>Indicar Amigos<span class="sb-badge" id="sib-indicar" style="display:none;background:var(--green);color:#fff"></span></button>
+        <button class="sb-item" id="si-notificacoes" onclick="sv('notificacoes')"><i class="ti ti-bell"></i>Notificações<span class="sb-badge" id="sib-notificacoes" style="display:none;background:#7c3aed;color:#fff"></span></button>
+        <button class="sb-item" onclick="openDrawer()" style="font-weight:700"><i class="ti ti-dots-circle-horizontal" style="color:var(--t2)"></i>Ver tudo</button>
+      </div>
+
       <div class="sb-sec" id="sb-admin-sec" style="display:none">
         <div class="sb-lbl">Admin</div>
         <button class="sb-item" onclick="location.href='/admin'"><i class="ti ti-shield"></i>Painel Admin</button>
@@ -3795,17 +3898,12 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
   </div><!-- /app-body --><!-- Bottom Nav -->
   <!-- ══ BOTTOM NAV — estilo Instagram ══ -->
   <nav class="bottom-nav" id="bottom-nav">
-    <!-- 1: Manual -->
-    <button class="bn" id="bn-jobs" onclick="sv('jobs')">
-      <i class="ti ti-send"></i>
-      <span>Manual</span>
+    <!-- 1: Cadastro (Perfil) -->
+    <button class="bn" id="bn-profile-tab" onclick="sv('profile')">
+      <i class="ti ti-user-circle"></i>
+      <span>Cadastro</span>
     </button>
-    <!-- 2: Buscar -->
-    <button class="bn" id="bn-pesquisa" onclick="sv('pesquisa')">
-      <i class="ti ti-search"></i>
-      <span>Buscar</span>
-    </button>
-    <!-- 3: AUTO — botão central elevado (estilo Instagram Stories) -->
+    <!-- 2: AUTO — botão central elevado estilo Instagram -->
     <button class="bn bn-auto" id="bn-auto" onclick="openAutoModal()">
       <div class="bn-auto-ring">
         <i class="ti ti-robot"></i>
@@ -3813,15 +3911,12 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       </div>
       <span>Automático</span>
     </button>
-    <!-- 4: Respostas com badge -->
-    <button class="bn" id="bn-respostas" onclick="sv('respostas')" style="position:relative">
-      <div style="position:relative;display:inline-block">
-        <i class="ti ti-mail-opened"></i>
-        <span class="bn-badge" id="bnd-respostas" style="display:none"></span>
-      </div>
-      <span>Respostas</span>
+    <!-- 3: Manual -->
+    <button class="bn" id="bn-jobs" onclick="sv('jobs')">
+      <i class="ti ti-send"></i>
+      <span>Manual</span>
     </button>
-    <!-- 5: Avatar do perfil — abre o menu completo (estilo Facebook/Instagram) -->
+    <!-- 4: Avatar — abre drawer (estilo Instagram/Facebook) -->
     <button class="bn bn-profile" id="bn-profile" onclick="openDrawer()">
       <div class="bn-av-wrap" id="bn-av">
         <i class="ti ti-user-circle"></i>
@@ -4802,7 +4897,32 @@ function renderPlanStatusCard(){
 }
 
 function renderHdr(){
-  const av=g("#hdr-av");if(U.picture)av.innerHTML=`<img src="${esc(U.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;else av.textContent=(U.name||"?")[0].toUpperCase();
+  // Avatar no header
+  const av=g("#hdr-av");
+  if(av){
+    if(U.picture)av.innerHTML=`<img src="${esc(U.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover"><span id="hdr-av-dot" style="display:none;position:absolute;bottom:0;right:0;width:10px;height:10px;background:#4ade80;border:2px solid var(--surface);border-radius:50%"></span>`;
+    else av.textContent=(U.name||"?")[0].toUpperCase();
+  }
+  // Avatar no bottom nav
+  const bnAv=g("#bn-av");
+  if(bnAv){
+    if(U.picture)bnAv.innerHTML=`<img src="${esc(U.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+    else bnAv.innerHTML=`<i class="ti ti-user-circle"></i>`;
+  }
+  // Botão Planos no header
+  const plansBtn=g("#hdr-plans-btn");
+  if(plansBtn){
+    plansBtn.style.display="flex";
+    if(U.plan&&U.plan!=="free"){
+      const planNames={vip:"⭐ VIP",vipro:"🤖 VIPro",doublepro:"💎 DoublePro"};
+      const label=planNames[U.plan]||U.plan.toUpperCase();
+      g("#hdr-plans-label").textContent=label;
+      plansBtn.style.background="linear-gradient(135deg,#059669,#10b981)";
+    } else {
+      g("#hdr-plans-label").textContent="Planos";
+      plansBtn.style.background="linear-gradient(135deg,#4f46e5,#7c3aed)";
+    }
+  }
   updateLimChip();
 }
 function updateLimChip(){
@@ -4816,9 +4936,15 @@ function updateLimChip(){
   }
 }
 function updateAutoDot(on){
+  // Dot no botão automático do bottom nav
   const d=g("#bnd-auto");if(d){if(on)d.classList.add("bn-dot","is-auto");else{d.classList.remove("is-auto");d.style.display="none";}}
+  // Dot na sidebar
   const sb=g("#sb-auto-dot");if(sb)sb.style.display=on?"block":"none";
   const sba=g("#sb-auto-btn");if(sba)sba.classList.toggle("is-active",on);
+  // Dot verde no avatar do header quando automático ligado
+  const hdrDot=g("#hdr-av-dot");if(hdrDot)hdrDot.style.display=on?"block":"none";
+  // Botão automático no bottom nav fica ativo
+  const bnAuto=g("#bn-auto");if(bnAuto)bnAuto.classList.toggle("is-active",on);
 }
 function renderSidebar(){
   const sbp=g("#sb-prof");if(sbp)sbp.style.display="block";
