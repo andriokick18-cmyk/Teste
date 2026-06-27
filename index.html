@@ -342,27 +342,122 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .sb-profile{margin:5px 3px;padding:10px 11px;border:1.5px solid var(--border);border-radius:var(--r);background:var(--sf2)}
 .sb-av{width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
 /* Bottom nav */
-.bottom-nav{background:#ffffff;border-top:1px solid rgba(99,102,241,.15);display:flex;flex-shrink:0;padding-bottom:env(safe-area-inset-bottom);height:calc(58px + env(safe-area-inset-bottom));box-shadow:0 -4px 24px rgba(99,102,241,.1)}
-.bn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 2px;gap:2px;cursor:pointer;border:none;background:none;font-family:inherit;position:relative;transition:all .12s}
-.bn i{font-size:22px;color:#a5a8cc;transition:color .12s}
-.bn span{font-size:10px;font-weight:700;color:#a5a8cc;transition:color .12s}
-.bn.active i,.bn.active span{color:var(--blue)}
-/* Auto nav button special */
-.bn.bn-auto{position:relative}
-.bn.bn-auto i{color:#7c3aed}
-.bn.bn-auto .bn-auto-ring{position:absolute;top:2px;left:50%;transform:translateX(-50%);width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;margin-top:-6px;box-shadow:0 4px 14px rgba(124,58,237,.4)}
-.bn.bn-auto .bn-auto-ring i{color:#fff;font-size:20px}
-.bn.bn-auto span{color:#7c3aed;margin-top:2px}
-.bn.bn-plans{position:relative}
+/* ══ BOTTOM NAV — estilo Instagram/Facebook ══════════════════ */
+.bottom-nav{
+  background:#fff;
+  border-top:1px solid rgba(99,102,241,.1);
+  display:flex;
+  align-items:center;
+  flex-shrink:0;
+  padding-bottom:env(safe-area-inset-bottom);
+  height:calc(62px + env(safe-area-inset-bottom));
+  box-shadow:0 -2px 20px rgba(99,102,241,.08);
+  position:relative;
+  z-index:100;
+}
+.bn{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+  padding:6px 4px 8px;
+  gap:3px;
+  cursor:pointer;
+  border:none;
+  background:none;
+  font-family:inherit;
+  position:relative;
+  transition:transform .1s;
+  -webkit-tap-highlight-color:transparent;
+}
+.bn:active{transform:scale(.93)}
+.bn i{font-size:23px;color:#9ca3af;transition:color .15s,transform .15s}
+.bn span{font-size:10px;font-weight:600;color:#9ca3af;transition:color .15s;letter-spacing:.01em}
+.bn.active i{color:#4f46e5;transform:scale(1.08)}
+.bn.active span{color:#4f46e5;font-weight:800}
+
+/* Linha indicadora no topo (estilo Instagram) */
+.bn::before{
+  content:"";
+  position:absolute;
+  top:0;left:50%;
+  transform:translateX(-50%) scaleX(0);
+  width:24px;height:2.5px;
+  background:linear-gradient(90deg,#6366f1,#7c3aed);
+  border-radius:0 0 3px 3px;
+  transition:transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.bn.active::before{transform:translateX(-50%) scaleX(1)}
+
+/* AUTO — botão central elevado */
+.bn.bn-auto{
+  position:relative;
+  margin-top:-18px;
+  flex-shrink:0;
+}
+.bn.bn-auto .bn-auto-ring{
+  width:52px;height:52px;
+  border-radius:50%;
+  background:linear-gradient(135deg,#7c3aed,#4f46e5);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 18px rgba(124,58,237,.45),0 0 0 3px #fff;
+  transition:transform .15s,box-shadow .15s;
+}
+.bn.bn-auto:active .bn-auto-ring{transform:scale(.92)}
+.bn.bn-auto .bn-auto-ring i{color:#fff;font-size:22px}
+.bn.bn-auto span{color:#7c3aed;font-weight:800;font-size:10px;margin-top:3px}
+.bn.bn-auto.is-active .bn-auto-ring{
+  background:linear-gradient(135deg,#059669,#047857);
+  box-shadow:0 4px 18px rgba(5,150,105,.45),0 0 0 3px #fff;
+  animation:autoPulse 2s ease-in-out infinite;
+}
+@keyframes autoPulse{0%,100%{box-shadow:0 4px 18px rgba(5,150,105,.45),0 0 0 3px #fff}50%{box-shadow:0 4px 24px rgba(5,150,105,.7),0 0 0 4px rgba(5,150,105,.15)}}
+
+/* Badge de notificação */
+.bn-badge{
+  position:absolute;
+  top:-4px;right:-6px;
+  background:#ef4444;
+  color:#fff;
+  font-size:9px;font-weight:800;
+  padding:1px 5px;
+  border-radius:10px;
+  min-width:16px;
+  text-align:center;
+  border:1.5px solid #fff;
+  display:none;
+}
+
+/* Dot no auto (quando rodando) */
+.bn-dot{
+  position:absolute;top:-2px;right:-2px;
+  width:10px;height:10px;
+  background:#10b981;
+  border:2px solid #fff;
+  border-radius:50%;
+  display:none;
+}
+.bn-dot.is-auto{display:block;animation:pulseDot 2s infinite}
+@keyframes pulseDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(1.15)}}
+
+/* Avatar no nav */
+.bn-av-wrap{
+  width:28px;height:28px;
+  border-radius:50%;
+  overflow:hidden;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed);
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid rgba(99,102,241,.3);
+  transition:border-color .15s;
+}
+.bn-av-wrap i{font-size:16px;color:#fff}
+.bn-av-wrap img{width:100%;height:100%;object-fit:cover}
+.bn.bn-profile.active .bn-av-wrap{border-color:#4f46e5;border-width:2.5px}
+.bn.bn-profile i{display:none} /* esconde o ícone padrão — usa bn-av-wrap */
 .bn-plans-icon{display:inline-flex;align-items:center;gap:1px;font-size:18px;line-height:1}
 .bn-plans-icon .ti-star-filled{font-size:10px;color:#f59e0b;vertical-align:top;margin-top:1px}
 .bn-plans-icon .ti-robot{font-size:13px;color:var(--blue);vertical-align:middle}
-.bn.bn-plans span:last-child{color:var(--purple);font-weight:700}
-.bn::after{content:"";position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:2px;background:var(--blue);border-radius:2px 2px 0 0;transition:width .12s}
-.bn.active::after{width:20px}
-.bn-dot{position:absolute;top:2px;right:calc(50% - 15px);background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;min-width:16px;text-align:center;display:none}
-.bn-dot.is-auto{background:#7c3aed;display:block;animation:pulseDot 2s infinite}
-@keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.5}}
 /* Views */
 .view{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}
 .view-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px}
@@ -1592,7 +1687,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <button class="sb-item active" id="si-home" onclick="sv('home')"><i class="ti ti-home-2"></i>Home</button>
         <button class="sb-item" onclick="window.open('/guia','_blank')" style="background:linear-gradient(135deg,rgba(16,185,129,.10),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.28);border-radius:10px;font-weight:800;color:#059669;margin-bottom:4px"><i class="ti ti-book-2" style="font-size:15px;color:#059669"></i>Guia H-2B & H-2A<span style="margin-left:auto;font-size:9px;background:#059669;color:#fff;padding:1px 6px;border-radius:99px;font-weight:800">NOVO</span></button>
         <button class="sb-item" id="si-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i>Envio Manual<span class="sb-badge sb-badge-b" id="sib-jobs" style="display:none"></span></button>
-        <button class="sb-item" id="si-pesquisa" onclick="sv('pesquisa')"><i class="ti ti-search"></i>Pesquisar Vagas<span class="sb-badge sb-badge-b" id="sib-pesquisa" style="display:none"></span></button>
+        <button class="sb-item" id="si-pesquisa" onclick="sv('pesquisa')"><i class="ti ti-search"></i>Buscar Vagas<span class="sb-badge sb-badge-b" id="sib-pesquisa" style="display:none"></span></button>
         <button class="sb-item" id="si-saved" onclick="sv('saved')"><i class="ti ti-bookmark"></i>Salvas<span class="sb-badge sb-badge-b" id="sib-saved" style="display:none"></span></button>
       </div>
       <div class="sb-sec">
@@ -1845,8 +1940,10 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <!-- Header -->
         <div style="background:linear-gradient(135deg,#0c1a40,#1a3a6b);color:#fff;padding:12px 16px 10px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px">
           <div>
-            <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px"><i class="ti ti-search"></i> Pesquisar Vagas</div>
-            <div style="font-size:11px;opacity:.7;margin-top:1px">Busca em todas as fontes: Seasonal, Jan 2026, Jul 2025</div>
+            <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px">
+              <i class="ti ti-search" style="font-size:18px"></i> Buscar Vagas
+            </div>
+            <div style="font-size:11px;opacity:.7;margin-top:2px">Seasonal Jobs · Jan 2026 · Jul 2025 · Enviadas</div>
           </div>
           <button id="pesq-clear-btn" onclick="clearPesquisa()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);padding:6px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:none"><i class="ti ti-x"></i> Limpar</button>
         </div>
@@ -2177,7 +2274,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <div style="background:var(--surface);border-bottom:1.5px solid var(--border);display:flex;flex-shrink:0">
           <button class="stab active" id="ptab-me"       onclick="switchProfileTab('me')"       style="flex:1;font-size:13px;padding:10px 6px;justify-content:center"><i class="ti ti-user" style="font-size:15px"></i><br><span style="font-size:10px">Eu</span></button>
 
-          <button class="stab"        id="ptab-profiles" onclick="switchProfileTab('profiles')" style="flex:1;font-size:13px;padding:10px 6px;justify-content:center;position:relative"><i class="ti ti-user-circle" style="font-size:15px"></i><br><span style="font-size:10px">Perfis</span><span id="ptab-profiles-cnt" style="position:absolute;top:6px;right:8px;background:var(--blue);color:#fff;border-radius:20px;font-size:9px;font-weight:800;padding:1px 5px;display:none"></span></button>
+          <button class="stab"        id="ptab-profiles" onclick="switchProfileTab('profiles')" style="flex:1;font-size:13px;padding:10px 6px;justify-content:center;position:relative"><i class="ti ti-user-circle" style="font-size:15px"></i><br><span style="font-size:10px">Currículos</span><span id="ptab-profiles-cnt" style="position:absolute;top:6px;right:8px;background:var(--blue);color:#fff;border-radius:20px;font-size:9px;font-weight:800;padding:1px 5px;display:none"></span></button>
           <button class="stab"        id="ptab-stats"    onclick="switchProfileTab('stats')"    style="flex:1;font-size:13px;padding:10px 6px;justify-content:center"><i class="ti ti-chart-bar" style="font-size:15px"></i><br><span style="font-size:10px">Stats</span></button>
           <button class="stab" id="ptab-admin" onclick="switchProfileTab('admin')" style="flex:1;font-size:13px;padding:10px 6px;justify-content:center;display:none"><i class="ti ti-shield" style="font-size:15px;color:#f59e0b"></i><br><span style="font-size:10px;color:#f59e0b">Admin</span></button>
         </div>
@@ -2215,7 +2312,17 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               </div>
               <div class="field-row">
                 <div class="field"><label>Cidade</label><input class="input" id="cfg-city" type="text"></div>
-                <div class="field"><label>WhatsApp <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>WhatsApp</strong><br>Com DDI. Ex: +55 85 99999-9999.<br>Aparece na assinatura dos e-mails.')">?</span></label><input class="input" id="cfg-phone" type="tel" inputmode="tel"></div>
+                <div class="field">
+                  <label style="display:flex;align-items:center;gap:6px">
+                    WhatsApp
+                    <span style="font-size:9px;font-weight:800;background:#ef4444;color:#fff;padding:1px 6px;border-radius:99px">OBRIGATÓRIO</span>
+                    <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>WhatsApp com DDI</strong><br>Ex: +55 85 99999-9999<br><br>⚠️ <strong>Obrigatório</strong> para usar o Envio Automático.<br>Empresas americanas usam para entrar em contato com você.')">?</span>
+                  </label>
+                  <div style="position:relative">
+                    <input class="input" id="cfg-phone" type="tel" inputmode="tel" placeholder="+55 (00) 99999-9999" oninput="document.getElementById('wpp-ok-badge').style.display=this.value.replace(/\D/g,'').length>=8?'flex':'none'">
+                    <span id="wpp-ok-badge" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:#10b981;color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:99px;align-items:center;gap:3px"><i class="ti ti-check" style="font-size:10px"></i> OK</span>
+                  </div>
+                </div>
               </div>
               <div class="field-row">
                 
@@ -2369,7 +2476,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <div style="background:#1e3a2f;border:1.5px solid #10b981;border-radius:12px;padding:20px;text-align:center;margin-bottom:12px">
               <i class="ti ti-info-circle" style="font-size:28px;color:#10b981;margin-bottom:8px;display:block"></i>
               <div style="font-size:15px;font-weight:800;color:#10b981;margin-bottom:6px">PDFs agora ficam dentro dos Perfis</div>
-              <div style="font-size:12px;color:#6ee7b7;line-height:1.6">Cada perfil de e-mail tem o currículo vinculado diretamente.<br>O envio automático sempre usa o PDF do perfil correto — sem confusão.</div>
+              <div style="font-size:12px;color:#6ee7b7;line-height:1.6">Cada perfil de currículo tem o currículo vinculado diretamente.<br>O envio automático sempre usa o PDF do perfil correto — sem confusão.</div>
             </div>
             <button class="btn btn-primary w100" onclick="switchProfileTab('profiles')">
               <i class="ti ti-user-circle"></i> Ir para Perfis e gerenciar PDFs
@@ -2378,19 +2485,40 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 
                     <!-- ══ TAB: PERFIS DE EMAIL ══ -->
           <div id="ptab-content-profiles" style="padding:14px 16px;display:none">
-            <div style="font-size:16px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px"><i class="ti ti-user-circle" style="color:var(--purple)"></i> Perfis de E-mail</div>
-            <div style="font-size:12px;color:var(--t2);margin-bottom:14px;line-height:1.5">Cada perfil define o assunto, o corpo do e-mail e o currículo a usar. O sistema escolhe o perfil certo para cada vaga automaticamente.</div>
-            <button class="btn btn-primary w100" style="margin-bottom:12px" onclick="openProfileEditor()">
-              <i class="ti ti-plus"></i> Criar Novo Perfil
-            </button>
-            <div style="background:var(--sf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--t2);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <span style="font-weight:700">🔄 Prioridade:</span>
-              <span>1. 📂 Por Categoria</span>
-              <span style="color:var(--t4)">→</span>
-              <span>2. 🌐 Geral (fallback)</span>
+            <!-- Explicação clara do que é um Perfil de Currículo -->
+            <div style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(124,58,237,.06));border:1.5px solid rgba(99,102,241,.25);border-radius:14px;padding:14px;margin-bottom:16px">
+              <div style="font-size:14px;font-weight:800;color:var(--text);margin-bottom:6px;display:flex;align-items:center;gap:8px">
+                <i class="ti ti-file-cv" style="color:var(--purple);font-size:18px"></i> O que é um Perfil de Currículo?
+              </div>
+              <div style="font-size:12px;color:var(--t2);line-height:1.7;margin-bottom:10px">
+                É onde você configura <strong>seu currículo (PDF)</strong>, o <strong>texto do e-mail</strong> e a <strong>categoria de vaga</strong>.<br>
+                O sistema escolhe o perfil certo para cada vaga automaticamente.
+              </div>
+              <div style="display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--t2)">
+                <div style="display:flex;align-items:center;gap:6px"><span style="width:22px;height:22px;border-radius:6px;background:rgba(99,102,241,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-file-type-pdf" style="color:var(--red);font-size:12px"></i></span> <span>Anexa seu currículo PDF em cada candidatura</span></div>
+                <div style="display:flex;align-items:center;gap:6px"><span style="width:22px;height:22px;border-radius:6px;background:rgba(99,102,241,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-mail" style="color:var(--blue);font-size:12px"></i></span> <span>Define o texto do e-mail em inglês</span></div>
+                <div style="display:flex;align-items:center;gap:6px"><span style="width:22px;height:22px;border-radius:6px;background:rgba(99,102,241,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-robot" style="color:var(--purple);font-size:12px"></i></span> <span>Essencial para o Envio Automático funcionar</span></div>
+              </div>
             </div>
+
+            <!-- Botão criar — bem proeminente -->
+            <button class="btn btn-primary w100" style="margin-bottom:10px;padding:14px;font-size:14px;font-weight:800;border-radius:12px;background:linear-gradient(135deg,#4f46e5,#7c3aed);box-shadow:0 4px 14px rgba(99,102,241,.35)" onclick="openProfileEditor()">
+              <i class="ti ti-plus" style="font-size:16px"></i> Criar Perfil de Currículo
+            </button>
+
+            <!-- Prioridade do sistema -->
+            <div style="background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--t2);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <i class="ti ti-info-circle" style="color:var(--blue);font-size:14px;flex-shrink:0"></i>
+              <span><strong>Prioridade automática:</strong> Perfil de Categoria → Perfil Geral (fallback)</span>
+            </div>
+
+            <!-- Lista de perfis -->
             <div id="profile-list" style="display:flex;flex-direction:column;gap:10px">
-              <div class="empty-state"><i class="ti ti-user-circle"></i><p>Nenhum perfil criado</p><small>Crie seu primeiro perfil para começar a enviar</small></div>
+              <div class="empty-state" style="border:2px dashed rgba(99,102,241,.3);border-radius:12px;padding:28px 16px;text-align:center">
+                <i class="ti ti-file-cv" style="font-size:36px;color:rgba(99,102,241,.4);display:block;margin-bottom:10px"></i>
+                <p style="font-size:14px;font-weight:700;color:var(--text);margin:0 0 6px">Nenhum perfil criado ainda</p>
+                <small style="font-size:12px;color:var(--t3);line-height:1.5">Crie seu primeiro Perfil de Currículo para<br>começar a enviar candidaturas</small>
+              </div>
             </div>
           </div>
 
@@ -2399,7 +2527,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <div style="font-size:16px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px"><i class="ti ti-chart-bar" style="color:var(--blue)"></i> Estatísticas</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
               <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:14px;text-align:center">
-                <div style="font-size:28px;font-weight:800;color:var(--blue)" id="pstat-total">–</div>
+                <div style="font-size:28px;font-weight:800;color:var(--blue)" id="pstat-total-stats">–</div>
                 <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Total enviados</div>
               </div>
               <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:14px;text-align:center">
@@ -2660,7 +2788,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                 </div>
               </div>
               <!-- Aviso de categoria ativa -->
-              <div id="af-cat-warning" style="display:none;background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.4);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#d97706;display:flex;align-items:center;gap:6px">
+              <div id="af-cat-warning" style="display:none;background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.4);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#d97706;align-items:center;gap:6px">
                 <i class="ti ti-filter" style="font-size:14px;flex-shrink:0"></i>
                 <span>⚠️ Filtro de categoria ativo: <strong id="af-cat-warning-label"></strong> — isso limita as vagas! Para ver todas, clique em "Todos" acima.</span>
               </div>
@@ -2786,7 +2914,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <div style="background:linear-gradient(135deg,#eff6ff,#f0f9ff);border:1.5px solid #bfdbfe;border-radius:14px;padding:16px;margin-bottom:14px">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
     <i class="ti ti-school" style="font-size:20px;color:#1e40af"></i>
-    <div style="font-size:14px;font-weight:800;color:#1e40af">Como configurar seu Perfil de E-mail</div>
+    <div style="font-size:14px;font-weight:800;color:#1e40af">Como configurar seu Perfil de Currículo</div>
   </div>
   <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.6">
     <div style="background:#fff;border-radius:10px;padding:11px;border:1px solid #bfdbfe"><span style="font-weight:800;color:#1e40af">① Nome do Perfil</span><br><span style="color:#374151">Dê um nome para identificar. Ex: <strong>"Landscape"</strong> ou <strong>"Geral"</strong>. O perfil Geral é usado como padrão para todas as vagas sem perfil específico.</span></div>
@@ -3220,7 +3348,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 
               <div style="display:flex;gap:10px;align-items:flex-start">
                 <div style="width:28px;height:28px;border-radius:8px;background:#fef2f2;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">📄</div>
-                <div><strong style="color:#1e1b4b">Aba "Perfis de E-mail" — Configurar currículo e modelo</strong><br>Clique em <strong>"+ Novo Perfil"</strong> e:<br>
+                <div><strong style="color:#1e1b4b">Aba "Perfis de Currículo" — Configurar currículo e modelo</strong><br>Clique em <strong>"+ Novo Perfil"</strong> e:<br>
                   <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">
                     <div style="display:flex;gap:8px;align-items:flex-start;background:#f8fafc;border-radius:8px;padding:8px">
                       <span style="background:#4f46e5;color:#fff;border-radius:50%;width:18px;height:18px;min-width:18px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;margin-top:1px">a</span>
@@ -3572,7 +3700,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <button onclick="sendIaSuggestion('Como configurar o Envio Automático do H2BApply? Quais passos seguir?')" class="ia-chip">🤖 Envio Automático</button>
           <button onclick="sendIaSuggestion('Explique os planos do H2BApply: Free, VIP, VIPro e DoublePro. Qual compensa mais para mim?')" class="ia-chip">💎 Planos e preços</button>
           <button onclick="sendIaSuggestion('Quais documentos preciso ter para conseguir o visto H-2B?')" class="ia-chip">📋 Documentos</button>
-          <button onclick="sendIaSuggestion('Como criar um bom perfil de email no H2BApply? O que colocar no currículo?')" class="ia-chip">📄 Criar perfil</button>
+          <button onclick="sendIaSuggestion('Como criar um bom perfil de currículo no H2BApply? O que colocar no currículo?')" class="ia-chip">📄 Criar perfil</button>
           <button onclick="sendIaSuggestion('O que fazer se o Gmail bloquear minha conta por muitos envios?')" class="ia-chip">🚫 Gmail bloqueou</button>
           <button onclick="sendIaSuggestion('Como indicar amigos e ganhar dias VIP grátis?')" class="ia-chip">🎁 Ganhar VIP grátis</button>
         </div>
@@ -3665,33 +3793,40 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       </div>
     </div><!-- /main-area -->
   </div><!-- /app-body --><!-- Bottom Nav -->
-  <nav class="bottom-nav">
-    <button class="bn active" id="bn-home" onclick="sv('home')"><i class="ti ti-home-2"></i><span>Home</span></button>
-    <button class="bn" id="bn-tutorial" onclick="sv('tutorial')"><i class="ti ti-book-2" style="font-size:20px;color:#059669"></i><span style="color:#059669;font-weight:700;font-size:9px">Tutorial</span></button>
-    <button class="bn" id="bn-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i><span>Manual</span></button>
-    <button class="bn" id="bn-pesquisa" onclick="sv('pesquisa')"><i class="ti ti-search"></i><span>Pesquisar</span></button>
-    <!-- AUTO — CTA central destacado -->
+  <!-- ══ BOTTOM NAV — estilo Instagram ══ -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <!-- 1: Manual -->
+    <button class="bn" id="bn-jobs" onclick="sv('jobs')">
+      <i class="ti ti-send"></i>
+      <span>Manual</span>
+    </button>
+    <!-- 2: Buscar -->
+    <button class="bn" id="bn-pesquisa" onclick="sv('pesquisa')">
+      <i class="ti ti-search"></i>
+      <span>Buscar</span>
+    </button>
+    <!-- 3: AUTO — botão central elevado (estilo Instagram Stories) -->
     <button class="bn bn-auto" id="bn-auto" onclick="openAutoModal()">
-      <div class="bn-auto-ring"><i class="ti ti-robot"></i></div>
-      <span>Auto</span>
-      <span class="bn-dot" id="bnd-auto" style="background:#7e3af2;right:calc(50% - 22px);top:1px"></span>
+      <div class="bn-auto-ring">
+        <i class="ti ti-robot"></i>
+        <span class="bn-dot" id="bnd-auto"></span>
+      </div>
+      <span>Automático</span>
     </button>
+    <!-- 4: Respostas com badge -->
     <button class="bn" id="bn-respostas" onclick="sv('respostas')" style="position:relative">
-      <i class="ti ti-mail-opened" style="color:var(--green)"></i>
-      <span style="color:var(--green);font-weight:700">Respostas</span>
-      <span class="bn-dot" id="bnd-respostas" style="background:var(--green);display:none"></span>
+      <div style="position:relative;display:inline-block">
+        <i class="ti ti-mail-opened"></i>
+        <span class="bn-badge" id="bnd-respostas" style="display:none"></span>
+      </div>
+      <span>Respostas</span>
     </button>
-    <button class="bn" id="bn-redeem" onclick="sv('redeem')" style="position:relative">
-      <i class="ti ti-ticket" style="color:#7c3aed;font-size:20px"></i>
-      <span style="color:#7c3aed;font-weight:700;font-size:9px">Código</span>
-    </button>
-    <button class="bn" id="bn-ranking" onclick="sv('ranking')" style="position:relative">
-      <i class="ti ti-trophy" style="color:#f59e0b;font-size:21px"></i>
-      <span style="color:#d97706;font-weight:700">Ranking</span>
-    </button>
-    <button class="bn" id="bn-iaChat" onclick="sv('iaChat')" style="position:relative">
-      <i class="ti ti-brain" style="color:#0891b2;font-size:20px"></i>
-      <span style="color:#0891b2;font-weight:700;font-size:9px">IA Chat</span>
+    <!-- 5: Avatar do perfil — abre o menu completo (estilo Facebook/Instagram) -->
+    <button class="bn bn-profile" id="bn-profile" onclick="openDrawer()">
+      <div class="bn-av-wrap" id="bn-av">
+        <i class="ti ti-user-circle"></i>
+      </div>
+      <span>Menu</span>
     </button>
   </nav>
 </div>
@@ -4282,33 +4417,87 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 </div>
 <div class="drawer-ov" id="dov" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer">
-  <div style="padding:16px 14px 12px;border-bottom:1px solid rgba(99,102,241,.12);background:linear-gradient(135deg,#f5f7ff,#edf0ff)">
-    <div id="d-av" style="width:48px;height:48px;border-radius:50%;overflow:hidden;margin-bottom:8px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:#fff">?</div>
-    <div style="font-size:15px;font-weight:700;color:#1e1b4b" id="d-name">–</div>
-    <div style="font-size:12px;color:#7c7fb5" id="d-email">–</div>
-    <div id="d-plan" style="margin-top:4px"></div>
+  <!-- Cabeçalho gradiente com foto e plano -->
+  <div style="padding:20px 16px 14px;background:linear-gradient(135deg,#4f46e5,#7c3aed);position:relative;flex-shrink:0">
+    <button onclick="closeDrawer()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.2);border:none;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff"><i class="ti ti-x" style="font-size:15px"></i></button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <div id="d-av" style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;color:#fff;border:2.5px solid rgba(255,255,255,.4);flex-shrink:0">?</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:16px;font-weight:800;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="d-name">–</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.75);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="d-email">–</div>
+        <div id="d-plan" style="margin-top:4px"></div>
+      </div>
+    </div>
+    <button onclick="closeDrawer();sv('profile')" style="width:100%;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.3);border-radius:10px;padding:8px;font-size:12px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-user-circle" style="font-size:14px"></i> Ver meu perfil completo</button>
   </div>
-  <div style="padding:8px">
-    <!-- CTA principal -->
-    <button class="d-item" onclick="closeDrawer();openAutoModal()" style="background:rgba(124,58,237,.1);color:#6d28d9;font-weight:700;border-radius:var(--r);margin-bottom:4px;border:1.5px solid rgba(124,58,237,.2)"><i class="ti ti-robot"></i>Envio Automático</button>
-    <!-- Divisor -->
-    <div style="font-size:9px;font-weight:800;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;padding:8px 4px 4px">Navegação</div>
-    <button class="d-item" onclick="closeDrawer();sv('home')"><i class="ti ti-home-2"></i>Home</button>
-    <a class="d-item" href="/guia" target="_blank" style="background:linear-gradient(135deg,rgba(16,185,129,.10),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.28);border-radius:var(--r);font-weight:800;color:#059669;margin-bottom:4px;text-decoration:none"><i class="ti ti-book-2" style="color:#059669"></i>Guia H-2B & H-2A<span style="margin-left:auto;font-size:9px;background:#059669;color:#fff;padding:1px 6px;border-radius:99px">NOVO</span></a>
-    <button class="d-item" onclick="closeDrawer();sv('jobs')"><i class="ti ti-send"></i>Envio Manual</button>
-    <button class="d-item" onclick="closeDrawer();sv('pesquisa')"><i class="ti ti-search"></i>Pesquisar Vagas</button>
-    <button class="d-item" onclick="closeDrawer();sv('respostas')" style="color:var(--green);font-weight:700"><i class="ti ti-mail-opened" style="color:var(--green)"></i>Respostas</button>
-    <button class="d-item" onclick="closeDrawer();sv('ranking')" style="color:#b45309;font-weight:700"><i class="ti ti-trophy" style="color:#f59e0b"></i>Ranking</button>
-    <button class="d-item" onclick="closeDrawer();sv('hist')"><i class="ti ti-send"></i>Candidaturas Enviadas</button>
-    <button class="d-item" onclick="closeDrawer();sv('saved')"><i class="ti ti-bookmark"></i>Vagas Salvas</button>
-    <!-- Divisor -->
-    <div style="font-size:9px;font-weight:800;color:var(--t4);letter-spacing:.08em;text-transform:uppercase;padding:8px 4px 4px">Conta</div>
-    <button class="d-item" onclick="closeDrawer();sv('profile')"><i class="ti ti-user"></i>Perfil</button>
-    <button class="d-item" onclick="closeDrawer();sv('plans')" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.07));border:1.5px solid rgba(99,102,241,.25);font-weight:800;color:#4f46e5;border-radius:var(--r)"><i class="ti ti-diamond" style="font-size:16px;color:#4f46e5"></i>Contratar Plano</button>
-    <button class="d-item" onclick="closeDrawer();sv('logs')" style="color:var(--t3);font-size:13px"><i class="ti ti-list-details"></i>Logs Automático</button>
-    <div id="d-admin" style="display:none"><button class="d-item" onclick="location.href='/admin'"><i class="ti ti-shield"></i>Painel Admin</button></div>
-    <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px">
-      <button class="d-item" onclick="doLogout()" style="color:var(--red)"><i class="ti ti-logout"></i>Sair</button>
+  <!-- Conteúdo rolável -->
+  <div style="overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch">
+    <!-- Grid de atalhos rápidos -->
+    <div style="padding:12px 12px 8px">
+      <div style="font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Atalhos Rápidos</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button onclick="closeDrawer();sv('home')" class="d-quick-btn"><i class="ti ti-home-2" style="color:#4f46e5"></i><span>Home</span></button>
+        <button onclick="closeDrawer();sv('ranking')" class="d-quick-btn"><i class="ti ti-trophy" style="color:#f59e0b"></i><span>Ranking</span></button>
+        <button onclick="closeDrawer();sv('hist')" class="d-quick-btn"><i class="ti ti-history" style="color:#059669"></i><span>Enviadas</span></button>
+        <button onclick="closeDrawer();sv('saved')" class="d-quick-btn"><i class="ti ti-bookmark" style="color:#e11d48"></i><span>Salvas</span></button>
+        <button onclick="closeDrawer();sv('indicar')" class="d-quick-btn"><i class="ti ti-users" style="color:#0891b2"></i><span>Indicar Amigos</span></button>
+        <button onclick="closeDrawer();sv('redeem')" class="d-quick-btn"><i class="ti ti-ticket" style="color:#7c3aed"></i><span>Resgatar Código</span></button>
+      </div>
+    </div>
+    <div style="height:1px;background:var(--border);margin:0 12px"></div>
+    <!-- Lista principal -->
+    <div style="padding:8px">
+      <a class="d-item" href="/guia" target="_blank" style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.25);color:#059669;font-weight:800;text-decoration:none;border-radius:12px;margin-bottom:4px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-book-2" style="color:#059669;font-size:18px"></i></div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:800;color:#059669">Guia H-2B & H-2A</div><div style="font-size:11px;color:var(--t3);font-weight:400">Aprenda como funciona o visto</div></div>
+        <span style="font-size:9px;background:#059669;color:#fff;padding:2px 7px;border-radius:99px;font-weight:700">NOVO</span>
+      </a>
+      <button class="d-item" onclick="closeDrawer();sv('plans')" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(124,58,237,.07));border:1.5px solid rgba(99,102,241,.25);border-radius:12px;margin-bottom:4px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(99,102,241,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-diamond" style="color:#6366f1;font-size:18px"></i></div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:800;color:#4f46e5">Planos & Recompensas</div><div style="font-size:11px;color:var(--t3);font-weight:400">Aumente seus envios diários</div></div>
+        <i class="ti ti-chevron-right" style="color:var(--t3);font-size:16px"></i>
+      </button>
+      <button class="d-item" onclick="closeDrawer();sv('notificacoes')" style="border-radius:12px;margin-bottom:4px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(245,158,11,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-bell" style="color:#f59e0b;font-size:18px"></i></div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:700">Notificações</div><div style="font-size:11px;color:var(--t3);font-weight:400">Avisos e alertas do sistema</div></div>
+        <i class="ti ti-chevron-right" style="color:var(--t3);font-size:16px"></i>
+      </button>
+      <button class="d-item" onclick="closeDrawer();sv('iaChat')" style="border-radius:12px;margin-bottom:4px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(8,145,178,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-brain" style="color:#0891b2;font-size:18px"></i></div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:700">IA Chat H2B</div><div style="font-size:11px;color:var(--t3);font-weight:400">Tire dúvidas com inteligência artificial</div></div>
+        <span style="font-size:9px;background:linear-gradient(135deg,#0891b2,#6366f1);color:#fff;padding:2px 7px;border-radius:99px;font-weight:700">IA</span>
+      </button>
+      <button class="d-item" onclick="closeDrawer();sv('tutorial')" style="border-radius:12px;margin-bottom:4px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(99,102,241,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-help-circle" style="color:#6366f1;font-size:18px"></i></div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:700">Tutorial</div><div style="font-size:11px;color:var(--t3);font-weight:400">Como usar o H2BApply</div></div>
+        <i class="ti ti-chevron-right" style="color:var(--t3);font-size:16px"></i>
+      </button>
+      <button class="d-item" onclick="closeDrawer();sv('sugestoes')" style="border-radius:12px;margin-bottom:4px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-bulb" style="color:#059669;font-size:18px"></i></div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:700">Sugestões para Devs</div><div style="font-size:11px;color:var(--t3);font-weight:400">Envie ideias e melhorias</div></div>
+        <i class="ti ti-chevron-right" style="color:var(--t3);font-size:16px"></i>
+      </button>
+      <button class="d-item" onclick="closeDrawer();sv('logs')" style="border-radius:12px;margin-bottom:4px">
+        <div style="width:36px;height:36px;border-radius:10px;background:var(--sf3);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-list-details" style="color:var(--t2);font-size:18px"></i></div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:700">Logs do Automático</div><div style="font-size:11px;color:var(--t3);font-weight:400">Histórico detalhado de envios</div></div>
+        <i class="ti ti-chevron-right" style="color:var(--t3);font-size:16px"></i>
+      </button>
+    </div>
+    <!-- Admin -->
+    <div id="d-admin" style="display:none;padding:0 8px 4px">
+      <div style="height:1px;background:var(--border);margin:0 4px 8px"></div>
+      <button class="d-item" onclick="location.href='/admin'" style="border-radius:12px;background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(217,119,6,.07));border:1.5px solid rgba(245,158,11,.3)">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(245,158,11,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-shield" style="color:#f59e0b;font-size:18px"></i></div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:800;color:#f59e0b">Painel Admin</div><div style="font-size:11px;color:var(--t3);font-weight:400">Gerenciar usuários e sistema</div></div>
+      </button>
+    </div>
+    <!-- Sair -->
+    <div style="padding:0 8px 24px">
+      <div style="height:1px;background:var(--border);margin:0 4px 8px"></div>
+      <button class="d-item" onclick="doLogout()" style="border-radius:12px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(239,68,68,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-logout" style="color:var(--red);font-size:18px"></i></div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--red)">Sair da conta</div></div>
+      </button>
     </div>
   </div>
 </div>
@@ -4653,6 +4842,8 @@ function sv(v,...args){
   curView=v;
   // Scroll to top ao mudar de aba
   const appEl=g("#app");if(appEl)appEl.scrollTop=0;window.scrollTo(0,0);
+  // Sincronizar bn-profile: nunca fica "active" (abre drawer, não view)
+  setTimeout(()=>{g("#bn-profile")?.classList.remove("active");},50);
   VIEWS.forEach(id=>{const ve=g("#v-"+id);if(ve)ve.classList.toggle("gone",id!==v);const si=g("#si-"+id);if(si)si.classList.toggle("active",id===v);const bn=g("#bn-"+id);if(bn)bn.classList.toggle("active",id===v);});
   if(v==="plans"){setTimeout(()=>updatePlanCalc&&updatePlanCalc(),100);}if(v==="hist")renderHist();if(v==="saved")renderSaved();if(v==="profile"){loadProfile();loadTplView();setTimeout(()=>{_loadSoundPref();renderSoundSelector();},100);}
   if(v==="respostas"){loadInbox();setTimeout(()=>{_renderInboxNotifTabBtn();},100);}
@@ -5302,7 +5493,7 @@ async function openModal(jobId){
     try{const _pr=await fetch("/api/profiles",{credentials:"include"}).then(r=>r.json());UPROFILES=_pr.profiles||[];if(U)U.profiles=UPROFILES;_profiles=UPROFILES.filter(p=>p.active!==false);}catch{}
   }
   if(!_profiles.length){
-    if(confirm("Você precisa criar um perfil de e-mail antes de candidatar.\nDeseja criar agora?")){
+    if(confirm("Você precisa criar um perfil de currículo antes de candidatar.\nDeseja criar agora?")){
       sv("profile");
       setTimeout(()=>{switchProfileTab("profiles");setTimeout(openProfileEditor,200);},100);
     }
@@ -5584,10 +5775,13 @@ function updDocBadge(){const n=DOCS.length;const b=g("#sib-docs");if(b){b.style.
 // ═══════════════════════════════════════════
 function loadProfile(){
   g("#cfg-name").value=CFG.name||U.name||"";g("#cfg-country").value=CFG.country||"Brazil";g("#cfg-phone").value=CFG.phone||"";g("#cfg-city").value=CFG.city||"";g("#cfg-lang").value=CFG.language||"pt-BR";
-  // Mini-stats do perfil
-  const _ps=g("#pstat-total");if(_ps)_ps.textContent=(U.totalSent||HIST.length||0).toLocaleString("pt-BR");
+  // Mini-stats do perfil (aba Eu)
+  const _total=U.totalSent||HIST.length||0;
+  const _ps=g("#pstat-total");if(_ps)_ps.textContent=_total.toLocaleString("pt-BR");
   const _pa=g("#pstat-auto");if(_pa)_pa.textContent=(U.totalAutoHist||0).toLocaleString("pt-BR");
   const _pr=g("#pstat-replies");if(_pr)_pr.textContent=(U.totalReplies||INBOX_EMAILS.filter(e=>e.isReply).length||0).toLocaleString("pt-BR");
+  // Stats tab (aba Stats)
+  const _pst=g("#pstat-total-stats");if(_pst)_pst.textContent=_total>0?_total.toLocaleString("pt-BR"):"–";
   // Novos campos
   const wEl=g("#cfg-whatsapp");if(wEl)wEl.value=U.whatsapp||"";
   // ── Gmail Extra: mostrar seção conforme plano ──
@@ -7621,6 +7815,21 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
   if(!autoSelectedSrc){toast("Escolha a fonte das vagas! (Passo 1)","r");g("#ws-1")?.scrollIntoView({behavior:"smooth"});return;}
   const activeProfiles=(U.profiles||UPROFILES||[]).filter(p=>p.active!==false);
   if(!activeProfiles.length){toast("Crie pelo menos 1 perfil ativo antes de iniciar!","r");return;}
+
+  // ── VALIDAÇÃO: WhatsApp obrigatório para automático ──────────────
+  const _wppRaw=U.whatsapp||CFG?.phone||"";
+  const _wppNum=_wppRaw.replace(/\D/g,"");
+  if(!_wppNum||_wppNum.length<8){
+    toast("📱 WhatsApp obrigatório para usar o automático","r");
+    setTimeout(()=>{
+      if(confirm("⚠️ Cadastre seu WhatsApp antes de usar o Envio Automático.\n\nIsso permite que as empresas americanas entrem em contato com você diretamente.\n\nDeseja cadastrar agora?")){
+        if(typeof closeAutoModal==="function")closeAutoModal();
+        sv("profile");
+        setTimeout(()=>{if(typeof switchProfileTab==="function")switchProfileTab("me");},300);
+      }
+    },200);
+    return;
+  }
   const nowH=new Date().getHours();
   const limit=10000;
   const state=g("#af-state")?.value||"";
@@ -7726,7 +7935,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
         if (debug.cvsRegistered > 0 && debug.cvsOnDisk === 0) {
           extraInfo = " Seus PDFs foram registrados mas não estão no disco do servidor — faça upload novamente.";
         } else if (debug.profilesActive > 0 && debug.profilesWithResume === 0 && debug.cvsRegistered === 0) {
-          extraInfo = " Vá em Perfis e vincule um PDF (currículo) ao seu perfil de envio.";
+          extraInfo = " Vá em Perfis e vincule um PDF (currículo) ao seu perfil de currículo.";
         }
         throw new Error((data.error || "Currículo não encontrado") + extraInfo);
       }
@@ -8815,7 +9024,7 @@ async function openAutoModal(){
   const hasCv=DOCS.some(c=>(c.cvType||"resume")==="resume");
 
   if(profiles.length===0){
-    if(confirm("Para usar o Envio Automático você precisa criar ao menos um perfil de e-mail.\n\nDeseja criar agora?")){
+    if(confirm("Para usar o Envio Automático você precisa criar ao menos um perfil de currículo.\n\nDeseja criar agora?")){
       sv("profile");
       setTimeout(()=>{switchProfileTab("profiles");setTimeout(openProfileEditor,200);},100);
     }
@@ -9467,6 +9676,8 @@ function renderHome(){
   if(nEl)nEl.textContent=U.name||U.email||"–";
   // Avatar
   const av=g("#home-avatar");if(av){if(U.picture){av.innerHTML=`<img src="${esc(U.picture)}" style="width:100%;height:100%;object-fit:cover">`;}else{av.textContent=(U.name||"?")[0].toUpperCase();}}
+  // Atualizar avatar na bottom nav
+  const bnAv=g("#bn-av");if(bnAv){if(U.picture){bnAv.innerHTML=`<img src="${esc(U.picture)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;}else{bnAv.innerHTML=`<span style="font-size:13px;font-weight:800;color:#fff">${(U.name||"?")[0].toUpperCase()}</span>`;}}
   // Badge do plano
   const planRow=g("#home-plan-row");if(planRow){
     let badges=planBadgeHTML();
@@ -11455,10 +11666,10 @@ console.log('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas');
       <button onclick="obNext(2)" style="margin-top:8px;width:100%;background:none;border:none;cursor:pointer;font-size:12px;color:var(--t3);font-family:inherit">Pular este passo</button>
     </div>
 
-    <!-- STEP 3: Perfil de Email -->
+    <!-- STEP 3: Perfil de Currículo -->
     <div id="ob-step-3" style="padding:20px 24px 24px;display:none">
       <div style="font-size:32px;margin-bottom:12px;text-align:center">✉️</div>
-      <div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:8px;color:var(--navy)">Crie seu Perfil de Email</div>
+      <div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:8px;color:var(--navy)">Crie seu Perfil de Currículo</div>
       <div style="font-size:13px;color:var(--t2);text-align:center;margin-bottom:20px;line-height:1.6">O perfil define o assunto e o corpo dos emails que serão enviados. Você pode criar vários!</div>
       <div class="field" style="margin-bottom:10px"><label>Nome do perfil</label><input class="input" id="ob-prf-name" type="text" placeholder="Ex: Perfil Geral, Landscape..."></div>
       <div class="field" style="margin-bottom:10px">
@@ -12648,7 +12859,7 @@ console.log("[v14+] Onboarding, FAQ, Preview Auto, Follow-up, Score carregados")
       rows.push(`
         <div class="send-validation-row is-err">
           <i class="ti ti-alert-triangle"></i>
-          <span><strong>Nenhum currículo PDF selecionado.</strong> Vá em <strong>Perfis</strong> e vincule um PDF ao seu perfil.</span>
+          <span><strong>Nenhum currículo PDF selecionado.</strong> Vá em <strong>Currículos</strong> e vincule um PDF ao seu perfil.</span>
         </div>`);
     }
 
@@ -13094,70 +13305,65 @@ console.log("[v14+] Onboarding, FAQ, Preview Auto, Follow-up, Score carregados")
 
   function _buildModalHTML(item){
     const SRC_META = {
-      seasonal: { label:"Seasonal Jobs", icon:"ti-world", color:"var(--blue)" },
-      jan2026:  { label:"Janeiro 2026",  icon:"ti-calendar", color:"var(--purple,#7c3aed)" },
-      jul2025:  { label:"Julho 2025",    icon:"ti-calendar", color:"var(--amber)" },
-      hist:     { label:"Candidatura Enviada", icon:"ti-send", color:"var(--green)" },
+      seasonal: { label:"Seasonal Jobs (API)", icon:"ti-world", color:"var(--blue)" },
+      jan2026:  { label:"Janeiro 2026 (H-2B)", icon:"ti-sun", color:"#d97706" },
+      jul2025:  { label:"Julho 2025 (H-2B)",   icon:"ti-snowflake", color:"#0891b2" },
+      hist:     { label:"Candidatura Enviada",  icon:"ti-send", color:"var(--green)" },
     };
     const meta = SRC_META[item._src] || { label: item._src, icon:"ti-search", color:"var(--blue)" };
     const visa = item.visa||"";
     const visaClass = visa.includes("H-2A") ? "ta" : "tb";
     const visaLabel = visa.includes("H-2A") ? "🌾 H-2A Agrícola" : visa ? "🔧 H-2B Não-Agrícola" : "";
+    const isActive = item.active !== false;
+    const dolUrl = item.url || (item.caseNum && item.caseNum.startsWith("H-") ? `https://seasonaljobs.dol.gov/jobs/${item.caseNum}` : null);
 
-    // Seção de informações principais (grid)
-    let infoGrid = "";
-    if(item._src === "seasonal" || item._src === "hist"){
-      infoGrid = `
-        ${_infoRow("Salário / Wage", item.wage)}
-        ${_infoRow("Local", [item.city, item.state].filter(Boolean).join(", "))}
-        ${item.workers ? _infoRow("Vagas abertas", item.workers+" posição(ões)") : ""}
-        ${(item.start||item.end) ? _infoRow("Período", [item.start, item.end].filter(Boolean).join(" → ")) : ""}
-        ${item.email ? _infoRow("E-mail da vaga", item.email) : ""}
-        ${item.caseNum ? _infoRow("ETA Case Number", item.caseNum, {full:true, mono:true}) : ""}
-      `;
-    } else {
-      // jan2026 / jul2025 — campos compactos
-      infoGrid = `
-        ${_infoRow("Estado / State", item.state)}
-        ${_infoRow("Data inicial", item.start)}
-        ${item.desc ? _infoRow("Status DOL", item.desc) : ""}
-        ${item.caseNum ? _infoRow("ETA Case Number", item.caseNum, {full:true, mono:true}) : ""}
-      `;
-    }
-
-    const hasDesc = item.desc && item._src === "seasonal";
-    const hasEmail = item._src === "seasonal" && item.email;
+    // ── Card completo — igual ao Manual ──────────────────────────────
+    const infoGrid = `
+      ${item.wage && item.wage!=="–" ? `<div class="info-box"><div class="info-lbl">💰 Salário</div><div class="info-val" style="color:var(--green);font-weight:800">${_e(item.wage)}</div></div>` : ""}
+      ${(item.city||item.state) ? `<div class="info-box"><div class="info-lbl">📍 Local</div><div class="info-val">${_e([item.city,item.state].filter(Boolean).join(", "))}</div></div>` : ""}
+      ${item.workers ? `<div class="info-box"><div class="info-lbl">👥 Vagas</div><div class="info-val">${_e(String(item.workers))} posição(ões)</div></div>` : ""}
+      ${(item.start || item.end) && (item.start!=="–" || item.end!=="–") ? `<div class="info-box"><div class="info-lbl">📅 Período</div><div class="info-val" style="font-size:12px">${_e(item.start||"?")} → ${_e(item.end||"?")}</div></div>` : ""}
+      ${item.phone ? `<div class="info-box"><div class="info-lbl">📞 Telefone</div><div class="info-val"><a href="tel:${_e(item.phone)}" style="color:var(--blue);font-weight:700">${_e(item.phone)}</a></div></div>` : ""}
+      ${item.email ? `<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">📧 E-mail da vaga</div><div class="info-val" style="font-size:11px;word-break:break-all"><a href="mailto:${_e(item.email)}" style="color:var(--green);font-weight:700">${_e(item.email)}</a></div></div>` : ""}
+      ${item.soc||item.socTitle ? `<div class="info-box"><div class="info-lbl">🏷️ Classificação SOC</div><div class="info-val" style="font-size:11px">${_e((item.soc||"")+" "+(item.socTitle||"")).trim()}</div></div>` : ""}
+      ${item.caseNum ? `<div class="info-box"><div class="info-lbl">🔑 ETA Case #</div><div class="info-val" style="font-size:11px;font-family:monospace">${_e(item.caseNum)}</div></div>` : ""}
+      ${dolUrl ? `<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">🔗 Vaga oficial DOL</div><div class="info-val"><a href="${_e(dolUrl)}" target="_blank" style="color:#818cf8;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px"><i class="ti ti-external-link" style="font-size:12px"></i>${_e(dolUrl.replace("https://",""))}</a></div></div>` : ""}
+      ${item.desc && !item.desc.includes("Status DOL") ? `<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">📋 Funções da vaga</div><div class="info-val" style="font-size:11px;line-height:1.6;white-space:pre-wrap;max-height:160px;overflow-y:auto;background:rgba(0,0,0,.04);border-radius:8px;padding:8px;margin-top:4px">${_e(item.desc)}</div></div>` : ""}
+    `;
 
     // Botões de ação
+    const hasEmail = !!(item.email);
     let actions = "";
     if(hasEmail){
-      // Botão de candidatura (só seasonal com email)
-      actions += `<button class="btn btn-primary" style="flex:1" onclick="_pesqModalApply()"><i class="ti ti-send"></i> Candidatar-se</button>`;
+      actions += `<button class="btn btn-primary" style="flex:2" onclick="_pesqModalApply()"><i class="ti ti-send"></i> Candidatar-se</button>`;
     }
     if(item._src === "seasonal" && item._id){
-      actions += `<button class="btn btn-secondary" onclick="_pesqModalViewInJobs()" title="Ver na aba Vagas"><i class="ti ti-layout-list"></i> Ver em Vagas</button>`;
+      actions += `<button class="btn btn-secondary" onclick="_pesqModalViewInJobs()"><i class="ti ti-layout-list"></i> Ver em Vagas</button>`;
     }
-    if(item._src === "hist" && item._histRef){
-      actions += `<button class="btn btn-secondary" onclick="_pesqModalViewInHist()" title="Ver no Histórico"><i class="ti ti-history"></i> Ver Histórico</button>`;
+    if(item._src === "hist"){
+      actions += `<button class="btn btn-secondary" onclick="_pesqModalViewInHist()"><i class="ti ti-history"></i> Ver Histórico</button>`;
     }
-    // Busca avançada pelo nome da empresa
-    const pesqTerm = item.email||item.company||item.caseNum||"";
-    if(pesqTerm && item._src !== "seasonal"){
-      actions += `<button class="btn btn-secondary" onclick="openPesquisaWith('${_e(pesqTerm)}')" title="Buscar mais sobre esta empresa"><i class="ti ti-search"></i> Buscar mais</button>`;
+    if(!hasEmail && item.caseNum){
+      actions += `<button class="btn btn-secondary" onclick="window.open('${dolUrl||'https://seasonaljobs.dol.gov'}','_blank')"><i class="ti ti-external-link"></i> Ver no DOL</button>`;
     }
 
     return `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-        <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,0,0,.06);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:${meta.color}">
-          <i class="ti ${meta.icon}" style="font-size:12px"></i>${_e(meta.label)}
+      <!-- Cabeçalho da fonte + badges -->
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <span style="display:inline-flex;align-items:center;gap:5px;background:rgba(0,0,0,.05);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:${meta.color}">
+          <i class="ti ${meta.icon}" style="font-size:11px"></i>${_e(meta.label)}
         </span>
-        ${visaLabel ? `<span class="tag ${visaClass}" style="font-size:11px">${visaLabel}</span>` : ""}
+        <span class="tag ${visaClass}" style="font-size:10px">${visaLabel||visa}</span>
+        <span class="tag ${isActive?"tg":"tr"}" style="font-size:10px">${isActive?"✅ Ativa":"❌ Inativa"}</span>
+        ${item._isSent ? '<span class="tag tp" style="font-size:10px">✓ Enviada</span>' : ""}
       </div>
-      <div style="font-size:20px;font-weight:900;color:var(--text);margin-bottom:4px;line-height:1.2">${_e(item.title||item.company||item.caseNum||"—")}</div>
-      ${item.title && item.company ? `<div style="font-size:14px;color:var(--t2);margin-bottom:14px;display:flex;align-items:center;gap:6px"><i class="ti ti-building" style="font-size:13px;color:var(--t3)"></i>${_e(item.company)}</div>` : `<div style="margin-bottom:14px"></div>`}
-      <div class="info-grid" style="margin-bottom:${hasDesc?14:0}px">${infoGrid}</div>
-      ${hasDesc ? `<div class="jd-desc" style="font-size:13px;line-height:1.6;color:var(--t2);white-space:pre-wrap;max-height:200px;overflow-y:auto;border-radius:var(--r);background:var(--sf2);border:1px solid var(--border);padding:12px">${_e(item.desc)}</div>` : ""}
-      ${actions ? `<div class="jd-acts" style="margin-top:18px;display:flex;flex-wrap:wrap;gap:8px">${actions}</div>` : ""}
+      <!-- Título + empresa -->
+      <div style="font-size:20px;font-weight:900;color:var(--text);line-height:1.2;margin-bottom:4px">${_e(item.title||item.company||item.caseNum||"—")}</div>
+      ${item.company ? `<div style="font-size:13px;color:var(--t2);margin-bottom:12px;display:flex;align-items:center;gap:5px"><i class="ti ti-building" style="font-size:12px;color:var(--t3)"></i>${_e(item.company)}</div>` : '<div style="margin-bottom:12px"></div>'}
+      <!-- Grid de informações completo -->
+      <div class="info-grid">${infoGrid}</div>
+      <!-- Ações -->
+      ${actions ? `<div class="jd-acts" style="margin-top:14px;display:flex;flex-wrap:wrap;gap:8px">${actions}</div>` : ""}
     `;
   }
 
@@ -13642,7 +13848,7 @@ const LANG_DICT = {
     "hist_title":"Candidaturas Enviadas","hist_search_ph":"Buscar empresa, cargo ou e-mail...",
     "hist_info":"Toque em qualquer candidatura para ver detalhes, reenviar ou excluir individualmente. O botão Reset apaga tudo e faz as vagas voltarem para a lista.",
     // Search
-    "search_jobs":"Pesquisar Vagas","search_sub":"Busca em todas as fontes: Seasonal, Jan 2026, Jul 2025",
+    "search_jobs":"Buscar Vagas","search_sub":"Busca em todas as fontes: Seasonal, Jan 2026, Jul 2025",
     "search_ph":"Empresa, e-mail, ETA case number, cargo, estado...","clear":"Limpar",
     "all_sources":"Todas as fontes","sent":"Enviadas",
     "search_anything":"Pesquise qualquer coisa",
@@ -13660,7 +13866,7 @@ const LANG_DICT = {
     "full_name":"Nome completo *","country":"País","city":"Cidade","language":"Idioma",
     "full_name_ph":"Seu nome completo","country_ph":"Brazil","save_data":"Salvar dados",
     "tap_to_enable":"Toque no botão para ativar","new_profile":"Criar Novo Perfil",
-    "email_profiles":"Perfis de E-mail","profiles_desc":"Cada perfil define o assunto, o corpo do e-mail e o currículo a usar. O sistema escolhe o perfil certo para cada vaga automaticamente.",
+    "email_profiles":"Perfis de Currículo","profiles_desc":"Cada perfil define o assunto, o corpo do e-mail e o currículo a usar. O sistema escolhe o perfil certo para cada vaga automaticamente.",
     "no_profiles":"Nenhum perfil criado","no_profiles_sub":"Crie seu primeiro perfil para começar a enviar",
     "total_sent":"Total enviados","streak":"Streak dias","response_rate":"Taxa resposta",
     "last_7days":"Últimos 7 dias","top_states":"Top Estados","share_stats":"Compartilhar resultado",
@@ -14090,7 +14296,7 @@ function applyLang(){
     }
   });
   document.querySelectorAll('#ptab-content-profiles [style*="font-size:16px"]').forEach(el=>{
-    if(el.textContent.match(/Perfis de E-mail|Email Profiles|Perfiles de Email/)){
+    if(el.textContent.match(/Perfis de Currículo|Email Profiles|Perfiles de Email/)){
       const ic=el.querySelector('i'); el.textContent=' '+t('email_profiles'); if(ic)el.prepend(ic);
     }
   });
