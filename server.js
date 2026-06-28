@@ -590,6 +590,78 @@ function boot() {
       problema:"Discrepância contagem planos ativos: resumo mostra 18 mas detalhe mostra 24.",
       solucao:"Causa: resumo usa DB_PEDIDOS.filter(status==='ativo') mas detalhe usa isVipActive(). Usuários com VIP ativo sem pedido formal (ex: ativados diretamente via /api/admin/vip/activate) não aparecem no resumo. Fonte única = isVipActive().",
       impacto:"Usar isVipActive() como fonte única de verdade para métricas de plano ativo.",modulos:["server.js: /api/admin/live","server.js: /api/admin/auditoria-gemini"],tags:["métricas","planos","discrepância"]
+    },
+    {
+      id:"KB-021",versao:"V901",data:"2026-06-28",autor:"Claude/Andrio",
+      problema:"Central de Incidentes nunca carregava (tela vazia) e download de relatórios (TXT/CSV/JSON) não funcionava. Causa-raiz: aspas simples não escapadas em admin.html linha 7860 — innerHTML='...onclick=\"selectResolution('ignore',this)\"...' fechava a string JS no 'ignore', gerando SyntaxError que QUEBRAVA O BLOCO <script> INTEIRO (linhas 6604–8357). Isso matou ~15 funções únicas desse bloco: loadIncidentes, downloadIncidents, loadFinanceiro, registrarPagamento/Gasto, loadVencimentos, exportVencimentosCSV, loadVipList, vipEmailSearch, loadPedidosLixeira, restaurarPedido, excluirPedido, excluirPermanente, renewVipFromModal, adminSendMessage. O resto do painel parecia funcionar só porque aprovarPedido/adminSetPlan/verComprovante/renderModalCompras estão DUPLICADAS num bloco posterior saudável que as sobrescreve.",
+      solucao:"Trocar a string de aspas simples por template literal (crase) na linha 7860 para que as aspas simples internas de 'ignore' sejam literais. Lição permanente: em onclick inline dentro de string JS, SEMPRE usar crase (`) no literal externo — nunca aspas simples — quando o handler contém aspas simples. Um único caractere quebra o bloco <script> inteiro e some com dezenas de funções silenciosamente.",
+      impacto:"Central de Incidentes volta a carregar e baixar relatórios. Financeiro, Vencimentos VIP, lista de VIPs, Lixeira de Pedidos e envio de mensagem ao usuário — todos restaurados. Regra de prevenção: validar admin.html com `node --check` por bloco <script> antes de gerar ZIP.",modulos:["admin.html: openResolveModal (linha 7860)","admin.html: bloco script 6604-8357"],tags:["incidentes","syntax-error","aspas","bloco-script","download","financeiro","regressão-oculta"]
+    },
+    {
+      id:"KB-022",versao:"V902",data:"2026-06-28",autor:"Claude/Andrio",
+      problema:"Textos do trial mentiam para o usuário: front prometia '5 dias VIP grátis' e '400 candidaturas/dia', mas o backend concede 1 dia VIP Manual (200 manuais/dia, sem automático — server.js L204/L4444, PLAN_LIMITS vip:{manual:200}). Também havia limites do plano FREE errados na UI (30 manuais+20 auto) vs config real (20+10), e o amigo indicado aparecia ganhando '5 dias' quando recebe o trial padrão de 1 dia.",
+      solucao:"Alinhados todos os textos de boas-vindas ao backend: 1 dia VIP Manual / 200 manuais. Free corrigido para 20+10. Amigo indicado = 1 dia (o INDICADOR continua ganhando +5 dias VIP Manual, +5 se o amigo assinar = correto). Badge de trial usa d.trialDays vindo do backend (fallback 1). Lição permanente: NÚMEROS DE PLANO/TRIAL/LIMITE nunca hardcodados no HTML — sempre vindos de /api/me ou de uma fonte única; senão divergem do backend e quebram a confiança no dia 2.",
+      impacto:"Promessa = entrega. Menos churn e menos ticket no dia seguinte. PENDENTE DE DECISÃO DO DONO: card do plano PAGO 'VIP Manual' anuncia 400/dia (L3245) e comentários do server.js L7-10 citam 400/R$49,90, mas PLAN_LIMITS entrega 200 — alinhar para 200 OU subir o backend para 400 (decisão de preço, não alterado nesta entrega).",modulos:["index.html: banner/planos/onboarding/indicação/i18n","server.js: PLAN_LIMITS (referência)"],tags:["trial","conversão","consistência","fonte-única","preço-pendente"]
+    },
+    {
+      id:"KB-023",versao:"V902",data:"2026-06-28",autor:"Claude/Andrio",
+      problema:"4 funções globais duplicadas no admin.html (aprovarPedido, verComprovante, adminSetPlan, renderModalCompras) — a 2ª definição vencia e a 1ª virava código morto; editar a errada 'não fazia nada'.",
+      solucao:"Removidas as 4 cópias mortas do bloco antigo (verificadas byte-idênticas às vivas antes de apagar). admin.html 12275→12179 linhas. Cada nome agora tem 1 definição. Lição permanente: um nome global = uma definição. Antes de apagar duplicata, confirmar igualdade com a cópia que vence (a última no fluxo de execução).",
+      impacto:"Manutenção previsível — editar a função tem efeito. Menos superfície para o bug do KB-021 se repetir.",modulos:["admin.html: blocos script 4 e 5"],tags:["dívida-técnica","duplicatas","manutenção","regressão"]
+    },
+    {
+      id:"KB-024",versao:"V902",data:"2026-06-28",autor:"Claude/Andrio",
+      problema:"Cadastro/onboarding sem orientação suficiente para iniciantes e estrangeiros — campos sem o 'porquê', sem nota de privacidade, sem explicar as variáveis do e-mail.",
+      solucao:"Onboarding enriquecido (mantendo todos os IDs/handlers): intro com tempo estimado, caixa de privacidade ('dados protegidos, nunca compartilhados'), ajuda no WhatsApp ('avisamos quando empresa responder'), caixa de benefício no perfil H2B, dica de currículo H2B, e explicação das variáveis {nome}/{vaga}/{empresa}/{pais}/{telefone}. Contador de passos estático corrigido (1 de 5 → 1 de 7, batendo com OB_ALL).",
+      impacto:"Cadastro mais claro, completo e confiável para o público H2B mobile. Lição: enriquecer informação ≠ adicionar campos obrigatórios — manter Mobile First e menos burocracia.",modulos:["index.html: onboarding wizard ob-step-1..5"],tags:["onboarding","ux","cadastro","mobile","conversão","acessibilidade"]
+    },
+    {
+      id:"KB-025",versao:"V903",data:"2026-06-28",autor:"Claude/Andrio",
+      problema:"Dono não conseguia organizar 'quem pagou e quantos dias de VIP cada um ainda tem' — a informação estava espalhada em 4 telas (VIP & Planos, Vencimentos VIP, Pedidos, Financeiro), exigindo reconciliação manual. Agravado pela divergência de contadores (KB-020) por cálculos no cliente.",
+      solucao:"Criada tela única '💳 Pagantes' alimentada por NOVO endpoint GET /api/admin/pagantes que CALCULA TUDO NO SERVIDOR (fonte única): junta usuários (vip.manualExpires/autoExpires via isManualVipActive/isAutoVipActive) com DB_PEDIDOS pagos/ativos (valorTotal + ativadoEm). Retorna por pagante: plano, dias restantes, status (ativo/vencendo≤3d/vencido/sem_data), último pagamento (valor+data), total pago, qtd pedidos. Ordenado por urgência (menos dias primeiro). Frontend: busca, filtro, export CSV e RENOVAR +30 em 1 clique (reusa /api/admin/vip/activate, que acumula dias corretamente). 'Pagante' = tem pedido pago/ativo OU VIP de origem paga/admin (inclui vencidos; exclui trial/código/indicação). Nenhuma tela antiga removida.",
+      impacto:"Dono vê numa tela só quem pagou, quanto, quando e quantos dias faltam — e renova sem editar datas. Cálculo no servidor elimina divergência de contador. Lição permanente: métricas de cobrança/dias devem ser computadas no servidor (fonte única), nunca remontadas no cliente a partir de telas separadas.",modulos:["server.js: GET /api/admin/pagantes","admin.html: view-pagantes + loadPagantes/renderPagantes/pagRenovar/exportPagantesCSV"],tags:["pagantes","vip","cobrança","fonte-única","admin","vencimentos","conversão","retenção"]
+    },
+    {
+      id:"KB-026",versao:"V904",data:"2026-06-28",autor:"Claude/Andrio",
+      problema:"Aba Pagantes mostrava 'sem pagamento registrado' para clientes ativados pelo admin sem pedido em DB_PEDIDOS, deixando o valor pago incompleto. Além disso, o app do usuário bloqueava zoom de pinça (maximum-scale=1), prejudicando acessibilidade para trabalhadores mais velhos/baixa visão.",
+      solucao:"Endpoint /api/admin/pagantes passou a usar o LIVRO-CAIXA DB_FINANCEIRO.pagamentos como fonte primária de valor/data (cobre ativações de pedido + lançamentos manuais), com fallback para DB_PEDIDOS e, por último, u.paymentAmount — sem dupla contagem. Receita (mês/total) calculada do livro-caixa quando existe. Removido maximum-scale=1 de index.html e guia.html (mantido viewport-fit=cover para notch).",
+      impacto:"Pagantes agora reflete quanto cada um pagou de forma completa e a receita bate com o Financeiro. App acessível com zoom. LIÇÃO DE PROCESSO (incidente real): uma escrita Python com escapes de surrogate (\\uD83E…) lançou UnicodeEncodeError APÓS abrir o arquivo em modo 'w', truncando server.js para 0 bytes. Recuperado do último ZIP entregue. Regra permanente: ao gerar texto com emojis para splice, usar SEMPRE UTF-8 real (nunca \\u-surrogate) e validar tamanho/sintaxe logo após escrever; manter o último ZIP como backup de recuperação.",modulos:["server.js: /api/admin/pagantes","index.html: viewport","guia.html: viewport"],tags:["pagantes","financeiro","fonte-única","acessibilidade","viewport","processo","backup","encoding"]
+    },
+    {
+      id:"KB-027",versao:"V905",data:"2026-06-28",autor:"Claude/Andrio",
+      problema:"Home não respondia 'o que faço primeiro?' — iniciante sem perfil/currículo ficava perdido (atrito de ativação). Prompts maximalistas pediam 'refatorar tudo nível Big Tech' de uma vez, o que arrisca quebrar um produto que já gera receita.",
+      solucao:"Adicionado card inteligente 'Próximo passo' na home (renderNextStep, aditivo e guardado por try/catch): lê o estado real (perfil ativo, currículo via resumeIdx/DOCS, envios do dia, plano, auto) e mostra UMA ação dominante — Criar perfil → Anexar currículo → Buscar vagas → Ver planos (limite) → Ativar automático. Esconde quando não há passo pendente. Entregue também o MAPA + AUDITORIA NÍVEL MUNDIAL (documento) com roadmap priorizado por impacto×risco. Abordagem: nível mundial em incrementos seguros, nunca big-bang.",
+      impacto:"Ativação e conversão maiores: o usuário sempre sabe o próximo passo. Risco baixo (aditivo, falha em silêncio). Lição permanente: diante de pedido 'refatore tudo', traduzir em mapa + roadmap priorizado e entregar em incrementos validados — preservar funcionalidades > velocidade de mudança.",modulos:["index.html: renderNextStep + #home-next-step + renderHome","MAPA_E_AUDITORIA_MUNDIAL_2026-06-28.md"],tags:["home","onboarding","ativação","conversão","ux","próximo-passo","roadmap","processo"]
+    },
+    {
+      id:"KB-028",versao:"V906",data:"2026-06-28",autor:"Claude/Andrio",
+      problema:"Cadastro (onboarding) parecia amador e poluído. Causa principal: a regra .ob-av usava aspect-ratio:1 + font-size:24px numa grade de 5 colunas, fazendo cada avatar do ranking virar um quadradão de ~65px — 20 deles dominavam a tela ('ícones gigantes'). Além disso, cada passo tinha um emoji flutuante gigante (28-32px) como cabeçalho, reforçando o ar improvisado.",
+      solucao:"Avatares do ranking redesenhados estilo Facebook: regra ESCOPADA (#ob-avatar-grid .ob-av) com círculos de 44px (border-radius:50%, aspect-ratio:auto), grade responsiva repeat(auto-fit,44px) centralizada — sem afetar a grade de avatares do perfil (prf-av). Emojis-cabeçalho de TODOS os passos (1,1b,1c,2,3,4) padronizados em badge circular limpo (54px, fundo gradiente suave). Label do avatar com dica 'toque para selecionar'. O 🎉 do passo final (celebração) mantido grande de propósito.",
+      impacto:"Cadastro limpo, compacto e profissional, mobile-first. Lição permanente: avatares/ícones de seleção devem ser círculos de tamanho fixo (~44px), nunca quadrados full-cell com aspect-ratio:1 em grade de poucas colunas. Ao reestilizar, ESCOPAR por id do container (#ob-avatar-grid) para não afetar outras grades que compartilham a classe (.ob-av também é usada por .prf-av no perfil).",modulos:["index.html: .ob-av CSS escopado + #ob-avatar-grid + cabeçalhos dos passos do onboarding"],tags:["cadastro","onboarding","avatar","ranking","ui","mobile","css-escopado","poluição-visual"]
+    },
+    {
+      id:"KB-029",versao:"V907",data:"2026-06-28",autor:"Claude/Andrio",
+      problema:"Gemini do site precisava de mais contexto permanente para 'já saber o que fazer sempre' que o site sobe — faltava no dossiê a arquitetura técnica e as regras de desenvolvimento (só tinha negócio/planos).",
+      solucao:"Adicionada ao dossiê do Gemini a seção 12 'ARQUITETURA TÉCNICA & REGRAS DE DESENVOLVIMENTO' (conhecimento permanente): stack, modelo de dados (DB_USERS/PEDIDOS/FINANCEIRO/REFERRAL/INCIDENTS/LOGS/KB), funções-chave (getUser/setUser, httpsReq, isVipActive...), 10 regras críticas que NUNCA podem ser quebradas, mapa de telas e como o Gemini deve agir. Referências antigas 'KB-001 a KB-020' atualizadas para 'todas as KB resolvidas'. Incluído README_DEPLOY.txt no ZIP. Splice feito em UTF-8 real (lição KB-026).",
+      impacto:"Toda auditoria do Gemini agora carrega o cérebro técnico completo do projeto — diagnósticos mais precisos, menos falsos positivos, sugestões alinhadas à arquitetura. Lição: o 'treinamento' do Gemini = base de conhecimento (DB_KB) + dossiê injetados no prompt a cada auditoria; persiste em /data/knowledge_base.json e só soma. Enriquecer = adicionar seções ao dossiê e entradas KB, nunca apagar.",modulos:["server.js: dossiê Gemini seção 12 + regras","README_DEPLOY.txt"],tags:["gemini","conhecimento","dossiê","arquitetura","memória-evolutiva","deploy"]
+    },
+    {
+      id:"KB-030",versao:"V908",data:"2026-06-28",autor:"Claude/Andrio",
+      problema:"O proprietário definiu a CONSTITUIÇÃO MESTRE DE EVOLUÇÃO CONTÍNUA DA IA — carta irrevogável: memória permanente (nunca apagar/substituir/reduzir conhecimento; só somar), mentalidade de dono, aprendizado acumulativo, comparação entre versões, detecção de bugs/segurança/performance, escalabilidade e relatório obrigatório. Faltava embuti-la no cérebro do Gemini.",
+      solucao:"Constituição incorporada como DIRETRIZ SUPREMA no topo do prompt do Gemini (lida em TODA auditoria, com prioridade máxima), com 9 mandatos condensados. Relatório do Gemini ganhou seções 'Comparação com a versão anterior' e 'Gargalos futuros (escalabilidade)'. Texto integral preservado em CONSTITUICAO_IA_H2BAPPLY.txt (no projeto). Princípio reforçado em todo o sistema KB: NUNCA apagar entrada; só somar (já garantido pela política de dedup que mantém ids/versões distintos).",
+      impacto:"Gemini passa a operar permanentemente sob a Constituição do dono: acumula conhecimento indefinidamente, compara versões, pensa como dono e nunca reinicia memória. Lição permanente e irrevogável: conhecimento do projeto só CRESCE; toda nova versão deve deixar a IA mais inteligente que a anterior.",modulos:["server.js: prompt Gemini (diretriz suprema) + relatório","CONSTITUICAO_IA_H2BAPPLY.txt"],tags:["constituição","memória-permanente","gemini","governança","evolução-contínua","dono"]
+    },
+    {
+      id:"KB-031",versao:"V909",data:"2026-06-28",autor:"Claude/Andrio",
+      problema:"Aba 'Eu' do perfil estava poluída: a grade de avatares do ranking (classe .prf-av, container repeat(5,1fr)) usava aspect-ratio:1 + border-radius:12px INLINE, gerando 20 quadradões gigantes que ocupavam ~60% da tela. O mesmo problema do cadastro (KB-028), mas nesta grade os estilos eram inline (a correção de classe simples não pegava).",
+      solucao:"Container ganhou id #prf-avatar-grid (grade responsiva repeat(auto-fit,44px) centralizada). CSS escopado #prf-avatar-grid .prf-av com !important para VENCER os estilos inline: width/height 44px, aspect-ratio:auto, border-radius:50%. Resultado: círculos compactos estilo Facebook, igual ao cadastro. Label centralizado com dica 'toque para escolher'. Restante da aba é formulário padrão (toggles cfgToggle/cfgEng, área, CNH) — preservado.",
+      impacto:"Aba 'Eu' limpa e profissional; avatares deixaram de dominar a tela. Lição permanente: quando o estilo problemático é INLINE (não em classe), a correção via CSS precisa de seletor mais específico + !important (ex.: #container .classe{...!important}); ou editar o inline. Avatares de seleção = sempre círculos fixos ~44px.",modulos:["index.html: #prf-avatar-grid + CSS .prf-av escopado (aba Eu do perfil)"],tags:["perfil","avatar","ui","mobile","css-inline","!important","poluição-visual"]
+    },
+    {
+      id:"KB-032",versao:"V910",data:"2026-06-28",autor:"Claude/Andrio",
+      problema:"Auditoria Gemini deu 55/100 por DOIS falsos-críticos causados por bugs de métrica no PRÓPRIO dossiê: (1) 'Discrepância de receita' — Resumo Geral somava DB_PEDIDOS.status==='ativo' (R$2450, conta pedidos cujo VIP já expirou) enquanto Financeiro usava isVipActive (R$1319,90); (2) 'Envios 7 dias por plano: 0 emails' em TODOS os planos, enquanto o total era 17.673 — o por-plano lia DB_HIST (vazio) e o total lia DB_LOGS (status==='enviado'). O e-mail automático ESTAVA funcionando; a métrica é que estava quebrada.",
+      solucao:"(1) totalReceita do Resumo agora usa a MESMA fonte canônica do Financeiro (isVipActive + paymentAmount) — discrepância eliminada. (2) _enviosPorPlano reescrito para usar DB_LOGS com filtro l.ts>since7 && l.status==='enviado' (mesma fonte do total), agrupado por getPlan — agora bate com o total. Resultado: dossiê internamente consistente; Gemini para de reportar falsos-críticos e a nota sobe de forma legítima.",
+      impacto:"Nota da auditoria reflete a realidade (o sistema enviou 17.673 e-mails em 7 dias — automático OK). Lição permanente: TODA métrica do dossiê deve usar a MESMA fonte canônica das outras seções (receita=isVipActive; envios=DB_LOGS status enviado). Nunca misturar DB_HIST e DB_LOGS. Itens reais que restam são OPERACIONAIS (aprovar pedidos pagos pendentes, renovar VIP a vencer via aba Pagantes, pedir relogin de auth_error), não bugs de código.",modulos:["server.js: dossiê Gemini — totalReceita (linha ~8110) e _enviosPorPlano (~8146)"],tags:["gemini","métricas","receita","envios","fonte-única","falso-positivo","DB_LOGS","auditoria"]
     }
   ];
   for(const entry of _kbFounding){
@@ -6706,7 +6778,78 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
         manualExpiresDate:manualExpires>0?new Date(manualExpires).toLocaleDateString("pt-BR"):null,
         autoExpiresDate:autoExpires>0?new Date(autoExpires).toLocaleDateString("pt-BR"):null});
     }catch(e){return json(res,500,{error:e.message});}}
-    if(pathname.startsWith("/api/admin/user/")&&req.method==="DELETE"){const te=decodeURIComponent(pathname.split("/").pop());if(te===s.user_email)return json(res,400,{error:"Não pode deletar a si mesmo."});const t=getUser(te);if(t)(t.cvs||[]).forEach(c=>deleteCv(te,c.idx));if(autoTimers.has(te)){clearTimeout(autoTimers.get(te));autoTimers.delete(te);}delUser(te);delHist(te);if(DB_AUTO[te]){delete DB_AUTO[te];persist(AUTO_FILE,DB_AUTO);}if(DB_SENT[te]){delete DB_SENT[te];persistSent();}// BUG-011 CORRIGIDO: limpa dados órfãos ao deletar usuário
+    // ── Admin: PAGANTES — visão única "quem pagou + dias de VIP" (calculada no servidor = fonte única) ──
+if(pathname==="/api/admin/pagantes"&&req.method==="GET"){try{
+  const now=Date.now();
+  const parseVal=v=>{if(typeof v==="number")return v||0;if(!v)return 0;const n=parseFloat(String(v).replace(/[^0-9,.-]/g,"").replace(",","."));return isNaN(n)?0:n;};
+  const toTs=x=>{if(!x)return null;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?null:t;};
+  // Livro-caixa (fonte primária de pagamentos) por email
+  const finByEmail={};
+  for(const pg of ((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[])){
+    if(!pg||!pg.email)continue;
+    const e=String(pg.email).toLowerCase();
+    (finByEmail[e]=finByEmail[e]||[]).push({valor:parseVal(pg.valor),date:toTs(pg.dataPagamento)||toTs(pg.data)||pg.criadoEm||null});
+  }
+  // Pedidos pagos/ativos (fallback) por email
+  const pedByEmail={};
+  for(const ped of Object.values(DB_PEDIDOS||{})){
+    if(!ped||!ped.userEmail)continue;
+    const st=String(ped.status||"").toLowerCase();
+    if(st!=="pago"&&st!=="ativo")continue;
+    const e=String(ped.userEmail).toLowerCase();
+    (pedByEmail[e]=pedByEmail[e]||[]).push({valor:parseVal(ped.valorTotal),date:ped.ativadoEm||ped.pagoEm||ped.createdAt||null});
+  }
+  const PLAN_LABELS={free:"Free",vip:"⭐ VIP Manual",pro:"🤖 Pro",vipro:"⭐🤖 VIPro",doublepro:"🚀 DoublePro"};
+  const rows=[];
+  for(const u of Object.values(DB_USERS||{})){
+    if(!u||!u.email)continue;
+    const email=u.email;const elc=email.toLowerCase();const vip=u.vip||{};
+    const src=String(vip.source||"").toLowerCase();
+    // Pagamentos: Financeiro (primário) -> Pedidos (fallback) -> paymentAmount do usuário (último recurso)
+    let pagamentos=finByEmail[elc]||[];
+    if(!pagamentos.length) pagamentos=pedByEmail[elc]||[];
+    if(!pagamentos.length && u.paymentAmount) pagamentos=[{valor:parseVal(u.paymentAmount),date:vip.activatedAt||null}];
+    pagamentos=pagamentos.filter(p=>p.valor>0).sort((a,b)=>(b.date||0)-(a.date||0));
+    const everPaidVip = (src===""||src==="admin"||src==="pago"||src==="payment") && ((vip.manualExpires||0)>0||(vip.autoExpires||0)>0||vip.activatedAt);
+    const isPayer = pagamentos.length>0 || everPaidVip;
+    if(!isPayer)continue;
+    const plan=vip.plan||getPlan(u);
+    const nextExp=Math.max(vip.manualExpires||0,vip.autoExpires||0);
+    const daysLeft = nextExp>0 ? Math.ceil((nextExp-now)/86400000) : null;
+    const manualActive=isManualVipActive(u);const autoActive=isAutoVipActive(u);
+    const status = daysLeft===null?"sem_data":(daysLeft<=0?"vencido":(daysLeft<=3?"vencendo":"ativo"));
+    const totalPago=pagamentos.reduce((acc,p)=>acc+p.valor,0);
+    const last=pagamentos[0]||null;
+    rows.push({
+      email,name:u.name||email,plan,planLabel:PLAN_LABELS[plan]||plan,source:src||"admin",
+      whatsapp:u.whatsapp||u.phone||"",
+      manualExpires:vip.manualExpires||0,autoExpires:vip.autoExpires||0,nextExpiry:nextExp,
+      daysLeft,manualActive,autoActive,active:(manualActive||autoActive),status,
+      lastPaymentValor:last?last.valor:0,lastPaymentDate:last?last.date:null,
+      totalPago,pedidosCount:pagamentos.length,note:vip.note||""
+    });
+  }
+  rows.sort((a,b)=>{if(a.daysLeft===null&&b.daysLeft===null)return 0;if(a.daysLeft===null)return 1;if(b.daysLeft===null)return -1;return a.daysLeft-b.daysLeft;});
+  // Receita: livro-caixa (canônico); se vazio, soma pedidos
+  const ms=new Date();ms.setDate(1);ms.setHours(0,0,0,0);const monthStart=ms.getTime();
+  let recMes=0,recTotal=0;
+  const finAll=((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[]);
+  if(finAll.length){
+    for(const pg of finAll){const v=parseVal(pg.valor);recTotal+=v;const dt=toTs(pg.dataPagamento)||toTs(pg.data)||pg.criadoEm||0;if(dt>=monthStart)recMes+=v;}
+  } else {
+    for(const e in pedByEmail)for(const p of pedByEmail[e]){recTotal+=p.valor;if((p.date||0)>=monthStart)recMes+=p.valor;}
+  }
+  const summary={
+    totalPagantes:rows.length,
+    ativos:rows.filter(r=>r.status==="ativo"||r.status==="vencendo").length,
+    vencendo:rows.filter(r=>r.status==="vencendo").length,
+    vencidos:rows.filter(r=>r.status==="vencido").length,
+    semData:rows.filter(r=>r.status==="sem_data").length,
+    receitaMes:recMes,receitaTotal:recTotal
+  };
+  return json(res,200,{ok:true,rows,summary,generatedAt:now});
+}catch(e){return json(res,500,{error:e.message});}}
+if(pathname.startsWith("/api/admin/user/")&&req.method==="DELETE"){const te=decodeURIComponent(pathname.split("/").pop());if(te===s.user_email)return json(res,400,{error:"Não pode deletar a si mesmo."});const t=getUser(te);if(t)(t.cvs||[]).forEach(c=>deleteCv(te,c.idx));if(autoTimers.has(te)){clearTimeout(autoTimers.get(te));autoTimers.delete(te);}delUser(te);delHist(te);if(DB_AUTO[te]){delete DB_AUTO[te];persist(AUTO_FILE,DB_AUTO);}if(DB_SENT[te]){delete DB_SENT[te];persistSent();}// BUG-011 CORRIGIDO: limpa dados órfãos ao deletar usuário
 if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB_APP_INDEX[te];persist(APPIDX_FILE,DB_APP_INDEX);}if(DB_PUSH[te]){delete DB_PUSH[te];persistPush();}if(DB_NOTES[te]){delete DB_NOTES[te];persist(NOTES_FILE,DB_NOTES);}if(DB_ALERTS[te]){delete DB_ALERTS[te];persist(ALERTS_FILE,DB_ALERTS);}return json(res,200,{ok:true});}
     if(pathname==="/api/admin/message"&&req.method==="POST"){try{const d=JSON.parse(await readBody(req));if(!d.email||!d.text)return json(res,400,{error:"email e text obrigatórios."});const target=getUser(d.email);if(!target)return json(res,404,{error:"Usuário não encontrado."});setUser(d.email,{adminMessage:{text:d.text,date:new Date().toISOString(),from:s.user_email}});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
 
@@ -7970,7 +8113,7 @@ O H2BApply NÃO garante contratação, entrevista ou aprovação de visto — ap
 
       const pedidosPendentes=(DB_PEDIDOS||[]).filter(pd=>pd.status==='pendente').length;
       const pedidosAtivos=(DB_PEDIDOS||[]).filter(pd=>pd.status==='ativo').length;
-      const totalReceita=(DB_PEDIDOS||[]).filter(pd=>pd.status==='ativo').reduce((a,pd)=>a+(pd.valorTotal||0),0);
+      const totalReceita=(()=>{let r=0;for(const u of Object.values(DB_USERS||{})){if(isVipActive(u)&&u.paymentAmount){const v=parseFloat((u.paymentAmount||'0').replace(/[^0-9.,]/g,'').replace(',','.'));if(!isNaN(v))r+=v;}}return r;})();
       const usersComToken=usersSnapshot.filter(u=>u.tokenValido).length;
       const usersAutoRodando=usersSnapshot.filter(u=>u.autoRodando).length;
       const usersTravados=usersSnapshot.filter(u=>u.travado).length;
@@ -8008,11 +8151,11 @@ O H2BApply NÃO garante contratação, entrevista ou aprovação de visto — ap
       // Métricas de envio dos últimos 7 dias por plano
       const _enviosPorPlano={vip:0,vipro:0,doublepro:0,free:0};
       const _since7=Date.now()-7*86400000;
-      for(const [email,hist] of Object.entries(DB_HIST||{})){
+      for(const [email,logs] of Object.entries(DB_LOGS||{})){
         const u=getUser(email);if(!u)continue;
         const plan=getPlan(u)||'free';
-        const envios7=(hist||[]).filter(h=>h.ts&&h.ts>_since7).length;
-        _enviosPorPlano[plan]=(_enviosPorPlano[plan]||0)+envios7;
+        const envios7=(logs||[]).filter(l=>l.ts&&l.ts>_since7&&l.status==='enviado').length;
+        if(envios7)_enviosPorPlano[plan]=(_enviosPorPlano[plan]||0)+envios7;
       }
 
       // Aprendizados recentes (últimas 10 entradas de auditoria)
@@ -8156,11 +8299,50 @@ Enriquecimento bot: ${typeof _enrichBot!=='undefined'&&_enrichBot?.running?'SIM 
 ${(()=>{const since7=Date.now()-7*86400000;const ativos7=Object.values(DB_USERS||{}).filter(u=>u.lastSeenAt&&u.lastSeenAt>since7).length;const enviadores7=Object.values(DB_LOGS||{}).filter(logs=>(logs||[]).some(l=>l.ts>since7&&l.status==='enviado')).length;const totalEnvios7=Object.values(DB_LOGS||{}).reduce((a,logs)=>a+(logs||[]).filter(l=>l.ts>since7&&l.status==='enviado').length,0);return `Ativos: ${ativos7} | Enviaram: ${enviadores7} | Total emails: ${totalEnvios7}`;})()}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-12. BASE DE CONHECIMENTO (${DB_KB.entries.length} entradas — LEIA ANTES DE ANALISAR)
+12. ARQUITETURA TÉCNICA & REGRAS DE DESENVOLVIMENTO (CONHECIMENTO PERMANENTE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STACK: Node.js monólito puro (http nativo, sem framework). Frontend SPA vanilla: index.html (app do usuário), admin.html (painel), guia.html (tutorial). Login Google OAuth + envio pela Gmail API do próprio usuário. Persistência em flat-file JSON no disco /data (Render.com).
+
+MODELO DE DADOS (persistido em /data):
+- DB_USERS: usuários. NUNCA acessar direto — usar getUser(email)/setUser(email,updates).
+- DB_PEDIDOS: pedidos (valorTotal, status pendente|pago|ativo|cancelado|expirado, plano, dias).
+- DB_FINANCEIRO: {pagamentos:[],gastos:[]} — livro-caixa (fonte canônica de receita).
+- DB_REFERRAL: indicações (indicador +5 dias; +5 se o amigo assinar).
+- DB_INCIDENTS: Central de Incidentes. DB_LOGS: histórico de envios por usuário.
+- DB_KB: esta base (memória IA-IA; só soma, nunca apaga).
+
+FUNÇÕES-CHAVE (sempre usar; nunca ler propriedade direto):
+getUser/setUser · getHist/addLog · countManualToday/countAutoToday · todayStrBRT() · isManualVipActive(u)/isAutoVipActive(u)/isVipActive(u)/getPlan(u) · getManualLimit/getAutoLimit · httpsReq() (HTTP nativo) · pushGlobalEvent() · trackJourney() · persistFinanceiro/persistPedidos.
+
+REGRAS CRÍTICAS (o fundador NUNCA deve quebrar; código que violar isto É PROBLEMA a reportar):
+1. NUNCA fetch() no server.js — usar httpsReq() nativo (não há node-fetch).
+2. NUNCA acessar DB_USERS direto — sempre getUser/setUser.
+3. NUNCA DB_COMPROVANTES no servidor — comprovantes vivem no localStorage do navegador do admin.
+4. Toda rota /api/admin checa isAdminVip()/isAdmin antes de acessar dados.
+5. Manter ??20 (não ||20) em manualRemaining (0 é valor válido).
+6. Checar prefixo H-300 ANTES de H-3 (colisão H-400/H-300).
+7. H-2A e H-2B são sistemas SEPARADOS (anti-duplicado independente).
+8. Plano ativo = isVipActive(), nunca DB_PEDIDOS.filter(status==='ativo').
+9. Números de plano/limite/trial vêm do backend (PLAN_LIMITS) — divergência na UI É PROBLEMA.
+10. Validar cada bloco <script> com checagem de sintaxe antes de publicar (1 aspa quebra o bloco inteiro — ver KB-021).
+
+MAPA DE TELAS:
+- Usuário (index.html): home, vagas, pesquisa, salvas, enviadas, respostas, perfil/currículos, automático, planos, ranking, indicar, notificações, resgatar, tutorial, IA chat, sugestões.
+- Admin (admin.html): dashboard, usuários, VIP & Planos, Vencimentos VIP, Pagantes (quem pagou + dias), Pedidos, Lixeira, Códigos, Financeiro, Central de Incidentes, Robô de Auditoria (VOCÊ), Emails Inválidos, Planilhas, IA Admin.
+
+COMO VOCÊ (GEMINI) DEVE AGIR:
+- Validar o sistema contra estas regras e contra a KB. O que está conforme NÃO é bug.
+- Sugerir melhorias de retenção/conversão/UX/anti-abuse SEM remover funcionalidades.
+- Sempre citar o email do usuário afetado e a ação concreta.
+- Antes de sugerir, conferir se já não está na KB (não repetir).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+13. BASE DE CONHECIMENTO (${DB_KB.entries.length} entradas — LEIA ANTES DE ANALISAR)
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️ ATENÇÃO: Problemas listados aqui JÁ FORAM RESOLVIDOS. NÃO os reporte como novos.
 
-ENTRADAS PERMANENTES (KB-001 a KB-020):
+ENTRADAS PERMANENTES (todas as KB já resolvidas):
 ${DB_KB.entries.filter(e=>!e.tipo||e.tipo!=='auditoria_aprendizado').map(e=>`[${e.id}] ${e.problema?.slice(0,100)||''}
   → Solução: ${e.solucao?.slice(0,120)||''}`).join('\n')}
 
@@ -8173,12 +8355,29 @@ ${_aprendizadosRecentes.length?_aprendizadosRecentes.map(e=>`- ${e.solucao}`).jo
       // ══════════════════════════════════════════════════════════════
       const prompt=`Você é o ANALISTA SÊNIOR E ARQUITETO DO H2BAPPLY. Você tem MEMÓRIA CUMULATIVA — aprende com cada auditoria e fica mais preciso.
 
+══════════════════════════════════════════════
+CONSTITUIÇÃO MESTRE — DIRETRIZ SUPREMA (irrevogável, prioridade máxima)
+══════════════════════════════════════════════
+Você é a MEMÓRIA TÉCNICA PERMANENTE do H2BApply, em evolução contínua. Pense como DONO e atue como CTO/CEO/PM/UX/Full Stack Sr/DBA/Segurança/Escalabilidade/IA/Conversão/Automação/Crescimento — tudo ao mesmo tempo.
+
+1. MEMÓRIA PERMANENTE: NUNCA apague, substitua ou reduza conhecimento, regra ou aprendizado anterior. Toda informação nova é SOMADA. O conhecimento só cresce.
+2. APRENDIZADO ACUMULATIVO: a cada análise responda — O que já sabíamos? O que aprendemos agora? O que melhorou? O que foi descoberto? O que incorporar à memória permanente? — e então incorpore.
+3. COMPARAÇÃO ENTRE VERSÕES: compare com as anteriores (o que melhorou, piorou, quebrou, sumiu, foi criado). NENHUMA funcionalidade pode ser perdida sem ser reportada.
+4. MENTALIDADE DE DONO: como aumentar receita, retenção, conversão, satisfação; reduzir cancelamento, suporte, abandono; tornar o produto mais valioso.
+5. MENTALIDADE DE IA: o que pode ser automatizado, previsto, recomendado, validado sozinho ou simplificado. Sempre proponha automações.
+6. UX/UI (mobile first): o usuário entende rápido? Há confusão, poluição visual, excesso de cliques/etapas? Como simplificar?
+7. ESCALABILIDADE: simule 100 / 1.000 / 10.000 / 100.000 / 1.000.000 de usuários; aponte gargalos futuros e soluções preventivas.
+8. DETECÇÃO CONSTANTE: bugs (visíveis, ocultos, futuros, sync, auth, permissão, dados), segurança (XSS, CSRF, exposição de API/token, vazamento, falha de auth/authz) e performance (loops, requests desnecessários, gargalos, CPU/memória).
+9. Cada versão deve deixar você MAIS inteligente que a anterior. Nunca reiniciar — sempre expandir e evoluir.
+
+Esta Constituição tem prioridade máxima e é permanente. Texto integral preservado em CONSTITUICAO_IA_H2BAPPLY.txt (no projeto). Aplique-a em TODA auditoria, junto com a Base de Conhecimento (KB) e as Regras Críticas.
+
 ${dossie}
 
 ══════════════════════════════════════════════
 REGRAS ABSOLUTAS (nunca viole):
 ══════════════════════════════════════════════
-1. Leia a BASE DE CONHECIMENTO — problemas KB-001 a KB-020 JÁ foram resolvidos, não os reporte
+1. Leia a BASE DE CONHECIMENTO — TODOS os problemas listados (KB-001 a KB-028+) JÁ foram resolvidos, não os reporte
 2. waiting_limit/rate_limit/interval/token_retry = NORMAIS, nunca são problemas
 3. token expirado + inativo >10 dias = IGNORAR completamente
 4. Planos ativos = use isVipActive() (${_planosAtivos.length} usuários), não DB_PEDIDOS.filter(ativo)
@@ -8222,6 +8421,12 @@ SUA MISSÃO — RELATÓRIO COMPLETO:
 
 ## 📋 RESUMO EXECUTIVO
 [3-5 frases diretas para o fundador tomar decisões imediatas]
+
+## 🔄 COMPARAÇÃO COM A VERSÃO ANTERIOR
+[O que melhorou, piorou, quebrou, sumiu ou foi criado. Nenhuma funcionalidade perdida pode passar sem ser reportada.]
+
+## 🧩 GARGALOS FUTUROS (ESCALABILIDADE)
+[Simule 100 / 1k / 10k / 100k / 1M usuários. Aponte gargalos e soluções preventivas.]
 
 ## 🧠 NOVOS APRENDIZADOS PARA MEMÓRIA CUMULATIVA
 [Escreva EXATAMENTE 5 aprendizados NOVOS desta análise, no formato:]

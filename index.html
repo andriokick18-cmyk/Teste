@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#4f46e5">
 <title>H2BApply — Vagas H-2B & H-2A nos EUA</title>
 <!-- SEO e verificação Google -->
@@ -1615,7 +1615,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <div class="ln-hero-inner">
       <!-- Left: copy + CTA -->
       <div class="ln-hero-copy">
-        <div class="ln-vip-pill"><i class="ti ti-gift"></i> 🎁 <strong>5 dias VIP GRÁTIS</strong> para novos usuários!</div>
+        <div class="ln-vip-pill"><i class="ti ti-gift"></i> 🎁 <strong>1 dia VIP GRÁTIS</strong> para novos usuários!</div>
         <h1 class="ln-hero-title">Trabalhe nos<br><span class="ln-title-usa">Estados Unidos</span></h1>
         <p class="ln-hero-sub">Candidate-se automaticamente a vagas H-2B e H-2A. Envio automático pelo Gmail, currículo salvo, anti-spam inteligente — tudo em um lugar.</p>
         <div class="ln-feats">
@@ -1862,6 +1862,9 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               </div>
             </div>
           </div>
+
+          <!-- ══ PRÓXIMO PASSO — guia inteligente (preenchido por renderNextStep) ══ -->
+          <div id="home-next-step" style="display:none;padding:12px 14px 0"></div>
 
           <!-- ══ STATS 4 CARDS ══ -->
           <div style="padding:14px 14px 0">
@@ -2551,8 +2554,8 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                   <div id="cfg-rankname-fb" style="font-size:11px;margin-top:3px;min-height:14px"></div>
                 </div>
                 <!-- Avatar grid redesenhado -->
-                <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:10px">🎭 Escolha seu avatar</div>
-                <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
+                <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:10px;text-align:center">🎭 Escolha seu avatar <span style="color:var(--t3);font-weight:500">(toque para escolher)</span></div>
+                <div id="prf-avatar-grid" style="display:grid;grid-template-columns:repeat(auto-fit,44px);justify-content:center;gap:10px;margin:0 auto;max-width:340px">
                   <div class="ob-av prf-av" data-av="av01" onclick="selectPrfAvatar('av01',this)" style="background:linear-gradient(135deg,#065f46,#10b981);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🧑‍🌾</div>
                   <div class="ob-av prf-av" data-av="av02" onclick="selectPrfAvatar('av02',this)" style="background:linear-gradient(135deg,#7c2d12,#ea580c);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">👷</div>
                   <div class="ob-av prf-av" data-av="av03" onclick="selectPrfAvatar('av03',this)" style="background:linear-gradient(135deg,#14532d,#16a34a);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🌿</div>
@@ -3726,7 +3729,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
                 <div style="background:#f9fafb;border:1.5px solid #e5e7eb;border-radius:10px;padding:10px;text-align:center">
                   <div style="font-size:18px;margin-bottom:4px">🆓</div>
                   <div style="font-weight:800;color:#374151;font-size:12px">Grátis</div>
-                  <div style="font-size:11px;color:#6b7280;margin-top:4px">30 manuais/dia<br>20 automáticos/dia</div>
+                  <div style="font-size:11px;color:#6b7280;margin-top:4px">20 manuais/dia<br>10 automáticos/dia</div>
                 </div>
                 <div style="background:#fef9c3;border:1.5px solid #fde68a;border-radius:10px;padding:10px;text-align:center">
                   <div style="font-size:18px;margin-bottom:4px">⭐</div>
@@ -3747,7 +3750,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
               <div style="background:#f0fdf4;border-radius:10px;padding:10px 12px;border:1px solid #86efac">
                 <strong style="color:#065f46">🎁 Como ganhar VIP grátis:</strong><br>
                 <div style="color:#047857;font-size:12px;margin-top:4px;display:flex;flex-direction:column;gap:4px">
-                  <div>• <strong>5 dias VIP</strong> ao se cadastrar (automático)</div>
+                  <div>• <strong>1 dia VIP Manual</strong> ao se cadastrar (automático)</div>
                   <div>• <strong>5 dias VIP</strong> por cada amigo que você indicar</div>
                   <div>• <strong>Códigos promocionais</strong> no Instagram @andrio.k e no YouTube Diego H2B</div>
                 </div>
@@ -3783,7 +3786,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 
               <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
                 <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i>Quantos e-mails devo enviar por dia?</summary>
-                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Quanto mais melhor — mas com qualidade. O sistema tem proteção anti-spam. No plano gratuito são 30 manuais + 20 automáticos por dia. Com VIPro são 200 + 200 por dia. Com DoublePro (2 Gmails) são 400 + 400 por dia. Enviar para muitas empresas aumenta suas chances.</div>
+                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Quanto mais melhor — mas com qualidade. O sistema tem proteção anti-spam. No plano gratuito são 20 manuais + 10 automáticos por dia. Com VIP Manual são 200 manuais por dia. Com VIPro são 200 + 200 por dia. Com DoublePro (2 Gmails) são 400 + 400 por dia. Enviar para muitas empresas aumenta suas chances.</div>
               </details>
 
               <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
@@ -3817,7 +3820,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div style="font-size:13px;font-weight:800;color:#065f46;margin-bottom:10px">📋 Como funciona</div>
           <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:#047857">
             <div style="display:flex;align-items:flex-start;gap:8px"><span style="background:#059669;color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">1</span><span>Compartilhe seu link único com amigos</span></div>
-            <div style="display:flex;align-items:flex-start;gap:8px"><span style="background:#059669;color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">2</span><span>Quando seu amigo se cadastrar pelo link → <strong>você ganha +5 dias VIP</strong> e ele ganha 5 dias grátis</span></div>
+            <div style="display:flex;align-items:flex-start;gap:8px"><span style="background:#059669;color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">2</span><span>Quando seu amigo se cadastrar pelo link → <strong>você ganha +5 dias VIP</strong> e ele ganha 1 dia grátis</span></div>
             <div style="display:flex;align-items:flex-start;gap:8px"><span style="background:#059669;color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">3</span><span>Se o amigo indicado assinar um plano de 30 dias → <strong>você ganha mais +5 dias VIP</strong> (total: 10 dias por indicação completa!)</span></div>
           </div>
           <div style="margin-top:10px;padding:8px 10px;background:#dcfce7;border-radius:8px;font-size:11px;color:#065f46;border:1px solid #86efac">
@@ -8452,7 +8455,7 @@ async function loadPublicStats(){
     set("ps-total",d.totalSent);set("ps-total-auto",d.totalAuto);set("ps-vip",d.vipUsers);
     // Update trial badge
     const tb=document.getElementById("trial-badge-txt");
-    if(tb)tb.textContent=d.trialEnabled?`${d.trialDays||5} dias de VIP GRÁTIS`:"10 envios automáticos GRÁTIS";
+    if(tb)tb.textContent=d.trialEnabled?`${d.trialDays||1} dia de VIP Manual GRÁTIS`:"10 envios automáticos GRÁTIS";
     // ── Landing rank preview ──
     const prev=document.getElementById("ln-rank-preview");
     if(prev&&d.rankPreview&&d.rankPreview.length){
@@ -9907,8 +9910,43 @@ function sendEmailReply(){
 }
 
 // ── Render Home ───────────────────────────────────────────
+// ── Guia inteligente "Próximo passo" na home (aditivo, falha em silêncio) ──
+function renderNextStep(){
+  const box=g("#home-next-step");if(!box)return;
+  if(!U.connected){box.style.display="none";return;}
+  const profiles=(UPROFILES&&UPROFILES.length?UPROFILES:(U.profiles||[])).filter(p=>p&&p.active!==false);
+  const hasProfile=profiles.length>0;
+  const hasCv = profiles.some(p=>p.resumeIdx||(p.cvs&&p.cvs.some(c=>c.cvType==="resume"))) || (typeof DOCS!=="undefined"&&DOCS&&DOCS.some(c=>(c.cvType||"resume")==="resume"));
+  const sentToday=U.todaySentManual||0;
+  const autoActive=!!(U.autoJob&&U.autoJob.active);
+  let step=null;
+  if(!hasProfile){
+    step={icon:"📝",ic:"var(--blue)",bg:"linear-gradient(135deg,#eff6ff,#dbeafe)",bd:"var(--blueb)",title:"Crie seu perfil de candidatura",sub:"É o que vai nos e-mails para as empresas. Leva 1 minuto.",cta:"Criar perfil",act:"goProfile"};
+  } else if(!hasCv){
+    step={icon:"📎",ic:"#d97706",bg:"linear-gradient(135deg,#fffbeb,#fef3c7)",bd:"#fcd34d",title:"Anexe seu currículo (PDF)",sub:"Sem currículo anexado, suas candidaturas não saem.",cta:"Anexar",act:"goProfile"};
+  } else if(sentToday===0 && !autoActive){
+    step={icon:"🚀",ic:"var(--green)",bg:"linear-gradient(135deg,#ecfdf5,#d1fae5)",bd:"var(--greenb)",title:"Tudo pronto! Comece a se candidatar",sub:"Seu perfil está completo. Envie sua primeira candidatura de hoje.",cta:"Buscar vagas",act:"goJobs"};
+  } else if(U.plan==="free" && (U.manualRemaining||0)<=0){
+    step={icon:"⭐",ic:"var(--purple)",bg:"linear-gradient(135deg,#f5f3ff,#ede9fe)",bd:"var(--purpleb)",title:"Você atingiu o limite de hoje",sub:"Vire VIP e envie até 200 candidaturas por dia.",cta:"Ver planos",act:"goPlans"};
+  } else if(U.plan!=="free" && !autoActive){
+    step={icon:"🤖",ic:"var(--purple)",bg:"linear-gradient(135deg,#f5f3ff,#ede9fe)",bd:"var(--purpleb)",title:"Ative o Envio Automático",sub:"Deixe o sistema enviar candidaturas enquanto você trabalha.",cta:"Ativar",act:"goAuto"};
+  }
+  if(!step){box.style.display="none";box.innerHTML="";return;}
+  const acts={goProfile:"sv('profile');setTimeout(function(){try{switchProfileTab('profiles')}catch(e){}},120)",goJobs:"sv('jobs')",goPlans:"sv('plans')",goAuto:"sv('auto')"};
+  box.style.display="block";
+  box.innerHTML=`<div style="background:${step.bg};border:1.5px solid ${step.bd};border-radius:14px;padding:13px 14px;display:flex;align-items:center;gap:12px">
+    <div style="width:42px;height:42px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.06)">${step.icon}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:10px;font-weight:800;color:${step.ic};text-transform:uppercase;letter-spacing:.05em;margin-bottom:1px">Próximo passo</div>
+      <div style="font-size:14px;font-weight:800;color:var(--text);line-height:1.25">${step.title}</div>
+      <div style="font-size:11.5px;color:var(--t2);line-height:1.35;margin-top:2px">${step.sub}</div>
+    </div>
+    <button onclick="${acts[step.act]}" style="background:${step.ic};color:#fff;border:none;border-radius:10px;padding:9px 13px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">${step.cta} →</button>
+  </div>`;
+}
 function renderHome(){
   _showWelcome();
+  try{renderNextStep();}catch(e){}
 
   // Banner VIP expirando em ≤3 dias
   const _vipBanner=g("#vip-expiry-banner");
@@ -11028,6 +11066,15 @@ setTimeout(()=>{ if(U.connected) _autoPushSetup().catch(()=>{}); }, 1000);
 .ob-av{width:100%;aspect-ratio:1;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;border:2.5px solid transparent;transition:all .12s;user-select:none}
 .ob-av:hover{transform:scale(1.06);border-color:rgba(255,255,255,.4)}
 .ob-av.selected{border-color:#fff;box-shadow:0 0 0 3px var(--purple);transform:scale(1.08)}
+/* Avatares do ranking no cadastro: círculos compactos estilo Facebook (escopado, não afeta o perfil) */
+#ob-avatar-grid .ob-av{width:44px;height:44px;aspect-ratio:auto;border-radius:50%;font-size:21px;border-width:2px;margin:0 auto}
+#ob-avatar-grid .ob-av:hover{transform:scale(1.1)}
+#ob-avatar-grid .ob-av.selected{transform:scale(1.1);box-shadow:0 0 0 3px var(--purple)}
+/* Avatares do PERFIL (aba Eu): círculos compactos — !important vence os estilos inline */
+#prf-avatar-grid{display:grid!important;grid-template-columns:repeat(auto-fit,44px);justify-content:center;gap:10px;margin:0 auto;max-width:340px}
+#prf-avatar-grid .prf-av{width:44px!important;height:44px!important;aspect-ratio:auto!important;border-radius:50%!important;font-size:21px!important;border-width:2px!important;margin:0 auto}
+#prf-avatar-grid .prf-av:hover{transform:scale(1.1)}
+#prf-avatar-grid .prf-av.selected{transform:scale(1.1)!important;box-shadow:0 0 0 3px var(--purple);border-color:#fff!important}
 .ob-toggle,.ob-toggle-eng,.ob-toggle-cnh,.ob-toggle-s{transition:all .12s;font-size:13px;padding:7px 12px;flex:1}
 .ob-toggle.on,.ob-toggle-eng.on,.ob-toggle-cnh.on,.ob-toggle-s.on{background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff;border-color:transparent;font-weight:800}
 .ob-step-action { color: var(--blue); font-weight: 700; cursor: pointer; font-size: 11px; white-space: nowrap; }
@@ -11737,15 +11784,19 @@ console.log('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas');
     </div>
     <!-- Header -->
     <div style="padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.08em" id="ob-step-label">Passo 1 de 5</div>
+      <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.08em" id="ob-step-label">Passo 1 de 7</div>
       <div style="font-size:10px;color:var(--t4)">Preencha para continuar</div>
     </div>
 
     <!-- STEP 1: Dados Pessoais -->
     <div id="ob-step-1" style="padding:18px 20px 20px">
-      <div style="font-size:28px;margin-bottom:8px;text-align:center">👤</div>
+      <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#eff6ff,#dbeafe);display:flex;align-items:center;justify-content:center;font-size:27px;margin:0 auto 10px">👤</div>
       <div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:4px">Seus dados</div>
-      <div style="font-size:12px;color:var(--t2);text-align:center;margin-bottom:14px;line-height:1.5">Campos com * são obrigatórios</div>
+      <div style="font-size:12px;color:var(--t2);text-align:center;margin-bottom:10px;line-height:1.5">Leva só 2 minutos. Campos com <strong style="color:var(--blue)">*</strong> são obrigatórios.</div>
+      <div style="background:var(--greenl);border:1px solid var(--greenb);border-radius:10px;padding:8px 10px;font-size:11px;color:var(--t2);line-height:1.5;margin-bottom:14px;display:flex;gap:6px;align-items:flex-start">
+        <i class="ti ti-lock" style="color:var(--green);font-size:13px;flex-shrink:0;margin-top:1px"></i>
+        <span>🔒 Seus dados ficam protegidos e <strong>nunca</strong> são compartilhados. Seu nome é usado nos e-mails enviados às empresas — escreva como no passaporte.</span>
+      </div>
 
       <!-- Email (read-only, já logado) -->
       <div class="field" style="margin-bottom:8px">
@@ -11767,6 +11818,10 @@ console.log('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas');
       <div class="field" style="margin-bottom:8px">
         <label style="font-size:11px;font-weight:700;color:var(--t2)">📱 WhatsApp * <span style="font-size:10px;color:var(--t3)">(com DDI)</span></label>
         <input class="input" id="ob-phone" type="tel" inputmode="tel" placeholder="+55 11 99999-9999">
+        <div style="font-size:11px;color:var(--t3);margin-top:4px;line-height:1.5;display:flex;gap:5px;align-items:flex-start">
+          <i class="ti ti-bell" style="font-size:12px;color:var(--blue);flex-shrink:0;margin-top:1px"></i>
+          <span>Avisamos você aqui assim que uma empresa responder sua candidatura.</span>
+        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
@@ -11785,9 +11840,13 @@ console.log('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas');
 
     <!-- STEP 1B: Perfil H2B -->
     <div id="ob-step-1b" style="padding:16px 20px 20px;display:none">
-      <div style="font-size:28px;margin-bottom:8px;text-align:center">🇺🇸</div>
+      <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#eff6ff,#dbeafe);display:flex;align-items:center;justify-content:center;font-size:27px;margin:0 auto 10px">🇺🇸</div>
       <div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:6px">Seu Perfil H2B</div>
-      <div style="font-size:12px;color:var(--t2);text-align:center;margin-bottom:16px;line-height:1.5">Ajuda o sistema a encontrar vagas mais adequadas para você</div>
+      <div style="font-size:12px;color:var(--t2);text-align:center;margin-bottom:12px;line-height:1.5">Ajuda o sistema a encontrar vagas mais adequadas para você</div>
+      <div style="background:var(--bluel);border:1px solid var(--blueb);border-radius:10px;padding:8px 10px;font-size:11px;color:var(--t2);line-height:1.5;margin-bottom:16px;display:flex;gap:6px;align-items:flex-start">
+        <i class="ti ti-bulb" style="color:var(--blue);font-size:13px;flex-shrink:0;margin-top:1px"></i>
+        <span>Quanto mais completo seu perfil, melhores as vagas sugeridas. Tudo é opcional aqui — você pode pular e preencher depois no seu perfil.</span>
+      </div>
 
       <!-- Já foi aos EUA -->
       <div style="margin-bottom:12px">
@@ -11869,7 +11928,7 @@ console.log('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas');
 
     <!-- STEP 1C: RankName + Avatar -->
     <div id="ob-step-1c" style="padding:16px 20px 20px;display:none">
-      <div style="font-size:28px;margin-bottom:8px;text-align:center">🏆</div>
+      <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#f5f3ff,#ede9fe);display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 10px">🏆</div>
       <div style="font-size:18px;font-weight:800;text-align:center;margin-bottom:4px">Seu Apelido no Ranking</div>
       <div style="font-size:12px;color:var(--t2);text-align:center;margin-bottom:16px;line-height:1.5">Sua identidade real fica protegida — só o apelido aparece para outros usuários</div>
 
@@ -11881,8 +11940,8 @@ console.log('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas');
       </div>
 
       <!-- Grid de Avatares -->
-      <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px;margin-top:12px">🎭 Escolha seu avatar</div>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px" id="ob-avatar-grid">
+      <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px;margin-top:12px;text-align:center">🎭 Escolha seu avatar <span style="color:var(--t3);font-weight:500">(toque para selecionar)</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,44px);justify-content:center;gap:10px;margin:0 auto 10px;max-width:340px" id="ob-avatar-grid">
         <!-- Avatares embutidos como emojis em SVG colorido -->
         <div class="ob-av" data-av="av01" onclick="selectAvatar('av01',this)" title="Fazendeiro" style="background:linear-gradient(135deg,#065f46,#10b981)">🧑‍🌾</div>
         <div class="ob-av" data-av="av02" onclick="selectAvatar('av02',this)" title="Construtor" style="background:linear-gradient(135deg,#7c2d12,#ea580c)">👷</div>
@@ -11912,9 +11971,13 @@ console.log('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas');
 
     <!-- STEP 2: Currículo -->
     <div id="ob-step-2" style="padding:20px 24px 24px;display:none">
-      <div style="font-size:32px;margin-bottom:12px;text-align:center">📄</div>
+      <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#eff6ff,#dbeafe);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px">📄</div>
       <div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:8px;color:var(--navy)">Envie seu Currículo</div>
-      <div style="font-size:13px;color:var(--t2);text-align:center;margin-bottom:20px;line-height:1.6">Seu currículo será anexado automaticamente em todos os envios. Formato PDF, máx. 10MB.</div>
+      <div style="font-size:13px;color:var(--t2);text-align:center;margin-bottom:14px;line-height:1.6">Seu currículo será anexado automaticamente em todos os envios. Formato PDF, máx. 10MB.</div>
+      <div style="background:var(--amberl);border:1px solid #fcd34d;border-radius:10px;padding:9px 11px;font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:16px;display:flex;gap:6px;align-items:flex-start">
+        <i class="ti ti-bulb" style="color:#d97706;font-size:13px;flex-shrink:0;margin-top:1px"></i>
+        <span><strong>Dica:</strong> um currículo em inglês, simples e de 1 página, com sua experiência e disponibilidade, costuma ter mais respostas. Não tem ainda? Pode pular e enviar depois.</span>
+      </div>
       <div id="ob-cv-uploaded" style="display:none;background:var(--greenl);border:1.5px solid var(--greenb);border-radius:10px;padding:12px;margin-bottom:14px;align-items:center;gap:8px">
         <i class="ti ti-check" style="font-size:18px;color:var(--green)"></i>
         <span style="font-size:13px;font-weight:700;color:var(--green)" id="ob-cv-name">Currículo enviado!</span>
@@ -11929,9 +11992,13 @@ console.log('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas');
 
     <!-- STEP 3: Perfil de Currículo -->
     <div id="ob-step-3" style="padding:20px 24px 24px;display:none">
-      <div style="font-size:32px;margin-bottom:12px;text-align:center">✉️</div>
+      <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#eff6ff,#dbeafe);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px">✉️</div>
       <div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:8px;color:var(--navy)">Crie seu Perfil de Currículo</div>
-      <div style="font-size:13px;color:var(--t2);text-align:center;margin-bottom:20px;line-height:1.6">O perfil define o assunto e o corpo dos emails que serão enviados. Você pode criar vários!</div>
+      <div style="font-size:13px;color:var(--t2);text-align:center;margin-bottom:14px;line-height:1.6">O perfil define o assunto e o corpo dos emails que serão enviados. Você pode criar vários!</div>
+      <div style="background:var(--bluel);border:1px solid var(--blueb);border-radius:10px;padding:9px 11px;font-size:11px;color:var(--t2);line-height:1.6;margin-bottom:16px">
+        <div style="font-weight:700;color:var(--blue);margin-bottom:3px"><i class="ti ti-wand"></i> Variáveis automáticas</div>
+        O sistema substitui sozinho: <code style="background:var(--sf3);padding:1px 4px;border-radius:4px">{nome}</code> <code style="background:var(--sf3);padding:1px 4px;border-radius:4px">{vaga}</code> <code style="background:var(--sf3);padding:1px 4px;border-radius:4px">{empresa}</code> <code style="background:var(--sf3);padding:1px 4px;border-radius:4px">{pais}</code> <code style="background:var(--sf3);padding:1px 4px;border-radius:4px">{telefone}</code>. É só deixar no texto.
+      </div>
       <div class="field" style="margin-bottom:10px"><label>Nome do perfil</label><input class="input" id="ob-prf-name" type="text" placeholder="Ex: Perfil Geral, Landscape..."></div>
       <div class="field" style="margin-bottom:10px">
         <label>Tipo</label>
@@ -11955,7 +12022,7 @@ Best regards,
 
     <!-- STEP 4: Notificações -->
     <div id="ob-step-4" style="padding:20px 24px 24px;display:none">
-      <div style="font-size:32px;margin-bottom:12px;text-align:center">🔔</div>
+      <div style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#fffbeb,#fef3c7);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 12px">🔔</div>
       <div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:8px;color:var(--navy)">Ative as Notificações</div>
       <div style="font-size:13px;color:var(--t2);text-align:center;margin-bottom:20px;line-height:1.6">Receba alertas em tempo real quando uma empresa responder sua candidatura!</div>
       <button onclick="obEnableNotif()" class="btn btn-primary w100" style="padding:13px;font-size:14px;margin-bottom:10px"><i class="ti ti-bell"></i> Ativar Notificações</button>
@@ -11966,7 +12033,7 @@ Best regards,
     <div id="ob-step-5" style="padding:20px 24px 24px;display:none;text-align:center">
       <div style="font-size:48px;margin-bottom:16px">🎉</div>
       <div style="font-size:22px;font-weight:800;margin-bottom:8px;color:var(--navy)">Tudo pronto!</div>
-      <div style="font-size:13px;color:var(--t2);margin-bottom:6px;line-height:1.6">Você ganhou <strong style="color:var(--blue)">5 dias VIP grátis</strong>. Agora você pode enviar até 400 candidaturas por dia!</div>
+      <div style="font-size:13px;color:var(--t2);margin-bottom:6px;line-height:1.6">Você ganhou <strong style="color:var(--blue)">1 dia de VIP Manual grátis</strong> — pode enviar até <strong>200 candidaturas manuais</strong> hoje! <span style="color:var(--t3)">(O envio automático 24/7 é exclusivo dos planos pagos.)</span></div>
       <div style="background:linear-gradient(135deg,#eff6ff,#f5f3ff);border:1.5px solid rgba(99,102,241,.2);border-radius:12px;padding:14px;margin-bottom:20px">
         <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px">O que fazer agora:</div>
         <div style="font-size:13px;text-align:left;display:flex;flex-direction:column;gap:6px">
@@ -13982,7 +14049,7 @@ function copyRefLink(){
 function shareRefLink(){
   const link=document.getElementById('ref-link-input')?.value||window._refLink||'';
   if(!link) return;
-  const text=`🌎 Candidate-se a vagas H-2B e H-2A nos EUA com o H2BApply!\nUse meu link e ganhe 5 dias VIP grátis: ${link}`;
+  const text=`🌎 Candidate-se a vagas H-2B e H-2A nos EUA com o H2BApply!\nUse meu link e ganhe 1 dia VIP grátis: ${link}`;
   if(navigator.share){
     navigator.share({title:'H2BApply — Vagas H-2B & H-2A',text,url:link}).catch(()=>{});
   } else {
@@ -14158,7 +14225,7 @@ const LANG_DICT = {
     "ref_copy":"Copiar","ref_share":"Compartilhar Link",
     "ref_invited":"Indicados","ref_paid":"Compraram","ref_days":"Dias ganhos","ref_my_refs":"Seus indicados","ref_none":"Nenhuma indicação ainda",
     "ref_step1":"Compartilhe seu link único com amigos",
-    "ref_step2_html":"Quando seu amigo se cadastrar pelo link → <strong>você ganha +5 dias VIP</strong> e ele ganha 5 dias grátis",
+    "ref_step2_html":"Quando seu amigo se cadastrar pelo link → <strong>você ganha +5 dias VIP</strong> e ele ganha 1 dia grátis",
     "ref_step3_html":"Se o amigo indicado assinar um plano de 30 dias → <strong>você ganha mais +5 dias VIP</strong> (total: 10 dias por indicação completa!)",
     "refer_sub":"Indique amigos e ganhe dias VIP grátis!",
     // Notifications

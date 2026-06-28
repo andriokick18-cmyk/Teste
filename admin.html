@@ -264,6 +264,7 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
       <div class="sb-label">Usuários</div>
       <button class="sb-item" onclick="showView('users')"><i class="ti ti-users"></i>Todos Usuários</button>
       <button class="sb-item" onclick="showView('vip');loadVipList();loadFinanceiro()"><i class="ti ti-diamond"></i>VIP & Planos</button>
+      <button class="sb-item" onclick="showView('pagantes');loadPagantes()" style="background:linear-gradient(135deg,rgba(16,185,129,.14),rgba(5,150,105,.07));border:1px solid rgba(16,185,129,.35);color:#34d399;font-weight:800"><i class="ti ti-cash" style="color:#34d399"></i>Pagantes &amp; Dias VIP</button>
       <button class="sb-item" onclick="showView('vencimentos');loadVencimentos()"><i class="ti ti-calendar-time"></i>Vencimentos VIP<span class="sb-badge sb-badge-a" id="sb-venc" style="display:none">!</span></button>
       <button class="sb-item" onclick="showView('pedidos');loadPedidos()" style="background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.06));border:1px solid rgba(16,185,129,.3);color:var(--green);font-weight:800"><i class="ti ti-shopping-cart" style="color:var(--green)"></i>Pedidos de Plano<span class="sb-badge sb-badge-g" id="sb-pedidos" style="display:none">0</span></button>
       <button class="sb-item" onclick="showView('pedidos-lixeira');loadPedidosLixeira()" style="font-size:11px;color:var(--t3)"><i class="ti ti-trash" style="color:var(--t3)"></i>Lixeira de Pedidos <span class="sb-badge sb-badge-r" id="sb-lixeira" style="display:none">0</span></button>
@@ -1157,6 +1158,35 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
           <div class="venc-stat"><div class="venc-stat-val" style="color:var(--green)" id="venc-cnt-ok">–</div><div class="venc-stat-lbl">✅ Ativos (>30d)</div></div>
         </div>
         <div id="venc-list"><div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div></div>
+      </div>
+
+      <!-- ══ PAGANTES — visão única: quem pagou + dias de VIP ══ -->
+      <div class="view" id="view-pagantes">
+        <div class="section-hdr" style="margin-bottom:14px">
+          <i class="ti ti-cash" style="color:var(--green)"></i>
+          <div class="section-title">Pagantes</div>
+          <div class="section-sub">Quem pagou e quantos dias de VIP ainda tem — tudo num lugar só</div>
+          <div class="section-actions">
+            <button class="btn btn-ghost btn-sm" onclick="exportPagantesCSV()"><i class="ti ti-download"></i> CSV</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadPagantes()"><i class="ti ti-refresh"></i> Atualizar</button>
+          </div>
+        </div>
+        <div class="venc-grid">
+          <div class="venc-stat"><div class="venc-stat-val" style="color:var(--green)" id="pag-cnt-ativos">–</div><div class="venc-stat-lbl">✅ Ativos</div></div>
+          <div class="venc-stat"><div class="venc-stat-val" style="color:var(--amber)" id="pag-cnt-vencendo">–</div><div class="venc-stat-lbl">⚠️ Vencem ≤3d</div></div>
+          <div class="venc-stat"><div class="venc-stat-val" style="color:var(--red)" id="pag-cnt-vencidos">–</div><div class="venc-stat-lbl">⛔ Vencidos</div></div>
+          <div class="venc-stat"><div class="venc-stat-val" style="color:var(--blue);font-size:16px" id="pag-receita-mes">–</div><div class="venc-stat-lbl">💰 Receita do mês</div></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+          <input id="pag-search" oninput="renderPagantes()" placeholder="🔎 Buscar nome ou e-mail..." style="flex:1;min-width:160px;background:var(--glass2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--text);font-family:inherit">
+          <select id="pag-filter" onchange="renderPagantes()" style="font-size:12px;background:var(--glass2);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;color:var(--t2)">
+            <option value="all">Todos os pagantes</option>
+            <option value="vencendo">⚠️ Vencendo ≤3d</option>
+            <option value="vencido">⛔ Vencidos</option>
+            <option value="ativo">✅ Ativos</option>
+          </select>
+        </div>
+        <div id="pag-list"><div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div></div>
       </div>
 
       <!-- SUGESTÕES -->
@@ -3354,7 +3384,7 @@ function showView(name) {
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
   const v = document.getElementById('view-'+name);
   if(v) v.classList.add('active');
-  const titles={dashboard:'Dashboard','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'Eventos & Crashes',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',indicacoes:'Indicações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas'};
+  const titles={dashboard:'Dashboard','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'Eventos & Crashes',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',pagantes:'💳 Pagantes',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',indicacoes:'Indicações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas'};
   setText('view-title', titles[name]||name);
   if(name==='robo-contabil' && typeof rcCheckGeminiStatus==='function') setTimeout(rcCheckGeminiStatus,300);
   if(name==='incidentes'){
@@ -3388,6 +3418,7 @@ function showView(name) {
   if(name==='indicacoes') loadAdminReferrals();
   if(name==='vip') {} // static
   if(name==='pedidos') loadPedidos();
+  if(name==='pagantes') loadPagantes();
   if(name==='pedidos-lixeira') loadPedidosLixeira();
   if(name==='ia-admin') document.getElementById('ia-admin-input')?.focus();
 }
@@ -6812,7 +6843,95 @@ function exportVencimentosCSV(){
   toast('📥 CSV exportado!','ok');
 }
 
-// ── MELHORIA 4: Alerta dashboard VIP vencendo ────────────────
+// ══════════════════════════════════════════════════════════
+//  PAGANTES — visão única "quem pagou + dias de VIP"
+//  Dados 100% calculados no servidor (fonte única, sem divergência)
+// ══════════════════════════════════════════════════════════
+let _pagData={rows:[],summary:{}};
+async function loadPagantes(){
+  const el=document.getElementById('pag-list');
+  if(el)el.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div>';
+  try{
+    const r=await fetch('/api/admin/pagantes',{credentials:'include'});
+    if(!r.ok){if(el)el.innerHTML=`<div class="empty-state" style="color:var(--red)">Erro HTTP ${r.status} — atualize a página</div>`;return;}
+    const d=await r.json();
+    if(!d.ok){if(el)el.innerHTML=`<div class="empty-state" style="color:var(--red)">${esc(d.error||'Erro ao carregar')}</div>`;return;}
+    _pagData=d;
+    const s=d.summary||{};
+    setText('pag-cnt-ativos',s.ativos||0);
+    setText('pag-cnt-vencendo',s.vencendo||0);
+    setText('pag-cnt-vencidos',s.vencidos||0);
+    setText('pag-receita-mes','R$ '+(s.receitaMes||0).toFixed(2).replace('.',','));
+    renderPagantes();
+  }catch(e){
+    if(el)el.innerHTML=`<div class="empty-state" style="color:var(--red)">❌ ${esc(e.message)}<br><button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="loadPagantes()">Tentar novamente</button></div>`;
+  }
+}
+function renderPagantes(){
+  const el=document.getElementById('pag-list');if(!el)return;
+  const q=(document.getElementById('pag-search')?.value||'').trim().toLowerCase();
+  const f=document.getElementById('pag-filter')?.value||'all';
+  let list=(_pagData.rows||[]);
+  if(f!=='all')list=list.filter(r=>r.status===f);
+  if(q)list=list.filter(r=>(r.name||'').toLowerCase().includes(q)||(r.email||'').toLowerCase().includes(q));
+  if(!list.length){el.innerHTML='<div class="empty-state"><i class="ti ti-search"></i> Nenhum pagante neste filtro</div>';return;}
+  const money=v=>'R$ '+(v||0).toFixed(2).replace('.',',');
+  const date=ts=>ts?new Date(ts).toLocaleDateString('pt-BR'):'–';
+  const pill=(bg,c,t)=>`<span style="font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px;background:${bg};color:${c}">${t}</span>`;
+  el.innerHTML=list.map(r=>{
+    const dl=r.daysLeft;
+    const color=dl===null?'var(--t3)':dl<=0?'var(--red)':dl<=3?'var(--amber)':'var(--green)';
+    const cls=dl===null?'venc-ok':dl<=0?'venc-expired':dl<=3?'venc-soon':'venc-ok';
+    const daysLabel=dl===null?'s/data':dl<=0?`${Math.abs(dl)}d↩`:`${dl}d`;
+    const sb=r.status==='vencido'?pill('rgba(239,68,68,.18)','#f87171','⛔ VENCIDO'):r.status==='vencendo'?pill('rgba(245,158,11,.18)','#fbbf24','⚠️ VENCE JÁ'):r.status==='ativo'?pill('rgba(16,185,129,.18)','#34d399','✅ ATIVO'):pill('rgba(148,163,184,.18)','var(--t3)','SEM DATA');
+    const wa=r.whatsapp?String(r.whatsapp).replace(/[^0-9]/g,''):'';
+    return `<div class="venc-card ${cls}">
+      <div class="venc-avatar">${esc((r.name||r.email||'?')[0].toUpperCase())}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.name||r.email)}</div>
+        <div style="font-size:11px;color:var(--t3);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.email)}</div>
+        <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;align-items:center;font-size:11px">
+          <span style="color:var(--purple);font-weight:700">${esc(r.planLabel)}</span>
+          ${sb}
+          <span style="color:var(--t3)">Vence: <strong style="color:var(--t2)">${date(r.nextExpiry)}</strong></span>
+          ${r.lastPaymentValor?`<span style="color:var(--t3)">Pagou <strong style="color:var(--green)">${money(r.lastPaymentValor)}</strong> em ${date(r.lastPaymentDate)}</span>`:'<span style="color:var(--amber)">⚠️ sem pagamento registrado</span>'}
+          ${(r.pedidosCount>1)?`<span style="color:var(--t3)">Total <strong>${money(r.totalPago)}</strong> (${r.pedidosCount}×)</span>`:''}
+        </div>
+      </div>
+      <div class="venc-days" style="color:${color}" title="dias restantes">${daysLabel}</div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+        <button onclick="pagRenovar('${esc(r.email)}','${esc(r.plan)}')" style="display:inline-flex;align-items:center;gap:3px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);border-radius:6px;padding:5px 9px;font-size:10px;font-weight:800;color:#34d399;cursor:pointer;font-family:inherit;white-space:nowrap"><i class="ti ti-plus"></i> Renovar 30d</button>
+        ${wa?`<a href="https://wa.me/${wa}" target="_blank" style="display:inline-flex;align-items:center;gap:3px;justify-content:center;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;color:#25d366;cursor:pointer;text-decoration:none"><i class="ti ti-brand-whatsapp"></i> WhatsApp</a>`:''}
+        <button onclick="copyEmail('${esc(r.email)}',this)" style="display:inline-flex;align-items:center;gap:3px;justify-content:center;background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;color:var(--t2);cursor:pointer;font-family:inherit"><i class="ti ti-copy"></i> Email</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function pagRenovar(email,plan){
+  if(!confirm(`Renovar +30 dias de ${plan||'VIP'} para:\n${email}?`))return;
+  const autoDays=(plan==='vipro'||plan==='doublepro')?30:0;
+  try{
+    const r=await fetch('/api/admin/vip/activate',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,days:30,autoDays,plan:plan||'vip',note:'Renovação +30d via Pagantes'})});
+    const d=await r.json();
+    if(d.ok){toast('✅ +30 dias para '+email,'ok');loadPagantes();}
+    else toast('Erro: '+(d.error||'falhou'),'r');
+  }catch(e){toast('Erro: '+e.message,'r');}
+}
+function exportPagantesCSV(){
+  const rows=[['Nome','Email','Plano','Status','Dias Restantes','Vencimento','Ultimo Pagamento (R$)','Data Pagamento','Total Pago (R$)','Qtd Pedidos']];
+  (_pagData.rows||[]).forEach(r=>{
+    rows.push([r.name||'',r.email||'',r.plan||'',r.status||'',r.daysLeft===null?'sem data':r.daysLeft,
+      r.nextExpiry?new Date(r.nextExpiry).toLocaleDateString('pt-BR'):'–',
+      (r.lastPaymentValor||0).toFixed(2),
+      r.lastPaymentDate?new Date(r.lastPaymentDate).toLocaleDateString('pt-BR'):'–',
+      (r.totalPago||0).toFixed(2),r.pedidosCount||0]);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download=`pagantes-${new Date().toISOString().slice(0,10)}.csv`;a.click();
+  toast('📥 CSV exportado!','ok');
+}
 // Hook into updateDashboard to check for expiring VIPs
 const _origUpdateDash = typeof updateDashboard === 'function' ? updateDashboard : null;
 function checkVipExpiryAlert(){
@@ -7656,10 +7775,6 @@ function finRemoveGasto(idx){
 console.log('[admin v15] ✅ 20 melhorias carregadas');
 
 
-async function aprovarPedido(id){
-  // Abrir modal de aprovação em vez de confirm() simples
-  abrirModalAprovacao(id);
-}
 async function cancelarPedido(id){
   if(!confirm('Cancelar este pedido?'))return;
   try{
@@ -7857,7 +7972,7 @@ function openResolveModal(incidentId){
   const optEl=document.getElementById('inc-resolve-options');
   const opts=incident.options||[];
   optEl.innerHTML=opts.map(o=>`<button class="btn btn-secondary" style="text-align:left;justify-content:flex-start;padding:10px 14px;font-size:13px" onclick="selectResolution('${esc(o.value)}',this)">${esc(o.label)}</button>`).join('');
-  if(!opts.length) optEl.innerHTML='<button class="btn btn-secondary" onclick="selectResolution('ignore',this)">Marcar como resolvido</button>';
+  if(!opts.length) optEl.innerHTML=`<button class="btn btn-secondary" onclick="selectResolution('ignore',this)">Marcar como resolvido</button>`;
   document.getElementById('inc-resolve-note').value='';
   document.getElementById('inc-resolve-save-rule').checked=false;
   document.getElementById('inc-resolve-selected').value='';
@@ -8097,15 +8212,6 @@ async function excluirPermanente(id, nome){
     else toast('Erro: '+(d.error||'?'),'r');
   }catch(e){toast('Erro: '+e.message,'r');}
 }
-async function verComprovante(id){
-  try{
-    const r=await fetch('/api/pedido/'+id,{credentials:'include'});
-    const d=await r.json();
-    if(!d.ok||!d.pedido?.comprovante)return toast('Sem comprovante','r');
-    const w=window.open('','_blank');
-    w.document.write(`<html><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="data:${d.pedido.comprovanteType||'image/jpeg'};base64,${d.pedido.comprovante}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`);
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
 
 // ══════════════════════════════════════════════════════════
 //  NOVAS AÇÕES DO MODAL DE USUÁRIO
@@ -8156,15 +8262,6 @@ async function adminSetAutoLimit(email){
   }catch(e){toast('Erro: '+e.message,'r');}
 }
 
-async function adminSetPlan(email,plan){
-  if(!email)return;
-  if(!confirm('Definir plano '+plan+' para '+email+'?'))return;
-  try{
-    const r=await fetch('/api/admin/set-plan',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,plan})});
-    const d=await r.json();
-    if(d.ok){toast('✅ Plano '+plan+' ativado','g');setTimeout(()=>refreshModal(),800);}else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
 
 async function adminRevokeVip(email){
   if(!email)return;
@@ -8276,81 +8373,6 @@ async function adminSendNotifToUser(email){
   }catch(e){toast('Erro: '+e.message,'r');}
 }
 
-// Render tab Compras/Plano no modal
-function renderModalCompras(d,u){
-  const el=document.getElementById('modal-tab-compras');
-  if(!el)return;
-  const email=d?.user?.email||currentModalEmail||'';
-  const user=d?.user||{};
-  const vip=user.vip||{};
-  const plan=u?.plan||user.plan||'free';
-  const planLabel={free:'🆓 Free',vip:'⭐ VIP Manual',pro:'🤖 Pro',vipro:'🤖 VIPro',doublepro:'💎 DoublePro'}[plan]||plan;
-
-  // Calcular dias restantes
-  const now=Date.now();
-  const manDays=vip.manualExpires&&vip.manualExpires>now?Math.ceil((vip.manualExpires-now)/86400000):0;
-  const autDays=vip.autoExpires&&vip.autoExpires>now?Math.ceil((vip.autoExpires-now)/86400000):0;
-  const maxDays=Math.max(manDays,autDays);
-
-  // Buscar pedidos do usuário
-  fetch(`/api/pedidos?email=${encodeURIComponent(email)}`,{credentials:'include'}).then(r=>r.json()).then(pd=>{
-    const peds=pd.pedidos||[];
-    const wppNum=(user.phone||'').replace(/\D/g,'');
-    const wppLink=wppNum?`https://wa.me/${wppNum.startsWith('55')?wppNum:'55'+wppNum}`:'';
-    el.innerHTML=`
-      <!-- Status do plano -->
-      <div style="background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(139,92,246,.1));border:1.5px solid rgba(99,102,241,.3);border-radius:12px;padding:16px;margin-bottom:14px">
-        <div style="font-size:12px;font-weight:800;color:var(--t3);text-transform:uppercase;margin-bottom:10px">📋 Plano Atual</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div><div style="font-size:22px;font-weight:800;color:#fff">${planLabel}</div><div style="font-size:11px;color:var(--t3);margin-top:2px">Plano ativo</div></div>
-          <div style="text-align:right"><div style="font-size:22px;font-weight:800;color:${maxDays>0?'var(--green)':'var(--red)'}">${maxDays>0?maxDays+'d':'Expirado'}</div><div style="font-size:11px;color:var(--t3)">Dias restantes</div></div>
-        </div>
-        <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
-          <div><span style="color:var(--t3)">Manual expira:</span> <strong>${vip.manualExpires?new Date(vip.manualExpires).toLocaleDateString('pt-BR'):'–'}</strong></div>
-          <div><span style="color:var(--t3)">Auto expira:</span> <strong>${vip.autoExpires?new Date(vip.autoExpires).toLocaleDateString('pt-BR'):'–'}</strong></div>
-          <div><span style="color:var(--t3)">Origem:</span> <strong>${vip.source==='code'?'🎁 Código':vip.source==='trial'?'🆓 Trial':vip.source==='payment'?'💳 Pago':'–'}</strong></div>
-          <div><span style="color:var(--t3)">Nota:</span> <strong style="color:var(--amber)">${vip.note||'–'}</strong></div>
-        </div>
-        <!-- Ações rápidas de VIP -->
-        <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-purple btn-sm" onclick="adminVipQuick('${esc(email)}',30,'vipro')"><i class="ti ti-diamond"></i>+30d VIPro</button>
-          <button class="btn btn-purple btn-sm" onclick="adminVipQuick('${esc(email)}',60,'vipro')"><i class="ti ti-diamond"></i>+60d VIPro</button>
-          <button class="btn btn-purple btn-sm" onclick="adminVipQuick('${esc(email)}',90,'vipro')"><i class="ti ti-diamond"></i>+90d VIPro</button>
-          <button class="btn btn-amber btn-sm" onclick="adminVipQuick('${esc(email)}',365,'doublepro')"><i class="ti ti-rocket"></i>+1 ano DoublePro</button>
-          <button class="btn btn-danger btn-sm" onclick="adminRevokeVip('${esc(email)}')"><i class="ti ti-ban"></i>Revogar</button>
-        </div>
-      </div>
-      <!-- Contato direto -->
-      ${(user.phone||user.whatsapp)?`<div style="background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.25);border-radius:10px;padding:12px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
-        <i class="ti ti-brand-whatsapp" style="font-size:24px;color:#25d366;flex-shrink:0"></i>
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:700;color:#25d366">WhatsApp do usuário</div>
-          <div style="font-size:14px;font-weight:800;color:#fff">${esc(user.phone||user.whatsapp||'')}</div>
-        </div>
-        ${wppLink?`<a href="${wppLink}" target="_blank" class="btn btn-sm" style="background:rgba(37,211,102,.2);border:1px solid rgba(37,211,102,.4);color:#25d366;text-decoration:none;flex-shrink:0"><i class="ti ti-brand-whatsapp"></i> Abrir WhatsApp</a>`:''}
-      </div>`:''}
-      <!-- Histórico de pedidos -->
-      <div style="font-size:12px;font-weight:800;color:var(--t3);text-transform:uppercase;margin-bottom:8px">🛒 Pedidos de plano (${peds.length})</div>
-      ${peds.length?peds.map(pd=>{
-        const sl=PED_STATUS_LABELS[pd.status]||{label:pd.status,cls:'b-gray'};
-        const planoNm=PLAN_PRICES[pd.plano]?.name||pd.plano;
-        const dt=pd.createdAt?new Date(pd.createdAt).toLocaleDateString('pt-BR'):'–';
-        return`<div style="background:var(--glass);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px">
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:700">${planoNm} — ${pd.dias}d · R$${(pd.valorTotal||0).toFixed(2)}</div>
-            <div style="font-size:10px;color:var(--t3)">${dt} · #${(pd.id||'').slice(-8).toUpperCase()}</div>
-            ${pd.notaAdmin?`<div style="font-size:10px;color:var(--amber);margin-top:2px">${esc(pd.notaAdmin)}</div>`:''}
-          </div>
-          <span class="badge ${sl.cls}">${sl.label}</span>
-          ${pd.comprovante===true?`<button class="btn btn-ghost btn-xs" onclick="verComprovante('${pd.id}')"><i class="ti ti-photo"></i></button>`:''}
-          ${pd.status==='pendente'||pd.status==='pago'?`<button class="btn btn-success btn-xs" onclick="aprovarPedido('${pd.id}');setTimeout(()=>renderModalCompras(currentModalData,allUsers.find(x=>x.email===currentModalEmail)),800)"><i class="ti ti-check"></i> Ativar</button>`:''}
-        </div>`;
-      }).join(''):`<div style="font-size:12px;color:var(--t3);padding:12px 0">Nenhum pedido de plano ainda.</div>`}
-    `;
-  }).catch(()=>{
-    el.innerHTML='<div class="empty-state" style="color:var(--red)">Erro ao carregar pedidos</div>';
-  });
-}
 
 </script>
 
