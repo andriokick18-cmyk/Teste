@@ -4466,6 +4466,39 @@ function _saveEnrichedSheet(sheetKey, sheet){
     const fail=m=>{res.writeHead(302,{Location:"/?err="+encodeURIComponent(m)});res.end();};
     if(error)return fail(error==="access_denied"?"Login cancelado.":"Erro OAuth: "+error);
     if(!code)return fail("Código OAuth inválido.");
+    // [FIX redirect_uri_mismatch] — detecta se é fluxo add-sender pelo state
+    const _st=u.searchParams.get("state")||"";
+    if(sessions["__sender__"+_st]){
+      const fail2=m=>{res.writeHead(302,{Location:"/?err="+encodeURIComponent(m)+"&tab=profile"});res.end();};
+      const pending2=sessions["__sender__"+_st];
+      if(Date.now()-pending2.created>600_000){delete sessions["__sender__"+_st];return fail2("Sessão expirada. Tente novamente.");}
+      const ownerEmail2=pending2.ownerEmail;
+      delete sessions["__sender__"+_st];
+      try{
+        const tb2=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:REDIRECT_URI,grant_type:"authorization_code"}).toString();
+        const{body:tk2}=await httpsReq({hostname:"oauth2.googleapis.com",path:"/token",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(tb2)}},tb2);
+        if(tk2.error)return fail2(tk2.error_description||tk2.error);
+        if(!tk2.access_token)return fail2("Token não recebido.");
+        const{body:ui2}=await httpsReq({hostname:"www.googleapis.com",path:"/oauth2/v2/userinfo",method:"GET",headers:{"Authorization":"Bearer "+tk2.access_token}});
+        if(!ui2.email)return fail2("E-mail não obtido.");
+        const newEmail2=ui2.email.toLowerCase().trim();
+        if(newEmail2===ownerEmail2)return fail2("Este é seu email principal. Adicione um Gmail diferente.");
+        if(getUser(newEmail2))return fail2("Este Gmail já tem conta no H2BApply. Use outro email.");
+        const owner2=getUser(ownerEmail2)||{};
+        const existing2=owner2.senderEmails||[];
+        if(existing2.find(s=>s.email===newEmail2))return fail2("Este Gmail já está adicionado à sua conta.");
+        const maxSnd3=getMaxSenders(getUser(ownerEmail2)||{});
+        if(1+existing2.length>=maxSnd3)return fail2(`Limite de ${maxSnd3} emails atingido.`);
+        const newSender2={email:newEmail2,label:ui2.name||newEmail2,access_token:tk2.access_token,token_expiry:Date.now()+(tk2.expires_in||3600)*1000,refresh_token:tk2.refresh_token||null,addedAt:Date.now(),active:true,tokenExpired:false,blocked:false};
+        if(!newSender2.refresh_token)console.warn(`[sender] ⚠️ refresh_token não recebido para ${newEmail2}`);
+        setUser(ownerEmail2,{senderEmails:[...existing2,newSender2]});
+        console.log(`[sender] ✅ ${newEmail2} adicionado como sender de ${ownerEmail2}`);
+        trackJourney(ownerEmail2,'sender_added',{detail:`Sender adicionado: ${newEmail2}`});
+        const _safeEmail2=JSON.stringify(newEmail2);
+        const page2=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Gmail adicionado!</title></head><body><script>sessionStorage.setItem('senderAdded',${_safeEmail2});window.location.href='/';<\/script></body></html>`;
+        res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Content-Length":Buffer.byteLength(page2),"Cache-Control":"no-cache"});return res.end(page2);
+      }catch(e2){return fail2("Erro ao adicionar email: "+e2.message);}
+    }
     try{
       const tb=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:REDIRECT_URI,grant_type:"authorization_code"}).toString();
       const{body:tk}=await httpsReq({hostname:"oauth2.googleapis.com",path:"/token",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(tb)}},tb);
@@ -4589,12 +4622,17 @@ function _saveEnrichedSheet(sheetKey, sheet){
     const st=crypto.randomBytes(20).toString("hex");
     // Salva o state com o email do dono para vincular no callback
     sessions["__sender__"+st]={ownerEmail:s.user_email,created:Date.now()};
-    const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI_SENDER,response_type:"code",scope:"openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify",access_type:"offline",prompt:"consent select_account",state:st});
+    const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI,response_type:"code",scope:"openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify",access_type:"offline",prompt:"consent select_account",state:st});
     res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();
   }
 
-  // Callback do OAuth do email extra
+  // [FIX] Alias legado — redireciona para /oauth/callback (unificado)
   if(pathname==="/oauth/add-sender/callback"){
+    const _rparams=u.search||"";
+    res.writeHead(302,{Location:"/oauth/callback"+_rparams});return res.end();
+  }
+  // Callback do OAuth do email extra (CÓDIGO LEGADO — mantido como fallback, nunca atingido)
+  if(false&&pathname==="/oauth/add-sender/callback-legacy"){
     const code=u.searchParams.get("code"),error=u.searchParams.get("error"),st=u.searchParams.get("state")||"";
     const fail=m=>{res.writeHead(302,{Location:"/?err="+encodeURIComponent(m)+"&tab=profile"});res.end();};
     if(error)return fail(error==="access_denied"?"Adição de email cancelada.":"Erro OAuth: "+error);
@@ -4604,7 +4642,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
     const ownerEmail=pending.ownerEmail;
     delete sessions["__sender__"+st];
     try{
-      const tb=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:REDIRECT_URI_SENDER,grant_type:"authorization_code"}).toString();
+      const tb=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:REDIRECT_URI,grant_type:"authorization_code"}).toString();
       const{body:tk}=await httpsReq({hostname:"oauth2.googleapis.com",path:"/token",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(tb)}},tb);
       if(tk.error)return fail(tk.error_description||tk.error);
       if(!tk.access_token)return fail("Token não recebido.");
