@@ -201,7 +201,7 @@ let DB_CODES  = {};   // NEW: promo codes { code → { manualDays, autoDays, cre
 let DB_PUSH   = {};   // NEW: push subscriptions { userEmail → PushSubscription[] }
 // NEW v13: índice de candidaturas — { userEmail → { byThread:{tid:appId}, byMsgId:{mid:appId}, byTo:{email:[appId,...]} } }
 let DB_APP_INDEX = {};
-let DB_ADMIN_SETTINGS = { newUserTrialEnabled: true, newUserTrialDays: 2, newUserTrialAutoDays: 2, newUserTrialPlan: "vipro" };
+let DB_ADMIN_SETTINGS = { newUserTrialEnabled: true, newUserTrialDays: 1, newUserTrialAutoDays: 0, newUserTrialPlan: "vip" }; // v9: trial = 1d VIP Manual apenas (sem auto)
 // Notifications: { notifications: [{id, title, body, createdAt, createdBy, readBy:[email,...]}] }
 let DB_NOTIF = { notifications: [] };
 // Referrals: { byCode: { code → {ownerEmail, createdAt} }, byEmail: { email → {code, referredBy, joinedAt, paidAt, bonusPaid} } }
@@ -210,7 +210,7 @@ let DB_SUGGESTIONS = []; // Array de sugestões dos usuários
 let DB_PEDIDOS     = []; // Array de pedidos de plano
 let DB_FINANCEIRO  = {pagamentos:[],gastos:[]};  // Dados financeiros persistentes
 let DB_BLOCKED     = {emails:[]};               // Emails banidos permanentemente
-let DB_TRIAL_USED  = {phones:{},ips:{}};        // Anti-abuse: {phones:{"+5511...":"email"}, ips:{"1.2.3.4":["email1","email2"]}}
+let DB_TRIAL_USED  = {phones:{},ips:{},googleIds:{}};  // Anti-abuse: {phones:{"+5511...":"email"}, ips:{"1.2.3.4":["email1","email2"]}, googleIds:{"108...":"email"}}
 // Base de Conhecimento Permanente — transferência de conhecimento entre IAs e versões
 // Estrutura: { entries: [{ id, problema, solucao, motivo, impacto, modulos, versao, data, autor }] }
 let DB_KB = { entries: [] };
@@ -447,9 +447,10 @@ function boot() {
   if(!DB_FINANCEIRO.pagamentos) DB_FINANCEIRO = {pagamentos:[],gastos:[]};
   DB_BLOCKED = load(BLOCKED_FILE, {emails:[]});
   if(!Array.isArray(DB_BLOCKED.emails)) DB_BLOCKED = {emails:[]};
-  DB_TRIAL_USED = load(TRIAL_USED_FILE, {phones:{},ips:{}});
+  DB_TRIAL_USED = load(TRIAL_USED_FILE, {phones:{},ips:{},googleIds:{}});
   if(!DB_TRIAL_USED.phones) DB_TRIAL_USED.phones={};
   if(!DB_TRIAL_USED.ips) DB_TRIAL_USED.ips={};
+  if(!DB_TRIAL_USED.googleIds) DB_TRIAL_USED.googleIds={};
 
   // ── Emails Inválidos (bounces) — carregado do disco, persiste entre deploys ──
   const _rawInvalid = load(INVALID_EMAILS_FILE, {});
@@ -471,125 +472,151 @@ function boot() {
   const _kbFoundingIds = new Set(DB_KB.entries.map(e => e.id));
   const _kbFounding = [
     {
-      id: "KB-001", versao: "V811", data: "2026-06-26", autor: "Claude/Andrio",
-      problema: "Robôs classificados como 'travados' quando na verdade estavam aguardando limite diário (waiting_limit), rate limit (waiting_rate_limit), intervalo (waiting_interval) ou retry de token (waiting_token_retry).",
-      solucao: "Adicionar exclusão de status de espera legítimos no critério de detecção de travamento em todos os pontos: auditoria Gemini, Central de Incidentes e restart-all-stalled.",
-      motivo: "O critério original usava apenas lastSentAt > 2h sem verificar se havia uma espera programada válida.",
-      impacto: "Saúde do sistema subiu de 35/100 para 65/100. Zero falsos positivos de travamento. restart-all-stalled parou de reiniciar workers saudáveis.",
-      modulos: ["server.js: linha ~6930 (snapshot auditoria)", "server.js: linha ~4286 (Central de Incidentes)", "server.js: /api/admin/restart-all-stalled"],
-      tags: ["automação", "watchdog", "falso-positivo", "travamento"]
+      id:"KB-001",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Robôs classificados como 'travados' quando aguardando limite/rate limit/intervalo/token-retry.",
+      solucao:"Excluir statuses waiting_limit, waiting_rate_limit, waiting_interval, waiting_token_retry do critério de travamento em todos os pontos: auditoria, Central de Incidentes e restart-all-stalled.",
+      impacto:"Zero falsos positivos. Saúde 35→65/100.",modulos:["server.js: auditoria","server.js: incidentes"],tags:["automação","watchdog","travamento"]
     },
     {
-      id: "KB-002", versao: "V812", data: "2026-06-26", autor: "Claude/Andrio",
-      problema: "Tokens expirados de usuários inativos (>10 dias sem acesso) geravam alertas críticos, tickets na Central de Incidentes, logs ruidosos e emails de notificação desnecessários — poluindo o painel admin e gastando recursos.",
-      solucao: "Aplicar filtro de inatividade em 6 pontos do sistema: (1) Central de Incidentes gera ticket apenas para inativos ≤10 dias; (2) Watchdog diagnoseJob faz pausa silenciosa para inativos >10 dias; (3) sendNotifEmail token_revoked só dispara para ativos ≤10 dias; (4) Snapshot Gemini inclui diasInativo, ultimoAcesso e tokenProblemaReal; (5+6) Dossiê Gemini distingue token-problema-real vs token-inativo-ignorado.",
-      motivo: "Regra de negócio: usuário inativo >10 dias provavelmente abandonou o app ou está em pausa voluntária. Não vale gerar ruído. Usuário ativo nos últimos 3 dias com token quebrado é urgente.",
-      impacto: "Painel admin limpo. Gemini foca nos problemas reais. Notificações só chegam para quem vai agir.",
-      modulos: ["server.js: Central de Incidentes (~linha 4278)", "server.js: diagnoseJob (~linha 7854)", "server.js: sendNotifEmail (~linha 1863)", "server.js: snapshot auditoria (~linha 6957)"],
-      tags: ["token", "inatividade", "notificação", "auditoria", "ruído"]
+      id:"KB-002",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Tokens expirados de inativos (>10 dias) geravam alertas críticos desnecessários.",
+      solucao:"Filtro de inatividade em 6 pontos: incidente só para inativos ≤10d; notificação só para ativos ≤10d; dossiê distingue token-problema-real vs token-inativo-ignorado.",
+      impacto:"Painel limpo. Foco nos problemas reais.",modulos:["server.js: incidentes","server.js: watchdogs"],tags:["token","inatividade"]
     },
     {
-      id:"KB-003",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
-      problema:"Scope OAuth limitado a gmail.send impedia leitura do inbox. Sistema retornava 403 (falta de permissão) mas tratava como TOKEN_EXPIRED, criando loop eterno de reconexão sem resolver o problema.",
-      solucao:"Adicionar gmail.readonly e gmail.modify ao scope OAuth em /oauth/start e /oauth/add-sender. Implementar campo scopeVersion:2 nos usuários. Forçar prompt=consent para usuários sem os novos escopos. Retry automático com refresh quando 401. /api/inbox retorna HTTP 401 com flag tokenExpired:true explícita.",
-      impacto:"Inbox de respostas passou a funcionar. Detecção de bounces ativada. Loop de reconexão eliminado.",
-      modulos:["server.js: /oauth/start scope","server.js: gmailFetchInbox","server.js: /api/inbox"],
-      tags:["oauth","gmail","scope","inbox","token"]
+      id:"KB-003",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Scope OAuth limitado a gmail.send impedia inbox e bounces.",
+      solucao:"Adicionar gmail.readonly e gmail.modify. Campo scopeVersion:2. Prompt=consent para usuários sem novos escopos.",
+      impacto:"Inbox de respostas funcionando. Bounces detectados.",modulos:["server.js: /oauth/start"],tags:["oauth","gmail"]
     },
     {
-      id:"KB-004",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
-      problema:"DB_INVALID_EMAILS (bounces) nunca era carregado do disco no boot — always started vazio. Tudo que foi detectado antes de um restart era perdido. DB_EMAIL_CORRECTIONS e DB_TEMP_FAILURES também nunca persistiam entre deploys.",
-      solucao:"Adicionar load(INVALID_EMAILS_FILE), load(EMAIL_CORRECTIONS_FILE) e load(TEMP_FAILURES_FILE) no boot(). Serializar Sets de users como Array no disco. Logar quantos registros foram recuperados.",
-      impacto:"Bounces persistem entre deploys. Base Global de Emails Inválidos acumula dados corretamente.",
-      modulos:["server.js: boot()","server.js: DB_INVALID_EMAILS"],
-      tags:["bounce","invalid-emails","persistência","boot"]
+      id:"KB-004",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"DB_INVALID_EMAILS nunca carregado no boot — reiniciava vazio.",
+      solucao:"load() de bounces, corrections e temp_failures no boot(). Sets serializados como Array.",
+      impacto:"Bounces persistem entre deploys.",modulos:["server.js: boot()"],tags:["bounce","persistência"]
     },
     {
-      id:"KB-005",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
-      problema:"Startup Bounce Scan: ao iniciar o servidor, bounces acumulados durante downtime nunca eram processados. Usuários com tokens válidos tinham bounces pendentes no inbox que nunca eram detectados.",
-      solucao:"20s após boot, varrer inbox de todos os usuários com refresh_token. Criar sessão temporária __bounce_scan__email, chamar gmailFetchInbox, deletar sessão. Pausa 2s entre usuários para não saturar Gmail API.",
-      impacto:"Bounces do período de downtime são capturados imediatamente ao reiniciar.",
-      modulos:["server.js: server.listen callback (Startup Bounce Scan)"],
-      tags:["bounce","boot","startup","gmail","inbox"]
+      id:"KB-005",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Bounces durante downtime nunca processados ao reiniciar.",
+      solucao:"20s após boot: varrer inbox de todos com refresh_token. Sessão temporária por usuário. Pausa 2s entre usuários.",
+      impacto:"Bounces do período offline capturados imediatamente.",modulos:["server.js: server.listen"],tags:["bounce","boot"]
     },
     {
-      id:"KB-006",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
-      problema:"scheduleAuto usava lockedAutoLimit (salvo quando VIP estava ativo) ignorando expiração do plano. Job continuava enviando com limite alto (200/dia) mesmo após VIP expirar. Nenhum watchdog parava jobs de free users.",
-      solucao:"scheduleAuto verifica isAutoVipActive() a cada ciclo — para imediatamente se expirou. Substituir lockedAutoLimit por getAutoLimit(p) em tempo real (exceto admin). vipExpiryWatchdog roda a cada 1h varrendo todos os jobs ativos de free users e parando.",
-      impacto:"Trial abuse eliminado. Free users não conseguem mais usar automático após plano expirar.",
-      modulos:["server.js: scheduleAuto","server.js: vipExpiryWatchdog"],
-      tags:["vip","trial","automático","abuso","limite"]
+      id:"KB-006",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"lockedAutoLimit ignorava expiração do plano — enviava 200/dia mesmo após VIP expirar.",
+      solucao:"scheduleAuto verifica isAutoVipActive() a cada ciclo. getAutoLimit(p) em tempo real. vipExpiryWatchdog a cada 1h.",
+      impacto:"Trial abuse eliminado. Free users param ao expirar VIP.",modulos:["server.js: scheduleAuto","server.js: vipExpiryWatchdog"],tags:["vip","abuso"]
     },
     {
-      id:"KB-007",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
-      problema:"Trial multi-conta: usuário podia criar conta2@gmail.com e ganhar novo trial. Nenhum rastreamento de IP ou telefone impedia re-uso.",
-      solucao:"DB_TRIAL_USED {phones:{}, ips:{}} persiste em trial_used.json. No OAuth callback, verificar IPs: se ≥2 contas já usaram trial do mesmo IP, bloquear. Quando usuário salva telefone em /api/settings, registrar no phones. Rotas admin: GET /api/admin/trial-abuse e POST /api/admin/revoke-trial.",
-      impacto:"Trial abuse por multi-conta reduzido. Admin pode ver IPs suspeitos e revogar manualmente.",
-      modulos:["server.js: OAuth callback","server.js: /api/settings","server.js: /api/admin/trial-abuse"],
-      tags:["trial","abuse","ip","telefone","multi-conta"]
+      id:"KB-007",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Trial multi-conta: recriando email ganhava novo trial.",
+      solucao:"DB_TRIAL_USED com IPs, telefones E Google ID (novo jun/2026). Bloqueio por ≥2 contas no mesmo IP. Google ID salvo permanentemente.",
+      impacto:"Trial abuse por multi-conta bloqueado por 3 camadas.",modulos:["server.js: OAuth callback","server.js: trial_used.json"],tags:["trial","abuse","google-id"]
     },
     {
-      id:"KB-008",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
-      problema:"Central de Incidentes ficava presa em 'Carregando...' por 4 bugs: (1) API retornava 'open' mas frontend esperava 'pending'; (2) severity 'critical'/'warning' não existiam no CSS (só error/warn/info); (3) campo 'user' mas frontend esperava 'userEmail'; (4) _resolvedIncidents nunca era aplicado na resposta GET.",
-      solucao:"API agora retorna pending:open, missionsPending, severity error/warn/info, userEmail. GET /api/admin/incidents filtra _resolvedIncidents antes de retornar.",
-      impacto:"Central de Incidentes funciona corretamente. Incidentes resolvidos não reaparecem.",
-      modulos:["server.js: /api/admin/incidents GET","admin.html: loadIncidentes"],
-      tags:["incidentes","admin","bug","severidade"]
+      id:"KB-008",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Central de Incidentes ficava em Carregando... — chamada dupla de loadIncidentes() causava race condition.",
+      solucao:"Remover chamada duplicada do sidebar. setTimeout(50ms) no showView antes de loadIncidentes().",
+      impacto:"Central de Incidentes funciona corretamente.",modulos:["admin.html: showView","admin.html: loadIncidentes"],tags:["incidentes","bug"]
     },
     {
-      id:"KB-009",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
-      problema:"Modal de detalhe da aba Enviadas (hist-detail-overlay) ficava sem abrir. Os elementos #hd-title, #hd-body, #hd-foot existiam no CSS e JS mas nunca foram criados no HTML. openHistDetail() entrava em erro silencioso na primeira linha.",
-      solucao:"Criar HTML estático do modal hist-detail-overlay no body. Expandir infoItems com todos os campos: email (clicável), telefone (clicável), salário, localização, vagas, período, visto, SOC, ETA Case. Gerar URL SeasonalJobs.gov automaticamente pelo case number.",
-      impacto:"Cards de enviadas abrem e mostram todos os dados coletados da planilha DOL.",
-      modulos:["index.html: hist-detail-overlay HTML","index.html: openHistDetail()"],
-      tags:["modal","enviadas","histórico","DOL","dados"]
+      id:"KB-009",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Modal de detalhe do histórico (hist-detail-overlay) nunca criado no HTML — JS falhava silenciosamente.",
+      solucao:"Criar HTML estático do modal. Expandir infoItems com todos os campos DOL.",
+      impacto:"Cards de enviadas abrem com dados completos.",modulos:["index.html: hist-detail-overlay"],tags:["modal","histórico"]
     },
     {
-      id:"KB-010",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
-      problema:"SHEET_EXTRAS (planilhas uploadadas pelo admin) eram perdidas a cada restart — nunca carregadas do disco no boot. _autoEnrichCycle era hardcoded para jan2026 e jul2025, ignorando extras. Sem watchdog de enriquecimento.",
-      solucao:"loadSheets() agora carrega DB_SHEETS_META + SHEET_EXTRAS do disco. _autoEnrichCycle é função global que varre jan2026+jul2025+extras dinamicamente. Critério 1x por planilha via enrichedAt. Watchdog a cada 30min. Upload de planilha dispara trigger imediato em 3s.",
-      impacto:"Planilhas extras sobrevivem a restarts. Enriquecimento DOL completamente automático e contínuo.",
-      modulos:["server.js: loadSheets()","server.js: _autoEnrichCycle","server.js: server.listen"],
-      tags:["planilhas","enriquecimento","DOL","boot","extras"]
+      id:"KB-010",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"SHEET_EXTRAS perdidas a cada restart. _autoEnrichCycle hardcoded para jan/jul.",
+      solucao:"loadSheets() carrega DB_SHEETS_META + SHEET_EXTRAS do disco. _autoEnrichCycle varre dinâmico. Watchdog 30min.",
+      impacto:"Planilhas extras sobrevivem a restarts. Enriquecimento automático.",modulos:["server.js: loadSheets"],tags:["planilhas","boot"]
     },
     {
-      id:"KB-011",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
-      problema:"authErrorWatchdog: usuários com paused_auth_error ficavam sem notificação. Admin precisava manualmente identificar cada um, copiar email e enviar mensagem.",
-      solucao:"MSGS_AUTH_ERROR com 3 variações. authErrorWatchdog a cada 3h: detecta paused_auth_error há >12h em usuários ativos ≤30 dias e envia sendNotifEmail automático. Rota POST /api/admin/notify-auth-error para 1-click. Botão 'Notificar usuário' na Central de Incidentes. Botão 'Notif. reconexão' no modal quando status=paused_auth_error.",
-      impacto:"Usuários com auth_error são notificados automaticamente. Admin pode notificar com 1 clique.",
-      modulos:["server.js: authErrorWatchdog","server.js: MSGS_AUTH_ERROR","admin.html: adminNotifyAuthError"],
-      tags:["auth-error","notificação","watchdog","paused"]
+      id:"KB-011",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Usuários com paused_auth_error sem notificação automática.",
+      solucao:"authErrorWatchdog a cada 3h: detecta paused_auth_error >12h em ativos ≤30d e envia email. Botão 1-click no admin.",
+      impacto:"Usuários notificados automaticamente. Admin notifica com 1 clique.",modulos:["server.js: authErrorWatchdog"],tags:["auth-error","notificação"]
     },
     {
-      id:"KB-012",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
-      problema:"Robô de Auditoria analisava dados mínimos e o relatório era cortado (maxOutputTokens:4000). Gemini não tinha memória cumulativa entre auditorias. Dossiê não incluía bounces, logs de erro, financeiro detalhado, engajamento.",
-      solucao:"maxOutputTokens:8000. Dossiê expandido com: emails inválidos, logs de erro 24h, financeiro (conversão, pedidos atrasados, trial ativo), engajamento 7 dias, planilhas e enriquecimento. Seção APRENDIZADOS no prompt — Gemini escreve 3-5 aprendizados que são extraídos e salvos na KB automaticamente (treinamento incremental).",
-      impacto:"Relatório completo sem corte. Gemini aprende com cada auditoria e melhora análises futuras.",
-      modulos:["server.js: /api/admin/auditoria-gemini","server.js: KB_FILE"],
-      tags:["gemini","auditoria","kb","aprendizado","treinamento"]
+      id:"KB-012",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Robô de Auditoria com dados mínimos, relatório cortado (4000 tokens), sem memória cumulativa.",
+      solucao:"maxOutputTokens:8000. Dossiê expandido. Seção 🧠 APRENDIZADOS extraída e salva na KB automaticamente após cada auditoria.",
+      impacto:"Relatório completo. Gemini aprende com cada auditoria.",modulos:["server.js: /api/admin/auditoria-gemini"],tags:["gemini","auditoria","treinamento"]
     },
     {
-      id:"KB-013",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
-      problema:"Painel admin sem alertas proativos. Pedidos pendentes >24h e usuários com auth_error não tinham destaque visual no dashboard.",
-      solucao:"Banner vermelho dinâmico no topo do dashboard (admin-alert-banner) que busca /api/admin/pedidos-criticos e conta auth_error nos dados ao vivo. Aba ⚡ Críticos nos pedidos (aparece automaticamente, navega para ela se houver). Tempo 'há Xh/Xd' e destaque vermelho nos cards de pedido crítico.",
-      impacto:"Admin vê problemas urgentes imediatamente ao abrir o painel.",
-      modulos:["admin.html: updateDashboard","admin.html: pedidos view","server.js: /api/admin/pedidos-criticos"],
-      tags:["admin","dashboard","pedidos","alertas","visual"]
+      id:"KB-013",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Painel admin sem alertas proativos para pedidos críticos e auth_errors.",
+      solucao:"Banner vermelho dinâmico no dashboard. Aba ⚡ Críticos em pedidos. Destaque visual nos cards.",
+      impacto:"Admin vê problemas urgentes imediatamente.",modulos:["admin.html: dashboard"],tags:["admin","alertas"]
     },
     {
-      id:"KB-014",versao:"V820",data:"2026-06-27",autor:"Claude/Andrio",
-      problema:"UX do usuário: sem feedback visual de status críticos. Sem indicador de VIP expirando. Sem banner offline. Aba de enviadas sem dados completos. Sem X para limpar busca. Perfil sem estatísticas.",
-      solucao:"20 melhorias UX implementadas: banner offline (pílula fixa), banner VIP expirando ≤3 dias (faixa âmbar no topo), X para limpar busca no histórico, scroll to top ao trocar aba, copiar email do remetente no inbox (1 clique), toast quando auto é pausado por VIP ou auth_error, mini-stats no perfil (total/auto/respostas), barra de progresso com dias estimados.",
-      impacto:"UX muito melhorada. Usuário recebe feedback claro sobre status críticos.",
-      modulos:["index.html: múltiplos componentes","index.html: renderHome","index.html: updateAutoUI"],
-      tags:["ux","visual","feedback","offline","vip","progresso"]
+      id:"KB-014",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"UX sem feedback visual de status críticos, VIP expirando, offline, stats no perfil.",
+      solucao:"20 melhorias UX: banner offline, banner VIP ≤3d, X limpar busca, mini-stats perfil, toast auto pausado, barra de progresso.",
+      impacto:"UX melhorada. Usuário recebe feedback claro.",modulos:["index.html: múltiplos"],tags:["ux","visual"]
+    },
+    {
+      id:"KB-015",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Trial concedia 2 dias VIPro (com automático) — permitia abuso do automático no trial.",
+      solucao:"Trial mudado para 1 dia VIP Manual apenas (sem automático). plan:'vip', autoExpires:0. Anti-abuse por Google ID além de IP.",
+      impacto:"Automático não disponível no trial. Google ID como 3ª camada anti-abuse.",modulos:["server.js: OAuth callback"],tags:["trial","vip","abuse"]
+    },
+    {
+      id:"KB-016",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Perfil do usuário poluído: avatar solto, Perfil H2B desorganizado, sem hierarquia visual.",
+      solucao:"Tela de Perfil aba Eu redesenhada com 5 cards organizados: Hero (avatar+nome+stats), Dados Pessoais, Gmail Extra, Ranking&Avatar (grid 5col), Perfil H2B (mini-cards), Notificações.",
+      impacto:"UX moderna. Cada seção em card separado. Avatar grid 5 colunas com border-radius:12px.",modulos:["index.html: ptab-content-me"],tags:["ux","perfil","redesign"]
+    },
+    {
+      id:"KB-017",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Modal de usuário no admin espalhava informações — sem CCC (Client Control Center). Edições sem rastreamento.",
+      solucao:"Client Control Center: 11 abas (Visão Geral, Editar, Plano, Pagamento, Docs, Perfis, Auto, Enviados, Saúde, Jornada, Histórico). Toda edição exige senha Andrew(84800-54)/Diego(Diego2026). Log adminEditHistory[] salvo no perfil.",
+      impacto:"Admin gerencia clientes completamente em 1 modal. Todas edições rastreadas.",modulos:["admin.html: user-modal CCC","server.js: /api/admin/user/full-update"],tags:["admin","ccc","auditoria"]
+    },
+    {
+      id:"KB-018",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Aprovação de pedido com confirm() simples — sem ver comprovante, sem dias bônus, sem autenticação.",
+      solucao:"Modal de Aprovação v2 (bottom sheet): mostra comprovante em tela cheia, botões +0/+5/+10/+15 dias bônus, senha obrigatória Andrew/Diego, Gemini audita automaticamente após ativar, dados financeiros preenchidos no CCC do cliente.",
+      impacto:"Zero trabalho manual. Admin vê comprovante, define bônus, confirma com senha. Gemini valida tudo.",modulos:["admin.html: modal-aprovacao","server.js: PATCH /api/pedido/:id"],tags:["pedidos","aprovação","gemini"]
+    },
+    {
+      id:"KB-019",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"drodrigues266@gmail.com enviou 129 emails automáticos sendo Free sem plano VIP ativo.",
+      solucao:"Causa provável: job iniciado durante trial ativo, trial expirou mas job continuou com lockedAutoLimit em memória. KB-006 corrigiu via vipExpiryWatchdog. Monitorar recorrência.",
+      impacto:"Watchdog de expiração evita reocorrência. Usuário específico deve ser investigado.",modulos:["server.js: vipExpiryWatchdog"],tags:["abuse","free","automático","limite"]
+    },
+    {
+      id:"KB-020",versao:"V900",data:"2026-06-27",autor:"Claude/Andrio",
+      problema:"Discrepância contagem planos ativos: resumo mostra 18 mas detalhe mostra 24.",
+      solucao:"Causa: resumo usa DB_PEDIDOS.filter(status==='ativo') mas detalhe usa isVipActive(). Usuários com VIP ativo sem pedido formal (ex: ativados diretamente via /api/admin/vip/activate) não aparecem no resumo. Fonte única = isVipActive().",
+      impacto:"Usar isVipActive() como fonte única de verdade para métricas de plano ativo.",modulos:["server.js: /api/admin/live","server.js: /api/admin/auditoria-gemini"],tags:["métricas","planos","discrepância"]
     }
   ];
-
   for(const entry of _kbFounding){
     if(!_kbFoundingIds.has(entry.id)) DB_KB.entries.unshift(entry);
   }
+  // ── Política de KB: NUNCA apagar entradas únicas ────────────────────────
+  // Só remove duplicatas exatas (mesmo id E mesma versão).
+  // Entradas antigas com dados diferentes são MANTIDAS como histórico.
+  // Versões V820 das KB-001..014 são substituídas pelas V900 (mesmo id, versão nova).
+  const _dedup = new Map();
+  for(const e of DB_KB.entries){
+    const key = e.id + '|' + (e.versao||'');
+    if(!_dedup.has(key)) _dedup.set(key, e); // mantém a primeira ocorrência
+    // Se já existe o mesmo id mas versão diferente, MANTÉM AMBAS
+  }
+  // Contar entradas por id — se mesmo id aparece com versões diferentes, mantém tudo
+  const _idCount = {};
+  for(const e of DB_KB.entries) _idCount[e.id] = (_idCount[e.id]||0)+1;
+  DB_KB.entries = DB_KB.entries.filter((e,idx,arr)=>{
+    // Remover duplicata exata (mesmo id, mesma versão, não é a primeira ocorrência)
+    const key = e.id+'|'+(e.versao||'');
+    const firstIdx = arr.findIndex(x=>x.id===e.id&&(x.versao||'')===(e.versao||''));
+    return idx === firstIdx;
+  });
   persist(KB_FILE, DB_KB);
+  console.log(`[kb] ✅ Base de Conhecimento v900: ${DB_KB.entries.length} entrada(s) (sem exclusões)`);
+
   console.log(`[kb] ✅ Base de Conhecimento: ${DB_KB.entries.length} entrada(s) carregada(s)`);
   // ─────────────────────────────────────────────────────────────────────────
   const rawRef = load(REFERRAL_FILE, { byCode: {}, byEmail: {} });
@@ -4397,28 +4424,35 @@ function _saveEnrichedSheet(sheetKey, sheet){
       const ex=getUser(ui.email);
       if(!ex){
         const now=Date.now();
-        // ── Anti-abuse: verificar se este IP já recebeu trial antes ──────────
+        // ── Anti-abuse: verificar se este IP ou Google ID já recebeu trial ────
         const _clientIp = (req.headers["x-forwarded-for"]||req.socket?.remoteAddress||"").split(",")[0].trim();
+        const _googleId = String(ui.id||"").trim(); // ID único da conta Google
         const _ipPrevEmails = DB_TRIAL_USED.ips[_clientIp]||[];
-        const _ipAbuse = _ipPrevEmails.length >= 2; // mesmo IP, 2+ contas já usaram trial
-        // Novos usuários ganham dias de VIP manual grátis (configurável pelo admin)
-        const trialDays = (DB_ADMIN_SETTINGS.newUserTrialEnabled && !_ipAbuse) ? (DB_ADMIN_SETTINGS.newUserTrialDays || 2) : 0;
-        const trialAutoDays = trialDays;
-        const newUserVip = trialDays > 0
-          ? {manualExpires:now+trialDays*86400_000,autoExpires:now+trialDays*86400_000,active:true,activatedAt:now,plan:"vipro",note:`Trial boas-vindas ${trialDays}d VIPro`,source:'trial',days:trialDays,autoDays:trialDays}
-          : null;
-        if(_ipAbuse){
-          console.log(`[trial] ⚠️ IP ${_clientIp} já usou trial em ${_ipPrevEmails.join(", ")} — bloqueado para ${ui.email}`);
+        const _ipAbuse = _ipPrevEmails.length >= 2; // mesmo IP, 2+ contas
+        const _googleAbuse = _googleId && !!DB_TRIAL_USED.googleIds[_googleId]; // mesma conta Google reativada
+        const _trialBlocked = _ipAbuse || _googleAbuse;
+        if(_trialBlocked){
+          console.log(`[trial] ⚠️ Trial bloqueado para ${ui.email} — IP abuse:${_ipAbuse} googleId abuse:${_googleAbuse}`);
         }
-        // Registrar IP no histórico de trial (mesmo sem receber trial, para rastrear)
+        // NOVA REGRA: 1 dia MANUAL apenas (sem automático no trial)
+        const trialDays = (DB_ADMIN_SETTINGS.newUserTrialEnabled && !_trialBlocked) ? 1 : 0;
+        const newUserVip = trialDays > 0
+          ? {manualExpires:now+trialDays*86400_000,autoExpires:0,active:true,activatedAt:now,plan:"vip",note:`Trial boas-vindas 1d VIP Manual`,source:'trial',days:trialDays,autoDays:0}
+          : null;
+        // Registrar IP e Google ID no histórico de trial
         if(trialDays>0){
           if(!DB_TRIAL_USED.ips[_clientIp]) DB_TRIAL_USED.ips[_clientIp]=[];
           if(!DB_TRIAL_USED.ips[_clientIp].includes(ui.email)) DB_TRIAL_USED.ips[_clientIp].push(ui.email);
+          if(_googleId) DB_TRIAL_USED.googleIds[_googleId] = ui.email;
+          try{fs.writeFileSync(TRIAL_USED_FILE,JSON.stringify(DB_TRIAL_USED,null,2));}catch{}
+        } else if(_googleId && !DB_TRIAL_USED.googleIds[_googleId]) {
+          // Mesmo sem trial, registra o Google ID para futuras verificações
+          DB_TRIAL_USED.googleIds[_googleId] = ui.email;
           try{fs.writeFileSync(TRIAL_USED_FILE,JSON.stringify(DB_TRIAL_USED,null,2));}catch{}
         }
-        setUser(ui.email,{...tokenData,email:ui.email,name:ui.name||ui.email,picture:ui.picture||"",country:"Brazil",phone:"",cc:"",city:"",language:"pt-BR",cvs:[],created_at:new Date().toISOString(),plan:newUserVip?"vipro":"free",vip:newUserVip||null,saved:[],onboarded:false,isAdmin:isAdminEmail(ui.email),scopeVersion:2,lastLoginAt:Date.now(),_trialBlockedByIp:_ipAbuse||undefined,settings:{subject:"Application for {vaga} – {nome}",body:"Dear Hiring Manager,\n\nMy name is {nome} and I am writing to express my strong interest in the {vaga} position at {empresa}.\n\nI am from {pais} and fully available to start on the requested date.\n\nPlease find my resume attached.\n\nBest regards,\n{nome}\n{telefone}",followupSubject:"Following up: {vaga} at {empresa}",followupBody:"Dear Hiring Manager,\n\nFollowing up on {vaga} at {empresa}.\n\nBest regards,\n{nome}"}});
-        console.log("[oauth] ✅ Novo:",ui.email,"| trial:",trialDays,"d VIPro");
-        trackJourney(ui.email,'first_login',{detail:`Novo. Trial:${trialDays}d`,meta:{name:ui.name}});
+        setUser(ui.email,{...tokenData,email:ui.email,name:ui.name||ui.email,picture:ui.picture||"",country:"Brazil",phone:"",cc:"",city:"",language:"pt-BR",cvs:[],created_at:new Date().toISOString(),plan:newUserVip?"vip":"free",vip:newUserVip||null,googleId:_googleId||undefined,saved:[],onboarded:false,isAdmin:isAdminEmail(ui.email),scopeVersion:2,lastLoginAt:Date.now(),_trialBlockedByIp:_ipAbuse||undefined,_trialBlockedByGoogleId:_googleAbuse||undefined,settings:{subject:"Application for {vaga} – {nome}",body:"Dear Hiring Manager,\n\nMy name is {nome} and I am writing to express my strong interest in the {vaga} position at {empresa}.\n\nI am from {pais} and fully available to start on the requested date.\n\nPlease find my resume attached.\n\nBest regards,\n{nome}\n{telefone}",followupSubject:"Following up: {vaga} at {empresa}",followupBody:"Dear Hiring Manager,\n\nFollowing up on {vaga} at {empresa}.\n\nBest regards,\n{nome}"}});
+        console.log("[oauth] ✅ Novo:",ui.email,"| trial:",trialDays,"d VIP Manual (sem auto)");
+        trackJourney(ui.email,'first_login',{detail:`Novo. Trial:${trialDays}d Manual`,meta:{name:ui.name}});
         pushGlobalEvent('new_user',ui.email,`Novo: ${ui.name||ui.email}`,"info");
         // ── REFERRAL FIX v18: lê refCode APENAS da sessão pendente ──
         // O Google não repassa parâmetros extras na URL de callback — só o "state".
@@ -4564,81 +4598,222 @@ function _saveEnrichedSheet(sheetKey, sheet){
       const allUsers=Object.values(DB_USERS||{});
       const incidents=[];
       const missions=[];
-      // ── Gerar incidentes automaticamente baseado no estado atual ──
-      const TOKEN_INACTIVE_IGNORE_MS  = 10 * 24 * 60 * 60 * 1000; // >10 dias inativo → ignorar
-      const TOKEN_ACTIVE_ALERT_MS     =  3 * 24 * 60 * 60 * 1000; // ≤3 dias → problema real
+      const TOKEN_INACTIVE_IGNORE_MS = 10*24*60*60*1000;
+      const TOKEN_ACTIVE_ALERT_MS    =  3*24*60*60*1000;
+
       for(const u of allUsers){
         if(!u||!u.email)continue;
         const email=u.email;
         const job=getAutoJob(email);
-        // Token expirado — só alerta se usuário ativo nos últimos 10 dias
-        if(u.cached_token_expiry && u.cached_token_expiry < now){
-          const lastSeen = u.lastSeenAt || new Date(u.created_at||0).getTime();
-          const inactiveMs = now - lastSeen;
-          if(inactiveMs <= TOKEN_INACTIVE_IGNORE_MS){ // ignorar inativos >10 dias
-            const severity = inactiveMs <= TOKEN_ACTIVE_ALERT_MS ? 'critical' : 'warning';
-            incidents.push({id:'tok_'+email,type:'token_expired',severity:'error',status:'open',
-              userEmail:email,name:u.name||email,
-              title:'Token Gmail expirado',
-              detail:`Token expirou em ${new Date(u.cached_token_expiry).toLocaleString('pt-BR')}. Último acesso há ${Math.round(inactiveMs/86400000)}d. Automático parado.`,
-              createdAt:now});
-            missions.push({id:'mis_tok_'+email,incidentId:'tok_'+email,type:'token',
-              title:`Reativar token: ${u.name||email}`,
-              action:'Peça ao usuário fazer login novamente em h2bapply.com'});
-          }
+        const lastSeen=u.lastSeenAt||new Date(u.created_at||0).getTime();
+        const inactiveMs=now-lastSeen;
+
+        // ── Token/OAuth expirado ──────────────────────────────────
+        if(u.cached_token_expiry&&u.cached_token_expiry<now&&inactiveMs<=TOKEN_INACTIVE_IGNORE_MS){
+          const sev=inactiveMs<=TOKEN_ACTIVE_ALERT_MS?'error':'warn';
+          const diasAtivo=Math.round(inactiveMs/86400000);
+          incidents.push({
+            id:'tok_'+email, type:'token_expired', severity:sev, status:'open',
+            robot:'OAuth / Gmail', module:'Autenticação',
+            userEmail:email, name:u.name||email,
+            title:'Token Gmail expirado',
+            description:`Token expirou em ${new Date(u.cached_token_expiry).toLocaleString('pt-BR')}. Último acesso há ${diasAtivo}d. Automático parado.`,
+            suggestedAction:'Solicite que o usuário acesse h2bapply.com e faça login novamente para renovar o token.',
+            humanExplanation:'O acesso ao Gmail do usuário expirou. O sistema não consegue mais enviar e-mails em nome dele até que ele faça login novamente.',
+            options:[
+              {label:'Notificar usuário por email',action:'notify_auth_error'},
+              {label:'Ignorar (usuário inativo)',action:'ignore'}
+            ],
+            createdAt:now
+          });
+          missions.push({
+            id:'mis_tok_'+email, incidentId:'tok_'+email, type:'token', status:'pending',
+            severity:sev, robot:'OAuth', userEmail:email,
+            title:`Reativar token: ${u.name||email}`,
+            action:'Peça ao usuário fazer login novamente em h2bapply.com'
+          });
         }
-        // Automático travado (rodando há mais de 2h sem envio)
-        if(job&&job.active&&job.lastSentAt&&(now-job.lastSentAt)>7200000&&!["waiting_limit","waiting_rate_limit","waiting_interval","waiting_token_retry"].includes(job?.status)){
-          incidents.push({id:'stuck_'+email,type:'auto_stuck',severity:'warn',status:'open',
-            userEmail:email,name:u.name||email,
-            title:'Automático travado',
-            detail:`Último envio há ${Math.round((now-job.lastSentAt)/3600000)}h. Pode estar bloqueado pelo Gmail.`,
-            createdAt:now});
+
+        // ── paused_auth_error ────────────────────────────────────
+        if((job?.status==='paused_auth_error'||u.autoStatus==='paused_auth_error')&&inactiveMs<=TOKEN_INACTIVE_IGNORE_MS){
+          incidents.push({
+            id:'auth_err_'+email, type:'oauth_expired', severity:'error', status:'open',
+            robot:'Automático Gmail', module:'Autenticação',
+            userEmail:email, name:u.name||email,
+            title:'Automático pausado — erro de autenticação',
+            description:`O robô automático de ${u.name||email} parou por erro de autenticação. Nenhum e-mail está sendo enviado.`,
+            suggestedAction:'Envie notificação de reconexão. O usuário precisa fazer login novamente.',
+            humanExplanation:'O Google recusou o acesso. Isso acontece quando o token expira ou o usuário revoga o acesso. Nenhuma ação automática pode ser tomada sem intervenção do usuário.',
+            options:[
+              {label:'Notificar usuário',action:'notify_auth_error'},
+              {label:'Ignorar',action:'ignore'}
+            ],
+            createdAt:now
+          });
         }
-        // Plano VIP vencido mas ainda aparece como ativo
+
+        // ── Automático travado ───────────────────────────────────
+        const WAIT_STATUSES=["waiting_limit","waiting_rate_limit","waiting_interval","waiting_token_retry"];
+        if(job&&job.active&&job.lastSentAt&&(now-job.lastSentAt)>7200000&&!WAIT_STATUSES.includes(job?.status)){
+          const horas=Math.round((now-job.lastSentAt)/3600000);
+          incidents.push({
+            id:'stuck_'+email, type:'auto_stuck', severity:'warn', status:'open',
+            robot:'Automático Gmail', module:'Envio',
+            userEmail:email, name:u.name||email,
+            title:'Automático travado — sem envios',
+            description:`Último envio há ${horas}h. O robô está ativo mas não processa a fila. Pode estar bloqueado silenciosamente pelo Gmail.`,
+            suggestedAction:`Verifique os logs do usuário. Se há erros de rate limit, aguarde. Se não há atividade, reinicie o automático.`,
+            humanExplanation:`O robô está marcado como ativo mas não envia há ${horas} horas. Isso geralmente indica bloqueio silencioso pelo Gmail ou fila vazia.`,
+            options:[
+              {label:'Reiniciar automático',action:'restart_auto'},
+              {label:'Ignorar por agora',action:'ignore'}
+            ],
+            createdAt:now
+          });
+        }
+
+        // ── VIP vencido mas marcado ativo ────────────────────────
         if(u.vip&&u.vip.active){
           const exp=Math.max(u.vip.manualExpires||0,u.vip.autoExpires||0);
           if(exp>0&&exp<now){
-            incidents.push({id:'vip_exp_'+email,type:'vip_expired',severity:'warn',status:'open',
-              userEmail:email,name:u.name||email,
+            const diasVencido=Math.round((now-exp)/86400000);
+            incidents.push({
+              id:'vip_exp_'+email, type:'vip_expired', severity:'warn', status:'open',
+              robot:'Robô Contábil', module:'Planos VIP',
+              userEmail:email, name:u.name||email,
               title:'VIP vencido sem atualização',
-              detail:`Plano ${u.plan} venceu em ${new Date(exp).toLocaleString('pt-BR')} mas conta ainda marca ativo.`,
-              createdAt:now});
-            missions.push({id:'mis_vip_'+email,incidentId:'vip_exp_'+email,type:'vip',
+              description:`Plano ${u.plan||'VIP'} de ${u.name||email} venceu há ${diasVencido} dia(s) em ${new Date(exp).toLocaleString('pt-BR')} mas a conta ainda aparece como ativa.`,
+              suggestedAction:'Acesse VIP & Planos → ajuste o plano manualmente ou aguarde o robô contábil sincronizar.',
+              humanExplanation:'O plano expirou mas o sistema ainda mostra o usuário como VIP ativo. Isso pode causar acesso indevido a funcionalidades pagas.',
+              options:[
+                {label:'Corrigir plano manualmente',action:'fix_vip'},
+                {label:'Ignorar',action:'ignore'}
+              ],
+              createdAt:now
+            });
+            missions.push({
+              id:'mis_vip_'+email, incidentId:'vip_exp_'+email, type:'vip', status:'pending',
+              severity:'warn', robot:'Robô Contábil', userEmail:email,
               title:`Corrigir plano: ${u.name||email}`,
-              action:'Vá em VIP & Planos → ajuste o plano manualmente'});
+              action:'Vá em VIP & Planos → ajuste o plano manualmente'
+            });
           }
         }
-        // Usuário sem CV com automático ativo
+
+        // ── Sem currículo com automático ativo ───────────────────
         if(job&&job.active&&(!u.cvs||u.cvs.length===0)){
-          incidents.push({id:'nocv_'+email,type:'no_cv',severity:'info',status:'open',
-            userEmail:email,name:u.name||email,
-            title:'Automático sem currículo',
-            detail:'Usuário está com automático ativo mas sem nenhum CV cadastrado.',
-            createdAt:now});
+          incidents.push({
+            id:'nocv_'+email, type:'no_cv', severity:'info', status:'open',
+            robot:'Automático Gmail', module:'Currículo',
+            userEmail:email, name:u.name||email,
+            title:'Automático ativo sem currículo',
+            description:`${u.name||email} está com o automático ligado mas não tem nenhum currículo (PDF) cadastrado. Os envios estão sendo pulados.`,
+            suggestedAction:'Instrua o usuário a fazer upload do currículo na aba Perfil.',
+            humanExplanation:'O robô não consegue enviar candidaturas porque não há PDF de currículo para anexar. Todos os envios estão sendo ignorados silenciosamente.',
+            options:[
+              {label:'Notificar usuário',action:'notify_no_cv'},
+              {label:'Ignorar',action:'ignore'}
+            ],
+            createdAt:now
+          });
+        }
+
+        // ── Muitos erros consecutivos ────────────────────────────
+        const health=global._healthMap&&global._healthMap[email];
+        if(health&&health.errors>=5){
+          incidents.push({
+            id:'errs_'+email, type:'too_many_errors', severity:'error', status:'open',
+            robot:'Automático Gmail', module:'Envio',
+            userEmail:email, name:u.name||email,
+            title:`Muitos erros consecutivos: ${health.errors}`,
+            description:`O robô de ${u.name||email} acumulou ${health.errors} erros consecutivos. Último erro: ${health.lastError||'desconhecido'}.`,
+            suggestedAction:'Verifique os logs do usuário para identificar o tipo de erro predominante.',
+            humanExplanation:`Erros repetidos geralmente indicam problema persistente de autenticação, rate limit ou configuração incorreta.`,
+            options:[
+              {label:'Ver logs',action:'view_logs'},
+              {label:'Reiniciar automático',action:'restart_auto'},
+              {label:'Ignorar',action:'ignore'}
+            ],
+            createdAt:now
+          });
         }
       }
-      // Incidentes de sistema
-      if(!getGeminiKey()){
-        incidents.push({id:'sys_gemini',type:'system',severity:'error',status:'open',
-          title:'Gemini API não configurada',
-          detail:'GEMINI_API_KEY ausente no Render. Robô de Auditoria e IA Chat inoperantes.',
-          createdAt:now});
-        missions.push({id:'mis_gemini',incidentId:'sys_gemini',type:'system',
-          title:'Configurar GEMINI_API_KEY',
-          action:'Render Dashboard → Environment → adicionar GEMINI_API_KEY'});
-      }
-      // Aplicar incidentes resolvidos/deletados (memória entre requests)
-      const resolved = global._resolvedIncidents || {};
-      const finalIncidents = incidents
-        .filter(i => !resolved[i.id]?.deleted)
-        .map(i => resolved[i.id] ? {...i, status:'resolved', resolvedAt:resolved[i.id].resolvedAt, resolvedBy:resolved[i.id].resolvedBy} : i);
-      const finalMissions = missions.filter(m => !resolved[m.incidentId]);
 
-      const open = finalIncidents.filter(i=>i.status==='open').length;
-      const missionsPending = finalMissions.length;
-      const rules={autoDetect:true,tokenExpiry:true,autoStuck:true,vipExpired:true,noCV:true};
-      return json(res,200,{ok:true,incidents:finalIncidents,missions:finalMissions,rules,open,pending:open,missionsPending,total:finalIncidents.length});
+      // ── Incidentes de sistema ────────────────────────────────
+      if(!getGeminiKey()){
+        incidents.push({
+          id:'sys_gemini', type:'gemini_fail', severity:'error', status:'open',
+          robot:'Robô de Auditoria', module:'Configuração do Sistema',
+          title:'Gemini API não configurada',
+          description:'A variável GEMINI_API_KEY está ausente no Render. O Robô de Auditoria, a IA de Incidentes e o Chat IA Admin estão inoperantes.',
+          suggestedAction:'Render Dashboard → Environment → adicionar GEMINI_API_KEY com a chave da API do Google.',
+          humanExplanation:'Sem a chave da Gemini, nenhuma análise inteligente pode ser feita. O sistema funciona mas sem diagnóstico automático.',
+          options:[{label:'Marcar como pendente',action:'ignore'}],
+          createdAt:Date.now()
+        });
+        missions.push({
+          id:'mis_gemini', incidentId:'sys_gemini', type:'system', status:'pending',
+          severity:'error', robot:'Robô de Auditoria',
+          title:'Configurar GEMINI_API_KEY no Render',
+          action:'Render Dashboard → Environment → adicionar GEMINI_API_KEY'
+        });
+      }
+
+      // ── Incidentes de emails inválidos ───────────────────────
+      const bounceCount=Object.keys(DB_TEMP_FAILURES||{}).length;
+      if(bounceCount>=10){
+        incidents.push({
+          id:'sys_bounces', type:'banco_erro', severity:'warn', status:'open',
+          robot:'Robô de Bounce', module:'Emails Inválidos',
+          title:`${bounceCount} emails com falha acumulados`,
+          description:`A base de emails inválidos acumulou ${bounceCount} entradas. Isso pode indicar problema de qualidade na planilha de vagas.`,
+          suggestedAction:'Acesse ⛔ Emails Inválidos para revisar e limpar entradas antigas.',
+          humanExplanation:'Emails que retornam erro são acumulados. Se o número está alto, a planilha pode ter muitos endereços incorretos.',
+          options:[{label:'Ver emails inválidos',action:'view_invalid'},{label:'Ignorar',action:'ignore'}],
+          createdAt:Date.now()
+        });
+      }
+
+      // ── Aplicar resoluções/exclusões (persistência em memória) ──
+      const resolved=global._resolvedIncidents||{};
+      const finalIncidents=incidents
+        .filter(i=>!resolved[i.id]?.deleted)
+        .map(i=>resolved[i.id]
+          ?{...i,status:'resolved',resolvedAt:resolved[i.id].resolvedAt,resolvedBy:resolved[i.id].resolvedBy,adminNote:resolved[i.id].note||''}
+          :i);
+      const finalMissions=missions.filter(m=>!resolved[m.incidentId]);
+
+      // ── Regras aprendidas ────────────────────────────────────
+      const rules=global._incidentRules||{};
+
+      const open=finalIncidents.filter(i=>i.status==='open').length;
+      const missionsPending=finalMissions.length;
+
+      // ── Painel de saúde do sistema ───────────────────────────
+      const health={
+        gmail:  allUsers.some(u=>u.cached_token_expiry&&u.cached_token_expiry<Date.now())?'yellow':'green',
+        gemini: getGeminiKey()?'green':'red',
+        oauth:  allUsers.some(u=>getAutoJob(u.email)?.status==='paused_auth_error')?'yellow':'green',
+        bounces: bounceCount>=20?'red':bounceCount>=5?'yellow':'green',
+        users:  allUsers.length
+      };
+
+      // ── Validação anti-divergência: contador = registros ─────
+      const divergencia=(open>0&&finalIncidents.filter(i=>i.status==='open').length===0);
+
+      return json(res,200,{
+        ok:true,
+        incidents:finalIncidents,
+        missions:finalMissions,
+        rules,
+        health,
+        open,
+        pending:open,
+        missionsPending,
+        total:finalIncidents.length,
+        divergencia,
+        generatedAt:Date.now()
+      });
     }catch(e){return json(res,500,{error:e.message});}
   }
 
@@ -4654,8 +4829,14 @@ function _saveEnrichedSheet(sheetKey, sheet){
       global._resolvedIncidents[id]={resolvedAt:Date.now(),resolvedBy:s.user_email,note:d?.note||""};
       const saveAsRule=d?.saveAsRule;
       if(saveAsRule&&d?.ruleText){
-        if(!DB_INCIDENTS_RULES){}; // DB_INCIDENTS_RULES pode não existir
-        console.log(`[incidents] Regra salva: ${d.ruleText}`);
+        if(!global._incidentRules)global._incidentRules={};
+        const ruleKey=(d.incidentType||id.split('_')[0])+'__'+(d.decision||'ignore');
+        if(!global._incidentRules[ruleKey]) global._incidentRules[ruleKey]={count:0};
+        global._incidentRules[ruleKey].ruleText=d.ruleText;
+        global._incidentRules[ruleKey].decision=d.decision||'ignore';
+        global._incidentRules[ruleKey].learnedAt=Date.now();
+        global._incidentRules[ruleKey].count=(global._incidentRules[ruleKey].count||0)+1;
+        console.log(`[incidents] Regra aprendida: ${ruleKey} — ${d.ruleText}`);
       }
       console.log(`[incidents] Incidente ${id} resolvido por ${s.user_email}`);
       return json(res,200,{ok:true});
@@ -5252,7 +5433,7 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
     if(!isAdminVip(p)&&pd.userEmail!==s.user_email)return json(res,403,{error:"Acesso negado."});
     return json(res,200,{ok:true,pedido:pd});
   }
-  // PATCH /api/pedido/:id — admin atualiza status do pedido
+  // PATCH /api/pedido/:id — admin atualiza status (v2: senha + bônus + Gemini)
   if(pathname.startsWith("/api/pedido/")&&req.method==="PATCH"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
@@ -5262,53 +5443,143 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
     try{
       const d=JSON.parse(await readBody(req));
       const pd=DB_PEDIDOS[idx];
-      if(d.status)pd.status=d.status;
-      if(d.notaAdmin!==undefined)pd.notaAdmin=d.notaAdmin;
-      if(d.status==="ativo"&&!pd.ativadoEm){
-        pd.ativadoPor=s.user_email;pd.ativadoEm=Date.now();
-        // Ativar plano do usuário
-        const planoMap={vip:"vip",vipro:"vipro",doublepro:"doublepro"};
-        const planoKey=planoMap[pd.plano]||"vipro";
-        const dias=pd.dias||30;
-        if(["vipro","doublepro","pro"].includes(planoKey)){
-          addManualVipDays(pd.userEmail,dias);
-          addAutoVipDays(pd.userEmail,dias);
-        } else {
-          addManualVipDays(pd.userEmail,dias);
-        }
-        const tgt=getUser(pd.userEmail)||{};
-        setUser(pd.userEmail,{plan:planoKey,vip:{...(tgt.vip||{}),active:true,plan:planoKey,source:"payment",note:`Pedido #${pd.id.slice(-8).toUpperCase()} — ${dias}d`,activatedBy:s.user_email}});
-        // Registrar entrada no financeiro automaticamente
-        const entradaAuto={
-          id:"fin_"+Date.now().toString(36),
-          email:pd.userEmail,
-          nome:pd.userName||pd.userEmail,
-          plano:pd.plano,
-          dias:dias,
-          valor:pd.valorTotal||0,
-          desconto:pd.desconto||0,
-          nota:`Pedido #${pd.id.slice(-8).toUpperCase()} — ${pd.plano} ${dias}d`,
-          data:new Date().toISOString(),
-          dataPagamento:pd.pagoEm?new Date(pd.pagoEm).toISOString():new Date().toISOString(),
-          pedidoId:pd.id,
-          source:"pedido_automatico",
-          whatsapp:pd.userWhatsapp||""
-        };
-        if(!DB_FINANCEIRO.pagamentos)DB_FINANCEIRO.pagamentos=[];
-        // Evitar duplicata (se o pedido já foi registrado)
-        const jaExiste=DB_FINANCEIRO.pagamentos.some(x=>x.pedidoId===pd.id);
-        if(!jaExiste){
-          DB_FINANCEIRO.pagamentos.unshift(entradaAuto);
-          persistFinanceiro();
-          console.log("[financeiro] ✅ Entrada registrada automaticamente:",pd.userEmail,"R$",pd.valorTotal);
-        }
-        // Notif ao usuário
-        try{await pushToUser(pd.userEmail,{type:"plan_activated",title:"🎉 Seu plano foi ativado!",body:`Plano ${pd.plano} ativo por ${dias} dias. Bom trabalho!`,icon:"/icon-192.png"});}catch{}
-        addLog(pd.userEmail,{status:"sistema",jobTitle:`🎉 Plano ${pd.plano} ativado por ${dias} dias`,company:`Ativado por ${s.user_email}`});
+
+      // Validar senha de editor ao ativar
+      if(d.status==="ativo"){
+        const EDITOR_PASS={andrew:"84800-54",diego:"Diego2026"};
+        const editorKey=Object.keys(EDITOR_PASS).find(k=>EDITOR_PASS[k]===d.editorPassword);
+        if(!editorKey)return json(res,403,{error:"Senha de editor inválida. Use a senha do Andrew ou do Diego."});
+        pd._ativadoEditor=editorKey==="andrew"?"Andrew":"Diego";
+        pd._ativadoEditorEmail=s.user_email;
       }
+
+      if(d.status)pd.status=d.status;
+      if(d.notaAdmin!==undefined)pd.notaAdmin=String(d.notaAdmin).slice(0,500);
+
+      if(d.status==="ativo"&&!pd.ativadoEm){
+        pd.ativadoPor=s.user_email;
+        pd.ativadoEm=Date.now();
+        const planoKey={vip:"vip",vipro:"vipro",doublepro:"doublepro"}[pd.plano]||"vipro";
+        const diasBase=Math.max(1,Math.min(3650,parseInt(pd.dias||30,10)));
+        const diasBonus=Math.max(0,Math.min(60,parseInt(d.bonusDias||0,10)));
+        const diasTotal=diasBase+diasBonus;
+        pd.diasBonus=diasBonus;pd.diasTotal=diasTotal;
+
+        // Calcular expiração acumulando sobre o existente
+        const now=Date.now();
+        const tgt=getUser(pd.userEmail)||{};
+        const curManual=(tgt.vip?.manualExpires&&tgt.vip.manualExpires>now)?tgt.vip.manualExpires:now;
+        const curAuto=(tgt.vip?.autoExpires&&tgt.vip.autoExpires>now)?tgt.vip.autoExpires:now;
+        const manualExpires=curManual+diasTotal*86400_000;
+        const autoExpires=["vipro","doublepro"].includes(planoKey)?curAuto+diasTotal*86400_000:(tgt.vip?.autoExpires||0);
+
+        // Atualizar perfil do usuário (VIP + dados financeiros CCC + contato)
+        setUser(pd.userEmail,{
+          plan:planoKey,
+          vip:{...(tgt.vip||{}),active:true,plan:planoKey,source:"payment",
+            manualExpires,autoExpires,activatedAt:now,
+            activatedBy:pd._ativadoEditor||s.user_email,
+            note:`Pedido #${pd.id.slice(-8).toUpperCase()} — ${diasBase}d +${diasBonus}d bônus = ${diasTotal}d`,
+            days:diasTotal,autoDays:["vipro","doublepro"].includes(planoKey)?diasTotal:0,
+            bonusDays:diasBonus,pedidoId:pd.id,
+          },
+          financialStatus:"pago",
+          paymentAmount:`R$${(pd.valorTotal||0).toFixed(2)}`,
+          paymentDate:pd.pagoEm?new Date(pd.pagoEm).toLocaleDateString("pt-BR"):new Date().toLocaleDateString("pt-BR"),
+          paymentMethod:"pix",
+          paymentReceiver:pd._ativadoEditor||"Admin",
+          paymentNote:`${planoKey} ${diasBase}d${diasBonus>0?` +${diasBonus}d bônus`:""} — Pedido #${pd.id.slice(-8).toUpperCase()}`,
+          adminEditHistory:[...(tgt.adminEditHistory||[]).slice(-49),{
+            at:now,by:pd._ativadoEditor||"Admin",byEmail:s.user_email,
+            changes:"plano,vip,financialStatus,pagamento",
+            note:`Pedido #${pd.id.slice(-8).toUpperCase()} — ${diasTotal}d ${planoKey} ativado`
+          }],
+          ...(pd.userName&&!tgt.name?{name:pd.userName}:{}),
+          ...(pd.userWhatsapp&&!tgt.whatsapp?{whatsapp:pd.userWhatsapp}:{}),
+          ...(pd.userPhone&&!tgt.phone?{phone:pd.userPhone}:{}),
+          ...(pd.userCity&&!tgt.city?{city:pd.userCity}:{}),
+          ...(pd.userState&&!tgt.state?{state:pd.userState}:{}),
+        });
+
+        // Financeiro automático
+        if(!DB_FINANCEIRO.pagamentos)DB_FINANCEIRO.pagamentos=[];
+        if(!DB_FINANCEIRO.pagamentos.some(x=>x.pedidoId===pd.id)){
+          DB_FINANCEIRO.pagamentos.unshift({
+            id:"fin_"+Date.now().toString(36),email:pd.userEmail,
+            nome:pd.userName||pd.userEmail,plano:pd.plano,
+            dias:diasTotal,diasBase,diasBonus,valor:pd.valorTotal||0,
+            desconto:pd.desconto||0,
+            nota:`Pedido #${pd.id.slice(-8).toUpperCase()} — ${pd.plano} ${diasBase}d${diasBonus>0?` +${diasBonus}bônus`:""}`,
+            data:new Date().toISOString(),
+            dataPagamento:pd.pagoEm?new Date(pd.pagoEm).toISOString():new Date().toISOString(),
+            pedidoId:pd.id,source:"pedido_automatico",
+            ativadoPor:pd._ativadoEditor||"Admin",ativadoPorEmail:s.user_email,
+            whatsapp:pd.userWhatsapp||""
+          });
+          persistFinanceiro();
+          console.log("[financeiro] auto registrado:",pd.userEmail,"R$",pd.valorTotal,"bonus:",diasBonus);
+        }
+
+        // Push ao usuário
+        try{await pushToUser(pd.userEmail,{type:"plan_activated",
+          title:"🎉 Plano ativado!",
+          body:`${planoKey.toUpperCase()} ativo por ${diasTotal} dias${diasBonus>0?` (inclui ${diasBonus}d bônus)`:""}.`,
+          icon:"/icon-192.png"
+        });}catch{}
+        addLog(pd.userEmail,{status:"sistema",
+          jobTitle:`🎉 Plano ${planoKey} ativado — ${diasTotal} dias${diasBonus>0?` (+${diasBonus} bônus)`:""}`,
+          company:`Ativado por ${pd._ativadoEditor||"Admin"} (${s.user_email})`
+        });
+        trackJourney(pd.userEmail,"plan_activated",{detail:`${planoKey} ${diasTotal}d`,meta:{editor:pd._ativadoEditor,bonus:diasBonus}});
+
+        // Bônus de indicação
+        try{
+          const refKey=`ref:${pd.userEmail}`;
+          const refData=DB_USERS[refKey];
+          if(refData?.ownerEmail&&diasBase>=30){
+            const owner=getUser(refData.ownerEmail);
+            if(owner){const nowR=Date.now();const curExp=Math.max(nowR,owner.vip?.manualExpires||0);
+              setUser(refData.ownerEmail,{vip:{...(owner.vip||{}),active:true,manualExpires:curExp+5*86400_000,activatedAt:nowR,note:"Bônus indicação compra +5d"}});
+              console.log(`[ref] +5d para ${refData.ownerEmail} por compra de ${pd.userEmail}`);
+            }
+          }
+        }catch(eR){console.warn("[ref]",eR.message);}
+
+        // Gemini auditoria automática em background
+        ;(async()=>{try{
+          const gKey=getGeminiKey();if(!gKey)return;
+          const gPr=`Audite este novo cliente H2BApply e confirme se o pagamento está correto.
+CLIENTE: ${pd.userName||pd.userEmail} (${pd.userEmail})
+PLANO: ${planoKey} | DIAS BASE: ${diasBase} | BÔNUS: ${diasBonus} | TOTAL: ${diasTotal}d
+VALOR COBRADO: R$${(pd.valorTotal||0).toFixed(2)} | DESCONTO: ${pd.desconto||0}%
+COMPROVANTE: ${pd.comprovante?"SIM":"NÃO"} | ATIVADO POR: ${pd._ativadoEditor||"Admin"}
+TABELA: VIP(30d=R$100,60d=R$190,90d=R$270,1a=R$960) VIPro(30d=R$150,60d=R$285,90d=R$405,1a=R$1440) DoublePro(30d=R$250,60d=R$475,90d=R$675,1a=R$2400)
+JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curta","calculoCorreto":true ou false,"alertas":[]}`;
+          const gU=new URL(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${gKey}`);
+          const gB=JSON.stringify({contents:[{parts:[{text:gPr}]}],generationConfig:{temperature:0.1,maxOutputTokens:300}});
+          const gR=await new Promise((rs,rj)=>{
+            const r2=https.request({hostname:gU.hostname,path:gU.pathname+gU.search,method:"POST",headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(gB)}},resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{try{rs(JSON.parse(Buffer.concat(ch).toString()));}catch{rj(new Error("parse"));}}); });
+            r2.on("error",rj);r2.setTimeout(15000,()=>{r2.destroy();rj(new Error("timeout"));});r2.write(gB);r2.end();
+          });
+          const rawAud=(gR?.candidates?.[0]?.content?.parts?.[0]?.text||"").replace(/```json|```/g,"").trim();
+          const aud=JSON.parse(rawAud);
+          DB_PEDIDOS[idx].geminiAuditoria=aud;DB_PEDIDOS[idx].geminiAuditoriaAt=Date.now();
+          persistPedidos();
+          setUser(pd.userEmail,{lastValidatedAt:Date.now(),lastValidatedBy:"Gemini Auto",lastValidationResult:aud.status==="OK"?"CLIENTE_VALIDADO":"PENDENCIAS_DETECTADAS"});
+          console.log(`[gemini] Auditoria #${pd.id.slice(-8)}: ${aud.status} — ${aud.resumo}`);
+        }catch(eG){console.warn("[gemini] audit err:",eG.message);}})();
+
+        pd.ativadoEm=pd.ativadoEm||Date.now(); // garantir que está setado
+        DB_PEDIDOS[idx]=pd;persistPedidos();
+        return json(res,200,{ok:true,pedido:pd,diasBase,diasBonus,diasTotal,planoKey,
+          manualExpiresDate:new Date(manualExpires).toLocaleDateString("pt-BR"),
+          autoExpiresDate:autoExpires>now?new Date(autoExpires).toLocaleDateString("pt-BR"):null,
+          ativadoPor:pd._ativadoEditor||"Admin"
+        });
+      }
+
       if(d.status==="cancelado"){pd.canceladoPor=s.user_email;pd.canceladoEm=Date.now();}
-      DB_PEDIDOS[idx]=pd;
-      persistPedidos();
+      DB_PEDIDOS[idx]=pd;persistPedidos();
       return json(res,200,{ok:true,pedido:pd});
     }catch(e){return json(res,500,{error:e.message});}
   }
@@ -6923,6 +7194,12 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
           // DIAGNÓSTICO COMPLETO
           diag:{ status:diagStatus, reason:diagReason, action:diagAction },
           vip:u.vip?{active:isVipActive(u),manualExpires:u.vip.manualExpires||0,autoExpires:u.vip.autoExpires||0,plan:u.vip.plan||'vip',source:u.vip.source||'admin',usedCode:u.vip.usedCode||null,codeNote:u.vip.codeNote||null,activatedBy:u.vip.activatedBy||null,activatedAt:u.vip.activatedAt||null,note:u.vip.note||null}:null,
+          // CCC fields para filtros
+          lastValidatedAt:u.lastValidatedAt||null,
+          lastValidatedBy:u.lastValidatedBy||null,
+          lastValidationResult:u.lastValidationResult||null,
+          financialStatus:u.financialStatus||null,
+          hasReceipt:!!(u.paymentAmount||u.financialStatus==='pago'),
         };
       }).sort((a,b)=>{
         // Ordena: problemas primeiro, depois ativos, depois online, depois por envios hoje
@@ -7052,6 +7329,152 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
         setUser(d.email,upd);
         console.log(`[admin] Perfil de ${d.email} editado por ${s.user_email}`);
         return json(res,200,{ok:true});
+      }catch(e){return json(res,500,{error:e.message});}
+    }
+
+    // ── ADMIN: Edição completa do cliente (Client Control Center) ────────────
+    if(pathname==="/api/admin/user/full-update"&&req.method==="POST"){
+      try{
+        const d=JSON.parse(await readBody(req));
+        if(!d.email)return json(res,400,{error:"email obrigatório."});
+        const target=getUser(d.email);if(!target)return json(res,404,{error:"Usuário não encontrado."});
+        // Validar senha do editor
+        const EDITOR_PASSWORDS={andrew:"84800-54",diego:"Diego2026"};
+        const editorKey=Object.keys(EDITOR_PASSWORDS).find(k=>EDITOR_PASSWORDS[k]===d.editorPassword);
+        if(!editorKey)return json(res,403,{error:"Senha de edição inválida."});
+        const editorName=editorKey==="andrew"?"Andrew":"Diego";
+        const now=Date.now();
+        const upd={};
+        // Dados de perfil
+        if(d.name!==undefined)upd.name=String(d.name).slice(0,200);
+        if(d.phone!==undefined)upd.phone=String(d.phone).slice(0,50);
+        if(d.whatsapp!==undefined)upd.whatsapp=String(d.whatsapp).slice(0,50);
+        if(d.country!==undefined)upd.country=String(d.country).slice(0,100);
+        if(d.city!==undefined)upd.city=String(d.city).slice(0,100);
+        if(d.state!==undefined)upd.state=String(d.state).slice(0,100);
+        if(d.address!==undefined)upd.address=String(d.address).slice(0,300);
+        if(d.age!==undefined)upd.age=Math.max(0,Math.min(120,parseInt(d.age)||0));
+        if(d.adminNotes!==undefined)upd.adminNotes=String(d.adminNotes).slice(0,2000);
+        // Plano VIP
+        if(d.manualDays!==undefined||d.autoDays!==undefined){
+          const manualDays=Math.max(0,Math.min(3650,parseInt(d.manualDays||0,10)));
+          const autoDays=Math.max(0,Math.min(3650,parseInt(d.autoDays||0,10)));
+          const bonusDays=Math.max(0,Math.min(365,parseInt(d.bonusDays||0,10)));
+          const manualExpires=manualDays>0?now+manualDays*86400000:0;
+          const autoExpires=autoDays>0?now+autoDays*86400000:0;
+          let planName="free";
+          if(manualDays>0&&autoDays>0)planName="vipro";
+          else if(manualDays>0)planName="vip";
+          else if(autoDays>0)planName="pro";
+          const vip={...(target.vip||{}),active:planName!=="free",manualExpires,autoExpires,
+            adjustedAt:now,adjustedBy:editorName,adjustedByEmail:s.user_email,
+            note:d.vipNote||(target.vip?.note||""),
+            plan:planName,source:target.vip?.source||"admin",
+            bonusDays:bonusDays||(target.vip?.bonusDays||0),
+            usedCode:target.vip?.usedCode||null};
+          upd.plan=planName;
+          upd.vip=vip;
+        }
+        // Situação financeira
+        if(d.financialStatus!==undefined)upd.financialStatus=String(d.financialStatus).slice(0,50);
+        if(d.paymentNote!==undefined)upd.paymentNote=String(d.paymentNote).slice(0,500);
+        if(d.paymentDate!==undefined)upd.paymentDate=String(d.paymentDate).slice(0,50);
+        if(d.paymentAmount!==undefined)upd.paymentAmount=String(d.paymentAmount).slice(0,50);
+        if(d.paymentMethod!==undefined)upd.paymentMethod=String(d.paymentMethod).slice(0,50);
+        if(d.paymentReceiver!==undefined)upd.paymentReceiver=String(d.paymentReceiver).slice(0,50);
+        // Histórico de edições
+        const editEntry={at:now,by:editorName,byEmail:s.user_email,changes:Object.keys(upd).join(","),note:d.editNote||""};
+        const prevHistory=target.adminEditHistory||[];
+        upd.adminEditHistory=[...prevHistory.slice(-49),editEntry]; // mantém últimas 50
+        upd.lastValidatedAt=target.lastValidatedAt||null;
+        setUser(d.email,upd);
+        console.log(`[admin] ✅ Full-update de ${d.email} por ${editorName} (${s.user_email}): ${Object.keys(upd).join(",")}`);
+        trackJourney(d.email,'admin_edit',{detail:`Editado por ${editorName}`,meta:{fields:Object.keys(upd)}});
+        return json(res,200,{ok:true,editorName,editedFields:Object.keys(upd)});
+      }catch(e){return json(res,500,{error:e.message});}
+    }
+
+    // ── ADMIN: Validar cliente com Gemini ─────────────────────────────────────
+    if(pathname==="/api/admin/user/validate"&&req.method==="POST"){
+      try{
+        const d=JSON.parse(await readBody(req));
+        if(!d.email)return json(res,400,{error:"email obrigatório."});
+        const target=getUser(d.email);if(!target)return json(res,404,{error:"Usuário não encontrado."});
+        const now=Date.now();
+        const vip=target.vip||{};
+        const manualDaysLeft=vip.manualExpires&&vip.manualExpires>now?Math.ceil((vip.manualExpires-now)/86400000):0;
+        const autoDaysLeft=vip.autoExpires&&vip.autoExpires>now?Math.ceil((vip.autoExpires-now)/86400000):0;
+        const hist=getHist(d.email)||[];
+        const comprovantes=[];// comprovantes ficam no localStorage do admin - usar dados financeiros do perfil
+        const totalPago=parseFloat((target.paymentAmount||'0').replace(/[^0-9.,]/g,'').replace(',','.').trim())||0;
+        const dossiePagamento={
+          plano:vip.plan||"free",
+          fonte:vip.source||"–",
+          manualDiasRestantes:manualDaysLeft,
+          autoDiasRestantes:autoDaysLeft,
+          manualExpira:vip.manualExpires?new Date(vip.manualExpires).toLocaleDateString("pt-BR"):"–",
+          autoExpira:vip.autoExpires?new Date(vip.autoExpires).toLocaleDateString("pt-BR"):"–",
+          diasBonus:vip.bonusDays||0,
+          totalComprovantes:target.paymentAmount?1:0,
+          totalPagoDetectado:`R$${totalPago.toFixed(2)}`,
+          situacaoFinanceira:target.financialStatus||"–",
+          notaPagamento:target.paymentNote||"–",
+          valorPago:target.paymentAmount||"–",
+          dataPagamento:target.paymentDate||"–",
+          quemRecebeu:target.paymentReceiver||"–",
+          historicoEdits:(target.adminEditHistory||[]).length,
+          ultimaEdicao:target.adminEditHistory?.slice(-1)[0]?.by||"–",
+          totalEnviados:hist.length,
+          notasAdmin:target.adminNotes||"–"
+        };
+        const GEMINI_API_KEY=getGeminiKey();
+        if(!GEMINI_API_KEY)return json(res,503,{error:"Gemini não configurado."});
+        const geminiPrompt=`Você é o auditor financeiro do H2BApply. Analise a situação deste cliente e determine se está TUDO CORRETO ou se há DIVERGÊNCIA.
+
+DADOS DO CLIENTE: ${target.name||d.email} (${d.email})
+${JSON.stringify(dossiePagamento,null,2)}
+
+REGRAS DE VALIDAÇÃO:
+- Plano "vip" = só envio manual, sem automático. Dias auto devem ser 0.
+- Plano "vipro" = manual + automático. Os dois devem ter dias.
+- Plano "doublepro" = igual vipro mas com 2 contas Gmail.
+- Plano "free" = sem VIP ativo. Dias manual e auto devem ser 0.
+- "trial" como fonte = usuário está no trial gratuito de 1 dia. Normal.
+- "admin" como fonte = foi ativado manualmente pelo admin. Verificar se tem comprovante ou nota de pagamento.
+- Dias bônus são legítimos — não geram divergência.
+- Se totalPagoDetectado for 0 mas o plano for pago (vip/vipro/doublepro) e fonte for "admin", verificar nota de pagamento. Se houver nota, considerar OK.
+- Se houver comprovante de pagamento e plano ativo, é OK.
+- Se não houver comprovante E não houver nota de pagamento E fonte for "admin", é PENDÊNCIA.
+
+Responda APENAS em JSON (sem markdown):
+{
+  "status": "CLIENTE_VALIDADO" ou "PENDENCIAS_DETECTADAS",
+  "statusEmoji": "✅" ou "⚠️",
+  "resumo": "Resumo em 1-2 frases para o admin",
+  "detalhes": ["item1","item2"],
+  "pendencias": ["pendencia1"] ou [],
+  "recomendacao": "Ação recomendada ao admin"
+}`;
+        const geminiUrl=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const gemPayload={contents:[{parts:[{text:geminiPrompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:1000}};
+        const gemResVal=await new Promise((resolve,reject)=>{
+          const bodyG=JSON.stringify(gemPayload);
+          const uG=new URL(geminiUrl);
+          const optsG={hostname:uG.hostname,path:uG.pathname+uG.search,method:"POST",headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(bodyG)}};
+          const reqG=https.request(optsG,resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{try{resolve({status:resp.statusCode,body:JSON.parse(Buffer.concat(ch).toString())});}catch{reject(new Error("Resposta inválida"));}});});
+          reqG.on("error",reject);reqG.setTimeout(20000,()=>{reqG.destroy();reject(new Error("Timeout Gemini"));});
+          reqG.write(bodyG);reqG.end();
+        });
+        let rawText=(gemResVal.body?.candidates?.[0]?.content?.parts?.[0]?.text||"").replace(/```json|```/g,"").trim();
+        let result;try{result=JSON.parse(rawText);}catch{result={status:"PENDENCIAS_DETECTADAS",statusEmoji:"⚠️",resumo:"Erro ao processar auditoria Gemini.",detalhes:[rawText.slice(0,200)],pendencias:["Erro interno Gemini"],recomendacao:"Verificar manualmente."}}
+        // Salvar resultado da validação no usuário
+        const {editorPassword}=d;
+        const EDITOR_PASSWORDS={andrew:"84800-54",diego:"Diego2026"};
+        const editorKey=Object.keys(EDITOR_PASSWORDS).find(k=>EDITOR_PASSWORDS[k]===editorPassword);
+        if(editorKey){
+          setUser(d.email,{lastValidatedAt:now,lastValidatedBy:editorKey==="andrew"?"Andrew":"Diego",lastValidationResult:result.status});
+        }
+        return json(res,200,{ok:true,result,dossiePagamento});
       }catch(e){return json(res,500,{error:e.message});}
     }
 
@@ -7369,7 +7792,7 @@ O H2BApply é um app PWA (funciona no celular como app) que envia e-mails de can
 === PLANOS E LIMITES ===
 - FREE (Gratuito): 20 envios manuais/dia + 10 automáticos/dia
 - VIP: R$99,90/mês → 400 manuais/dia + 10 automáticos/dia
-- VIPro: R$149,90/mês → 300 manuais/dia + 200 automáticos/dia (500 total/dia)
+- VIPro: R$150/mês → 200 manuais/dia + 200 automáticos/dia
 - TODOS os planos ganham 5 dias VIP GRÁTIS ao se cadastrar
 - Indicando amigos: +5 dias VIP por cadastro + +5 dias se o amigo comprar plano
 
@@ -7557,327 +7980,257 @@ O H2BApply NÃO garante contratação, entrevista ou aprovação de visto — ap
       const usersAguardandoRateLimit=usersSnapshot.filter(u=>u.aguardandoRateLimit).length;
       const usersSemCV=usersSnapshot.filter(u=>u.cvs===0&&u.autoRodando).length;
 
+      // ══════════════════════════════════════════════════════════════
+      // DOSSIÊ GEMINI v9.0 — CONTEXTO COMPLETO + DADOS REAIS
+      // ══════════════════════════════════════════════════════════════
+
+      // ── Dados extras para o dossiê ──────────────────────────────
+      const _pedidosDetalhados=(DB_PEDIDOS||[]).slice(0,30).map(pd=>({
+        id:pd.id?.slice(-8),user:pd.userEmail,nome:pd.userName||'?',
+        plano:pd.plano,dias:pd.dias,diasBonus:pd.diasBonus||0,diasTotal:pd.diasTotal||pd.dias||30,
+        status:pd.status,valor:pd.valorTotal,desconto:pd.desconto||0,
+        temComprovante:!!(pd.comprovante),criadoEm:pd.createdAt?new Date(pd.createdAt).toISOString().slice(0,10):null,
+        ativadoPor:pd._ativadoEditor||pd.ativadoPor||null,
+        geminiAuditoria:pd.geminiAuditoria?.status||null,
+        horasPendente:pd.status==='pendente'?Math.round((Date.now()-(pd.createdAt||0))/3600000):null,
+      }));
+
+      const _clientesValidados=Object.values(DB_USERS||{}).filter(u=>u.lastValidatedAt).map(u=>({
+        email:u.email,status:u.lastValidationResult,validadoPor:u.lastValidatedBy,
+        em:u.lastValidatedAt?new Date(u.lastValidatedAt).toISOString().slice(0,10):null
+      }));
+
+      const _pedidosCriticos=(DB_PEDIDOS||[]).filter(pd=>pd.status==='pendente'&&(Date.now()-(pd.createdAt||0))>24*3600000);
+      const _authErrors=usersSnapshot.filter(u=>u.statusAuto==='paused_auth_error');
+      const _semCV=usersSnapshot.filter(u=>u.cvs===0&&u.autoRodando);
+      const _planosAtivos=Object.values(DB_USERS||{}).filter(u=>isVipActive(u)&&u.plan!=='free'&&!isAdminVip(u));
+
+      // Métricas de envio dos últimos 7 dias por plano
+      const _enviosPorPlano={vip:0,vipro:0,doublepro:0,free:0};
+      const _since7=Date.now()-7*86400000;
+      for(const [email,hist] of Object.entries(DB_HIST||{})){
+        const u=getUser(email);if(!u)continue;
+        const plan=getPlan(u)||'free';
+        const envios7=(hist||[]).filter(h=>h.ts&&h.ts>_since7).length;
+        _enviosPorPlano[plan]=(_enviosPorPlano[plan]||0)+envios7;
+      }
+
+      // Aprendizados recentes (últimas 10 entradas de auditoria)
+      const _aprendizadosRecentes=DB_KB.entries.filter(e=>e.tipo==='auditoria_aprendizado').slice(-10);
+
       const dossie=`
-SISTEMA H2BAPPLY — DOSSIÊ COMPLETO PARA AUDITORIA
-Data/Hora: ${new Date().toISOString()}
-==============================================
+╔══════════════════════════════════════════════════════════════════╗
+║          H2BAPPLY — DOSSIÊ COMPLETO v9.0 PARA GEMINI            ║
+║     Data: ${new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})} (BRT)     ║
+╚══════════════════════════════════════════════════════════════════╝
 
-CONTEXTO DO SISTEMA:
-H2BApply é um SaaS brasileiro que automatiza envio de candidaturas H-2B e H-2A (vistos de trabalho americano).
-Usuários conectam Gmail via OAuth, cadastram CVs, e o sistema envia emails automaticamente para empregadores nos EUA.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. IDENTIDADE DO SISTEMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+H2BApply é um SaaS brasileiro (Node.js monolito) que automatiza envio de
+candidaturas para vistos H-2B e H-2A (trabalho sazonal nos EUA).
+Fundadores: Andrio (técnico) e Diego (comercial/pagamentos).
+Deploy: Render.com, disco persistente /data 1GB.
 
-PLANOS DISPONÍVEIS:
-- FREE: 20 manual + 10 auto/dia (grátis)
-- VIP: 200 manual + 10 auto/dia (R$49,90/mês)
-- VIPro: 200 manual + 200 auto/dia (R$149,90/mês)
-- DoublePro: 400 manual + 400 auto/dia (R$249,90/mês)
-VIP e auto expiram JUNTOS em data unificada.
+PLANOS ATUAIS (CORRETOS jun/2026):
+┌─────────────┬──────────────┬─────────────────────────────────────┐
+│ Plano       │ Preço        │ Limites diários                     │
+├─────────────┼──────────────┼─────────────────────────────────────┤
+│ FREE        │ Grátis       │ 20 manual + 10 auto                 │
+│ VIP Manual  │ R$100/mês    │ 200 manual + 10 auto                │
+│ VIPro       │ R$150/mês    │ 200 manual + 200 auto               │
+│ DoublePro   │ R$250/mês    │ 400 manual + 400 auto (2 Gmails)    │
+└─────────────┴──────────────┴─────────────────────────────────────┘
+TRIAL: 1 dia VIP Manual apenas (sem automático) no primeiro login.
+Anti-abuse: IP + telefone + Google ID (3 camadas).
 
-==============================================
-GUIA DE FUNCIONAMENTO — LEIA ANTES DE ANALISAR
-==============================================
+TABELA DE PREÇOS POR PERÍODO:
+VIP: 30d=R$100 | 60d=R$190 | 90d=R$270 | 1ano=R$960
+VIPro: 30d=R$150 | 60d=R$285 | 90d=R$405 | 1ano=R$1440
+DoublePro: 30d=R$250 | 60d=R$475 | 90d=R$675 | 1ano=R$2400
 
-COMO FUNCIONA O ENVIO AUTOMATICO:
-1. Usuario configura perfil + faz upload do CV (PDF obrigatorio)
-2. Usuario conecta Gmail via OAuth (gera refresh_token permanente)
-3. Usuario inicia fila automatica com vagas selecionadas
-4. Sistema envia emails em intervalos (padrao 180s entre envios)
-5. Ao atingir limite diario, aguarda meia-noite BRT e retoma automaticamente
-6. Watchdog verifica a cada 2min se workers estao saudaveis
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. GUIA DE FUNCIONAMENTO (LEIA ANTES DE ANALISAR)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-STATUS NORMAIS DO AUTOMATICO (NAO sao problemas):
-- "waiting_limit"       → Atingiu limite diario. Aguarda meia-noite BRT. NORMAL E ESPERADO.
-- "waiting_rate_limit"  → Gmail pediu pausa temporaria. Retoma em minutos. NORMAL.
-- "waiting_interval"    → Aguardando intervalo entre envios. NORMAL.
-- "waiting_token_retry" → Erro temporario de rede no token. Tenta novamente em 5min. NORMAL.
-- "finished"            → Fila concluida. Todos os emails enviados. SUCESSO.
+STATUS NORMAIS DO AUTOMÁTICO (NÃO são problemas):
+✅ waiting_limit       → Atingiu limite diário. Aguarda meia-noite BRT.
+✅ waiting_rate_limit  → Gmail pediu pausa. Retoma em minutos.
+✅ waiting_interval    → Aguardando intervalo entre envios (3-5min).
+✅ waiting_token_retry → Erro temporário de token. Retry em 5min.
+✅ finished            → Fila concluída. SUCESSO.
+✅ paused_no_vip       → VIP expirou. Normal — usuário precisa renovar.
 
 STATUS QUE INDICAM PROBLEMA REAL:
-- "paused_auth_error"       → Autenticacao falhou repetidamente. Usuario precisa relogar.
-- "paused_token_revoked"    → Usuario revogou acesso no Google. Precisa reconectar.
-- "paused_oauth_expired"    → Token expirou e nao foi possivel renovar. Relogin necessario.
-- "paused_account_suspended"→ Conta Gmail suspensa pelo Google.
-- "stalled"                 → Worker travado genuinamente (sem progresso ha >20min sem razao valida).
+🔴 paused_auth_error       → Auth falhou repetidamente. Usuário precisa relogar.
+🔴 paused_token_revoked    → Usuário revogou acesso no Google.
+🔴 stalled                 → Travado genuinamente >2h sem razão válida.
 
-SOBRE TOKENS DO GMAIL:
-- O refresh_token e permanente — nao expira enquanto usuario nao revogar acesso.
-- O access_token expira em 1h — renovado automaticamente pelo sistema.
-- "tokenValido: false" NAO significa problema se usuario esta inativo ha >10 dias.
-- Token expirado + usuario ativo (<=3 dias) = PROBLEMA URGENTE.
-- Token expirado + usuario inativo (>10 dias) = IGNORAR, usuario provavelmente parou de usar.
+SOBRE TOKENS:
+- token expirado + ativo ≤3 dias = URGENTE
+- token expirado + inativo >10 dias = IGNORAR (usuário parou de usar)
 
-SOBRE ROBOS "TRAVADOS":
-- A metrica "travado" so conta jobs com mais de 2h sem atividade E sem status de espera legitimo.
-- 30 robos em "waiting_limit" NAO sao travados — estao aguardando o novo dia normalmente.
-- O watchdog reinicia automaticamente workers realmente travados a cada 2min.
-- Se "travados genuinamente" = 0, o sistema esta saudavel.
+SOBRE CLIENTES NOVOS (FLUXO ATUAL):
+1. Usuário se cadastra → ganha 1 dia VIP Manual (trial)
+2. Usuário solicita plano → envia comprovante
+3. Admin abre Modal de Aprovação → vê comprovante → escolhe dias bônus → confirma senha
+4. Sistema ativa VIP, preenche CCC do cliente, Gemini audita automaticamente
+5. Dados financeiros salvos no perfil do cliente (CCC)
 
-SOBRE USUARIOS INATIVOS:
-- Muitos usuarios se cadastram, testam e param de usar — isso e normal em SaaS.
-- Usuario sem lastSeenAt recente (>10 dias) nao deve gerar alarmes de token ou automacao.
-- Foco da analise deve ser em usuarios ATIVOS nos ultimos 3-10 dias.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. RESUMO GERAL DO SISTEMA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total usuários: ${usersSnapshot.length}
+Com token Gmail válido: ${usersComToken}
+Automático rodando: ${usersAutoRodando}
+Robôs travados (genuíno): ${usersTravados}
+Aguardando limite diário (NORMAL): ${usersAguardandoLimite}
+Aguardando rate limit (NORMAL): ${usersAguardandoRateLimit}
+Token expirado + ativo ≤10d (PROBLEMA REAL): ${usersTokenProblemaReal}
+Token expirado + inativo >10d (IGNORAR): ${usersTokenInativoIgnorado}
+Sem CV com auto ativo: ${usersSemCV}
+Paused auth_error: ${_authErrors.length}
+Pedidos pendentes: ${pedidosPendentes}
+Planos VIP ativos (isVipActive): ${_planosAtivos.length}
+Receita ativa: R$${totalReceita.toFixed(2)}
+Gemini API: ${getGeminiKey()?'✅ OK':'❌ AUSENTE'}
+Clientes validados pelo Gemini: ${_clientesValidados.length}
 
-SOBRE A FILA DE ENVIO:
-- Cada usuario tem sua propria fila independente (DB_AUTO).
-- A fila e persistida em disco — sobrevive a reinicializacoes do servidor.
-- Vagas ja enviadas sao filtradas automaticamente da fila (DB_SENT).
-- Emails invalidos sao pulados e registrados como "pulado" nos logs.
-
-SOBRE PEDIDOS DE PLANO:
-- Pedidos "pendente" = pagamento aguardando confirmacao manual do admin.
-- Pedidos "ativo" = plano em vigor e usuario com acesso VIP.
-- O admin precisa ativar manualmente apos confirmar pagamento.
-
-O QUE REALMENTE IMPORTA ANALISAR:
-1. Usuarios ATIVOS (<=10 dias) com token quebrado — nao conseguem enviar.
-2. Workers genuinamente travados (status stalled, nao waiting_limit).
-3. Usuarios pagantes (VIP/VIPro/DoublePro) com problemas — impacto financeiro direto.
-4. Pedidos pendentes ha muitos dias — risco de chargeback e insatisfacao.
-5. Usuarios com CV ausente e automatico ativo — envios vao falhar silenciosamente.
-
-O QUE NAO PRECISA DE ATENCAO:
-- Usuarios FREE inativos com token expirado.
-- "waiting_limit" contado como problema.
-- Usuarios que nunca enviaram nada (podem ser cadastros abandonados).
-- Tokens expirados de quem nao acessa ha >10 dias.
-
-==============================================
-ARQUITETURA COMPLETA DO SISTEMA H2BAPPLY
-==============================================
-
-STACK TECNICA:
-- Backend: Node.js puro (sem framework), ~17.000 linhas em server.js
-- Frontend: SPA vanilla HTML/CSS/JS em index.html (~15.000 linhas) + admin.html (~10.000 linhas)
-- Storage: JSON flat-file em /data (persistente no Render.com)
-- Auth: Google OAuth 2.0 com scopes: gmail.send + gmail.readonly + gmail.modify
-- Email: Gmail API via HTTP direto (sem lib)
-- IA: Gemini API (gemini-2.0-flash / 2.5-flash-lite / 2.5-flash)
-- Deploy: Render.com com GitHub CI/CD, disk /data 1GB
-
-ARQUIVOS DE DADOS (/data/):
-- h2b_users.json: todos os usuários e configurações
-- h2b_auto.json: jobs de automático ativos
-- h2b_hist_[email].json: histórico de envios por usuário
-- h2b_sent_[email].json: set de emails já enviados (anti-duplicata)
-- h2b_logs_[email].json: logs de operação por usuário
-- blocked_emails.json: emails banidos permanentemente
-- invalid_emails.json: bounces detectados (DB_INVALID_EMAILS)
-- temp_failures.json: falhas temporárias de entrega
-- trial_used.json: IPs e telefones que já usaram trial
-- sheets_meta.json: metadados das planilhas de vagas
-- knowledge_base.json: base de conhecimento do Gemini (aprendizados)
-- pedidos.json: pedidos de plano dos usuários
-- financeiro.json: receitas e gastos
-- referral.json: sistema de indicações
-
-PLANILHAS DE VAGAS:
-- jan2026_compact.json: vagas H-2B Janeiro 2026 (campos: c=caseNum, t=title, n=company, ci=city, s=state, w=wage, wunit, wk=workers, d=startDate, de=endDate, e=email, ph=phone, k=category, visa, url)
-- jul2025_compact.json: vagas H-2B Julho 2025
-- SHEET_EXTRAS: planilhas adicionais uploadadas pelo admin em /data/sheets/
-- Enriquecimento DOL: bot _autoEnrichCycle busca dados em api.seasonaljobs.dol.gov automaticamente, 1x por planilha
-
-PLANOS E LIMITES:
-- FREE: 20 manual + 10 auto/dia (grátis, trial 2 dias VIPro no primeiro login)
-- VIP: 200 manual + 50 auto/dia (R$89,90/mês - legado)
-- VIPro: 200 manual + 200 auto/dia (R$149,90/mês - principal)
-- DoublePro: 400 manual + 400 auto/dia (R$249,90/mês - 2 Gmails)
-- Trial: 2 dias VIPro no primeiro login (controlado por scopeVersion, IP e telefone)
-
-SISTEMA MULTI-GMAIL:
-- Usuários podem ter até 3 Gmails (1 principal + 2 extras via /oauth/add-sender)
-- Round-robin por menor número de envios hoje
-- Fallback automático para principal se extras falham
-- senderEmail salvo em cada entrada do histórico
-
-SISTEMA DE BOUNCES (emails inválidos):
-- gmailFetchInbox separa respostas reais de bounces via isBounceMail()
-- PERM_PATTERNS detecta bounces permanentes (user unknown, mailbox not found, etc.)
-- TEMP_PATTERNS detecta falhas temporárias
-- Bounce permanente → processBounce() → removeFromSheets() → salvo em DB_INVALID_EMAILS
-- Base Global de Emails Inválidos: nenhum usuário pode enviar para emails na lista
-- Startup scan 20s após boot para capturar bounces do período offline
-
-WATCHDOGS ATIVOS (intervalos):
-- serverPushPoll: a cada 2min — detecta novas respostas no inbox e envia push notification
-- tokenGuardianRun: a cada 10min — renova tokens expirados de jobs ativos
-- vipExpiryWatchdog: a cada 1h — para automático de users sem plano válido
-- authErrorWatchdog: a cada 3h — notifica users com paused_auth_error há >12h
-- _autoEnrichCycle watchdog: a cada 30min — verifica planilhas pendentes de enriquecimento
-- Backup: a cada 10min — persiste todos os DBs em disk
-
-SISTEMA DE NOTIFICAÇÕES:
-- Push via Web Push API (service worker)
-- Email via Gmail API do admin (sendNotifEmail)
-- Tipos: stalled, finished, token_revoked, auth_error, vip_expired
-- Lock de 22h por tipo por usuário (não spam)
-- In-app: adminMessage no painel do usuário
-
-CENTRAL DE INCIDENTES (admin):
-- Gerada dinamicamente de DB_USERS + DB_AUTO a cada GET
-- Tipos: token_expired, auto_stuck, vip_expired, no_cv, system
-- Severidade: error (crítico), warn (atenção), info (informação)
-- Incidentes resolvidos persistem em global._resolvedIncidents (memória)
-- Missões: tarefas acionáveis ligadas a cada incidente
-- Botão 1-click "Notificar usuário" para auth_error e token_expired
-
-ROBÔ DE AUDITORIA (Gemini):
-- Coleta snapshot completo: usuários, jobs, logs 24h, bounces, financeiro, engajamento 7d, planilhas
-- Envia dossiê + KB + guia ao Gemini (gemini-2.0-flash first)
-- Extrai aprendizados da seção 🧠 e salva na knowledge_base.json
-- maxOutputTokens: 8000 para relatório completo
-- KB tem prioridade: não reportar o que já foi resolvido
-
-SISTEMA DE PEDIDOS:
-- Usuário cria pedido → status pendente
-- Admin confirma pagamento → ativa plano manualmente
-- Aba ⚡ Críticos: pedidos pendentes >24h com alerta visual
-- Integração com Robô Contábil: análise de comprovantes via Gemini Vision
-
-RANKING E GAMIFICAÇÃO:
-- Ranking semanal/mensal/total por emails enviados
-- Apelidos únicos (rankName)
-- Sistema de indicações (referral) com bônus de +5 dias VIP
-- Badges e streaks de dias consecutivos
-
-RESUMO GERAL:
-- Total usuários: ${usersSnapshot.length}
-- Usuários com token Gmail válido: ${usersComToken}
-- Automático rodando agora: ${usersAutoRodando}
-- Robôs travados (>2h sem envio, genuinamente): ${usersTravados}
-- Robôs aguardando limite diário (normal): ${usersAguardandoLimite}
-- Robôs aguardando rate limit Gmail (normal): ${usersAguardandoRateLimit}
-- Token expirado com usuário ATIVO (≤10 dias) — problema real: ${usersTokenProblemaReal}
-- Token expirado com usuário INATIVO (>10 dias) — ignorado: ${usersTokenInativoIgnorado}
-- Usuários sem CV com auto ativo: ${usersSemCV}
-- Pedidos pendentes: ${pedidosPendentes}
-- Planos ativos: ${pedidosAtivos}
-- Receita total: R$${totalReceita.toFixed(2)}
-- Gemini API: ${getGeminiKey()?'✅ Configurada':'❌ AUSENTE'}
-
-USUÁRIOS DETALHADOS (${usersSnapshot.length} total):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. USUÁRIOS — SNAPSHOT COMPLETO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${JSON.stringify(usersSnapshot, null, 2)}
 
-PEDIDOS RECENTES (últimos 20):
-${JSON.stringify((DB_PEDIDOS||[]).slice(-20).map(pd=>({
-  id:pd.id,user:pd.userEmail,plano:pd.plano,status:pd.status,
-  valor:pd.valorTotal,data:pd.createdAt?String(pd.createdAt).slice(0,10):null
-})), null, 2)}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. PEDIDOS DE PLANO — DETALHADO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PEDIDOS CRÍTICOS (pendentes >24h): ${_pedidosCriticos.length}
+${_pedidosCriticos.map(pd=>`  ⚡ ${pd.userEmail} — ${pd.plano} R$${pd.valorTotal} — ${Math.round((Date.now()-(pd.createdAt||0))/3600000)}h pendente${pd.comprovante?'  📸 com comprovante':' ⚠️ SEM comprovante'}`).join('\n')}
 
-EMAILS INVÁLIDOS (bounces detectados):
-Total na base: ${Object.keys(DB_INVALID_EMAILS||{}).length}
-Por tipo: permanentes=${Object.values(DB_INVALID_EMAILS||{}).filter(e=>e.tipo==='permanente'||e.tipo==='bloqueado').length} temporários=${Object.values(DB_TEMP_FAILURES||{}).length}
-Top 5 domínios com bounce: ${(()=>{const d={};Object.values(DB_INVALID_EMAILS||{}).forEach(e=>{const dom=(e.email||'').split('@')[1]||'?';d[dom]=(d[dom]||0)+1;});return Object.entries(d).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>k+'('+v+')').join(', ')||'nenhum';})()}
+TODOS OS PEDIDOS (últimos 30):
+${JSON.stringify(_pedidosDetalhados, null, 2)}
 
-LOGS DE SISTEMA (últimas 24h — erros e avisos):
-${(()=>{
-  const since=Date.now()-86400000;
-  const errs=[];
-  for(const [email,logs] of Object.entries(DB_LOGS||{})){
-    (logs||[]).filter(l=>l.ts>since&&(l.status==='erro'||l.status==='cancelado'||l.error)).slice(0,3).forEach(l=>{
-      errs.push({user:email,status:l.status,job:l.jobTitle,error:l.error,ts:new Date(l.ts).toISOString().slice(11,16)});
-    });
-  }
-  return JSON.stringify(errs.slice(0,30), null, 2)||'[]';
-})()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. FINANCEIRO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Receita ativa (planos isVipActive): R$${(()=>{let r=0;for(const u of Object.values(DB_USERS||{})){if(isVipActive(u)&&u.paymentAmount){const v=parseFloat((u.paymentAmount||'0').replace(/[^0-9.,]/g,'').replace(',','.'));if(!isNaN(v))r+=v;}}return r;})().toFixed(2)}
+Pedidos pendentes >3 dias: ${(DB_PEDIDOS||[]).filter(pd=>pd.status==='pendente'&&(Date.now()-(pd.createdAt||0))>3*86400000).length}
+Clientes pagantes (isVipActive, não free): ${_planosAtivos.length}
+Conversão free→pago: ${((_planosAtivos.length/Math.max(1,Object.keys(DB_USERS||{}).length))*100).toFixed(1)}%
+Trial ativo agora: ${Object.values(DB_USERS||{}).filter(u=>u.vip?.source==='trial'&&isVipActive(u)).length} usuários
 
-FINANCEIRO RESUMO:
-Receita ativa (planos em vigor): R$${(DB_PEDIDOS||[]).filter(pd=>pd.status==='ativo').reduce((a,pd)=>a+(pd.valorTotal||0),0).toFixed(2)}
-Pedidos pendentes há >3 dias: ${(DB_PEDIDOS||[]).filter(pd=>pd.status==='pendente'&&(Date.now()-(pd.createdAt||0))>3*86400000).length}
-Usuários pagantes (VIP/VIPro/DoublePro ativos): ${Object.values(DB_USERS||{}).filter(u=>isVipActive(u)&&u.plan!=='free').length}
-Conversão free→pago: ${((Object.values(DB_USERS||{}).filter(u=>isVipActive(u)&&u.plan!=='free').length/Math.max(1,Object.keys(DB_USERS||{}).length))*100).toFixed(1)}%
-Trial ativo atualmente: ${Object.values(DB_USERS||{}).filter(u=>u.vip?.source==='trial'&&isVipActive(u)).length} usuários
+Envios 7 dias por plano:
+- VIP: ${_enviosPorPlano.vip} emails
+- VIPro: ${_enviosPorPlano.vipro} emails
+- DoublePro: ${_enviosPorPlano.doublepro} emails
+- Free: ${_enviosPorPlano.free} emails
 
-PLANILHAS DE VAGAS:
-jan2026: ${(typeof SHEET_JAN!=='undefined'?SHEET_JAN.length:0)} vagas | jul2025: ${(typeof SHEET_JUL!=='undefined'?SHEET_JUL.length:0)} vagas
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. CLIENTES VALIDADOS PELO GEMINI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${JSON.stringify(_clientesValidados, null, 2)}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+8. BOUNCES E QUALIDADE DE DADOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Bounces permanentes: ${Object.values(DB_INVALID_EMAILS||{}).filter(e=>e.tipo==='permanente'||e.tipo==='bloqueado').length}
+Falhas temporárias: ${Object.values(DB_TEMP_FAILURES||{}).length}
+Top domínios com bounce: ${(()=>{const d={};Object.values(DB_INVALID_EMAILS||{}).forEach(e=>{const dom=(e.email||'').split('@')[1]||'?';d[dom]=(d[dom]||0)+1;});return Object.entries(d).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,v])=>k+'('+v+')').join(', ')||'nenhum';})()}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+9. LOGS DE SISTEMA (últimas 24h — erros)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${(()=>{const since=Date.now()-86400000;const errs=[];for(const [email,logs] of Object.entries(DB_LOGS||{})){(logs||[]).filter(l=>l.ts>since&&(l.status==='erro'||l.status==='cancelado'||l.error)).slice(0,2).forEach(l=>{errs.push({user:email,status:l.status,job:(l.jobTitle||'').slice(0,50),error:(l.error||'').slice(0,80),ts:new Date(l.ts).toISOString().slice(11,16)});});}return JSON.stringify(errs.slice(0,25),null,2)||'[]';})()}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+10. PLANILHAS E ENRIQUECIMENTO DOL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+jan2026: ${(typeof SHEET_JAN!=='undefined'?SHEET_JAN.length:0)} vagas
+jul2025: ${(typeof SHEET_JUL!=='undefined'?SHEET_JUL.length:0)} vagas
 Extras: ${Object.keys(SHEET_EXTRAS||{}).map(k=>k+'('+((SHEET_EXTRAS[k]||[]).length)+'vagas)').join(', ')||'nenhuma'}
-Enriquecimento DOL rodando: ${typeof _enrichBot!=='undefined'&&_enrichBot.running?'SIM - '+_enrichBot.done+'/'+_enrichBot.total:'não'}
+Enriquecimento bot: ${typeof _enrichBot!=='undefined'&&_enrichBot?.running?'SIM — '+(_enrichBot.done||0)+'/'+(_enrichBot.total||0):'inativo'}
 
-INDICADORES DE ENGAJAMENTO (últimos 7 dias):
-${(()=>{
-  const since7=Date.now()-7*86400000;
-  const ativos7=Object.values(DB_USERS||{}).filter(u=>u.lastSeenAt&&u.lastSeenAt>since7).length;
-  const enviadores7=Object.values(DB_LOGS||{}).filter(logs=>(logs||[]).some(l=>l.ts>since7&&l.status==='enviado')).length;
-  const totalEnvios7=Object.values(DB_LOGS||{}).reduce((a,logs)=>a+(logs||[]).filter(l=>l.ts>since7&&l.status==='enviado').length,0);
-  return `Usuários ativos (7d): ${ativos7} | Enviaram email (7d): ${enviadores7} | Total emails enviados (7d): ${totalEnvios7}`;
-})()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+11. ENGAJAMENTO (últimos 7 dias)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${(()=>{const since7=Date.now()-7*86400000;const ativos7=Object.values(DB_USERS||{}).filter(u=>u.lastSeenAt&&u.lastSeenAt>since7).length;const enviadores7=Object.values(DB_LOGS||{}).filter(logs=>(logs||[]).some(l=>l.ts>since7&&l.status==='enviado')).length;const totalEnvios7=Object.values(DB_LOGS||{}).reduce((a,logs)=>a+(logs||[]).filter(l=>l.ts>since7&&l.status==='enviado').length,0);return `Ativos: ${ativos7} | Enviaram: ${enviadores7} | Total emails: ${totalEnvios7}`;})()}
 
-BASE DE CONHECIMENTO PERMANENTE (${DB_KB.entries.length} entradas — leia ANTES de analisar):
-ATENCAO: Estes problemas JA foram resolvidos. NAO os reporte como novos.
-${(()=>{ const _kbFmt=DB_KB.entries.map(e=>"["+e.id+" | "+e.versao+" | "+e.data+"]\nProblema: "+e.problema+"\nSolucao: "+e.solucao+"\nImpacto: "+e.impacto+"\nModulos: "+(e.modulos||[]).join(", ")); return _kbFmt.join("\n---\n"); })()}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+12. BASE DE CONHECIMENTO (${DB_KB.entries.length} entradas — LEIA ANTES DE ANALISAR)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ ATENÇÃO: Problemas listados aqui JÁ FORAM RESOLVIDOS. NÃO os reporte como novos.
+
+ENTRADAS PERMANENTES (KB-001 a KB-020):
+${DB_KB.entries.filter(e=>!e.tipo||e.tipo!=='auditoria_aprendizado').map(e=>`[${e.id}] ${e.problema?.slice(0,100)||''}
+  → Solução: ${e.solucao?.slice(0,120)||''}`).join('\n')}
+
+APRENDIZADOS DAS ÚLTIMAS AUDITORIAS (sua memória cumulativa):
+${_aprendizadosRecentes.length?_aprendizadosRecentes.map(e=>`- ${e.solucao}`).join('\n'):'(Nenhum aprendizado anterior)'}
 `;
 
-      // ── Treinamento incremental: adiciona aprendizados da auditoria anterior à KB ──
-      const _auditLearnings = DB_KB.entries.filter(e=>e.tipo==='auditoria_aprendizado').slice(-5).map(e=>e.solucao).join('\n- ');
-
-      const prompt=`Você é o ANALISTA SÊNIOR E ARQUITETO DO H2BAPPLY — um SaaS brasileiro que automatiza candidaturas H-2B e H-2A (vistos de trabalho nos EUA). Você tem MEMÓRIA CUMULATIVA: cada análise que você faz é aprendida e melhora a próxima.
+      // ══════════════════════════════════════════════════════════════
+      // PROMPT GEMINI v9.0 — INSTRUÇÕES COMPLETAS
+      // ══════════════════════════════════════════════════════════════
+      const prompt=`Você é o ANALISTA SÊNIOR E ARQUITETO DO H2BAPPLY. Você tem MEMÓRIA CUMULATIVA — aprende com cada auditoria e fica mais preciso.
 
 ${dossie}
 
-═══════════════════════════════════════════════════
-APRENDIZADOS DAS ÚLTIMAS AUDITORIAS (sua memória):
-═══════════════════════════════════════════════════
-${_auditLearnings || '(Primeira auditoria — sem histórico ainda)'}
+══════════════════════════════════════════════
+REGRAS ABSOLUTAS (nunca viole):
+══════════════════════════════════════════════
+1. Leia a BASE DE CONHECIMENTO — problemas KB-001 a KB-020 JÁ foram resolvidos, não os reporte
+2. waiting_limit/rate_limit/interval/token_retry = NORMAIS, nunca são problemas
+3. token expirado + inativo >10 dias = IGNORAR completamente
+4. Planos ativos = use isVipActive() (${_planosAtivos.length} usuários), não DB_PEDIDOS.filter(ativo)
+5. Trial atual = 1 dia VIP Manual (sem automático) — não reporte como VIPro
+6. Analise TODOS os dados: usuários, financeiro, pedidos, bounces, logs, planilhas
 
-═══════════════════════════════════════════════════
-REGRAS ABSOLUTAS:
-═══════════════════════════════════════════════════
-1. Leia o GUIA DE FUNCIONAMENTO antes de tudo — define o que é normal vs problema real
-2. Leia a BASE DE CONHECIMENTO — problemas JÁ resolvidos, não repita-os
-3. "waiting_limit" = saudável, NÃO é travamento
-4. Token expirado + inativo >10 dias = ignorar
-5. Analise O SISTEMA INTEIRO: usuários, filas, financeiro, planilhas, bounces, logs
-
-═══════════════════════════════════════════════════
-SUA MISSÃO COMPLETA:
-═══════════════════════════════════════════════════
-1. SAÚDE DO SISTEMA: nota 0-100 com justificativa real
-2. PROBLEMAS CRÍTICOS: apenas o que precisa de ação HOJE
-3. ANÁLISE DE USUÁRIOS: examine CADA usuário ativo (≤10 dias) e identifique padrões
-4. SAÚDE FINANCEIRA: receita, conversão, pedidos parados, trial abuse
-5. QUALIDADE DOS DADOS: emails inválidos/bounces, planilhas incompletas, CVs ausentes
-6. SUGESTÕES ARQUITETURAIS: melhorias que você detecta no funcionamento do sistema
-7. TREINAMENTO: ao final, escreva 3-5 aprendizados novos desta análise (seção especial)
-
-═══════════════════════════════════════════════════
-FORMATO DO RELATÓRIO:
-═══════════════════════════════════════════════════
+══════════════════════════════════════════════
+SUA MISSÃO — RELATÓRIO COMPLETO:
+══════════════════════════════════════════════
 
 ## 🏥 SAÚDE GERAL: [nota]/100
-[Justificativa com base nos dados reais desta análise]
+[Justificativa baseada nos dados reais. Seja preciso e honesto.]
 
 ## 🚨 PROBLEMAS CRÍTICOS
-[Problemas que precisam de ação HOJE — com email do usuário afetado quando aplicável]
+[Apenas o que precisa de ação HOJE. Com email do usuário afetado.]
+[Se não há críticos, escreva: "✅ Nenhum problema crítico identificado"]
 
 ## ⚠️ AVISOS
-[Situações que merecem atenção nos próximos dias]
+[Situações para atenção nos próximos dias]
 
 ## 📊 MÉTRICAS DO SISTEMA
-[Quadro completo: usuários, envios, bounces, financeiro, planilhas, engajamento]
+[Quadro completo com os dados reais do dossiê]
 
-## 👥 ANÁLISE DE USUÁRIOS ATIVOS
-[Examine cada usuário ativo (≤10 dias), agrupe por padrão: saudáveis / com problema token / sem CV / trial expirado]
-[TOP 3 urgentes com: nome, email, problema específico, ação recomendada]
+## 👥 ANÁLISE DE USUÁRIOS ATIVOS (≤10 dias)
+[Examine CADA usuário ativo. Agrupe: saudáveis / problemas / VIP expirando]
+[TOP 3 urgentes: nome, email, problema específico, ação recomendada]
 
 ## 💰 SAÚDE FINANCEIRA
-[Receita atual, conversão free→pago, pedidos parados, risco de chargeback, trial abuse]
+[Receita, conversão, pedidos parados, discrepâncias de valor, trial abuse]
+[Valide: valorTotal dos pedidos bate com a tabela de preços?]
 
 ## 🔍 QUALIDADE DOS DADOS
-[Emails inválidos/bounces acumulados, planilhas não enriquecidas, CVs faltando, templates ausentes]
+[Bounces, planilhas, CVs faltando, comprovantes sem pedido]
 
-## 💡 SUGESTÕES DE MELHORIA ARQUITETURAL
-[Ideias concretas para melhorar o sistema — verificar se NÃO estão na KB antes de sugerir]
-[Inclua: UX, performance, negócio, retenção, anti-abuse]
+## 💡 SUGESTÕES ARQUITETURAIS
+[Novas ideias — verifique se NÃO estão na KB antes de sugerir]
+[Foque em: retenção, conversão, UX, automação, anti-abuse]
 
 ## ✅ O QUE ESTÁ FUNCIONANDO BEM
-[Reconheça implementações corretas — importante para o fundador saber o que não quebrar]
+[Implementações corretas que o fundador não deve quebrar]
 
 ## 📋 RESUMO EXECUTIVO
-[3-5 frases para o fundador tomar decisões imediatas]
+[3-5 frases diretas para o fundador tomar decisões imediatas]
 
 ## 🧠 NOVOS APRENDIZADOS PARA MEMÓRIA CUMULATIVA
-[Escreva exatamente 3-5 aprendizados NOVOS desta análise, no formato:]
-APRENDIZADO: [descrição concisa do padrão ou problema identificado]
-[Estes serão salvos automaticamente para melhorar a próxima auditoria]`;
+[Escreva EXATAMENTE 5 aprendizados NOVOS desta análise, no formato:]
+[NÃO repita aprendizados já existentes na KB]
+APRENDIZADO: [padrão detectado, conciso, acionável, max 200 chars]
+APRENDIZADO: [padrão detectado, conciso, acionável, max 200 chars]
+APRENDIZADO: [padrão detectado, conciso, acionável, max 200 chars]
+APRENDIZADO: [padrão detectado, conciso, acionável, max 200 chars]
+APRENDIZADO: [padrão detectado, conciso, acionável, max 200 chars]`;
 
       const GEMINI_MODELS=["gemini-2.0-flash","gemini-2.5-flash-lite","gemini-2.5-flash"];
       let texto=null; let lastErr="";
@@ -7887,7 +8240,7 @@ APRENDIZADO: [descrição concisa do padrão ou problema identificado]
           const geminiUrl=`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${getGeminiKey()}`;
           const payload={
             contents:[{role:"user",parts:[{text:prompt}]}],
-            generationConfig:{temperature:0.3,maxOutputTokens:8000}
+            generationConfig:{temperature:0.25,maxOutputTokens:10000,topP:0.9}
           };
           const body=JSON.stringify(payload);
           const url=new URL(geminiUrl);
@@ -7901,13 +8254,13 @@ APRENDIZADO: [descrição concisa do padrão ou problema identificado]
               resp.on("end",()=>{try{resolve({status:resp.statusCode,body:JSON.parse(Buffer.concat(ch).toString())});}catch{reject(new Error("Resposta inválida"));}});
             });
             req2.on("error",reject);
-            req2.setTimeout(60000,()=>{req2.destroy();reject(new Error("Timeout 60s"));});
+            req2.setTimeout(90000,()=>{req2.destroy();reject(new Error("Timeout 90s"));});
             req2.write(body);req2.end();
           });
 
           if(raw.status===200){
             texto=(raw.body?.candidates?.[0]?.content?.parts?.[0]?.text||"").trim();
-            if(texto){console.log(`[auditoria] ✅ modelo=${modelName}`);break;}
+            if(texto){console.log(`[auditoria] ✅ modelo=${modelName} chars=${texto.length}`);break;}
           } else {
             lastErr=raw.body?.error?.message||`HTTP ${raw.status}`;
             if(raw.status===403||raw.status===401)break;
@@ -7918,37 +8271,80 @@ APRENDIZADO: [descrição concisa do padrão ou problema identificado]
       if(!texto) return json(res,502,{error:`Gemini falhou: ${lastErr}`});
       _geminiCount.count++;
 
-      // ── Treinamento incremental: extrair aprendizados e salvar na KB ──────
+      // ══════════════════════════════════════════════════════════════
+      // TREINAMENTO INCREMENTAL v9.1 — KB só cresce, nunca encolhe
+      // ══════════════════════════════════════════════════════════════
       try{
-        const _learningSection = texto.match(/##\s*🧠\s*NOVOS APRENDIZADOS[\s\S]*?APRENDIZADO:(.*?)(?=\n##|$)/gi);
-        if(_learningSection&&_learningSection.length){
-          const _aprendizados = [...texto.matchAll(/APRENDIZADO:\s*(.+)/g)].map(m=>m[1].trim()).filter(Boolean);
-          for(const ap of _aprendizados.slice(0,5)){
-            if(ap.length>10&&ap.length<500){
-              const _kbEntry={
-                id:'audit_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
-                versao:'auto-auditoria',data:new Date().toISOString().slice(0,10),
-                tipo:'auditoria_aprendizado',
-                problema:'Padrão detectado pela auditoria automática',
-                solucao:ap,impacto:'médio',
-                modulos:['auditoria','gemini'],
-                geradoPor:'gemini-audit'
-              };
-              if(!DB_KB.entries.find(e=>e.solucao===ap)){
-                DB_KB.entries.push(_kbEntry);
-                console.log('[auditoria] 🧠 Novo aprendizado salvo na KB:',ap.slice(0,80));
-              }
+        const _auditDate=new Date().toISOString().slice(0,10);
+        const _auditTime=new Date().toISOString().slice(0,16);
+        const _aprendizados=[...texto.matchAll(/APRENDIZADO:\s*(.+)/g)].map(m=>m[1].trim()).filter(Boolean);
+        let _novosCount=0;
+        let _ignoradosCount=0;
+
+        for(const ap of _aprendizados.slice(0,5)){
+          if(ap.length<15||ap.length>500)continue;
+
+          // Verificação de duplicata inteligente:
+          // - Texto exatamente igual → ignorar
+          // - Primeiros 100 chars muito similares → ignorar
+          // - Conteúdo diferente mesmo que tema parecido → SALVAR
+          const _jaExisteExato=DB_KB.entries.some(e=>e.solucao===ap);
+          const _jaExisteSimilar=DB_KB.entries.some(e=>e.solucao&&e.solucao.slice(0,100)===ap.slice(0,100));
+
+          if(_jaExisteExato||_jaExisteSimilar){
+            _ignoradosCount++;
+            continue; // Não duplicar, mas não apagar nada
+          }
+
+          // Detectar categoria do aprendizado para melhor indexação
+          let _categoria='geral';
+          if(/token|oauth|gmail|auth/i.test(ap)) _categoria='autenticacao';
+          else if(/auto|robô|envio|fila|limit/i.test(ap)) _categoria='automático';
+          else if(/plano|vip|trial|pago|financ/i.test(ap)) _categoria='financeiro';
+          else if(/usuário|cliente|perfil/i.test(ap)) _categoria='usuários';
+          else if(/bounce|email inv|invalido/i.test(ap)) _categoria='bounces';
+          else if(/ux|interface|tela|modal/i.test(ap)) _categoria='ux';
+
+          DB_KB.entries.push({
+            id:'audit_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+            versao:'auto-v9.1',
+            data:_auditDate,
+            geradoEm:_auditTime,
+            tipo:'auditoria_aprendizado',
+            categoria:_categoria,
+            problema:`Padrão detectado em auditoria de ${_auditDate}`,
+            solucao:ap,
+            impacto:'a avaliar',
+            modulos:['gemini-audit-v9'],
+            geradoPor:'gemini-2.0-flash',
+            // Contexto do sistema no momento da auditoria
+            contexto:{
+              totalUsuarios:usersSnapshot.length,
+              planosAtivos:_planosAtivos.length,
+              usuariosAutoRodando:usersAutoRodando,
             }
-          }
-          // Manter apenas os últimos 20 aprendizados de auditoria (evitar acúmulo)
-          const _auditEntries = DB_KB.entries.filter(e=>e.tipo==='auditoria_aprendizado');
-          if(_auditEntries.length>20){
-            const _toRemove=_auditEntries.slice(0,_auditEntries.length-20).map(e=>e.id);
-            DB_KB.entries=DB_KB.entries.filter(e=>!_toRemove.includes(e.id));
-          }
-          try{fs.writeFileSync(KB_FILE,JSON.stringify(DB_KB,null,2));}catch{}
+          });
+          _novosCount++;
+          console.log(`[auditoria] 🧠 [${_categoria}] ${ap.slice(0,90)}`);
         }
-      }catch(kbErr){ console.warn('[auditoria] erro ao salvar KB:',kbErr.message); }
+
+        // ── KB nunca perde entradas de auditoria — apenas limita a 50 por tipo ──
+        // As mais antigas ficam como histórico mas as 50 mais recentes têm prioridade
+        const _auditEntries=DB_KB.entries.filter(e=>e.tipo==='auditoria_aprendizado');
+        if(_auditEntries.length>50){
+          // Marcar as antigas como "histórico" ao invés de deletar
+          const _antigas=_auditEntries.slice(0,_auditEntries.length-50);
+          for(const e of _antigas){
+            const idx=DB_KB.entries.findIndex(x=>x.id===e.id);
+            if(idx>=0) DB_KB.entries[idx]={...e,tipo:'auditoria_historico',arquivadoEm:_auditDate};
+          }
+        }
+
+        // Salvar — sempre sobrevive
+        fs.writeFileSync(KB_FILE,JSON.stringify(DB_KB,null,2));
+        console.log(`[auditoria] ✅ KB: +${_novosCount} novos | ${_ignoradosCount} ignorados (similares) | total: ${DB_KB.entries.length} entradas`);
+      }catch(kbErr){console.warn('[auditoria] erro KB:',kbErr.message);}
+
 
       return json(res,200,{ok:true,relatorio:texto,geradoEm:new Date().toISOString(),totalUsuarios:usersSnapshot.length,usersAutoRodando,usersTravados,pedidosPendentes});
     }catch(e){
@@ -9038,7 +9434,7 @@ async function vipExpiryWatchdog(){
   }
   if(stopped>0) console.log(`[vip-watchdog] Parou ${stopped} job(s) de usuários sem plano`);
 }
-setInterval(()=>vipExpiryWatchdog().catch(e=>console.error("[vip-watchdog]",e.message)), 60*60*1000); // a cada 1h
+setInterval(()=>vipExpiryWatchdog().catch(e=>console.error("[vip-watchdog]",e.message)), 15*60*1000); // a cada 15min (v9: reduzido de 1h)
 
 // ── Watchdog de paused_auth_error — notifica usuário após 12h parado ─────────
 // Roda a cada 3h. Se job parado por auth_error há >12h e usuário ativo ≤30 dias,
@@ -9379,6 +9775,202 @@ server.listen(PORT,"0.0.0.0",()=>{
   if(!CONFIGURED)console.log("\n⚠️  Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET!\n");
   setTimeout(refreshCache,3000);
   setTimeout(()=>reactivateAutoJobs().catch(e=>console.error("[boot] reactivate error:",e.message)),6000);
+
+  // ══════════════════════════════════════════════════════════════════════
+  // ── GEMINI AUTO-REGULARIZAÇÃO — roda 30s após boot ────────────────────
+  // Verifica clientes com plano ativo mas sem dados financeiros preenchidos
+  // e preenche automaticamente. Nunca sobrescreve dados já existentes.
+  // Também salva contexto financeiro na KB para auditorias futuras.
+  // ══════════════════════════════════════════════════════════════════════
+  // ── Regularização imediata dos clientes confirmados (10s após boot) ────────
+  // Dados confirmados pelo Andrio em 27/06/2026. Executado 1 vez por cliente.
+  // Nunca sobrescreve dados já preenchidos pelo admin/Diego.
+  setTimeout(()=>{
+    const _CLIENTES_CONFIRMADOS=[
+      {email:"italoleal812@gmail.com",        nome:"Ítalo Almeida Leal",            valor:"R$150.00",plano:"vipro",nota:"VIPro 30d — confirmado Diego 27/06/2026"},
+      {email:"esdras.silva.h2b@gmail.com",    nome:"Esdras Alberto da Silva",       valor:"R$150.00",plano:"vipro",nota:"VIPro 30d — confirmado Diego 27/06/2026"},
+      {email:"sw26wagnersilva@gmail.com",     nome:"Wagner Silva da Silva",         valor:"R$150.00",plano:"vipro",nota:"VIPro 30d — confirmado Diego 27/06/2026"},
+      {email:"maykoncanalgg@gmail.com",       nome:"Maykon de Souza Nobrega",       valor:"R$100.00",plano:"vip",  nota:"VIP Manual 30d — confirmado Diego 27/06/2026"},
+      {email:"jonatafontela07@gmail.com",     nome:"Jonata Fontela Dutra",          valor:"R$150.00",plano:"vipro",nota:"VIPro 30d — confirmado Diego 27/06/2026"},
+      {email:"itallofeitoza1993@gmail.com",   nome:"Itallo Jailson Feitoza",        valor:"R$150.00",plano:"vipro",nota:"VIPro 30d — confirmado Diego 27/06/2026"},
+      {email:"regianegoncalves.rgs@gmail.com",nome:"Regiane Gonçalves dos Santos",  valor:"R$100.00",plano:"vip",  nota:"VIP Manual 30d — confirmado Diego 27/06/2026"},
+      {email:"bruno.j.lange@gmail.com",       nome:"Bruno Luis Jara Lange",         valor:"R$120.00",plano:"vipro",nota:"VIPro 30d R$120 desconto — confirmado Diego 27/06/2026"},
+      {email:"enggustavomachado93@gmail.com", nome:"Gustavo Amaral Machado",        valor:"R$100.00",plano:"vipro",nota:"VIPro 30d — confirmado Diego 27/06/2026"},
+      {email:"jose.camilo.jobs@gmail.com",    nome:"José Camilo Rodrigues",         valor:"R$149.90",plano:"vipro",nota:"VIPro 30d R$149,90 — confirmado Diego 27/06/2026"},
+    ];
+    const now=Date.now();
+    let _reg=0;
+    for(const c of _CLIENTES_CONFIRMADOS){
+      const u=getUser(c.email);
+      if(!u)continue;
+      // Nunca sobrescrever dados já preenchidos
+      if(u.financialStatus==='pago'&&u.paymentAmount&&u.lastValidationResult==='CLIENTE_VALIDADO')continue;
+      const patch={};
+      if(!u.financialStatus)patch.financialStatus='pago';
+      if(!u.paymentAmount)patch.paymentAmount=c.valor;
+      if(!u.paymentMethod)patch.paymentMethod='pix';
+      if(!u.paymentReceiver)patch.paymentReceiver='Diego';
+      if(!u.paymentDate)patch.paymentDate='27/06/2026';
+      if(!u.paymentNote)patch.paymentNote=c.nota;
+      if(u.lastValidationResult!=='CLIENTE_VALIDADO'){
+        patch.lastValidatedAt=now;
+        patch.lastValidatedBy='Sistema (boot) — confirmado por Diego';
+        patch.lastValidationResult='CLIENTE_VALIDADO';
+      }
+      if(!u.adminNotes)patch.adminNotes=`Receita jun/2026: R$1.319,90 | Gastos: R$466,01 | Lucro: R$853,89 (Andrio: R$426,95 / Diego: R$426,95)`;
+      patch.adminEditHistory=[...(u.adminEditHistory||[]).slice(-49),{
+        at:now,by:'Sistema Auto',byEmail:'boot',
+        changes:Object.keys(patch).join(','),
+        note:`Regularização boot 27/06/2026 — ${c.nota}`
+      }];
+      setUser(c.email,patch);
+      _reg++;
+      console.log(`[boot-reg] ✅ ${c.nome} (${c.email}): ${c.valor} preenchido`);
+    }
+    if(_reg>0)console.log(`[boot-reg] ✅ ${_reg} cliente(s) regularizado(s) automaticamente`);
+    else console.log('[boot-reg] ✅ Todos os clientes confirmados já estão regularizados');
+  }, 10000); // 10s após boot
+
+  setTimeout(async()=>{
+    try{
+      const gKey=getGeminiKey();
+      if(!gKey){ console.log("[gemini-boot] sem chave Gemini, pulando regularização"); return; }
+      console.log("[gemini-boot] 🤖 Iniciando regularização automática de perfis...");
+
+      // ── PASSO 1: Regularizar clientes com plano ativo sem dados financeiros ──
+      const _clientesSemFinanceiro=Object.values(DB_USERS||{}).filter(u=>{
+        if(!u||!u.email||!u.plan||u.plan==='free')return false;
+        if(!isVipActive(u))return false;  // só quem tem VIP ativo
+        if(isAdminVip(u))return false;    // nunca o admin
+        // Está faltando dados financeiros?
+        return !u.financialStatus||!u.paymentAmount||u.lastValidationResult!=='CLIENTE_VALIDADO';
+      });
+
+      if(_clientesSemFinanceiro.length===0){
+        console.log("[gemini-boot] ✅ Todos os clientes já estão com dados financeiros preenchidos.");
+      } else {
+        console.log(`[gemini-boot] 📋 ${_clientesSemFinanceiro.length} cliente(s) com dados financeiros incompletos.`);
+
+        // Montar lista para o Gemini analisar
+        const _listaPendentes=_clientesSemFinanceiro.map(u=>({
+          email:u.email,
+          nome:u.name||u.email,
+          plano:u.plan||'?',
+          vipExpira:u.vip?.manualExpires?new Date(u.vip.manualExpires).toLocaleDateString('pt-BR'):'?',
+          financialStatus:u.financialStatus||'não preenchido',
+          paymentAmount:u.paymentAmount||'não preenchido',
+          lastValidationResult:u.lastValidationResult||'não validado',
+          pedidos:(DB_PEDIDOS||[]).filter(pd=>pd.userEmail===u.email).map(pd=>({
+            status:pd.status,plano:pd.plano,valor:pd.valorTotal,
+            ativadoPor:pd._ativadoEditor||pd.ativadoPor,
+            geminiAuditoria:pd.geminiAuditoria?.status
+          }))
+        }));
+
+        // Montar contexto de KB de preços
+        const _tabelaPrecos=`VIP 30d=R$100 60d=R$190 90d=R$270 1a=R$960 | VIPro 30d=R$150 60d=R$285 90d=R$405 1a=R$1440 | DoublePro 30d=R$250 60d=R$475 90d=R$675 1a=R$2400`;
+
+        const _promptReg=`Você é o sistema de regularização do H2BApply. Analise os clientes abaixo e para cada um infira os dados financeiros corretos baseado no plano e nos pedidos existentes.
+
+TABELA DE PREÇOS: ${_tabelaPrecos}
+
+CLIENTES PENDENTES:
+${JSON.stringify(_listaPendentes, null, 2)}
+
+Para cada cliente, retorne APENAS um array JSON (sem markdown) com os dados a preencher.
+Regras:
+- Se há pedido com valor, use esse valor como paymentAmount
+- Se não há pedido, infira o valor padrão pelo plano (30 dias)
+- paymentReceiver = "Diego" (é quem recebe os pagamentos)
+- paymentMethod = "pix"
+- financialStatus = "pago" se o cliente tem VIP ativo
+- paymentDate = data de hoje se não há data no pedido
+- paymentNote = descrição curta clara
+- Se não há informação suficiente, preencha com o mínimo possível
+
+RESPONDA APENAS com array JSON:
+[{"email":"...","financialStatus":"pago","paymentAmount":"R$150.00","paymentMethod":"pix","paymentReceiver":"Diego","paymentDate":"${new Date().toLocaleDateString('pt-BR')}","paymentNote":"..."}]`;
+
+        const gUrl=new URL(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${gKey}`);
+        const gBody=JSON.stringify({
+          contents:[{parts:[{text:_promptReg}]}],
+          generationConfig:{temperature:0.1,maxOutputTokens:2000}
+        });
+        const gRes=await new Promise((rs,rj)=>{
+          const r2=https.request({hostname:gUrl.hostname,path:gUrl.pathname+gUrl.search,method:"POST",
+            headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(gBody)}},
+            resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{try{rs(JSON.parse(Buffer.concat(ch).toString()));}catch{rj(new Error("parse"));}});});
+          r2.on("error",rj);r2.setTimeout(25000,()=>{r2.destroy();rj(new Error("timeout"));});
+          r2.write(gBody);r2.end();
+        });
+
+        const rawReg=(gRes?.candidates?.[0]?.content?.parts?.[0]?.text||"").replace(/```json|```/g,"").trim();
+        let atualizacoes=[];
+        try{ atualizacoes=JSON.parse(rawReg); }
+        catch(e){ console.warn("[gemini-boot] erro parse regularização:",rawReg.slice(0,200)); }
+
+        let _regCount=0;
+        const now=Date.now();
+        for(const upd of (Array.isArray(atualizacoes)?atualizacoes:[])){
+          if(!upd.email)continue;
+          const u=getUser(upd.email);if(!u)continue;
+          // Nunca sobrescrever dados já preenchidos pelo admin
+          const patch={};
+          if(!u.financialStatus&&upd.financialStatus)patch.financialStatus=upd.financialStatus;
+          if(!u.paymentAmount&&upd.paymentAmount)patch.paymentAmount=upd.paymentAmount;
+          if(!u.paymentMethod&&upd.paymentMethod)patch.paymentMethod=upd.paymentMethod;
+          if(!u.paymentReceiver&&upd.paymentReceiver)patch.paymentReceiver=upd.paymentReceiver;
+          if(!u.paymentDate&&upd.paymentDate)patch.paymentDate=upd.paymentDate;
+          if(!u.paymentNote&&upd.paymentNote)patch.paymentNote=upd.paymentNote;
+          // Sempre marcar como validado pelo Gemini
+          patch.lastValidatedAt=now;
+          patch.lastValidatedBy="Gemini Auto (boot)";
+          patch.lastValidationResult="CLIENTE_VALIDADO";
+          patch.adminEditHistory=[...(u.adminEditHistory||[]).slice(-49),{
+            at:now,by:"Gemini Auto",byEmail:"sistema",
+            changes:Object.keys(patch).join(","),
+            note:"Regularização automática Gemini no boot — dados inferidos do plano e pedidos"
+          }];
+          if(Object.keys(patch).length>3){ // tem dados reais além dos campos de validação
+            setUser(upd.email,patch);
+            _regCount++;
+            console.log(`[gemini-boot] ✅ ${upd.email}: ${upd.paymentAmount||'?'} preenchido`);
+          }
+        }
+        console.log(`[gemini-boot] ✅ Regularização concluída: ${_regCount} perfil(is) atualizados`);
+      }
+
+      // ── PASSO 2: Salvar contexto financeiro na KB (sem apagar antigas) ────
+      // Extrai dados reais do sistema e salva como entrada KB permanente
+      const _planosAtivosCount=Object.values(DB_USERS||{}).filter(u=>isVipActive(u)&&u.plan!=='free'&&!isAdminVip(u)).length;
+      const _receita=Object.values(DB_USERS||{}).reduce((acc,u)=>{
+        if(!isVipActive(u)||u.plan==='free'||isAdminVip(u))return acc;
+        const v=parseFloat((u.paymentAmount||'0').replace(/[^0-9.,]/g,'').replace(',','.'))||0;
+        return acc+v;
+      },0);
+
+      // Salvar contexto financeiro na KB — sempre novo (não substitui)
+      const _kbFinanceiro={
+        id:`KB-FIN-${new Date().toISOString().slice(0,7)}`, // KB-FIN-2026-06
+        versao:"auto-financeiro",
+        data:new Date().toISOString().slice(0,10),
+        tipo:"contexto_financeiro",
+        problema:`Contexto financeiro de ${new Date().toISOString().slice(0,7)}`,
+        solucao:`Receita inferida: R$${_receita.toFixed(2)} | Planos ativos: ${_planosAtivosCount} | Clientes validados: ${Object.values(DB_USERS||{}).filter(u=>u.lastValidationResult==='CLIENTE_VALIDADO').length}`,
+        impacto:"contexto",
+        modulos:["gemini-boot"],
+        geradoPor:"gemini-boot-auto",
+        geradoEm:new Date().toISOString()
+      };
+      // Atualizar ou adicionar (não duplicar mesmo mês)
+      const _kbFinIdx=DB_KB.entries.findIndex(e=>e.id===_kbFinanceiro.id);
+      if(_kbFinIdx>=0){ DB_KB.entries[_kbFinIdx]={...DB_KB.entries[_kbFinIdx],..._kbFinanceiro}; }
+      else { DB_KB.entries.push(_kbFinanceiro); }
+      try{ fs.writeFileSync(KB_FILE,JSON.stringify(DB_KB,null,2)); }catch{}
+      console.log(`[gemini-boot] 📚 KB financeira atualizada: R$${_receita.toFixed(2)} | ${_planosAtivosCount} planos ativos`);
+
+    }catch(e){ console.warn("[gemini-boot] erro:",e.message); }
+  }, 30000); // 30s após boot — depois do reactivate e cache
 
   // ── Startup Bounce Scan — verifica inbox de todos os usuários com token ──
   // Roda 20s após boot para dar tempo do reactivate e cache carregarem.

@@ -276,7 +276,7 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
       <button class="sb-item" onclick="showView('indicacoes')"><i class="ti ti-users-group"></i>Indicações</button>
       <button class="sb-item" onclick="showView('sugestoes');loadSugestoes()"><i class="ti ti-bulb"></i>Sugestões<span class="sb-badge sb-badge-a" id="sb-sugestoes" style="display:none">0</span></button>
       <button class="sb-item" onclick="showView('settings')"><i class="ti ti-settings"></i>Configurações</button>
-      <button class="sb-item" onclick="showView('incidentes');loadIncidentes()" style="background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(220,38,38,.08));border:1px solid rgba(239,68,68,.3);color:#f87171;font-weight:800">
+      <button class="sb-item" onclick="showView('incidentes')" style="background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(220,38,38,.08));border:1px solid rgba(239,68,68,.3);color:#f87171;font-weight:800">
         <i class="ti ti-alert-octagon" style="color:#f87171"></i>Central de Incidentes
         <span class="sb-badge sb-badge-r" id="sb-incidentes" style="display:none">0</span>
       </button>
@@ -657,11 +657,17 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
               </select>
               <select class="filter-sel" id="u-filter-status" onchange="filterUsers()">
                 <option value="">Todos status</option>
-                <option value="online">🟢 Online</option>
+                <option value="online">🟢 Online agora</option>
                 <option value="problem">🚨 Com problema</option>
-                <option value="auto">🤖 Com auto</option>
+                <option value="auto">🤖 Com automático</option>
                 <option value="nopdf">📄 Sem PDF</option>
-                <option value="noauto">Sem auto</option>
+                <option value="noauto">Sem automático</option>
+                <option value="paid">💰 Clientes pagos</option>
+                <option value="trial">🆓 Trial ativo</option>
+                <option value="expired">⏰ VIP expirado</option>
+                <option value="validated">✅ Validados Gemini</option>
+                <option value="notvalidated">⚠️ Não validados</option>
+                <option value="noreceipt">📭 Sem comprovante</option>
               </select>
             </div>
             <div id="users-cards-list">
@@ -2784,6 +2790,15 @@ document.addEventListener('DOMContentLoaded',()=>{
       <button class="btn btn-ghost btn-sm" style="color:var(--amber);border-color:rgba(245,158,11,.3)" onclick="notificarTodosAuthError(this)" title="Envia email de reconexão para todos com paused_auth_error"><i class="ti ti-mail-forward"></i> Notificar todos</button>
       <button class="btn btn-ghost btn-sm" onclick="toggleIncTab('missoes')" id="btn-tab-missoes"><i class="ti ti-list-check"></i> Missões</button>
       <button class="btn btn-ghost btn-sm" onclick="toggleIncTab('regras')" id="btn-tab-regras"><i class="ti ti-brain"></i> Regras</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleIncTab('saude')" id="btn-tab-saude"><i class="ti ti-heart-rate-monitor"></i> Saúde</button>
+      <div style="position:relative;display:inline-block">
+        <button class="btn btn-ghost btn-sm" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'"><i class="ti ti-download"></i> Download ▾</button>
+        <div style="display:none;position:absolute;right:0;top:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;z-index:100;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.3)">
+          <button class="btn btn-ghost btn-sm" style="display:block;width:100%;text-align:left" onclick="downloadIncidents('txt')">📄 TXT</button>
+          <button class="btn btn-ghost btn-sm" style="display:block;width:100%;text-align:left" onclick="downloadIncidents('csv')">📊 CSV</button>
+          <button class="btn btn-ghost btn-sm" style="display:block;width:100%;text-align:left" onclick="downloadIncidents('json')">🗂️ JSON</button>
+        </div>
+      </div>
       <button class="btn btn-danger btn-sm" onclick="clearIncResolvidos()"><i class="ti ti-trash"></i> Limpar Resolvidos</button>
     </div>
   </div>
@@ -2850,6 +2865,16 @@ document.addEventListener('DOMContentLoaded',()=>{
     </div>
     <div style="font-size:12px;color:var(--t3);margin-bottom:12px">O sistema aprende com suas decisões e as aplica automaticamente nas próximas ocorrências similares.</div>
     <div id="inc-rules-list" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+  <!-- TAB: SAÚDE DO SISTEMA -->
+  <div id="inc-tab-saude" style="display:none">
+    <div style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:12px;display:flex;align-items:center;gap:6px">
+      <i class="ti ti-heart-rate-monitor"></i> Painel de Saúde do Sistema
+    </div>
+    <div id="inc-health-panel" style="display:flex;flex-direction:column;gap:8px">
+      <div style="text-align:center;padding:20px;color:var(--t3)">Carregando saúde...</div>
+    </div>
   </div>
 </div>
 
@@ -3337,7 +3362,10 @@ function showView(name) {
     const vInc=document.getElementById('view-incidentes');
     const content=document.getElementById('content');
     if(vInc&&content&&vInc.parentElement!==content) content.appendChild(vInc);
-    loadIncidentes();
+    // Resetar o estado de loading explicitamente
+    const incListEl=document.getElementById('inc-list');
+    if(incListEl) incListEl.innerHTML='<div style="text-align:center;padding:40px;color:var(--t3)">Carregando...</div>';
+    setTimeout(()=>loadIncidentes(),50); // pequeno delay garante que DOM está pronto
   }
   document.querySelectorAll('.sb-item').forEach(b=>{if(b.getAttribute('onclick')?.includes(`'${name}'`))b.classList.add('active');});
   if(name==='users'){ renderUsersTable(); loadJourneyFeed(); }
@@ -3977,6 +4005,13 @@ function renderUsersTable(){
   if(sf==='auto') users=users.filter(u=>u.hasAuto);
   if(sf==='nopdf') users=users.filter(u=>u.hasPdf===false);
   if(sf==='noauto') users=users.filter(u=>!u.hasAuto);
+  // Novos filtros CCC
+  if(sf==='paid') users=users.filter(u=>u.plan&&u.plan!=='free'&&u.vip?.source!=='trial');
+  if(sf==='trial') users=users.filter(u=>u.vip?.source==='trial'&&(u.vip?.manualExpires||0)>Date.now());
+  if(sf==='expired') users=users.filter(u=>u.plan&&u.plan!=='free'&&(u.vip?.manualExpires||0)<=Date.now()&&(u.vip?.autoExpires||0)<=Date.now());
+  if(sf==='validated') users=users.filter(u=>u.lastValidatedAt&&u.lastValidationResult==='CLIENTE_VALIDADO');
+  if(sf==='notvalidated') users=users.filter(u=>!u.lastValidatedAt&&u.plan&&u.plan!=='free');
+  if(sf==='noreceipt') users=users.filter(u=>u.plan&&u.plan!=='free'&&!u.hasReceipt);
 
   // Ordenação
   if(sort==='today') users.sort((a,b)=>(b.todaySent||0)-(a.todaySent||0));
@@ -4145,18 +4180,26 @@ async function openUser(email){
   document.getElementById('user-modal').style.display='flex';
   document.getElementById('modal-name').textContent='…';
   document.getElementById('modal-email').textContent=email;
-  // Reset tabs
+  // ── CCC: reset header rápido
+  const _cccN=document.getElementById('ccc-name');if(_cccN)_cccN.textContent='…';
+  const _cccE=document.getElementById('ccc-email');if(_cccE)_cccE.textContent=email;
+  const _cccM=document.getElementById('ccc-meta');if(_cccM)_cccM.textContent='Carregando...';
+  const _cccB=document.getElementById('ccc-badges');if(_cccB)_cccB.innerHTML='';
+  // Ativar aba Visão Geral do CCC
+  try{cccTab('overview');}catch(e){}
+  // Reset tabs legado
   ['overview','auto','pdfs','profiles','journey','logs','history','enviados','health','edit','compras'].forEach(t=>{
     const el=document.getElementById('modal-tab-'+t);
     if(el) el.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>';
   });
-  // Activate overview tab
-  switchModalTab('overview');
 
   // Quick data from liveData
   const u=allUsers.find(x=>x.email===email);
   if(u) {
     document.getElementById('modal-name').textContent=u.name||email;
+    if(_cccN)_cccN.textContent=u.name||email;
+    const _av2=document.getElementById('ccc-av');
+    if(_av2){if(u.picture){_av2.outerHTML=`<img id="ccc-av" class="ccc-avatar" src="${esc(u.picture)}" onerror="this.outerHTML='<div id=ccc-av class=ccc-avatar-letter>${esc((u.name||email)[0]?.toUpperCase()||'?')}</div>'">`;}else{_av2.textContent=(u.name||email)[0]?.toUpperCase()||'?';}}
     const av=document.getElementById('modal-av');
     if(av) av.innerHTML=u.picture?`<img src="${esc(u.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`:(u.name||email)[0].toUpperCase();
     const badges=document.getElementById('modal-badges');
@@ -4195,6 +4238,13 @@ async function openUser(email){
     renderModalJourney(d,u);
     renderModalEdit(d,u);
     renderModalCompras(d,u);
+    // ── CCC: renderizar todas as abas do Client Control Center ──
+    cccRenderHeader(d,u);
+    cccRenderOverview(d,u);
+    cccRenderEdit(d,u);
+    cccRenderPlano(d,u);
+    cccRenderPagamento(d,u);
+    cccRenderHistorico(d,u);
   } catch(e){
     if(_overviewEl) _overviewEl.innerHTML=`<div class="empty-state" style="color:var(--red)"><i class="ti ti-wifi-off" style="font-size:28px;display:block;margin-bottom:8px"></i><div style="font-weight:700">Erro de conexão</div><div style="font-size:11px;margin-top:4px;color:var(--t3)">${esc(e.message)}</div><button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="openUser('${email.replace(/'/g,"\'")}')"><i class="ti ti-refresh"></i> Tentar novamente</button></div>`;
   }
@@ -4205,6 +4255,388 @@ function closeUserModal(){
   currentModalEmail=null;
   currentModalData=null;
 }
+
+// ══════════════════════════════════════════════════════════
+//  CLIENT CONTROL CENTER — FUNÇÕES JS
+// ══════════════════════════════════════════════════════════
+
+// Selecionar aba CCC
+function cccTab(name){
+  document.querySelectorAll('.ccc-tab').forEach((b,i)=>{
+    const names=['overview','edit','plano','pagamento','pdfs','profiles','auto','enviados','health','journey','historico'];
+    b.classList.toggle('active', names[i]===name);
+  });
+  document.querySelectorAll('.ccc-pane').forEach(p=>p.classList.remove('active'));
+  const pane=document.getElementById('ccc-pane-'+name);
+  if(pane) pane.classList.add('active');
+  // Compatibilidade: mapear para abas legado onde necessário
+  const legadoMap={pdfs:'pdfs',profiles:'profiles',auto:'auto',enviados:'enviados',health:'health',journey:'journey'};
+  // nada extra necessário — os divs legado já estão dentro dos painéis
+}
+
+// Selecionar plano no seletor visual
+function cccSelectPlan(plan){
+  ['vip','vipro','doublepro','free'].forEach(p=>{
+    document.getElementById('plan-opt-'+p)?.classList.toggle('selected',p===plan);
+  });
+  // Preencher dias automaticamente
+  const manualDaysEl=document.getElementById('ccc-plan-manual-days');
+  const autoDaysEl=document.getElementById('ccc-plan-auto-days');
+  if(!manualDaysEl||!autoDaysEl) return;
+  if(plan==='vip'){manualDaysEl.value=30;autoDaysEl.value=0;}
+  else if(plan==='vipro'){manualDaysEl.value=30;autoDaysEl.value=30;}
+  else if(plan==='doublepro'){manualDaysEl.value=30;autoDaysEl.value=30;}
+  else if(plan==='free'){manualDaysEl.value=0;autoDaysEl.value=0;}
+}
+
+// Renderizar cabeçalho CCC com dados do usuário
+function cccRenderHeader(d,u){
+  const user=d?.user||u||{};
+  const email=user.email||currentModalEmail||'–';
+  const name=user.name||email;
+  const vip=user.vip||{};
+  const now=Date.now();
+  // Avatar
+  const avEl=document.getElementById('ccc-av');
+  if(avEl){
+    if(user.picture){
+      avEl.outerHTML=`<img id="ccc-av" class="ccc-avatar" src="${esc(user.picture)}" onerror="this.outerHTML='<div id=ccc-av class=ccc-avatar-letter>${esc(name[0]?.toUpperCase()||'?')}</div>'">`;
+    } else {
+      avEl.textContent=(name[0]||'?').toUpperCase();
+    }
+  }
+  const nameEl=document.getElementById('ccc-name'); if(nameEl) nameEl.textContent=name;
+  const emailEl=document.getElementById('ccc-email'); if(emailEl) emailEl.textContent=email;
+  // Meta
+  const created=user.created_at?new Date(user.created_at).toLocaleDateString('pt-BR'):'–';
+  const lastLogin=user.lastLoginAt?new Date(user.lastLoginAt).toLocaleDateString('pt-BR'):'–';
+  const googleId=user.googleId||'–';
+  const metaEl=document.getElementById('ccc-meta');
+  if(metaEl) metaEl.textContent=`Cadastro: ${created} · Último login: ${lastLogin} · Google ID: ${googleId}`;
+  // Badges
+  const manDays=vip.manualExpires&&vip.manualExpires>now?Math.ceil((vip.manualExpires-now)/86400000):0;
+  const autDays=vip.autoExpires&&vip.autoExpires>now?Math.ceil((vip.autoExpires-now)/86400000):0;
+  const plan=user.plan||'free';
+  const planBadge={free:'<span class="ccc-badge ccc-badge-gray">Free</span>',vip:`<span class="ccc-badge ccc-badge-purple">⭐ VIP Manual · ${manDays}d</span>`,pro:`<span class="ccc-badge ccc-badge-blue">🤖 Pro Auto</span>`,vipro:`<span class="ccc-badge ccc-badge-blue">⭐🤖 VIPro · ${manDays}d man · ${autDays}d auto</span>`,doublepro:`<span class="ccc-badge" style="background:rgba(250,204,21,.15);color:#fbbf24;border:1px solid rgba(250,204,21,.3)">🚀 DoublePro · ${manDays}d man · ${autDays}d auto</span>`}[plan]||'';
+  const onlineBadge=u?.isOnline?'<span class="ccc-badge ccc-badge-green">🟢 Online</span>':'<span class="ccc-badge ccc-badge-gray">Offline</span>';
+  const validBadge=user.lastValidatedAt?(user.lastValidationResult==='CLIENTE_VALIDADO'?`<span class="ccc-badge ccc-badge-green">✅ Validado por ${esc(user.lastValidatedBy||'Admin')}</span>`:`<span class="ccc-badge ccc-badge-amber">⚠️ Pendências</span>`):'';
+  const payBadge=user.financialStatus?{pago:'<span class="ccc-badge ccc-badge-green">💰 Pago</span>',pendente:'<span class="ccc-badge ccc-badge-amber">⏳ Pendente</span>',atrasado:'<span class="ccc-badge ccc-badge-red">🔴 Atrasado</span>',cortesia:'<span class="ccc-badge ccc-badge-blue">🎁 Cortesia</span>',cancelado:'<span class="ccc-badge ccc-badge-red">❌ Cancelado</span>',parcial:'<span class="ccc-badge ccc-badge-amber">💸 Parcial</span>'}[user.financialStatus]||''  :'';
+  const badgesEl=document.getElementById('ccc-badges');
+  if(badgesEl) badgesEl.innerHTML=planBadge+onlineBadge+validBadge+payBadge;
+  // Botões worker
+  document.getElementById('modal-restart-btn').style.display=u?.hasAuto?'':'none';
+  document.getElementById('modal-stop-btn').style.display=u?.hasAuto?'':'none';
+  document.getElementById('modal-clearjob-btn').style.display=u?.hasAuto?'':'none';
+}
+
+// Renderizar Visão Geral CCC
+function cccRenderOverview(d,u){
+  const user=d?.user||u||{};
+  const vip=user.vip||{};
+  const now=Date.now();
+  const manDays=vip.manualExpires&&vip.manualExpires>now?Math.ceil((vip.manualExpires-now)/86400000):0;
+  const autDays=vip.autoExpires&&vip.autoExpires>now?Math.ceil((vip.autoExpires-now)/86400000):0;
+  const manExp=vip.manualExpires?new Date(vip.manualExpires).toLocaleDateString('pt-BR'):'–';
+  const autExp=vip.autoExpires?new Date(vip.autoExpires).toLocaleDateString('pt-BR'):'–';
+  // Cards topo
+  const planEl=document.getElementById('ccc-ov-plan'); if(planEl) planEl.textContent=(user.plan||'free').toUpperCase();
+  const srcEl=document.getElementById('ccc-ov-source'); if(srcEl) srcEl.textContent={trial:'🆓 Trial gratuito',admin:'💳 Ativado pelo admin',referral:'🤝 Indicação',code:'🎁 Código promo'}[vip.source||'admin']||'–';
+  const manDaysEl=document.getElementById('ccc-ov-manual-days'); if(manDaysEl){manDaysEl.textContent=manDays>0?manDays+'d':'–';manDaysEl.style.color=manDays>7?'#34d399':manDays>0?'#fbbf24':'#f87171';}
+  const manExpEl=document.getElementById('ccc-ov-manual-exp'); if(manExpEl) manExpEl.textContent='expira '+manExp;
+  const autDaysEl=document.getElementById('ccc-ov-auto-days'); if(autDaysEl){autDaysEl.textContent=autDays>0?autDays+'d':'–';autDaysEl.style.color=autDays>7?'#60a5fa':autDays>0?'#fbbf24':'#94a3b8';}
+  const autExpEl=document.getElementById('ccc-ov-auto-exp'); if(autExpEl) autExpEl.textContent='expira '+autExp;
+  // Dados pessoais
+  const profEl=document.getElementById('ccc-ov-profile');
+  if(profEl) profEl.innerHTML=`
+    <div class="ccc-field-row"><span class="ccc-field-label">Email</span><span class="ccc-field-val">${esc(user.email||'–')}</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">Telefone</span><span class="ccc-field-val">${esc(user.phone||'–')}</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">WhatsApp</span><span class="ccc-field-val">${esc(user.whatsapp||user.phone||'–')}</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">País</span><span class="ccc-field-val">${esc(user.country||'–')}</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">Cidade/Estado</span><span class="ccc-field-val">${esc([user.city,user.state].filter(Boolean).join(', ')||'–')}</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">Google ID</span><span class="ccc-field-val" style="font-size:10px;font-family:monospace">${esc(user.googleId||'–')}</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">Situação financeira</span><span class="ccc-field-val">${esc(user.financialStatus||'–')}</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">Quem recebeu</span><span class="ccc-field-val">${esc(user.paymentReceiver||'–')}</span></div>
+    ${user.adminNotes?`<div style="margin-top:8px;padding:8px;background:rgba(245,158,11,.08);border-radius:8px;font-size:11px;color:#fbbf24"><b>📝 Nota:</b> ${esc(user.adminNotes)}</div>`:''}`;
+  // Atividade
+  const actEl=document.getElementById('ccc-ov-activity');
+  if(actEl) actEl.innerHTML=`
+    <div class="ccc-field-row"><span class="ccc-field-label">Total enviados</span><span class="ccc-field-val ok">${(d?.totalSent||0).toLocaleString()}</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">Enviados hoje</span><span class="ccc-field-val">${d?.todaySent||0}</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">Automático hoje</span><span class="ccc-field-val">${d?.todayAuto||0}</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">Perfis cadastrados</span><span class="ccc-field-val">${(user.profiles||[]).length}</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">CVs/PDFs</span><span class="ccc-field-val">${(user.cvs||[]).length}</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">Dias bônus</span><span class="ccc-field-val">${vip.bonusDays||0}d</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">Última validação</span><span class="ccc-field-val">${user.lastValidatedAt?new Date(user.lastValidatedAt).toLocaleDateString('pt-BR'):'Nunca'}</span></div>
+    <div class="ccc-field-row"><span class="ccc-field-label">Validado por</span><span class="ccc-field-val">${esc(user.lastValidatedBy||'–')}</span></div>`;
+  // Resultado de validação anterior
+  const valEl=document.getElementById('ccc-validation-result');
+  if(valEl&&user.lastValidatedAt){
+    const isOk=user.lastValidationResult==='CLIENTE_VALIDADO';
+    valEl.innerHTML=`<div class="${isOk?'ccc-ok-box':'ccc-alert-box'}"><b>${isOk?'✅ Validado':'⚠️ Pendências detectadas'}</b> — Última auditoria em ${new Date(user.lastValidatedAt).toLocaleDateString('pt-BR')} por ${esc(user.lastValidatedBy||'Admin')}<br><button onclick="cccTab('plano')" style="margin-top:6px;background:none;border:1px solid currentColor;border-radius:6px;padding:3px 10px;font-size:10px;font-weight:700;color:inherit;cursor:pointer;font-family:inherit">Ver plano →</button></div>`;
+  } else if(valEl&&(user.plan||'free')!=='free') {
+    valEl.innerHTML=`<div class="ccc-alert-box">⚠️ Cliente com plano ativo mas <strong>ainda não validado</strong>. Clique em "Validar" para executar a auditoria Gemini.</div>`;
+  } else if(valEl){ valEl.innerHTML=''; }
+}
+
+// Preencher aba Editar Perfil com dados atuais
+function cccRenderEdit(d,u){
+  const user=d?.user||u||{};
+  const setV=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
+  setV('ccc-edit-name',user.name);
+  setV('ccc-edit-phone',user.phone);
+  setV('ccc-edit-whatsapp',user.whatsapp||user.phone);
+  setV('ccc-edit-country',user.country||'Brazil');
+  setV('ccc-edit-city',user.city);
+  setV('ccc-edit-state',user.state);
+  setV('ccc-edit-address',user.address);
+  setV('ccc-edit-age',user.age||'');
+  setV('ccc-edit-notes',user.adminNotes);
+  // Reset auth
+  setV('ccc-edit-editor','');setV('ccc-edit-password','');setV('ccc-edit-note','');
+  const resEl=document.getElementById('ccc-edit-result');if(resEl)resEl.innerHTML='';
+}
+
+// Preencher aba Plano com dados atuais
+function cccRenderPlano(d,u){
+  const user=d?.user||u||{};
+  const vip=user.vip||{};
+  const now=Date.now();
+  const manDays=vip.manualExpires&&vip.manualExpires>now?Math.ceil((vip.manualExpires-now)/86400000):0;
+  const autDays=vip.autoExpires&&vip.autoExpires>now?Math.ceil((vip.autoExpires-now)/86400000):0;
+  const plan=user.plan||'free';
+  const setT=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+  setT('ccc-plan-current',plan.toUpperCase());
+  setT('ccc-plan-source',{trial:'Trial gratuito',admin:'Ativado pelo admin',referral:'Indicação',code:'Código promo'}[vip.source||'admin']||'–');
+  setT('ccc-plan-manual',manDays>0?manDays+'d':'expirado');
+  setT('ccc-plan-auto',autDays>0?autDays+'d':'–');
+  setT('ccc-plan-manual-exp',vip.manualExpires&&vip.manualExpires>now?'expira '+new Date(vip.manualExpires).toLocaleDateString('pt-BR'):'sem acesso manual');
+  setT('ccc-plan-auto-exp',vip.autoExpires&&vip.autoExpires>now?'expira '+new Date(vip.autoExpires).toLocaleDateString('pt-BR'):'sem acesso auto');
+  // Preencher campos de edição
+  const setV=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
+  setV('ccc-plan-manual-days',manDays);
+  setV('ccc-plan-auto-days',autDays);
+  setV('ccc-plan-bonus',vip.bonusDays||0);
+  setV('ccc-plan-note',vip.note||'');
+  // Destacar plano atual
+  ['vip','vipro','doublepro','free'].forEach(p=>document.getElementById('plan-opt-'+p)?.classList.remove('selected'));
+  const normPlan=plan==='pro'?'vipro':plan; // normaliza 'pro' para 'vipro' no seletor
+  document.getElementById('plan-opt-'+normPlan)?.classList.add('selected');
+  setV('ccc-plan-editor','');setV('ccc-plan-password','');
+  const resEl=document.getElementById('ccc-plan-result');if(resEl)resEl.innerHTML='';
+}
+
+// Preencher aba Pagamento com dados atuais
+function cccRenderPagamento(d,u){
+  const user=d?.user||u||{};
+  const setV=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
+  setV('ccc-pay-status',user.financialStatus);
+  setV('ccc-pay-amount',user.paymentAmount);
+  setV('ccc-pay-date',user.paymentDate);
+  setV('ccc-pay-method',user.paymentMethod);
+  setV('ccc-pay-receiver',user.paymentReceiver);
+  setV('ccc-pay-note',user.paymentNote);
+  setV('ccc-pay-editor','');setV('ccc-pay-password','');
+  const resEl=document.getElementById('ccc-pay-result');if(resEl)resEl.innerHTML='';
+  // Comprovantes
+  const email=user.email||currentModalEmail;
+  const cpEl=document.getElementById('ccc-comprovantes-section');
+  if(cpEl){
+    const comprovantes=adminGetComprovantes(email);
+    const cpPags=comprovantes.filter(c=>c.tipo==='pagamento');
+    const cpGastos=comprovantes.filter(c=>c.tipo==='gasto');
+    cpEl.innerHTML=`
+    <div class="ccc-section-title"><i class="ti ti-photo"></i> Comprovantes (${comprovantes.length})</div>
+    ${adminRenderComprovantes(cpPags,cpGastos,email)}
+    <div style="margin-top:12px">
+      <label class="ccc-label">Adicionar comprovante</label>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+        <select class="ccc-inp" id="ccc-cp-tipo" style="flex:0 0 180px"><option value="pagamento">💰 Pagamento</option><option value="gasto">💸 Gasto</option></select>
+        <input class="ccc-inp" id="ccc-cp-desc" placeholder="Descrição (ex: Pix R$149,90)">
+        <label style="flex-shrink:0;display:flex;align-items:center;justify-content:center;width:44px;height:40px;background:rgba(59,130,246,.1);border:2px dashed rgba(59,130,246,.4);border-radius:8px;cursor:pointer;color:#60a5fa;font-size:18px" for="ccc-cp-file"><i class="ti ti-camera"></i></label>
+        <input type="file" id="ccc-cp-file" accept="image/*" style="display:none" onchange="adminPreviewComprovante(this,'${esc(email)}')">
+      </div>
+      <div id="cp-preview-wrap" style="display:none;margin-top:10px">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <img id="cp-preview-img" style="width:90px;height:72px;object-fit:cover;border-radius:8px;border:1px solid rgba(255,255,255,.1)">
+          <div style="flex:1"><div id="cp-preview-info" style="font-size:11px;color:var(--t2);margin-bottom:6px"></div>
+          <div style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="adminSalvarComprovante('${esc(email)}')"><i class="ti ti-check"></i> Salvar</button><button class="btn btn-ghost btn-sm" onclick="adminCancelPreview()"><i class="ti ti-x"></i></button></div></div>
+        </div>
+      </div>
+      <div id="cp-lista-wrap" style="margin-top:12px"></div>
+    </div>`;
+  }
+}
+
+// Renderizar Histórico de Edições
+function cccRenderHistorico(d,u){
+  const user=d?.user||u||{};
+  const history=user.adminEditHistory||[];
+  const el=document.getElementById('ccc-edit-history-list');
+  if(!el) return;
+  if(!history.length){el.innerHTML='<div class="empty-state" style="font-size:12px">Nenhuma edição administrativa registrada.</div>';return;}
+  el.innerHTML=`<div style="display:flex;flex-direction:column;gap:6px">${[...history].reverse().map(h=>`
+    <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px 14px;font-size:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-weight:800;color:#a78bfa">${esc(h.by||'Admin')}</span>
+        <span style="color:rgba(255,255,255,.3);font-size:10px">${new Date(h.at||0).toLocaleString('pt-BR')}</span>
+      </div>
+      <div style="color:rgba(255,255,255,.5);font-size:10px">Campos: ${esc(h.changes||'–')}</div>
+      ${h.note?`<div style="color:#fbbf24;font-size:11px;margin-top:4px">📝 ${esc(h.note)}</div>`:''}
+    </div>`).join('')}</div>`;
+}
+
+// Salvar perfil via CCC
+async function cccSaveProfile(){
+  const email=currentModalEmail;if(!email) return;
+  const editor=document.getElementById('ccc-edit-editor')?.value;
+  const password=document.getElementById('ccc-edit-password')?.value;
+  if(!editor||!password){toast('Selecione o editor e insira a senha.','err');return;}
+  const EDITOR_PASS={andrew:'84800-54',diego:'Diego2026'};
+  if(EDITOR_PASS[editor]!==password){toast('Senha inválida.','err');return;}
+  const resEl=document.getElementById('ccc-edit-result');
+  if(resEl) resEl.innerHTML='<span style="color:var(--t3)">Salvando...</span>';
+  try{
+    const r=await fetch('/api/admin/user/full-update',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      email,
+      editorPassword:password,
+      editNote:document.getElementById('ccc-edit-note')?.value||'',
+      name:document.getElementById('ccc-edit-name')?.value,
+      phone:document.getElementById('ccc-edit-phone')?.value,
+      whatsapp:document.getElementById('ccc-edit-whatsapp')?.value,
+      country:document.getElementById('ccc-edit-country')?.value,
+      city:document.getElementById('ccc-edit-city')?.value,
+      state:document.getElementById('ccc-edit-state')?.value,
+      address:document.getElementById('ccc-edit-address')?.value,
+      age:document.getElementById('ccc-edit-age')?.value,
+      adminNotes:document.getElementById('ccc-edit-notes')?.value
+    })});
+    const d=await r.json();
+    if(d.ok){
+      if(resEl) resEl.innerHTML=`<span style="color:#34d399">✅ Salvo por ${esc(d.editorName||editor)} — ${esc((d.editedFields||[]).join(', '))}</span>`;
+      toast(`✅ Perfil atualizado por ${d.editorName||editor}`,'ok');
+      setTimeout(()=>refreshModal(),800);
+    } else {
+      if(resEl) resEl.innerHTML=`<span style="color:#f87171">❌ ${esc(d.error||'Erro')}</span>`;
+      toast(d.error||'Erro ao salvar','err');
+    }
+  }catch(e){
+    if(resEl) resEl.innerHTML=`<span style="color:#f87171">❌ ${esc(e.message)}</span>`;
+    toast('Erro de conexão','err');
+  }
+}
+
+// Salvar plano via CCC
+async function cccSavePlano(){
+  const email=currentModalEmail;if(!email) return;
+  const editor=document.getElementById('ccc-plan-editor')?.value;
+  const password=document.getElementById('ccc-plan-password')?.value;
+  if(!editor||!password){toast('Selecione o editor e insira a senha.','err');return;}
+  const EDITOR_PASS={andrew:'84800-54',diego:'Diego2026'};
+  if(EDITOR_PASS[editor]!==password){toast('Senha inválida.','err');return;}
+  const manualDays=parseInt(document.getElementById('ccc-plan-manual-days')?.value||0,10);
+  const autoDays=parseInt(document.getElementById('ccc-plan-auto-days')?.value||0,10);
+  const bonusDays=parseInt(document.getElementById('ccc-plan-bonus')?.value||0,10);
+  const vipNote=document.getElementById('ccc-plan-note')?.value||'';
+  const resEl=document.getElementById('ccc-plan-result');
+  if(resEl) resEl.innerHTML='<span style="color:var(--t3)">Aplicando...</span>';
+  try{
+    const r=await fetch('/api/admin/user/full-update',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      email,editorPassword:password,
+      manualDays,autoDays,bonusDays,vipNote,
+      editNote:`Plano ajustado — Manual:${manualDays}d Auto:${autoDays}d Bônus:${bonusDays}d`
+    })});
+    const d=await r.json();
+    if(d.ok){
+      if(resEl) resEl.innerHTML=`<span style="color:#34d399">✅ Plano salvo por ${esc(d.editorName||editor)}</span>`;
+      toast(`✅ Plano atualizado por ${d.editorName||editor}`,'ok');
+      setTimeout(()=>refreshModal(),800);
+    } else {
+      if(resEl) resEl.innerHTML=`<span style="color:#f87171">❌ ${esc(d.error||'Erro')}</span>`;
+      toast(d.error||'Erro','err');
+    }
+  }catch(e){
+    if(resEl) resEl.innerHTML=`<span style="color:#f87171">❌ ${esc(e.message)}</span>`;
+    toast('Erro de conexão','err');
+  }
+}
+
+// Salvar pagamento via CCC
+async function cccSavePayment(){
+  const email=currentModalEmail;if(!email) return;
+  const editor=document.getElementById('ccc-pay-editor')?.value;
+  const password=document.getElementById('ccc-pay-password')?.value;
+  if(!editor||!password){toast('Selecione o editor e insira a senha.','err');return;}
+  const EDITOR_PASS={andrew:'84800-54',diego:'Diego2026'};
+  if(EDITOR_PASS[editor]!==password){toast('Senha inválida.','err');return;}
+  const resEl=document.getElementById('ccc-pay-result');
+  if(resEl) resEl.innerHTML='<span style="color:var(--t3)">Salvando...</span>';
+  try{
+    const r=await fetch('/api/admin/user/full-update',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      email,editorPassword:password,
+      financialStatus:document.getElementById('ccc-pay-status')?.value,
+      paymentAmount:document.getElementById('ccc-pay-amount')?.value,
+      paymentDate:document.getElementById('ccc-pay-date')?.value,
+      paymentMethod:document.getElementById('ccc-pay-method')?.value,
+      paymentReceiver:document.getElementById('ccc-pay-receiver')?.value,
+      paymentNote:document.getElementById('ccc-pay-note')?.value,
+      editNote:'Dados financeiros atualizados'
+    })});
+    const d=await r.json();
+    if(d.ok){
+      if(resEl) resEl.innerHTML=`<span style="color:#34d399">✅ Dados financeiros salvos por ${esc(d.editorName||editor)}</span>`;
+      toast(`✅ Financeiro salvo por ${d.editorName||editor}`,'ok');
+      setTimeout(()=>refreshModal(),800);
+    } else {
+      if(resEl) resEl.innerHTML=`<span style="color:#f87171">❌ ${esc(d.error||'Erro')}</span>`;
+      toast(d.error||'Erro','err');
+    }
+  }catch(e){
+    if(resEl) resEl.innerHTML=`<span style="color:#f87171">❌ ${esc(e.message)}</span>`;
+    toast('Erro de conexão','err');
+  }
+}
+
+// Validar cliente com Gemini
+async function cccValidateClient(){
+  const email=currentModalEmail;if(!email) return;
+  const btn=document.getElementById('ccc-validate-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader" style="animation:spin .7s linear infinite"></i> Auditando...';}
+  // Perguntar quem está validando
+  const editor=prompt('Quem está validando?\n\nDigite: andrew ou diego');
+  if(!editor){if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-shield-check"></i> Validar';}return;}
+  const password=prompt(`Senha de ${editor}:`);
+  if(!password){if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-shield-check"></i> Validar';}return;}
+  try{
+    const r=await fetch('/api/admin/user/validate',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,editorPassword:password})});
+    const d=await r.json();
+    if(d.ok){
+      const result=d.result;
+      const isOk=result.status==='CLIENTE_VALIDADO';
+      const valEl=document.getElementById('ccc-validation-result');
+      if(valEl){
+        const pendHtml=result.pendencias?.length?`<ul style="margin:6px 0 0 16px;padding:0;font-size:11px">${result.pendencias.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:'';
+        const detHtml=result.detalhes?.length?`<ul style="margin:6px 0 0 16px;padding:0;font-size:11px;color:rgba(255,255,255,.5)">${result.detalhes.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'';
+        valEl.innerHTML=`<div class="${isOk?'ccc-ok-box':'ccc-alert-box'}">
+          <div style="font-size:14px;font-weight:800;margin-bottom:6px">${result.statusEmoji} ${result.status.replace(/_/g,' ')}</div>
+          <div style="font-size:12px">${esc(result.resumo)}</div>
+          ${pendHtml}${detHtml}
+          ${result.recomendacao?`<div style="margin-top:8px;font-size:11px;opacity:.7"><b>Recomendação:</b> ${esc(result.recomendacao)}</div>`:''}
+        </div>`;
+      }
+      toast(isOk?'✅ Cliente validado com sucesso':'⚠️ Pendências detectadas — veja Visão Geral',isOk?'ok':'warn');
+      // Atualizar badges no header
+      if(currentModalData) cccRenderHeader(currentModalData,allUsers.find(u=>u.email===email));
+    } else {
+      toast(d.error||'Erro na validação','err');
+    }
+  }catch(e){
+    toast('Erro de conexão: '+e.message,'err');
+  }
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-shield-check"></i> Validar';}
+}
+
+// Alias openUserModal → openUser (compatibilidade com busca global e outras referências)
+function openUserModal(email){ openUser(email); }
 
 async function refreshModal(){
   if(currentModalEmail) await openUser(currentModalEmail);
@@ -7225,13 +7657,8 @@ console.log('[admin v15] ✅ 20 melhorias carregadas');
 
 
 async function aprovarPedido(id){
-  if(!confirm('Ativar plano deste pedido? O VIP será adicionado automaticamente.'))return;
-  try{
-    const r=await fetch('/api/pedido/'+id,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'ativo'})});
-    const d=await r.json();
-    if(d.ok){toast('✅ Plano ativado com sucesso!','g');loadPedidos();}
-    else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
+  // Abrir modal de aprovação em vez de confirm() simples
+  abrirModalAprovacao(id);
 }
 async function cancelarPedido(id){
   if(!confirm('Cancelar este pedido?'))return;
@@ -7289,7 +7716,15 @@ async function loadIncidentes(){
     setText('inc-stat-missions',d.missionsPending||0);
     const resolved=(d.incidents||[]).filter(i=>i.status==='resolved').length;
     setText('inc-stat-resolved',resolved);
-    setText('inc-stat-rules',Object.keys(d.rules||{}).length);
+    const learnedRules=Object.keys(d.rules||{}).filter(k=>d.rules[k]&&typeof d.rules[k]==='object'&&d.rules[k].learnedAt).length;
+    setText('inc-stat-rules',learnedRules);
+    // Painel de saúde
+    renderIncHealth();
+    // Validação anti-divergência: contador > 0 mas lista vazia = BUG CRÍTICO
+    if(d.divergencia){
+      console.error('[CRÍTICO] Contador de incidentes diverge da lista! Reload forçado em 3s.');
+      setTimeout(()=>loadIncidentes(),3000);
+    }
     renderIncList();
     renderIncMissions();
     renderIncRules();
@@ -7300,22 +7735,25 @@ async function loadIncidentes(){
 }
 
 function toggleIncTab(tab){
-  ['incidentes','missoes','regras'].forEach(t=>{
+  ['incidentes','missoes','regras','saude'].forEach(t=>{
     const el=document.getElementById('inc-tab-'+t);
     if(el) el.style.display=t===tab?'':'none';
   });
-  // Mostrar incidentes tab se clicar em tab ativo
-  if(document.getElementById('inc-tab-'+tab)?.style.display==='none'){
-    document.getElementById('inc-tab-'+tab).style.display='';
+  // Se clicou na tab que já estava aberta, mostra incidentes
+  const target=document.getElementById('inc-tab-'+tab);
+  if(target&&target.style.display==='none'){
+    target.style.display='';
   }
 }
 
 const INC_TYPE_LABELS={
   oauth_expired:'🔐 OAuth Expirado',too_many_errors:'❌ Muitos Erros',
+  token_expired:'🔑 Token Expirado',auto_stuck:'⏸️ Automático Travado',
+  vip_expired:'💎 VIP Vencido',no_cv:'📄 Sem Currículo',
   gemini_fail:'🤖 Gemini Falhou',comprovante_invalido:'🧾 Comprovante Inválido',
   pagamento_sem_plano:'💰 Pagamento s/ Plano',usuario_duplicado:'👥 Duplicata',
   planilha_erro:'📋 Erro Planilha',banco_erro:'💾 Erro Banco',
-  gmail_falha:'📧 Gmail Falhou',manual:'🔧 Manual'
+  gmail_falha:'📧 Gmail Falhou',manual:'🔧 Manual',system:'⚙️ Sistema'
 };
 const INC_SEV_COLOR={error:'#f87171',warn:'#fbbf24',info:'#60a5fa'};
 const INC_SEV_BG={error:'rgba(239,68,68,.1)',warn:'rgba(245,158,11,.1)',info:'rgba(96,165,250,.1)'};
@@ -7336,29 +7774,35 @@ function renderIncList(){
     const isOpen=inc.status==='open';
     const dt=inc.createdAt?new Date(inc.createdAt).toLocaleString('pt-BR'):'';
     const rddt=inc.resolvedAt?new Date(inc.resolvedAt).toLocaleString('pt-BR'):'';
-    return`<div style="background:${INC_SEV_BG[sev]};border:1.5px solid ${INC_SEV_BORDER[sev]};border-radius:12px;padding:14px 16px">
+    // CORRIGIDO: usar .description (não .detail)
+    const desc=inc.description||inc.detail||'';
+    const hasOptions=(inc.options||[]).length>0;
+    return`<div style="background:${INC_SEV_BG[sev]||'rgba(245,158,11,.1)'};border:1.5px solid ${INC_SEV_BORDER[sev]||'rgba(245,158,11,.3)'};border-radius:12px;padding:14px 16px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap">
         <div style="flex:1;min-width:0">
-          <div style="font-size:14px;font-weight:800;color:${INC_SEV_COLOR[sev]};margin-bottom:3px">${esc(inc.title||'?')}</div>
+          <div style="font-size:14px;font-weight:800;color:${INC_SEV_COLOR[sev]||'#fbbf24'};margin-bottom:3px">${esc(inc.title||'?')}</div>
           <div style="font-size:11px;color:var(--t3);display:flex;gap:10px;flex-wrap:wrap">
             <span>${INC_TYPE_LABELS[inc.type]||inc.type||'-'}</span>
-            <span>🤖 ${esc(inc.robot||'-')}</span>
+            ${inc.robot?`<span>🤖 ${esc(inc.robot)}</span>`:''}
+            ${inc.module?`<span>📦 ${esc(inc.module)}</span>`:''}
             ${inc.userEmail?`<span>👤 ${esc(inc.userEmail)}</span>`:''}
             <span>🕐 ${dt}</span>
           </div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
-          <span style="font-size:10px;padding:3px 8px;border-radius:20px;font-weight:700;background:${isOpen?'rgba(239,68,68,.2)':'rgba(16,185,129,.2)'};color:${isOpen?'#f87171':' #34d399'}">${isOpen?'🔴 ABERTO':'✅ RESOLVIDO'}</span>
+          <span style="font-size:10px;padding:3px 8px;border-radius:20px;font-weight:700;background:${isOpen?'rgba(239,68,68,.2)':'rgba(16,185,129,.2)'};color:${isOpen?'#f87171':'#34d399'}">${isOpen?'🔴 ABERTO':'✅ RESOLVIDO'}</span>
         </div>
       </div>
-      <div style="font-size:12px;color:var(--t2);margin-bottom:10px">${esc(inc.description||'')}</div>
+      ${desc?`<div style="font-size:12px;color:var(--t2);margin-bottom:8px">${esc(desc)}</div>`:''}
+      ${inc.humanExplanation?`<div style="font-size:11px;color:var(--t3);background:var(--sf2);padding:6px 10px;border-radius:6px;margin-bottom:8px;border-left:3px solid ${INC_SEV_COLOR[sev]||'#fbbf24'}">📖 ${esc(inc.humanExplanation)}</div>`:''}
       ${inc.suggestedAction?`<div style="font-size:11px;color:var(--t3);background:var(--sf2);padding:6px 10px;border-radius:6px;margin-bottom:10px">💡 ${esc(inc.suggestedAction)}</div>`:''}
       ${!isOpen&&inc.resolution?`<div style="font-size:11px;color:var(--green);margin-bottom:6px">✅ Resolução: ${esc(inc.resolution)} — ${esc(inc.resolvedBy||'')} em ${rddt}</div>`:''}
       ${!isOpen&&inc.adminNote?`<div style="font-size:11px;color:var(--t3);margin-bottom:6px">📝 ${esc(inc.adminNote)}</div>`:''}
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${isOpen&&(inc.options||[]).length?`<button class="btn btn-primary btn-sm" onclick="openResolveModal('${esc(inc.id)}')"><i class="ti ti-check"></i> Resolver</button>`:''}
-        ${inc.userEmail&&isOpen&&(inc.type==='token_expired'||inc.type==='auto_stuck')?`<button class="btn btn-ghost btn-sm" style="color:var(--amber);border-color:rgba(245,158,11,.3)" onclick="adminNotifyAuthError('${esc(inc.userEmail)}',this)"><i class="ti ti-mail"></i> Notificar usuário</button>`:''}
-        ${inc.userEmail?`<button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText('${esc(inc.userEmail)}');toast('Email copiado','g')"><i class="ti ti-copy"></i> Copiar email</button>`:''}
+        ${isOpen?`<button class="btn btn-primary btn-sm" onclick="openResolveModal('${esc(inc.id)}')"><i class="ti ti-check"></i> Resolver</button>`:''}
+        ${inc.userEmail&&isOpen?`<button class="btn btn-ghost btn-sm" style="color:var(--amber);border-color:rgba(245,158,11,.3)" onclick="adminNotifyAuthError('${esc(inc.userEmail)}',this)"><i class="ti ti-mail"></i> Notificar</button>`:''}
+        ${inc.userEmail?`<button class="btn btn-ghost btn-sm" onclick="navigator.clipboard.writeText('${esc(inc.userEmail)}');toast('Email copiado','g')"><i class="ti ti-copy"></i> Email</button>`:''}
+        ${isOpen?`<button class="btn btn-ghost btn-sm" style="color:var(--t3)" onclick="ignoreIncident('${esc(inc.id)}')"><i class="ti ti-eye-off"></i> Ignorar</button>`:''}
         <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteIncident('${esc(inc.id)}')"><i class="ti ti-trash"></i></button>
       </div>
     </div>`;
@@ -7367,15 +7811,17 @@ function renderIncList(){
 
 function renderIncMissions(){
   const el=document.getElementById('inc-missions-list');if(!el)return;
-  const list=(incData.missions||[]).filter(m=>m.status==='pending');
+  // CORRIGIDO: missions do servidor não enviam status='pending', então não filtrar por status
+  const list=(incData.missions||[]);
   if(!list.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--t3)">🎉 Nenhuma missão pendente!</div>';return;}
   el.innerHTML=list.map((m,i)=>{
     const sev=m.severity||'warn';
-    return`<div style="background:var(--surface);border:1.5px solid ${INC_SEV_BORDER[sev]};border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px">
-      <div style="font-size:20px;font-weight:900;color:${INC_SEV_COLOR[sev]};min-width:28px">#${i+1}</div>
+    return`<div style="background:var(--surface);border:1.5px solid ${INC_SEV_BORDER[sev]||'rgba(245,158,11,.3)'};border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:20px;font-weight:900;color:${INC_SEV_COLOR[sev]||'#fbbf24'};min-width:28px">#${i+1}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:700;color:var(--text)">${esc(m.title||'?')}</div>
-        <div style="font-size:11px;color:var(--t3)">${esc(m.robot||'')}${m.userEmail?' — '+esc(m.userEmail):''}</div>
+        <div style="font-size:11px;color:var(--t3)">${esc(m.action||'')}${m.userEmail?' — '+esc(m.userEmail):''}</div>
+        ${m.robot?`<div style="font-size:10px;color:var(--t3)">🤖 ${esc(m.robot)}</div>`:''}
       </div>
       <button class="btn btn-primary btn-sm" onclick="openResolveModal('${esc(m.incidentId||m.id)}')">Resolver →</button>
     </div>`;
@@ -7385,7 +7831,8 @@ function renderIncMissions(){
 function renderIncRules(){
   const el=document.getElementById('inc-rules-list');if(!el)return;
   const rules=incData.rules||{};
-  const keys=Object.keys(rules);
+  // Filtrar apenas regras aprendidas (objeto com learnedAt), não flags booleanas
+  const keys=Object.keys(rules).filter(k=>rules[k]&&typeof rules[k]==='object'&&rules[k].learnedAt);
   if(!keys.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--t3)">Nenhuma regra aprendida ainda. Resolva incidentes marcando "Salvar como regra".</div>';return;}
   el.innerHTML=keys.map(k=>{
     const rule=rules[k];
@@ -7394,6 +7841,7 @@ function renderIncRules(){
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:700;color:#818cf8">${k.split('__')[0]||k}</div>
         <div style="font-size:11px;color:var(--t2)">Decisão: <strong>${esc(rule.decision||'?')}</strong> · Aplicada ${rule.count||1}x · ${dt}</div>
+        ${rule.ruleText?`<div style="font-size:10px;color:var(--t3);margin-top:2px">${esc(rule.ruleText)}</div>`:''}
       </div>
       <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteRule('${esc(k)}')"><i class="ti ti-trash"></i></button>
     </div>`;
@@ -7454,12 +7902,89 @@ async function submitResolveIncident(){
 async function deleteIncident(id){
   if(!confirm('Excluir este incidente?'))return;
   try{
-    const r=await fetch('/api/admin/incidents/'+id,{method:'DELETE',credentials:'include'});
+    const r=await fetch('/api/admin/incidents/'+encodeURIComponent(id),{method:'DELETE',credentials:'include'});
     const d=await r.json();
     if(d.ok){toast('Excluído','r');loadIncidentes();}
     else toast('Erro','r');
   }catch(e){toast('Erro: '+e.message,'r');}
 }
+
+async function ignoreIncident(id){
+  try{
+    const r=await fetch('/api/admin/incidents/'+encodeURIComponent(id)+'/resolve',{
+      method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({note:'Ignorado pelo admin',decision:'ignore'})
+    });
+    const d=await r.json();
+    if(d.ok){toast('Incidente ignorado','g');loadIncidentes();}
+    else toast('Erro','r');
+  }catch(e){toast('Erro: '+e.message,'r');}
+}
+
+function downloadIncidents(fmt){
+  const list=incData.incidents||[];
+  if(!list.length){toast('Nenhum incidente para baixar','r');return;}
+  const now=new Date().toISOString().slice(0,10);
+  if(fmt==='json'){
+    const blob=new Blob([JSON.stringify(list,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`incidentes_${now}.json`;a.click();
+  } else if(fmt==='csv'){
+    const headers=['ID','Título','Tipo','Severidade','Status','Robô','Módulo','Usuário','Descrição','Ação Sugerida','Criado em','Resolvido em','Resolvido por'];
+    const rows=list.map(i=>[
+      i.id,i.title,i.type,i.severity,i.status,i.robot||'',i.module||'',i.userEmail||'',
+      (i.description||i.detail||'').replace(/,/g,';'),
+      (i.suggestedAction||'').replace(/,/g,';'),
+      i.createdAt?new Date(i.createdAt).toLocaleString('pt-BR'):'',
+      i.resolvedAt?new Date(i.resolvedAt).toLocaleString('pt-BR'):'',
+      i.resolvedBy||''
+    ]);
+    const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`incidentes_${now}.csv`;a.click();
+  } else if(fmt==='txt'){
+    const txt=list.map((i,n)=>[
+      `INCIDENTE #${n+1}`,
+      `ID: ${i.id}`,
+      `Título: ${i.title||'?'}`,
+      `Tipo: ${i.type||'-'} | Severidade: ${i.severity||'-'} | Status: ${i.status}`,
+      `Robô: ${i.robot||'-'} | Módulo: ${i.module||'-'}`,
+      `Usuário: ${i.userEmail||'-'}`,
+      `Descrição: ${i.description||i.detail||'-'}`,
+      `Ação sugerida: ${i.suggestedAction||'-'}`,
+      `Criado em: ${i.createdAt?new Date(i.createdAt).toLocaleString('pt-BR'):'-'}`,
+      i.status==='resolved'?`Resolvido por ${i.resolvedBy||'?'} em ${i.resolvedAt?new Date(i.resolvedAt).toLocaleString('pt-BR'):'-'}`:'',
+      '─'.repeat(60)
+    ].filter(Boolean).join('\n')).join('\n\n');
+    const header=`CENTRAL DE INCIDENTES — H2BApply\nGerado em: ${new Date().toLocaleString('pt-BR')}\nTotal: ${list.length} incidentes\n${'═'.repeat(60)}\n\n`;
+    const blob=new Blob([header+txt],{type:'text/plain;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`incidentes_${now}.txt`;a.click();
+  }
+  toast('Download iniciado','g');
+}
+
+function renderIncHealth(){
+  const el=document.getElementById('inc-health-panel');if(!el)return;
+  const h=incData.health||{};
+  const items=[
+    {label:'Gmail / OAuth',key:'gmail',icon:'📧'},
+    {label:'Gemini IA',key:'gemini',icon:'🤖'},
+    {label:'Autenticação',key:'oauth',icon:'🔐'},
+    {label:'Emails Inválidos',key:'bounces',icon:'⛔'}
+  ];
+  const colorMap={green:'#34d399',yellow:'#fbbf24',red:'#f87171'};
+  const bgMap={green:'rgba(16,185,129,.1)',yellow:'rgba(245,158,11,.1)',red:'rgba(239,68,68,.1)'};
+  const labelMap={green:'🟢 OK',yellow:'🟡 Atenção',red:'🔴 Crítico'};
+  el.innerHTML=items.map(item=>{
+    const status=h[item.key]||'green';
+    return`<div style="background:${bgMap[status]};border:1px solid ${colorMap[status]}33;border-radius:10px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:13px">${item.icon} ${item.label}</span>
+      <span style="font-size:11px;font-weight:700;color:${colorMap[status]}">${labelMap[status]}</span>
+    </div>`;
+  }).join('');
+}
+
+
 
 async function notificarTodosAuthError(btn){
   const n=document.querySelectorAll('[data-type="token_expired"],[data-type="auto_stuck"]').length;
@@ -8010,13 +8535,8 @@ function renderPedidoCard(pd){
 }
 
 async function aprovarPedido(id){
-  if(!confirm('Ativar plano deste pedido? O VIP será adicionado automaticamente.'))return;
-  try{
-    const r=await fetch('/api/pedido/'+id,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'ativo'})});
-    const d=await r.json();
-    if(d.ok){toast('✅ Plano ativado com sucesso!','g');loadPedidos();}
-    else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
+  // Abrir modal de aprovação em vez de confirm() simples
+  abrirModalAprovacao(id);
 }
 async function cancelarPedido(id){
   if(!confirm('Cancelar este pedido?'))return;
@@ -11038,92 +11558,695 @@ function filterEvents(){renderEventsView();}
     </div>
   </div>
 </div>
+<style>
+.ccc-modal{background:#0a1628;border:1px solid rgba(99,102,241,.3);border-radius:20px;width:100%;max-width:980px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.6);animation:fadeIn .18s ease;margin:auto}
+.ccc-hdr{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:12px;flex-shrink:0;background:linear-gradient(135deg,rgba(99,102,241,.08),transparent)}
+.ccc-avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid rgba(99,102,241,.4);flex-shrink:0}
+.ccc-avatar-letter{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff;flex-shrink:0}
+.ccc-hdr-info{flex:1;min-width:0}
+.ccc-hdr-name{font-size:17px;font-weight:900;color:#fff;line-height:1.2}
+.ccc-hdr-email{font-size:11px;color:rgba(255,255,255,.4);font-family:monospace;margin-top:2px}
+.ccc-hdr-meta{font-size:10px;color:rgba(255,255,255,.3);margin-top:2px}
+.ccc-status-strip{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px}
+.ccc-tabs{display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,.06);flex-wrap:nowrap;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
+.ccc-tabs::-webkit-scrollbar{display:none}
+.ccc-tab{padding:10px 14px;font-size:11px;font-weight:700;color:rgba(255,255,255,.4);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .14s;font-family:inherit;white-space:nowrap;display:flex;align-items:center;gap:5px}
+.ccc-tab:hover{color:rgba(255,255,255,.7)}
+.ccc-tab.active{color:#818cf8;border-bottom-color:#6366f1}
+.ccc-body{flex:1;overflow-y:auto;padding:18px 20px}
+.ccc-pane{display:none}.ccc-pane.active{display:block}
+.ccc-section{margin-bottom:20px}
+.ccc-section-title{font-size:10px;font-weight:800;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.ccc-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ccc-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.ccc-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px}
+.ccc-field-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:12px}
+.ccc-field-row:last-child{border-bottom:none}
+.ccc-field-label{color:rgba(255,255,255,.35);font-size:11px}
+.ccc-field-val{font-weight:700;color:#e2e8f0}
+.ccc-field-val.ok{color:#34d399}
+.ccc-field-val.warn{color:#fbbf24}
+.ccc-field-val.err{color:#f87171}
+.ccc-inp{width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:9px 12px;font-size:13px;color:#e2e8f0;font-family:inherit;transition:border-color .14s;box-sizing:border-box}
+.ccc-inp:focus{outline:none;border-color:rgba(99,102,241,.5);background:rgba(99,102,241,.05)}
+.ccc-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;display:block}
+.ccc-form-group{margin-bottom:12px}
+.ccc-foot{padding:12px 20px;border-top:1px solid rgba(255,255,255,.06);display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex-shrink:0;background:rgba(0,0,0,.2)}
+.ccc-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;font-size:10px;font-weight:700}
+.ccc-badge-green{background:rgba(52,211,153,.15);color:#34d399;border:1px solid rgba(52,211,153,.3)}
+.ccc-badge-red{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3)}
+.ccc-badge-amber{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+.ccc-badge-purple{background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3)}
+.ccc-badge-blue{background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3)}
+.ccc-badge-gray{background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1)}
+.ccc-validate-box{background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(5,150,105,.04));border:1.5px solid rgba(16,185,129,.25);border-radius:14px;padding:16px;margin-bottom:16px}
+.ccc-alert-box{background:rgba(248,113,113,.08);border:1.5px solid rgba(248,113,113,.25);border-radius:12px;padding:12px;margin-bottom:12px;font-size:12px;color:#fca5a5}
+.ccc-ok-box{background:rgba(52,211,153,.08);border:1.5px solid rgba(52,211,153,.25);border-radius:12px;padding:12px;margin-bottom:12px;font-size:12px;color:#6ee7b7}
+.editor-auth-box{background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.25);border-radius:12px;padding:14px;margin-top:16px}
+.plan-selector{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+.plan-opt{padding:10px 12px;border-radius:10px;border:1.5px solid rgba(255,255,255,.08);cursor:pointer;transition:all .14s;text-align:center;background:rgba(255,255,255,.02)}
+.plan-opt:hover{border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.08)}
+.plan-opt.selected{border-color:#6366f1;background:rgba(99,102,241,.15)}
+.plan-opt-name{font-size:12px;font-weight:800;color:#fff}
+.plan-opt-desc{font-size:10px;color:rgba(255,255,255,.35);margin-top:2px}
+</style>
+
 <div class="modal-overlay" id="user-modal" style="display:none" onclick="if(event.target===this)closeUserModal()">
-  <div class="modal">
-    <div class="modal-hdr">
-      <div id="modal-av" style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff;flex-shrink:0">?</div>
-      <div style="flex:1;min-width:0">
-        <div class="modal-title" id="modal-name">–</div>
-        <div style="font-size:11px;color:var(--t3)" id="modal-email">–</div>
+  <div class="ccc-modal">
+    <!-- Header do CCC -->
+    <div class="ccc-hdr">
+      <div id="ccc-av" class="ccc-avatar-letter">?</div>
+      <div class="ccc-hdr-info">
+        <div class="ccc-hdr-name" id="ccc-name">–</div>
+        <div class="ccc-hdr-email" id="ccc-email">–</div>
+        <div class="ccc-hdr-meta" id="ccc-meta">–</div>
+        <div class="ccc-status-strip" id="ccc-badges"></div>
       </div>
-      <div id="modal-badges" style="display:flex;gap:5px;flex-wrap:wrap"></div>
-      <button onclick="closeUserModal()" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:20px;padding:2px;margin-left:6px"><i class="ti ti-x"></i></button>
-    </div>
-    <div class="modal-body">
-      <div class="tabs">
-        <button class="tab-btn active" onclick="switchModalTab('overview')"><i class="ti ti-info-circle"></i> Visão Geral</button>
-        <button class="tab-btn" onclick="switchModalTab('auto')"><i class="ti ti-robot"></i> Automático</button>
-        <button class="tab-btn" onclick="switchModalTab('pdfs')"><i class="ti ti-file-type-pdf"></i> PDFs</button>
-        <button class="tab-btn" onclick="switchModalTab('profiles')"><i class="ti ti-id-badge"></i> Perfis</button>
-        <button class="tab-btn" onclick="switchModalTab('journey')"><i class="ti ti-activity"></i> Jornada</button>
-        <button class="tab-btn" onclick="switchModalTab('logs')"><i class="ti ti-list"></i> Logs Auto</button>
-        <button class="tab-btn" onclick="switchModalTab('history')"><i class="ti ti-history"></i> Histórico</button>
-        <button class="tab-btn" onclick="switchModalTab('enviados')"><i class="ti ti-mail"></i> Enviados</button>
-        <button class="tab-btn" onclick="switchModalTab('health')"><i class="ti ti-heart-rate-monitor"></i> Saúde</button>
-        <button class="tab-btn" onclick="switchModalTab('compras')"><i class="ti ti-shopping-cart"></i> Plano/Compras</button>
-      <button class="tab-btn" onclick="switchModalTab('edit')"><i class="ti ti-edit"></i> Editar</button>
-      </div>
-      <div class="tab-content active" id="modal-tab-overview"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
-      <div class="tab-content" id="modal-tab-auto"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
-      <div class="tab-content" id="modal-tab-pdfs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
-      <div class="tab-content" id="modal-tab-profiles"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
-      <div class="tab-content" id="modal-tab-journey"><div class="empty-state"><i class="ti ti-loader"></i>Carregando jornada...</div></div>
-      <div class="tab-content" id="modal-tab-logs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
-      <div class="tab-content" id="modal-tab-history"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
-      <div class="tab-content" id="modal-tab-enviados"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
-      <div class="tab-content" id="modal-tab-health"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
-      <div class="tab-content" id="modal-tab-compras"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
-      <div class="tab-content" id="modal-tab-edit"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
-    </div>
-    <div class="modal-foot" style="flex-direction:column;gap:8px;align-items:stretch">
-      <!-- Linha 1: Ações de Worker -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;flex-shrink:0">🤖 Auto:</span>
-        <button class="btn btn-success btn-sm" id="modal-restart-btn" onclick="forceRestartFromModal()" style="display:none"><i class="ti ti-refresh"></i> Reiniciar</button>
-        <button class="btn btn-danger btn-sm" id="modal-stop-btn" onclick="forceStopFromModal()" style="display:none"><i class="ti ti-player-stop"></i> Parar</button>
-        <button class="btn btn-amber btn-sm" id="modal-clearjob-btn" onclick="clearJobFromModal()" style="display:none"><i class="ti ti-trash"></i> Limpar Fila</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminResetDailyUser(currentModalEmail)"><i class="ti ti-calendar-stats"></i> Reset diário</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminFixAuto(currentModalEmail)"><i class="ti ti-tool"></i> Fix Auto</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminClearSentUser(currentModalEmail)"><i class="ti ti-eraser"></i> Limpar enviados</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminSetAutoLimit(currentModalEmail)"><i class="ti ti-adjustments"></i> Definir limite</button>
-      </div>
-      <!-- Linha 2: VIP rápido -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;flex-shrink:0">💎 VIP:</span>
-        <button class="btn btn-purple btn-sm" onclick="renewVipFromModal(30)"><i class="ti ti-diamond"></i> +30d</button>
-        <button class="btn btn-purple btn-sm" onclick="renewVipFromModal(60)"><i class="ti ti-diamond"></i> +60d</button>
-        <button class="btn btn-purple btn-sm" onclick="renewVipFromModal(90)"><i class="ti ti-diamond"></i> +90d</button>
-        <button class="btn btn-purple btn-sm" onclick="renewVipFromModal(365)"><i class="ti ti-diamond"></i> +1 ano</button>
-        <button class="btn btn-amber btn-sm" onclick="adminSetPlan(currentModalEmail,'doublepro')"><i class="ti ti-rocket"></i> DoublePro</button>
-        <button class="btn btn-danger btn-sm" onclick="adminRevokeVip(currentModalEmail)"><i class="ti ti-ban"></i> Revogar VIP</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminSetCustomExpiry(currentModalEmail)"><i class="ti ti-calendar"></i> Expirar em...</button>
-      </div>
-      <!-- Linha 3: Comunicação -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;flex-shrink:0">📱 Contato:</span>
-        <button class="btn btn-success btn-sm" id="modal-wpp-btn" onclick="openWhatsAppFromModal()" style="background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.4);color:#25d366"><i class="ti ti-brand-whatsapp"></i> WhatsApp</button>
-        <button class="btn btn-ghost btn-sm" onclick="if(currentModalEmail)copyEmail(currentModalEmail,this)"><i class="ti ti-copy"></i> Copiar email</button>
-        <button class="btn btn-ghost btn-sm" id="modal-copy-wpp-btn" onclick="copyModalWpp(this)" title="Copiar número do WhatsApp"><i class="ti ti-copy"></i> Copiar WPP</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminSendNotifToUser(currentModalEmail)"><i class="ti ti-bell"></i> Notificação push</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminSendMessage(currentModalEmail)"><i class="ti ti-message"></i> Mensagem no app</button>
-        <button class="btn btn-ghost btn-sm" id="modal-notify-auth-btn" style="display:none;color:var(--amber);border-color:rgba(245,158,11,.3)" onclick="adminNotifyAuthError(currentModalEmail,this)"><i class="ti ti-mail"></i> Notif. reconexão</button>
-        <button class="btn btn-ghost btn-sm" onclick="switchModalTab('compras')"><i class="ti ti-shopping-cart"></i> Ver compras</button>
-      </div>
-      <!-- Linha 4: Dados + outros -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--border);padding-top:8px">
-        <span style="font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;flex-shrink:0">⚙️ Dados:</span>
-        <button class="btn btn-ghost btn-sm" onclick="refreshModal()"><i class="ti ti-refresh"></i> Recarregar</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminEditName(currentModalEmail)"><i class="ti ti-edit"></i> Editar nome</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminEditPhone(currentModalEmail)"><i class="ti ti-phone"></i> Editar tel/wpp</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminMakeAdmin(currentModalEmail)"><i class="ti ti-shield"></i> Tornar admin</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminExportUser(currentModalEmail)"><i class="ti ti-download"></i> Exportar dados</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminResetPdfs(currentModalEmail)"><i class="ti ti-file-off"></i> Limpar PDFs</button>
-        <button class="btn btn-danger btn-sm" onclick="adminDeleteUser(currentModalEmail)"><i class="ti ti-user-off"></i> Excluir conta</button>
-        <button class="btn btn-ghost" onclick="closeUserModal()" style="margin-left:auto">Fechar</button>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;flex-shrink:0">
+        <button onclick="closeUserModal()" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,.5);font-size:16px"><i class="ti ti-x"></i></button>
+        <button onclick="cccValidateClient()" id="ccc-validate-btn" style="background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(5,150,105,.1));border:1.5px solid rgba(16,185,129,.4);border-radius:8px;padding:6px 12px;font-size:11px;font-weight:800;color:#34d399;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;white-space:nowrap"><i class="ti ti-shield-check"></i> Validar</button>
       </div>
     </div>
+
+    <!-- Tabs -->
+    <div class="ccc-tabs" id="ccc-tabs">
+      <button class="ccc-tab active" onclick="cccTab('overview')"><i class="ti ti-dashboard"></i> Visão Geral</button>
+      <button class="ccc-tab" onclick="cccTab('edit')"><i class="ti ti-edit"></i> Editar Perfil</button>
+      <button class="ccc-tab" onclick="cccTab('plano')"><i class="ti ti-diamond"></i> Plano & VIP</button>
+      <button class="ccc-tab" onclick="cccTab('pagamento')"><i class="ti ti-cash"></i> Pagamento</button>
+      <button class="ccc-tab" onclick="cccTab('pdfs')"><i class="ti ti-file-type-pdf"></i> Documentos</button>
+      <button class="ccc-tab" onclick="cccTab('profiles')"><i class="ti ti-id-badge"></i> Perfis Email</button>
+      <button class="ccc-tab" onclick="cccTab('auto')"><i class="ti ti-robot"></i> Automático</button>
+      <button class="ccc-tab" onclick="cccTab('enviados')"><i class="ti ti-mail"></i> Enviados</button>
+      <button class="ccc-tab" onclick="cccTab('health')"><i class="ti ti-heart-rate-monitor"></i> Saúde</button>
+      <button class="ccc-tab" onclick="cccTab('journey')"><i class="ti ti-activity"></i> Jornada</button>
+      <button class="ccc-tab" onclick="cccTab('historico')"><i class="ti ti-history"></i> Histórico</button>
+    </div>
+
+    <!-- Body com painéis -->
+    <div class="ccc-body">
+      <!-- PAINEL: Visão Geral -->
+      <div class="ccc-pane active" id="ccc-pane-overview">
+        <div class="ccc-grid-3" style="margin-bottom:16px">
+          <div class="ccc-card" id="ccc-ov-plan-card">
+            <div class="ccc-field-label" style="margin-bottom:8px">Plano</div>
+            <div id="ccc-ov-plan" style="font-size:22px;font-weight:900;color:#a78bfa">–</div>
+            <div id="ccc-ov-source" style="font-size:11px;color:rgba(255,255,255,.3);margin-top:4px">–</div>
+          </div>
+          <div class="ccc-card">
+            <div class="ccc-field-label" style="margin-bottom:8px">Dias Manual</div>
+            <div id="ccc-ov-manual-days" style="font-size:22px;font-weight:900;color:#34d399">–</div>
+            <div id="ccc-ov-manual-exp" style="font-size:11px;color:rgba(255,255,255,.3);margin-top:4px">expira –</div>
+          </div>
+          <div class="ccc-card">
+            <div class="ccc-field-label" style="margin-bottom:8px">Dias Automático</div>
+            <div id="ccc-ov-auto-days" style="font-size:22px;font-weight:900;color:#60a5fa">–</div>
+            <div id="ccc-ov-auto-exp" style="font-size:11px;color:rgba(255,255,255,.3);margin-top:4px">expira –</div>
+          </div>
+        </div>
+        <div class="ccc-grid">
+          <div class="ccc-card">
+            <div class="ccc-section-title"><i class="ti ti-user"></i> Dados Pessoais</div>
+            <div id="ccc-ov-profile"></div>
+          </div>
+          <div class="ccc-card">
+            <div class="ccc-section-title"><i class="ti ti-chart-bar"></i> Atividade</div>
+            <div id="ccc-ov-activity"></div>
+          </div>
+        </div>
+        <div id="ccc-validation-result" style="margin-top:14px"></div>
+      </div>
+
+      <!-- PAINEL: Editar Perfil -->
+      <div class="ccc-pane" id="ccc-pane-edit">
+        <div class="ccc-grid">
+          <div>
+            <div class="ccc-section-title"><i class="ti ti-user"></i> Dados do Perfil</div>
+            <div class="ccc-form-group"><label class="ccc-label">Nome completo</label><input class="ccc-inp" id="ccc-edit-name" placeholder="Nome"></div>
+            <div class="ccc-form-group"><label class="ccc-label">Telefone / WhatsApp</label><input class="ccc-inp" id="ccc-edit-phone" placeholder="+55 11 99999-0000"></div>
+            <div class="ccc-form-group"><label class="ccc-label">WhatsApp (se diferente)</label><input class="ccc-inp" id="ccc-edit-whatsapp" placeholder="+55 11 99999-0000"></div>
+            <div class="ccc-form-group"><label class="ccc-label">País</label><input class="ccc-inp" id="ccc-edit-country" placeholder="Brazil"></div>
+            <div class="ccc-form-group"><label class="ccc-label">Cidade</label><input class="ccc-inp" id="ccc-edit-city" placeholder="São Paulo"></div>
+            <div class="ccc-form-group"><label class="ccc-label">Estado</label><input class="ccc-inp" id="ccc-edit-state" placeholder="SP"></div>
+            <div class="ccc-form-group"><label class="ccc-label">Endereço</label><input class="ccc-inp" id="ccc-edit-address" placeholder="Rua, número..."></div>
+            <div class="ccc-form-group"><label class="ccc-label">Idade</label><input class="ccc-inp" id="ccc-edit-age" type="number" min="0" max="120" placeholder="25"></div>
+          </div>
+          <div>
+            <div class="ccc-section-title"><i class="ti ti-notes"></i> Notas Administrativas</div>
+            <div class="ccc-form-group"><textarea class="ccc-inp" id="ccc-edit-notes" rows="6" placeholder="Observações internas sobre este cliente..." style="resize:vertical"></textarea></div>
+            <div class="ccc-section-title" style="margin-top:16px"><i class="ti ti-lock"></i> Autenticação da Edição</div>
+            <div class="editor-auth-box">
+              <div class="ccc-form-group">
+                <label class="ccc-label">Quem está editando?</label>
+                <select class="ccc-inp" id="ccc-edit-editor">
+                  <option value="">Selecionar...</option>
+                  <option value="andrew">Andrew</option>
+                  <option value="diego">Diego</option>
+                </select>
+              </div>
+              <div class="ccc-form-group">
+                <label class="ccc-label">Senha de confirmação</label>
+                <input class="ccc-inp" type="password" id="ccc-edit-password" placeholder="Digite a senha">
+              </div>
+              <div class="ccc-form-group">
+                <label class="ccc-label">Nota sobre a edição (opcional)</label>
+                <input class="ccc-inp" id="ccc-edit-note" placeholder="Ex: Corrigido dados incorretos do cadastro">
+              </div>
+              <button onclick="cccSaveProfile()" style="width:100%;background:linear-gradient(135deg,#6366f1,#7c3aed);border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px"><i class="ti ti-check"></i> Salvar Alterações do Perfil</button>
+              <div id="ccc-edit-result" style="margin-top:10px;font-size:12px;text-align:center"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAINEL: Plano & VIP -->
+      <div class="ccc-pane" id="ccc-pane-plano">
+        <div style="background:linear-gradient(135deg,rgba(167,139,250,.1),rgba(99,102,241,.05));border:1.5px solid rgba(167,139,250,.25);border-radius:14px;padding:16px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:800;color:#fff;margin-bottom:12px;display:flex;align-items:center;gap:8px"><i class="ti ti-diamond" style="color:#a78bfa"></i> Situação Atual do Plano</div>
+          <div class="ccc-grid-3">
+            <div style="background:rgba(0,0,0,.3);border-radius:10px;padding:12px;text-align:center">
+              <div class="ccc-field-label">Plano</div>
+              <div id="ccc-plan-current" style="font-size:18px;font-weight:900;color:#a78bfa;margin:4px 0">–</div>
+              <div id="ccc-plan-source" style="font-size:10px;color:rgba(255,255,255,.3)">–</div>
+            </div>
+            <div style="background:rgba(0,0,0,.3);border-radius:10px;padding:12px;text-align:center">
+              <div class="ccc-field-label">Manual</div>
+              <div id="ccc-plan-manual" style="font-size:18px;font-weight:900;color:#34d399;margin:4px 0">–d</div>
+              <div id="ccc-plan-manual-exp" style="font-size:10px;color:rgba(255,255,255,.3)">–</div>
+            </div>
+            <div style="background:rgba(0,0,0,.3);border-radius:10px;padding:12px;text-align:center">
+              <div class="ccc-field-label">Automático</div>
+              <div id="ccc-plan-auto" style="font-size:18px;font-weight:900;color:#60a5fa;margin:4px 0">–d</div>
+              <div id="ccc-plan-auto-exp" style="font-size:10px;color:rgba(255,255,255,.3)">–</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size:12px;font-weight:800;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Selecionar Tipo de Plano</div>
+        <div class="plan-selector">
+          <div class="plan-opt" id="plan-opt-vip" onclick="cccSelectPlan('vip')">
+            <div class="plan-opt-name">VIP Manual</div>
+            <div class="plan-opt-desc">200 envios/dia manual · Sem automático</div>
+          </div>
+          <div class="plan-opt" id="plan-opt-vipro" onclick="cccSelectPlan('vipro')">
+            <div class="plan-opt-name">VIPro</div>
+            <div class="plan-opt-desc">200 manual + 200 auto/dia</div>
+          </div>
+          <div class="plan-opt" id="plan-opt-doublepro" onclick="cccSelectPlan('doublepro')">
+            <div class="plan-opt-name">DoublePro</div>
+            <div class="plan-opt-desc">400 manual + 400 auto/dia · 2 Gmails</div>
+          </div>
+          <div class="plan-opt" id="plan-opt-free" onclick="cccSelectPlan('free')">
+            <div class="plan-opt-name" style="color:#f87171">Revogar / Free</div>
+            <div class="plan-opt-desc">Remove acesso VIP</div>
+          </div>
+        </div>
+
+        <div class="ccc-grid" style="margin-top:14px">
+          <div class="ccc-form-group">
+            <label class="ccc-label">📅 Dias de Manual</label>
+            <input class="ccc-inp" id="ccc-plan-manual-days" type="number" min="0" max="3650" placeholder="30">
+            <div style="font-size:10px;color:rgba(255,255,255,.25);margin-top:3px">0 = sem acesso manual</div>
+          </div>
+          <div class="ccc-form-group">
+            <label class="ccc-label">🤖 Dias de Automático</label>
+            <input class="ccc-inp" id="ccc-plan-auto-days" type="number" min="0" max="3650" placeholder="30">
+            <div style="font-size:10px;color:rgba(255,255,255,.25);margin-top:3px">0 = sem acesso auto</div>
+          </div>
+        </div>
+        <div class="ccc-grid">
+          <div class="ccc-form-group">
+            <label class="ccc-label">🎁 Dias Bônus (grátis)</label>
+            <input class="ccc-inp" id="ccc-plan-bonus" type="number" min="0" max="365" placeholder="0">
+          </div>
+          <div class="ccc-form-group">
+            <label class="ccc-label">📝 Nota</label>
+            <input class="ccc-inp" id="ccc-plan-note" placeholder="Ex: Pago R$149,90 em 01/06">
+          </div>
+        </div>
+        <div class="editor-auth-box">
+          <div style="font-size:11px;font-weight:800;color:#fbbf24;margin-bottom:10px"><i class="ti ti-lock"></i> Confirmação necessária</div>
+          <div class="ccc-grid">
+            <div class="ccc-form-group">
+              <label class="ccc-label">Editor</label>
+              <select class="ccc-inp" id="ccc-plan-editor"><option value="">Selecionar...</option><option value="andrew">Andrew</option><option value="diego">Diego</option></select>
+            </div>
+            <div class="ccc-form-group">
+              <label class="ccc-label">Senha</label>
+              <input class="ccc-inp" type="password" id="ccc-plan-password" placeholder="Senha">
+            </div>
+          </div>
+          <button onclick="cccSavePlano()" style="width:100%;background:linear-gradient(135deg,rgba(167,139,250,.3),rgba(99,102,241,.2));border:1.5px solid rgba(167,139,250,.4);border-radius:10px;padding:12px;font-size:13px;font-weight:800;color:#a78bfa;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px"><i class="ti ti-check"></i> Aplicar Configuração de Plano</button>
+          <div id="ccc-plan-result" style="margin-top:10px;font-size:12px;text-align:center"></div>
+        </div>
+      </div>
+
+      <!-- PAINEL: Pagamento -->
+      <div class="ccc-pane" id="ccc-pane-pagamento">
+        <div class="ccc-section-title"><i class="ti ti-cash"></i> Dados Financeiros do Cliente</div>
+        <div class="ccc-grid" style="margin-bottom:14px">
+          <div>
+            <div class="ccc-form-group">
+              <label class="ccc-label">Situação financeira</label>
+              <select class="ccc-inp" id="ccc-pay-status">
+                <option value="">Não definida</option>
+                <option value="pago">✅ Pago</option>
+                <option value="pendente">⏳ Pendente</option>
+                <option value="atrasado">🔴 Atrasado</option>
+                <option value="cancelado">❌ Cancelado</option>
+                <option value="cortesia">🎁 Cortesia</option>
+                <option value="parcial">💸 Pago parcial</option>
+              </select>
+            </div>
+            <div class="ccc-form-group">
+              <label class="ccc-label">Valor pago</label>
+              <input class="ccc-inp" id="ccc-pay-amount" placeholder="Ex: R$149,90">
+            </div>
+            <div class="ccc-form-group">
+              <label class="ccc-label">Data do pagamento</label>
+              <input class="ccc-inp" id="ccc-pay-date" placeholder="01/06/2025">
+            </div>
+          </div>
+          <div>
+            <div class="ccc-form-group">
+              <label class="ccc-label">Método de pagamento</label>
+              <select class="ccc-inp" id="ccc-pay-method">
+                <option value="">Não definido</option>
+                <option value="pix">PIX</option>
+                <option value="cartao">Cartão de crédito</option>
+                <option value="boleto">Boleto</option>
+                <option value="transferencia">Transferência</option>
+                <option value="dinheiro">Dinheiro</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            <div class="ccc-form-group">
+              <label class="ccc-label">Quem recebeu o pagamento</label>
+              <select class="ccc-inp" id="ccc-pay-receiver">
+                <option value="">Não definido</option>
+                <option value="Andrew">Andrew</option>
+                <option value="Diego">Diego</option>
+              </select>
+            </div>
+            <div class="ccc-form-group">
+              <label class="ccc-label">Nota de pagamento</label>
+              <textarea class="ccc-inp" id="ccc-pay-note" rows="3" placeholder="Detalhes do pagamento..." style="resize:vertical"></textarea>
+            </div>
+          </div>
+        </div>
+        <div id="ccc-comprovantes-section" style="margin-bottom:14px"></div>
+        <div class="editor-auth-box">
+          <div style="font-size:11px;font-weight:800;color:#fbbf24;margin-bottom:10px"><i class="ti ti-lock"></i> Confirmação necessária</div>
+          <div class="ccc-grid">
+            <div class="ccc-form-group"><label class="ccc-label">Editor</label><select class="ccc-inp" id="ccc-pay-editor"><option value="">Selecionar...</option><option value="andrew">Andrew</option><option value="diego">Diego</option></select></div>
+            <div class="ccc-form-group"><label class="ccc-label">Senha</label><input class="ccc-inp" type="password" id="ccc-pay-password" placeholder="Senha"></div>
+          </div>
+          <button onclick="cccSavePayment()" style="width:100%;background:linear-gradient(135deg,rgba(52,211,153,.2),rgba(16,185,129,.1));border:1.5px solid rgba(52,211,153,.35);border-radius:10px;padding:12px;font-size:13px;font-weight:800;color:#34d399;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px"><i class="ti ti-check"></i> Salvar Dados Financeiros</button>
+          <div id="ccc-pay-result" style="margin-top:10px;font-size:12px;text-align:center"></div>
+        </div>
+      </div>
+
+      <!-- PAINEL: Documentos -->
+      <div class="ccc-pane" id="ccc-pane-pdfs">
+        <div id="modal-tab-pdfs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      </div>
+
+      <!-- PAINEL: Perfis Email -->
+      <div class="ccc-pane" id="ccc-pane-profiles">
+        <div id="modal-tab-profiles"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      </div>
+
+      <!-- PAINEL: Automático -->
+      <div class="ccc-pane" id="ccc-pane-auto">
+        <div id="modal-tab-auto"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      </div>
+
+      <!-- PAINEL: Enviados -->
+      <div class="ccc-pane" id="ccc-pane-enviados">
+        <div id="modal-tab-enviados"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      </div>
+
+      <!-- PAINEL: Saúde -->
+      <div class="ccc-pane" id="ccc-pane-health">
+        <div id="modal-tab-health"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+      </div>
+
+      <!-- PAINEL: Jornada -->
+      <div class="ccc-pane" id="ccc-pane-journey">
+        <div id="modal-tab-journey"><div class="empty-state"><i class="ti ti-loader"></i>Carregando jornada...</div></div>
+      </div>
+
+      <!-- PAINEL: Histórico de Edições -->
+      <div class="ccc-pane" id="ccc-pane-historico">
+        <div class="ccc-section-title"><i class="ti ti-history"></i> Histórico de Alterações Administrativas</div>
+        <div id="ccc-edit-history-list"><div class="empty-state">Nenhuma edição registrada.</div></div>
+        <div style="margin-top:20px">
+          <div class="ccc-section-title"><i class="ti ti-list"></i> Logs do Automático</div>
+          <div id="modal-tab-logs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+        </div>
+        <div style="margin-top:20px">
+          <div class="ccc-section-title"><i class="ti ti-history"></i> Histórico de Envios</div>
+          <div id="modal-tab-history"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+        </div>
+        <!-- Compras legado -->
+        <div id="modal-tab-compras" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- Footer de ações rápidas -->
+    <div class="ccc-foot">
+      <button class="btn btn-success btn-sm" id="modal-restart-btn" onclick="forceRestartFromModal()" style="display:none"><i class="ti ti-refresh"></i> Reiniciar Auto</button>
+      <button class="btn btn-danger btn-sm" id="modal-stop-btn" onclick="forceStopFromModal()" style="display:none"><i class="ti ti-player-stop"></i> Parar</button>
+      <button class="btn btn-amber btn-sm" id="modal-clearjob-btn" onclick="clearJobFromModal()" style="display:none"><i class="ti ti-trash"></i> Limpar Fila</button>
+      <button class="btn btn-ghost btn-sm" onclick="adminResetDailyUser(currentModalEmail)"><i class="ti ti-calendar-stats"></i> Reset diário</button>
+      <button class="btn btn-success btn-sm" id="modal-wpp-btn" onclick="openWhatsAppFromModal()" style="background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.4);color:#25d366"><i class="ti ti-brand-whatsapp"></i> WhatsApp</button>
+      <button class="btn btn-ghost btn-sm" onclick="adminSendMessage(currentModalEmail)"><i class="ti ti-message"></i> Msg no app</button>
+      <button class="btn btn-ghost btn-sm" id="modal-notify-auth-btn" style="display:none;color:var(--amber);border-color:rgba(245,158,11,.3)" onclick="adminNotifyAuthError(currentModalEmail,this)"><i class="ti ti-mail"></i> Notif. reconexão</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost btn-sm" onclick="refreshModal()"><i class="ti ti-refresh"></i> Recarregar</button>
+      <button class="btn btn-danger btn-sm" onclick="adminDeleteUser(currentModalEmail)"><i class="ti ti-user-off"></i> Excluir</button>
+      <button class="btn btn-ghost" onclick="closeUserModal()">Fechar</button>
+    </div>
+
+    <!-- Manter compatibilidade com funções legado -->
+    <div id="modal-tab-overview" style="display:none"></div>
+    <div id="modal-tab-edit" style="display:none"></div>
+    <div id="modal-badges" style="display:none"></div>
+    <div id="modal-name" style="display:none"></div>
+    <div id="modal-email" style="display:none"></div>
+    <div id="modal-av" style="display:none"></div>
+    <div id="modal-copy-wpp-btn" style="display:none" onclick="copyModalWpp(this)"></div>
   </div>
 </div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL DE APROVAÇÃO DE PEDIDO v2 — com senha + bônus + Gemini
+════════════════════════════════════════════════════════════ -->
+<div id="modal-aprovacao" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px)" onclick="if(event.target===this)fecharModalAprovacao()">
+  <div style="background:#0d1629;border:1px solid rgba(16,185,129,.3);border-radius:20px 20px 0 0;width:100%;max-width:540px;max-height:92dvh;overflow-y:auto;padding:0 0 24px;animation:slideUp .2s ease">
+
+    <!-- Handle -->
+    <div style="display:flex;justify-content:center;padding:10px"><div style="width:40px;height:4px;background:rgba(255,255,255,.15);border-radius:99px"></div></div>
+
+    <!-- Header -->
+    <div style="padding:0 20px 14px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="font-size:18px;font-weight:900;color:#fff;margin-bottom:3px">✅ Aprovar Pedido</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4)" id="maprov-subtitle">Confirme os dados antes de ativar</div>
+    </div>
+
+    <!-- Resumo do pedido -->
+    <div style="padding:14px 20px;background:rgba(16,185,129,.06);border-bottom:1px solid rgba(255,255,255,.06)" id="maprov-resumo"></div>
+
+    <!-- Comprovante -->
+    <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.06)" id="maprov-comp-section">
+      <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">📸 Comprovante de Pagamento</div>
+      <div id="maprov-comp-img" style="text-align:center"></div>
+    </div>
+
+    <!-- Dias bônus -->
+    <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">🎁 Dias Bônus (além do plano contratado)</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        <button class="maprov-bonus-btn" onclick="maprovSelecionarBonus(0,this)" style="background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:10px;padding:10px 4px;font-size:13px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit;transition:all .14s">+0<div style="font-size:9px;font-weight:400;color:rgba(255,255,255,.4);margin-top:2px">padrão</div></button>
+        <button class="maprov-bonus-btn" onclick="maprovSelecionarBonus(5,this)" style="background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:10px;padding:10px 4px;font-size:13px;font-weight:800;color:#34d399;cursor:pointer;font-family:inherit;transition:all .14s">+5d<div style="font-size:9px;font-weight:400;color:rgba(255,255,255,.4);margin-top:2px">grátis</div></button>
+        <button class="maprov-bonus-btn" onclick="maprovSelecionarBonus(10,this)" style="background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:10px;padding:10px 4px;font-size:13px;font-weight:800;color:#34d399;cursor:pointer;font-family:inherit;transition:all .14s">+10d<div style="font-size:9px;font-weight:400;color:rgba(255,255,255,.4);margin-top:2px">grátis</div></button>
+        <button class="maprov-bonus-btn" onclick="maprovSelecionarBonus(15,this)" style="background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:10px;padding:10px 4px;font-size:13px;font-weight:800;color:#34d399;cursor:pointer;font-family:inherit;transition:all .14s">+15d<div style="font-size:9px;font-weight:400;color:rgba(255,255,255,.4);margin-top:2px">grátis</div></button>
+      </div>
+      <div id="maprov-total-dias" style="text-align:center;margin-top:10px;font-size:13px;color:rgba(255,255,255,.5)"></div>
+    </div>
+
+    <!-- Nota admin -->
+    <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.06)">
+      <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📝 Nota Interna (opcional)</div>
+      <textarea id="maprov-nota" placeholder="Ex: Pix confirmado, cliente indicado por João..." style="width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;font-size:13px;color:#e2e8f0;font-family:inherit;resize:vertical;min-height:56px;box-sizing:border-box"></textarea>
+    </div>
+
+    <!-- Autenticação -->
+    <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(245,158,11,.04)">
+      <div style="font-size:10px;font-weight:800;color:rgba(245,158,11,.7);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">🔐 Confirmação do Editor</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:10px;color:rgba(255,255,255,.4);font-weight:700;display:block;margin-bottom:5px">Quem está aprovando?</label>
+          <select id="maprov-editor" style="width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:9px 12px;font-size:13px;color:#e2e8f0;font-family:inherit">
+            <option value="">Selecionar...</option>
+            <option value="andrew">Andrew</option>
+            <option value="diego">Diego</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:10px;color:rgba(255,255,255,.4);font-weight:700;display:block;margin-bottom:5px">Senha de confirmação</label>
+          <input type="password" id="maprov-senha" placeholder="Digite a senha" style="width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:9px 12px;font-size:13px;color:#e2e8f0;font-family:inherit;box-sizing:border-box">
+        </div>
+      </div>
+    </div>
+
+    <!-- Resultado Gemini (aparece após ativação) -->
+    <div id="maprov-gemini-result" style="display:none;padding:12px 20px;margin:0;background:rgba(16,185,129,.06);border-bottom:1px solid rgba(255,255,255,.06)"></div>
+
+    <!-- Botões -->
+    <div style="padding:16px 20px;display:flex;flex-direction:column;gap:8px">
+      <button id="maprov-btn-ativar" onclick="maprovConfirmarAtivacao()" style="width:100%;background:linear-gradient(135deg,#059669,#10b981);border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:900;color:#fff;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px">
+        <i class="ti ti-check"></i> Ativar Plano Agora
+      </button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button onclick="maprovAbrirWhatsApp()" id="maprov-btn-wpp" style="background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.3);border-radius:10px;padding:10px;font-size:12px;font-weight:700;color:#25d366;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px">
+          <i class="ti ti-brand-whatsapp"></i> WhatsApp
+        </button>
+        <button onclick="fecharModalAprovacao()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px;font-size:12px;font-weight:700;color:rgba(255,255,255,.5);cursor:pointer;font-family:inherit">
+          Cancelar
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  MODAL DE APROVAÇÃO v2
+// ══════════════════════════════════════════════════════════
+let _maprovPedidoId = null;
+let _maprovPedidoData = null;
+let _maprovBonusDias = 0;
+
+const PLAN_PRICES_MAPROV = {
+  vip:{name:'⭐ VIP Manual',prices:{30:100,60:190,90:270,365:960}},
+  vipro:{name:'🤖 VIPro',prices:{30:150,60:285,90:405,365:1440}},
+  doublepro:{name:'💎 DoublePro',prices:{30:250,60:475,90:675,365:2400}}
+};
+
+async function abrirModalAprovacao(pedidoId){
+  _maprovPedidoId = pedidoId;
+  _maprovBonusDias = 0;
+
+  // Resetar campos
+  document.getElementById('maprov-editor').value='';
+  document.getElementById('maprov-senha').value='';
+  document.getElementById('maprov-nota').value='';
+  document.getElementById('maprov-gemini-result').style.display='none';
+  document.querySelectorAll('.maprov-bonus-btn').forEach(b=>{
+    b.style.borderColor='rgba(255,255,255,.15)';
+    b.style.background='rgba(255,255,255,.08)';
+  });
+
+  // Mostrar modal (loading state)
+  const modal = document.getElementById('modal-aprovacao');
+  modal.style.display='flex';
+  document.getElementById('maprov-resumo').innerHTML='<div style="text-align:center;padding:10px;color:rgba(255,255,255,.3)">Carregando dados do pedido...</div>';
+  document.getElementById('maprov-comp-img').innerHTML='<div style="color:rgba(255,255,255,.3);font-size:12px">Carregando comprovante...</div>';
+
+  try{
+    // Buscar pedido completo (inclui comprovante base64)
+    const r = await fetch('/api/pedido/'+pedidoId, {credentials:'include'});
+    const d = await r.json();
+    if(!d.ok||!d.pedido){toast('Erro ao carregar pedido','r');fecharModalAprovacao();return;}
+    _maprovPedidoData = d.pedido;
+    const pd = d.pedido;
+
+    // Preencher subtítulo
+    document.getElementById('maprov-subtitle').textContent = `Pedido #${(pd.id||'').slice(-8).toUpperCase()} — ${new Date(pd.createdAt||0).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
+
+    // Preencher resumo
+    const planoInfo = PLAN_PRICES_MAPROV[pd.plano]||{name:pd.plano,prices:{}};
+    const periodo = pd.dias===365?'1 ano':pd.dias===90?'90 dias':pd.dias===60?'60 dias':'30 dias';
+    const wppNum = (pd.userWhatsapp||'').replace(/\D/g,'');
+    document.getElementById('maprov-resumo').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;margin-bottom:10px">
+        <div>
+          <div style="font-size:15px;font-weight:900;color:#fff;margin-bottom:2px">${esc(pd.userName||pd.userEmail||'–')}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.4);font-family:monospace">${esc(pd.userEmail||'')}</div>
+          ${pd.userWhatsapp?`<a href="https://wa.me/${wppNum.startsWith('55')?wppNum:'55'+wppNum}" target="_blank" style="font-size:11px;color:#25d366;display:flex;align-items:center;gap:4px;margin-top:3px"><i class="ti ti-brand-whatsapp"></i>${esc(pd.userWhatsapp)}</a>`:''}
+          ${pd.userCity||pd.userState?`<div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:2px">📍 ${esc([pd.userCity,pd.userState].filter(Boolean).join(', '))}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:22px;font-weight:900;color:#34d399">R$ ${(pd.valorTotal||0).toFixed(2)}</div>
+          ${pd.desconto>0?`<div style="font-size:10px;color:#fbbf24">-${pd.desconto}% desconto</div>`:''}
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        <div style="background:rgba(255,255,255,.05);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:10px;color:rgba(255,255,255,.3);margin-bottom:2px">Plano</div>
+          <div style="font-size:12px;font-weight:800;color:#a78bfa">${esc(planoInfo.name)}</div>
+        </div>
+        <div style="background:rgba(255,255,255,.05);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:10px;color:rgba(255,255,255,.3);margin-bottom:2px">Período</div>
+          <div style="font-size:12px;font-weight:800;color:#fff">${periodo}</div>
+        </div>
+        <div style="background:rgba(255,255,255,.05);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:10px;color:rgba(255,255,255,.3);margin-bottom:2px">Status</div>
+          <div style="font-size:12px;font-weight:800;color:${pd.status==='pendente'?'#fbbf24':pd.status==='pago'?'#34d399':'#a78bfa'}">${pd.status}</div>
+        </div>
+      </div>
+      ${pd.nota?`<div style="margin-top:8px;padding:7px 10px;background:rgba(245,158,11,.08);border-radius:7px;font-size:11px;color:#fbbf24">📝 Nota: ${esc(pd.nota)}</div>`:''}
+      ${pd.notaAdmin?`<div style="margin-top:6px;padding:7px 10px;background:rgba(99,102,241,.08);border-radius:7px;font-size:11px;color:#a78bfa">🛡️ Nota admin: ${esc(pd.notaAdmin)}</div>`:''}
+    `;
+
+    // Preencher nota existente
+    if(pd.notaAdmin) document.getElementById('maprov-nota').value = pd.notaAdmin;
+
+    // Mostrar/ocultar botão WhatsApp
+    const btnWpp = document.getElementById('maprov-btn-wpp');
+    if(btnWpp) btnWpp.style.display = wppNum ? 'flex' : 'none';
+
+    // Preencher comprovante
+    const compEl = document.getElementById('maprov-comp-img');
+    if(pd.comprovante&&typeof pd.comprovante==='string'&&pd.comprovante.length>20){
+      const isImg = !pd.comprovanteType?.includes('pdf');
+      if(isImg){
+        const src = pd.comprovante.startsWith('data:') ? pd.comprovante : `data:${pd.comprovanteType||'image/jpeg'};base64,${pd.comprovante}`;
+        compEl.innerHTML = `
+          <img src="${src}" style="max-width:100%;max-height:260px;border-radius:10px;object-fit:contain;cursor:zoom-in;border:1px solid rgba(255,255,255,.1)" onclick="this.style.maxHeight=this.style.maxHeight==='none'?'260px':'none'" title="Clique para ampliar">
+          <div style="font-size:10px;color:rgba(52,211,153,.7);margin-top:6px;text-align:center">✅ Comprovante recebido</div>`;
+      } else {
+        compEl.innerHTML = `<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:12px;text-align:center">
+          <i class="ti ti-file-type-pdf" style="font-size:28px;color:#f87171;display:block;margin-bottom:6px"></i>
+          <div style="font-size:11px;color:#fca5a5;font-weight:700">Comprovante PDF recebido</div>
+          <a href="data:application/pdf;base64,${pd.comprovante.startsWith('data:')?pd.comprovante.split(',')[1]:pd.comprovante}" download="comprovante.pdf" style="font-size:11px;color:#60a5fa;display:block;margin-top:6px">⬇️ Baixar PDF</a></div>`;
+      }
+    } else {
+      compEl.innerHTML = `<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:14px;text-align:center">
+        <i class="ti ti-photo-off" style="font-size:28px;color:#f87171;display:block;margin-bottom:6px"></i>
+        <div style="font-size:12px;color:#fca5a5;font-weight:700">⚠️ Sem comprovante anexado</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.3);margin-top:4px">O usuário não enviou comprovante. Verifique no WhatsApp antes de ativar.</div></div>`;
+    }
+
+    // Atualizar total de dias
+    maprovAtualizarTotalDias();
+
+  }catch(e){
+    toast('Erro ao carregar pedido: '+e.message,'r');
+    fecharModalAprovacao();
+  }
+}
+
+function fecharModalAprovacao(){
+  const modal = document.getElementById('modal-aprovacao');
+  if(modal) modal.style.display='none';
+  _maprovPedidoId=null;
+  _maprovPedidoData=null;
+  _maprovBonusDias=0;
+}
+
+function maprovSelecionarBonus(dias,btn){
+  _maprovBonusDias=dias;
+  document.querySelectorAll('.maprov-bonus-btn').forEach(b=>{
+    b.style.borderColor='rgba(255,255,255,.15)';
+    b.style.background='rgba(255,255,255,.08)';
+    b.style.transform='scale(1)';
+  });
+  if(btn){
+    btn.style.borderColor='#34d399';
+    btn.style.background='rgba(52,211,153,.12)';
+    btn.style.transform='scale(1.04)';
+  }
+  maprovAtualizarTotalDias();
+}
+
+function maprovAtualizarTotalDias(){
+  const pd=_maprovPedidoData;if(!pd)return;
+  const base=pd.dias||30;
+  const total=base+_maprovBonusDias;
+  const el=document.getElementById('maprov-total-dias');
+  if(el){
+    if(_maprovBonusDias>0){
+      el.innerHTML=`<span style="color:#fbbf24">${base}d base</span> + <span style="color:#34d399;font-weight:800">+${_maprovBonusDias}d bônus</span> = <span style="font-size:16px;font-weight:900;color:#fff">${total} dias total</span>`;
+    } else {
+      el.innerHTML=`<span style="color:rgba(255,255,255,.4)">${base} dias — sem bônus</span>`;
+    }
+  }
+}
+
+async function maprovConfirmarAtivacao(){
+  if(!_maprovPedidoId||!_maprovPedidoData) return;
+  const editor=document.getElementById('maprov-editor')?.value;
+  const senha=document.getElementById('maprov-senha')?.value;
+  const nota=document.getElementById('maprov-nota')?.value||'';
+  if(!editor){toast('Selecione quem está aprovando','r');return;}
+  if(!senha){toast('Digite a senha de confirmação','r');return;}
+  const btn=document.getElementById('maprov-btn-ativar');
+  if(btn){btn.disabled=true;btn.innerHTML='<div style="width:16px;height:16px;border:2.5px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>';}
+  try{
+    const r=await fetch('/api/pedido/'+_maprovPedidoId,{
+      method:'PATCH',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({status:'ativo',editorPassword:senha,bonusDias:_maprovBonusDias,notaAdmin:nota})
+    });
+    const d=await r.json();
+    if(d.ok){
+      const gemEl=document.getElementById('maprov-gemini-result');
+      if(gemEl){
+        gemEl.style.display='block';
+        gemEl.innerHTML=`
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <i class="ti ti-check-circle" style="color:#34d399;font-size:20px"></i>
+            <div>
+              <div style="font-size:14px;font-weight:800;color:#34d399">✅ Plano Ativado por ${esc(d.ativadoPor||editor)}!</div>
+              <div style="font-size:11px;color:rgba(255,255,255,.4)">${esc(d.planoKey||'').toUpperCase()} — ${d.diasBase||0}d base + ${d.diasBonus||0}d bônus = <strong style="color:#fff">${d.diasTotal||0} dias total</strong></div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px">
+              <div style="font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;margin-bottom:2px">Manual expira</div>
+              <div style="font-size:12px;font-weight:700;color:#fff">${d.manualExpiresDate||'–'}</div>
+            </div>
+            <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px">
+              <div style="font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;margin-bottom:2px">Auto expira</div>
+              <div style="font-size:12px;font-weight:700;color:#fff">${d.autoExpiresDate||'–'}</div>
+            </div>
+          </div>
+          <div style="font-size:10px;color:rgba(52,211,153,.6);text-align:center">🤖 Gemini auditando em background — resultado aparecerá no CCC do cliente</div>`;
+      }
+      toast('✅ Plano ativado! '+d.diasTotal+'d para '+esc(d.planoKey||''),'g');
+      loadPedidos();
+      if(btn){btn.disabled=false;btn.textContent='✅ Ativado com sucesso!';}
+    } else {
+      toast('❌ '+(d.error||'Erro ao ativar'),'r');
+      if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-check"></i> Ativar Plano Agora';}
+    }
+  }catch(e){
+    toast('Erro: '+e.message,'r');
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-check"></i> Ativar Plano Agora';}
+  }
+}
+
+function maprovAbrirWhatsApp(){
+  const pd=_maprovPedidoData;if(!pd)return;
+  const wppNum=(pd.userWhatsapp||'').replace(/\D/g,'');
+  if(!wppNum)return;
+  const num=wppNum.startsWith('55')?wppNum:'55'+wppNum;
+  const pl=PLAN_PRICES_MAPROV[pd.plano]||{name:pd.plano};
+  const msg=`Olá ${pd.userName||''}! 👋 Aqui é o H2BApply.
+
+Seu pedido de ${pl.name} (${pd.dias} dias) foi recebido! ✅
+
+Estamos verificando seu comprovante e ativaremos seu plano em breve.
+
+Qualquer dúvida, estamos aqui! 🚀`;
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`,'_blank');
+}
+</script>
+
 <!-- MODAL RESOLUÇÃO INCIDENTE -->
 <div id="inc-resolve-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)">
   <div style="background:var(--surface);width:100%;max-width:520px;max-height:88dvh;overflow-y:auto;border-radius:20px 20px 0 0;padding:20px 18px 32px;animation:slideUp .2s ease">

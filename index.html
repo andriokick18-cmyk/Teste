@@ -1825,112 +1825,166 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       <!-- ══ HOME ══ -->
       <div class="view gone" id="v-home">
         <div class="home-view">
-          <!-- Header gradiente -->
-          <div class="home-header">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-              <div id="home-avatar" style="width:42px;height:42px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0">?</div>
+
+          <!-- ══ HERO HEADER ══ -->
+          <div class="home-header" style="background:linear-gradient(160deg,#0f172a 0%,#1e3a8a 60%,#4f46e5 100%);padding:20px 16px 22px;position:relative;overflow:hidden">
+            <!-- Stars decoration -->
+            <div style="position:absolute;inset:0;pointer-events:none;background:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='120'%3E%3Cg fill='rgba(255,255,255,0.06)'%3E%3Ccircle cx='20' cy='20' r='1.5'/%3E%3Ccircle cx='80' cy='35' r='1'/%3E%3Ccircle cx='150' cy='15' r='1.5'/%3E%3Ccircle cx='190' cy='55' r='1'/%3E%3Ccircle cx='60' cy='80' r='1'/%3E%3Ccircle cx='130' cy='90' r='1.5'/%3E%3Ccircle cx='170' cy='75' r='1'/%3E%3C/g%3E%3C/svg%3E\") repeat"></div>
+            <!-- User row -->
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;position:relative;z-index:1">
+              <div id="home-avatar" style="width:48px;height:48px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(255,255,255,.35);background:linear-gradient(135deg,rgba(99,102,241,.4),rgba(124,58,237,.3));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;box-shadow:0 4px 16px rgba(0,0,0,.3)">?</div>
               <div style="flex:1;min-width:0">
-                <div class="home-greeting" id="home-greeting" style="margin-bottom:0">Bom dia</div>
-                <div class="home-name" id="home-name">–</div>
+                <div class="home-greeting" id="home-greeting" style="margin-bottom:1px;font-size:12px;color:rgba(255,255,255,.7);font-weight:500">Bom dia</div>
+                <div class="home-name" id="home-name" style="font-size:17px;font-weight:800;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">–</div>
               </div>
+              <!-- Notificação bell -->
+              <button onclick="sv('respostas')" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;position:relative">
+                <i class="ti ti-bell" style="font-size:18px;color:#fff"></i>
+                <span id="home-badge-resp" style="display:none;position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;font-size:9px;font-weight:800;padding:1px 4px;border-radius:99px;min-width:14px;text-align:center;border:1.5px solid #0f172a"></span>
+              </button>
             </div>
-            <div class="home-plan-row" id="home-plan-row"></div>
-          </div>
-          <!-- Status automático (aparece se ativo) -->
-          <div class="home-auto-card inactive" id="home-auto-card" onclick="openAutoModal()" style="cursor:pointer;transition:transform .14s" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
-            <div style="display:flex;align-items:center;gap:10px">
-              <div style="width:36px;height:36px;border-radius:10px;background:rgba(126,58,242,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0" id="home-auto-icon"><i class="ti ti-robot" style="color:var(--purple)"></i></div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:13px;font-weight:800" id="home-auto-title">Envio Automático</div>
-                <div style="font-size:11px;opacity:.7;margin-top:1px" id="home-auto-sub">Toque para configurar e iniciar</div>
-              </div>
-              <i class="ti ti-chevron-right" style="font-size:18px;opacity:.5"></i>
-            </div>
-          </div>
-          <!-- Atalhos Rápidos -->
-          <div class="home-section-title">Atalhos Rápidos</div>
-          <div class="home-shortcuts">
-            <button class="home-shortcut hs-jobs" onclick="sv('jobs')">
-              <div class="home-shortcut-icon"><i class="ti ti-send" style="color:var(--blue)"></i></div>
-              <div class="home-shortcut-label">Manual</div>
-            </button>
-            <button class="home-shortcut hs-pesquisa" onclick="sv('pesquisa')">
-              <div class="home-shortcut-icon"><i class="ti ti-search" style="color:#0891b2"></i></div>
-              <div class="home-shortcut-label">Pesquisar</div>
-            </button>
-            <button class="home-shortcut hs-respostas" onclick="sv('respostas')">
-              <div class="home-shortcut-icon"><i class="ti ti-mail-opened" style="color:var(--green)"></i></div>
-              <div class="home-shortcut-label">Respostas</div>
-              <span class="home-shortcut-badge" id="home-badge-resp" style="display:none"></span>
-            </button>
-            <button class="home-shortcut hs-auto" onclick="openAutoModal()">
-              <div class="home-shortcut-icon"><i class="ti ti-robot" style="color:var(--purple)"></i></div>
-              <div class="home-shortcut-label">Automático</div>
-            </button>
-            <button class="home-shortcut hs-ranking" onclick="sv('ranking')">
-              <div class="home-shortcut-icon"><i class="ti ti-trophy" style="color:#f59e0b"></i></div>
-              <div class="home-shortcut-label">Ranking</div>
-            </button>
-            <button class="home-shortcut hs-cadastros" onclick="sv('profile')">
-              <div class="home-shortcut-icon"><i class="ti ti-user" style="color:#e11d48"></i></div>
-              <div class="home-shortcut-label">Perfil</div>
-            </button>
-            <button class="home-shortcut" onclick="window.open('/guia','_blank')" style="border-color:rgba(16,185,129,.3)">
-              <div class="home-shortcut-icon" style="background:rgba(16,185,129,.13)"><i class="ti ti-book-2" style="color:#059669"></i></div>
-              <div class="home-shortcut-label" style="color:#059669">Guia Visto</div>
-            </button>
-          </div>
-          <!-- Stats do dia -->
-          <div class="home-stats-section">
-            <div class="home-section-title" style="padding-left:0">Hoje</div>
-            <div class="home-stat-cards" style="grid-template-columns:1fr 1fr">
-              <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer">
-                <div class="home-stat-val" style="color:var(--blue)" id="home-stat-manual">–</div>
-                <div class="home-stat-lbl">Manual hoje</div>
-              </div>
-              <div class="home-stat-card" onclick="openAutoModal()" style="cursor:pointer">
-                <div class="home-stat-val" style="color:var(--purple)" id="home-stat-auto">–</div>
-                <div class="home-stat-lbl">Auto hoje</div>
-              </div>
-              <div class="home-stat-card" onclick="sv('respostas')" style="cursor:pointer">
-                <div class="home-stat-val" style="color:var(--green)" id="home-stat-replies">–</div>
-                <div class="home-stat-lbl">Respostas</div>
-              </div>
-              <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer">
-                <div class="home-stat-val" style="color:var(--t2)" id="home-stat-total">–</div>
-                <div class="home-stat-lbl">Total enviadas</div>
+            <!-- Plan badges -->
+            <div class="home-plan-row" id="home-plan-row" style="position:relative;z-index:1;margin-bottom:16px"></div>
+
+            <!-- ══ CARD AUTOMÁTICO — DESTAQUE PRINCIPAL ══ -->
+            <div class="home-auto-card inactive" id="home-auto-card" onclick="openAutoModal()" style="cursor:pointer;position:relative;z-index:1;background:rgba(255,255,255,.1);backdrop-filter:blur(12px);border:1.5px solid rgba(255,255,255,.2);border-radius:16px;padding:14px 16px;transition:all .2s" onmouseenter="this.style.background='rgba(255,255,255,.18)'" onmouseleave="this.style.background='rgba(255,255,255,.1)'">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 14px rgba(124,58,237,.5)" id="home-auto-icon">
+                  <i class="ti ti-robot" style="color:#fff;font-size:22px"></i>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:14px;font-weight:800;color:#fff" id="home-auto-title">🤖 Envio Automático</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:2px" id="home-auto-sub">Configure uma vez — envia enquanto você trabalha</div>
+                </div>
+                <div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                  <i class="ti ti-chevron-right" style="font-size:16px;color:#fff"></i>
+                </div>
               </div>
             </div>
           </div>
-          <!-- Últimas respostas -->
-          <div class="home-section-title">Últimas Respostas</div>
-          <div class="home-quick-replies" id="home-quick-replies">
-            <div style="padding:18px;text-align:center;color:var(--t3);font-size:13px"><span class="spin spin-sm"></span></div>
+
+          <!-- ══ STATS 4 CARDS ══ -->
+          <div style="padding:14px 14px 0">
+            <div class="home-stat-cards" style="grid-template-columns:repeat(4,1fr);gap:8px;display:grid">
+              <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer;border-radius:12px;padding:10px 8px;text-align:center;background:#fff;border:1.5px solid var(--border)">
+                <div class="home-stat-val" style="color:var(--blue);font-size:20px;font-weight:900" id="home-stat-manual">–</div>
+                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;margin-top:2px">Manual</div>
+              </div>
+              <div class="home-stat-card" onclick="openAutoModal()" style="cursor:pointer;border-radius:12px;padding:10px 8px;text-align:center;background:#fff;border:1.5px solid var(--border)">
+                <div class="home-stat-val" style="color:var(--purple);font-size:20px;font-weight:900" id="home-stat-auto">–</div>
+                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;margin-top:2px">Auto</div>
+              </div>
+              <div class="home-stat-card" onclick="sv('respostas')" style="cursor:pointer;border-radius:12px;padding:10px 8px;text-align:center;background:#fff;border:1.5px solid var(--border)">
+                <div class="home-stat-val" style="color:var(--green);font-size:20px;font-weight:900" id="home-stat-replies">–</div>
+                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;margin-top:2px">Respostas</div>
+              </div>
+              <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer;border-radius:12px;padding:10px 8px;text-align:center;background:#fff;border:1.5px solid var(--border)">
+                <div class="home-stat-val" style="color:var(--t2);font-size:20px;font-weight:900" id="home-stat-total">–</div>
+                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;margin-top:2px">Total</div>
+              </div>
+            </div>
           </div>
+
+          <!-- ══ ATALHOS RÁPIDOS — GRID 3x2 VISUAL ══ -->
+          <div style="padding:14px 14px 0">
+            <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Atalhos rápidos</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px">
+
+              <!-- Manual -->
+              <button onclick="sv('jobs')" style="background:#fff;border:1.5px solid rgba(37,99,235,.15);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+                <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#eff6ff,#dbeafe);display:flex;align-items:center;justify-content:center">
+                  <i class="ti ti-send" style="font-size:20px;color:#2563eb"></i>
+                </div>
+                <div style="font-size:11px;font-weight:700;color:var(--t2);line-height:1.2;text-align:center">Envio<br>Manual</div>
+              </button>
+
+              <!-- Pesquisar Vagas -->
+              <button onclick="sv('pesquisa')" style="background:#fff;border:1.5px solid rgba(8,145,178,.15);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+                <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#ecfeff,#cffafe);display:flex;align-items:center;justify-content:center">
+                  <i class="ti ti-search" style="font-size:20px;color:#0891b2"></i>
+                </div>
+                <div style="font-size:11px;font-weight:700;color:var(--t2);line-height:1.2;text-align:center">Pesquisar<br>Vagas</div>
+              </button>
+
+              <!-- Respostas -->
+              <button onclick="sv('respostas')" style="background:#fff;border:1.5px solid rgba(16,185,129,.2);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;font-family:inherit;transition:all .15s;position:relative;-webkit-tap-highlight-color:transparent" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+                <span id="home-badge-resp2" style="display:none;position:absolute;top:8px;right:8px;background:#ef4444;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:99px;min-width:16px;text-align:center"></span>
+                <div style="width:42px;height:42px;border-radius:12px;background:var(--greenl);display:flex;align-items:center;justify-content:center">
+                  <i class="ti ti-mail-opened" style="font-size:20px;color:var(--green)"></i>
+                </div>
+                <div style="font-size:11px;font-weight:700;color:var(--t2);line-height:1.2;text-align:center">Ver<br>Respostas</div>
+              </button>
+
+              <!-- Currículos / Perfis -->
+              <button onclick="sv('profile');setTimeout(()=>switchProfileTab('profiles'),100)" style="background:#fff;border:1.5px solid rgba(99,102,241,.2);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent;position:relative" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+                <div style="position:absolute;top:6px;right:8px;font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:99px;padding:1px 5px" id="home-profiles-needed" style="display:none">CRIAR</div>
+                <div style="width:42px;height:42px;border-radius:12px;background:var(--purplel);display:flex;align-items:center;justify-content:center">
+                  <i class="ti ti-file-cv" style="font-size:20px;color:var(--purple)"></i>
+                </div>
+                <div style="font-size:11px;font-weight:700;color:var(--t2);line-height:1.2;text-align:center">Meus<br>Currículos</div>
+              </button>
+
+              <!-- Ranking -->
+              <button onclick="sv('ranking')" style="background:#fff;border:1.5px solid rgba(245,158,11,.2);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+                <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#fef9c3,#fef08a);display:flex;align-items:center;justify-content:center">
+                  <i class="ti ti-trophy" style="font-size:20px;color:#d97706"></i>
+                </div>
+                <div style="font-size:11px;font-weight:700;color:var(--t2);line-height:1.2;text-align:center">Ranking</div>
+              </button>
+
+              <!-- Guia Visto -->
+              <button onclick="window.open('/guia','_blank')" style="background:#fff;border:1.5px solid rgba(16,185,129,.2);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
+                <div style="width:42px;height:42px;border-radius:12px;background:rgba(16,185,129,.1);display:flex;align-items:center;justify-content:center">
+                  <i class="ti ti-book-2" style="font-size:20px;color:#059669"></i>
+                </div>
+                <div style="font-size:11px;font-weight:700;color:#059669;line-height:1.2;text-align:center">Guia<br>Visto H2B</div>
+              </button>
+
+            </div>
+          </div>
+
+          <!-- ══ ÚLTIMAS RESPOSTAS ══ -->
+          <div style="padding:14px 14px 0">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Últimas Respostas</div>
+              <button onclick="sv('respostas')" style="font-size:11px;font-weight:700;color:var(--blue);background:none;border:none;cursor:pointer;font-family:inherit">Ver tudo →</button>
+            </div>
+            <div class="home-quick-replies" id="home-quick-replies" style="margin:0;border-radius:14px">
+              <div style="padding:18px;text-align:center;color:var(--t3);font-size:13px"><span class="spin spin-sm"></span></div>
+            </div>
+          </div>
+
           <!-- Follow-ups sugeridos -->
-          <div id="home-followup-section" style="display:none">
-            <div class="home-section-title" style="display:flex;align-items:center;justify-content:space-between"><span>🔄 Follow-ups Sugeridos</span><span style="font-size:11px;color:var(--amber);font-weight:700" id="home-followup-count"></span></div>
-            <div id="home-followup-list" style="margin:0 14px 14px;background:var(--surface);border:1.5px solid rgba(245,158,11,.3);border-radius:var(--rl);overflow:hidden"></div>
+          <div id="home-followup-section" style="display:none;padding:14px 14px 0">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">🔄 Follow-ups Sugeridos</div>
+              <span style="font-size:11px;color:var(--amber);font-weight:700" id="home-followup-count"></span>
+            </div>
+            <div id="home-followup-list" style="background:var(--surface);border:1.5px solid rgba(245,158,11,.3);border-radius:14px;overflow:hidden"></div>
           </div>
-          <!-- Conta -->
-          <div class="home-section-title">Conta</div>
-          <div style="margin:0 14px 20px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden">
-            <button class="home-reply-item" onclick="sv('plans')" style="border:none;width:100%;background:none;font-family:inherit">
-              <div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(59,130,246,.1));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0"><i class="ti ti-diamond" style="color:#4f46e5"></i></div>
-              <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Planos & Recompensas</div><div style="font-size:11px;color:var(--t3)" id="home-plan-label">Plano Free</div></div>
-              <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
-            </button>
-            <button class="home-reply-item" onclick="sv('ranking')" style="border:none;width:100%;background:none;font-family:inherit;border-top:1px solid var(--border)">
-              <div style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#fef9c3,#fef08a);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0"><i class="ti ti-trophy" style="color:#d97706"></i></div>
-              <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Ranking Competitivo</div><div style="font-size:11px;color:var(--t3)">Veja sua posição e concorra</div></div>
-              <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
-            </button>
-            <button class="home-reply-item" onclick="sv('hist')" style="border:none;width:100%;background:none;font-family:inherit;border-top:1px solid var(--border)">
-              <div style="width:32px;height:32px;border-radius:9px;background:var(--sf3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0"><i class="ti ti-send" style="color:var(--t2)"></i></div>
-              <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Candidaturas Enviadas</div></div>
-              <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
-            </button>
+
+          <!-- ══ CONTA ══ -->
+          <div style="padding:14px 14px 20px">
+            <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Conta</div>
+            <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;overflow:hidden">
+              <button class="home-reply-item" onclick="sv('plans')" style="border:none;width:100%;background:none;font-family:inherit;padding:14px">
+                <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(59,130,246,.1));display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-diamond" style="color:#4f46e5;font-size:18px"></i></div>
+                <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Planos & Recompensas</div><div style="font-size:11px;color:var(--t3)" id="home-plan-label">Plano Free</div></div>
+                <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
+              </button>
+              <button class="home-reply-item" onclick="sv('ranking')" style="border:none;width:100%;background:none;font-family:inherit;border-top:1px solid var(--border);padding:14px">
+                <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#fef9c3,#fef08a);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-trophy" style="color:#d97706;font-size:18px"></i></div>
+                <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Ranking Competitivo</div><div style="font-size:11px;color:var(--t3)">Veja sua posição e concorra</div></div>
+                <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
+              </button>
+              <button class="home-reply-item" onclick="sv('hist')" style="border:none;width:100%;background:none;font-family:inherit;border-top:1px solid var(--border);padding:14px">
+                <div style="width:36px;height:36px;border-radius:10px;background:var(--sf3);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-send" style="color:var(--t2);font-size:18px"></i></div>
+                <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Candidaturas Enviadas</div></div>
+                <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
+              </button>
+            </div>
           </div>
+
         </div>
       </div>
 
@@ -2384,197 +2438,255 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
         <div id="profile-tab-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
 
           <!-- ══ TAB: EU ══ -->
-          <div id="ptab-content-me" style="padding:14px 16px">
-            <div class="prof-hdr">
-              <div id="pav" style="width:50px;height:50px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.3);margin-bottom:8px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff">?</div>
-              <div style="font-size:18px;font-weight:800" id="p-name">–</div>
-              <div style="font-size:13px;opacity:.75" id="p-email">–</div>
-              <div id="p-plan-badge" style="margin-top:4px"></div>
+          <div id="ptab-content-me" style="padding:0 0 80px">
+
+            <!-- ══ HERO DO PERFIL ══ -->
+            <div class="prof-hdr" style="position:relative;padding:20px 18px 18px;border-bottom:1px solid var(--border)">
+              <!-- Avatar + nome inline -->
+              <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+                <div id="pav" style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;flex-shrink:0">?</div>
+                <div style="flex:1;min-width:0">
+                  <div id="prof-name-lbl" style="font-size:17px;font-weight:900;color:#fff;line-height:1.2;margin-bottom:2px">–</div>
+                  <div id="prof-email-lbl" style="font-size:11px;color:rgba(255,255,255,.5);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">–</div>
+                  <div id="prof-plan-badges" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px"></div>
+                </div>
+              </div>
+              <!-- Stats rápidos -->
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                <div style="background:rgba(0,0,0,.25);border-radius:10px;padding:8px;text-align:center">
+                  <div style="font-size:18px;font-weight:900;color:#fff" id="prof-stat-sent">0</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.04em">Enviados</div>
+                </div>
+                <div style="background:rgba(0,0,0,.25);border-radius:10px;padding:8px;text-align:center">
+                  <div style="font-size:18px;font-weight:900;color:#a78bfa" id="prof-stat-auto">0</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.04em">Auto</div>
+                </div>
+                <div style="background:rgba(0,0,0,.25);border-radius:10px;padding:8px;text-align:center">
+                  <div style="font-size:18px;font-weight:900;color:#34d399" id="prof-stat-replies">0</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.04em">Respostas</div>
+                </div>
+              </div>
             </div>
-            <!-- Mini-stats de candidaturas -->
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 4px">
-              <div style="background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center">
-                <div style="font-size:18px;font-weight:900;color:var(--blue)" id="pstat-total">–</div>
-                <div style="font-size:10px;color:var(--t3);font-weight:600;margin-top:2px">Total enviados</div>
+
+            <!-- ══ CONTEÚDO DA ABA ══ -->
+            <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+
+            <!-- CARD: Dados Pessoais -->
+            <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:16px;overflow:hidden">
+              <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+                <i class="ti ti-user" style="font-size:15px;color:var(--blue)"></i>
+                <span style="font-size:12px;font-weight:800;color:var(--text)">Dados Pessoais</span>
               </div>
-              <div style="background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center">
-                <div style="font-size:18px;font-weight:900;color:var(--green)" id="pstat-auto">–</div>
-                <div style="font-size:10px;color:var(--t3);font-weight:600;margin-top:2px">Automáticos</div>
-              </div>
-              <div style="background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center">
-                <div style="font-size:18px;font-weight:900;color:var(--amber)" id="pstat-replies">–</div>
-                <div style="font-size:10px;color:var(--t3);font-weight:600;margin-top:2px">Respostas</div>
-              </div>
-            </div>
-            <div style="height:12px"></div>
-            <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-bottom:12px">
-              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px">Dados pessoais</div>
-              <div class="field-row">
-                <div class="field"><label>Nome completo * <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>Nome completo</strong><br>Aparece automaticamente em todos os e-mails enviados. Use exatamente como no passaporte.')">?</span></label><input class="input" id="cfg-name" type="text" placeholder="Seu nome completo"></div>
-                <div class="field"><label>País <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>País de origem</strong><br>Escreva em inglês: <strong>Brazil</strong>. Aparece no modelo de e-mail.')">?</span></label><input class="input" id="cfg-country" type="text" placeholder="Brazil"></div>
-              </div>
-              <div class="field-row">
-                <div class="field"><label>Cidade</label><input class="input" id="cfg-city" type="text"></div>
+              <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+                <div class="field-row">
+                  <div class="field">
+                    <label>Nome completo *</label>
+                    <input class="input" id="cfg-name" type="text" placeholder="Seu nome completo">
+                  </div>
+                  <div class="field">
+                    <label>País</label>
+                    <input class="input" id="cfg-country" type="text" placeholder="Brazil">
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label>Cidade</label>
+                    <input class="input" id="cfg-city" type="text" placeholder="Sua cidade">
+                  </div>
+                  <div class="field">
+                    <label style="display:flex;align-items:center;gap:5px">
+                      WhatsApp
+                      <span style="font-size:9px;font-weight:800;background:#ef4444;color:#fff;padding:1px 5px;border-radius:99px">OBRIGATÓRIO</span>
+                    </label>
+                    <div style="position:relative">
+                      <input class="input" id="cfg-phone" type="tel" inputmode="tel" placeholder="+55 (00) 99999-9999" oninput="document.getElementById('wpp-ok-badge').style.display=this.value.replace(/\D/g,'').length>=8?'flex':'none'">
+                      <span id="wpp-ok-badge" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:#10b981;color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:99px;align-items:center;gap:3px"><i class="ti ti-check" style="font-size:10px"></i> OK</span>
+                    </div>
+                  </div>
+                </div>
                 <div class="field">
-                  <label style="display:flex;align-items:center;gap:6px">
-                    WhatsApp
-                    <span style="font-size:9px;font-weight:800;background:#ef4444;color:#fff;padding:1px 6px;border-radius:99px">OBRIGATÓRIO</span>
-                    <span class="tip-icon" onclick="event.stopPropagation();showTip(this,'<strong>WhatsApp com DDI</strong><br>Ex: +55 85 99999-9999<br><br>⚠️ <strong>Obrigatório</strong> para usar o Envio Automático.<br>Empresas americanas usam para entrar em contato com você.')">?</span>
-                  </label>
-                  <div style="position:relative">
-                    <input class="input" id="cfg-phone" type="tel" inputmode="tel" placeholder="+55 (00) 99999-9999" oninput="document.getElementById('wpp-ok-badge').style.display=this.value.replace(/\D/g,'').length>=8?'flex':'none'">
-                    <span id="wpp-ok-badge" style="display:none;position:absolute;right:10px;top:50%;transform:translateY(-50%);background:#10b981;color:#fff;font-size:10px;font-weight:800;padding:1px 7px;border-radius:99px;align-items:center;gap:3px"><i class="ti ti-check" style="font-size:10px"></i> OK</span>
-                  </div>
-                </div>
-              </div>
-              <div class="field-row">
-                
-                <div class="field"><label>Idioma</label><select class="input" id="cfg-lang"><option value="pt-BR">🇧🇷 Português</option><option value="en-US">🇺🇸 English</option><option value="es">🇲🇽 Español</option></select></div>
-              </div>
-            </div>
-            <button class="btn btn-primary w100" onclick="saveProfile()"><i class="ti ti-check"></i> Salvar dados</button>
-
-            <!-- ══ GMAIL EXTRA (apenas pagantes) ══ -->
-            <div id="profile-sender-section" style="background:var(--surface);border:1.5px solid rgba(59,130,246,.2);border-radius:var(--rl);padding:16px 18px;margin-top:12px;display:none">
-              <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-mail-forward" style="font-size:13px"></i> Gmail Extra para Envios</div>
-              <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Adicione um segundo Gmail. O automático distribui os envios entre os dois emails, reduzindo risco de spam.</div>
-              <div id="profile-sender-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
-              <button class="btn btn-outline btn-sm w100" id="profile-add-sender-btn" onclick="location.href='/oauth/add-sender'" style="display:none">
-                <i class="ti ti-brand-google" style="color:#ea4335;font-size:14px"></i> Conectar Gmail Extra
-              </button>
-              <div id="profile-sender-limit-msg" style="display:none;font-size:12px;color:var(--green);font-weight:600;text-align:center">✅ Gmail extra conectado</div>
-            </div>
-            <!-- ══ AVISO FREE ══ -->
-            <div id="profile-sender-free" style="background:var(--amberl);border:1.5px solid var(--amberb);border-radius:var(--rl);padding:14px 16px;margin-top:12px;display:none">
-              <div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;margin-bottom:6px">🔒 Gmail Extra — VIP Exclusivo</div>
-              <div style="font-size:12px;color:var(--t2)">Usuários pagantes (VIP, VIPro, DoublePro) podem conectar um Gmail extra para diversificar os envios e reduzir spam. <strong style="color:var(--amber)">Faça upgrade para ativar.</strong></div>
-            </div>
-
-            <!-- ══ RANKING & AVATAR ══ -->
-            <div style="background:var(--surface);border:1.5px solid rgba(124,58,237,.25);border-radius:var(--rl);padding:16px 18px;margin-top:12px">
-              <div style="font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px"><i class="ti ti-trophy" style="font-size:13px"></i> Ranking & Identidade</div>
-              <div class="field" style="margin-bottom:10px">
-                <label style="font-size:12px;font-weight:700;color:var(--t2)">🏷️ Apelido no ranking <span style="font-size:10px;color:var(--t3)">(3-30 caracteres)</span></label>
-                <input class="input" id="cfg-rankname" type="text" maxlength="30" placeholder="Ex: Mestre2026, TrabalhadorH2B..." oninput="cfgCheckRankName(this.value)">
-                <div id="cfg-rankname-fb" style="font-size:11px;margin-top:3px;min-height:14px"></div>
-              </div>
-              <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px">🎭 Avatar</div>
-              <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:10px">
-                <div class="ob-av prf-av" data-av="av01" onclick="selectPrfAvatar('av01',this)" style="background:linear-gradient(135deg,#065f46,#10b981)">🧑‍🌾</div>
-                <div class="ob-av prf-av" data-av="av02" onclick="selectPrfAvatar('av02',this)" style="background:linear-gradient(135deg,#7c2d12,#ea580c)">👷</div>
-                <div class="ob-av prf-av" data-av="av03" onclick="selectPrfAvatar('av03',this)" style="background:linear-gradient(135deg,#14532d,#16a34a)">🌿</div>
-                <div class="ob-av prf-av" data-av="av04" onclick="selectPrfAvatar('av04',this)" style="background:linear-gradient(135deg,#7f1d1d,#dc2626)">👨‍🍳</div>
-                <div class="ob-av prf-av" data-av="av05" onclick="selectPrfAvatar('av05',this)" style="background:linear-gradient(135deg,#1e3a8a,#3b82f6)">🧹</div>
-                <div class="ob-av prf-av" data-av="av06" onclick="selectPrfAvatar('av06',this)" style="background:linear-gradient(135deg,#3b0764,#7c3aed)">🚜</div>
-                <div class="ob-av prf-av" data-av="av07" onclick="selectPrfAvatar('av07',this)" style="background:linear-gradient(135deg,#164e63,#0891b2)">🏨</div>
-                <div class="ob-av prf-av" data-av="av08" onclick="selectPrfAvatar('av08',this)" style="background:linear-gradient(135deg,#1c1917,#57534e)">🦅</div>
-                <div class="ob-av prf-av" data-av="av09" onclick="selectPrfAvatar('av09',this)" style="background:linear-gradient(135deg,#451a03,#d97706)">🤠</div>
-                <div class="ob-av prf-av" data-av="av10" onclick="selectPrfAvatar('av10',this)" style="background:linear-gradient(135deg,#713f12,#ca8a04)">🦁</div>
-                <div class="ob-av prf-av" data-av="av11" onclick="selectPrfAvatar('av11',this)" style="background:linear-gradient(135deg,#7c2d12,#f97316)">🐅</div>
-                <div class="ob-av prf-av" data-av="av12" onclick="selectPrfAvatar('av12',this)" style="background:linear-gradient(135deg,#7f1d1d,#ef4444)">🦊</div>
-                <div class="ob-av prf-av" data-av="av13" onclick="selectPrfAvatar('av13',this)" style="background:linear-gradient(135deg,#0f172a,#475569)">🤖</div>
-                <div class="ob-av prf-av" data-av="av14" onclick="selectPrfAvatar('av14',this)" style="background:linear-gradient(135deg,#713f12,#fbbf24)">🏆</div>
-                <div class="ob-av prf-av" data-av="av15" onclick="selectPrfAvatar('av15',this)" style="background:linear-gradient(135deg,#0c4a6e,#0284c7)">🚀</div>
-                <div class="ob-av prf-av" data-av="av16" onclick="selectPrfAvatar('av16',this)" style="background:linear-gradient(135deg,#3b0764,#a21caf)">⚡</div>
-                <div class="ob-av prf-av" data-av="av17" onclick="selectPrfAvatar('av17',this)" style="background:linear-gradient(135deg,#0c4a6e,#06b6d4)">🌊</div>
-                <div class="ob-av prf-av" data-av="av18" onclick="selectPrfAvatar('av18',this)" style="background:linear-gradient(135deg,#7f1d1d,#b91c1c)">🎯</div>
-                <div class="ob-av prf-av" data-av="av19" onclick="selectPrfAvatar('av19',this)" style="background:linear-gradient(135deg,#1e3a8a,#6366f1)">💎</div>
-                <div class="ob-av prf-av" data-av="av20" onclick="selectPrfAvatar('av20',this)" style="background:linear-gradient(135deg,#166534,#22c55e)">🦺</div>
-              </div>
-            </div>
-
-            <!-- ══ PERFIL H2B ══ -->
-            <div style="background:var(--surface);border:1.5px solid rgba(37,99,235,.2);border-radius:var(--rl);padding:16px 18px;margin-top:12px">
-              <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px"><i class="ti ti-usa" style="font-size:13px"></i>🇺🇸 Perfil H2B</div>
-
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-                <div>
-                  <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:5px">Já foi aos EUA?</div>
-                  <div style="display:flex;gap:6px">
-                    <button class="btn btn-secondary ob-toggle cfg-toggle" id="cfg-usa-yes" onclick="cfgToggle('usa','yes')">✅ Sim</button>
-                    <button class="btn btn-secondary ob-toggle cfg-toggle on" id="cfg-usa-no" onclick="cfgToggle('usa','no')">❌ Não</button>
-                  </div>
-                </div>
-                <div>
-                  <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:5px">Trabalhou H2B/H2A?</div>
-                  <div style="display:flex;gap:6px">
-                    <button class="btn btn-secondary ob-toggle cfg-toggle" id="cfg-h2b-yes" onclick="cfgToggle('h2b','yes')">✅ Sim</button>
-                    <button class="btn btn-secondary ob-toggle cfg-toggle on" id="cfg-h2b-no" onclick="cfgToggle('h2b','no')">❌ Não</button>
-                  </div>
-                </div>
-              </div>
-
-              <div style="margin-bottom:10px">
-                <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:5px">🗣️ Nível de inglês</div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px">
-                  <button class="btn btn-secondary ob-toggle-eng" id="cfg-eng-none" onclick="cfgEng('none')" style="font-size:11px;padding:6px 4px">🚫 Nenhum</button>
-                  <button class="btn btn-secondary ob-toggle-eng" id="cfg-eng-basic" onclick="cfgEng('basic')" style="font-size:11px;padding:6px 4px">📖 Básico</button>
-                  <button class="btn btn-secondary ob-toggle-eng" id="cfg-eng-intermediate" onclick="cfgEng('intermediate')" style="font-size:11px;padding:6px 4px">💬 Inter.</button>
-                  <button class="btn btn-secondary ob-toggle-eng" id="cfg-eng-advanced" onclick="cfgEng('advanced')" style="font-size:11px;padding:6px 4px">🌟 Avanç.</button>
-                </div>
-              </div>
-
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-                <div>
-                  <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:5px">🌿 Área preferida</div>
-                  <select class="input" id="cfg-h2b-area" style="font-size:12px">
-                    <option value="landscape">🌿 Paisagismo</option>
-                    <option value="hotel">🏨 Hotel</option>
-                    <option value="food">🍽️ Restaurante</option>
-                    <option value="farm">🌾 Fazenda</option>
-                    <option value="construction">🏗️ Construção</option>
-                    <option value="cleaning">🧹 Limpeza</option>
-                    <option value="seafood">🦞 Frutos do mar</option>
-                    <option value="golf">⛳ Golf Resort</option>
-                    <option value="ski">⛷️ Ski Resort</option>
-                    <option value="other">📋 Outra</option>
+                  <label>Idioma</label>
+                  <select class="input" id="cfg-lang">
+                    <option value="pt-BR">🇧🇷 Português</option>
+                    <option value="en-US">🇺🇸 English</option>
+                    <option value="es">🇲🇽 Español</option>
                   </select>
                 </div>
-                <div>
-                  <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:5px">📅 Disponibilidade</div>
-                  <select class="input" id="cfg-h2b-avail" style="font-size:12px">
-                    <option value="immediate">⚡ Imediato</option>
-                    <option value="1month">📅 1 mês</option>
-                    <option value="3months">🗓️ 3+ meses</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-                <div>
-                  <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:5px">🚗 Tem CNH?</div>
-                  <div style="display:flex;gap:6px">
-                    <button class="btn btn-secondary ob-toggle cfg-toggle" id="cfg-cnh-yes" onclick="cfgToggle('cnh','yes')">✅ Sim</button>
-                    <button class="btn btn-secondary ob-toggle cfg-toggle on" id="cfg-cnh-no" onclick="cfgToggle('cnh','no')">❌ Não</button>
-                  </div>
-                </div>
-                <div>
-                  <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:5px">📊 Temporadas H2B</div>
-                  <input class="input" id="cfg-h2b-seasons" type="number" min="0" max="20" value="0" style="font-size:13px">
-                </div>
-              </div>
-
-              <button class="btn btn-primary w100" onclick="saveH2BProfile()"><i class="ti ti-check"></i> Salvar Perfil H2B</button>
-            </div>
-
-            <!-- Notificações -->
-            <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 18px;margin-top:12px">
-              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px"><i class="ti ti-bell" style="font-size:13px"></i> Notificações</div>
-              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                <div>
-                  <div style="font-size:13px;font-weight:700;margin-bottom:2px">🛫 Alerta de nova resposta</div>
-                  <div style="font-size:11px;color:var(--t2);line-height:1.5">Som + aviso quando uma empresa te responder</div>
-                </div>
-                <button id="notif-toggle-btn" onclick="toggleNotifications()" style="flex-shrink:0;width:52px;height:28px;border-radius:14px;border:none;cursor:pointer;position:relative;transition:background .2s;background:var(--border2)">
-                  <div id="notif-toggle-dot" style="width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"></div>
+                <button class="btn btn-primary w100" onclick="saveProfile()" style="margin-top:4px">
+                  <i class="ti ti-check"></i> Salvar dados
                 </button>
               </div>
-              <div id="notif-status-msg" style="font-size:11px;margin-top:8px;color:var(--t3)">Toque no botão para ativar</div>
-              <div id="sound-selector-wrap" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px"></div>
             </div>
+
+            <!-- CARD: Gmail Extra -->
+            <div id="profile-sender-section" style="background:var(--surface);border:1.5px solid rgba(59,130,246,.25);border-radius:16px;overflow:hidden;display:none">
+              <div style="padding:12px 16px;border-bottom:1px solid rgba(59,130,246,.15);display:flex;align-items:center;gap:8px">
+                <i class="ti ti-mail-forward" style="font-size:15px;color:var(--blue)"></i>
+                <span style="font-size:12px;font-weight:800;color:var(--blue)">Gmail Extra para Envios</span>
+              </div>
+              <div style="padding:14px 16px">
+                <div style="font-size:12px;color:var(--t2);margin-bottom:12px;line-height:1.5">Adicione um segundo Gmail. O automático distribui os envios entre os dois emails, reduzindo risco de spam.</div>
+                <div id="profile-sender-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+                <button class="btn btn-outline btn-sm w100" id="profile-add-sender-btn" onclick="location.href='/oauth/add-sender'" style="display:none">
+                  <i class="ti ti-brand-google" style="color:#ea4335;font-size:14px"></i> Conectar Gmail Extra
+                </button>
+                <div id="profile-sender-limit-msg" style="display:none;font-size:12px;color:var(--green);font-weight:600;text-align:center">✅ Gmail extra conectado</div>
+              </div>
+            </div>
+            <div id="profile-sender-free" style="background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.25);border-radius:16px;padding:14px 16px;display:none">
+              <div style="font-size:11px;font-weight:800;color:var(--amber);text-transform:uppercase;margin-bottom:5px">🔒 Gmail Extra — VIP Exclusivo</div>
+              <div style="font-size:12px;color:var(--t2)">Usuários pagantes podem conectar um Gmail extra para reduzir risco de spam. <strong style="color:var(--amber)">Faça upgrade para ativar.</strong></div>
+            </div>
+
+            <!-- CARD: Identidade & Avatar -->
+            <div style="background:var(--surface);border:1.5px solid rgba(124,58,237,.2);border-radius:16px;overflow:hidden">
+              <div style="padding:12px 16px;border-bottom:1px solid rgba(124,58,237,.1);display:flex;align-items:center;gap:8px">
+                <i class="ti ti-trophy" style="font-size:15px;color:var(--purple)"></i>
+                <span style="font-size:12px;font-weight:800;color:var(--text)">Ranking & Identidade</span>
+              </div>
+              <div style="padding:14px 16px">
+                <div class="field" style="margin-bottom:14px">
+                  <label style="font-size:12px;font-weight:700;color:var(--t2)">🏷️ Apelido no ranking <span style="font-size:10px;color:var(--t3);font-weight:400">(3-30 caracteres)</span></label>
+                  <input class="input" id="cfg-rankname" type="text" maxlength="30" placeholder="Ex: Mestre2026, TrabalhadorH2B..." oninput="cfgCheckRankName(this.value)">
+                  <div id="cfg-rankname-fb" style="font-size:11px;margin-top:3px;min-height:14px"></div>
+                </div>
+                <!-- Avatar grid redesenhado -->
+                <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:10px">🎭 Escolha seu avatar</div>
+                <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
+                  <div class="ob-av prf-av" data-av="av01" onclick="selectPrfAvatar('av01',this)" style="background:linear-gradient(135deg,#065f46,#10b981);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🧑‍🌾</div>
+                  <div class="ob-av prf-av" data-av="av02" onclick="selectPrfAvatar('av02',this)" style="background:linear-gradient(135deg,#7c2d12,#ea580c);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">👷</div>
+                  <div class="ob-av prf-av" data-av="av03" onclick="selectPrfAvatar('av03',this)" style="background:linear-gradient(135deg,#14532d,#16a34a);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🌿</div>
+                  <div class="ob-av prf-av" data-av="av04" onclick="selectPrfAvatar('av04',this)" style="background:linear-gradient(135deg,#7f1d1d,#dc2626);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">👨‍🍳</div>
+                  <div class="ob-av prf-av" data-av="av05" onclick="selectPrfAvatar('av05',this)" style="background:linear-gradient(135deg,#1e3a8a,#3b82f6);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🧹</div>
+                  <div class="ob-av prf-av" data-av="av06" onclick="selectPrfAvatar('av06',this)" style="background:linear-gradient(135deg,#3b0764,#7c3aed);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🚜</div>
+                  <div class="ob-av prf-av" data-av="av07" onclick="selectPrfAvatar('av07',this)" style="background:linear-gradient(135deg,#164e63,#0891b2);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🏨</div>
+                  <div class="ob-av prf-av" data-av="av08" onclick="selectPrfAvatar('av08',this)" style="background:linear-gradient(135deg,#1c1917,#57534e);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🦅</div>
+                  <div class="ob-av prf-av" data-av="av09" onclick="selectPrfAvatar('av09',this)" style="background:linear-gradient(135deg,#451a03,#d97706);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🤠</div>
+                  <div class="ob-av prf-av" data-av="av10" onclick="selectPrfAvatar('av10',this)" style="background:linear-gradient(135deg,#713f12,#ca8a04);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🦁</div>
+                  <div class="ob-av prf-av" data-av="av11" onclick="selectPrfAvatar('av11',this)" style="background:linear-gradient(135deg,#7c2d12,#f97316);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🐅</div>
+                  <div class="ob-av prf-av" data-av="av12" onclick="selectPrfAvatar('av12',this)" style="background:linear-gradient(135deg,#7f1d1d,#ef4444);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🦊</div>
+                  <div class="ob-av prf-av" data-av="av13" onclick="selectPrfAvatar('av13',this)" style="background:linear-gradient(135deg,#0f172a,#475569);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🤖</div>
+                  <div class="ob-av prf-av" data-av="av14" onclick="selectPrfAvatar('av14',this)" style="background:linear-gradient(135deg,#713f12,#fbbf24);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🏆</div>
+                  <div class="ob-av prf-av" data-av="av15" onclick="selectPrfAvatar('av15',this)" style="background:linear-gradient(135deg,#0c4a6e,#0284c7);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🚀</div>
+                  <div class="ob-av prf-av" data-av="av16" onclick="selectPrfAvatar('av16',this)" style="background:linear-gradient(135deg,#3b0764,#a21caf);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">⚡</div>
+                  <div class="ob-av prf-av" data-av="av17" onclick="selectPrfAvatar('av17',this)" style="background:linear-gradient(135deg,#0c4a6e,#06b6d4);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🌊</div>
+                  <div class="ob-av prf-av" data-av="av18" onclick="selectPrfAvatar('av18',this)" style="background:linear-gradient(135deg,#7f1d1d,#b91c1c);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🎯</div>
+                  <div class="ob-av prf-av" data-av="av19" onclick="selectPrfAvatar('av19',this)" style="background:linear-gradient(135deg,#1e3a8a,#6366f1);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">💎</div>
+                  <div class="ob-av prf-av" data-av="av20" onclick="selectPrfAvatar('av20',this)" style="background:linear-gradient(135deg,#166534,#22c55e);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🦺</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CARD: Perfil H2B -->
+            <div style="background:var(--surface);border:1.5px solid rgba(37,99,235,.2);border-radius:16px;overflow:hidden">
+              <div style="padding:12px 16px;border-bottom:1px solid rgba(37,99,235,.1);display:flex;align-items:center;gap:8px">
+                <span style="font-size:14px">🇺🇸</span>
+                <span style="font-size:12px;font-weight:800;color:var(--text)">Perfil H2B</span>
+                <span style="font-size:10px;color:var(--t3);font-weight:400">Ajuda o sistema a encontrar vagas certas pra você</span>
+              </div>
+              <div style="padding:14px 16px;display:flex;flex-direction:column;gap:14px">
+
+                <!-- Linha 1: EUA + H2B -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div style="background:var(--sf2);border:1px solid var(--border);border-radius:12px;padding:12px">
+                    <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Já foi aos EUA?</div>
+                    <div style="display:flex;gap:6px">
+                      <button class="btn btn-secondary ob-toggle cfg-toggle" id="cfg-usa-yes" onclick="cfgToggle('usa','yes')" style="flex:1;justify-content:center;font-size:12px">✅ Sim</button>
+                      <button class="btn btn-secondary ob-toggle cfg-toggle on" id="cfg-usa-no" onclick="cfgToggle('usa','no')" style="flex:1;justify-content:center;font-size:12px">❌ Não</button>
+                    </div>
+                  </div>
+                  <div style="background:var(--sf2);border:1px solid var(--border);border-radius:12px;padding:12px">
+                    <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Trabalhou H2B/H2A?</div>
+                    <div style="display:flex;gap:6px">
+                      <button class="btn btn-secondary ob-toggle cfg-toggle" id="cfg-h2b-yes" onclick="cfgToggle('h2b','yes')" style="flex:1;justify-content:center;font-size:12px">✅ Sim</button>
+                      <button class="btn btn-secondary ob-toggle cfg-toggle on" id="cfg-h2b-no" onclick="cfgToggle('h2b','no')" style="flex:1;justify-content:center;font-size:12px">❌ Não</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Linha 2: Inglês -->
+                <div style="background:var(--sf2);border:1px solid var(--border);border-radius:12px;padding:12px">
+                  <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🗣️ Nível de inglês</div>
+                  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px">
+                    <button class="btn btn-secondary ob-toggle-eng" id="cfg-eng-none" onclick="cfgEng('none')" style="font-size:11px;padding:7px 4px;justify-content:center">🚫 Nenhum</button>
+                    <button class="btn btn-secondary ob-toggle-eng" id="cfg-eng-basic" onclick="cfgEng('basic')" style="font-size:11px;padding:7px 4px;justify-content:center">📖 Básico</button>
+                    <button class="btn btn-secondary ob-toggle-eng" id="cfg-eng-intermediate" onclick="cfgEng('intermediate')" style="font-size:11px;padding:7px 4px;justify-content:center">💬 Inter.</button>
+                    <button class="btn btn-secondary ob-toggle-eng" id="cfg-eng-advanced" onclick="cfgEng('advanced')" style="font-size:11px;padding:7px 4px;justify-content:center">🌟 Avanç.</button>
+                  </div>
+                </div>
+
+                <!-- Linha 3: Área + Disponibilidade -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div style="background:var(--sf2);border:1px solid var(--border);border-radius:12px;padding:12px">
+                    <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🌿 Área preferida</div>
+                    <select class="input" id="cfg-h2b-area" style="font-size:12px;background:var(--sf);border-color:var(--border)">
+                      <option value="landscape">🌿 Paisagismo</option>
+                      <option value="hotel">🏨 Hotel</option>
+                      <option value="food">🍽️ Restaurante</option>
+                      <option value="farm">🌾 Fazenda</option>
+                      <option value="construction">🏗️ Construção</option>
+                      <option value="cleaning">🧹 Limpeza</option>
+                      <option value="seafood">🦞 Frutos do mar</option>
+                      <option value="golf">⛳ Golf Resort</option>
+                      <option value="ski">⛷️ Ski Resort</option>
+                      <option value="other">📋 Outra</option>
+                    </select>
+                  </div>
+                  <div style="background:var(--sf2);border:1px solid var(--border);border-radius:12px;padding:12px">
+                    <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">📅 Disponibilidade</div>
+                    <select class="input" id="cfg-h2b-avail" style="font-size:12px;background:var(--sf);border-color:var(--border)">
+                      <option value="immediate">⚡ Imediato</option>
+                      <option value="1month">📅 1 mês</option>
+                      <option value="3months">🗓️ 3+ meses</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Linha 4: CNH + Temporadas -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div style="background:var(--sf2);border:1px solid var(--border);border-radius:12px;padding:12px">
+                    <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🚗 Tem CNH?</div>
+                    <div style="display:flex;gap:6px">
+                      <button class="btn btn-secondary ob-toggle cfg-toggle" id="cfg-cnh-yes" onclick="cfgToggle('cnh','yes')" style="flex:1;justify-content:center;font-size:12px">✅ Sim</button>
+                      <button class="btn btn-secondary ob-toggle cfg-toggle on" id="cfg-cnh-no" onclick="cfgToggle('cnh','no')" style="flex:1;justify-content:center;font-size:12px">❌ Não</button>
+                    </div>
+                  </div>
+                  <div style="background:var(--sf2);border:1px solid var(--border);border-radius:12px;padding:12px">
+                    <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">📊 Temporadas H2B</div>
+                    <input class="input" id="cfg-h2b-seasons" type="number" min="0" max="20" value="0" style="font-size:14px;font-weight:700;text-align:center">
+                  </div>
+                </div>
+
+                <button class="btn btn-primary w100" onclick="saveH2BProfile()" style="margin-top:2px">
+                  <i class="ti ti-check"></i> Salvar Perfil H2B
+                </button>
+              </div>
+            </div>
+
+            <!-- CARD: Notificações -->
+            <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:16px;overflow:hidden">
+              <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+                <i class="ti ti-bell" style="font-size:15px;color:var(--amber)"></i>
+                <span style="font-size:12px;font-weight:800;color:var(--text)">Notificações</span>
+              </div>
+              <div style="padding:14px 16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
+                  <div>
+                    <div style="font-size:13px;font-weight:700;margin-bottom:2px">🛫 Alerta de nova resposta</div>
+                    <div style="font-size:11px;color:var(--t2);line-height:1.5">Som + aviso quando uma empresa te responder</div>
+                  </div>
+                  <button id="notif-toggle-btn" onclick="toggleNotifications()" style="flex-shrink:0;width:52px;height:28px;border-radius:14px;border:none;cursor:pointer;position:relative;transition:background .2s;background:var(--border2)">
+                    <div id="notif-toggle-dot" style="width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"></div>
+                  </button>
+                </div>
+                <div id="notif-status-msg" style="font-size:11px;margin-bottom:10px;color:var(--t3)">Toque no botão para ativar</div>
+                <div id="sound-selector-wrap" style="border-top:1px solid var(--border);padding-top:12px"></div>
+              </div>
+            </div>
+
+            </div><!-- fim padding container -->
           </div>
 
-          <!-- ══ TAB: DOCUMENTOS (desativada - PDFs gerenciados nos Perfis) ══ -->
           <div id="ptab-content-docs" style="padding:14px 16px;display:none">
             <div style="background:#1e3a2f;border:1.5px solid #10b981;border-radius:12px;padding:20px;text-align:center;margin-bottom:12px">
               <i class="ti ti-info-circle" style="font-size:28px;color:#10b981;margin-bottom:8px;display:block"></i>
@@ -3896,14 +4008,19 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       </div>
     </div><!-- /main-area -->
   </div><!-- /app-body --><!-- Bottom Nav -->
-  <!-- ══ BOTTOM NAV — estilo Instagram ══ -->
+  <!-- ══ BOTTOM NAV — 5 botões: Manual | Currículos | AUTO (central) | Respostas | Menu ══ -->
   <nav class="bottom-nav" id="bottom-nav">
-    <!-- 1: Cadastro (Perfil) -->
-    <button class="bn" id="bn-profile-tab" onclick="sv('profile')">
-      <i class="ti ti-user-circle"></i>
-      <span>Cadastro</span>
+    <!-- 1: Manual -->
+    <button class="bn" id="bn-jobs" onclick="sv('jobs')">
+      <i class="ti ti-send"></i>
+      <span>Manual</span>
     </button>
-    <!-- 2: AUTO — botão central elevado estilo Instagram -->
+    <!-- 2: Currículos / Cadastro de Perfis -->
+    <button class="bn" id="bn-profile-tab" onclick="sv('profile');setTimeout(()=>switchProfileTab('profiles'),100)">
+      <i class="ti ti-file-cv"></i>
+      <span>Currículos</span>
+    </button>
+    <!-- 3: AUTO — botão central elevado estilo Instagram -->
     <button class="bn bn-auto" id="bn-auto" onclick="openAutoModal()">
       <div class="bn-auto-ring">
         <i class="ti ti-robot"></i>
@@ -3911,12 +4028,13 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       </div>
       <span>Automático</span>
     </button>
-    <!-- 3: Manual -->
-    <button class="bn" id="bn-jobs" onclick="sv('jobs')">
-      <i class="ti ti-send"></i>
-      <span>Manual</span>
+    <!-- 4: Respostas -->
+    <button class="bn" id="bn-respostas" onclick="sv('respostas')" style="position:relative">
+      <i class="ti ti-mail-opened"></i>
+      <span>Respostas</span>
+      <span id="bnd-respostas" style="display:none;position:absolute;top:6px;right:calc(50% - 18px);background:#ef4444;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:10px;min-width:16px;text-align:center"></span>
     </button>
-    <!-- 4: Avatar — abre drawer (estilo Instagram/Facebook) -->
+    <!-- 5: Avatar — abre drawer -->
     <button class="bn bn-profile" id="bn-profile" onclick="openDrawer()">
       <div class="bn-av-wrap" id="bn-av">
         <i class="ti ti-user-circle"></i>
@@ -5928,9 +6046,19 @@ function loadProfile(){
   if(ch2Y&&ch2N){ch2Y.classList.toggle("on",!!hb.experiencedH2B);ch2N.classList.toggle("on",!hb.experiencedH2B);}
   const cchY=g("#cfg-cnh-yes"),cchN=g("#cfg-cnh-no");
   if(cchY&&cchN){cchY.classList.toggle("on",!!hb.hasDriverLicense);cchN.classList.toggle("on",!hb.hasDriverLicense);}
-  g("#p-name").textContent=U.name;g("#p-email").textContent=U.email;
+  g("#p-name")&&(g("#p-name").textContent=U.name);g("#p-email")&&(g("#p-email").textContent=U.email);
+  // Novos IDs do hero do perfil redesenhado
+  const _pnl=g("#prof-name-lbl");if(_pnl)_pnl.textContent=U.name||"–";
+  const _pel=g("#prof-email-lbl");if(_pel)_pel.textContent=U.email||"–";
+  // Stats rápidos
+  const _pss=g("#prof-stat-sent");if(_pss)_pss.textContent=(U.totalSent||0).toLocaleString();
+  const _psa=g("#prof-stat-auto");if(_psa)_psa.textContent=(U.totalAutoSent||0).toLocaleString();
+  const _psr=g("#prof-stat-replies");if(_psr)_psr.textContent=(U.totalReplies||0).toLocaleString();
+  // Badges do plano
+  const _pb=g("#prof-plan-badges");
+  if(_pb){const pl=U.plan||"free";const planColors={free:"rgba(255,255,255,.15)",vip:"rgba(167,139,250,.4)",vipro:"rgba(99,102,241,.4)",doublepro:"rgba(250,204,21,.35)",pro:"rgba(6,182,212,.4)"};const planLabels={free:"Free",vip:"⭐ VIP",vipro:"⭐🤖 VIPro",doublepro:"🚀 DoublePro",pro:"🤖 Pro"};_pb.innerHTML=`<span style="background:${planColors[pl]||"rgba(255,255,255,.15)"};border:1px solid rgba(255,255,255,.25);border-radius:99px;padding:2px 10px;font-size:10px;font-weight:700;color:#fff">${planLabels[pl]||pl}</span>`+(U.vip?.manualExpires&&U.vip.manualExpires>Date.now()?`<span style="background:rgba(52,211,153,.25);border:1px solid rgba(52,211,153,.4);border-radius:99px;padding:2px 10px;font-size:10px;font-weight:700;color:#6ee7b7">${Math.ceil((U.vip.manualExpires-Date.now())/86400000)}d restantes</span>`:"");}
   _initAdminTab(); // Mostrar/ocultar aba admin conforme perfil do usuário
-  const pav=g("#pav");if(pav){if(U.picture){pav.innerHTML=`<img src="${esc(U.picture)}" style="width:100%;height:100%;object-fit:cover">`;pav.style.cssText="width:50px;height:50px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.3);margin-bottom:8px";}else{pav.textContent=(U.name||"?")[0].toUpperCase();}}
+  const pav=g("#pav");if(pav){if(U.picture){pav.innerHTML=`<img src="${esc(U.picture)}" style="width:100%;height:100%;object-fit:cover">`;pav.style.cssText="width:60px;height:60px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.3);flex-shrink:0";}else{pav.textContent=(U.name||"?")[0].toUpperCase();}}
   const ppb=g("#p-plan-badge");if(ppb)ppb.innerHTML=planBadgeHTML();
 }
 function _renderProfileSenderSection(){
@@ -9850,8 +9978,15 @@ function renderHome(){
   }
   // Badge respostas
   const rb=g("#home-badge-resp");
+  const rb2=g("#home-badge-resp2");
+  const rbn=g("#bnd-respostas");
   const unread=INBOX_EMAILS.filter(e=>!e.isRead).length;
   if(rb){rb.style.display=unread?"":"none";rb.textContent=String(unread);}
+  if(rb2){rb2.style.display=unread?"":"none";rb2.textContent=String(unread);}
+  if(rbn){rbn.style.display=unread?"":"none";rbn.textContent=String(unread);}
+  // Indicador de perfis ausentes
+  const pn=g("#home-profiles-needed");
+  if(pn){const hasPrf=(UPROFILES.length>0||(U.profiles&&U.profiles.length>0));pn.style.display=hasPrf?"none":"";}
   // Últimas respostas
   _renderHomeReplies();
   // Carregar follow-ups sugeridos
