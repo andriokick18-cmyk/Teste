@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>H2BApply · Central de Comando</title>
+<style>
+/* ═══════════════ H2BApply Admin V2 — "Torre de Controle" ═══════════════
+   Sala de operações noturna: grafite-azulado profundo, telemetria em
+   monoespaçada, um único acento âmbar (o farol) que marca tudo que é
+   ação ou estado vivo. Nada decorativo; todo elemento informa.        */
+:root{
+  --bg:#0d1117; --panel:#151b23; --panel2:#1b232e; --line:#232c37;
+  --txt:#e6edf3; --mut:#8b98a5; --dim:#5c6773;
+  --amber:#ffb224; --amber-soft:rgba(255,178,36,.12);
+  --ok:#3fb970; --ok-soft:rgba(63,185,112,.12);
+  --err:#f4594e; --err-soft:rgba(244,89,78,.12);
+  --info:#58a6ff; --info-soft:rgba(88,166,255,.12);
+  --mono:ui-monospace,SFMono-Regular,'Cascadia Mono',Menlo,Consolas,monospace;
+  --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--txt);font:14px/1.5 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--info);text-decoration:none}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+input,select,textarea{font:inherit;color:var(--txt);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;outline:none;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--amber)}
+::placeholder{color:var(--dim)}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ── Layout ── */
+#app{display:grid;grid-template-columns:228px 1fr;min-height:100vh}
+aside{background:var(--panel);border-right:1px solid var(--line);padding:18px 12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 16px}
+.brand .beacon{width:12px;height:12px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px var(--amber-soft);flex:none}
+.brand .beacon.ok{background:var(--ok);box-shadow:0 0 0 4px var(--ok-soft)}
+.brand .beacon.err{background:var(--err);box-shadow:0 0 0 4px var(--err-soft)}
+.brand b{font-size:15px;letter-spacing:.2px}
+.brand small{display:block;color:var(--dim);font-size:11px;font-weight:400}
+nav .grp{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:1.2px;padding:14px 10px 6px}
+nav button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:8px 10px;border-radius:8px;color:var(--mut);font-size:13.5px}
+nav button:hover{background:var(--panel2);color:var(--txt)}
+nav button.on{background:var(--amber-soft);color:var(--amber);font-weight:600}
+nav button .ic{width:17px;text-align:center;flex:none}
+main{min-width:0;display:flex;flex-direction:column}
+
+/* ── Topbar ── */
+header{display:flex;align-items:center;gap:14px;padding:12px 22px;border-bottom:1px solid var(--line);background:rgba(13,17,23,.9);backdrop-filter:blur(6px);position:sticky;top:0;z-index:40}
+header h1{font-size:16px;font-weight:650}
+#gsearch{max-width:340px;margin-left:auto;position:relative}
+#gsearch input{padding-left:32px;background:var(--panel)}
+#gsearch .k{position:absolute;right:9px;top:8px;color:var(--dim);font:11px var(--mono);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+#gsearch .lupa{position:absolute;left:10px;top:9px;color:var(--dim)}
+.adminchip{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:12.5px;color:var(--mut)}
+.adminchip b{color:var(--amber);font-family:var(--mono)}
+
+/* ── Conteúdo ── */
+.view{display:none;padding:22px;animation:fade .18s ease}
+.view.on{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1}}
+.hrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.hrow h2{font-size:19px;font-weight:700}
+.hrow .sp{flex:1}
+.sub{color:var(--mut);font-size:13px}
+
+/* ── Cards ── */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.card .lbl{color:var(--mut);font-size:12px;display:flex;justify-content:space-between;align-items:center}
+.card .val{font:600 24px/1.25 var(--mono);margin-top:6px}
+.card .det{color:var(--dim);font-size:11.5px;margin-top:4px;font-family:var(--mono)}
+.card.amber .val{color:var(--amber)} .card.ok .val{color:var(--ok)} .card.err .val{color:var(--err)} .card.info .val{color:var(--info)}
+
+/* ── Painéis / tabelas ── */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);margin-bottom:16px;overflow:hidden}
+.panel>.ph{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.panel>.ph h3{font-size:14px;font-weight:650}
+.panel>.ph .sp{flex:1}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{color:var(--mut);text-align:left;font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+.tbl th:hover{color:var(--txt)}
+.tbl td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tbody tr:hover{background:var(--panel2)}
+.tbl .num,.mono{font-family:var(--mono)}
+.tblwrap{overflow-x:auto}
+.empty{padding:28px;text-align:center;color:var(--dim)}
+.pager{display:flex;align-items:center;gap:8px;padding:10px 14px;color:var(--mut);font-size:12.5px}
+.pager .sp{flex:1}
+
+/* ── Badges/botões ── */
+.bdg{display:inline-block;padding:2px 9px;border-radius:999px;font:600 11px var(--mono);letter-spacing:.3px}
+.b-ok{background:var(--ok-soft);color:var(--ok)} .b-err{background:var(--err-soft);color:var(--err)}
+.b-amb{background:var(--amber-soft);color:var(--amber)} .b-inf{background:var(--info-soft);color:var(--info)}
+.b-mut{background:var(--panel2);color:var(--mut)}
+.btn{display:inline-flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 13px;font-size:13px;color:var(--txt)}
+.btn:hover{border-color:var(--amber);color:var(--amber)}
+.btn.primary{background:var(--amber);color:#1a1200;font-weight:650;border-color:var(--amber)}
+.btn.primary:hover{filter:brightness(1.08);color:#1a1200}
+.btn.danger{color:var(--err)} .btn.danger:hover{border-color:var(--err)}
+.btn.sm{padding:4px 9px;font-size:12px;border-radius:7px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filters input,.filters select{width:auto;min-width:160px}
+
+/* ── Gráficos ── */
+.chartbox{padding:14px 16px}
+.chartbox canvas{width:100%;height:150px;display:block}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:1100px){.grid2{grid-template-columns:1fr}}
+
+/* ── Fluxo de auditoria (assinatura) ── */
+.ticker{display:flex;flex-direction:column;gap:0}
+.ticker .ev{display:flex;gap:10px;padding:9px 16px;border-bottom:1px solid var(--line);font-size:12.5px;align-items:baseline}
+.ticker .ev:last-child{border-bottom:0}
+.ticker .t{font-family:var(--mono);color:var(--dim);flex:none;width:88px}
+.ticker .who{color:var(--amber);font-family:var(--mono);flex:none}
+.ticker .what{color:var(--mut)}
+.ticker .what b{color:var(--txt);font-weight:600}
+
+/* ── Perfil do usuário ── */
+.uhead{display:flex;gap:16px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.uhead img{width:58px;height:58px;border-radius:50%;border:2px solid var(--line);background:var(--panel2)}
+.uhead .nm{font-size:18px;font-weight:700}
+.uhead .em{font-family:var(--mono);color:var(--mut);font-size:13px}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1px;background:var(--line)}
+.kv .it{background:var(--panel);padding:11px 14px}
+.kv .k{color:var(--mut);font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between}
+.kv .v{font-family:var(--mono);font-size:13.5px;margin-top:3px;word-break:break-all}
+.kv .edit{color:var(--dim);cursor:pointer;font-size:12px}
+.kv .edit:hover{color:var(--amber)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);padding:0 8px;overflow-x:auto}
+.tabs button{padding:10px 14px;color:var(--mut);font-size:13px;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button.on{color:var(--amber);border-bottom-color:var(--amber);font-weight:600}
+
+/* ── Modal / toast ── */
+#modalbg{position:fixed;inset:0;background:rgba(5,8,12,.72);display:none;align-items:center;justify-content:center;z-index:100;padding:18px}
+#modalbg.on{display:flex}
+#modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:min(480px,100%);padding:20px}
+#modal h3{font-size:15px;margin-bottom:4px}
+#modal .sub{margin-bottom:14px}
+#modal label{display:block;color:var(--mut);font-size:12px;margin:10px 0 5px}
+#modal .acts{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+#toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:200}
+.toast{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:9px;padding:11px 15px;font-size:13px;min-width:240px;box-shadow:0 8px 30px rgba(0,0,0,.45)}
+.toast.ok{border-left-color:var(--ok)} .toast.err{border-left-color:var(--err)}
+
+/* ── Login gate ── */
+#gate{display:none;min-height:100vh;align-items:center;justify-content:center;flex-direction:column;gap:14px;text-align:center;padding:20px}
+#gate .beacon{width:16px;height:16px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 6px var(--amber-soft)}
+
+@media(max-width:860px){
+  #app{grid-template-columns:1fr}
+  aside{position:fixed;left:-240px;transition:left .2s;z-index:60;width:228px}
+  aside.open{left:0}
+  #menuburger{display:inline-flex}
+}
+#menuburger{display:none}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="beacon"></div>
+  <h1 style="font-size:20px">Central de Comando H2BApply</h1>
+  <p class="sub" id="gatemsg">Verificando sessão…</p>
+  <a class="btn primary" href="/oauth/start">Entrar com Google</a>
+  <a class="btn" href="/admin">Abrir painel clássico</a>
+</div>
+
+<div id="app" style="display:none">
+<aside id="sidebar">
+  <div class="brand">
+    <div class="beacon" id="beacon"></div>
+    <div><b>H2BApply</b><small>Central de Comando · v2</small></div>
+  </div>
+  <nav id="nav">
+    <div class="grp">Operação</div>
+    <button data-v="dash" class="on"><span class="ic">◧</span>Dashboard</button>
+    <button data-v="users"><span class="ic">◉</span>Usuários</button>
+    <button data-v="bots"><span class="ic">⚙</span>Centro de Bots</button>
+    <button data-v="ia"><span class="ic">✳</span>Inteligência Artificial</button>
+    <div class="grp">Dinheiro</div>
+    <button data-v="fin"><span class="ic">◈</span>Financeiro</button>
+    <button data-v="pedidos"><span class="ic">▤</span>Pedidos</button>
+    <button data-v="reports"><span class="ic">▥</span>Relatórios</button>
+    <div class="grp">Governança</div>
+    <button data-v="logs"><span class="ic">≡</span>Central de Logs</button>
+    <button data-v="audit"><span class="ic">✎</span>Auditoria</button>
+    <button data-v="backup"><span class="ic">⛃</span>Backup</button>
+    <button data-v="config"><span class="ic">⚒</span>Configurações</button>
+    <div class="grp">Legado</div>
+    <button onclick="location.href='/admin'"><span class="ic">↩</span>Painel clássico</button>
+  </nav>
+</aside>
+
+<main>
+<header>
+  <button id="menuburger" class="btn sm" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+  <h1 id="vtitle">Dashboard</h1>
+  <div id="gsearch">
+    <span class="lupa">⌕</span>
+    <input id="gq" placeholder="Buscar usuário por nome, e-mail, telefone…">
+    <span class="k">Ctrl K</span>
+  </div>
+  <div class="adminchip">operador <b id="adminname">—</b> <button class="btn sm" style="margin-left:4px" onclick="pedirAdmin(true)">trocar</button></div>
+</header>
+
+<!-- ══════════ DASHBOARD ══════════ -->
+<section class="view on" id="v-dash">
+  <div class="hrow"><h2>Visão geral</h2><span class="sub" id="dashts"></span><span class="sp"></span><button class="btn sm" onclick="loadDash()">Atualizar</button></div>
+  <div class="cards" id="dashcards"></div>
+  <div class="grid2">
+    <div class="panel"><div class="ph"><h3>Receita — últimos 30 dias</h3></div><div class="chartbox"><canvas id="ch-rev"></canvas></div></div>
+    <div class="panel"><div class="ph"><h3>Envios de candidatura — 7 dias</h3></div><div class="chartbox"><canvas id="ch-send"></canvas></div></div>
+  </div>
+  <div class="grid2">
+    <div class="panel"><div class="ph"><h3>Fluxo de auditoria</h3><span class="sp"></span><button class="btn sm" onclick="go('audit')">ver tudo</button></div><div class="ticker" id="dash-audit"></div></div>
+    <div class="panel"><div class="ph"><h3>Últimos envios do sistema</h3></div><div class="ticker" id="dash-logs"></div></div>
+  </div>
+  <div class="panel"><div class="ph"><h3>Alertas</h3></div><div id="dash-alerts" class="ticker"></div></div>
+</section>
+
+<!-- ══════════ USUÁRIOS ══════════ -->
+<section class="view" id="v-users">
+  <div class="hrow"><h2>Usuários</h2><span class="sub" id="uc-total"></span></div>
+  <div class="panel">
+    <div class="ph filters">
+      <input id="u-q" placeholder="Buscar nome, e-mail, telefone…" style="min-width:240px">
+      <select id="u-plan"><option value="">Todos os planos</option><option>free</option><option>vip</option><option>vipro</option><option>doublepro</option><option>pro</option></select>
+      <select id="u-sort">
+        <option value="created_desc">Mais recentes</option>
+        <option value="seen_desc">Vistos por último</option>
+        <option value="vip_desc">VIP vence primeiro (desc)</option>
+        <option value="name">Nome A–Z</option>
+      </select>
+      <span class="sp"></span>
+      <button class="btn sm" onclick="loadUsers(1)">Filtrar</button>
+    </div>
+    <div class="tblwrap"><table class="tbl" id="u-tbl">
+      <thead><tr><th>Usuário</th><th>Plano</th><th>VIP</th><th>Robô</th><th>Criado</th><th>Visto</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <div class="pager"><span id="u-info"></span><span class="sp"></span>
+      <button class="btn sm" onclick="loadUsers(U.page-1)">‹</button>
+      <button class="btn sm" onclick="loadUsers(U.page+1)">›</button>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ PERFIL DO USUÁRIO ══════════ -->
+<section class="view" id="v-user">
+  <div class="hrow"><button class="btn sm" onclick="go('users')">‹ voltar</button><h2>Perfil do usuário</h2></div>
+  <div id="u-detail"></div>
+</section>
+
+<!-- ══════════ BOTS ══════════ -->
+<section class="view" id="v-bots">
+  <div class="hrow"><h2>Centro de Bots</h2><span class="sub">todos os robôs numa única área</span><span class="sp"></span><button class="btn sm" onclick="loadBots()">Atualizar</button></div>
+  <div class="cards" id="bot-cards"></div>
+  <div class="panel">
+    <div class="ph"><h3>Motor automático — jobs por usuário</h3><span class="sp"></span><input id="bot-q" placeholder="filtrar e-mail/status…" style="width:220px" oninput="renderBots()"></div>
+    <div class="tblwrap"><table class="tbl"><thead><tr><th>Usuário</th><th>Status</th><th>Fila</th><th>Fonte</th><th>Último envio</th><th>Ações</th></tr></thead><tbody id="bot-tbody"></tbody></table></div>
+  </div>
+  <div class="grid2">
+    <div class="panel"><div class="ph"><h3>Coleta DOL</h3></div><pre class="chartbox mono" id="bot-dol" style="font-size:12px;white-space:pre-wrap;color:var(--mut)"></pre></div>
+    <div class="panel"><div class="ph"><h3>Enriquecimento · Sentinel</h3></div><pre class="chartbox mono" id="bot-enr" style="font-size:12px;white-space:pre-wrap;color:var(--mut)"></pre></div>
+  </div>
+</section>
+
+<!-- ══════════ IA ══════════ -->
+<section class="view" id="v-ia">
+  <div class="hrow"><h2>Inteligência Artificial</h2><span class="sp"></span><button class="btn sm" onclick="probeIA()">Testar latência</button></div>
+  <div class="cards" id="ia-cards"></div>
+  <div class="panel"><div class="ph"><h3>Base de conhecimento (memória da IA)</h3></div><div class="ticker" id="ia-kb"></div></div>
+</section>
+
+<!-- ══════════ FINANCEIRO ══════════ -->
+<section class="view" id="v-fin">
+  <div class="hrow"><h2>Financeiro</h2><span class="sp"></span>
+    <a class="btn sm" href="/api/admin/v2/logs?tipo=financeiro&csv=1">Exportar CSV</a>
+    <button class="btn sm" onclick="loadFin()">Atualizar</button></div>
+  <div class="cards" id="fin-cards"></div>
+  <div class="panel"><div class="ph"><h3>Receita × Despesa × Lucro — 12 meses</h3></div><div class="chartbox"><canvas id="ch-fin"></canvas></div></div>
+  <div class="panel">
+    <div class="ph"><h3>Livro-caixa · pagamentos</h3><span class="sp"></span><input id="fin-q" placeholder="filtrar…" style="width:200px" oninput="renderFin()"></div>
+    <div class="tblwrap"><table class="tbl"><thead><tr><th>Data</th><th>Usuário</th><th>Plano</th><th>Valor</th><th>Origem</th><th></th></tr></thead><tbody id="fin-tbody"></tbody></table></div>
+  </div>
+  <div class="panel">
+    <div class="ph"><h3>Despesas</h3></div>
+    <div class="tblwrap"><table class="tbl"><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th><th>Pago por</th></tr></thead><tbody id="gasto-tbody"></tbody></table></div>
+  </div>
+</section>
+
+<!-- ══════════ PEDIDOS ══════════ -->
+<section class="view" id="v-pedidos">
+  <div class="hrow"><h2>Pedidos de plano</h2><span class="sub">aprovação continua no painel clássico; aqui você acompanha e corrige</span><span class="sp"></span><button class="btn sm" onclick="loadPedidos()">Atualizar</button></div>
+  <div class="panel">
+    <div class="ph filters"><input id="ped-q" placeholder="filtrar…" style="width:220px" oninput="renderPedidos()">
+      <select id="ped-st" onchange="renderPedidos()"><option value="">Todos</option><option>pendente</option><option>aprovado</option><option>recusado</option></select></div>
+    <div class="tblwrap"><table class="tbl"><thead><tr><th>Data</th><th>Usuário</th><th>Plano</th><th>Valor</th><th>Status</th></tr></thead><tbody id="ped-tbody"></tbody></table></div>
+  </div>
+</section>
+
+<!-- ══════════ RELATÓRIOS ══════════ -->
+<section class="view" id="v-reports">
+  <div class="hrow"><h2>Relatórios inteligentes</h2><span class="sp"></span><button class="btn sm" onclick="loadReports()">Atualizar</button></div>
+  <div class="cards" id="rep-cards"></div>
+  <div class="panel"><div class="ph"><h3>Usuários por plano</h3></div><div class="chartbox"><canvas id="ch-plans"></canvas></div></div>
+</section>
+
+<!-- ══════════ LOGS ══════════ -->
+<section class="view" id="v-logs">
+  <div class="hrow"><h2>Central de Logs</h2></div>
+  <div class="panel">
+    <div class="ph filters">
+      <select id="log-tipo" onchange="loadLogs(1)">
+        <option value="envios">Envios (candidaturas)</option>
+        <option value="financeiro">Financeiro</option>
+        <option value="pedidos">Pedidos</option>
+        <option value="auditoria">Administrativo (auditoria)</option>
+      </select>
+      <input id="log-q" placeholder="buscar…" style="width:220px">
+      <button class="btn sm" onclick="loadLogs(1)">Buscar</button>
+      <span class="sp"></span>
+      <button class="btn sm" onclick="exportLogs()">Exportar CSV</button>
+    </div>
+    <div class="tblwrap" id="log-wrap"></div>
+    <div class="pager"><span id="log-info"></span><span class="sp"></span>
+      <button class="btn sm" onclick="loadLogs(LOGS.page-1)">‹</button>
+      <button class="btn sm" onclick="loadLogs(LOGS.page+1)">›</button></div>
+  </div>
+</section>
+
+<!-- ══════════ AUDITORIA ══════════ -->
+<section class="view" id="v-audit">
+  <div class="hrow"><h2>Auditoria</h2><span class="sub">registro permanente — nunca é apagado</span></div>
+  <div class="panel">
+    <div class="ph filters"><input id="au-q" placeholder="buscar admin, usuário, campo…" style="width:260px"><button class="btn sm" onclick="loadAudit(1)">Buscar</button></div>
+    <div class="tblwrap"><table class="tbl"><thead><tr><th>Quando</th><th>Admin</th><th>Ação</th><th>Alvo</th><th>Campo</th><th>Antes → Depois</th><th>Motivo</th><th>IP / Dispositivo</th></tr></thead><tbody id="au-tbody"></tbody></table></div>
+    <div class="pager"><span id="au-info"></span><span class="sp"></span>
+      <button class="btn sm" onclick="loadAudit(AU.page-1)">‹</button>
+      <button class="btn sm" onclick="loadAudit(AU.page+1)">›</button></div>
+  </div>
+</section>
+
+<!-- ══════════ BACKUP ══════════ -->
+<section class="view" id="v-backup">
+  <div class="hrow"><h2>Backup</h2><span class="sp"></span><button class="btn primary sm" onclick="criarBackup()">Criar backup agora</button></div>
+  <div class="panel"><div class="ph"><h3>Snapshots em /data/backups</h3></div>
+    <div class="tblwrap"><table class="tbl"><thead><tr><th>Nome</th><th>Arquivos</th><th></th></tr></thead><tbody id="bk-tbody"></tbody></table></div>
+  </div>
+</section>
+
+<!-- ══════════ CONFIG ══════════ -->
+<section class="view" id="v-config">
+  <div class="hrow"><h2>Configurações centrais</h2><span class="sp"></span><button class="btn sm" onclick="loadConfig()">Atualizar</button></div>
+  <div class="panel"><div class="ph"><h3>admin_settings</h3><span class="sub">clique no valor para editar (auditado)</span></div><div class="kv" id="cfg-kv"></div></div>
+</section>
+
+</main>
+</div>
+
+<!-- Modal genérico -->
+<div id="modalbg"><div id="modal">
+  <h3 id="m-title">Editar</h3><p class="sub" id="m-sub"></p>
+  <label id="m-vlabel">Novo valor</label><input id="m-value">
+  <label>Motivo (recomendado)</label><input id="m-reason" placeholder="ex.: correção de valor pago">
+  <div class="acts"><button class="btn" onclick="fecharModal()">Cancelar</button><button class="btn primary" id="m-ok">Salvar</button></div>
+</div></div>
+<div id="toasts"></div>
+
+<script>
+"use strict";
+/* ═══════════ infra ═══════════ */
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+const fmtBRL=v=>(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const fmtDT=ts=>ts?new Date(ts).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"—";
+const fmtD=ts=>ts?new Date(ts).toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}):"—";
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(msg,cls){const t=document.createElement("div");t.className="toast "+(cls||"");t.textContent=msg;$("#toasts").appendChild(t);setTimeout(()=>t.remove(),4200);}
+async function api(path,opts){
+  const r=await fetch(path,{headers:{"Content-Type":"application/json"},...opts});
+  const d=await r.json().catch(()=>({}));
+  if(r.status===401){mostrarGate("Sessão expirada. Entre novamente.");throw new Error("401");}
+  if(!r.ok||d.error){toast(d.error||("Erro "+r.status),"err");throw new Error(d.error||r.status);}
+  return d;
+}
+function mostrarGate(msg){$("#gate").style.display="flex";$("#app").style.display="none";$("#gatemsg").textContent=msg||"";}
+
+/* operador responsável (só o nome — exigência do fluxo) */
+function getAdmin(){return localStorage.getItem("h2b_v2_admin")||"";}
+function pedirAdmin(force){
+  let n=getAdmin();
+  if(!n||force){n=prompt("Nome do administrador responsável pelas alterações:",n||"")||"";n=n.trim();if(n)localStorage.setItem("h2b_v2_admin",n);}
+  $("#adminname").textContent=n||"—";
+  return n;
+}
+
+/* modal */
+let _mCb=null;
+function abrirModal({title,sub,value,label,cb}){
+  $("#m-title").textContent=title;$("#m-sub").textContent=sub||"";
+  $("#m-vlabel").textContent=label||"Novo valor";
+  $("#m-value").value=value??"";$("#m-reason").value="";
+  _mCb=cb;$("#modalbg").classList.add("on");$("#m-value").focus();
+}
+function fecharModal(){$("#modalbg").classList.remove("on");_mCb=null;}
+$("#m-ok").onclick=async()=>{if(_mCb)await _mCb($("#m-value").value,$("#m-reason").value);fecharModal();};
+$("#modalbg").onclick=e=>{if(e.target.id==="modalbg")fecharModal();};
+
+/* navegação */
+const TITLES={dash:"Dashboard",users:"Usuários",user:"Perfil do usuário",bots:"Centro de Bots",ia:"Inteligência Artificial",fin:"Financeiro",pedidos:"Pedidos",reports:"Relatórios",logs:"Central de Logs",audit:"Auditoria",backup:"Backup",config:"Configurações"};
+function go(v,arg){
+  $$(".view").forEach(x=>x.classList.remove("on"));
+  $("#v-"+v).classList.add("on");
+  $$("#nav button[data-v]").forEach(b=>b.classList.toggle("on",b.dataset.v===v));
+  $("#vtitle").textContent=TITLES[v]||v;
+  document.getElementById("sidebar").classList.remove("open");
+  ({dash:loadDash,users:()=>loadUsers(1),bots:loadBots,ia:loadIA,fin:loadFin,pedidos:loadPedidos,reports:loadReports,logs:()=>loadLogs(1),audit:()=>loadAudit(1),backup:loadBackups,config:loadConfig,user:()=>arg&&loadUser(arg)})[v]?.();
+}
+$$("#nav button[data-v]").forEach(b=>b.onclick=()=>go(b.dataset.v));
+document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("#gq").focus();}});
+$("#gq").addEventListener("keydown",e=>{if(e.key==="Enter"){go("users");$("#u-q").value=$("#gq").value;loadUsers(1);}});
+
+/* gráficos: canvas minimalista, sem libs */
+function drawBars(canvas,data,{color,money}={}){
+  const c=canvas,dpr=devicePixelRatio||1;
+  const W=c.clientWidth||600,H=c.clientHeight||150;
+  c.width=W*dpr;c.height=H*dpr;
+  const g=c.getContext("2d");g.scale(dpr,dpr);g.clearRect(0,0,W,H);
+  if(!data?.length)return;
+  const max=Math.max(...data.map(d=>d.v),1);
+  const pad=6,bw=(W-pad*2)/data.length;
+  g.font="10px ui-monospace,monospace";
+  data.forEach((d,i)=>{
+    const h=(d.v/max)*(H-30);
+    g.fillStyle=color||"#ffb224";
+    g.globalAlpha=d.v?1:.25;
+    g.fillRect(pad+i*bw+1,H-18-h,Math.max(bw-2,1),Math.max(h,1));
+    g.globalAlpha=1;
+    if(data.length<=14||i%Math.ceil(data.length/10)===0){g.fillStyle="#5c6773";g.fillText(d.d,pad+i*bw,H-5);}
+  });
+  g.fillStyle="#8b98a5";g.fillText((money?fmtBRL(max):max)+" máx",pad,10);
+}
+function drawLines(canvas,series){
+  const c=canvas,dpr=devicePixelRatio||1;
+  const W=c.clientWidth||600,H=c.clientHeight||150;
+  c.width=W*dpr;c.height=H*dpr;
+  const g=c.getContext("2d");g.scale(dpr,dpr);g.clearRect(0,0,W,H);
+  const all=series.flatMap(s=>s.data.map(p=>p.v));
+  if(!all.length)return;
+  const max=Math.max(...all,1),n=series[0].data.length;
+  const x=i=>8+i*((W-16)/Math.max(n-1,1)), y=v=>H-20-(v/max)*(H-34);
+  series.forEach(s=>{
+    g.strokeStyle=s.color;g.lineWidth=2;g.beginPath();
+    s.data.forEach((p,i)=>i?g.lineTo(x(i),y(p.v)):g.moveTo(x(i),y(p.v)));g.stroke();
+  });
+  g.font="10px ui-monospace,monospace";g.fillStyle="#5c6773";
+  series[0].data.forEach((p,i)=>{if(i%Math.ceil(n/8)===0)g.fillText(p.m||p.d,x(i)-8,H-6);});
+  let lx=8;series.forEach(s=>{g.fillStyle=s.color;g.fillRect(lx,4,9,9);g.fillStyle="#8b98a5";g.fillText(s.name,lx+13,12);lx+=g.measureText(s.name).width+34;});
+}
+
+/* ═══════════ DASHBOARD ═══════════ */
+async function loadDash(){
+  const d=await api("/api/admin/v2/dashboard");
+  const c=d.cards;
+  $("#dashts").textContent="atualizado "+fmtDT(d.ts);
+  $("#beacon").className="beacon "+(d.alertas.some(a=>a.nivel==="alto")?"err":d.alertas.length?"":"ok");
+  const card=(lbl,val,det,cls)=>`<div class="card ${cls||""}"><div class="lbl">${lbl}</div><div class="val">${val}</div><div class="det">${det||""}</div></div>`;
+  $("#dashcards").innerHTML=[
+    card("Usuários",c.usuarios.total,`${c.usuarios.online} online · ${c.usuarios.novos7d} novos 7d`),
+    card("VIPs ativos",c.usuarios.vips,"",""),
+    card("Receita hoje",fmtBRL(c.receita.dia),`semana ${fmtBRL(c.receita.semana)}`,"amber"),
+    card("Receita mês",fmtBRL(c.receita.mes),`ano ${fmtBRL(c.receita.ano)}`,"amber"),
+    card("Pedidos pendentes",c.pedidos.pendentes,c.pedidos.criticos?`${c.pedidos.criticos} críticos >24h`:"tudo em dia",c.pedidos.criticos?"err":"ok"),
+    card("Bots ativos",c.bots.ativos,`${c.bots.pausados} pausados · ${c.bots.erros} erro`,c.bots.erros?"err":"ok"),
+    card("E-mails hoje",c.emails.hoje,`${c.emails.mes} no mês`,"info"),
+    card("Vagas extras",c.vagas.extras,"planilhas coletadas"),
+    card("CPU",c.sistema.cpuLoad,`${c.sistema.cpus} núcleos · up ${c.sistema.uptimeH}h`),
+    card("Memória",c.sistema.mem.usedMB+" MB",`de ${c.sistema.mem.totalMB} MB`),
+    card("Disco",c.sistema.disk?c.sistema.disk.freeGB+" GB livres":"—",c.sistema.disk?`de ${c.sistema.disk.totalGB} GB`:""),
+    card("IA / KB",c.ia.kbEntries+" entradas",c.ia.keyOk?"Gemini OK":"sem chave",c.ia.keyOk?"ok":"err"),
+  ].join("");
+  drawBars($("#ch-rev"),d.graficos.receita30d,{money:true});
+  drawBars($("#ch-send"),d.graficos.envios7d,{color:"#58a6ff"});
+  $("#dash-audit").innerHTML=d.auditRecent.map(a=>`<div class="ev"><span class="t">${fmtDT(a.ts)}</span><span class="who">${esc(a.admin)}</span><span class="what">${esc(a.action)} <b>${esc(a.field||a.target)}</b>${a.target?" · "+esc(a.target):""}</span></div>`).join("")||'<div class="empty">Nenhum registro ainda — a primeira edição inaugura o fluxo.</div>';
+  $("#dash-logs").innerHTML=d.logsRecent.map(l=>`<div class="ev"><span class="t">${fmtDT(l.ts)}</span><span class="what"><b>${esc(l.email)}</b> → ${esc(l.to||"?")} <span class="bdg ${String(l.status).startsWith("erro")?"b-err":"b-ok"}">${esc(l.status)}</span></span></div>`).join("")||'<div class="empty">Sem envios recentes.</div>';
+  $("#dash-alerts").innerHTML=d.alertas.map(a=>`<div class="ev"><span class="bdg ${a.nivel==="alto"?"b-err":"b-amb"}">${a.nivel}</span><span class="what">${esc(a.msg)}</span></div>`).join("")||'<div class="empty">Nenhum alerta. Sistema saudável.</div>';
+}
+
+/* ═══════════ USUÁRIOS ═══════════ */
+let U={page:1};
+async function loadUsers(page){
+  U.page=Math.max(1,page||1);
+  const q=encodeURIComponent($("#u-q").value.trim());
+  const d=await api(`/api/admin/v2/users?q=${q}&plan=${$("#u-plan").value}&sort=${$("#u-sort").value}&page=${U.page}&per=25`);
+  U=Object.assign(U,d);
+  $("#uc-total").textContent=d.total+" usuários";
+  $("#u-info").textContent=`página ${d.page} de ${d.pages||1}`;
+  $("#u-tbl tbody").innerHTML=d.users.map(u=>`<tr>
+    <td><div style="display:flex;gap:9px;align-items:center">
+      <img src="${esc(u.picture)||'data:,'}" onerror="this.style.visibility='hidden'" style="width:28px;height:28px;border-radius:50%;background:var(--panel2)">
+      <div><div>${esc(u.name)||"—"}</div><div class="mono" style="color:var(--mut);font-size:11.5px">${esc(u.email)}</div></div></div></td>
+    <td><span class="bdg ${u.plan==="free"?"b-mut":"b-amb"}">${u.plan}</span>${u.isAdmin?' <span class="bdg b-inf">admin</span>':""}</td>
+    <td class="num">${u.vipAtivo?`<span class="bdg b-ok">${u.diasRestantes}d</span>`:'<span class="bdg b-mut">—</span>'}</td>
+    <td>${u.bot?`<span class="bdg ${u.bot.status?.startsWith("paused")?"b-err":u.bot.active?"b-ok":"b-mut"}">${esc(u.bot.status||"—")}</span>`:'<span class="bdg b-mut">sem robô</span>'}</td>
+    <td class="num">${fmtD(Date.parse(u.created_at)||0)}</td>
+    <td class="num">${u.lastSeen?fmtDT(u.lastSeen):"—"}</td>
+    <td><button class="btn sm" onclick="go('user','${esc(u.email)}')">Abrir</button></td>
+  </tr>`).join("")||`<tr><td colspan="7" class="empty">Nenhum usuário encontrado.</td></tr>`;
+}
+["u-q"].forEach(id=>$("#"+id).addEventListener("keydown",e=>{if(e.key==="Enter")loadUsers(1);}));
+
+/* ═══ perfil 360° com edição inline ═══ */
+let CUR=null;
+async function loadUser(email){
+  const d=await api("/api/admin/v2/user?email="+encodeURIComponent(email));
+  CUR=d;
+  const u=d.user;
+  const f=(k,label,val,editField,tipo)=>`<div class="it"><div class="k">${label}${editField?`<span class="edit" onclick="editarCampo('${esc(u.email)}','${editField}','${tipo||"text"}')">editar ✎</span>`:""}</div><div class="v">${val}</div></div>`;
+  $("#u-detail").innerHTML=`
+  <div class="uhead">
+    <img src="${esc(u.picture)||'data:,'}" onerror="this.style.visibility='hidden'">
+    <div><div class="nm">${esc(u.name)||"—"} ${u.isAdmin?'<span class="bdg b-inf">admin</span>':""} ${u.vipAtivo?'<span class="bdg b-ok">VIP · '+u.diasRestantes+'d</span>':""}</div>
+    <div class="em">${esc(u.email)}</div></div>
+    <span class="sp" style="flex:1"></span>
+    ${d.bot?`<button class="btn sm" onclick="botAcao('${esc(u.email)}','restart')">Reiniciar robô</button><button class="btn sm danger" onclick="botAcao('${esc(u.email)}','stop')">Parar robô</button>`:""}
+  </div>
+  <div class="panel"><div class="ph"><h3>Dados — clique em editar para alterar qualquer campo (auditado)</h3></div>
+  <div class="kv">
+    ${f("nome","Nome",esc(u.name)||"—","name")}
+    ${f("email","E-mail (renomeia e migra tudo)",esc(u.email),"email")}
+    ${f("fone","Telefone",esc(u.phone)||"—","phone")}
+    ${f("plano","Plano efetivo",u.plan,"")}
+    ${f("planoraw","Rótulo de plano salvo",esc(u.planRaw),"plan")}
+    ${f("vipman","VIP Manual expira",u.vip?.manualExpires?fmtDT(u.vip.manualExpires):"—","vip.manualExpires","ts")}
+    ${f("vipauto","VIP Auto expira",u.vip?.autoExpires?fmtDT(u.vip.autoExpires):"—","vip.autoExpires","ts")}
+    ${f("admin","É admin?",u.isAdmin?"sim":"não","isAdmin")}
+    ${f("google","Google conectado",u.googleConectado?"sim":"não","")}
+    ${f("senders","Gmails de envio",u.senderEmails.map(esc).join("<br>")||"—","")}
+    ${f("cvs","Currículos",u.cvs.map(c=>esc(c.name)).join("<br>")||"—","")}
+    ${f("obs","Observações internas",esc(u.obsAdmin)||"—","obsAdmin")}
+    ${f("tags","Tags",(u.tagsAdmin||[]).map(t=>`<span class="bdg b-amb">${esc(t)}</span>`).join(" ")||"—","")}
+    ${f("criado","Criado em",fmtD(Date.parse(u.created_at)||0),"")}
+    ${f("visto","Visto por último",u.lastSeen?fmtDT(u.lastSeen):"—","")}
+    ${f("envhoje","Envios hoje",d.stats.enviadosHoje,"")}
+    ${f("env30","Envios 30 dias",d.stats.enviados30,"")}
+    ${f("envtot","Envios totais",d.stats.totalEnviados,"")}
+  </div></div>
+  <div class="panel">
+    <div class="tabs" id="utabs">
+      <button class="on" data-t="envios">Envios</button>
+      <button data-t="pag">Pagamentos</button>
+      <button data-t="ped">Pedidos</button>
+      <button data-t="aud">Histórico de alterações</button>
+    </div>
+    <div id="utab-body"></div>
+  </div>`;
+  $$("#utabs button").forEach(b=>b.onclick=()=>{$$("#utabs button").forEach(x=>x.classList.remove("on"));b.classList.add("on");renderUTab(b.dataset.t);});
+  renderUTab("envios");
+}
+function renderUTab(t){
+  const d=CUR,el=$("#utab-body");
+  if(t==="envios")el.innerHTML=`<div class="tblwrap"><table class="tbl"><thead><tr><th>Quando</th><th>Para</th><th>Vaga</th><th>Empresa</th><th>Status</th></tr></thead><tbody>${d.envios.map(h=>`<tr><td class="num">${fmtDT(h.ts)}</td><td class="mono">${esc(h.to)}</td><td>${esc(h.jobTitle)}</td><td>${esc(h.company)}</td><td><span class="bdg ${String(h.status).startsWith("erro")?"b-err":"b-ok"}">${esc(h.status)}</span></td></tr>`).join("")||'<tr><td colspan="5" class="empty">Sem envios.</td></tr>'}</tbody></table></div>`;
+  if(t==="pag")el.innerHTML=`<div class="tblwrap"><table class="tbl"><thead><tr><th>Data</th><th>Plano</th><th>Valor</th><th>Origem</th><th></th></tr></thead><tbody>${d.pagamentos.map(p=>`<tr><td class="num">${fmtDT(p.data)}</td><td>${esc(p.plano)}</td><td class="num">${fmtBRL(p.valor)}</td><td class="mono">${esc(p.source)}</td><td><button class="btn sm" onclick="corrigirPagamento('${esc(p.id)}',${p.valor})">Corrigir valor</button></td></tr>`).join("")||'<tr><td colspan="5" class="empty">Sem pagamentos.</td></tr>'}</tbody></table></div>`;
+  if(t==="ped")el.innerHTML=`<div class="tblwrap"><table class="tbl"><thead><tr><th>Data</th><th>Plano</th><th>Valor</th><th>Status</th></tr></thead><tbody>${d.pedidos.map(p=>`<tr><td class="num">${fmtDT(p.createdAt)}</td><td>${esc(p.plan)}</td><td class="num">${fmtBRL(+p.valor||0)}</td><td><span class="bdg ${p.status==="aprovado"?"b-ok":p.status==="pendente"?"b-amb":"b-mut"}">${esc(p.status)}</span></td></tr>`).join("")||'<tr><td colspan="4" class="empty">Sem pedidos.</td></tr>'}</tbody></table></div>`;
+  if(t==="aud")el.innerHTML=`<div class="ticker">${d.auditoria.map(a=>`<div class="ev"><span class="t">${fmtDT(a.ts)}</span><span class="who">${esc(a.admin)}</span><span class="what">${esc(a.action)} <b>${esc(a.field)}</b>: <span class="mono">${esc(JSON.stringify(a.oldValue))}</span> → <span class="mono">${esc(JSON.stringify(a.newValue))}</span>${a.reason?" · "+esc(a.reason):""}</span></div>`).join("")||'<div class="empty">Nenhuma alteração registrada.</div>'}</div>`;
+}
+function editarCampo(email,field,tipo){
+  const admin=pedirAdmin(); if(!admin)return toast("Informe o nome do administrador.","err");
+  abrirModal({title:"Editar "+field,sub:`Usuário ${email} · registrado por ${admin}`,
+    label:tipo==="ts"?"Nova data/hora (ex.: 2026-08-15 23:59)":"Novo valor",
+    cb:async(v,reason)=>{
+      let value=v;
+      if(tipo==="ts"){const t=Date.parse(v.replace(" ","T")+(v.length<=10?"T23:59":""));if(isNaN(t))return toast("Data inválida.","err");value=String(t);}
+      const r=await api("/api/admin/v2/user/edit",{method:"POST",body:JSON.stringify({email,field,value,adminName:admin,reason})});
+      toast("Alterado e auditado ✓","ok");
+      loadUser(r.email||email);
+    }});
+}
+async function botAcao(email,action){
+  const admin=pedirAdmin(); if(!admin)return;
+  await api("/api/admin/v2/bots/action",{method:"POST",body:JSON.stringify({email,action,adminName:admin})});
+  toast("Robô: "+action+" ✓","ok");
+  if($("#v-user").classList.contains("on"))loadUser(email); else loadBots();
+}
+function corrigirPagamento(id,atual){
+  const admin=pedirAdmin(); if(!admin)return toast("Informe o nome do administrador.","err");
+  abrirModal({title:"Corrigir valor do pagamento",sub:`Valor atual ${fmtBRL(atual)} · corrige livro-caixa + pedido + receita + relatórios automaticamente`,value:atual,
+    cb:async(v,reason)=>{
+      await api("/api/admin/v2/payment/fix-value",{method:"POST",body:JSON.stringify({id,valor:v,adminName:admin,reason})});
+      toast("Valor corrigido em todo o sistema ✓","ok");
+      if(CUR)loadUser(CUR.user.email); loadFin().catch(()=>{});
+    }});
+}
+
+/* ═══════════ BOTS ═══════════ */
+let BOTS=null;
+async function loadBots(){
+  BOTS=await api("/api/admin/v2/bots");
+  const st=BOTS.motorAuto.byStatus||{};
+  const card=(l,v,cls)=>`<div class="card ${cls||""}"><div class="lbl">${l}</div><div class="val">${v}</div></div>`;
+  $("#bot-cards").innerHTML=[
+    card("Jobs no motor",BOTS.motorAuto.total),
+    card("Enviando",st.sending||0,"ok"),
+    card("Aguardando limite",st.waiting_limit||0,"amber"),
+    card("Erro de autenticação",st.paused_auth_error||0,(st.paused_auth_error?"err":"")),
+    card("Pausados",(st.paused||0)+(st.paused_no_vip||0)),
+  ].join("");
+  renderBots();
+  $("#bot-dol").textContent=JSON.stringify(BOTS.coletaDOL,null,2);
+  $("#bot-enr").textContent="ENRIQUECIMENTO:\n"+JSON.stringify(BOTS.enriquecimento,null,2)+"\n\nSENTINEL:\n"+JSON.stringify(BOTS.sentinel,null,2);
+}
+function renderBots(){
+  if(!BOTS)return;
+  const q=($("#bot-q").value||"").toLowerCase();
+  const jobs=BOTS.motorAuto.jobs.filter(j=>!q||j.email.includes(q)||j.status.includes(q));
+  $("#bot-tbody").innerHTML=jobs.map(j=>`<tr>
+    <td class="mono" style="cursor:pointer" onclick="go('user','${esc(j.email)}')">${esc(j.email)}</td>
+    <td><span class="bdg ${j.status.startsWith("paused")?"b-err":j.active?"b-ok":"b-mut"}">${esc(j.status)}</span></td>
+    <td class="num">${j.fila}</td><td class="mono">${esc(j.source)}</td>
+    <td class="num">${j.lastSend?fmtDT(j.lastSend):"—"}</td>
+    <td><button class="btn sm" onclick="botAcao('${esc(j.email)}','restart')">↻</button>
+        <button class="btn sm" onclick="botAcao('${esc(j.email)}','pause')">⏸</button>
+        <button class="btn sm danger" onclick="botAcao('${esc(j.email)}','stop')">■</button></td>
+  </tr>`).join("")||'<tr><td colspan="6" class="empty">Nenhum job.</td></tr>';
+}
+
+/* ═══════════ IA ═══════════ */
+async function loadIA(){
+  const d=await api("/api/admin/v2/ai");
+  $("#ia-cards").innerHTML=d.provedores.map(p=>`
+    <div class="card ${p.ativo?"ok":"err"}"><div class="lbl">${p.nome}</div><div class="val">${p.ativo?"ativo":"sem chave"}</div><div class="det">${p.modelos.join(" · ")}</div></div>`).join("")
+    +`<div class="card info"><div class="lbl">Base de conhecimento</div><div class="val">${d.kb.entradas}</div><div class="det">entradas KB (memória permanente)</div></div>
+     <div class="card"><div class="lbl">Latência</div><div class="val" id="ia-lat">—</div><div class="det">use "Testar latência"</div></div>`;
+  $("#ia-kb").innerHTML=d.kb.ultimas.map(e=>`<div class="ev"><span class="who">${esc(e.id)}</span><span class="what">${esc(e.titulo)}</span></div>`).join("")||'<div class="empty">KB vazia.</div>';
+}
+async function probeIA(){
+  $("#ia-lat")&&($("#ia-lat").textContent="…");
+  const r=await api("/api/admin/v2/ai/probe",{method:"POST",body:"{}"});
+  $("#ia-lat")&&($("#ia-lat").textContent=r.ok?r.latenciaMs+" ms":"falhou");
+  toast(r.ok?`Gemini respondeu em ${r.latenciaMs} ms`:"Falha: "+(r.error||""),r.ok?"ok":"err");
+}
+
+/* ═══════════ FINANCEIRO ═══════════ */
+let FIN=null;
+async function loadFin(){
+  FIN=await api("/api/admin/v2/finance");
+  const card=(l,v,cls)=>`<div class="card ${cls||""}"><div class="lbl">${l}</div><div class="val">${v}</div></div>`;
+  $("#fin-cards").innerHTML=[card("Receita total",fmtBRL(FIN.receita),"amber"),card("Despesas",fmtBRL(FIN.despesa),"err"),card("Lucro",fmtBRL(FIN.lucro),FIN.lucro>=0?"ok":"err"),card("Pagamentos",FIN.pagamentos.length)].join("");
+  drawLines($("#ch-fin"),[
+    {name:"receita",color:"#ffb224",data:FIN.serieMensal.map(x=>({m:x.m.slice(2),v:x.receita}))},
+    {name:"despesa",color:"#f4594e",data:FIN.serieMensal.map(x=>({m:x.m.slice(2),v:x.despesa}))},
+    {name:"lucro",color:"#3fb970",data:FIN.serieMensal.map(x=>({m:x.m.slice(2),v:Math.max(x.lucro,0)}))},
+  ]);
+  renderFin();
+  $("#gasto-tbody").innerHTML=FIN.gastos.map(g=>`<tr><td class="num">${fmtDT(g.data)}</td><td>${esc(g.desc)}</td><td class="num">${fmtBRL(g.valor)}</td><td class="mono">${esc(g.pagoPor)}</td></tr>`).join("")||'<tr><td colspan="4" class="empty">Sem despesas registradas.</td></tr>';
+}
+function renderFin(){
+  if(!FIN)return;
+  const q=($("#fin-q").value||"").toLowerCase();
+  const rows=FIN.pagamentos.filter(p=>!q||JSON.stringify(p).toLowerCase().includes(q));
+  $("#fin-tbody").innerHTML=rows.map(p=>`<tr>
+    <td class="num">${fmtDT(p.data)}</td>
+    <td class="mono" style="cursor:pointer" onclick="go('user','${esc(p.email)}')">${esc(p.email)}</td>
+    <td>${esc(p.plano)}</td><td class="num">${fmtBRL(p.valor)}${p.corrigidoPor?' <span class="bdg b-amb" title="corrigido por '+esc(p.corrigidoPor)+'">✎</span>':""}</td>
+    <td class="mono">${esc(p.source)}</td>
+    <td><button class="btn sm" onclick="corrigirPagamento('${esc(p.id)}',${p.valor})">Corrigir</button></td>
+  </tr>`).join("")||'<tr><td colspan="6" class="empty">Nada encontrado.</td></tr>';
+}
+
+/* ═══════════ PEDIDOS ═══════════ */
+let PED=[];
+async function loadPedidos(){
+  const d=await api("/api/admin/v2/logs?tipo=pedidos&per=200");
+  PED=d.items;renderPedidos();
+}
+function renderPedidos(){
+  const q=($("#ped-q").value||"").toLowerCase(),st=$("#ped-st").value;
+  const rows=PED.filter(p=>(!st||p.status===st)&&(!q||JSON.stringify(p).toLowerCase().includes(q)));
+  $("#ped-tbody").innerHTML=rows.map(p=>`<tr><td class="num">${fmtDT(p.ts)}</td>
+    <td class="mono" style="cursor:pointer" onclick="go('user','${esc(p.email)}')">${esc(p.email)}</td>
+    <td>${esc(p.plano)}</td><td class="num">${fmtBRL(+p.valor||0)}</td>
+    <td><span class="bdg ${p.status==="aprovado"?"b-ok":p.status==="pendente"?"b-amb":"b-mut"}">${esc(p.status)}</span></td></tr>`).join("")||'<tr><td colspan="5" class="empty">Nenhum pedido.</td></tr>';
+}
+
+/* ═══════════ RELATÓRIOS ═══════════ */
+async function loadReports(){
+  const d=await api("/api/admin/v2/reports");
+  const card=(l,v,det,cls)=>`<div class="card ${cls||""}"><div class="lbl">${l}</div><div class="val">${v}</div><div class="det">${det||""}</div></div>`;
+  $("#rep-cards").innerHTML=[
+    card("Usuários",d.usuarios.total),
+    card("Pagantes únicos",d.conversao.pagantesUnicos,"","amber"),
+    card("Conversão",d.conversao.taxaPct+"%","visitou → pagou","ok"),
+    card("Ticket médio",fmtBRL(d.conversao.ticketMedio),"","amber"),
+    card("Pedidos aprovados",d.pedidos.aprovados,`${d.pedidos.pendentes} pendentes`),
+  ].join("");
+  const plans=Object.entries(d.usuarios.porPlano).map(([k,v])=>({d:k,v}));
+  drawBars($("#ch-plans"),plans,{color:"#58a6ff"});
+}
+
+/* ═══════════ LOGS ═══════════ */
+let LOGS={page:1};
+async function loadLogs(page){
+  LOGS.page=Math.max(1,page||1);
+  const tipo=$("#log-tipo").value,q=encodeURIComponent($("#log-q").value.trim());
+  const d=await api(`/api/admin/v2/logs?tipo=${tipo}&q=${q}&page=${LOGS.page}&per=50`);
+  LOGS=Object.assign(LOGS,d);
+  $("#log-info").textContent=`${d.total} registros · página ${d.page}`;
+  if(!d.items.length){$("#log-wrap").innerHTML='<div class="empty">Nada aqui.</div>';return;}
+  const cols=Object.keys(d.items[0]);
+  $("#log-wrap").innerHTML=`<table class="tbl"><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${
+    d.items.map(r=>`<tr>${cols.map(c=>{
+      let v=r[c];
+      if(c==="ts")v=fmtDT(v);
+      else if(c==="valor")v=fmtBRL(+v||0);
+      else if(typeof v==="object")v=esc(JSON.stringify(v));
+      else v=esc(v);
+      return `<td class="${c==="ts"||c==="valor"?"num":""}" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v}</td>`;
+    }).join("")}</tr>`).join("")}</tbody></table>`;
+}
+function exportLogs(){location.href=`/api/admin/v2/logs?tipo=${$("#log-tipo").value}&q=${encodeURIComponent($("#log-q").value)}&csv=1`;}
+
+/* ═══════════ AUDITORIA ═══════════ */
+let AU={page:1};
+async function loadAudit(page){
+  AU.page=Math.max(1,page||1);
+  const d=await api(`/api/admin/v2/audit?q=${encodeURIComponent($("#au-q").value.trim())}&page=${AU.page}&per=30`);
+  AU=Object.assign(AU,d);
+  $("#au-info").textContent=`${d.total} registros · página ${d.page}`;
+  $("#au-tbody").innerHTML=d.items.map(a=>`<tr>
+    <td class="num">${fmtDT(a.ts)}</td><td class="mono" style="color:var(--amber)">${esc(a.admin)}</td>
+    <td><span class="bdg b-inf">${esc(a.action)}</span></td>
+    <td class="mono">${esc(a.target)}</td><td class="mono">${esc(a.field)}</td>
+    <td class="mono" style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(JSON.stringify(a.oldValue))} → ${esc(JSON.stringify(a.newValue))}</td>
+    <td style="max-width:180px">${esc(a.reason)}</td>
+    <td class="mono" style="color:var(--dim);font-size:11px">${esc(a.ip)}<br>${esc((a.device||"").slice(0,42))}</td>
+  </tr>`).join("")||'<tr><td colspan="8" class="empty">Auditoria vazia — toda edição futura será registrada aqui, para sempre.</td></tr>';
+}
+$("#au-q").addEventListener("keydown",e=>{if(e.key==="Enter")loadAudit(1);});
+
+/* ═══════════ BACKUP ═══════════ */
+async function loadBackups(){
+  const d=await api("/api/admin/v2/backup/list");
+  $("#bk-tbody").innerHTML=d.backups.map(b=>`<tr><td class="mono">${esc(b.name)}</td><td class="num">${b.files}</td>
+    <td><button class="btn sm danger" onclick="restaurarBackup('${esc(b.name)}')">Restaurar</button></td></tr>`).join("")||'<tr><td colspan="3" class="empty">Nenhum backup ainda. Crie o primeiro agora.</td></tr>';
+}
+async function criarBackup(){
+  const admin=pedirAdmin(); if(!admin)return;
+  const r=await api("/api/admin/v2/backup/create",{method:"POST",body:JSON.stringify({adminName:admin})});
+  toast(`Backup ${r.name} criado (${r.files} arquivos) ✓`,"ok");loadBackups();
+}
+async function restaurarBackup(name){
+  const admin=pedirAdmin(); if(!admin)return;
+  if(prompt(`Restaurar ${name} sobrescreve os dados atuais (um snapshot de segurança é feito antes).\nDigite RESTAURAR para confirmar:`)!=="RESTAURAR")return;
+  const r=await api("/api/admin/v2/backup/restore",{method:"POST",body:JSON.stringify({name,adminName:admin,confirm:"RESTAURAR"})});
+  toast(r.aviso,"ok");
+}
+
+/* ═══════════ CONFIG ═══════════ */
+async function loadConfig(){
+  const d=await api("/api/admin/v2/config");
+  const flat=(obj,pre)=>Object.entries(obj).flatMap(([k,v])=>typeof v==="object"&&v!==null&&!Array.isArray(v)?flat(v,(pre?pre+".":"")+k):[[(pre?pre+".":"")+k,v]]);
+  $("#cfg-kv").innerHTML=flat(d.settings,"").map(([k,v])=>`<div class="it"><div class="k">${esc(k)}<span class="edit" onclick="editarConfig('${esc(k)}','${esc(String(v))}')">editar ✎</span></div><div class="v">${esc(JSON.stringify(v))}</div></div>`).join("")||'<div class="empty">Sem configurações.</div>';
+}
+function editarConfig(key,val){
+  const admin=pedirAdmin(); if(!admin)return;
+  abrirModal({title:"Configuração: "+key,sub:"Alteração central, auditada.",value:val,
+    cb:async(v,reason)=>{
+      await api("/api/admin/v2/config",{method:"POST",body:JSON.stringify({key,value:v,adminName:admin,reason})});
+      toast("Configuração salva ✓","ok");loadConfig();
+    }});
+}
+
+/* ═══════════ boot ═══════════ */
+(async function(){
+  try{
+    await api("/api/admin/v2/dashboard"); // valida sessão+permissão
+    $("#gate").style.display="none";$("#app").style.display="grid";
+    pedirAdmin(false);
+    loadDash();
+    setInterval(()=>{if($("#v-dash").classList.contains("on"))loadDash().catch(()=>{});},60_000);
+  }catch(e){
+    mostrarGate(String(e.message).includes("401")?"Você precisa entrar com uma conta de administrador.":"Acesso restrito a administradores.");
+  }
+})();
+</script>
+</body>
+</html>

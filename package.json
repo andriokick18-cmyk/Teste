@@ -4,9 +4,19 @@
   "description": "H2BApply - Vagas H-2B e H-2A automatizadas v15",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "reset": "node reset_h2bapply.js",
+    "test": "node tests/unit.js && node tests/engine.js && node tests/sentinel.js && node tests/watchdogs.js && node tests/smoke.js",
+    "test:unit": "node tests/unit.js",
+    "test:smoke": "node tests/smoke.js",
+    "test:sentinel": "node tests/sentinel.js",
+    "test:watchdogs": "node tests/watchdogs.js",
+    "test:engine": "node tests/engine.js"
   },
   "engines": {
     "node": ">=18"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^11.0.0"
   }
 }

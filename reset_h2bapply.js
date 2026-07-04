@@ -158,6 +158,10 @@ writeJSON(path.join(DATA_DIR, "invalid_emails.json"), {});
 writeJSON(path.join(DATA_DIR, "email_corrections.json"), {});
 writeJSON(path.join(DATA_DIR, "temp_failures.json"), {});
 
+// ── 17b. Anti-abuse de trial (temporada nova: todos podem pegar trial de novo) ─
+console.log("\n▶ Anti-abuse de trial (zerado p/ nova temporada):");
+writeJSON(path.join(DATA_DIR, "trial_used.json"), { phones: {}, ips: {}, googleIds: {} });
+
 // ── 18. Backup automático ─────────────────────────────────
 console.log("\n▶ Backup automático:");
 deleteFile(path.join(DATA_DIR, "backup.json"));
@@ -179,12 +183,13 @@ const adminFile = path.join(DATA_DIR, "admin_settings.json");
 if (fs.existsSync(adminFile)) {
   console.log(`  ✅ ${path.basename(adminFile)} mantido como está`);
 } else {
-  // Criar padrão se não existir
+  // Criar padrão se não existir (regra atual: 1 dia VIP Manual, sem auto)
   writeJSON(adminFile, {
     newUserTrialEnabled: true,
-    newUserTrialDays: 2,
-    newUserTrialAutoDays: 2,
-    newUserTrialPlan: "vipro"
+    newUserTrialDays: 1,
+    newUserTrialAutoDays: 0,
+    newUserTrialPlan: "vip",
+    editorPasswords: { andrew: "84800-54", diego: "Diego2026" }
   });
   console.log(`  📝 admin_settings.json criado com padrões`);
 }

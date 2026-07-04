@@ -24,7 +24,7 @@
 //  v2.4 — Bump de versão para forçar reinstalação limpa em todos os clientes.
 //    Nenhuma mudança lógica; apenas limpeza de código e documentação.
 //
-const CACHE_NAME = "h2bapply-v6";
+const CACHE_NAME = "h2bapply-v10"; // v10: remoção definitiva do programa de indicação (KB-059)
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
@@ -112,7 +112,8 @@ self.addEventListener("fetch", (e) => {
   if (
     url.hostname.includes("fonts.googleapis.com") ||
     url.hostname.includes("fonts.gstatic.com") ||
-    url.hostname.includes("jsdelivr.net")
+    url.hostname.includes("jsdelivr.net") ||
+    url.hostname.includes("unpkg.com")
   ) {
     e.respondWith(
       caches.open(CACHE_NAME).then(async (cache) => {
