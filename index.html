@@ -44,7 +44,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@700;800&display=swap" rel="stylesheet">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css" onerror="this.onerror=null;this.href='https://unpkg.com/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css'">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{height:100%;-webkit-text-size-adjust:100%}
@@ -432,9 +432,10 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .main-area{flex:1;overflow:hidden;display:flex;flex-direction:column;min-width:0}
 .sb-sec{padding:5px 3px 2px}
 .sb-lbl{font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;padding:0 5px;margin-bottom:2px}
-.sb-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:9px;font-size:13px;color:var(--t2);cursor:pointer;transition:all .12s;border:none;background:none;width:100%;font-family:inherit;font-weight:500;position:relative}
-.sb-item:hover{background:var(--sf2);color:var(--text)}
-.sb-item.active{background:linear-gradient(135deg,var(--bluel),#f0ebff);color:var(--blue);font-weight:700;border-left:2px solid var(--blue)}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:11px;font-size:13px;color:var(--t2);cursor:pointer;transition:all .13s;border:none;background:none;width:100%;font-family:inherit;font-weight:600;position:relative}
+.sb-item:hover{background:var(--sf2);color:var(--text);transform:translateX(2px)}
+.sb-item.active{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-weight:800;box-shadow:0 6px 16px rgba(79,70,229,.35)}
+.sb-item.active i{color:#fff!important}
 .sb-item i{font-size:17px;flex-shrink:0}
 .sb-badge{margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;min-width:18px;text-align:center}
 .sb-badge-b{background:var(--blue);color:#fff}
@@ -1060,8 +1061,9 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
   background:#f5f7ff!important;
   border-color:rgba(99,102,241,.28)!important;
 }
-.home-auto-card{background:#ffffff!important;border-color:rgba(99,102,241,.2)!important;color:#1e1b4b!important}
-.home-auto-card.inactive{background:#ffffff!important}
+/* Card Automático do hero: gradiente vibrante SEMPRE (texto interno é branco —
+   fundo branco aqui deixava o card "vazio"/ilegível no tema claro) */
+.home-auto-card,.home-auto-card.inactive{background:linear-gradient(135deg,#7c3aed,#4f46e5 55%,#2563eb)!important;border-color:rgba(255,255,255,.25)!important;color:#fff!important;box-shadow:0 10px 30px rgba(79,70,229,.45)!important}
 .icard{background:#ffffff;border-bottom:1px solid rgba(99,102,241,.1)}
 .icard:hover{background:#f5f7ff!important}
 .icard.unread{background:rgba(59,130,246,.05)}
@@ -1070,7 +1072,8 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 /* Sidebar — itens */
 .sb-item{color:#4c4f82!important;background:none!important;border:none}
 .sb-item:hover{background:#edf0ff!important;color:#1e1b4b!important}
-.sb-item.active{background:rgba(99,102,241,.1)!important;color:#4f46e5!important;font-weight:700;border-left:2px solid #4f46e5}
+.sb-item.active{background:linear-gradient(135deg,#4f46e5,#7c3aed)!important;color:#fff!important;font-weight:800;box-shadow:0 6px 16px rgba(79,70,229,.35)}
+.sb-item.active i{color:#fff!important}
 .sb-lbl{color:#a5a8cc!important}
 .sb-profile{background:var(--sf2)!important;border-color:var(--border)!important;color:var(--text)!important}
 .sb-auto-btn{background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(99,102,241,.08))!important;border-color:rgba(139,92,246,.3)!important;color:#6d28d9!important}
@@ -1879,6 +1882,29 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 @keyframes tipIn{0%{opacity:0;transform:scale(.92)}100%{opacity:1;transform:scale(1)}}
 </style>
 
+<style id="ti-emoji-fallback">
+/* ══ FALLBACK DE ÍCONES ══ Se a fonte Tabler (CDN) não carregar, o app inteiro
+   ficava com quadrados vazios. Com html.no-ti, cada ícone vira um EMOJI
+   equivalente — a interface nunca mais aparece "pelada". */
+html.no-ti .ti{font-family:'Segoe UI Emoji','Noto Color Emoji','Apple Color Emoji',sans-serif!important;font-style:normal}
+html.no-ti .ti::before{content:"•"}
+html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤"}html.no-ti .ti-check::before{content:"✅"}html.no-ti .ti-trash::before{content:"🗑️"}html.no-ti .ti-refresh::before{content:"🔄"}html.no-ti .ti-robot::before{content:"🤖"}html.no-ti .ti-map-pin::before{content:"📍"}html.no-ti .ti-chevron-right::before{content:"›"}html.no-ti .ti-chevron-left::before{content:"‹"}html.no-ti .ti-chevron-down::before{content:"⌄"}html.no-ti .ti-chevron-up::before{content:"⌃"}html.no-ti .ti-alert-triangle::before{content:"⚠️"}html.no-ti .ti-search::before{content:"🔍"}html.no-ti .ti-alert-circle::before{content:"⚠️"}html.no-ti .ti-trophy::before{content:"🏆"}html.no-ti .ti-mail::before{content:"✉️"}html.no-ti .ti-external-link::before{content:"↗"}html.no-ti .ti-briefcase::before{content:"💼"}html.no-ti .ti-briefcase-2::before{content:"💼"}html.no-ti .ti-bell::before{content:"🔔"}html.no-ti .ti-bell-ringing::before{content:"🔔"}html.no-ti .ti-bell-off::before{content:"🔕"}html.no-ti .ti-info-circle::before{content:"ℹ️"}html.no-ti .ti-building::before{content:"🏢"}html.no-ti .ti-user-circle::before{content:"👤"}html.no-ti .ti-rocket::before{content:"🚀"}html.no-ti .ti-plus::before{content:"＋"}html.no-ti .ti-mail-opened::before{content:"📬"}html.no-ti .ti-file-type-pdf::before{content:"📄"}html.no-ti .ti-language::before{content:"🌐"}html.no-ti .ti-bulb::before{content:"💡"}html.no-ti .ti-shield::before{content:"🛡️"}html.no-ti .ti-shield-check::before{content:"🛡️"}html.no-ti .ti-shield-exclamation::before{content:"🛡️"}html.no-ti .ti-question-mark::before{content:"❓"}html.no-ti .ti-help-circle::before{content:"❓"}html.no-ti .ti-file-cv::before{content:"📋"}html.no-ti .ti-diamond::before{content:"💎"}html.no-ti .ti-copy::before{content:"📑"}html.no-ti .ti-bookmark::before{content:"🔖"}html.no-ti .ti-user-plus::before{content:"👤"}html.no-ti .ti-user::before{content:"👤"}html.no-ti .ti-users::before{content:"👥"}html.no-ti .ti-lock::before{content:"🔒"}html.no-ti .ti-history::before{content:"🕘"}html.no-ti .ti-file-description::before{content:"📃"}html.no-ti .ti-brand-google::before{content:"Ⓖ"}html.no-ti .ti-book-2::before{content:"📖"}html.no-ti .ti-upload::before{content:"⬆️"}html.no-ti .ti-download::before{content:"⬇️"}html.no-ti .ti-ticket::before{content:"🎟️"}html.no-ti .ti-template::before{content:"🧩"}html.no-ti .ti-star::before{content:"⭐"}html.no-ti .ti-settings::before{content:"⚙️"}html.no-ti .ti-adjustments::before{content:"🎚️"}html.no-ti .ti-moon-stars::before{content:"🌙"}html.no-ti .ti-sun::before{content:"☀️"}html.no-ti .ti-list-details::before{content:"📋"}html.no-ti .ti-gift::before{content:"🎁"}html.no-ti .ti-crown::before{content:"👑"}html.no-ti .ti-clock::before{content:"🕐"}html.no-ti .ti-calendar::before{content:"📅"}html.no-ti .ti-calendar-week::before{content:"📅"}html.no-ti .ti-calendar-month::before{content:"📅"}html.no-ti .ti-login::before{content:"🔑"}html.no-ti .ti-logout::before{content:"🚪"}html.no-ti .ti-arrow-right::before{content:"→"}html.no-ti .ti-arrow-left::before{content:"←"}html.no-ti .ti-arrow-up::before{content:"↑"}html.no-ti .ti-arrow-down::before{content:"↓"}html.no-ti .ti-arrow-back-up::before{content:"↩️"}html.no-ti .ti-brand-whatsapp::before{content:"💬"}html.no-ti .ti-brain::before{content:"🧠"}html.no-ti .ti-world::before{content:"🌎"}html.no-ti .ti-wand::before{content:"🪄"}html.no-ti .ti-trending-up::before{content:"📈"}html.no-ti .ti-telescope::before{content:"🔭"}html.no-ti .ti-speakerphone::before{content:"📢"}html.no-ti .ti-sparkles::before{content:"✨"}html.no-ti .ti-snowflake::before{content:"❄️"}html.no-ti .ti-share::before{content:"📤"}html.no-ti .ti-server-bolt::before{content:"🖥️"}html.no-ti .ti-school::before{content:"🎓"}html.no-ti .ti-player-play::before{content:"▶️"}html.no-ti .ti-player-pause::before{content:"⏸️"}html.no-ti .ti-plant-2::before{content:"🌱"}html.no-ti .ti-phone::before{content:"📞"}html.no-ti .ti-mood-sad::before{content:"😞"}html.no-ti .ti-minus::before{content:"−"}html.no-ti .ti-mail-forward::before{content:"📨"}html.no-ti .ti-loader::before{content:"⏳"}html.no-ti .ti-layout-list::before{content:"📋"}html.no-ti .ti-layout-kanban::before{content:"🗂️"}html.no-ti .ti-infinity::before{content:"∞"}html.no-ti .ti-inbox::before{content:"📥"}html.no-ti .ti-id-badge::before{content:"🪪"}html.no-ti .ti-id-badge-2::before{content:"🪪"}html.no-ti .ti-hash::before{content:"#"}html.no-ti .ti-filter::before{content:"🔽"}html.no-ti .ti-files::before{content:"🗂️"}html.no-ti .ti-file-check::before{content:"✅"}html.no-ti .ti-file-certificate::before{content:"📜"}html.no-ti .ti-edit::before{content:"✏️"}html.no-ti .ti-pencil::before{content:"✏️"}html.no-ti .ti-dots-vertical::before{content:"⋮"}html.no-ti .ti-dots-circle-horizontal::before{content:"⋯"}html.no-ti .ti-device-floppy::before{content:"💾"}html.no-ti .ti-credit-card::before{content:"💳"}html.no-ti .ti-cash::before{content:"💵"}html.no-ti .ti-camera::before{content:"📷"}html.no-ti .ti-calculator::before{content:"🧮"}html.no-ti .ti-brand-youtube::before{content:"▶️"}html.no-ti .ti-brand-instagram::before{content:"📷"}html.no-ti .ti-bolt::before{content:"⚡"}html.no-ti .ti-archive::before{content:"📦"}html.no-ti .ti-square::before{content:"⬜"}html.no-ti .ti-eye::before{content:"👁️"}html.no-ti .ti-home-2::before{content:"🏠"}
+</style>
+<script>
+/* Detector: se a fonte tabler-icons não estiver disponível ~2,5s após o load,
+   ativa o fallback de emoji (html.no-ti). Revalida quando a fonte chegar. */
+(function(){
+  function _tiCheck(){
+    try{
+      if(document.fonts&&document.fonts.check&&document.fonts.check('16px "tabler-icons"')){document.documentElement.classList.remove("no-ti");return;}
+      document.documentElement.classList.add("no-ti");
+      if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){try{if(document.fonts.check('16px "tabler-icons"'))document.documentElement.classList.remove("no-ti");}catch(e){}});
+    }catch(e){}
+  }
+  if(document.readyState==="complete")setTimeout(_tiCheck,2500);
+  else window.addEventListener("load",function(){setTimeout(_tiCheck,2500);});
+})();
+</script>
 </head>
 <body>
 <div id="h2b-splash" style="position:fixed;inset:0;z-index:99999;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .4s ease;pointer-events:none">
@@ -2071,8 +2097,9 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           SÓ esse servidor → botão "Entrar com Google" (a autenticação Google
           só acontece no servidor certo). Sem conta → escolhe servidor aberto. -->
   <style>
-    #auth-gate{position:fixed;inset:0;z-index:9150;background:rgba(3,6,16,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:none;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
+    #auth-gate{position:fixed;inset:0;z-index:99990;background:rgba(3,6,16,.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);display:none;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
     #auth-gate.open{display:flex}
+    html.ag-lock,html.ag-lock body{overflow:hidden!important;height:100%}
     .ag-modal{background:linear-gradient(165deg,#0d1530,#0a1024);border:1.5px solid rgba(59,130,246,.35);border-radius:22px;max-width:420px;width:100%;padding:28px 22px 18px;box-shadow:0 24px 80px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04) inset;position:relative;animation:srvPop .28s cubic-bezier(.2,.9,.3,1.2);margin:auto}
     .ag-logo{text-align:center;font-family:'Sora',sans-serif;font-size:17px;font-weight:800;color:#93c5fd;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:7px}
     .ag-title{font-family:'Sora',sans-serif;font-size:21px;font-weight:800;color:#fff;text-align:center;margin-bottom:7px;line-height:1.3}
@@ -2096,7 +2123,6 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
   <div id="auth-gate">
     <div class="ag-modal">
       <button class="ag-back" id="ag-back" onclick="agBack()" aria-label="Voltar">←</button>
-      <button class="srv-close" onclick="closeAuthGate()" aria-label="Fechar">✕</button>
       <div class="ag-logo"><i class="ti ti-briefcase-2"></i> H2BApply</div>
       <div id="ag-body"></div>
       <div class="ag-foot">🔒 Sem senha — a entrada é sempre pela sua conta Google, direto no servidor onde sua conta foi criada.</div>
@@ -2648,9 +2674,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
             <!-- ══ CARD AUTOMÁTICO — DESTAQUE PRINCIPAL ══ -->
             <div class="home-auto-card inactive" id="home-auto-card" onclick="openAutoModal()" style="cursor:pointer;position:relative;z-index:1;background:rgba(255,255,255,.1);backdrop-filter:blur(12px);border:1.5px solid rgba(255,255,255,.2);border-radius:16px;padding:14px 16px;transition:all .2s" onmouseenter="this.style.background='rgba(255,255,255,.18)'" onmouseleave="this.style.background='rgba(255,255,255,.1)'">
               <div style="display:flex;align-items:center;gap:12px">
-                <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 14px rgba(124,58,237,.5)" id="home-auto-icon">
-                  <i class="ti ti-robot" style="color:#fff;font-size:22px"></i>
-                </div>
+                <div style="width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:24px" id="home-auto-icon">🤖</div>
                 <div style="flex:1;min-width:0">
                   <div style="font-size:14px;font-weight:800;color:#fff" id="home-auto-title">🤖 Envio Automático</div>
                   <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:2px" id="home-auto-sub">Configure uma vez — envia enquanto você trabalha</div>
@@ -2685,79 +2709,71 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
 
           <!-- ══ STATS 4 CARDS ══ -->
           <div style="padding:14px 14px 0">
-            <div class="home-stat-cards" style="grid-template-columns:repeat(4,1fr);gap:8px;display:grid">
-              <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer;border-radius:12px;padding:10px 8px;text-align:center;background:#fff;border:1.5px solid var(--border)">
-                <div class="home-stat-val" style="color:var(--blue);font-size:20px;font-weight:900" id="home-stat-manual">–</div>
-                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;margin-top:2px">Manual</div>
+            <div class="home-stat-cards" style="grid-template-columns:repeat(4,1fr);gap:9px;display:grid">
+              <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer;border-radius:14px;padding:12px 6px 10px;text-align:center;background:linear-gradient(160deg,rgba(37,99,235,.10),rgba(37,99,235,.03));border:1.5px solid rgba(37,99,235,.28);box-shadow:0 4px 14px rgba(37,99,235,.10)">
+                <div style="font-size:17px;line-height:1;margin-bottom:5px">📤</div>
+                <div class="home-stat-val" style="color:var(--blue);font-size:21px;font-weight:900" id="home-stat-manual">–</div>
+                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-top:2px">Manual</div>
               </div>
-              <div class="home-stat-card" onclick="openAutoModal()" style="cursor:pointer;border-radius:12px;padding:10px 8px;text-align:center;background:#fff;border:1.5px solid var(--border)">
-                <div class="home-stat-val" style="color:var(--purple);font-size:20px;font-weight:900" id="home-stat-auto">–</div>
-                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;margin-top:2px">Auto</div>
+              <div class="home-stat-card" onclick="openAutoModal()" style="cursor:pointer;border-radius:14px;padding:12px 6px 10px;text-align:center;background:linear-gradient(160deg,rgba(124,58,237,.10),rgba(124,58,237,.03));border:1.5px solid rgba(124,58,237,.28);box-shadow:0 4px 14px rgba(124,58,237,.10)">
+                <div style="font-size:17px;line-height:1;margin-bottom:5px">🤖</div>
+                <div class="home-stat-val" style="color:var(--purple);font-size:21px;font-weight:900" id="home-stat-auto">–</div>
+                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-top:2px">Auto</div>
               </div>
-              <div class="home-stat-card" onclick="sv('respostas')" style="cursor:pointer;border-radius:12px;padding:10px 8px;text-align:center;background:#fff;border:1.5px solid var(--border)">
-                <div class="home-stat-val" style="color:var(--green);font-size:20px;font-weight:900" id="home-stat-replies">–</div>
-                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;margin-top:2px">Respostas</div>
+              <div class="home-stat-card" onclick="sv('respostas')" style="cursor:pointer;border-radius:14px;padding:12px 6px 10px;text-align:center;background:linear-gradient(160deg,rgba(16,185,129,.12),rgba(16,185,129,.03));border:1.5px solid rgba(16,185,129,.3);box-shadow:0 4px 14px rgba(16,185,129,.10)">
+                <div style="font-size:17px;line-height:1;margin-bottom:5px">📬</div>
+                <div class="home-stat-val" style="color:var(--green);font-size:21px;font-weight:900" id="home-stat-replies">–</div>
+                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-top:2px">Respostas</div>
               </div>
-              <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer;border-radius:12px;padding:10px 8px;text-align:center;background:#fff;border:1.5px solid var(--border)">
-                <div class="home-stat-val" style="color:var(--t2);font-size:20px;font-weight:900" id="home-stat-total">–</div>
-                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;margin-top:2px">Total</div>
+              <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer;border-radius:14px;padding:12px 6px 10px;text-align:center;background:linear-gradient(160deg,rgba(245,158,11,.12),rgba(245,158,11,.03));border:1.5px solid rgba(245,158,11,.3);box-shadow:0 4px 14px rgba(245,158,11,.10)">
+                <div style="font-size:17px;line-height:1;margin-bottom:5px">🎯</div>
+                <div class="home-stat-val" style="color:#d97706;font-size:21px;font-weight:900" id="home-stat-total">–</div>
+                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-top:2px">Total</div>
               </div>
             </div>
           </div>
 
-          <!-- ══ ATALHOS RÁPIDOS — GRID 3x2 VISUAL ══ -->
-          <div style="padding:14px 14px 0">
-            <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Atalhos rápidos</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px">
+          <!-- ══ ATALHOS RÁPIDOS — GRID 3x2 VISUAL (emoji: nunca fica em branco) ══ -->
+          <div style="padding:16px 14px 0">
+            <div style="font-size:12px;font-weight:800;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:11px;display:flex;align-items:center;gap:6px">⚡ Atalhos rápidos</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
 
               <!-- Manual -->
-              <button onclick="sv('jobs')" style="background:var(--surface);border:1.5px solid rgba(37,99,235,.15);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
-                <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#eff6ff,#dbeafe);display:flex;align-items:center;justify-content:center">
-                  <i class="ti ti-send" style="font-size:20px;color:#2563eb"></i>
-                </div>
-                <div style="font-size:11px;font-weight:700;color:var(--t2);line-height:1.2;text-align:center">Envio<br>Manual</div>
+              <button onclick="sv('jobs')" class="home-shortcut" style="border:1.5px solid rgba(37,99,235,.3);border-radius:16px;padding:15px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 14px rgba(37,99,235,.10)" onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 10px 24px rgba(37,99,235,.22)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(37,99,235,.10)'">
+                <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#2563eb,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 16px rgba(37,99,235,.4)">📤</div>
+                <div style="font-size:11.5px;font-weight:800;color:#2563eb;line-height:1.2;text-align:center">Envio<br>Manual</div>
               </button>
 
               <!-- Pesquisar Vagas -->
-              <button onclick="sv('pesquisa')" style="background:var(--surface);border:1.5px solid rgba(8,145,178,.15);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
-                <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#ecfeff,#cffafe);display:flex;align-items:center;justify-content:center">
-                  <i class="ti ti-search" style="font-size:20px;color:#0891b2"></i>
-                </div>
-                <div style="font-size:11px;font-weight:700;color:var(--t2);line-height:1.2;text-align:center">Pesquisar<br>Vagas</div>
+              <button onclick="sv('pesquisa')" class="home-shortcut" style="border:1.5px solid rgba(8,145,178,.3);border-radius:16px;padding:15px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 14px rgba(8,145,178,.10)" onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 10px 24px rgba(8,145,178,.22)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(8,145,178,.10)'">
+                <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#0891b2,#06b6d4);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 16px rgba(8,145,178,.4)">🔍</div>
+                <div style="font-size:11.5px;font-weight:800;color:#0891b2;line-height:1.2;text-align:center">Pesquisar<br>Vagas</div>
               </button>
 
               <!-- Respostas -->
-              <button onclick="sv('respostas')" style="background:var(--surface);border:1.5px solid rgba(16,185,129,.2);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;font-family:inherit;transition:all .15s;position:relative;-webkit-tap-highlight-color:transparent" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
-                <span id="home-badge-resp2" style="display:none;position:absolute;top:8px;right:8px;background:#ef4444;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:99px;min-width:16px;text-align:center"></span>
-                <div style="width:42px;height:42px;border-radius:12px;background:var(--greenl);display:flex;align-items:center;justify-content:center">
-                  <i class="ti ti-mail-opened" style="font-size:20px;color:var(--green)"></i>
-                </div>
-                <div style="font-size:11px;font-weight:700;color:var(--t2);line-height:1.2;text-align:center">Ver<br>Respostas</div>
+              <button onclick="sv('respostas')" class="home-shortcut" style="border:1.5px solid rgba(16,185,129,.32);border-radius:16px;padding:15px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-family:inherit;transition:all .15s;position:relative;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 14px rgba(16,185,129,.10)" onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 10px 24px rgba(16,185,129,.22)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(16,185,129,.10)'">
+                <span id="home-badge-resp2" style="display:none;position:absolute;top:8px;right:8px;background:#ef4444;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:99px;min-width:16px;text-align:center;box-shadow:0 2px 6px rgba(239,68,68,.5)"></span>
+                <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#059669,#10b981);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 16px rgba(16,185,129,.4)">📬</div>
+                <div style="font-size:11.5px;font-weight:800;color:#059669;line-height:1.2;text-align:center">Ver<br>Respostas</div>
               </button>
 
               <!-- Currículos / Perfis -->
-              <button onclick="sv('profile');setTimeout(()=>switchProfileTab('profiles'),100)" style="background:var(--surface);border:1.5px solid rgba(99,102,241,.2);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent;position:relative" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
-                <div style="position:absolute;top:6px;right:8px;font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:99px;padding:1px 5px" id="home-profiles-needed" style="display:none">CRIAR</div>
-                <div style="width:42px;height:42px;border-radius:12px;background:var(--purplel);display:flex;align-items:center;justify-content:center">
-                  <i class="ti ti-file-cv" style="font-size:20px;color:var(--purple)"></i>
-                </div>
-                <div style="font-size:11px;font-weight:700;color:var(--t2);line-height:1.2;text-align:center">Meus<br>Currículos</div>
+              <button onclick="sv('profile');setTimeout(()=>switchProfileTab('profiles'),100)" class="home-shortcut" style="border:1.5px solid rgba(99,102,241,.32);border-radius:16px;padding:15px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent;position:relative;box-shadow:0 4px 14px rgba(99,102,241,.10)" onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 10px 24px rgba(99,102,241,.22)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(99,102,241,.10)'">
+                <div style="position:absolute;top:6px;right:8px;font-size:9px;font-weight:800;color:#ef4444;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:99px;padding:1px 5px;display:none" id="home-profiles-needed">CRIAR</div>
+                <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#6366f1,#818cf8);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 16px rgba(99,102,241,.4)">📋</div>
+                <div style="font-size:11.5px;font-weight:800;color:#6366f1;line-height:1.2;text-align:center">Meus<br>Currículos</div>
               </button>
 
               <!-- Ranking -->
-              <button onclick="sv('ranking')" style="background:var(--surface);border:1.5px solid rgba(245,158,11,.2);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
-                <div style="width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#fef9c3,#fef08a);display:flex;align-items:center;justify-content:center">
-                  <i class="ti ti-trophy" style="font-size:20px;color:#d97706"></i>
-                </div>
-                <div style="font-size:11px;font-weight:700;color:var(--t2);line-height:1.2;text-align:center">Ranking</div>
+              <button onclick="sv('ranking')" class="home-shortcut" style="border:1.5px solid rgba(245,158,11,.35);border-radius:16px;padding:15px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 14px rgba(245,158,11,.12)" onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 10px 24px rgba(245,158,11,.25)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(245,158,11,.12)'">
+                <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 16px rgba(245,158,11,.45)">🏆</div>
+                <div style="font-size:11.5px;font-weight:800;color:#d97706;line-height:1.2;text-align:center">Ranking</div>
               </button>
 
               <!-- Guia Visto -->
-              <button onclick="window.open('/guia','_blank')" style="background:var(--surface);border:1.5px solid rgba(16,185,129,.2);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''">
-                <div style="width:42px;height:42px;border-radius:12px;background:rgba(16,185,129,.1);display:flex;align-items:center;justify-content:center">
-                  <i class="ti ti-book-2" style="font-size:20px;color:#059669"></i>
-                </div>
-                <div style="font-size:11px;font-weight:700;color:#059669;line-height:1.2;text-align:center">Guia<br>Visto H2B</div>
+              <button onclick="window.open('/guia','_blank')" class="home-shortcut" style="border:1.5px solid rgba(5,150,105,.32);border-radius:16px;padding:15px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 14px rgba(5,150,105,.10)" onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 10px 24px rgba(5,150,105,.22)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(5,150,105,.10)'">
+                <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#047857,#059669);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 16px rgba(5,150,105,.4)">🇺🇸</div>
+                <div style="font-size:11.5px;font-weight:800;color:#059669;line-height:1.2;text-align:center">Guia<br>Visto H2B</div>
               </button>
 
             </div>
@@ -2766,7 +2782,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <!-- ══ ÚLTIMAS RESPOSTAS ══ -->
           <div style="padding:14px 14px 0">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Últimas Respostas</div>
+              <div style="font-size:12px;font-weight:800;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;display:flex;align-items:center;gap:6px">📬 Últimas Respostas</div>
               <button onclick="sv('respostas')" style="font-size:11px;font-weight:700;color:var(--blue);background:none;border:none;cursor:pointer;font-family:inherit">Ver tudo →</button>
             </div>
             <div class="home-quick-replies" id="home-quick-replies" style="margin:0;border-radius:14px">
@@ -2784,22 +2800,22 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           </div>
 
           <!-- ══ CONTA ══ -->
-          <div style="padding:14px 14px 20px">
-            <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Conta</div>
-            <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:14px;overflow:hidden">
+          <div style="padding:16px 14px 20px">
+            <div style="font-size:12px;font-weight:800;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:11px;display:flex;align-items:center;gap:6px">👤 Conta</div>
+            <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(15,23,42,.06)">
               <button class="home-reply-item" onclick="sv('plans')" style="border:none;width:100%;background:none;font-family:inherit;padding:14px">
-                <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(59,130,246,.1));display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-diamond" style="color:#4f46e5;font-size:18px"></i></div>
-                <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Planos & Recompensas</div><div style="font-size:11px;color:var(--t3)" id="home-plan-label">Plano Free</div></div>
+                <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px;box-shadow:0 4px 12px rgba(99,102,241,.35)">💎</div>
+                <div style="flex:1;text-align:left"><div style="font-size:13.5px;font-weight:800">Planos &amp; Recompensas</div><div style="font-size:11px;color:var(--t3)" id="home-plan-label">Plano Free</div></div>
                 <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
               </button>
               <button class="home-reply-item" onclick="sv('ranking')" style="border:none;width:100%;background:none;font-family:inherit;border-top:1px solid var(--border);padding:14px">
-                <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#fef9c3,#fef08a);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-trophy" style="color:#d97706;font-size:18px"></i></div>
-                <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Ranking Competitivo</div><div style="font-size:11px;color:var(--t3)">Veja sua posição e concorra</div></div>
+                <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px;box-shadow:0 4px 12px rgba(245,158,11,.35)">🏆</div>
+                <div style="flex:1;text-align:left"><div style="font-size:13.5px;font-weight:800">Ranking Competitivo</div><div style="font-size:11px;color:var(--t3)">Veja sua posição e concorra</div></div>
                 <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
               </button>
               <button class="home-reply-item" onclick="sv('hist')" style="border:none;width:100%;background:none;font-family:inherit;border-top:1px solid var(--border);padding:14px">
-                <div style="width:36px;height:36px;border-radius:10px;background:var(--sf3);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-send" style="color:var(--t2);font-size:18px"></i></div>
-                <div style="flex:1;text-align:left"><div style="font-size:13px;font-weight:700">Candidaturas Enviadas</div></div>
+                <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#2563eb,#3b82f6);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px;box-shadow:0 4px 12px rgba(37,99,235,.35)">📨</div>
+                <div style="flex:1;text-align:left"><div style="font-size:13.5px;font-weight:800">Candidaturas Enviadas</div><div style="font-size:11px;color:var(--t3)">Histórico completo dos envios</div></div>
                 <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
               </button>
             </div>
@@ -5808,10 +5824,9 @@ function maybeShowServerSelect(){
       return;
     }
   }catch(e){}
-  // Mostra 1x por sessão do navegador (pode reabrir pelos botões da navbar)
-  try{ if(sessionStorage.getItem("h2bSrvSeen")==="1") return; }catch(e){}
+  // SEMPRE que acessar o site deslogado: a janela de entrada aparece por cima
+  // de toda a página — só some completando o fluxo (login/cadastro).
   openAuthGate("choice");
-  try{ sessionStorage.setItem("h2bSrvSeen","1"); }catch(e){}
 }
 // ── Card de bloqueio da trava de conta única (tela toda, mesmo padrão visual) ──
 function showSrvBlockModal(b){
@@ -5849,11 +5864,18 @@ function showSrvBlockModal(b){
 let _agIntent="login",_agEmail="",_agBusy=false;
 function openAuthGate(step,intent){
   const ov=g("#auth-gate"); if(!ov) return;
+  // FIX mobile: o gate precisa ser filho direto do <body> — dentro do #landing
+  // o position:fixed quebra em alguns navegadores e o card não cobre a tela.
+  if(ov.parentElement!==document.body)document.body.appendChild(ov);
   ov.classList.add("open");
+  document.documentElement.classList.add("ag-lock"); // trava a rolagem da página atrás
   if(intent)_agIntent=intent;
   agRender(step||"choice");
 }
-function closeAuthGate(){ const ov=g("#auth-gate"); if(ov)ov.classList.remove("open"); }
+function closeAuthGate(){
+  const ov=g("#auth-gate"); if(ov)ov.classList.remove("open");
+  document.documentElement.classList.remove("ag-lock");
+}
 function agBack(){ agRender(_agLastStep==="result"?"email":"choice"); }
 let _agLastStep="choice";
 function agRender(step,data){
@@ -11544,18 +11566,18 @@ function renderHome(){
                       "🟢 Ativo";
       if(at)at.textContent="🟢 Auto Ativo — "+statusTxt;
       if(as)as.textContent=`✅ ${sentToday} enviados hoje · 📬 ${qSz} na fila`;
-      if(ai)ai.innerHTML='<i class="ti ti-robot" style="color:#fff"></i>';
+      if(ai)ai.textContent="🤖";
     }else if(U.autoJob?.status==="finished"){
       ac.className="home-auto-card";ac.style.background="linear-gradient(135deg,var(--green),#059669)";
       if(at)at.textContent="✅ Envio Concluído!";
       if(as)as.textContent=`${U.autoJob.originalCount||0} vagas processadas. Toque para reiniciar.`;
-      if(ai)ai.innerHTML='<i class="ti ti-check" style="color:#fff"></i>';
+      if(ai)ai.textContent="✅";
     }else{
       ac.className="home-auto-card inactive";
       ac.style.background="linear-gradient(135deg,#7c3aed,#4f46e5)";
       if(at){at.textContent="🤖 Inicie o seu Automático";at.style.color="#fff";}
       if(as){as.innerHTML="Envie currículos enquanto você trabalha. Não garantimos a vaga — mas garantimos que seu currículo <strong>chegue ao empregador</strong>.";as.style.color="rgba(255,255,255,.92)";}
-      if(ai)ai.innerHTML='<i class="ti ti-robot" style="color:#fff"></i>';
+      if(ai)ai.textContent="🤖";
     }
   }
   // Badge respostas
