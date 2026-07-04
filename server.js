@@ -8974,6 +8974,31 @@ Responda APENAS em JSON (sem markdown):
     if(!/^[a-f0-9]{64}$/.test(h))return json(res,400,{error:"hash inválido"});
     return json(res,200,{ok:true,serverId:SERVER_ID,exists:_emailHashExists(h)});
   }
+  // GET /api/auth/where?email=<e-mail> — localiza em QUAL servidor o e-mail já
+  // tem conta (fluxo de login do card de entrada: e-mail sem senha → servidor
+  // certo → só lá acontece o login do Google). Checa local primeiro (grátis),
+  // depois os irmãos via hash SHA-256 (o e-mail nunca viaja em texto entre
+  // servidores). Não expõe NADA além de "existe / em qual servidor".
+  if(pathname==="/api/auth/where"&&req.method==="GET"){
+    const _wip=(req.headers["x-forwarded-for"]||req.socket?.remoteAddress||"").split(",")[0].trim();
+    if(rateLimit("authwhere_"+_wip,30,60_000))return json(res,429,{error:"Muitas tentativas. Aguarde um minuto."});
+    const email=String(u.searchParams.get("email")||"").toLowerCase().trim();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)||email.length>120)return json(res,400,{error:"E-mail inválido"});
+    const list=_getServersConfig();
+    const _svInfo=sv=>({id:sv.id,nome:sv.nome,url:sv.url||"",status:sv.status,self:sv.id===SERVER_ID});
+    // 1) Conta existe NESTE servidor?
+    const h=crypto.createHash("sha256").update(email).digest("hex");
+    if(_emailHashExists(h)){
+      const me=list.find(s=>s.id===SERVER_ID)||{id:SERVER_ID,nome:"Servidor "+SERVER_ID,status:"aberto"};
+      return json(res,200,{ok:true,found:true,server:_svInfo(me)});
+    }
+    // 2) Existe em algum irmão? (fail-open: peer fora do ar = não encontrado lá)
+    const peer=await checkAccountOnPeers(email);
+    if(peer)return json(res,200,{ok:true,found:true,server:_svInfo(peer)});
+    // 3) Não existe em lugar nenhum → devolve servidores abertos p/ criar conta
+    const abertos=list.filter(s=>s.status!=="lotado").map(_svInfo);
+    return json(res,200,{ok:true,found:false,openServers:abertos});
+  }
   // GET /api/servers — lista completa para o seletor da landing.
   // Para o próprio servidor conta usuários locais; para peers busca (cache 10 min)
   // via httpsReq; se o peer estiver fora, users=null e o front mostra "—".

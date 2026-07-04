@@ -2064,6 +2064,45 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     </div>
   </div>
 
+  <!-- ══ CARD DE ENTRADA (auth gate) ═══════════════════════════════════════
+       Overlay que cobre TODA a tela principal. Fluxo:
+       1) Entrar ou Criar conta  →  2) digita só o E-MAIL (sem senha)
+       3) o sistema localiza em QUAL servidor o e-mail tem conta e mostra
+          SÓ esse servidor → botão "Entrar com Google" (a autenticação Google
+          só acontece no servidor certo). Sem conta → escolhe servidor aberto. -->
+  <style>
+    #auth-gate{position:fixed;inset:0;z-index:9150;background:rgba(3,6,16,.96);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:none;align-items:center;justify-content:center;padding:16px;overflow-y:auto}
+    #auth-gate.open{display:flex}
+    .ag-modal{background:linear-gradient(165deg,#0d1530,#0a1024);border:1.5px solid rgba(59,130,246,.35);border-radius:22px;max-width:420px;width:100%;padding:28px 22px 18px;box-shadow:0 24px 80px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04) inset;position:relative;animation:srvPop .28s cubic-bezier(.2,.9,.3,1.2);margin:auto}
+    .ag-logo{text-align:center;font-family:'Sora',sans-serif;font-size:17px;font-weight:800;color:#93c5fd;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:7px}
+    .ag-title{font-family:'Sora',sans-serif;font-size:21px;font-weight:800;color:#fff;text-align:center;margin-bottom:7px;line-height:1.3}
+    .ag-sub{font-size:12.5px;color:rgba(255,255,255,.55);text-align:center;line-height:1.6;margin-bottom:20px}
+    .ag-btn{width:100%;border:none;border-radius:13px;padding:15px;font-size:14.5px;font-weight:800;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:11px;-webkit-tap-highlight-color:transparent;transition:transform .13s,box-shadow .13s}
+    .ag-btn:active{transform:scale(.98)}
+    .ag-btn.primario{background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;box-shadow:0 8px 25px rgba(59,130,246,.35)}
+    .ag-btn.verde{background:linear-gradient(135deg,#059669,#10b981);color:#fff;box-shadow:0 8px 25px rgba(16,185,129,.35)}
+    .ag-btn.fantasma{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.85)}
+    .ag-input{width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.14);border-radius:13px;padding:14px 15px;font-size:15px;color:#fff;font-family:inherit;outline:none;margin-bottom:12px;transition:border-color .15s}
+    .ag-input:focus{border-color:rgba(59,130,246,.65);background:rgba(59,130,246,.06)}
+    .ag-input::placeholder{color:rgba(255,255,255,.3)}
+    .ag-err{display:none;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);border-radius:11px;padding:10px 13px;font-size:12px;color:#fca5a5;line-height:1.5;margin-bottom:12px}
+    .ag-back{position:absolute;top:12px;left:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:10px;width:32px;height:32px;color:rgba(255,255,255,.7);font-size:15px;cursor:pointer;display:none;align-items:center;justify-content:center}
+    .ag-foot{font-size:10.5px;color:rgba(255,255,255,.4);text-align:center;line-height:1.6;margin-top:6px;padding:10px 6px 0;border-top:1px solid rgba(255,255,255,.07)}
+    .ag-srv-card{border-radius:16px;padding:15px;margin-bottom:12px;border:1.5px solid rgba(16,185,129,.45);background:linear-gradient(150deg,rgba(16,185,129,.12),rgba(5,150,105,.05));text-align:left}
+    .ag-srv-card.azul{border-color:rgba(59,130,246,.5);background:linear-gradient(150deg,rgba(59,130,246,.12),rgba(29,78,216,.05))}
+    .ag-spin{display:flex;justify-content:center;padding:22px}
+    .ag-email-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:5px 13px;font-size:12px;font-weight:700;color:rgba(255,255,255,.85);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:16px}
+  </style>
+  <div id="auth-gate">
+    <div class="ag-modal">
+      <button class="ag-back" id="ag-back" onclick="agBack()" aria-label="Voltar">←</button>
+      <button class="srv-close" onclick="closeAuthGate()" aria-label="Fechar">✕</button>
+      <div class="ag-logo"><i class="ti ti-briefcase-2"></i> H2BApply</div>
+      <div id="ag-body"></div>
+      <div class="ag-foot">🔒 Sem senha — a entrada é sempre pela sua conta Google, direto no servidor onde sua conta foi criada.</div>
+    </div>
+  </div>
+
   <!-- ── NAVBAR ── -->
   <nav class="ln-nav">
     <div class="ln-nav-logo">
@@ -2072,7 +2111,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
     <div class="ln-nav-actions">
       <button onclick="openServerSelect()" style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.35);border-radius:20px;padding:6px 12px;font-size:12px;font-weight:700;color:#93c5fd;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px">🌐 Servidores</button>
       <span class="ln-live-badge"><span class="live-dot"></span> Ao vivo</span>
-      <a href="/oauth/start" class="btn-google-sm" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px" onclick="event.preventDefault();showGoogleWarnModal()">
+      <a href="/oauth/start" class="btn-google-sm" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px" onclick="event.preventDefault();openAuthGate('email','login')">
         <svg width="15" height="15" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
         Entrar
       </a>
@@ -2094,7 +2133,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
           <div class="ln-feat"><i class="ti ti-trending-up"></i> Ranking ao vivo</div>
           <div class="ln-feat"><i class="ti ti-mail-opened"></i> Respostas em tempo real</div>
         </div>
-        <button class="ln-cta-btn" onclick="showGoogleWarnModal()">
+        <button class="ln-cta-btn" onclick="openAuthGate('email','signup')">
           <svg width="20" height="20" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
           Começar Grátis com Google
         </button>
@@ -2430,7 +2469,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       <div style="font-size:48px;margin-bottom:16px">🇧🇷 ✈️ 🇺🇸</div>
       <h2 class="ln-cta-section-title">Sua oportunidade nos EUA começa agora</h2>
       <p class="ln-cta-section-sub">Entre grátis, configure em 1 minuto e deixe o robô trabalhar por você. Centenas de vagas H-2B e H-2A esperando sua candidatura.</p>
-      <button class="ln-cta-btn" onclick="showGoogleWarnModal()" style="margin:0 auto 16px;max-width:380px">
+      <button class="ln-cta-btn" onclick="openAuthGate('email','signup')" style="margin:0 auto 16px;max-width:380px">
         <svg width="20" height="20" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
         Começar Grátis com Google
       </button>
@@ -5769,9 +5808,9 @@ function maybeShowServerSelect(){
       return;
     }
   }catch(e){}
-  // Mostra 1x por sessão do navegador (pode reabrir pelo pill 🌐 Servidores)
+  // Mostra 1x por sessão do navegador (pode reabrir pelos botões da navbar)
   try{ if(sessionStorage.getItem("h2bSrvSeen")==="1") return; }catch(e){}
-  openServerSelect();
+  openAuthGate("choice");
   try{ sessionStorage.setItem("h2bSrvSeen","1"); }catch(e){}
 }
 // ── Card de bloqueio da trava de conta única (tela toda, mesmo padrão visual) ──
@@ -5803,6 +5842,136 @@ function showSrvBlockModal(b){
     ${inner}
     <div class="srv-foot">⚠️ Sua conta pertence ao servidor onde foi criada — o login é sempre no mesmo servidor.</div>
   </div>`;
+}
+// ═══════════════════════════════════════════
+//  CARD DE ENTRADA (auth gate) — Login / Criar conta por cima da landing
+// ═══════════════════════════════════════════
+let _agIntent="login",_agEmail="",_agBusy=false;
+function openAuthGate(step,intent){
+  const ov=g("#auth-gate"); if(!ov) return;
+  ov.classList.add("open");
+  if(intent)_agIntent=intent;
+  agRender(step||"choice");
+}
+function closeAuthGate(){ const ov=g("#auth-gate"); if(ov)ov.classList.remove("open"); }
+function agBack(){ agRender(_agLastStep==="result"?"email":"choice"); }
+let _agLastStep="choice";
+function agRender(step,data){
+  _agLastStep=step;
+  const body=g("#ag-body"),back=g("#ag-back"); if(!body) return;
+  if(back)back.style.display=step==="choice"?"none":"flex";
+  if(step==="choice"){
+    body.innerHTML=`
+      <div class="ag-title">Bem-vindo(a)! 👋</div>
+      <div class="ag-sub">Candidate-se automaticamente a centenas de vagas H-2B e H-2A nos Estados Unidos.</div>
+      <button class="ag-btn primario" onclick="_agIntent='login';agRender('email')"><i class="ti ti-login"></i> Já tenho conta — Entrar</button>
+      <button class="ag-btn verde" onclick="_agIntent='signup';agRender('email')"><i class="ti ti-user-plus"></i> Criar conta grátis</button>`;
+    return;
+  }
+  if(step==="email"){
+    const login=_agIntent==="login";
+    body.innerHTML=`
+      <div class="ag-title">${login?"Entrar na sua conta":"Criar conta grátis"}</div>
+      <div class="ag-sub">${login
+        ?"Digite o e-mail da sua conta Google. Vamos localizar <strong style='color:rgba(255,255,255,.8)'>em qual servidor</strong> ela está — sem senha."
+        :"Digite seu e-mail do Google. Se você já tiver conta, te levamos direto pro servidor certo."}</div>
+      <input class="ag-input" id="ag-email" type="email" inputmode="email" autocomplete="email" placeholder="seuemail@gmail.com" value="${esc(_agEmail)}" onkeydown="if(event.key==='Enter')agLookup()">
+      <div class="ag-err" id="ag-err"></div>
+      <button class="ag-btn primario" id="ag-continue" onclick="agLookup()">Continuar <i class="ti ti-arrow-right"></i></button>`;
+    setTimeout(()=>{const i=g("#ag-email");if(i)i.focus();},150);
+    return;
+  }
+  if(step==="loading"){
+    body.innerHTML=`<div class="ag-title">Localizando sua conta…</div>
+      <div class="ag-sub">Verificando em qual servidor o e-mail<br><strong style="color:rgba(255,255,255,.8)">${esc(_agEmail)}</strong><br>está cadastrado.</div>
+      <div class="ag-spin"><span class="spin spin-lg"></span></div>`;
+    return;
+  }
+  if(step==="result"){
+    const d=data||{};
+    if(d.found&&d.server){
+      const sv=d.server,nome=esc(sv.nome||("Servidor "+sv.id));
+      body.innerHTML=`
+        <div style="text-align:center"><span class="ag-email-chip">📧 ${esc(_agEmail)}</span></div>
+        <div class="ag-title">Conta encontrada! ✅</div>
+        <div class="ag-sub">Sua conta está no <strong style="color:#93c5fd">${nome}</strong>${sv.self?" — você já está no lugar certo":""}. Entre com sua conta Google para continuar.</div>
+        <div class="ag-srv-card azul">
+          <div class="srv-row1" style="margin-bottom:6px"><div class="srv-name">🌐 ${nome}${sv.self?' <span style="font-size:9px;font-weight:800;background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.4);color:#93c5fd;padding:2px 7px;border-radius:12px;letter-spacing:.05em">VOCÊ ESTÁ AQUI</span>':""}</div></div>
+          <div class="srv-desc" style="margin-bottom:0">Todo o seu histórico, envios e VIP estão neste servidor.</div>
+        </div>
+        <button class="ag-btn primario" onclick="agGoogleAt(${sv.self?"null":"'"+esc(sv.url||"")+"'"})">
+          <svg width="17" height="17" viewBox="0 0 18 18"><path fill="#fff" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#fff" opacity=".85" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#fff" opacity=".7" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#fff" opacity=".85" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+          ${sv.self?"Entrar com Google":"Ir para o "+nome+" e entrar"}</button>`;
+      return;
+    }
+    // Não encontrada em nenhum servidor
+    const abertos=(d.openServers||[]);
+    if(_agIntent==="login"){
+      body.innerHTML=`
+        <div style="text-align:center"><span class="ag-email-chip">📧 ${esc(_agEmail)}</span></div>
+        <div class="ag-title">Não encontramos sua conta 🔍</div>
+        <div class="ag-sub">Esse e-mail ainda não tem conta em nenhum servidor do H2BApply. Confira se digitou certo — ou crie sua conta grátis agora.</div>
+        <button class="ag-btn verde" onclick="_agIntent='signup';agRender('result',window._agLastWhere)"><i class="ti ti-user-plus"></i> Criar conta grátis com esse e-mail</button>
+        <button class="ag-btn fantasma" onclick="agRender('email')"><i class="ti ti-pencil"></i> Corrigir e-mail</button>`;
+      return;
+    }
+    // Cadastro: escolher servidor aberto
+    if(!abertos.length){
+      body.innerHTML=`<div class="ag-title">Servidores lotados 🔴</div>
+        <div class="ag-sub">Nenhum servidor está aberto para novas contas neste momento. Tente novamente em breve — abrimos novos espaços com frequência.</div>
+        <button class="ag-btn fantasma" onclick="agRender('choice')">Voltar</button>`;
+      return;
+    }
+    body.innerHTML=`
+      <div style="text-align:center"><span class="ag-email-chip">📧 ${esc(_agEmail)}</span></div>
+      <div class="ag-title">Escolha seu servidor 🌐</div>
+      <div class="ag-sub">Servidores são só uma <strong style="color:rgba(255,255,255,.8)">divisão de usuários</strong> — vagas, planos e funções são <strong style="color:rgba(255,255,255,.8)">idênticos</strong>. Sua conta será criada no servidor escolhido.</div>
+      ${abertos.map((s,i)=>`
+        <div class="ag-srv-card" style="cursor:pointer" onclick="agSignupAt(${i})">
+          <div class="srv-row1" style="margin-bottom:6px"><div class="srv-name">🟢 ${esc(s.nome||("Servidor "+s.id))}</div><span class="srv-badge aberto">Aberto</span></div>
+          <div class="srv-desc" style="margin-bottom:10px">Aberto para novas contas — mesmas vagas, mesmos planos, mesmas funções.</div>
+          <button class="srv-cta aberto"><i class="ti ti-user-plus"></i> Criar conta aqui com Google</button>
+        </div>`).join("")}`;
+    window._agOpenSrvs=abertos;
+    return;
+  }
+}
+async function agLookup(){
+  if(_agBusy)return;
+  const inp=g("#ag-email"),err=g("#ag-err"),btn=g("#ag-continue");
+  const email=(inp?inp.value:"").toLowerCase().trim();
+  const showErr=m=>{if(err){err.style.display="block";err.textContent=m;}};
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){showErr("⚠️ Digite um e-mail válido (ex.: nome@gmail.com).");return;}
+  _agEmail=email;_agBusy=true;
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Localizando…';}
+  agRender("loading");
+  try{
+    const r=await fetch("/api/auth/where?email="+encodeURIComponent(email),{credentials:"include"});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||"Erro ao consultar");
+    window._agLastWhere=d;
+    agRender("result",d);
+  }catch(e){
+    agRender("email");
+    setTimeout(()=>{const e2=g("#ag-err");if(e2){e2.style.display="block";e2.textContent="⚠️ "+(e.message||"Não foi possível verificar agora. Tente de novo.");}},80);
+  }finally{_agBusy=false;}
+}
+// Login no servidor certo: aqui → modal Google normal; remoto → redireciona
+// com ?entrar=1 (lá o card não repete e o login do Google abre direto).
+function agGoogleAt(url){
+  if(!url){ closeAuthGate(); showGoogleWarnModal(); return; }
+  toast("Levando você para o servidor da sua conta…","g");
+  const dest=url+(url.includes("?")?"&":"?")+"entrar=1";
+  setTimeout(()=>{window.location.href=dest;},350);
+}
+function agSignupAt(i){
+  const s=(window._agOpenSrvs||[])[i]; if(!s)return;
+  if(s.self){ closeAuthGate(); showGoogleWarnModal(); return; }
+  if(s.url){
+    toast("Redirecionando para o "+(s.nome||"servidor")+"…","g");
+    const dest=s.url+(s.url.includes("?")?"&":"?")+"entrar=1";
+    setTimeout(()=>{window.location.href=dest;},350);
+  }
 }
 function openServerSelect(){
   const ov=g("#srv-select-ov"); if(!ov) return;
