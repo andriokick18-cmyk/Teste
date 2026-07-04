@@ -146,6 +146,7 @@ const NOTIF_FILE     = path.join(DATA_DIR, "notifications.json");  // Global not
 const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
 const PEDIDOS_FILE     = path.join(DATA_DIR, "pedidos.json");         // Pedidos de plano dos usuários
 const FINANCEIRO_FILE  = path.join(DATA_DIR, "financeiro.json");      // Dados financeiros (entradas + gastos)
+const ETA_FILE         = path.join(DATA_DIR, "eta_registry.json");    // Monitor ETA: registro/histórico de todas as vagas por case number
 const BLOCKED_FILE     = path.join(DATA_DIR, "blocked_emails.json");  // Emails banidos permanentemente
 const TRIAL_USED_FILE  = path.join(DATA_DIR, "trial_used.json");       // Histórico anti-abuse: phones/IPs que já receberam trial
 const KB_FILE          = path.join(DATA_DIR, "knowledge_base.json");  // Base de Conhecimento Permanente (IA↔IA)
@@ -176,7 +177,7 @@ let DB_CODES  = {};   // NEW: promo codes { code → { manualDays, autoDays, cre
 let DB_PUSH   = {};   // NEW: push subscriptions { userEmail → PushSubscription[] }
 // NEW v13: índice de candidaturas — { userEmail → { byThread:{tid:appId}, byMsgId:{mid:appId}, byTo:{email:[appId,...]} } }
 let DB_APP_INDEX = {};
-let DB_ADMIN_SETTINGS = { newUserTrialEnabled: true, newUserTrialDays: 1, newUserTrialAutoDays: 0, newUserTrialPlan: "vip", editorPasswords: { andrew: "84800-54", diego: "Diego2026" },
+let DB_ADMIN_SETTINGS = { etaWorkerEnabled: true, newUserTrialEnabled: true, newUserTrialDays: 1, newUserTrialAutoDays: 0, newUserTrialPlan: "vip", editorPasswords: { andrew: "84800-54", diego: "Diego2026" },
   // MULTI-SERVIDOR: lista de servidores exibida no seletor da landing.
   // status "lotado" = fechado p/ contas novas (só login); "aberto" = cadastro liberado.
   // maxExibido é o teto MOSTRADO na barra (pode ser menor que o real p/ marcar lotação).
@@ -197,6 +198,12 @@ let DB_NOTIF = { notifications: [] };
 let DB_SUGGESTIONS = []; // Array de sugestões dos usuários
 let DB_PEDIDOS     = []; // Array de pedidos de plano
 let DB_FINANCEIRO  = {pagamentos:[],gastos:[]};  // Dados financeiros persistentes
+// ── MONITOR ETA ──────────────────────────────────────────────────────────
+// Registro permanente de TODAS as vagas por ETA Case Number: status, grupo,
+// histórico completo, agenda de consultas. Alimentado pelas planilhas +
+// worker independente que consulta o DOL 24/7 (não depende de interface).
+let DB_ETA      = { cases:{}, meta:{ createdAt:Date.now(), lastSeedAt:0, lastSyncAt:0, checksDay:"", checksToday:0, errorsToday:0 } };
+let DB_ETA_LOGS = []; // ring buffer em memória (últimos 400 eventos do robô)
 let DB_BLOCKED     = {emails:[]};               // Emails banidos permanentemente
 let DB_TRIAL_USED  = {phones:{},ips:{},googleIds:{}};  // Anti-abuse: {phones:{"+5511...":"email"}, ips:{"1.2.3.4":["email1","email2"]}, googleIds:{"108...":"email"}}
 // Base de Conhecimento Permanente — transferência de conhecimento entre IAs e versões
@@ -506,6 +513,9 @@ function boot() {
   DB_PEDIDOS = load(PEDIDOS_FILE, []);
   if(!Array.isArray(DB_PEDIDOS)) DB_PEDIDOS = [];
   DB_FINANCEIRO = load(FINANCEIRO_FILE, {pagamentos:[],gastos:[],repasses:[]});
+  DB_ETA = load(ETA_FILE, { cases:{}, meta:{ createdAt:Date.now(), lastSeedAt:0, lastSyncAt:0, checksDay:"", checksToday:0, errorsToday:0 } });
+  if(!DB_ETA.cases) DB_ETA.cases={};
+  if(!DB_ETA.meta)  DB_ETA.meta={ createdAt:Date.now(), lastSeedAt:0, lastSyncAt:0, checksDay:"", checksToday:0, errorsToday:0 };
   if(!DB_FINANCEIRO.pagamentos) DB_FINANCEIRO = {pagamentos:[],gastos:[],repasses:[]};
   if(!Array.isArray(DB_FINANCEIRO.repasses)) DB_FINANCEIRO.repasses = []; // repasses entre sócios (dinheiro que um já pagou ao outro)
   DB_BLOCKED = load(BLOCKED_FILE, {emails:[]});
@@ -893,6 +903,24 @@ function boot() {
       problema:"PACOTE MULTI-SERVIDOR + RANKING v15 + PERFIL PÚBLICO + REPASSES (ordem do dono). (1) Servidor 1 (produção) 'lotado' — precisa de um seletor de servidores na landing (padrão realm-select de MMO/Habbo/region-picker) apontando novas contas para o Servidor 2 (h2b-teste.onrender.com), MESMO código nos dois deploys. (2) Ranking de Respostas não agradou — trocar por ranking de compras VIP + ranking Global entre servidores. (3) Usuário precisa de perfil público opcional (sobre/experiências/foi contratado/opinião) visível ao clicar no ranking. (4) Financeiro não tinha onde registrar o que Diego JÁ repassou ao Andrio — o card 'Acerto entre sócios' sempre mostrava a dívida cheia.",
       solucao:"SERVER: env SERVER_ID (1=produção, 2=teste; default 1) identifica o deploy. DB_ADMIN_SETTINGS.servers (editável em Configurações, sem deploy) define nome/url/maxExibido/status(lotado|aberto) de cada servidor. Rotas públicas novas: GET /api/servers/self (id+usuários locais, p/ peers), GET /api/servers (lista p/ o seletor; conta local + busca peers via httpsReq com cache 10min e falha silenciosa), GET /api/servers/ranking-export (top50 local só com dados já públicos, nunca e-mail), GET /api/ranking/global (funde local+peers, ordena, top50 com serverId). RANKING: categoria 'responses' REMOVIDA das rotas; novas categorias: 'vip' (score = nº de compras VIP via calcVipCompras() — MESMA fonte canônica única por pagante da receitaReal: livro-caixa→pedidos pagos→paymentAmount; trial/código nunca contam; ignora período) e 'active' redefinida (dias distintos com envio no período, desempate por envios). Sort geral ganhou desempate por envios. Privacidade: user.publicProfile.mostrarFotoGoogle===false omite a foto Google no ranking E no perfil (avatar do app sempre pode). /api/ranking/profile devolve sobre/experiencias/foiContratado/opiniao/vipCompras/serverId. /api/settings aceita publicProfile sanitizado (strip de tags + limites de tamanho). /api/status devolve serverId+publicProfile. FINANCEIRO: DB_FINANCEIRO.repasses[] (novo) com actions add_repasse (de/para/valor/dataRepasse/nota; lancadoPor da SESSÃO, não forjável) e delete_repasse (motivo obrigatório) — ambas na trilha alteracoes[]. GET /api/admin/financeiro retorna repasses. FRONT (index): overlay seletor de servidores na landing (1x por sessão + pill 🌐 na navbar), cards com barra de lotação (ex.: 76/50 LOTADO só-login vs 0/100 ABERTO), clique no servidor remoto redireciona pra URL dele; aviso fixo 'sua conta pertence ao servidor onde foi criada'. Abas do ranking: Envios | 💎 VIP | 🔥 Mais Ativos | 🌐 Global (períodos ocultos em VIP/Global; entradas globais de outro servidor mostram chip SN e não abrem perfil — perfil vive no outro servidor). Corrigido bug pré-existente: renderRanking lia e.posChange mas o server manda e.change (todo mundo aparecia como 'Novo'). Modal de perfil do ranking ganhou seção de bio pública + stat Compras VIP. Editar Perfil ganhou card '🌟 Perfil Público (opcional)' (sobre/experiências/foi contratado/opinião/toggle foto Google) salvo pelo saveProfile existente. Badge 'Servidor N' no drawer e no hero do perfil. ADMIN: card Acerto ganhou lista de repasses + botão 💸 Registrar repasse (modal) + exclusão com motivo; cálculo do acerto agora desconta repasses (heldAndrio − repassesAndrio→Diego + repassesDiego→Andrio); Configurações ganhou seção 🌐 Servidores (editar nome/url/max/status dos 2 servidores).",
       impacto:"Cadastros novos são direcionados ao Servidor 2 sem tocar no Servidor 1 (produção protegida), com o MESMO ZIP nos dois repositórios — só a env SERVER_ID muda. Ranking fica mais comercial (VIP incentiva compra; Global une a comunidade dos servidores). Perfis públicos são 100% opt-in e só expõem o que o usuário escreveu + stats já públicas. O acerto entre sócios finalmente reflete a realidade (o que Diego já pagou ao Andrio abate a dívida), com trilha auditável. Lições: (a) multi-servidor com flat-file = servidores IRMÃOS independentes conversando por APIs públicas mínimas com cache e falha silenciosa — nunca acoplar bancos; (b) contas NÃO migram entre servidores (DBs separados) — comunicar isso na UI é obrigatório; (c) métrica pública de dinheiro nunca expõe R$ de terceiros — usar contagem de compras; (d) todo ajuste de acerto financeiro precisa ser lançamento auditável (repasse), nunca edição do resultado.",modulos:["server.js: SERVER_ID, DB_ADMIN_SETTINGS.servers, /api/servers*, /api/ranking/global, calcVipCompras, calcRanking (vip/active/privacidade), /api/ranking/profile, /api/settings (publicProfile), /api/status, financeiro repasses","index.html: overlay seletor de servidores, pill navbar, abas do ranking, renderRanking (change fix, chips), modal perfil (bio), card Perfil Público, badges Servidor N","admin.html: repasses no acerto (+modal+cálculo), Configurações 🌐 Servidores"],tags:["multi-servidor","seletor","lotado","server-id","ranking","vip","global","perfil-público","privacidade","repasses","acerto","sócios","auditoria"]
+    },
+    {
+      id:"KB-061",versao:"V934",data:"2026-07-04",autor:"Claude/Andrio",
+      problema:"MASTER PROMPT ETA (ordem do dono): transformar o H2BApply na plataforma H-2B mais completa monitorando TODAS as vagas por ETA Case Number — grupo, status oficial, histórico completo, agenda de consultas, worker independente da interface, exclusividade Double Pro com tela premium para Free/VIPro, painel admin e logs. Entrega faseada decidida pelo co-owner técnico: Fase 1 = infraestrutura completa + monitoramento real via API oficial do DOL (testável hoje); Fase 2 = FLAG/status pré-certificação, IA de probabilidade, filtros avançados, notificações e importador de planilhas por upload.",
+      solucao:"SERVER: DB_ETA (eta_registry.json em DATA_DIR) — 1 registro por case: empresa/estado/cidade/begin/end/grupo(+grupoManual)/visa/status/hist[](máx 40, append-only)/lastCheckAt/nextCheckAt/checks/changes/err/updBadgeUntil. etaSeedFromSheets() roda 30s pós-boot e 1x/dia: importa getAllSheets() SEM duplicar (chave=case), atualiza só campos alterados, status de planilha vale só até a 1ª consulta do robô (16.410 cases importados no teste). etaGrupoFromBegin(): 🟢A Abr–Jun, 🟡B Jul–Set, 🔵C Out–Dez, 🔴D Jan–Mar — coluna de grupo da planilha (r.g) e ajuste manual do admin têm prioridade. etaSetStatus(): aceita QUALQUER string (status novos entram sozinhos), grava histórico + selo ✨ por 48h. WORKER etaTick(): 45s, lock anti-reentrância, fila inteligente (só nextCheckAt vencido, mais antigo primeiro), 5 cases por tick em 1 request DOL ($filter case_number eq ... or ...), extrai active/begin_date/end_date, deriva status (Certified·Ativa / Certified·Inativa / Encerrada / Não listada no DOL), agenda adaptativa (12h se contrato começa em <30d, 24h padrão, 48h não listada, 7d encerrada), retry 30min com backoff em erro, contadores diários, NUNCA trava (try/finally). Persistência: debounce 3min só se sujo + flush no SIGTERM (~6,5MB p/ 16k cases, hist capado). Kill-switch: DB_ADMIN_SETTINGS.etaWorkerEnabled. ROTAS user (sessão): POST /api/eta/map (≤60 cases; grupo p/ todos, status/upd SÓ Double Pro — demais locked:true) e GET /api/eta/case?c= (detalhe completo DP; teaser p/ demais). ROTAS admin (grupo-guard /api/admin): eta/stats (totais, byStatus, byGrupo, fila, checagens/erros hoje, lastSync, próxima consulta, workerEnabled), eta/logs (ring 400 em memória), eta/toggle, eta/check-now (fura fila + dispara tick), eta/set-grupo (A–H ou automático). INDEX: mkSheetCard ganhou linha .jcard-eta preenchida em batch por etaEnrichCards() (cache local, POST /api/eta/map) — selo de grupo colorido + chip de status (DP) ou 🔒 Status ETA (demais) + botão ⭐ Monitor ETA verde. Modal criado sob demanda (design Stripe/Linear dark): versão DP com case, selos, grid de 6 métricas (início/fim/última/próxima consulta/nº consultas/mudanças) e linha do tempo vertical do histórico; versão bloqueada com timeline borrada, 6 benefícios e CTA '💎 Quero ser Double Pro — R$250' → sv('plans'). ADMIN: item sidebar 📡 Monitor ETA + view com 8 stat-cards, distribuição por status/grupo, botão ligar/pausar robô, consultar case agora, definir grupo manual e logs ao vivo.",
+      impacto:"O H2BApply passa a ter um ativo que nenhum concorrente tem: monitoramento contínuo e auditável de TODAS as vagas por case number, com histórico permanente — e vira o motivo de venda nº1 do Double Pro (grupo visível de graça é a isca; status/timeline atrás do 🔒). Capacidade: ~9.600 checagens/dia em 1 request/45s — 16k cases cabem no ciclo de 24-48h sem estressar o DOL. Lições: (a) worker de monitoramento em massa DEVE consultar em lote via $filter (5 cases/request), nunca 1 request por case; (b) status de planilha é semente, nunca sobrepõe consulta ao vivo; (c) dado derivado (grupo por Begin Date) precisa de override manual persistente (grupoManual) senão o robô desfaz a correção do admin; (d) gate de plano se resolve no SERVIDOR (locked:true) — o front nunca recebe o dado que não pode mostrar.",modulos:["server.js: DB_ETA/ETA_FILE, etaSeedFromSheets, etaTick, etaSetStatus, etaGrupoFromBegin, /api/eta/map, /api/eta/case, /api/admin/eta/* (stats/logs/toggle/check-now/set-grupo), etaWorkerEnabled","index.html: .jcard-eta em mkSheetCard, etaEnrichCards, etaGrupoBadge/etaStatusChip, modal Monitor ETA (DP + upsell)","admin.html: view-eta, loadEtaAdmin/loadEtaLogs/etaAdminToggle/etaAdminCheckNow/etaAdminSetGrupo, sidebar"],tags:["eta","monitor","case-number","worker","fila-inteligente","grupo","status","histórico","doublepro","upsell","dol","robô","24-7","fase-1"]
+    },
+    {
+      id:"KB-062",versao:"V935",data:"2026-07-04",autor:"Claude/Andrio",
+      problema:"Fluxo entre servidores repetia o seletor: quem clicava no Servidor 2 era redirecionado para h2b-teste e via o card de escolha DE NOVO na chegada (sessionStorage é por origem — sessão nova no destino), quando deveria cair direto no login. No Servidor 1 (próprio site) o comportamento já era o correto: card fecha e o modal do Google abre.",
+      solucao:"O redirect do seletor passou a anexar ?entrar=1 à URL do servidor destino. maybeShowServerSelect() no destino detecta o parâmetro: marca h2bSrvSeen, limpa a URL (history.replaceState) e abre showGoogleWarnModal() automaticamente após 450ms — a pessoa escolhe o servidor UMA vez e desemboca direto na autenticação do Google, sem repetir a escolha. Sem parâmetro, o comportamento continua o mesmo (card 1x por sessão + pill 🌐 para reabrir).",
+      impacto:"Jornada de cadastro entre servidores vira um fluxo contínuo de 2 toques (escolher servidor → autorizar Google). Lição: qualquer handoff entre origens diferentes precisa carregar o estado da decisão NA URL — sessionStorage/localStorage não atravessam domínios.",modulos:["index.html: srvGo (?entrar=1 no redirect), maybeShowServerSelect (detecção do parâmetro + auto-login)"],tags:["multi-servidor","seletor","redirect","handoff","entrar","login","fluxo-contínuo","ux"]
+    },
+    {
+      id:"KB-063",versao:"V936",data:"2026-07-04",autor:"Claude/Andrio",
+      problema:"Nada impedia DE VERDADE a mesma pessoa de criar conta nos dois servidores (o 'lotado' era só visual do seletor) — abrindo brecha para trial duplo, ranking duplicado e confusão de 'onde está minha conta'. Ordem do dono: quem já tem conta no Servidor 1 NÃO pode criar no Servidor 2 (e vice-versa); ao tentar, deve ver um erro bonito dizendo em qual servidor a conta dela existe, com caminho direto para o login de lá.",
+      solucao:"Trava 100% server-side no callback OAuth (impossível burlar pelo front), aplicada SÓ a conta NOVA — login de quem já existe no servidor segue intocado. (1) LOTADO REAL: se o próprio servidor está status 'lotado' na config, cadastro novo é recusado antes de criar qualquer registro (sessão pré-criada descartada) e redireciona /?err=srv_lotado&srv_*=<servidor aberto>. (2) CONTA ÚNICA: checkAccountOnPeers() consulta os irmãos via GET /api/servers/has-account?h=<SHA-256 do e-mail> — o e-mail NUNCA viaja em texto entre servidores; peer responde exists com set de hashes local em cache (5 min, inclui soft-deletadas pois relogin restaura). Achou em outro → recusa e redireciona /?err=conta_outro_srv&srv_id/nome/url. Rota has-account tem rate limit 120/min por IP e valida formato do hash. FAIL-OPEN deliberado: peer fora do ar (timeout 6s) não trava cadastro legítimo — disponibilidade > rigidez, com log para auditoria. FRONT: handler de ?err intercepta os dois códigos ANTES do display genérico (e do history.replaceState que apagava os params), guarda em window._srvBlock; maybeShowServerSelect dá prioridade máxima ao card de bloqueio: 'conta_outro_srv' → 👋 'Você já tem conta no Servidor X!' + botão azul 'Ir para o Servidor X e entrar' (com ?entrar=1 → login abre sozinho lá) + 'Ver todos os servidores'; 'srv_lotado' → 🔴 'Este servidor está lotado' + botão verde 'Criar conta grátis no Servidor 2' + 'Já tenho conta AQUI — Entrar'. Subtítulo do seletor agora avisa a regra de conta única.",
+      impacto:"Fluxo fecha redondo: escolhe servidor → Google → se a conta é de outro servidor, 1 clique leva ao lugar certo com o login já abrindo. Trial duplo entre servidores morre no nascedouro. Lições: (a) regra de negócio de cadastro SEMPRE no servidor, no ponto único de criação (callback OAuth) — UI é só cortesia; (b) checagem de existência entre sistemas troca HASH, nunca PII; (c) trava dependente de peer externo precisa decidir fail-open vs fail-closed EXPLICITAMENTE (aqui: fail-open logado); (d) params de erro na URL devem ser capturados ANTES de qualquer replaceState genérico.",modulos:["server.js: checkAccountOnPeers, _emailHashExists, GET /api/servers/has-account, callback OAuth (travas lotado + conta única)","index.html: handler ?err (intercepta srv_lotado/conta_outro_srv), showSrvBlockModal, maybeShowServerSelect (prioridade), subtítulo do seletor"],tags:["multi-servidor","conta-única","trava","oauth","hash","sha-256","privacidade","lotado","fail-open","rate-limit","upsell-servidor"]
     }
   ];
   for(const entry of _kbFounding){
@@ -5171,6 +5199,30 @@ function _saveEnrichedSheet(sheetKey, sheet){
         if(_existingUser?.refresh_token) tokenData.refresh_token = _existingUser.refresh_token;
       }
       const ex=getUser(ui.email);
+      // ══ MULTI-SERVIDOR: TRAVA DE CONTA ÚNICA (só para conta NOVA) ══════
+      // Login de quem já existe AQUI segue 100% normal — as travas abaixo
+      // valem apenas para cadastro novo. Bloqueio é feito ANTES de criar
+      // qualquer registro; a sessão pré-criada é descartada.
+      if(!ex){
+        // (1) Este servidor está LOTADO? Fechado para contas novas de verdade
+        //     (não só no visual do seletor).
+        const _selfCfg=_getServersConfig().find(sv=>sv.id===SERVER_ID);
+        if(_selfCfg&&_selfCfg.status==="lotado"){
+          const _open=_getServersConfig().find(sv=>sv.id!==SERVER_ID&&sv.status==="aberto"&&sv.url);
+          delete sessions[sid];
+          console.log(`[servers] 🚫 Cadastro recusado (Servidor ${SERVER_ID} lotado): ${ui.email}`);
+          const _q=_open?`&srv_id=${_open.id}&srv_nome=${encodeURIComponent(_open.nome)}&srv_url=${encodeURIComponent(_open.url)}`:"";
+          res.writeHead(302,{Location:`/?err=srv_lotado${_q}`});return res.end();
+        }
+        // (2) Já tem conta em OUTRO servidor? Consulta os irmãos por hash do
+        //     e-mail. Se sim, recusa e manda a pessoa para o servidor dela.
+        const _peer=await checkAccountOnPeers(ui.email);
+        if(_peer){
+          delete sessions[sid];
+          console.log(`[servers] 🚫 Cadastro recusado: ${ui.email} já tem conta no Servidor ${_peer.id} (${_peer.url})`);
+          res.writeHead(302,{Location:`/?err=conta_outro_srv&srv_id=${_peer.id}&srv_nome=${encodeURIComponent(_peer.nome)}&srv_url=${encodeURIComponent(_peer.url)}`});return res.end();
+        }
+      }
       if(!ex){
         const now=Date.now();
         // ── Anti-abuse: verificar se este IP ou Google ID já recebeu trial ────
@@ -8733,6 +8785,63 @@ Responda APENAS em JSON (sem markdown):
         return json(res,200,{ok:true});
       }catch(e){return json(res,500,{error:e.message});}
     }
+    // ── ADMIN: Monitor ETA ─────────────────────────────────
+    if(pathname==="/api/admin/eta/stats"&&req.method==="GET"){
+      const now=Date.now();
+      const all=Object.values(DB_ETA.cases||{});
+      const byStatus={},byGrupo={};
+      let fila=0,updAtivas=0,proxima=Infinity;
+      for(const c of all){
+        byStatus[c.status||"–"]=(byStatus[c.status||"–"]||0)+1;
+        byGrupo[c.grupo||"–"]=(byGrupo[c.grupo||"–"]||0)+1;
+        if((c.nextCheckAt||0)<=now)fila++;
+        if((c.updBadgeUntil||0)>now)updAtivas++;
+        if((c.nextCheckAt||0)>now&&c.nextCheckAt<proxima)proxima=c.nextCheckAt;
+      }
+      return json(res,200,{ok:true,total:all.length,byStatus,byGrupo,fila,updAtivas,
+        checksToday:DB_ETA.meta.checksToday||0,errorsToday:DB_ETA.meta.errorsToday||0,
+        lastSyncAt:DB_ETA.meta.lastSyncAt||0,lastSeedAt:DB_ETA.meta.lastSeedAt||0,
+        proximaConsulta:isFinite(proxima)?proxima:0,
+        workerEnabled:DB_ADMIN_SETTINGS.etaWorkerEnabled!==false});
+    }
+    if(pathname==="/api/admin/eta/logs"&&req.method==="GET"){
+      return json(res,200,{ok:true,logs:DB_ETA_LOGS.slice(0,200)});
+    }
+    if(pathname==="/api/admin/eta/toggle"&&req.method==="POST"){
+      try{
+        const d=JSON.parse(await readBody(req));
+        DB_ADMIN_SETTINGS.etaWorkerEnabled=!!d.enabled;
+        persist(ADMIN_SETTINGS_FILE,DB_ADMIN_SETTINGS);
+        etaLog("info",`Robô ETA ${d.enabled?"LIGADO":"PAUSADO"} por ${s.user_email}`);
+        return json(res,200,{ok:true,workerEnabled:!!d.enabled});
+      }catch(e){return json(res,500,{error:e.message});}
+    }
+    if(pathname==="/api/admin/eta/check-now"&&req.method==="POST"){
+      try{
+        const d=JSON.parse(await readBody(req));
+        const cn=String(d.caseNumber||"").toUpperCase().trim();
+        const c=DB_ETA.cases[cn];
+        if(!c)return json(res,404,{error:"Case não encontrado no registro."});
+        c.nextCheckAt=0;_etaDirty=true;
+        etaTick().catch(()=>{}); // dispara já, sem esperar o próximo tick
+        return json(res,200,{ok:true});
+      }catch(e){return json(res,500,{error:e.message});}
+    }
+    if(pathname==="/api/admin/eta/set-grupo"&&req.method==="POST"){
+      try{
+        const d=JSON.parse(await readBody(req));
+        const cn=String(d.caseNumber||"").toUpperCase().trim();
+        const c=DB_ETA.cases[cn];
+        if(!c)return json(res,404,{error:"Case não encontrado no registro."});
+        const gr=String(d.grupo||"").toUpperCase().slice(0,1);
+        if(gr&&!/^[A-H]$/.test(gr))return json(res,400,{error:"Grupo deve ser uma letra de A a H (ou vazio para automático)."});
+        if(gr){c.grupo=gr;c.grupoManual=true;}
+        else{c.grupoManual=false;c.grupo=etaGrupoFromBegin(c.begin);}
+        _etaDirty=true;
+        etaLog("info",`Grupo de ${cn} → ${c.grupo||"automático"} (por ${s.user_email})`,cn);
+        return json(res,200,{ok:true,grupo:c.grupo});
+      }catch(e){return json(res,500,{error:e.message});}
+    }
     // ── ADMIN: Ranking Management ──────────────────────────
     if(pathname==="/api/admin/ranking"&&req.method==="GET"){
       const period  =["day","week","month","all"].includes(u.searchParams.get("period"))  ?u.searchParams.get("period")  :"day";
@@ -8809,10 +8918,61 @@ Responda APENAS em JSON (sem markdown):
       return json(res,200,{ok:true,manualDays:c.manualDays,autoDays:c.autoDays,manualExpiresDate:c.manualDays>0?new Date(manualExpires).toLocaleDateString("pt-BR"):null,autoExpiresDate:c.autoDays>0?new Date(autoExpires).toLocaleDateString("pt-BR"):null});
     }catch(e){return json(res,500,{error:e.message});}
   }
+  // ══ MONITOR ETA (usuário) ═══════════════════════════════
+  // POST /api/eta/map {cases:[...]} — badges dos cards (grupo p/ todos;
+  // status/atualização SÓ para Double Pro — os demais recebem locked:true).
+  if(pathname==="/api/eta/map"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const cases=(Array.isArray(d.cases)?d.cases:[]).slice(0,60).map(c=>String(c||"").toUpperCase().trim());
+      const usr=getUser(s.user_email)||{};
+      const full=getPlan(usr)==="doublepro"||isAdminVip(usr);
+      const map={};
+      for(const cn of cases){
+        const c=DB_ETA.cases[cn];if(!c)continue;
+        map[cn]=full
+          ?{grupo:c.grupo||"",status:c.status||"",upd:(c.updBadgeUntil||0)>Date.now(),last:c.lastCheckAt||0}
+          :{grupo:c.grupo||"",locked:true};
+      }
+      return json(res,200,{ok:true,full,map});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  // GET /api/eta/case?c=H-... — detalhe completo (Double Pro) ou teaser (demais)
+  if(pathname==="/api/eta/case"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const cn=(u.searchParams.get("c")||"").toUpperCase().trim();
+    if(!cn)return json(res,400,{error:"Case number obrigatório."});
+    const c=DB_ETA.cases[cn];
+    if(!c)return json(res,404,{error:"Esta vaga ainda não entrou no monitoramento. O robô importa vagas novas automaticamente."});
+    const usr=getUser(s.user_email)||{};
+    const full=getPlan(usr)==="doublepro"||isAdminVip(usr);
+    if(!full){
+      return json(res,200,{ok:true,locked:true,cn:c.cn,grupo:c.grupo||"",empresa:c.empresa,estado:c.estado,
+        checks:c.checks||0,changes:c.changes||0,monitoradaDesde:c.createdAt||0});
+    }
+    return json(res,200,{ok:true,locked:false,case:{
+      cn:c.cn,empresa:c.empresa,estado:c.estado,cidade:c.cidade||"",begin:c.begin||"",end:c.end||"",
+      grupo:c.grupo||"",visa:c.visa||"H-2B",status:c.status||"",
+      hist:(c.hist||[]).slice(-20),
+      lastCheckAt:c.lastCheckAt||0,nextCheckAt:c.nextCheckAt||0,
+      checks:c.checks||0,changes:c.changes||0,upd:(c.updBadgeUntil||0)>Date.now()
+    }});
+  }
+
   // ══ MULTI-SERVIDOR ═══════════════════════════════════════
   // GET /api/servers/self — dados públicos mínimos deste servidor (para peers)
   if(pathname==="/api/servers/self"&&req.method==="GET"){
     return json(res,200,{ok:true,id:SERVER_ID,users:_countLocalUsers(),at:Date.now()});
+  }
+  // GET /api/servers/has-account?h=<sha256 do e-mail> — checagem de conta única
+  // entre servidores. Só recebe HASH (privacidade); rate limit por IP.
+  if(pathname==="/api/servers/has-account"&&req.method==="GET"){
+    const _hip=(req.headers["x-forwarded-for"]||req.socket?.remoteAddress||"").split(",")[0].trim();
+    if(rateLimit("hasacct_"+_hip,120,60_000))return json(res,429,{error:"Muitas consultas. Aguarde."});
+    const h=(u.searchParams.get("h")||"").toLowerCase().trim();
+    if(!/^[a-f0-9]{64}$/.test(h))return json(res,400,{error:"hash inválido"});
+    return json(res,200,{ok:true,serverId:SERVER_ID,exists:_emailHashExists(h)});
   }
   // GET /api/servers — lista completa para o seletor da landing.
   // Para o próprio servidor conta usuários locais; para peers busca (cache 10 min)
@@ -10666,6 +10826,38 @@ function _countLocalUsers(){
   // Conta usuários visíveis (exclui contas soft-deletadas)
   let n=0; for(const u of Object.values(DB_USERS)){ if(!u||u.accountDeleted) continue; n++; } return n;
 }
+// ── CONTA ÚNICA ENTRE SERVIDORES ──────────────────────────────────────────
+// Cada pessoa tem conta em UM servidor só. A checagem cruzada usa SHA-256 do
+// e-mail (o e-mail nunca viaja em texto entre servidores). Cache do set de
+// hashes locais reconstruído a cada 5 min ou quando a base muda de tamanho.
+let _acctHashCache={at:0,size:-1,set:new Set()};
+function _emailHashExists(h){
+  const emails=Object.keys(DB_USERS); // inclui contas soft-deletadas (relogin restaura — a conta EXISTE)
+  if(Date.now()-_acctHashCache.at>300_000||_acctHashCache.size!==emails.length){
+    const s=new Set();
+    for(const e of emails)s.add(crypto.createHash("sha256").update(String(e).toLowerCase().trim()).digest("hex"));
+    _acctHashCache={at:Date.now(),size:emails.length,set:s};
+  }
+  return _acctHashCache.set.has(h);
+}
+// Pergunta aos servidores irmãos se o e-mail já tem conta lá.
+// Timeout de 6s por peer e FAIL-OPEN: peer fora do ar nunca trava um cadastro
+// legítimo (disponibilidade > rigidez; o evento fica logado para auditoria).
+async function checkAccountOnPeers(email){
+  const h=crypto.createHash("sha256").update(String(email||"").toLowerCase().trim()).digest("hex");
+  for(const sv of _getServersConfig()){
+    if(sv.id===SERVER_ID||!sv.url)continue;
+    try{
+      const hurl=new URL(sv.url);
+      if(hurl.protocol!=="https:")continue;
+      const call=httpsReq({hostname:hurl.hostname,port:hurl.port||443,path:"/api/servers/has-account?h="+h,method:"GET",headers:{"Accept":"application/json","User-Agent":"H2BApply-Server/"+SERVER_ID}});
+      const r=await Promise.race([call,new Promise(res2=>setTimeout(()=>res2(null),6000))]);
+      if(r&&r.status===200&&r.body&&r.body.exists===true)return sv;
+    }catch(e){console.warn("[servers] has-account em",sv.url,"falhou (fail-open):",e.message);}
+  }
+  return null;
+}
+
 // Cache de chamadas a peers (10 min) — nunca derruba a resposta se o peer cair
 const _peerCache={};
 async function _fetchPeerJson(baseUrl,apiPath){
@@ -10848,6 +11040,160 @@ function persistFinanceiro() {
 
 // ── BOOT ─────────────────────────────────────────────────
 boot();loadSheets();
+
+// ════════════════════════════════════════════════════════════════════════
+//  📡 MONITOR ETA — SISTEMA INTELIGENTE DE MONITORAMENTO POR CASE NUMBER
+//  Worker 100% independente da interface: roda 24/7 no servidor, sobrevive
+//  a fechamento de navegador/painel e a restart (persistência + reseed).
+//  Fonte Fase 1: API oficial datahub do DOL (a mesma já usada no site,
+//  estável e testada). Arquitetura de provider pronta p/ plugar FLAG (Fase 2).
+// ════════════════════════════════════════════════════════════════════════
+let _etaDirty=false;
+function persistEta(){
+  try{
+    const tmp=ETA_FILE+".tmp";
+    fs.writeFileSync(tmp,JSON.stringify(DB_ETA));
+    fs.renameSync(tmp,ETA_FILE);
+  }catch(e){console.warn("[eta] persist:",e.message);}
+}
+function etaLog(level,msg,cn){
+  DB_ETA_LOGS.unshift({at:Date.now(),level,msg:String(msg||"").slice(0,300),cn:cn||""});
+  if(DB_ETA_LOGS.length>400)DB_ETA_LOGS.length=400;
+}
+// Grupo derivado do Begin Date (temporadas H-2B). Planilha com coluna de grupo
+// (r.g) ou ajuste manual do admin sempre têm prioridade sobre a derivação.
+//   🟢 A = início Abr–Jun · 🟡 B = Jul–Set · 🔵 C = Out–Dez · 🔴 D = Jan–Mar
+function etaGrupoFromBegin(begin){
+  const m=parseInt(String(begin||"").slice(5,7),10);
+  if(!m||m<1||m>12)return"";
+  if(m>=4&&m<=6)return"A";
+  if(m>=7&&m<=9)return"B";
+  if(m>=10)return"C";
+  return"D";
+}
+// Registra mudança de status: histórico append-only + selo "atualização" por 48h.
+// Aceita QUALQUER string de status — status novos do DOL entram automaticamente.
+function etaSetStatus(c,novo,src){
+  novo=String(novo||"").trim().slice(0,80);
+  if(!novo||c.status===novo)return false;
+  c.hist=Array.isArray(c.hist)?c.hist:[];
+  c.hist.push({s:novo,at:Date.now(),src:src||"sistema"});
+  if(c.hist.length>40)c.hist=c.hist.slice(-40); // nunca explode o arquivo
+  c.status=novo;
+  c.changes=(c.changes||0)+1;
+  c.updBadgeUntil=Date.now()+48*3600_000;
+  return true;
+}
+// Importa/mescla planilhas no registro ETA. NUNCA duplica (chave = case number);
+// só atualiza campos alterados. Roda no boot e 1x/dia (pega planilhas novas).
+function etaSeedFromSheets(){
+  try{
+    const sheets=getAllSheets();
+    if(!sheets.length)return; // planilhas ainda carregando — próximo ciclo pega
+    let added=0,updated=0;
+    const now=Date.now();
+    for(const r of sheets){
+      const cn=String(r.c||"").toUpperCase().trim();
+      if(!cn||!/^H-\d/.test(cn))continue;
+      const grupoPlan=r.g?String(r.g).toUpperCase().slice(0,1):"";
+      const cur=DB_ETA.cases[cn];
+      if(!cur){
+        DB_ETA.cases[cn]={
+          cn, empresa:String(r.n||"–").slice(0,120), estado:String(r.s||"–").slice(0,40),
+          cidade:String(r.ci||"").slice(0,60), begin:String(r.d||"").slice(0,10), end:String(r.de||"").slice(0,10),
+          grupo:grupoPlan||etaGrupoFromBegin(r.d), grupoManual:false, visa:String(r.visa||"H-2B").slice(0,6),
+          status:String(r.st||"Registrada").slice(0,80),
+          hist:[{s:String(r.st||"Registrada").slice(0,80),at:now,src:"planilha"}],
+          lastCheckAt:0,
+          nextCheckAt:now+Math.floor(Math.random()*72*3600_000), // espalha a fila nas primeiras 72h
+          checks:0, changes:0, err:0, src:"planilha", createdAt:now, updBadgeUntil:0
+        };
+        added++;
+      } else {
+        let ch=false;
+        if(r.n&&cur.empresa!==r.n){cur.empresa=String(r.n).slice(0,120);ch=true;}
+        if(r.ci&&cur.cidade!==r.ci){cur.cidade=String(r.ci).slice(0,60);ch=true;}
+        if(r.d&&cur.begin!==String(r.d).slice(0,10)){cur.begin=String(r.d).slice(0,10);if(!cur.grupoManual)cur.grupo=grupoPlan||etaGrupoFromBegin(cur.begin);ch=true;}
+        if(r.de&&cur.end!==String(r.de).slice(0,10)){cur.end=String(r.de).slice(0,10);ch=true;}
+        if(grupoPlan&&!cur.grupoManual&&cur.grupo!==grupoPlan){cur.grupo=grupoPlan;ch=true;}
+        // Status da planilha só vale enquanto o robô nunca consultou (DOL é mais fresco)
+        if(r.st&&(cur.checks||0)===0&&etaSetStatus(cur,r.st,"planilha"))ch=true;
+        if(ch)updated++;
+      }
+    }
+    DB_ETA.meta.lastSeedAt=now;
+    if(added||updated){
+      _etaDirty=true;
+      etaLog("info",`Importação de planilhas: ${added} novas, ${updated} atualizadas (total ${Object.keys(DB_ETA.cases).length})`);
+      console.log(`[eta] seed: +${added} novas, ~${updated} atualizadas, total ${Object.keys(DB_ETA.cases).length}`);
+    }
+  }catch(e){console.warn("[eta] seed:",e.message);}
+}
+// ── WORKER ETA: 1 tick a cada 45s, até 5 cases por tick (1 request DOL) ──
+// Fila inteligente: só consulta o que venceu (nextCheckAt); nunca repete
+// consulta recente; retry com backoff em erro; nunca trava (lock + try/finally).
+let _etaTickRunning=false;
+async function etaTick(){
+  if(_etaTickRunning)return;
+  if(DB_ADMIN_SETTINGS.etaWorkerEnabled===false)return;
+  _etaTickRunning=true;
+  try{
+    const ds=todayStr();
+    if(DB_ETA.meta.checksDay!==ds){DB_ETA.meta.checksDay=ds;DB_ETA.meta.checksToday=0;DB_ETA.meta.errorsToday=0;}
+    const now=Date.now();
+    const due=Object.values(DB_ETA.cases)
+      .filter(c=>(c.nextCheckAt||0)<=now)
+      .sort((a,b)=>(a.nextCheckAt||0)-(b.nextCheckAt||0))
+      .slice(0,5);
+    if(!due.length)return;
+    const HDR={"Accept":"application/json","Accept-Encoding":"identity","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Cache-Control":"no-cache","Referer":"https://seasonaljobs.dol.gov/"};
+    const p=new URLSearchParams({"api-version":"2020-06-30"});
+    p.append("$filter",due.map(c=>`case_number eq '${c.cn}'`).join(" or "));
+    p.append("$top",String(due.length));
+    let found={};
+    try{
+      const{status,body}=await httpsReq({hostname:"api.seasonaljobs.dol.gov",path:"/datahub/?"+p,method:"GET",headers:HDR});
+      if(status!==200)throw new Error("DOL HTTP "+status);
+      const raw=body.value||body.results||body.data||(Array.isArray(body)?body:[]);
+      for(const r of raw){const cn=String(r.case_number||r.case_id||"").toUpperCase();if(cn)found[cn]=r;}
+    }catch(e){
+      DB_ETA.meta.errorsToday=(DB_ETA.meta.errorsToday||0)+1;
+      etaLog("err","Consulta DOL falhou: "+e.message);
+      for(const c of due){c.err=(c.err||0)+1;c.nextCheckAt=now+30*60_000;} // retry em 30 min
+      _etaDirty=true;
+      return;
+    }
+    for(const c of due){
+      c.lastCheckAt=now;c.checks=(c.checks||0)+1;DB_ETA.meta.checksToday++;
+      const r=found[c.cn];
+      if(r){
+        if(r.begin_date){const b=String(r.begin_date).slice(0,10);if(c.begin!==b){c.begin=b;if(!c.grupoManual)c.grupo=etaGrupoFromBegin(b)||c.grupo;}}
+        if(r.end_date){c.end=String(r.end_date).slice(0,10);}
+        const fim=c.end&&(new Date(c.end+"T23:59:59").getTime()<now);
+        const novo=fim?"Encerrada (contrato finalizado)":(r.active===true?"Certified · Ativa no DOL":"Certified · Inativa no DOL");
+        if(etaSetStatus(c,novo,"dol"))etaLog("upd",`${c.cn} → ${novo}`,c.cn);
+        const dBegin=c.begin?new Date(c.begin+"T12:00:00").getTime()-now:Infinity;
+        // Perto do começo do contrato = mais movimento = checa 2x/dia
+        c.nextCheckAt=now+(fim?7*86400_000:(dBegin>0&&dBegin<30*86400_000?12*3600_000:24*3600_000));
+        c.err=0;
+      } else {
+        if(etaSetStatus(c,"Não listada no DOL","dol"))etaLog("upd",`${c.cn} → Não listada no DOL`,c.cn);
+        c.nextCheckAt=now+48*3600_000;
+      }
+    }
+    DB_ETA.meta.lastSyncAt=now;
+    _etaDirty=true;
+  }catch(e){console.warn("[eta] tick:",e.message);}
+  finally{_etaTickRunning=false;}
+}
+// Boot do sistema ETA: seed 30s após subir (planilhas carregadas), reseed diário,
+// worker a cada 45s, persistência com debounce de 3 min (+ flush no shutdown).
+setTimeout(etaSeedFromSheets, 30_000);
+setInterval(etaSeedFromSheets, 24*3600_000);
+setInterval(etaTick, 45_000);
+setInterval(()=>{if(_etaDirty){_etaDirty=false;persistEta();}},3*60_000);
+process.on("SIGTERM",()=>{try{if(_etaDirty)persistEta();}catch{}});
+console.log(`[eta] Monitor ETA ativo | worker 45s | ${Object.keys(DB_ETA.cases||{}).length} cases no registro`);
 
 // ── Migração automática: copiar planilhas enriquecidas para /data/ ──────────
 // Se o bot já enriqueceu (enrichedAt no meta) mas o arquivo em /data/ não existe,

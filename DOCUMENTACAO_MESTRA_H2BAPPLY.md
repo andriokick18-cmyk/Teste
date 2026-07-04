@@ -554,3 +554,23 @@ Categorias: **Envios** | **💎 VIP** (nº de compras — `calcVipCompras()`, me
 
 ## 💸 REPASSES ENTRE SÓCIOS
 `DB_FINANCEIRO.repasses[]` registra dinheiro que um sócio já pagou ao outro. Actions: `add_repasse` (de/para/valor/data/nota; lançador vem da sessão) e `delete_repasse` (motivo obrigatório) — ambas na trilha `alteracoes[]`. O card "Acerto entre sócios" e o Robô Contábil descontam os repasses automaticamente do "quem repassa pra quem".
+
+## 📡 MONITOR ETA — FASE 1 (V934 · 04/07/2026)
+
+Sistema de monitoramento contínuo de TODAS as vagas por ETA Case Number:
+
+- **Registro:** `DB_ETA` (`eta_registry.json`) — 1 registro por case com empresa, estado, cidade, begin/end, grupo, status, histórico completo (append-only, máx 40), agenda de consultas e contadores. Seed automático das planilhas (boot + diário), sem duplicatas.
+- **Grupos:** derivados do Begin Date (🟢A Abr–Jun · 🟡B Jul–Set · 🔵C Out–Dez · 🔴D Jan–Mar); coluna de grupo na planilha e ajuste manual do admin (`grupoManual`) têm prioridade.
+- **Worker:** `etaTick()` a cada 45s, independente da interface, fila inteligente por `nextCheckAt`, 5 cases por request DOL (`$filter case_number eq ... or ...`), agenda adaptativa (12h perto do início, 24h padrão, 48h não listada, 7d encerrada), retry 30 min, kill-switch `etaWorkerEnabled`. Status aceita qualquer string — status novos entram sozinhos. Persistência com debounce 3 min + flush no SIGTERM.
+- **Gating Double Pro:** resolvido no SERVIDOR. `POST /api/eta/map` (grupo p/ todos; status/✨ só DP; demais `locked:true`) e `GET /api/eta/case` (detalhe completo DP; teaser + upsell p/ demais).
+- **Front:** linha ETA nos cards de vagas (selo de grupo + status/🔒 + botão ⭐ Monitor ETA), modal premium dark com linha do tempo do histórico (DP) ou tela de upgrade "💎 Quero ser Double Pro — R$250".
+- **Admin:** view 📡 Monitor ETA — stats, distribuição por status/grupo, ligar/pausar robô, consultar case agora, definir grupo, logs ao vivo (`/api/admin/eta/*`).
+- **Fase 2 planejada:** provider FLAG (status pré-certificação: Pending/Analyst Review), IA de probabilidade, filtros por grupo/status, notificações de mudança e upload de planilhas com coluna de grupo.
+
+## 🔒 CONTA ÚNICA ENTRE SERVIDORES (V936 · 04/07/2026)
+
+Trava server-side no callback OAuth (só para conta NOVA; login existente intocado):
+1. **Lotado real:** servidor com status `lotado` recusa cadastro novo e redireciona `/?err=srv_lotado` com o servidor aberto sugerido.
+2. **Conta única:** `checkAccountOnPeers()` consulta os irmãos via `GET /api/servers/has-account?h=<SHA-256 do e-mail>` (PII nunca viaja em texto; rate limit 120/min/IP; cache de hashes local 5 min, inclui soft-deletadas). Achou → redireciona `/?err=conta_outro_srv&srv_id/nome/url`.
+3. **Fail-open deliberado:** peer fora do ar (timeout 6s) não bloqueia cadastro legítimo — logado para auditoria.
+4. **Front:** `window._srvBlock` capturado antes do replaceState; `showSrvBlockModal()` exibe o card de tela cheia (👋 "Você já tem conta no Servidor X" com botão direto + `?entrar=1`, ou 🔴 "Servidor lotado" com botão para o servidor aberto).

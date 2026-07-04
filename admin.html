@@ -273,6 +273,7 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
       <button class="sb-item" onclick="showView('pedidos-lixeira');loadPedidosLixeira()" style="font-size:11px;color:var(--t3)"><i class="ti ti-trash" style="color:var(--t3)"></i>Lixeira de Pedidos <span class="sb-badge sb-badge-r" id="sb-lixeira" style="display:none">0</span></button>
       <div class="sb-label">Sistema</div>
       <button class="sb-item" onclick="showView('planilhas');loadPlanilhas()"><i class="ti ti-table-import" style="color:var(--green)"></i>Planilhas de Vagas</button>
+      <button class="sb-item" onclick="showView('eta')"><i class="ti ti-radar-2" style="color:#10b981"></i>Monitor ETA</button>
       <button class="sb-item" onclick="showView('emails-invalidos');loadEmailsInvalidos()"><i class="ti ti-mail-x" style="color:var(--red)"></i>Emails Inválidos</button>
       <button class="sb-item" onclick="showView('codes')"><i class="ti ti-ticket"></i>Códigos Promo</button>
       <button class="sb-item" onclick="showView('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
@@ -1118,6 +1119,37 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             <button class="btn btn-ghost btn-sm" onclick="loadRankingAdmin()"><i class="ti ti-refresh"></i></button>
           </div>
           <div class="tbl-wrap"><div id="ranking-list"><div class="empty-state">Carregando...</div></div></div>
+        </div>
+      </div>
+
+      <!-- ══ MONITOR ETA ══ -->
+      <div class="view" id="view-eta">
+        <div style="max-width:860px">
+          <div class="section-hdr"><i class="ti ti-radar-2" style="color:#10b981"></i><div class="section-title">Monitor ETA — Robô 24/7</div>
+            <button class="btn btn-ghost btn-sm" onclick="loadEtaAdmin()" title="Atualizar"><i class="ti ti-refresh"></i></button>
+            <button class="btn btn-sm" id="eta-toggle-btn" onclick="etaAdminToggle()" style="margin-left:auto;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:var(--green);font-weight:800">…</button>
+          </div>
+          <div style="font-size:12px;color:var(--t3);line-height:1.6;margin-bottom:14px">O robô consulta a base oficial do DOL por ETA Case Number, em fila inteligente (nunca repete consulta recente), salva histórico de cada mudança e funciona mesmo com o painel fechado. Grupo por padrão vem do Begin Date (🟢A Abr–Jun · 🟡B Jul–Set · 🔵C Out–Dez · 🔴D Jan–Mar) e pode ser corrigido manualmente abaixo.</div>
+          <div id="eta-admin-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px"><div class="empty-state">Carregando…</div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:13px"><div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;margin-bottom:9px">📊 Por status</div><div id="eta-by-status" style="font-size:12px;display:flex;flex-direction:column;gap:5px">–</div></div>
+            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:13px"><div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;margin-bottom:9px">🎯 Por grupo</div><div id="eta-by-grupo" style="font-size:12px;display:flex;flex-direction:column;gap:5px">–</div></div>
+          </div>
+          <div style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:13px;margin-bottom:14px">
+            <div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;margin-bottom:10px">⚡ Ações rápidas</div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:8px">
+              <input class="form-inp" id="eta-cn-input" placeholder="ETA Case Number (ex: H-400-26001-520313)" style="text-transform:uppercase">
+              <button class="btn btn-primary btn-sm" onclick="etaAdminCheckNow()"><i class="ti ti-search"></i> Consultar agora</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 110px auto;gap:8px">
+              <input class="form-inp" id="eta-cn-grupo-input" placeholder="Case Number para ajustar grupo" style="text-transform:uppercase">
+              <select class="form-inp" id="eta-grupo-sel"><option value="">Automático</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option><option>H</option></select>
+              <button class="btn btn-secondary btn-sm" onclick="etaAdminSetGrupo()"><i class="ti ti-tag"></i> Definir grupo</button>
+            </div>
+            <div id="eta-admin-action-result" style="font-size:12px;margin-top:8px"></div>
+          </div>
+          <div class="section-hdr" style="margin-top:4px"><i class="ti ti-list-details" style="color:#0891b2"></i><div class="section-title">Logs do robô</div><button class="btn btn-ghost btn-sm" onclick="loadEtaLogs()"><i class="ti ti-refresh"></i></button></div>
+          <div id="eta-admin-logs" style="background:rgba(0,0,0,.25);border:1px solid var(--border2);border-radius:12px;padding:10px 13px;max-height:320px;overflow-y:auto;font-size:11.5px;font-family:'JetBrains Mono',monospace;line-height:1.7"><div class="empty-state">Carregando…</div></div>
         </div>
       </div>
 
@@ -3593,7 +3625,7 @@ function showView(name) {
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
   const v = document.getElementById('view-'+name);
   if(v) v.classList.add('active');
-  const titles={dashboard:'Dashboard','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'Eventos & Crashes',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',pagantes:'💳 Pagantes',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas'};
+  const titles={dashboard:'Dashboard','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'Eventos & Crashes',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',pagantes:'💳 Pagantes',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas',eta:'📡 Monitor ETA — Robô de Monitoramento de Vagas'};
   setText('view-title', titles[name]||name);
   if(name==='robo-contabil' && typeof rcCheckGeminiStatus==='function') setTimeout(rcCheckGeminiStatus,300);
   if(name==='incidentes'){
@@ -3613,6 +3645,7 @@ function showView(name) {
   if(name==='events') renderEventsView();
   if(name==='codes') loadCodes();
   if(name==='ranking') loadRankingAdmin();
+  if(name==='eta') loadEtaAdmin();
   if(name==='planilhas'){
     // Verifica se bot de enriquecimento está rodando
     fetch('/api/admin/enrich/status',{credentials:'include'})
@@ -6298,6 +6331,87 @@ async function hideFromRanking(uid,hide){
 // ══════════════════════════════════════════════════════════
 //  SETTINGS
 // ══════════════════════════════════════════════════════════
+// ══ 📡 MONITOR ETA (admin) ═══════════════════════════════════════════════
+let _etaWorkerEnabled=true;
+async function loadEtaAdmin(){
+  const box=document.getElementById('eta-admin-stats');
+  try{
+    const r=await fetch('/api/admin/eta/stats',{credentials:'include'});
+    const d=await r.json();
+    if(!d.ok)throw new Error(d.error||'Erro');
+    _etaWorkerEnabled=d.workerEnabled!==false;
+    const tbtn=document.getElementById('eta-toggle-btn');
+    if(tbtn){
+      tbtn.innerHTML=_etaWorkerEnabled?'🟢 Robô LIGADO — pausar':'🔴 Robô PAUSADO — ligar';
+      tbtn.style.background=_etaWorkerEnabled?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)';
+      tbtn.style.borderColor=_etaWorkerEnabled?'rgba(16,185,129,.4)':'rgba(239,68,68,.4)';
+      tbtn.style.color=_etaWorkerEnabled?'var(--green)':'var(--red)';
+    }
+    const fmt=ts=>ts?new Date(ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'–';
+    const cards=[
+      ['📦 Vagas monitoradas',(d.total||0).toLocaleString('pt-BR'),'#3b82f6'],
+      ['⏳ Na fila agora',(d.fila||0).toLocaleString('pt-BR'),'#f59e0b'],
+      ['🔍 Consultas hoje',String(d.checksToday||0),'#10b981'],
+      ['⚠️ Erros hoje',String(d.errorsToday||0),d.errorsToday>0?'#ef4444':'#94a3b8'],
+      ['✨ Com atualização (48h)',String(d.updAtivas||0),'#a855f7'],
+      ['🕓 Última sincronização',fmt(d.lastSyncAt),'#0891b2'],
+      ['⏭️ Próxima consulta',fmt(d.proximaConsulta),'#0891b2'],
+      ['📥 Último seed de planilha',fmt(d.lastSeedAt),'#94a3b8'],
+    ];
+    box.innerHTML=cards.map(([l,v,c])=>`<div style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:11px 13px"><div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em">${l}</div><div style="font-size:17px;font-weight:800;color:${c};margin-top:3px;font-family:'JetBrains Mono',monospace">${v}</div></div>`).join('');
+    const bs=document.getElementById('eta-by-status');
+    if(bs)bs.innerHTML=Object.entries(d.byStatus||{}).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:8px"><span style="color:var(--t2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${k}</span><span style="font-weight:800;font-family:'JetBrains Mono',monospace">${v.toLocaleString('pt-BR')}</span></div>`).join('')||'–';
+    const bg=document.getElementById('eta-by-grupo');
+    const gEmoji={A:'🟢',B:'🟡',C:'🔵',D:'🔴'};
+    if(bg)bg.innerHTML=Object.entries(d.byGrupo||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:8px"><span style="color:var(--t2)">${gEmoji[k]||'⚪'} ${k==='–'?'Sem grupo (aguardando Begin Date)':'Grupo '+k}</span><span style="font-weight:800;font-family:'JetBrains Mono',monospace">${v.toLocaleString('pt-BR')}</span></div>`).join('')||'–';
+    loadEtaLogs();
+  }catch(e){if(box)box.innerHTML=`<div style="color:var(--red);font-size:12px">Erro: ${e.message}</div>`;}
+}
+async function loadEtaLogs(){
+  const el=document.getElementById('eta-admin-logs');if(!el)return;
+  try{
+    const r=await fetch('/api/admin/eta/logs',{credentials:'include'});
+    const d=await r.json();
+    const logs=d.logs||[];
+    el.innerHTML=logs.length?logs.map(l=>{
+      const c=l.level==='err'?'var(--red)':l.level==='upd'?'var(--green)':'var(--t2)';
+      const t=new Date(l.at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      return `<div><span style="color:var(--t3)">[${t}]</span> <span style="color:${c}">${l.msg.replace(/[<>&]/g,ch=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch]))}</span></div>`;
+    }).join(''):'<div style="color:var(--t3)">Nenhum evento ainda — o robô loga cada mudança de status e importação aqui.</div>';
+  }catch(e){el.innerHTML=`<div style="color:var(--red)">Erro: ${e.message}</div>`;}
+}
+async function etaAdminToggle(){
+  try{
+    const r=await fetch('/api/admin/eta/toggle',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:!_etaWorkerEnabled})});
+    const d=await r.json();
+    if(d.ok){toast(d.workerEnabled?'🟢 Robô ETA ligado':'⏸️ Robô ETA pausado','ok');loadEtaAdmin();}
+    else toast(d.error||'Erro','err');
+  }catch(e){toast(e.message,'err');}
+}
+async function etaAdminCheckNow(){
+  const cn=(document.getElementById('eta-cn-input')?.value||'').trim().toUpperCase();
+  const rs=document.getElementById('eta-admin-action-result');
+  if(!cn){if(rs){rs.textContent='⚠️ Informe o case number.';rs.style.color='var(--amber)';}return;}
+  try{
+    const r=await fetch('/api/admin/eta/check-now',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({caseNumber:cn})});
+    const d=await r.json();
+    if(d.ok){if(rs){rs.textContent='✅ '+cn+' entrou na frente da fila — consulta disparada agora. Veja os logs em instantes.';rs.style.color='var(--green)';}setTimeout(loadEtaAdmin,4000);}
+    else{if(rs){rs.textContent='❌ '+(d.error||'Erro');rs.style.color='var(--red)';}}
+  }catch(e){if(rs){rs.textContent='❌ '+e.message;rs.style.color='var(--red)';}}
+}
+async function etaAdminSetGrupo(){
+  const cn=(document.getElementById('eta-cn-grupo-input')?.value||'').trim().toUpperCase();
+  const gr=document.getElementById('eta-grupo-sel')?.value||'';
+  const rs=document.getElementById('eta-admin-action-result');
+  if(!cn){if(rs){rs.textContent='⚠️ Informe o case number.';rs.style.color='var(--amber)';}return;}
+  try{
+    const r=await fetch('/api/admin/eta/set-grupo',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({caseNumber:cn,grupo:gr})});
+    const d=await r.json();
+    if(d.ok){if(rs){rs.textContent='✅ Grupo de '+cn+' → '+(d.grupo||'automático');rs.style.color='var(--green)';}loadEtaAdmin();}
+    else{if(rs){rs.textContent='❌ '+(d.error||'Erro');rs.style.color='var(--red)';}}
+  }catch(e){if(rs){rs.textContent='❌ '+e.message;rs.style.color='var(--red)';}}
+}
+
 async function loadSettings(){
   const el=document.getElementById('settings-form');
   if(!el) return;

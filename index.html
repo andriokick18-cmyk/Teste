@@ -2058,7 +2058,7 @@ textarea.input,input.input,select.input{background:#f5f7ff;color:#1e1b4b}
       <button class="srv-close" onclick="closeServerSelect()" aria-label="Fechar">✕</button>
       <div style="text-align:center;font-size:30px;margin-bottom:6px">🌐</div>
       <div class="srv-title">Escolha seu servidor</div>
-      <div class="srv-sub">Servidores são apenas uma <strong style="color:rgba(255,255,255,.8)">divisão de usuários</strong> para manter tudo rápido.<br>As <strong style="color:rgba(255,255,255,.8)">vagas, planos e funções são idênticos</strong> em todos os servidores.</div>
+      <div class="srv-sub">Servidores são apenas uma <strong style="color:rgba(255,255,255,.8)">divisão de usuários</strong> para manter tudo rápido.<br>As <strong style="color:rgba(255,255,255,.8)">vagas, planos e funções são idênticos</strong> em todos os servidores.<br><span style="color:rgba(255,255,255,.45);font-size:11px">Cada e-mail tem conta em UM servidor só — se tentar criar em outro, o sistema mostra onde a sua já existe.</span></div>
       <div id="srv-cards"><div class="srv-spin"><span class="spin spin-lg"></span></div></div>
       <div class="srv-foot">⚠️ Sua conta pertence ao servidor onde foi criada — o login é sempre feito no mesmo servidor. Contas não se transferem entre servidores.</div>
     </div>
@@ -5686,7 +5686,12 @@ addEventListener("DOMContentLoaded",async()=>{
   if(!navigator.onLine&&_offBanner)_offBanner.style.display="flex";
   const ps=new URLSearchParams(location.search);
   const err=ps.get("err");
-  if(err){
+  if(err==="conta_outro_srv"||err==="srv_lotado"){
+    // Trava de conta única entre servidores: guarda os dados p/ o modal
+    // bonito abrir quando a landing aparecer (showLanding → maybeShowServerSelect)
+    window._srvBlock={kind:err,id:ps.get("srv_id")||"",nome:ps.get("srv_nome")||"",url:ps.get("srv_url")||""};
+    history.replaceState({},"","/");
+  } else if(err){
     const el=g("#login-err");
     if(el){
       el.style.display="block";
@@ -5749,10 +5754,55 @@ function showLanding(){const ld=g("#landing");ld.style.visibility="";ld.style.di
 // ═══════════════════════════════════════════
 let _srvData=null,_srvLoading=false;
 function maybeShowServerSelect(){
+  // PRIORIDADE MÁXIMA: cadastro foi bloqueado pela trava de conta única
+  // (já tem conta em outro servidor / este servidor está lotado) →
+  // mostra o card explicativo com o caminho certo.
+  if(window._srvBlock){ const b=window._srvBlock; window._srvBlock=null; showSrvBlockModal(b); return; }
+  // Veio do seletor de OUTRO servidor (?entrar=1): não mostra o card de novo —
+  // marca como visto, limpa a URL e abre direto o login do Google.
+  try{
+    const ps=new URLSearchParams(location.search);
+    if(ps.get("entrar")==="1"){
+      try{sessionStorage.setItem("h2bSrvSeen","1");}catch(e){}
+      try{history.replaceState({},"","/");}catch(e){}
+      setTimeout(()=>{try{showGoogleWarnModal();}catch(e){}},450);
+      return;
+    }
+  }catch(e){}
   // Mostra 1x por sessão do navegador (pode reabrir pelo pill 🌐 Servidores)
   try{ if(sessionStorage.getItem("h2bSrvSeen")==="1") return; }catch(e){}
   openServerSelect();
   try{ sessionStorage.setItem("h2bSrvSeen","1"); }catch(e){}
+}
+// ── Card de bloqueio da trava de conta única (tela toda, mesmo padrão visual) ──
+function showSrvBlockModal(b){
+  let ov=g("#srv-block-ov");
+  if(!ov){
+    ov=document.createElement("div");
+    ov.id="srv-block-ov";
+    ov.style.cssText="position:fixed;inset:0;z-index:9100;background:rgba(4,8,20,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto";
+    ov.onclick=e=>{if(e.target===ov)ov.style.display="none";};
+    document.body.appendChild(ov);
+  }
+  ov.style.display="flex";
+  const destino=b.url?b.url+(b.url.includes("?")?"&":"?")+"entrar=1":"";
+  const nome=b.nome||("Servidor "+(b.id||""));
+  const inner=b.kind==="conta_outro_srv"
+    ?`<div style="text-align:center;font-size:44px;margin-bottom:8px">👋</div>
+      <div class="srv-title">Você já tem conta no ${esc(nome)}!</div>
+      <div class="srv-sub" style="margin-bottom:20px">No H2BApply, <strong style="color:rgba(255,255,255,.85)">cada conta pertence a um único servidor</strong> — a sua foi criada no <strong style="color:#93c5fd">${esc(nome)}</strong>.<br>Todo o seu histórico, envios e VIP estão te esperando lá. Não é possível criar uma segunda conta com o mesmo e-mail em outro servidor.</div>
+      ${destino?`<a href="${esc(destino)}" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border-radius:12px;padding:14px;font-size:14px;font-weight:800;color:#fff;text-decoration:none;box-shadow:0 8px 25px rgba(59,130,246,.4);box-sizing:border-box">🚀 Ir para o ${esc(nome)} e entrar</a>`:""}
+      <button onclick="g('#srv-block-ov').style.display='none';openServerSelect()" style="width:100%;margin-top:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:11px;font-size:12px;font-weight:700;color:rgba(255,255,255,.7);cursor:pointer;font-family:inherit">🌐 Ver todos os servidores</button>`
+    :`<div style="text-align:center;font-size:44px;margin-bottom:8px">🔴</div>
+      <div class="srv-title">Este servidor está lotado</div>
+      <div class="srv-sub" style="margin-bottom:20px">Este servidor atingiu a capacidade máxima e está <strong style="color:rgba(255,255,255,.85)">fechado para contas novas</strong>. Sua conta ainda não existe aqui.${b.url?`<br>Crie sua conta grátis no <strong style="color:#34d399">${esc(nome)}</strong> — mesmas vagas, mesmos planos, mesmas funções.`:""}</div>
+      ${destino?`<a href="${esc(destino)}" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(135deg,#059669,#10b981);border-radius:12px;padding:14px;font-size:14px;font-weight:800;color:#fff;text-decoration:none;box-shadow:0 8px 25px rgba(16,185,129,.4);box-sizing:border-box">🟢 Criar conta grátis no ${esc(nome)}</a>`:`<div style="font-size:12px;color:rgba(255,255,255,.5);text-align:center">Nenhum servidor aberto no momento — tente novamente em breve.</div>`}
+      <button onclick="g('#srv-block-ov').style.display='none';showGoogleWarnModal()" style="width:100%;margin-top:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:11px;font-size:12px;font-weight:700;color:rgba(255,255,255,.7);cursor:pointer;font-family:inherit">Já tenho conta AQUI — Entrar</button>`;
+  ov.innerHTML=`<div class="srv-modal" style="border-color:${b.kind==="conta_outro_srv"?"rgba(59,130,246,.4)":"rgba(239,68,68,.4)"}">
+    <button class="srv-close" onclick="g('#srv-block-ov').style.display='none'" aria-label="Fechar">✕</button>
+    ${inner}
+    <div class="srv-foot">⚠️ Sua conta pertence ao servidor onde foi criada — o login é sempre no mesmo servidor.</div>
+  </div>`;
 }
 function openServerSelect(){
   const ov=g("#srv-select-ov"); if(!ov) return;
@@ -5809,10 +5859,12 @@ function srvGo(i){
     showGoogleWarnModal();
     return;
   }
-  // Servidor remoto: redireciona direto para a URL dele
+  // Servidor remoto: redireciona direto, com ?entrar=1 — lá o card NÃO aparece
+  // de novo e o login do Google abre sozinho (fluxo contínuo, sem repetição).
   if(sv.url){
     toast("Redirecionando para o "+sv.nome+"…","g");
-    setTimeout(()=>{window.location.href=sv.url;},350);
+    const dest=sv.url+(sv.url.includes("?")?"&":"?")+"entrar=1";
+    setTimeout(()=>{window.location.href=dest;},350);
   }
 }
 // Badges "Servidor N" dentro do app (drawer + hero do perfil)
@@ -6492,6 +6544,7 @@ async function loadSheetMeta(reset=false){
   }
   // Enriquece cards em background APÓS liberar sLoading (não bloqueia novos loads)
   if(_jobsToEnrich.length){
+    etaEnrichCards(_jobsToEnrich); // 📡 badges do Monitor ETA (grupo/status)
     const _snapTab=tab;
     for(let i=0;i<_jobsToEnrich.length;i+=10){
       if(tab!==_snapTab)break; // usuário trocou de aba — cancela enrich
@@ -6545,6 +6598,7 @@ function mkSheetCard(j){
     <div class="jcard-title" id="jct-${iid}">${esc(jobTitle)}</div>
     <div class="jcard-co" id="jcc-${iid}"><i class="ti ti-building" style="font-size:9px"></i>${esc(j.company||"–")} · <i class="ti ti-map-pin" style="font-size:9px"></i>${j.city&&j.city!=="–"?esc(j.city)+", ":""}${esc(j.state||"–")}</div>
     <div class="jcard-tags" id="jctg-${iid}">${statusTag}${visaTag}${stateLbl}${wkTag}${dateLbl}${wageLbl}</div>
+    <div class="jcard-eta" id="jceta-${iid}" data-cn="${esc((j.caseNum||j.id||"").toUpperCase())}"></div>
     ${j.url?`<a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:rgba(59,130,246,.7);text-decoration:none;margin-top:3px"><i class="ti ti-external-link" style="font-size:9px"></i>Ver vaga DOL</a>`:""}
   </div>`;
 }
@@ -6597,6 +6651,138 @@ async function enrichSheet(cards){
   const toF=cards.filter(c=>!sCache[c.id]||sCache[c.id].fromSheet).map(c=>c.id);if(!toF.length)return;
   try{const r=await fetch("/api/sheet-batch",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({cases:toF.slice(0,10)})});const d=await r.json();for(const[cn,job]of Object.entries(d.jobs||{})){if(job&&!job.fromSheet){// DOL respondeu com dados reais — substitui cache local
   sCache[cn]=job;updSheetCard(cn,job);}}}catch{}
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  📡 MONITOR ETA — front do usuário
+//  Grupo visível para TODOS (isca); status/linha do tempo/histórico são
+//  exclusivos Double Pro. Demais planos veem 🔒 + tela premium de upgrade.
+// ════════════════════════════════════════════════════════════════════════
+const _etaMapCache={}; // cn → dados recebidos (evita refetch ao repaginar)
+let _etaIsFull=false;  // sessão atual é Double Pro?
+const _ETA_GRUPOS={A:{e:"🟢",c:"#10b981",bg:"rgba(16,185,129,.12)",l:"Abr–Jun"},B:{e:"🟡",c:"#f59e0b",bg:"rgba(245,158,11,.12)",l:"Jul–Set"},C:{e:"🔵",c:"#3b82f6",bg:"rgba(59,130,246,.12)",l:"Out–Dez"},D:{e:"🔴",c:"#ef4444",bg:"rgba(239,68,68,.12)",l:"Jan–Mar"}};
+function etaGrupoBadge(gr,small){
+  const gi=_ETA_GRUPOS[gr];if(!gi)return"";
+  return`<span style="display:inline-flex;align-items:center;gap:3px;font-size:${small?9.5:10.5}px;font-weight:800;padding:2px 8px;border-radius:20px;background:${gi.bg};color:${gi.c};border:1px solid ${gi.c}44">${gi.e} Grupo ${gr}</span>`;
+}
+function etaStatusChip(status){
+  const s=String(status||"");
+  const ok=s.includes("Ativa")||s.includes("Full");
+  const bad=s.includes("Denied")||s.includes("Não listada")||s.includes("Fora do ar");
+  const done=s.includes("Encerrada")||s.includes("Closed");
+  const c=ok?"#10b981":bad?"#ef4444":done?"#94a3b8":"#f59e0b";
+  return`<span style="display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:20px;background:${c}18;color:${c};border:1px solid ${c}44"><span style="width:6px;height:6px;border-radius:50%;background:${c};display:inline-block"></span>${esc(s)}</span>`;
+}
+async function etaEnrichCards(jobs){
+  try{
+    const cns=[...new Set(jobs.map(j=>String(j.caseNum||j.id||"").toUpperCase()).filter(c=>/^H-\d/.test(c)))];
+    const miss=cns.filter(c=>!_etaMapCache[c]);
+    if(miss.length){
+      for(let i=0;i<miss.length;i+=60){
+        const r=await fetch("/api/eta/map",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({cases:miss.slice(i,i+60)})});
+        if(!r.ok)break;
+        const d=await r.json();
+        _etaIsFull=!!d.full;
+        for(const[cn,info]of Object.entries(d.map||{}))_etaMapCache[cn]=info;
+      }
+    }
+    cns.forEach(cn=>etaFillCardLine(cn));
+  }catch(e){}
+}
+function etaFillCardLine(cn){
+  const iid="s_"+cn.replace(/[^a-zA-Z0-9]/g,"_");
+  const el=g("#jceta-"+iid);if(!el)return;
+  const info=_etaMapCache[cn];if(!info){el.innerHTML="";return;}
+  const grupoHtml=info.grupo?etaGrupoBadge(info.grupo,true):"";
+  const mid=info.locked
+    ?`<span style="font-size:9.5px;font-weight:700;color:var(--t3);display:inline-flex;align-items:center;gap:3px">🔒 Status ETA</span>`
+    :`${etaStatusChip(info.status)}${info.upd?'<span style="font-size:9px;font-weight:800;background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.4);padding:1px 6px;border-radius:10px">✨ Atualização</span>':""}`;
+  el.innerHTML=`<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:5px">
+    ${grupoHtml}${mid}
+    <button onclick="event.stopPropagation();openEtaMonitor('${esc(cn)}')" style="margin-left:auto;background:linear-gradient(135deg,#059669,#10b981);border:none;border-radius:8px;padding:4px 11px;font-size:10px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;box-shadow:0 3px 10px rgba(16,185,129,.3)">⭐ Monitor ETA</button>
+  </div>`;
+}
+// ── Modal Monitor ETA (criado sob demanda; design Stripe/Linear dark) ──
+function ensureEtaModal(){
+  if(g("#eta-modal-ov"))return;
+  const div=document.createElement("div");
+  div.id="eta-modal-ov";
+  div.style.cssText="position:fixed;inset:0;z-index:9200;background:rgba(4,8,20,.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:14px;overflow-y:auto";
+  div.onclick=e=>{if(e.target===div)closeEtaMonitor();};
+  div.innerHTML=`<div id="eta-modal-box" style="background:linear-gradient(165deg,#0d1530,#0a1024);border:1.5px solid rgba(16,185,129,.35);border-radius:22px;max-width:440px;width:100%;padding:22px 18px 16px;box-shadow:0 24px 80px rgba(0,0,0,.6);position:relative;margin:auto;color:#e2e8f0">
+    <button onclick="closeEtaMonitor()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:10px;width:32px;height:32px;color:rgba(255,255,255,.7);font-size:16px;cursor:pointer">✕</button>
+    <div id="eta-modal-body"><div style="text-align:center;padding:30px"><span class="spin spin-lg"></span></div></div>
+  </div>`;
+  document.body.appendChild(div);
+}
+function closeEtaMonitor(){const ov=g("#eta-modal-ov");if(ov)ov.style.display="none";}
+async function openEtaMonitor(cn){
+  ensureEtaModal();
+  const ov=g("#eta-modal-ov"),body=g("#eta-modal-body");
+  ov.style.display="flex";
+  body.innerHTML='<div style="text-align:center;padding:30px"><span class="spin spin-lg"></span></div>';
+  try{
+    const r=await fetch("/api/eta/case?c="+encodeURIComponent(cn),{credentials:"include"});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error||"HTTP "+r.status);
+    body.innerHTML=d.locked?etaLockedHtml(d):etaFullHtml(d.case);
+  }catch(e){
+    body.innerHTML=`<div style="text-align:center;padding:20px"><div style="font-size:30px;margin-bottom:8px">📡</div><div style="font-size:13px;color:rgba(255,255,255,.7);line-height:1.6">${esc(e.message)}</div></div>`;
+  }
+}
+function _etaFmtDt(ts){if(!ts)return"–";const d=new Date(ts);return d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});}
+function etaFullHtml(c){
+  const hist=[...(c.hist||[])].reverse();
+  const timeline=hist.length?hist.map((h,i)=>`
+    <div style="display:flex;gap:11px">
+      <div style="display:flex;flex-direction:column;align-items:center">
+        <div style="width:11px;height:11px;border-radius:50%;background:${i===0?"#10b981":"rgba(148,163,184,.4)"};border:2px solid ${i===0?"rgba(16,185,129,.35)":"transparent"};flex-shrink:0"></div>
+        ${i<hist.length-1?'<div style="width:2px;flex:1;background:rgba(148,163,184,.18);min-height:18px"></div>':""}
+      </div>
+      <div style="padding-bottom:${i<hist.length-1?14:0}px;min-width:0">
+        <div style="font-size:12.5px;font-weight:${i===0?800:600};color:${i===0?"#fff":"rgba(255,255,255,.65)"}">${esc(h.s)}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.4)">${_etaFmtDt(h.at)} · ${h.src==="dol"?"consulta oficial DOL":h.src==="planilha"?"planilha":"sistema"}</div>
+      </div>
+    </div>`).join(""):'<div style="font-size:11.5px;color:rgba(255,255,255,.4)">Ainda sem histórico — a primeira consulta do robô está agendada.</div>';
+  return`
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span style="font-size:20px">📡</span><span style="font-size:15px;font-weight:800;color:#fff">Monitor ETA</span><span style="margin-left:auto;font-size:9px;font-weight:800;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;padding:3px 9px;border-radius:12px;letter-spacing:.05em">DOUBLE PRO</span></div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:rgba(255,255,255,.55);margin-bottom:12px">${esc(c.cn)}</div>
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:2px">${esc(c.empresa)}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:9px">📍 ${c.cidade?esc(c.cidade)+", ":""}${esc(c.estado)} · ${esc(c.visa)}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${c.grupo?etaGrupoBadge(c.grupo):""}${etaStatusChip(c.status)}${c.upd?'<span style="font-size:9px;font-weight:800;background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.4);padding:2px 7px;border-radius:10px">✨ Atualização recente</span>':""}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:14px">
+      ${[["🗓️ Início do contrato",c.begin||"–"],["🏁 Fim do contrato",c.end||"–"],["🔍 Última consulta",_etaFmtDt(c.lastCheckAt)],["⏭️ Próxima consulta",_etaFmtDt(c.nextCheckAt)],["📊 Consultas feitas",String(c.checks||0)],["🔄 Mudanças de status",String(c.changes||0)]].map(([l,v])=>`
+      <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:8px 10px"><div style="font-size:9px;color:rgba(255,255,255,.4);font-weight:700;text-transform:uppercase;letter-spacing:.04em">${l}</div><div style="font-size:11.5px;font-weight:700;color:#fff;margin-top:2px">${esc(v)}</div></div>`).join("")}
+    </div>
+    <div style="font-size:10.5px;font-weight:800;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px">📜 Linha do tempo</div>
+    <div style="max-height:220px;overflow-y:auto;padding-right:4px">${timeline}</div>
+    <div style="margin-top:13px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07);font-size:10px;color:rgba(255,255,255,.35);text-align:center">🤖 Monitorado automaticamente 24/7 pelo Robô ETA do H2BApply — direto da base oficial do DOL.</div>`;
+}
+function etaLockedHtml(d){
+  return`
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="width:62px;height:62px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 10px;box-shadow:0 10px 30px rgba(124,58,237,.4)">📡</div>
+      <div style="font-size:17px;font-weight:800;color:#fff">Monitor ETA</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(255,255,255,.45)">${esc(d.cn)}</div>
+    </div>
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 13px;margin-bottom:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11.5px;color:rgba(255,255,255,.6)">${esc(d.empresa)} · ${esc(d.estado)}</span>
+      ${d.grupo?etaGrupoBadge(d.grupo,true):""}
+      <span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,.4)">🔍 ${d.checks||0} consultas do robô</span>
+    </div>
+    <div style="position:relative;border-radius:12px;overflow:hidden;margin-bottom:14px">
+      <div style="filter:blur(5px);opacity:.55;pointer-events:none;padding:12px">
+        ${["Certified · Ativa no DOL","Analyst Review","Pending Processing"].map((s,i)=>`<div style="display:flex;gap:10px;margin-bottom:10px"><div style="width:10px;height:10px;border-radius:50%;background:${i===0?"#10b981":"#64748b"};margin-top:3px"></div><div><div style="font-size:12px;font-weight:700;color:#fff">${s}</div><div style="font-size:9px;color:rgba(255,255,255,.4)">0${i+2}/07/2026 · consulta oficial DOL</div></div></div>`).join("")}
+      </div>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center"><span style="background:rgba(10,16,36,.85);border:1px solid rgba(255,255,255,.15);border-radius:20px;padding:6px 14px;font-size:11px;font-weight:800;color:#fff">🔒 Exclusivo Double Pro</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:16px">
+      ${["📊 Status oficial em tempo real de cada vaga","📜 Linha do tempo e histórico completo","✨ Selo de atualização quando o status muda","🟢 Grupos e datas do contrato sempre atualizados","🤖 Robô consultando o DOL por você, 24/7","📬 400 envios manuais + 400 automáticos + 2 Gmails"].map(b=>`<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,.75)"><span style="color:#10b981;font-weight:800">✓</span>${b}</div>`).join("")}
+    </div>
+    <button onclick="closeEtaMonitor();sv('plans')" style="width:100%;background:linear-gradient(135deg,#7c3aed,#a855f7);border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit;box-shadow:0 8px 25px rgba(124,58,237,.4)">💎 Quero ser Double Pro — R$250</button>
+    <div style="font-size:10px;color:rgba(255,255,255,.35);text-align:center;margin-top:9px">O plano mais completo do H2BApply. Ativação em minutos após o comprovante.</div>`;
 }
 
 function updSheetCard(cn,job){
