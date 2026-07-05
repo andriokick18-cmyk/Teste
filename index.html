@@ -441,10 +441,12 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .sb-badge-b{background:var(--blue);color:#fff}
 .sb-badge-g{background:var(--green);color:#fff}
 .sb-badge-r{background:var(--red);color:#fff}
-/* AUTO button — very prominent */
-.sb-auto-btn{background:linear-gradient(135deg,var(--purplel),#ede9fe);border:1.5px solid var(--purpleb);color:var(--purple);font-weight:700;margin:5px 3px 4px;width:calc(100% - 6px);border-radius:var(--r);padding:9px 12px}
-.sb-auto-btn:hover{background:linear-gradient(135deg,#ede9fe,#ddd6fe)}
-.sb-auto-btn.is-active{background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border-color:transparent;box-shadow:0 4px 12px rgba(124,58,237,.3)}
+/* AUTO button — GIGANTE (3x) e com cor própria (laranja/rosa) pra se destacar de tudo */
+.sb-auto-btn{background:linear-gradient(135deg,#f97316,#db2777)!important;border:none!important;color:#fff!important;font-weight:900;margin:10px 4px 12px;width:calc(100% - 8px);border-radius:18px;padding:20px 16px;gap:14px;box-shadow:0 12px 30px rgba(219,39,119,.4);animation:sbAutoGlow 2.6s ease-in-out infinite}
+.sb-auto-btn i{font-size:32px!important;color:#fff!important}
+.sb-auto-btn:hover{transform:translateY(-2px) scale(1.01);box-shadow:0 16px 38px rgba(219,39,119,.55)}
+.sb-auto-btn.is-active{background:linear-gradient(135deg,#16a34a,#0d9488)!important;box-shadow:0 12px 30px rgba(13,148,136,.45);animation:none}
+@keyframes sbAutoGlow{0%,100%{box-shadow:0 12px 30px rgba(219,39,119,.4)}50%{box-shadow:0 16px 40px rgba(249,115,22,.55)}}
 .sb-profile{margin:5px 3px;padding:10px 11px;border:1.5px solid var(--border);border-radius:var(--r);background:var(--sf2)}
 .sb-av{width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
 /* Bottom nav */
@@ -1076,9 +1078,8 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .sb-item.active i{color:#fff!important}
 .sb-lbl{color:#a5a8cc!important}
 .sb-profile{background:var(--sf2)!important;border-color:var(--border)!important;color:var(--text)!important}
-.sb-auto-btn{background:linear-gradient(135deg,rgba(139,92,246,.1),rgba(99,102,241,.08))!important;border-color:rgba(139,92,246,.3)!important;color:#6d28d9!important}
-.sb-auto-btn:hover{background:linear-gradient(135deg,rgba(139,92,246,.18),rgba(99,102,241,.14))!important}
-.sb-auto-btn.is-active{background:linear-gradient(135deg,#7c3aed,#2563eb)!important;color:#fff!important;border-color:transparent!important}
+.sb-auto-btn{background:linear-gradient(135deg,#f97316,#db2777)!important;color:#fff!important}
+.sb-auto-btn.is-active{background:linear-gradient(135deg,#16a34a,#0d9488)!important;color:#fff!important}
 .sb-item-plans{background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.08))!important;border:1.5px solid rgba(99,102,241,.3)!important;color:#4f46e5!important}
 
 /* Source tabs */
@@ -2605,9 +2606,12 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <!-- PRINCIPAL: as 3 ações do dia -->
       <div class="sb-sec" style="margin-top:6px">
         <button class="sb-item sb-auto-btn" id="sb-auto-btn" onclick="openAutoModal()">
-          <i class="ti ti-robot" style="font-size:16px"></i>
-          <span style="flex:1">Automático</span>
-          <span id="sb-auto-dot" style="display:none;width:8px;height:8px;border-radius:50%;background:#4ade80;animation:pulseDot 2s infinite"></span>
+          <i class="ti ti-robot"></i>
+          <span style="flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left">
+            <span style="font-size:16.5px;font-weight:900;line-height:1.15">Automático</span>
+            <span style="font-size:10.5px;font-weight:700;opacity:.92">Toque para configurar</span>
+          </span>
+          <span id="sb-auto-dot" style="display:none;width:11px;height:11px;border-radius:50%;background:#4ade80;border:2px solid #fff;animation:pulseDot 2s infinite;flex-shrink:0"></span>
         </button>
         <button class="sb-item active" id="si-home" onclick="sv('home')"><i class="ti ti-home-2"></i>Home</button>
         <button class="sb-item" id="si-jobs" onclick="sv('jobs')"><i class="ti ti-send" style="color:var(--blue)"></i>Envio Manual<span class="sb-badge sb-badge-b" id="sib-jobs" style="display:none"></span></button>
@@ -2686,24 +2690,62 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             </div>
           </div>
 
+          <!-- ══ CTA GIGANTE — AUTOMÁTICO + ENVIO MANUAL (destaque máximo, sempre visível) ══ -->
+          <div style="padding:16px 14px 0;display:flex;flex-direction:column;gap:12px">
+            <button onclick="openAutoModal()" id="home-cta-auto" style="display:flex;align-items:center;gap:14px;width:100%;background:linear-gradient(135deg,#f97316,#db2777);border:none;border-radius:20px;padding:18px;cursor:pointer;font-family:inherit;box-shadow:0 14px 32px rgba(219,39,119,.38);text-align:left;transition:transform .15s,box-shadow .15s" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 18px 40px rgba(219,39,119,.5)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 14px 32px rgba(219,39,119,.38)'">
+              <div style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0" id="home-cta-auto-icon">🤖</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:17px;font-weight:900;color:#fff" id="home-cta-auto-title">Envio Automático</div>
+                <div style="font-size:12px;color:rgba(255,255,255,.88);margin-top:2px" id="home-cta-auto-sub">Toque e deixe o sistema enviar por você</div>
+              </div>
+              <i class="ti ti-chevron-right" style="font-size:22px;color:#fff;flex-shrink:0"></i>
+            </button>
+
+            <button onclick="sv('jobs')" style="display:flex;align-items:center;gap:14px;width:100%;background:linear-gradient(135deg,#0891b2,#2563eb);border:none;border-radius:20px;padding:18px;cursor:pointer;font-family:inherit;box-shadow:0 14px 32px rgba(37,99,235,.32);text-align:left;transition:transform .15s,box-shadow .15s" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 18px 40px rgba(37,99,235,.42)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 14px 32px rgba(37,99,235,.32)'">
+              <div style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">📤</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:17px;font-weight:900;color:#fff">Envio Manual</div>
+                <div style="font-size:12px;color:rgba(255,255,255,.88);margin-top:2px">Buscar vagas e enviar candidaturas agora</div>
+              </div>
+              <i class="ti ti-chevron-right" style="font-size:22px;color:#fff;flex-shrink:0"></i>
+            </button>
+          </div>
+
           <!-- ══ PRÓXIMO PASSO — guia inteligente (preenchido por renderNextStep) ══ -->
           <div id="home-next-step" style="display:none;padding:12px 14px 0"></div>
 
-          <!-- ══ CARD DO RESET — recuperar VIP pago / comprar (renderResetCard) ══ -->
+          <!-- ══ ANÚNCIO DOS PLANOS — grande e chamativo (renderResetCard) ══ -->
           <div id="home-reset-card" style="display:none;padding:12px 14px 0">
-            <div style="background:linear-gradient(135deg,#fef9c3,#fde68a);border:1.5px solid #fbbf24;border-radius:16px;padding:16px">
-              <div style="display:flex;align-items:flex-start;gap:8px">
-                <div style="font-size:15px;font-weight:900;color:#78350f;display:flex;align-items:center;gap:7px;flex:1"><span style="font-size:20px">🔄</span> Você já tinha VIP pago antes?</div>
-                <button onclick="dismissResetCard()" aria-label="Fechar" style="background:rgba(120,53,15,.12);border:none;color:#78350f;width:28px;height:28px;border-radius:8px;font-size:15px;font-weight:900;cursor:pointer;line-height:1;flex-shrink:0">✕</button>
+            <div style="background:linear-gradient(160deg,#0f172a 0%,#312e81 45%,#4f46e5 75%,#7c3aed 100%);border-radius:20px;padding:18px 16px;position:relative;overflow:hidden;box-shadow:0 14px 34px rgba(79,70,229,.4)">
+              <div style="position:absolute;inset:0;pointer-events:none;background:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='120'%3E%3Cg fill='rgba(255,255,255,0.07)'%3E%3Ccircle cx='20' cy='20' r='1.5'/%3E%3Ccircle cx='80' cy='35' r='1'/%3E%3Ccircle cx='150' cy='15' r='1.5'/%3E%3Ccircle cx='190' cy='55' r='1'/%3E%3Ccircle cx='60' cy='80' r='1'/%3E%3Ccircle cx='130' cy='90' r='1.5'/%3E%3Ccircle cx='170' cy='75' r='1'/%3E%3C/g%3E%3C/svg%3E&quot;) repeat"></div>
+              <button onclick="dismissResetCard()" aria-label="Fechar" style="position:absolute;top:10px;right:10px;background:rgba(255,255,255,.15);border:none;color:#fff;width:27px;height:27px;border-radius:8px;font-size:14px;font-weight:900;cursor:pointer;line-height:1;z-index:1">✕</button>
+              <div style="position:relative;z-index:1">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+                  <span style="font-size:24px">🚀</span>
+                  <div style="font-size:16.5px;font-weight:900;color:#fff">Turbine suas candidaturas</div>
+                </div>
+                <div style="font-size:12px;color:rgba(255,255,255,.82);margin-bottom:14px;line-height:1.4">Envie muito mais por dia e ative o automático 24h. Veja os planos e valores:</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+                  <div style="background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.22);border-radius:13px;padding:11px 5px;text-align:center">
+                    <div style="font-size:19px">⭐</div>
+                    <div style="font-size:10.5px;font-weight:800;color:#fff;margin-top:4px;line-height:1.2">VIP<br>Manual</div>
+                    <div style="font-size:14px;font-weight:900;color:#fff;margin-top:3px">R$100<span style="font-size:8.5px;font-weight:600;opacity:.75">/mês</span></div>
+                  </div>
+                  <div style="background:rgba(255,255,255,.2);border:1.5px solid #fbbf24;border-radius:13px;padding:11px 5px;text-align:center;position:relative">
+                    <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#fbbf24;color:#78350f;font-size:7px;font-weight:900;padding:2px 6px;border-radius:99px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.2)">MAIS POPULAR</div>
+                    <div style="font-size:19px;margin-top:4px">🤖</div>
+                    <div style="font-size:10.5px;font-weight:800;color:#fff;margin-top:4px;line-height:1.2">VIPro</div>
+                    <div style="font-size:14px;font-weight:900;color:#fff;margin-top:3px">R$150<span style="font-size:8.5px;font-weight:600;opacity:.75">/mês</span></div>
+                  </div>
+                  <div style="background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.22);border-radius:13px;padding:11px 5px;text-align:center">
+                    <div style="font-size:19px">💎</div>
+                    <div style="font-size:10.5px;font-weight:800;color:#fff;margin-top:4px;line-height:1.2">Double<br>Pro</div>
+                    <div style="font-size:14px;font-weight:900;color:#fff;margin-top:3px">R$250<span style="font-size:8.5px;font-weight:600;opacity:.75">/mês</span></div>
+                  </div>
+                </div>
+                <button onclick="sv('plans')" style="width:100%;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#78350f;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 6px 18px rgba(251,191,36,.4)">Ver todos os planos e valores →</button>
+                <div style="font-size:10px;color:rgba(255,255,255,.6);text-align:center;margin-top:9px">Já pagou antes? É só enviar o mesmo comprovante na tela de planos — sem pagar de novo.</div>
               </div>
-              <div style="font-size:12.5px;color:#92400e;line-height:1.5;margin-top:8px">
-                O site recomeçou do zero. Se você <strong>já pagou um plano antes</strong>, você <strong>NÃO precisa pagar de novo</strong> — é só registrar a sua compra anterior e enviar o <strong>mesmo comprovante</strong>. A gente confere a data e devolve os dias que ainda faltavam pra você.
-              </div>
-              <div style="background:rgba(255,255,255,.6);border-radius:10px;padding:9px 11px;margin-top:9px;font-size:11.5px;color:#78350f;line-height:1.45">
-                📅 Coloque a <strong>data em que você pagou</strong> (a mesma do comprovante). É por ela que o site calcula quantos dias de VIP ainda restam.
-              </div>
-              <button onclick="sv('plans')" style="width:100%;margin-top:11px;background:linear-gradient(135deg,#d97706,#b45309);color:#fff;border:none;border-radius:12px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;font-family:inherit">✅ Já paguei antes — recuperar meu VIP</button>
-              <button onclick="sv('plans')" style="width:100%;margin-top:8px;background:rgba(255,255,255,.7);color:#92400e;border:1.5px solid #fbbf24;border-radius:12px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">🛒 Nunca tive VIP — quero comprar um plano</button>
             </div>
           </div>
 
@@ -5843,20 +5885,31 @@ function maybeShowServerSelect(){
   // (já tem conta em outro servidor / este servidor está lotado) →
   // mostra o card explicativo com o caminho certo.
   if(window._srvBlock){ const b=window._srvBlock; window._srvBlock=null; showSrvBlockModal(b); return; }
-  // Veio do seletor de OUTRO servidor (?entrar=1): não mostra o card de novo —
-  // marca como visto, limpa a URL e abre direto o login do Google.
+  // Veio de OUTRO servidor (?entrar=1): NÃO abre mais o login sozinho (v949) —
+  // a landing SEMPRE aparece; só rola até o botão de entrada e o destaca.
   try{
     const ps=new URLSearchParams(location.search);
     if(ps.get("entrar")==="1"){
       try{sessionStorage.setItem("h2bSrvSeen","1");}catch(e){}
       try{history.replaceState({},"","/");}catch(e){}
-      setTimeout(()=>{try{showGoogleWarnModal();}catch(e){}},450);
+      setTimeout(()=>{try{_pulseLandingCTA();}catch(e){}},600);
       return;
     }
   }catch(e){}
-  // SEMPRE que acessar o site deslogado: a janela de entrada aparece por cima
-  // de toda a página — só some completando o fluxo (login/cadastro).
-  openAuthGate("choice");
+  // v949 (ordem do dono): visitante deslogado VÊ A LANDING PAGE.
+  // Nada de card de login automático por cima — a pessoa conhece o produto
+  // e clica ELA MESMA em "Entrar com Google" quando quiser.
+}
+// Destaca o botão principal de entrada da landing (usado no ?entrar=1)
+function _pulseLandingCTA(){
+  const btn=document.querySelector(".ln-cta-btn");
+  if(!btn) return;
+  btn.scrollIntoView({behavior:"smooth",block:"center"});
+  btn.style.transition="box-shadow .3s";
+  let n=0;const iv=setInterval(()=>{
+    btn.style.boxShadow=(n%2===0)?"0 0 0 6px rgba(59,130,246,.45),0 16px 50px rgba(59,130,246,.5)":"";
+    if(++n>=6){clearInterval(iv);btn.style.boxShadow="";}
+  },450);
 }
 // ── Card de bloqueio da trava de conta única (tela toda, mesmo padrão visual) ──
 function showSrvBlockModal(b){
@@ -5869,6 +5922,12 @@ function showSrvBlockModal(b){
     document.body.appendChild(ov);
   }
   ov.style.display="flex";
+  // GUARDA v949: se o "destino" é ESTE próprio site (config/SERVER_ID errados no
+  // servidor), não faz sentido mandar a pessoa "ir para" onde ela já está.
+  try{
+    const _n=u=>String(u||"").replace(/^https?:\/\//,"").replace(/\/.*$/,"").toLowerCase();
+    if(b.url&&_n(b.url)===_n(location.host)){ b={...b,url:""}; }
+  }catch(e){}
   const destino=b.url?b.url+(b.url.includes("?")?"&":"?")+"entrar=1":"";
   const nome=b.nome||("Servidor "+(b.id||""));
   const inner=b.kind==="conta_outro_srv"
@@ -6160,6 +6219,13 @@ function showApp(){
   // Intercepta botão Voltar Android — nunca vai para landing
   window.addEventListener("popstate",(e)=>{
     if(!U.connected){return;}// sessão encerrada, não interfere
+    // Se o modal do Automático estiver aberto, o botão Voltar só fecha o modal
+    // (não navega pra outra tela nem sai do app).
+    const autoOv=g("#auto-modal-overlay");
+    if(autoOv && autoOv.style.display==="block"){
+      if(typeof closeAutoModal==="function")closeAutoModal(true);
+      return;
+    }
     const v=e.state?.view||"home";
     if(v==="home"){
       // Impede sair do app ao pressionar Voltar na Home
@@ -11016,12 +11082,21 @@ function getSelectedAutoSenders(){
   return sel;
 }
 
+let _autoModalHistoryPushed=false;
+function _autoModalPushHistory(){
+  // Empurra um estado de histórico ao abrir o modal, assim o botão Voltar do
+  // Android/navegador fecha o modal em vez de sair do app ou trocar de tela.
+  if(_autoModalHistoryPushed)return;
+  _autoModalHistoryPushed=true;
+  try{history.pushState({view:curView,modal:"auto"},"",location.pathname+location.search);}catch(e){}
+}
 async function openAutoModal(){
   // ── Se envio já está ativo: abre direto o painel de monitoramento ──
   if(U.autoJob && U.autoJob.active){
     const ov=g("#auto-modal-overlay");if(!ov)return;
     ov.style.display="block";
     document.body.style.overflow="hidden";
+    _autoModalPushHistory();
     ov.addEventListener("touchmove",_autoModalTouchStop,{passive:false});
     setTimeout(()=>{
       updateAutoUI();
@@ -11062,6 +11137,7 @@ async function openAutoModal(){
   const ov=g("#auto-modal-overlay");if(!ov)return;
   ov.style.display="block";
   document.body.style.overflow="hidden";
+  _autoModalPushHistory();
   // Mostra aviso Gmail apenas com 1 conta e se usuário não dispensou
   const warnEl=g("#gmail-risk-warn");
   if(warnEl){
@@ -11081,11 +11157,17 @@ function _autoModalTouchStop(e){
   if(inner&&inner.contains(e.target))return; // permite scroll interno
   e.preventDefault();
 }
-function closeAutoModal(){
+function closeAutoModal(fromBack){
   const ov=g("#auto-modal-overlay");if(!ov)return;
   ov.style.display="none";
   document.body.style.overflow="";
   ov.removeEventListener("touchmove",_autoModalTouchStop);
+  // Se fechou pelo X/clique fora (não pelo botão Voltar), consome o estado
+  // empurrado no histórico pra não deixar uma entrada "fantasma" pra trás.
+  if(_autoModalHistoryPushed){
+    _autoModalHistoryPushed=false;
+    if(!fromBack){try{history.back();}catch(e){}}
+  }
   // Resetar estado visual para não mostrar dados antigos na próxima abertura
   const prog=g("#rc-prog2")||g("#rc-prog");if(prog)prog.style.display="none";
   const fill=g("#rc-prog-fill");if(fill)fill.style.width="0%";
@@ -11760,6 +11842,21 @@ function renderHome(){
   // Streak de dias consecutivos
   const _streakEl=g("#home-stat-streak");
   if(_streakEl){const _str=calcStreak&&typeof calcStreak==="function"?0:0;_streakEl.textContent=HIST.length>0?"🔥":"–";}
+  // CTA gigante do Automático na Home — reflete o mesmo status
+  const gcTitle=g("#home-cta-auto-title");const gcSub=g("#home-cta-auto-sub");const gcIcon=g("#home-cta-auto-icon");const gcBtn=g("#home-cta-auto");
+  if(gcTitle){
+    if(U.autoJob?.active){
+      gcTitle.textContent="🟢 Auto Ativo — em execução";
+      if(gcSub)gcSub.textContent=`✅ ${U.todaySentAuto||0} enviados hoje · toque para acompanhar`;
+      if(gcIcon)gcIcon.textContent="🤖";
+      if(gcBtn)gcBtn.style.background="linear-gradient(135deg,#16a34a,#0d9488)";
+    }else{
+      gcTitle.textContent="Envio Automático";
+      if(gcSub)gcSub.textContent="Toque e deixe o sistema enviar por você";
+      if(gcIcon)gcIcon.textContent="🤖";
+      if(gcBtn)gcBtn.style.background="linear-gradient(135deg,#f97316,#db2777)";
+    }
+  }
   // Card Auto
   const ac=g("#home-auto-card");const at=g("#home-auto-title");const as=g("#home-auto-sub");const ai=g("#home-auto-icon");
   if(ac){
@@ -13404,7 +13501,7 @@ html, body, #app, .bottom-nav, .sidebar, .drawer{
                 <span>Ranking e métricas em tempo real</span>
               </div>
             </div>
-            <button class="ln-cta-btn" onclick="location.href=_getOAuthURL()" style="font-size:14px;padding:12px 20px;width:100%">
+            <button class="ln-cta-btn" onclick="showGoogleWarnModal()" style="font-size:14px;padding:12px 20px;width:100%">
               <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
               Ativar o automático agora
             </button>

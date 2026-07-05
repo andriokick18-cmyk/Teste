@@ -36,6 +36,9 @@ const APP_URL       = (process.env.APP_URL || "http://localhost:3000").replace(/
 // Cada deploy (produção = 1, h2b-teste = 2) define SERVER_ID no ambiente.
 // Mesmo código nos dois; só a env var muda. Default 1 (produção).
 const SERVER_ID     = parseInt(process.env.SERVER_ID || "1", 10) || 1;
+if(!process.env.SERVER_ID){
+  console.warn("⚠️⚠️⚠️ [servers] Env SERVER_ID NÃO DEFINIDA — assumindo 1 (produção). Se este deploy é o h2b-teste, DEFINA SERVER_ID=2 no Render, senão a trava de 'lotado' bloqueia os cadastros deste servidor! ⚠️⚠️⚠️");
+}
 const REDIRECT_URI        = APP_URL + "/oauth/callback";
 const REDIRECT_URI_SENDER = APP_URL + "/oauth/add-sender/callback";
 // ── Fase 1 · Módulo 1: configuração extraída para src/config.js ──────────
@@ -929,6 +932,22 @@ function boot() {
       impacto:"Login destravado para 100% dos usuários. LIÇÕES PERMANENTES: (a) interceptador/wrapper NUNCA reimplementa a função interceptada — captura a referência original e delega (duplicar lógica cria duas fontes de verdade que divergem no primeiro refactor); (b) todo gate de UI baseado em timer precisa de caminho de auto-recuperação: se o estado indica 'timer nunca iniciou', iniciar, nunca travar; (c) modal que bloqueia o funil de entrada (login/cadastro) é código CRÍTICO — qualquer mudança nele exige teste manual do fluxo completo antes do deploy; (d) grep por definições duplicadas da mesma função (window.fn= vs function fn) deve fazer parte da revisão de qualquer arquivo >10k linhas.",
       modulos:["index.html: _gwmArm (novo), showGoogleWarnModal (refatorada), gwmUpdateBtn (auto-recuperação), interceptador de Termos (delegação via referência capturada)"],
       tags:["bug-crítico","produção","login","oauth","modal-gwm","timer","função-duplicada","interceptador","showGoogleWarnModal","auto-recuperação"]
+    },
+    {
+      id:"KB-065",versao:"V948",data:"2026-07-05",autor:"Claude/Andrio",
+      problema:"PAINEL FINANCEIRO confuso e com buraco contábil. (1) Andrio recebeu R$1.468 via Pix/PicPay no INÍCIO do projeto (antes do fluxo de Pedidos existir) e esse dinheiro era INVISÍVEL para o sistema: o 'Registrar entrada' EXIGIA email de cliente — para uma entrada avulsa/saldo inicial não existe um email único, então a validação bloqueava com um toast de 3s que no celular passa batido → 'salvei e não salvou, sem nenhuma mensagem'. (2) Mesmo se salvasse: receitaReal (servidor) itera DB_USERS e busca pagamentos POR EMAIL — entrada sem email de usuário cadastrado sumia da receita total, do mês, dos indicadores e da série de 6 meses. (3) add_pagamento/add_gasto NÃO gravavam na trilha de auditoria (só edição/exclusão) — lançamentos novos não apareciam no Histórico. (4) O card 'Acerto entre sócios' mostrava 4 números soltos sem a conta — 'Andrio recebeu R$0' sem explicar o caminho até 'Diego repassa X'. (5) O robô de auditoria contábil (runAnalysis) calculava o acerto com fórmula DIFERENTE do painel (ignorava gastos) — duas verdades. (6) GET /api/admin/financeiro devolvia repasses só dentro de financeiro.*, mas o front lia d.repasses (sempre vazio). (7) 20 indicadores inline = poluição; sócios 'quebravam a cabeça'.",
+      solucao:"SERVIDOR: (a) Novo conceito ENTRADA AVULSA: add_pagamento aceita entrada SEM email (tipo:'avulsa') exigindo descrição ≥3 chars — é dinheiro que entrou por fora do site e precisa estar na contabilidade; validação de valor >0 e ≤1M com mensagens de erro claras. (b) receitaReal/receitaMes (GET financeiro) e receitaTotal/serie (fin-insights) agora somam pagamentos cujo email não pertence a nenhum usuário (categoria receitaAvulsa, sem inflar qtdPagantes). (c) add_pagamento e add_gasto gravam na trilha alteracoes[] (_logAdd) — TODO lançamento agora auditado. (d) GET financeiro devolve repasses no topo + receitaAvulsa. FRONT: (e) Form v2 com seletor 'Tipo de entrada' (cliente|avulsa) — avulsa esconde email/plano/ativar, exige descrição, NUNCA ativa VIP; 'Ativar VIP' default virou 'Não' (ativação canônica é pelos Pedidos). (f) ERRO INLINE dentro do form (caixa vermelha grande, scrollIntoView) — validação e recusa do servidor impossíveis de não ver; falha do servidor agora dá return (antes seguia e ATIVAVA VIP mesmo sem salvar a entrada!). (g) Card Acerto v2: TABELA passo a passo por sócio — (+)Recebeu, (−)Gastos que bancou, (−)½ empresa, (±)Repasses, (=)Está na mão, 🎯Deveria ficar (½ lucro) — e a linha final 'X repassa R$Y'. (h) Indicadores inline enxugados 20→8 essenciais + card Receita por plano + gráfico 6m + Top5; botão 'ver análise completa' abre o modal com as 20. (i) Fórmula do acerto do robô de auditoria HARMONIZADA com a do painel (held = recebeu − gastos próprios − ½empresa ± repasses). (j) Badges 💠AVULSA e →ANDRIO/→DIEGO em cada linha de entrada. (k) finLoadFromServer captura receitaAvulsa e repasses com fallback. Validado com os números reais: Andrio recebeu 1.468 − gastos 676 = segura 792 (bate com o extrato dele); soma dos 'segura' = lucro; transferência leva os dois exatamente à metade.",
+      impacto:"Diego abre o painel e vê SOZINHO: o que cada um recebeu (incluindo o PicPay do Andrio), o que cada um gastou, quanto cada um segura e quem repassa quanto — sem precisar de explicação por áudio. Lições permanentes: (1) validação que só avisa por toast NÃO É validação em mobile — erro de formulário tem que ser inline, dentro do form; (2) todo cálculo de receita que itera USUÁRIOS é cego para dinheiro sem usuário — receita canônica precisa de um coletor para lançamentos órfãos; (3) toda mutação financeira (inclusive ADD) entra na trilha de auditoria; (4) a MESMA conta (acerto) nunca pode ter duas fórmulas em dois lugares; (5) fluxo com efeito colateral (ativar VIP) jamais continua após falha da gravação principal.",
+      modulos:["server.js: add_pagamento (avulsa+validação+trilha), add_gasto (validação+trilha), GET /api/admin/financeiro (receitaAvulsa, repasses top-level), /api/admin/fin-insights (avulsas na receita e na série)","admin.html: form entrada v2 (tipo cliente/avulsa, erro inline), _registrarPagamentoInner (validação+return em falha), tabela Acerto passo a passo, loadFinanceiro (held por sócio), indicadores inline 8 essenciais, badges avulsa/recebidoPor, runAnalysis (fórmula harmonizada), finLoadFromServer (receitaAvulsa+repasses)"],
+      tags:["financeiro","entrada-avulsa","acerto-sócios","auditoria","trilha","validação-inline","receita","picpay","fonte-única","indicadores","painel-v2"]
+    },
+    {
+      id:"KB-066",versao:"V949",data:"2026-07-05",autor:"Claude/Andrio",
+      problema:"TESTE DE CADASTRO NO SERVIDOR 2 TRAVADO EM LOOP + LANDING INVISÍVEL. (1) No h2b-teste, conta nova era recusada com o modal 'Este servidor está lotado... crie conta no Servidor 2' — estando NO Servidor 2. Causa raiz: env SERVER_ID não definida no Render do h2b-teste → default 1 → o deploy se identifica como Servidor 1 (status 'lotado' na config), recusa TODO cadastro e aponta como 'aberto' o Servidor 2 — a própria URL dele. (2) 'Já tenho conta AQUI — Entrar' fazia OAuth, mas a conta de teste é NOVA → recusada de novo pela mesma trava → 'autentica mas não entra', loop infinito. (3) UX: visitante deslogado NUNCA via a landing — maybeShowServerSelect abria o auth gate automaticamente por cima de tudo, e ?entrar=1 abria o modal do Google sozinho. Ordem do dono: a landing DEVE ser vista; a pessoa clica ELA MESMA em 'Entrar com Google' na landing.",
+      solucao:"OPERACIONAL (obrigatório): definir SERVER_ID=2 nas envs do Render do h2b-teste. CÓDIGO (blindagem): (a) startup grita no log se process.env.SERVER_ID não existe; (b) GUARDA no callback OAuth: se o host do request é o host do servidor 'aberto' da config mas SERVER_ID aponta pra um 'lotado', é config contraditória → FAIL-OPEN (cadastro liberado) com console.error explicando o conserto — melhor um cadastro passar num servidor mal configurado do que TODOS os cadastros travarem em loop; (c) GUARDA no front (showSrvBlockModal): se a URL de destino do modal é o próprio location.host, remove o botão de redirecionamento absurdo. LANDING: (d) maybeShowServerSelect NÃO abre mais openAuthGate automaticamente — deslogado vê a landing inteira; entrada só por clique (navbar Entrar + 2 CTAs); (e) ?entrar=1 não dispara mais o modal do Google — rola até o CTA principal e o pulsa (_pulseLandingCTA); (f) botão da seção demo que ia DIRETO pro OAuth (pulando termos + aviso do Google) agora passa por showGoogleWarnModal como todos os outros.",
+      impacto:"Cadastro no Servidor 2 destravado (após corrigir a env) e imune a repetição do erro de config; landing page finalmente cumpre o papel de vender o produto antes do login. Lições permanentes: (1) toda env crítica de identidade do deploy precisa de guarda dupla — warning na inicialização + verificação em runtime cruzando a config com a realidade (host do request); (2) trava que depende de config tem que decidir o comportamento em config CONTRADITÓRIA — aqui fail-open logado; (3) redirecionamento nunca pode apontar para o próprio host — sempre validar destino ≠ origem; (4) fluxo de autenticação jamais abre sozinho por cima da landing — conversão começa na página, login é ação do usuário.",
+      modulos:["server.js: warning de SERVER_ID ausente no boot, guarda de config contraditória no callback OAuth (fail-open por host)","index.html: maybeShowServerSelect (sem auth automático), _pulseLandingCTA (?entrar=1 destaca CTA), showSrvBlockModal (guarda destino=origem), CTA da demo via showGoogleWarnModal"],
+      tags:["multi-servidor","server-id","env","lotado","loop","fail-open","landing","auth-gate","ux","cadastro","config-contraditória"]
     }
   ];
   for(const entry of _kbFounding){
@@ -5267,11 +5286,29 @@ function _saveEnrichedSheet(sheetKey, sheet){
       if(!ex){
         // (1) Este servidor está LOTADO? Fechado para contas novas de verdade
         //     (não só no visual do seletor).
-        const _selfCfg=_getServersConfig().find(sv=>sv.id===SERVER_ID);
+        // ── V950: IDENTIDADE PELO HOST, NÃO SÓ PELA ENV ───────────────────
+        // O guard v949 só liberava (fail-open) quando o host batia EXATAMENTE
+        // com o servidor "aberto" específico — se a env SERVER_ID estivesse
+        // errada E a config tivesse mudado (ou o "aberto" fosse outro id),
+        // o loop de cadastro voltava. Agora a identidade REAL deste deploy é
+        // descoberta comparando req.headers.host contra a URL de TODOS os
+        // servidores da config — a env SERVER_ID só é usada quando não há
+        // nenhuma URL cadastrada que bata com o host. Isso torna a trava
+        // auto-curável: mesmo que SERVER_ID fique ausente/errada no Render,
+        // o servidor se identifica corretamente pelo próprio domínio.
+        const _cfgList=_getServersConfig();
+        const _norm=u=>String(u||"").replace(/^https?:\/\//,"").replace(/\/.*$/,"").toLowerCase();
+        const _reqHost=_norm(req.headers.host);
+        const _hostMatch=_reqHost?_cfgList.find(sv=>_norm(sv.url)===_reqHost):null;
+        let _selfCfg=_cfgList.find(sv=>sv.id===SERVER_ID);
+        if(_hostMatch && (!_selfCfg || _hostMatch.id!==SERVER_ID)){
+          console.error(`[servers] 🚨 CONFIG CONTRADITÓRIA: este deploy responde por "${_reqHost}" (Servidor ${_hostMatch.id} na config), mas a env SERVER_ID=${SERVER_ID||"(ausente)"} aponta para outro id. Usando a identidade pelo HOST (mais confiável) — corrija a env SERVER_ID no Render para ${_hostMatch.id} assim que possível, senão outras áreas (ranking, badge \"Servidor N\") podem ficar inconsistentes.`);
+          _selfCfg=_hostMatch;
+        }
         if(_selfCfg&&_selfCfg.status==="lotado"){
-          const _open=_getServersConfig().find(sv=>sv.id!==SERVER_ID&&sv.status==="aberto"&&sv.url);
+          const _open=_cfgList.find(sv=>sv.id!==_selfCfg.id&&sv.status==="aberto"&&sv.url);
           delete sessions[sid];
-          console.log(`[servers] 🚫 Cadastro recusado (Servidor ${SERVER_ID} lotado): ${ui.email}`);
+          console.log(`[servers] 🚫 Cadastro recusado (Servidor ${_selfCfg.id} lotado): ${ui.email}`);
           const _q=_open?`&srv_id=${_open.id}&srv_nome=${encodeURIComponent(_open.nome)}&srv_url=${encodeURIComponent(_open.url)}`:"";
           res.writeHead(302,{Location:`/?err=srv_lotado${_q}`});return res.end();
         }
@@ -5918,7 +5955,23 @@ function _saveEnrichedSheet(sheetKey, sheet){
       receitaReal+=tot;
       for(const p of pags){ if((p.date||0)>=_monthStart) receitaMes+=p.valor; }
     }
-    return json(res,200,{ok:true,financeiro:slim,pagamentos:slim.pagamentos,gastos:slim.gastos,codGift,receitaReal,receitaMes,qtdPagantes});
+    // ── ENTRADAS AVULSAS: pagamentos SEM email de usuário cadastrado (ex.:
+    // Pix/PicPay recebido direto por um sócio, saldo inicial, acerto externo).
+    // O loop acima itera DB_USERS, então essas entradas ficavam INVISÍVEIS na
+    // receita — some da receita total, do mês e dos indicadores (bug v947).
+    // Aqui elas entram como categoria própria, sem inflar a contagem de pagantes.
+    let receitaAvulsa=0;
+    const _userEmails=new Set(Object.keys(DB_USERS||{}).map(e=>e.toLowerCase()));
+    for(const pg of ((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[])){
+      if(!pg) continue;
+      const e=String(pg.email||"").toLowerCase();
+      if(e&&_userEmails.has(e)) continue; // já contado no loop por usuário
+      const v=_pv(pg.valor); if(v<=0) continue;
+      receitaAvulsa+=v; receitaReal+=v;
+      const dt=_ts(pg.dataPagamento)||_ts(pg.data)||pg.criadoEm||0;
+      if(dt>=_monthStart) receitaMes+=v;
+    }
+    return json(res,200,{ok:true,financeiro:slim,pagamentos:slim.pagamentos,gastos:slim.gastos,repasses:slim.repasses,codGift,receitaReal,receitaMes,receitaAvulsa,qtdPagantes});
   }
   // ── Admin: Gemini LÊ a documentação mestre e devolve as conclusões dele ──
   if(pathname==="/api/admin/gemini-doc-report"&&req.method==="POST"){
@@ -6029,15 +6082,30 @@ function _saveEnrichedSheet(sheetKey, sheet){
       if(nextExp>0){const dleft=Math.ceil((nextExp-now)/86400000); if(dleft<=0)vencidos++; else if(dleft<=7){vencendo7++;vencendo7Valor+=(PRICE[plan]||100);}}
     }
     topPagantes.sort((a,b)=>b.valor-a.valor);
+    // ── ENTRADAS AVULSAS (sem email de usuário): entram na receita como
+    // categoria própria — mesma correção do GET /api/admin/financeiro.
+    let receitaAvulsa=0; const _avulsas=[];
+    {
+      const _uEm=new Set(Object.keys(DB_USERS||{}).map(e=>e.toLowerCase()));
+      for(const pg of ((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[])){
+        if(!pg) continue;
+        const e=String(pg.email||"").toLowerCase();
+        if(e&&_uEm.has(e)) continue;
+        const v=pv(pg.valor); if(v<=0) continue;
+        const dt=ts(pg.dataPagamento)||ts(pg.data)||pg.criadoEm||0;
+        receitaAvulsa+=v; receitaTotal+=v; _avulsas.push({valor:v,date:dt});
+        if(dt>=monthStart) receitaMes+=v;
+      }
+    }
     // Despesas
     const gastos=(DB_FINANCEIRO&&DB_FINANCEIRO.gastos)||[];
     let despTotal=0,despMes=0; const despCat={},despSocio={andrio:0,diego:0,empresa:0};
     for(const g of gastos){const v=pv(g.valor);despTotal+=v;const dt=ts(g.dataGasto)||ts(g.data)||g.criadoEm||0;if(dt>=monthStart)despMes+=v;const c=(g.categoria||g.cat||"geral");despCat[c]=(despCat[c]||0)+v;const pp=(g.pagoPor||"empresa").toLowerCase();if(despSocio[pp]!==undefined)despSocio[pp]+=v;}
     const lucro=Math.max(0,receitaTotal-despTotal);
     // Série últimos 6 meses (receita por mês, do livro-caixa+pedidos por data)
-    const serie=[]; for(let i=5;i>=0;i--){const d0=new Date();d0.setMonth(d0.getMonth()-i,1);d0.setHours(0,0,0,0);const a=d0.getTime();const d1=new Date(d0);d1.setMonth(d1.getMonth()+1);const b=d1.getTime();let soma=0;for(const e in finBy)for(const x of finBy[e])if((x.date||0)>=a&&(x.date||0)<b)soma+=x.valor;if(!Object.keys(finBy).length){for(const e in pedBy)for(const x of pedBy[e])if((x.date||0)>=a&&(x.date||0)<b)soma+=x.valor;}serie.push({mes:d0.toLocaleDateString("pt-BR",{month:"short",year:"2-digit"}),valor:soma});}
+    const serie=[]; for(let i=5;i>=0;i--){const d0=new Date();d0.setMonth(d0.getMonth()-i,1);d0.setHours(0,0,0,0);const a=d0.getTime();const d1=new Date(d0);d1.setMonth(d1.getMonth()+1);const b=d1.getTime();let soma=0;for(const e in finBy)for(const x of finBy[e])if((x.date||0)>=a&&(x.date||0)<b)soma+=x.valor;if(!Object.keys(finBy).length){for(const e in pedBy)for(const x of pedBy[e])if((x.date||0)>=a&&(x.date||0)<b)soma+=x.valor;}for(const x of _avulsas)if((x.date||0)>=a&&(x.date||0)<b)soma+=x.valor;serie.push({mes:d0.toLocaleDateString("pt-BR",{month:"short",year:"2-digit"}),valor:soma});}
     return json(res,200,{ok:true,insights:{
-      receitaTotal,receitaMes,despTotal,despMes,lucro,metade:lucro/2,
+      receitaTotal,receitaMes,receitaAvulsa,despTotal,despMes,lucro:Math.max(0,receitaTotal-despTotal),metade:Math.max(0,receitaTotal-despTotal)/2,
       qtdPagantes,ticketMedio:qtdPagantes?Math.round(receitaTotal/qtdPagantes):0,
       novosMes,vencendo7,vencendo7Valor,vencidos,trials,gift,giftDias,
       porPlano,porPlanoQtd,despCat,despSocio,
@@ -6072,9 +6140,37 @@ function _saveEnrichedSheet(sheetKey, sheet){
     try{
       const d=JSON.parse(await readBody(req));
       // SEGURANÇA: nunca substitui arrays completos — só adiciona/atualiza itens
+      // Logger da trilha de auditoria (append-only) — usado também nos ADDS,
+      // que antes NÃO eram auditados (só edição/exclusão apareciam no Histórico).
+      const _quemAdd = s.user_email===ADMIN_EMAIL ? "Andrio"
+                     : (typeof ADMIN_EMAIL_2!=="undefined"&&ADMIN_EMAIL_2&&s.user_email===ADMIN_EMAIL_2) ? "Diego"
+                     : s.user_email;
+      const _logAdd=(tipo,registro,motivo)=>{
+        if(!Array.isArray(DB_FINANCEIRO.alteracoes)) DB_FINANCEIRO.alteracoes=[];
+        const {comprovante,img,...limpo}=registro||{};
+        DB_FINANCEIRO.alteracoes.push({id:'alt_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6),
+          tipo, por:_quemAdd, porEmail:s.user_email, em:Date.now(),
+          motivo:String(motivo||'').slice(0,300), antes:null, depois:limpo});
+      };
       if(d.action==='add_pagamento' && d.pagamento){
         // Adicionar um pagamento individual (mesmo padrão de proveniência do gasto)
         const pg=d.pagamento;
+        // VALIDAÇÃO REAL (v948): antes, entrada inválida podia entrar muda ou
+        // sumir sem explicação. Agora o servidor diz exatamente o que faltou.
+        const _valor=Math.round((parseFloat(pg.valor)||0)*100)/100;
+        if(_valor<=0) return json(res,400,{error:"Valor da entrada deve ser maior que zero."});
+        if(_valor>1_000_000) return json(res,400,{error:"Valor da entrada inválido."});
+        pg.valor=_valor;
+        pg.email=String(pg.email||"").trim().toLowerCase();
+        // ENTRADA AVULSA (sem email): permitida — é dinheiro recebido FORA do
+        // site (Pix/PicPay direto pro sócio, saldo inicial, acerto externo).
+        // Exige descrição para o outro sócio entender o que é, e NUNCA ativa VIP.
+        if(!pg.email){
+          if(!pg.nota||String(pg.nota).trim().length<3)
+            return json(res,400,{error:"Entrada avulsa (sem email) exige uma descrição — o outro sócio precisa entender do que se trata."});
+          pg.tipo='avulsa';
+        } else { pg.tipo=pg.tipo==='avulsa'?'avulsa':'cliente'; }
+        pg.recebidoPor=(String(pg.recebidoPor||"").toLowerCase()==='diego')?'diego':'andrio';
         if(!pg.id) pg.id='fin_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);
         if(!pg.criadoEm) pg.criadoEm=Date.now();
         // Quem LANÇOU vem da sessão — não pode ser forjado pelo corpo (mesmo padrão do gasto).
@@ -6092,12 +6188,17 @@ function _saveEnrichedSheet(sheetKey, sheet){
         pg.temComprovante = !!pg.comprovante;
         DB_FINANCEIRO.pagamentos=DB_FINANCEIRO.pagamentos||[];
         DB_FINANCEIRO.pagamentos.unshift(pg);
+        _logAdd('add_pagamento',pg,(pg.tipo==='avulsa'?'Entrada avulsa: ':'Entrada de cliente: ')+'R$'+pg.valor.toFixed(2)+' · recebido por '+pg.recebidoPor+(pg.nota?' · '+String(pg.nota).slice(0,80):''));
         persistFinanceiro();
         return json(res,200,{ok:true,id:pg.id,temComprovante:pg.temComprovante});
       }
       if(d.action==='add_gasto' && d.gasto){
         // Adicionar um gasto individual (com proveniência completa)
         const gs=d.gasto;
+        const _gv=Math.round((parseFloat(gs.valor)||0)*100)/100;
+        if(_gv<=0) return json(res,400,{error:"Valor do gasto deve ser maior que zero."});
+        if(_gv>1_000_000) return json(res,400,{error:"Valor do gasto inválido."});
+        gs.valor=_gv;
         if(!gs.id) gs.id='gst_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);
         if(!gs.criadoEm) gs.criadoEm=Date.now();
         // Quem LANÇOU vem da sessão — não pode ser forjado pelo corpo.
@@ -6120,6 +6221,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
         gs.temComprovante = !!gs.comprovante;
         DB_FINANCEIRO.gastos=DB_FINANCEIRO.gastos||[];
         DB_FINANCEIRO.gastos.unshift(gs);
+        _logAdd('add_gasto',gs,'Gasto: R$'+gs.valor.toFixed(2)+' · pago por '+gs.pagoPor+' · '+gs.categoria+(gs.descricao?' · '+String(gs.descricao).slice(0,80):''));
         persistFinanceiro();
         return json(res,200,{ok:true,id:gs.id,temComprovante:gs.temComprovante});
       }
