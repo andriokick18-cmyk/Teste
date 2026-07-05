@@ -4897,6 +4897,10 @@ function _saveEnrichedSheet(sheetKey, sheet){
     "/favicon-32.png":"favicon-32.png",
     "/favicon.ico":"favicon-32.png"
   };
+  // Print real do aviso do Google — usado no modal educativo pré-login
+  if(pathname==="/google-aviso.jpg"){
+    try{const img=fs.readFileSync(path.join(__dirname,"google-aviso.jpg"));res.writeHead(200,{"Content-Type":"image/jpeg","Cache-Control":"public, max-age=604800"});return res.end(img);}catch{res.writeHead(404);return res.end();}
+  }
   if(ICON_MAP[pathname]){
     const iconPath=path.join(__dirname,ICON_MAP[pathname]);
     if(fs.existsSync(iconPath)){const data=fs.readFileSync(iconPath);res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=604800, immutable"});return res.end(data);}
@@ -5939,6 +5943,42 @@ function _saveEnrichedSheet(sheetKey, sheet){
     return json(res,200,{ok:true,report:text,docBytes:doc.length,generatedAt:new Date().toISOString()});
   }
 
+  // POST /api/admin/fin/ai-review — a IA (Gemini) analisa uma edição financeira
+  // e conversa com o admin sobre ela. Corpo: {contexto:{tipo,antes,depois,motivo},
+  // conversa:[{de:'admin'|'ia',texto}]}. Retorna {ok,resposta,veredito}.
+  if(pathname==="/api/admin/fin/ai-review"&&req.method==="POST"){
+    const s3=getSess(req);if(!s3?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p3=getUser(s3.user_email);if(!isAdminVip(p3))return json(res,403,{error:"Acesso negado."});
+    if(!getGeminiKey())return json(res,503,{error:"Gemini API não configurada."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const ctx=d.contexto||{};
+      const conversa=Array.isArray(d.conversa)?d.conversa.slice(-8):[];
+      const sys=`Você é o auditor financeiro interno do H2BApply (sócios: Andrio e Diego). Um admin acabou de EDITAR um registro financeiro e você deve revisar RAPIDINHO, em português do Brasil, em no máximo 4 frases. Analise: o valor novo faz sentido? A data faz sentido? O motivo explica a mudança? Há risco de erro (ex.: valor 10x maior/menor, moeda trocada, data no futuro)? Se estiver tudo coerente, diga que está OK e por quê em 1-2 frases. Se algo parecer estranho, FAÇA UMA PERGUNTA direta ao admin. Comece SEMPRE a resposta com [OK] ou [DÚVIDA]. Nunca invente dados.`;
+      const contents=[];
+      contents.push({role:"user",parts:[{text:"EDIÇÃO PARA REVISAR:\nTipo: "+String(ctx.tipo||"?")+"\nANTES: "+JSON.stringify(ctx.antes||{}).slice(0,1500)+"\nDEPOIS: "+JSON.stringify(ctx.depois||{}).slice(0,1500)+"\nMOTIVO do admin: "+String(ctx.motivo||"(não informado)").slice(0,300)}]});
+      for(const m of conversa){contents.push({role:m.de==="ia"?"model":"user",parts:[{text:String(m.texto||"").slice(0,800)}]});}
+      const GEMINI_MODELS=["gemini-2.5-flash","gemini-2.0-flash","gemini-2.5-flash-lite"];
+      let text="",lastErr="";
+      for(const modelName of GEMINI_MODELS){
+        try{
+          const url=new URL(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${getGeminiKey()}`);
+          const body=JSON.stringify({system_instruction:{parts:[{text:sys}]},contents,generationConfig:{temperature:0.3,maxOutputTokens:400}});
+          const result=await new Promise((resolve,reject)=>{
+            const req2=https.request({hostname:url.hostname,path:url.pathname+url.search,method:"POST",headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(body)}},resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{try{resolve({status:resp.statusCode,body:JSON.parse(Buffer.concat(ch).toString())});}catch{reject(new Error("Resposta inválida"));}});});
+            req2.on("error",reject);req2.setTimeout(25000,()=>{req2.destroy();reject(new Error("Timeout"));});
+            req2.write(body);req2.end();
+          });
+          if(result.status===200){text=result.body?.candidates?.[0]?.content?.parts?.[0]?.text||"";if(text)break;}
+          else lastErr=result.body?.error?.message||("HTTP "+result.status);
+        }catch(e){lastErr=e.message;}
+      }
+      if(!text)return json(res,502,{error:"IA indisponível: "+lastErr});
+      const veredito=/^\s*\[OK\]/i.test(text)?"ok":"duvida";
+      return json(res,200,{ok:true,resposta:text.replace(/^\s*\[(OK|DÚVIDA|DUVIDA)\]\s*/i,"").trim(),veredito});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
   // ── Admin: Inteligência Financeira — 20 análises (fonte única no servidor) ──
   if(pathname==="/api/admin/fin-insights"&&req.method==="GET"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
@@ -5948,7 +5988,15 @@ function _saveEnrichedSheet(sheetKey, sheet){
     const ts=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
     const PRICE={vip:100,pro:150,vipro:150,doublepro:250};
     const finBy={},pedBy={};
-    for(const pg of ((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[])){if(!pg||!pg.email)continue;const e=String(pg.email).toLowerCase();(finBy[e]=finBy[e]||[]).push({valor:pv(pg.valor),date:ts(pg.dataPagamento)||ts(pg.data)||pg.criadoEm||0});}
+    // RAIZ ÚNICA DE VALOR: se o pagamento do livro-caixa está ligado a um pedido
+    // (pedidoId) e o pedido foi CORRIGIDO depois, o valor do pedido vence — assim
+    // a correção feita na ficha do cliente reflete no Top 5 e na receita.
+    const _pedById={};for(const ped of (DB_PEDIDOS||[])){if(ped&&ped.id)_pedById[ped.id]=ped;}
+    for(const pg of ((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[])){if(!pg||!pg.email)continue;const e=String(pg.email).toLowerCase();
+      let v=pv(pg.valor);
+      const _ped=pg.pedidoId?_pedById[pg.pedidoId]:null;
+      if(_ped&&pv(_ped.valorTotal)>0&&pv(_ped.valorTotal)!==v)v=pv(_ped.valorTotal);
+      (finBy[e]=finBy[e]||[]).push({valor:v,date:ts(pg.dataPagamento)||ts(pg.data)||pg.criadoEm||0});}
     for(const ped of Object.values(DB_PEDIDOS||{})){if(!ped||!ped.userEmail)continue;const st=String(ped.status||"").toLowerCase();if(st!=="pago"&&st!=="ativo")continue;const e=String(ped.userEmail).toLowerCase();(pedBy[e]=pedBy[e]||[]).push({valor:pv(ped.valorTotal),date:ts(ped.ativadoEm)||ts(ped.pagoEm)||0});}
     const ms=new Date();ms.setDate(1);ms.setHours(0,0,0,0);const monthStart=ms.getTime();
     let receitaTotal=0,receitaMes=0,qtdPagantes=0,novosMes=0,vencendo7=0,vencendo7Valor=0,vencidos=0,trials=0,gift=0,giftDias=0;
@@ -6139,22 +6187,39 @@ function _saveEnrichedSheet(sheetKey, sheet){
         const alvo=arr.find(x=>x.id===d.id);
         if(!alvo) return json(res,404,{error:"Registro não encontrado."});
         const antes={...alvo};
-        const ALLOWED=['valor','desconto','dataPagamento','dataGasto','data','nota','descricao','categoria','plano','email','nome','pagoPor','recebidoPor'];
-        for(const k of ALLOWED){ if(d.changes&&d.changes[k]!==undefined){ alvo[k]=k==='valor'||k==='desconto'?(parseFloat(d.changes[k])||0):d.changes[k]; } }
+        const ALLOWED=['valor','desconto','dataPagamento','dataGasto','data','nota','descricao','categoria','plano','email','nome','pagoPor','recebidoPor','moeda','valorUSD','cambio','fonte'];
+        for(const k of ALLOWED){ if(d.changes&&d.changes[k]!==undefined){ alvo[k]=['valor','desconto','valorUSD','cambio'].includes(k)?(parseFloat(d.changes[k])||0):d.changes[k]; } }
+        // Moeda: gasto/entrada pode ser em DÓLAR — o valor em R$ é derivado do câmbio
+        if(String(alvo.moeda||'').toUpperCase()==='USD'&&alvo.valorUSD>0){
+          if(!(alvo.cambio>0))alvo.cambio=5.17; // câmbio padrão editável
+          alvo.valor=Math.round(alvo.valorUSD*alvo.cambio*100)/100;
+        }
         alvo.editadoEm=Date.now(); alvo.editadoPor=_quem;
         _logAlt(d.action,antes,{...alvo},d.motivo);
         persistFinanceiro();
         return json(res,200,{ok:true,registro:(()=>{const{comprovante,img,...r}=alvo;return r;})()});
       }
+      // ── Anexar/trocar comprovante em registro existente ──
+      if(d.action==='attach_comprovante' && d.id){
+        const arr2=d.tipo==='pagamento'?(DB_FINANCEIRO.pagamentos||[]):(DB_FINANCEIRO.gastos||[]);
+        const alvo2=arr2.find(x=>x.id===d.id);
+        if(!alvo2) return json(res,404,{error:"Registro não encontrado."});
+        if(!d.comprovante||typeof d.comprovante!=='string'||d.comprovante.length>10_700_000||!/^[A-Za-z0-9+/]/.test(d.comprovante.slice(0,10)))
+          return json(res,400,{error:"Comprovante inválido (máx ~8MB)."});
+        const _allow2=['image/jpeg','image/jpg','image/png','image/webp','application/pdf'];
+        alvo2.comprovante=d.comprovante;
+        alvo2.comprovanteType=_allow2.includes(d.comprovanteType)?d.comprovanteType:'image/jpeg';
+        alvo2.temComprovante=true;
+        _logAlt('attach_comprovante',null,{id:d.id,tipo:d.tipo},'Comprovante anexado/substituído');
+        persistFinanceiro();
+        return json(res,200,{ok:true});
+      }
       // ── Consultar trilha de alterações ──
       if(d.action==='get_alteracoes'){
         return json(res,200,{ok:true,alteracoes:(DB_FINANCEIRO.alteracoes||[]).slice(-200).reverse()});
       }
-      // Legado: substituição completa (mantido para compatibilidade interna)
-      if(d._replace===true){
-        if(d.pagamentos!==undefined)DB_FINANCEIRO.pagamentos=d.pagamentos||[];
-        if(d.gastos!==undefined)DB_FINANCEIRO.gastos=d.gastos||[];
-      }
+      // REMOVIDO v945: caminho legado _replace (substituição TOTAL dos arrays) —
+      // era um risco de apagar gastos/pagamentos inteiros; nada no front usa.
       persistFinanceiro();
       return json(res,200,{ok:true});
     }catch(e){return json(res,500,{error:e.message});}
@@ -11156,6 +11221,25 @@ function persistFinanceiro() {
 
 // ── BOOT ─────────────────────────────────────────────────
 boot();loadSheets();
+
+// ── Correção pontual pedida pelo Andrio (05/07/26): o gasto "RENDER 41 DOLARES"
+// foi lançado como R$ 2.010,00 por engano — o valor real é US$ 41 (câmbio 5,17
+// = R$ 211,97). Idempotente: só corrige 1x, e a correção fica na trilha.
+try{
+  const _gErr=(DB_FINANCEIRO.gastos||[]).find(g=>g&&!g._fixRender41&&/render/i.test(g.descricao||g.nota||"")&&/41/.test(g.descricao||g.nota||"")&&g.valor>=2000&&g.valor<=2020);
+  if(_gErr){
+    const _antes={...(_gErr)};delete _antes.comprovante;
+    _gErr.moeda="USD";_gErr.valorUSD=41;_gErr.cambio=5.17;
+    _gErr.valor=Math.round(41*5.17*100)/100; // 211,97
+    _gErr.editadoEm=Date.now();_gErr.editadoPor="Sistema";_gErr._fixRender41=true;
+    if(!Array.isArray(DB_FINANCEIRO.alteracoes))DB_FINANCEIRO.alteracoes=[];
+    const _dep={...(_gErr)};delete _dep.comprovante;
+    DB_FINANCEIRO.alteracoes.push({id:'alt_'+Date.now().toString(36),tipo:'edit_gasto',por:'Sistema (correção Andrio)',porEmail:'sistema',em:Date.now(),
+      motivo:'Correção automática: gasto RENDER lançado como R$2.010,00 por engano — valor real US$41 (câmbio 5,17 = R$211,97).',antes:_antes,depois:_dep});
+    persistFinanceiro();
+    console.log('[fin] ✅ Gasto RENDER corrigido: R$2.010,00 → US$41 (R$211,97)');
+  }
+}catch(e){console.warn('[fin] fix render41:',e.message);}
 
 // ════════════════════════════════════════════════════════════════════════
 //  📡 MONITOR ETA — SISTEMA INTELIGENTE DE MONITORAMENTO POR CASE NUMBER

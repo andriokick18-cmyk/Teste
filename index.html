@@ -13832,35 +13832,79 @@ Best regards,
     </div>
   </div>
 </div>
-<div id="gwm" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(15,23,42,.65);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px">
-  <div style="background:#fff;border-radius:20px;max-width:420px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)">
-    <div style="text-align:center;margin-bottom:16px">
-      <div style="width:56px;height:56px;border-radius:50%;background:#fef9c3;border:2px solid #fbbf24;display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><i class="ti ti-shield-exclamation" style="font-size:26px;color:#d97706"></i></div>
-      <div style="font-size:17px;font-weight:800;color:#0f172a">Aviso antes de continuar</div>
+<div id="gwm" style="display:none;position:fixed;inset:0;z-index:99995;background:rgba(5,10,25,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);align-items:center;justify-content:center;padding:14px;overflow-y:auto">
+  <div style="background:#fff;border-radius:22px;max-width:440px;width:100%;padding:22px 18px 16px;box-shadow:0 24px 80px rgba(0,0,0,.5);margin:auto">
+
+    <div style="text-align:center;margin-bottom:12px">
+      <div style="display:inline-block;background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;padding:6px 16px;font-size:13px;font-weight:900;color:#92400e;letter-spacing:.02em">⚠️ LEIA ANTES DE ENTRAR — MUITO IMPORTANTE</div>
     </div>
-    <div style="background:#f8fafc;border-radius:10px;padding:14px;font-size:13px;color:#374151;line-height:1.6;margin-bottom:14px">
-      <p style="margin-bottom:8px">O sistema está em <strong>verificação oficial pelo Google</strong>. Pode aparecer um aviso de segurança.</p>
-      <p style="margin-bottom:10px;color:#059669;font-weight:600">O site é confiável e usado pela comunidade H2B.</p>
-      <p style="margin-bottom:6px;font-size:12px">Dúvidas? YouTube: <strong>Diego H2B</strong></p>
-      <div style="border-top:1px solid #e2e8f0;padding-top:10px;margin-top:10px;font-size:12px">
-        <p style="font-weight:700;margin-bottom:6px">Nos próximos passos do Google:</p>
-        <p>1. Clique em <strong>"Avançado"</strong></p>
-        <p>2. Clique no link para continuar</p>
-        <p>3. Autorize o acesso do Gmail</p>
+
+    <div style="font-size:19px;font-weight:900;color:#0f172a;text-align:center;line-height:1.35;margin-bottom:10px">O Google vai mostrar<br>ESTA TELA de aviso: 👇</div>
+
+    <img src="/google-aviso.jpg" alt="Aviso do Google" onclick="this.classList.toggle('gwm-zoom')" style="width:100%;border-radius:14px;border:2px solid #e2e8f0;cursor:zoom-in;display:block;margin-bottom:4px;transition:transform .2s">
+    <div style="font-size:10.5px;color:#94a3b8;text-align:center;margin-bottom:12px">👆 toque na imagem para dar zoom</div>
+
+    <div style="background:#f0fdf4;border:2px solid #22c55e;border-radius:14px;padding:13px 15px;margin-bottom:10px">
+      <div style="font-size:16px;font-weight:900;color:#15803d;margin-bottom:6px">✅ ISSO É NORMAL. NÃO É GOLPE.</div>
+      <div style="font-size:13.5px;color:#166534;line-height:1.65;font-weight:600">O Google demora <u>meses</u> para verificar aplicativos novos — e já estamos <strong>em processo oficial de verificação</strong>. Enquanto isso, esse aviso aparece para TODO MUNDO.</div>
+    </div>
+
+    <div style="background:#eef2ff;border:2px solid #6366f1;border-radius:14px;padding:13px 15px;margin-bottom:10px">
+      <div style="font-size:14.5px;font-weight:900;color:#3730a3;line-height:1.5">👥 Este site é do <span style="color:#4f46e5">DIEGO</span> e do <span style="color:#4f46e5">ANDRIO</span> — feito para a comunidade H2B. Dúvidas? YouTube: <u>Diego H2B</u>.</div>
+    </div>
+
+    <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 15px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:900;color:#0f172a;margin-bottom:8px">📱 QUANDO O AVISO APARECER, FAÇA ASSIM:</div>
+      <div style="font-size:13.5px;color:#334155;line-height:2;font-weight:600">
+        <div><span style="display:inline-block;background:#4f46e5;color:#fff;border-radius:50%;width:20px;height:20px;text-align:center;font-size:12px;font-weight:900;line-height:20px;margin-right:6px">1</span>Toque em <strong>"Avançado"</strong> (canto esquerdo)</div>
+        <div><span style="display:inline-block;background:#4f46e5;color:#fff;border-radius:50%;width:20px;height:20px;text-align:center;font-size:12px;font-weight:900;line-height:20px;margin-right:6px">2</span>Toque em <strong>"Acessar h2bapply.com"</strong></div>
+        <div><span style="display:inline-block;background:#4f46e5;color:#fff;border-radius:50%;width:20px;height:20px;text-align:center;font-size:12px;font-weight:900;line-height:20px;margin-right:6px">3</span>Toque em <strong>"Permitir"</strong> para o Gmail</div>
       </div>
     </div>
+
+    <label style="display:flex;align-items:flex-start;gap:9px;background:#fffbeb;border:1.5px solid #fbbf24;border-radius:12px;padding:11px 13px;margin-bottom:12px;cursor:pointer">
+      <input type="checkbox" id="gwm-check" onchange="gwmUpdateBtn()" style="width:19px;height:19px;margin-top:1px;flex-shrink:0;accent-color:#f59e0b">
+      <span style="font-size:13px;font-weight:800;color:#92400e;line-height:1.5">Li e entendi: o aviso do Google é normal e este site é confiável.</span>
+    </label>
+
     <div style="display:flex;gap:8px">
-      <button onclick="document.getElementById('gwm').style.display='none'" style="flex:1;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#6b7280;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cancelar</button>
-      <button id="gwm-ok" onclick="document.getElementById('gwm').style.display='none';location.href=_getOAuthURL();" style="flex:2;padding:10px;border:none;border-radius:10px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Entendi, Continuar</button>
+      <button onclick="document.getElementById('gwm').style.display='none'" style="flex:1;padding:12px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;color:#6b7280;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Cancelar</button>
+      <button id="gwm-ok" disabled onclick="gwmGo()" style="flex:2;padding:12px;border:none;border-radius:12px;background:#cbd5e1;color:#fff;font-size:14.5px;font-weight:900;cursor:not-allowed;font-family:inherit;transition:all .2s">Leia acima… <span id="gwm-timer">7</span>s</button>
     </div>
   </div>
 </div>
+<style>.gwm-zoom{transform:scale(1.55);cursor:zoom-out!important;position:relative;z-index:5;box-shadow:0 10px 40px rgba(0,0,0,.35)}</style>
 <script>
+var _gwmTimer=null;
 function showGoogleWarnModal(){
   fetch("/api/warmup",{credentials:"include"}).catch(function(){});
   var m=document.getElementById("gwm");
   if(!m){location.href=_getOAuthURL();return;}
   m.style.display="flex";
+  // Leitura obrigatória: 7s de contagem + checkbox antes de liberar o botão
+  var ck=document.getElementById("gwm-check");if(ck)ck.checked=false;
+  var t=7,el=document.getElementById("gwm-timer"),btn=document.getElementById("gwm-ok");
+  if(btn){btn.disabled=true;btn.style.background="#cbd5e1";btn.style.cursor="not-allowed";btn.innerHTML='Leia acima… <span id="gwm-timer">7</span>s';el=document.getElementById("gwm-timer");}
+  clearInterval(_gwmTimer);
+  _gwmTimer=setInterval(function(){
+    t--;if(el)el.textContent=String(t);
+    if(t<=0){clearInterval(_gwmTimer);window._gwmTimeOk=true;gwmUpdateBtn();}
+  },1000);
+  window._gwmTimeOk=false;
+}
+function gwmUpdateBtn(){
+  var btn=document.getElementById("gwm-ok"),ck=document.getElementById("gwm-check");
+  if(!btn)return;
+  var ok=window._gwmTimeOk&&ck&&ck.checked;
+  btn.disabled=!ok;
+  if(ok){btn.style.background="linear-gradient(135deg,#4f46e5,#7c3aed)";btn.style.cursor="pointer";btn.innerHTML="✅ Entendi — Continuar com Google";}
+  else if(window._gwmTimeOk){btn.style.background="#cbd5e1";btn.style.cursor="not-allowed";btn.innerHTML="Marque a caixinha acima ☝️";}
+}
+function gwmGo(){
+  var ck=document.getElementById("gwm-check");
+  if(!window._gwmTimeOk||!ck||!ck.checked)return;
+  document.getElementById("gwm").style.display="none";
+  location.href=_getOAuthURL();
 }
 </script>
 

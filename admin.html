@@ -7737,22 +7737,126 @@ async function finEditarRegistro(id,tipo){
   const data=finGetData();
   const arr=tipo==='pagamento'?data.pagamentos:data.gastos;
   const item=arr.find(x=>x.id===id); if(!item){ toast('Registro não encontrado','r'); return; }
-  const novoValor=prompt('Novo VALOR (R$) — atual: '+(item.valor||0),String(item.valor||0));
-  if(novoValor===null) return;
-  const novaNota=prompt('Nova NOTA/descrição (Enter mantém):',item.nota||item.descricao||'');
-  if(novaNota===null) return;
-  const motivo=prompt('MOTIVO da edição (obrigatório — fica no histórico):');
-  if(!motivo||motivo.trim().length<3){ toast('Edição cancelada — motivo é obrigatório','r'); return; }
-  const changes={valor:parseFloat(String(novoValor).replace(',','.'))||0};
-  if(tipo==='pagamento') changes.nota=novaNota; else changes.descricao=novaNota;
+  const isPag=tipo==='pagamento';
+  const dtVal=(()=>{const d=new Date(item.dataPagamento||item.dataGasto||item.data||item.criadoEm||Date.now());const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());})();
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px);overflow-y:auto';
+  ov.innerHTML=`<div style="background:#0d1629;border:1.5px solid rgba(99,102,241,.4);border-radius:18px;padding:22px;max-width:460px;width:100%;max-height:92vh;overflow-y:auto;margin:auto" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:16px;font-weight:800;color:#fff">✏️ Editar ${isPag?'entrada':'gasto'}</div>
+      <button onclick="this.closest('[style*=fixed]').remove()" style="background:rgba(255,255,255,.1);border:none;border-radius:8px;color:#fff;padding:6px 12px;cursor:pointer">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:13px">
+      <div style="display:grid;grid-template-columns:110px 1fr 1fr;gap:8px">
+        <div><label style="font-size:11px;color:var(--t3);font-weight:700">Moeda</label>
+          <select id="fe-moeda" class="form-inp" onchange="feCalcUSD()"><option value="BRL"${(item.moeda||'BRL')==='BRL'?' selected':''}>R$ Real</option><option value="USD"${item.moeda==='USD'?' selected':''}>US$ Dólar</option></select></div>
+        <div id="fe-usd-box" style="display:${item.moeda==='USD'?'block':'none'}"><label style="font-size:11px;color:var(--t3);font-weight:700">Valor US$</label>
+          <input id="fe-valorusd" class="form-inp" type="number" step="0.01" value="${item.valorUSD||''}" oninput="feCalcUSD()"></div>
+        <div id="fe-cambio-box" style="display:${item.moeda==='USD'?'block':'none'}"><label style="font-size:11px;color:var(--t3);font-weight:700">Câmbio</label>
+          <input id="fe-cambio" class="form-inp" type="number" step="0.01" value="${item.cambio||5.17}" oninput="feCalcUSD()"></div>
+      </div>
+      <div><label style="font-size:11px;color:var(--t3);font-weight:700">Valor em R$ ${isPag?'recebido':'gasto'}</label>
+        <div style="display:flex;gap:6px">
+          <input id="fe-valor" class="form-inp" type="number" step="0.01" value="${item.valor||0}" style="flex:1">
+          <input id="fe-somar" class="form-inp" type="number" step="0.01" placeholder="+ somar" style="width:92px" title="Adicionar mais ao mesmo registro">
+          <button onclick="var a=parseFloat(document.getElementById('fe-valor').value)||0,b=parseFloat(document.getElementById('fe-somar').value)||0;document.getElementById('fe-valor').value=(a+b).toFixed(2);document.getElementById('fe-somar').value=''" style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);color:#34d399;border-radius:9px;padding:0 12px;font-weight:800;cursor:pointer">➕</button>
+        </div></div>
+      <div><label style="font-size:11px;color:var(--t3);font-weight:700">Data e hora</label>
+        <input id="fe-data" class="form-inp" type="datetime-local" value="${dtVal}"></div>
+      <div><label style="font-size:11px;color:var(--t3);font-weight:700">${isPag?'Nota':'Descrição'}</label>
+        <input id="fe-desc" class="form-inp" value="${(item.nota||item.descricao||'').replace(/"/g,'&quot;')}"></div>
+      ${isPag
+        ?`<div><label style="font-size:11px;color:var(--t3);font-weight:700">💳 Quem RECEBEU este pagamento</label>
+            <select id="fe-recebido" class="form-inp"><option value="andrio"${(item.recebidoPor||'')!=='diego'?' selected':''}>Andrio — PixPay</option><option value="diego"${item.recebidoPor==='diego'?' selected':''}>Diego — InfinityPay</option></select></div>`
+        :`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div><label style="font-size:11px;color:var(--t3);font-weight:700">Categoria</label><input id="fe-cat" class="form-inp" value="${(item.categoria||'geral').replace(/"/g,'&quot;')}"></div>
+            <div><label style="font-size:11px;color:var(--t3);font-weight:700">Quem pagou</label><select id="fe-pagopor" class="form-inp"><option value="andrio"${item.pagoPor==='andrio'?' selected':''}>Andrio</option><option value="diego"${item.pagoPor==='diego'?' selected':''}>Diego</option><option value="empresa"${(item.pagoPor||'empresa')==='empresa'?' selected':''}>Empresa (50/50)</option></select></div>
+          </div>`}
+      <div><label style="font-size:11px;color:var(--t3);font-weight:700">📎 Anexar/trocar comprovante (opcional)</label>
+        <input id="fe-comp" type="file" accept="image/*,.pdf" style="font-size:11px;color:var(--t2);width:100%"></div>
+      <div><label style="font-size:11px;color:#fbbf24;font-weight:800">✍️ MOTIVO da edição (obrigatório — vai pro histórico e pra IA)</label>
+        <input id="fe-motivo" class="form-inp" placeholder="Ex.: digitei R$2010 sem querer, o certo é US$41"></div>
+      <button id="fe-save" onclick="feSalvar('${id}','${tipo}')" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);border:none;border-radius:11px;padding:13px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit">💾 Salvar edição</button>
+    </div>
+  </div>`;
+  ov.addEventListener('click',()=>ov.remove());
+  document.body.appendChild(ov);
+}
+function feCalcUSD(){
+  const m=document.getElementById('fe-moeda').value;
+  document.getElementById('fe-usd-box').style.display=m==='USD'?'block':'none';
+  document.getElementById('fe-cambio-box').style.display=m==='USD'?'block':'none';
+  if(m==='USD'){const u=parseFloat(document.getElementById('fe-valorusd').value)||0,c=parseFloat(document.getElementById('fe-cambio').value)||0;
+    if(u>0&&c>0)document.getElementById('fe-valor').value=(u*c).toFixed(2);}
+}
+async function feSalvar(id,tipo){
+  const g=x=>document.getElementById(x);
+  const motivo=(g('fe-motivo').value||'').trim();
+  if(motivo.length<3){toast('Motivo é obrigatório (mín. 3 letras)','r');return;}
+  const data=finGetData();const arr=tipo==='pagamento'?data.pagamentos:data.gastos;
+  const antes={...(arr.find(x=>x.id===id)||{})};delete antes.comprovante;delete antes.img;
+  const changes={valor:parseFloat(g('fe-valor').value)||0,moeda:g('fe-moeda').value};
+  if(changes.moeda==='USD'){changes.valorUSD=parseFloat(g('fe-valorusd').value)||0;changes.cambio=parseFloat(g('fe-cambio').value)||5.17;}
+  const dt=g('fe-data').value;if(dt){const iso=new Date(dt).toISOString();if(tipo==='pagamento')changes.dataPagamento=iso;else changes.dataGasto=iso;}
+  if(tipo==='pagamento'){changes.nota=g('fe-desc').value;changes.recebidoPor=g('fe-recebido').value;}
+  else{changes.descricao=g('fe-desc').value;changes.categoria=g('fe-cat').value;changes.pagoPor=g('fe-pagopor').value;}
+  const btn=g('fe-save');btn.disabled=true;btn.textContent='Salvando...';
   try{
     const r=await fetch('/api/admin/financeiro',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:tipo==='pagamento'?'edit_pagamento':'edit_gasto',id,changes,motivo})});
     const d=await r.json().catch(()=>null);
-    if(r.ok&&d&&d.ok){ toast('✅ Registro editado (histórico salvo)','ok'); }
-    else{ toast('❌ '+((d&&d.error)||('HTTP '+r.status)),'r'); }
-  }catch(e){ toast('💥 Falha: '+e.message,'r'); }
-  _finLoaded=false; await finLoadFromServer(); loadFinanceiro();
+    if(!(r.ok&&d&&d.ok))throw new Error((d&&d.error)||('HTTP '+r.status));
+    // Comprovante (se escolhido)
+    const f=g('fe-comp').files[0];
+    if(f&&f.size<=8*1024*1024){
+      const b64=await new Promise((res,rej)=>{const rd=new FileReader();rd.onload=()=>res(rd.result.split(',')[1]);rd.onerror=rej;rd.readAsDataURL(f);});
+      await fetch('/api/admin/financeiro',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'attach_comprovante',id,tipo,comprovante:b64,comprovanteType:f.type||'image/jpeg'})}).catch(()=>{});
+    }
+    toast('✅ Editado — histórico salvo','ok');
+    document.querySelectorAll('[style*="z-index: 10000"],[style*="z-index:10000"]').forEach(e=>e.remove());
+    if(typeof loadFinanceiro==='function')loadFinanceiro();
+    // 🤖 IA revisa a edição na hora e conversa com o admin
+    finAiReview({tipo,antes,depois:d.registro||changes,motivo});
+  }catch(e){toast('❌ '+e.message,'r');btn.disabled=false;btn.textContent='💾 Salvar edição';}
+}
+// ── Diálogo com a IA sobre a edição ──
+let _aiRevCtx=null,_aiRevConversa=[];
+async function finAiReview(contexto){
+  _aiRevCtx=contexto;_aiRevConversa=[];
+  const ov=document.createElement('div');ov.id='fin-ai-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:10001;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(8px)';
+  ov.innerHTML=`<div style="background:#0d1629;border:1.5px solid rgba(16,185,129,.4);border-radius:18px;padding:20px;max-width:440px;width:100%;max-height:85vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><span style="font-size:22px">🤖</span><div style="font-size:15px;font-weight:800;color:#fff">Gemini está revisando sua edição…</div>
+      <button onclick="document.getElementById('fin-ai-ov').remove()" style="margin-left:auto;background:rgba(255,255,255,.1);border:none;border-radius:8px;color:#fff;padding:5px 10px;cursor:pointer">✕</button></div>
+    <div id="fin-ai-chat" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px;min-height:80px"><div style="text-align:center;padding:14px"><span class="spin"></span></div></div>
+    <div style="display:flex;gap:7px"><input id="fin-ai-input" class="form-inp" placeholder="Explique pra IA por que editou…" style="flex:1" onkeydown="if(event.key==='Enter')finAiEnviar()"><button onclick="finAiEnviar()" style="background:linear-gradient(135deg,#059669,#10b981);border:none;border-radius:10px;padding:0 16px;color:#fff;font-weight:800;cursor:pointer">➤</button></div>
+  </div>`;
+  document.body.appendChild(ov);
+  await finAiChamar();
+}
+function finAiBubble(de,texto,veredito){
+  const box=document.getElementById('fin-ai-chat');if(!box)return;
+  if(box.querySelector('.spin'))box.innerHTML='';
+  const ia=de==='ia';
+  const cor=veredito==='ok'?'rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35)':veredito==='duvida'?'rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4)':'rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3)';
+  box.insertAdjacentHTML('beforeend',`<div style="align-self:${ia?'flex-start':'flex-end'};max-width:88%;background:${ia?cor:'rgba(255,255,255,.08)'};border-radius:12px;padding:9px 12px;font-size:12.5px;color:#e2e8f0;line-height:1.55">${ia?(veredito==='ok'?'✅ ':'🤔 '):''}${esc(texto)}</div>`);
+  box.scrollTop=box.scrollHeight;
+}
+async function finAiChamar(){
+  try{
+    const r=await fetch('/api/admin/fin/ai-review',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contexto:_aiRevCtx,conversa:_aiRevConversa})});
+    const d=await r.json().catch(()=>null);
+    if(!(r.ok&&d&&d.ok))throw new Error((d&&d.error)||'IA indisponível');
+    _aiRevConversa.push({de:'ia',texto:d.resposta});
+    finAiBubble('ia',d.resposta,d.veredito);
+  }catch(e){finAiBubble('ia','Não consegui revisar agora ('+e.message+'). A edição já está salva com histórico.',null);}
+}
+async function finAiEnviar(){
+  const inp=document.getElementById('fin-ai-input');const t=(inp.value||'').trim();if(!t)return;
+  inp.value='';_aiRevConversa.push({de:'admin',texto:t});finAiBubble('admin',t,null);
+  await finAiChamar();
 }
 async function finVerHistorico(){
   const ov=document.createElement('div');
@@ -8286,6 +8390,29 @@ function finVerDetalhes(idx, tipo){
       painel.appendChild(bar);
     }
   }catch(e){}
+  // Histórico de edições deste registro — "a janelinha embaixo"
+  try{
+    const painel2=overlay.querySelector('[onclick="event.stopPropagation()"]');
+    if(painel2&&item.id){
+      const hbox=document.createElement('div');
+      hbox.id='fin-det-hist';
+      hbox.style.cssText='margin-top:12px;padding-top:10px;border-top:1px dashed rgba(255,255,255,.12)';
+      hbox.innerHTML='<div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">🕘 Histórico de edições</div><div style="font-size:11.5px;color:var(--t3)">Carregando…</div>';
+      painel2.appendChild(hbox);
+      fetch('/api/admin/financeiro',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'get_alteracoes'})})
+        .then(r=>r.json()).then(d=>{
+          const alts=((d&&d.alteracoes)||[]).filter(a=>(a.antes&&a.antes.id===item.id)||(a.depois&&a.depois.id===item.id));
+          const inner=hbox.querySelector('div:last-child');
+          if(!alts.length){inner.innerHTML='<span style="color:var(--t3)">Nunca foi editado.</span>';return;}
+          inner.innerHTML=alts.map(a=>{
+            const vAntes=a.antes&&a.antes.valor!==undefined?('R$'+Number(a.antes.valor).toFixed(2)):null;
+            const vDep=a.depois&&a.depois.valor!==undefined?('R$'+Number(a.depois.valor).toFixed(2)):null;
+            const mud=vAntes&&vDep&&vAntes!==vDep?` <span style="font-family:monospace;color:#f87171">${vAntes}</span> → <span style="font-family:monospace;color:#34d399">${vDep}</span>`:'';
+            return `<div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:9px;padding:7px 10px;margin-bottom:6px;font-size:11.5px;line-height:1.5"><strong style="color:#fbbf24">✏️ ${esc(a.por||'?')}</strong> · ${new Date(a.em).toLocaleString('pt-BR')}${mud}<br><span style="color:var(--t2)">Motivo: ${esc(a.motivo||'—')}</span></div>`;
+          }).join('');
+        }).catch(()=>{const inner=hbox.querySelector('div:last-child');if(inner)inner.textContent='Erro ao carregar histórico.';});
+    }
+  }catch(e){}
   // Busca o comprovante no servidor sob demanda (a lista vem sem imagem).
   if(!item.img && item.id){
     fetch(`/api/admin/${isPag?'pagamento':'gasto'}/${encodeURIComponent(item.id)}`,{credentials:'include'})
@@ -8295,7 +8422,7 @@ function finVerDetalhes(idx, tipo){
         let src=null;
         if(rec&&rec.comprovante){ src=`data:${rec.comprovanteType||'image/jpeg'};base64,${rec.comprovante}`; }
         else if(rec&&rec.img){ src=rec.img; }
-        if(src){ box.innerHTML=`<img alt="" src="${src}" style="width:100%;max-height:260px;object-fit:contain;border-radius:12px;border:1px solid rgba(255,255,255,.1);margin-bottom:16px;cursor:zoom-in" onclick="finZoomImg(this.src)">`; }
+        if(src){ box.innerHTML=`<img alt="" src="${src}" style="width:100%;max-height:260px;object-fit:contain;border-radius:12px;border:1px solid rgba(255,255,255,.1);margin-bottom:8px;cursor:zoom-in" onclick="finZoomImg(this.src)"><a href="${src}" download="comprovante-${item.id}" style="display:block;text-align:center;font-size:12px;font-weight:700;color:#60a5fa;text-decoration:none;margin-bottom:12px">⬇️ Baixar comprovante</a>`; }
         else{ box.innerHTML='<div style="background:rgba(255,255,255,.04);border-radius:10px;padding:20px;text-align:center;color:var(--t3);font-size:13px;margin-bottom:16px"><i class="ti ti-photo-off" style="font-size:24px;display:block;margin-bottom:6px;opacity:.4"></i>Sem comprovante anexado</div>'; }
       }).catch(()=>{ const box=overlay.querySelector('#fin-det-comp-box'); if(box) box.innerHTML='<div style="color:var(--red);font-size:12px;text-align:center;margin-bottom:16px">Erro ao carregar comprovante</div>'; });
   }
