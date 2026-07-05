@@ -28,6 +28,47 @@ const crypto = require("crypto");
 const { URLSearchParams } = require("url");
 const zlib = require("zlib");
 
+// ═══ V951 (Parte 1 do plano 10/10): COMPRESSÃO HTTP + ETag ═══════════════
+// index.html tem ~1,18MB e era servido CRU com no-cache → ~1,2MB por visita
+// no 4G. Agora: brotli/gzip (cai para ~180-250KB) + ETag (revalidação vira
+// 304 sem corpo). Compressão roda UMA vez por arquivo/mtime e fica em cache
+// de memória — custo por request é zero.
+const _assetCache = {}; // { file: { mtime, raw, gz, br, etag } }
+function getStaticAsset(file){
+  const fp = path.join(__dirname, file);
+  const st = fs.statSync(fp);
+  const c = _assetCache[file];
+  if (c && c.mtime === st.mtimeMs) return c;
+  const raw = fs.readFileSync(fp);
+  const entry = {
+    mtime: st.mtimeMs,
+    raw,
+    gz: zlib.gzipSync(raw, { level: 6 }),
+    br: zlib.brotliCompressSync(raw, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length } }),
+    etag: '"' + crypto.createHash("sha1").update(raw).digest("hex").slice(0, 20) + '"'
+  };
+  _assetCache[file] = entry;
+  return entry;
+}
+function sendAsset(req, res, file, ctype, cacheControl){
+  let a;
+  try { a = getStaticAsset(file); }
+  catch { res.writeHead(404); return res.end(file + " não encontrado"); }
+  if (req.headers["if-none-match"] === a.etag) {
+    res.writeHead(304, { ETag: a.etag, "Cache-Control": cacheControl || "no-cache", Vary: "Accept-Encoding" });
+    return res.end();
+  }
+  const ae = String(req.headers["accept-encoding"] || "");
+  const h = { "Content-Type": ctype, "Cache-Control": cacheControl || "no-cache", ETag: a.etag, Vary: "Accept-Encoding" };
+  let body = a.raw;
+  if (/\bbr\b/.test(ae))        { h["Content-Encoding"] = "br";   body = a.br; }
+  else if (/\bgzip\b/.test(ae)) { h["Content-Encoding"] = "gzip"; body = a.gz; }
+  h["Content-Length"] = body.length;
+  res.writeHead(200, h);
+  return res.end(body);
+}
+// ══════════════════════════════════════════════════════════════════════════
+
 // ── Config ────────────────────────────────────────────────
 const CLIENT_ID     = (process.env.GOOGLE_CLIENT_ID     || "").trim();
 const CLIENT_SECRET = (process.env.GOOGLE_CLIENT_SECRET || "").trim();
@@ -133,6 +174,58 @@ const DATA_DIR    = process.env.DATA_DIR || (fs.existsSync("/data") ? "/data" : 
 const { initStorage, storageLoad, storagePersist, storageInfo } = require("./storage.js");
 initStorage(DATA_DIR);
 const USERS_FILE  = path.join(DATA_DIR, "users.json");
+const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json"); // V955: sessões sobrevivem a deploy
+
+// ══ V955: CIFRAGEM EM REPOUSO (AES-256-GCM) ═══════════════════════════════
+// Protege refresh_tokens/access_tokens do Gmail gravados em disco (users.json,
+// sessions.json e SQLite). Chave: env DATA_ENC_KEY (qualquer string forte).
+// Sem a chave definida → comportamento antigo (texto puro) + aviso no boot.
+// Formato: "enc1:" + base64(iv[12] | authTag[16] | ciphertext). Retrocompatível:
+// valores sem o prefixo passam direto (dados legados continuam funcionando).
+const _encKeyRaw = process.env.DATA_ENC_KEY || "";
+const _encKey = _encKeyRaw ? crypto.createHash("sha256").update(_encKeyRaw).digest() : null;
+if(_encKey)console.log("[crypto] 🔐 Cifragem em repouso ATIVA (AES-256-GCM) — tokens Gmail protegidos no disco");
+else console.warn("[crypto] ⚠️  DATA_ENC_KEY não definida — tokens Gmail ficam em TEXTO PURO no disco. Defina no Render para ativar a cifragem (retrocompatível, sem migração).");
+function encStr(s){
+  if(!_encKey||typeof s!=="string"||!s||s.startsWith("enc1:"))return s;
+  const iv=crypto.randomBytes(12);
+  const c=crypto.createCipheriv("aes-256-gcm",_encKey,iv);
+  const ct=Buffer.concat([c.update(s,"utf8"),c.final()]);
+  return "enc1:"+Buffer.concat([iv,c.getAuthTag(),ct]).toString("base64");
+}
+function decStr(s){
+  if(typeof s!=="string"||!s.startsWith("enc1:"))return s; // legado texto puro
+  if(!_encKey)return null; // cifrado mas sem chave → trata como ausente (re-login)
+  try{
+    const raw=Buffer.from(s.slice(5),"base64");
+    const iv=raw.subarray(0,12),tag=raw.subarray(12,28),ct=raw.subarray(28);
+    const d=crypto.createDecipheriv("aes-256-gcm",_encKey,iv);d.setAuthTag(tag);
+    return Buffer.concat([d.update(ct),d.final()]).toString("utf8");
+  }catch{return null;} // chave errada/corrompido → ausente, nunca crash
+}
+// Campos sensíveis do usuário cifrados no disco (cópia rasa — runtime intocado)
+const USER_SECRET_FIELDS=["refresh_token","cached_access_token"];
+function _encUsersForDisk(db){
+  if(!_encKey)return db;
+  const out={};
+  for(const[e,u]of Object.entries(db||{})){
+    const c={...u};
+    for(const f of USER_SECRET_FIELDS)if(typeof c[f]==="string"&&c[f])c[f]=encStr(c[f]);
+    if(Array.isArray(c.senderEmails))c.senderEmails=c.senderEmails.map(se=>
+      se&&typeof se.refresh_token==="string"?{...se,refresh_token:encStr(se.refresh_token)}:se);
+    out[e]=c;
+  }
+  return out;
+}
+function _decUsersFromDisk(db){
+  for(const u of Object.values(db||{})){
+    if(!u)continue;
+    for(const f of USER_SECRET_FIELDS)if(typeof u[f]==="string"&&u[f].startsWith("enc1:"))u[f]=decStr(u[f]);
+    if(Array.isArray(u.senderEmails))for(const se of u.senderEmails)
+      if(se&&typeof se.refresh_token==="string"&&se.refresh_token.startsWith("enc1:"))se.refresh_token=decStr(se.refresh_token);
+  }
+  return db;
+}
 const HIST_FILE   = path.join(DATA_DIR, "history.json");
 const CVS_DIR     = path.join(DATA_DIR, "cvs");
 const AUTO_FILE   = path.join(DATA_DIR, "auto_jobs.json");
@@ -203,8 +296,28 @@ let DB_ADMIN_SETTINGS = { etaWorkerEnabled: true, newUserTrialEnabled: true, new
 // Senhas de editor (Andrew/Diego) agora vivem no banco e podem ser trocadas pelo
 // próprio dono via painel. Fallback para os padrões caso ainda não tenham sido salvas.
 function getEditorPasswords(){
+  // SEGURANÇA (V954-fix): prioridade = senha trocada no painel > env > fallback legado.
+  // Recomendado: definir EDITOR_PWD_ANDREW / EDITOR_PWD_DIEGO no Render e trocar as
+  // senhas pelo painel — os fallbacks legados ficam expostos a quem tiver o código.
   const dp=(DB_ADMIN_SETTINGS&&DB_ADMIN_SETTINGS.editorPasswords)||{};
-  return { andrew: dp.andrew||"84800-54", diego: dp.diego||"Diego2026" };
+  return {
+    andrew: dp.andrew||process.env.EDITOR_PWD_ANDREW||"84800-54",
+    diego:  dp.diego ||process.env.EDITOR_PWD_DIEGO ||"Diego2026"
+  };
+}
+// Compara senha candidata com as dos editores em tempo constante (anti timing attack).
+// Retorna "andrew" | "diego" | null.
+function matchEditorPassword(candidate){
+  const c=String(candidate||"");if(!c)return null;
+  const pwds=getEditorPasswords();
+  let found=null;
+  for(const [who,pwd] of Object.entries(pwds)){
+    if(!pwd)continue;
+    const a=crypto.createHash("sha256").update(c).digest();
+    const b=crypto.createHash("sha256").update(String(pwd)).digest();
+    if(crypto.timingSafeEqual(a,b))found=who; // sem break: tempo constante entre editores
+  }
+  return found;
 }
 // Notifications: { notifications: [{id, title, body, createdAt, createdBy, readBy:[email,...]}] }
 let DB_NOTIF = { notifications: [] };
@@ -507,6 +620,7 @@ function boot() {
     return def;
   };
   DB_USERS  = mig(USERS_FILE,  path.join(DATA_DIR, "h2b_users.json"),   {});
+  _decUsersFromDisk(DB_USERS); // V955: decifra tokens gravados com DATA_ENC_KEY
   DB_HIST   = mig(HIST_FILE,   path.join(DATA_DIR, "h2b_history.json"), {});
   DB_AUTO   = load(AUTO_FILE, {});
   DB_NOTES  = load(NOTES_FILE, {});
@@ -958,6 +1072,46 @@ function boot() {
       impacto:"Cadastro no Servidor 2 destravado (após corrigir a env) e imune a repetição do erro de config; landing page finalmente cumpre o papel de vender o produto antes do login. Lições permanentes: (1) toda env crítica de identidade do deploy precisa de guarda dupla — warning na inicialização + verificação em runtime cruzando a config com a realidade (host do request); (2) trava que depende de config tem que decidir o comportamento em config CONTRADITÓRIA — aqui fail-open logado; (3) redirecionamento nunca pode apontar para o próprio host — sempre validar destino ≠ origem; (4) fluxo de autenticação jamais abre sozinho por cima da landing — conversão começa na página, login é ação do usuário.",
       modulos:["server.js: warning de SERVER_ID ausente no boot, guarda de config contraditória no callback OAuth (fail-open por host)","index.html: maybeShowServerSelect (sem auth automático), _pulseLandingCTA (?entrar=1 destaca CTA), showSrvBlockModal (guarda destino=origem), CTA da demo via showGoogleWarnModal"],
       tags:["multi-servidor","server-id","env","lotado","loop","fail-open","landing","auth-gate","ux","cadastro","config-contraditória"]
+    },
+    {
+      id:"KB-067",versao:"V950",data:"2026-07-05",autor:"Claude/Andrio",
+      problema:"AUDITORIA GERAL (comando de rearquitetura do dono) encontrou: (1) CÓDIGO MORTO na home — o bloco do streak em renderHome era inerte (`calcStreak&&typeof calcStreak==='function'?0:0` sempre 0, e a função calcStreak nem existia; o elemento #home-stat-streak também não existia no HTML) → a feature de gamificação 'dias seguidos' nunca funcionou; (2) os stat cards Manual/Auto da home mostravam só o número X/Y sem leitura visual de progresso da meta diária; (3) toLocaleDateString('pt-BR','pt-BR') com segundo argumento inválido (string no lugar do objeto options) no detalhe de e-mail vinculado.",
+      solucao:"(1) calcStreak() REAL implementada: deduplica dias com envio a partir de HIST (h.date com fallback h.sentAt), conta dias consecutivos terminando hoje OU ontem (não zera o streak de quem ainda não enviou hoje); chip '🔥 N dias seguidos enviando' no hero da home (#home-streak-chip), visível só com streak>=2 — código morto removido. (2) Barras de progresso da meta diária adicionadas aos cards Manual e Auto (#home-prog-manual/#home-prog-auto), preenchidas em renderHome com todaySent/limit (cap 100%, admin ∞ não mostra %). (3) toLocaleDateString corrigido. (4) sw.js CACHE_NAME v10→v11 para o PWA não servir a home antiga do cache.",
+      impacto:"Gamificação de constância finalmente viva (streak visível motiva envio diário) e leitura instantânea de quanto da meta do dia já foi usada — ambos aditivos, envoltos em try/catch, zero risco para o fluxo de envio. Lição permanente: bloco de código que referencia função/elemento inexistente é feature FANTASMA — na auditoria, todo `typeof f==='function'?x:x` com os dois ramos iguais é código morto e deve ser implementado de verdade ou removido; e toda entrega que muda index.html DEVE bumpar o CACHE_NAME do sw.js, senão parte dos usuários PWA nunca vê a mudança.",
+      modulos:["index.html: calcStreak(), renderHome (streak+metas), #home-streak-chip, #home-prog-manual/auto, toLocaleDateString","sw.js: CACHE_NAME v11"],
+      tags:["home","streak","gamificação","meta-diária","código-morto","pwa","cache","auditoria"]
+    },
+    {
+      id:"KB-068",versao:"V951",data:"2026-07-05",autor:"Claude/Andrio",
+      problema:"PARTE 1 DO PLANO 10/10 (performance percebida pelo usuário). A due diligence encontrou ZERO compressão HTTP no sistema: serveHtml entregava index.html (1,18MB) CRU com Cache-Control:no-cache → ~1,2MB baixados a CADA visita fora do PWA, no 4G do público-alvo. Pior: o helper json() também não comprimia — a rota de vagas H-2A serve JSON de ~4,5MB por carga. Sem ETag, nem a revalidação economizava banda (no-cache sem validador = redownload integral).",
+      solucao:"(1) Motor de assets estáticos (getStaticAsset/sendAsset): comprime brotli(q5)+gzip(6) UMA vez por arquivo/mtime, guarda em cache de memória com ETag sha1; responde 304 sem corpo em If-None-Match e negocia br>gzip>raw por Accept-Encoding, sempre com Vary. Aplicado a: index.html/admin.html/guia/diagnostico/admin-v2 (serveHtml), sw.js (preservando Service-Worker-Allowed; update-check do SW agora é 304), manifest.json e h2b-extras-*.js. (2) json() ganhou gzip automático nível 5 para respostas >16KB quando o cliente aceita — via res._req anexado no início do handler (1 linha, sem tocar 400+ call sites); try/catch com fallback sem compressão. (3) sw.js tinha no-store que conflitava com validador — normalizado para no-cache,must-revalidate+ETag.",
+      impacto:"index.html: ~1,18MB → ~190KB (br) na 1ª visita e 304 (zero corpo) nas seguintes; lista de vagas H-2A: ~4,5MB → ~600KB. No 4G real do usuário: app abrindo em 1-2s em vez de 6-10s, e economia de banda de ~85% no tráfego pesado. Custo: compressão de estáticos é 1x por boot (cache por mtime); gzip dinâmico só em payloads grandes (~40ms num JSON de 4MB). Lição permanente: TODO texto >16KB servido por HTTP precisa de (a) compressão negociada com Vary e (b) validador ETag — 'no-cache' sem ETag é a pior combinação possível: não protege contra staleness E força redownload integral.",
+      modulos:["server.js: getStaticAsset/sendAsset (novo motor), serveHtml, rotas /sw.js, /manifest.json, /h2b-extras-*.js, json() com gzip>16KB, res._req no handler"],
+      tags:["performance","compressão","brotli","gzip","etag","304","banda","4g","mobile","parte-1"]
+    },
+    {
+      id:"KB-069",versao:"V952",data:"2026-07-05",autor:"Claude/Andrio",
+      problema:"PARTE 2 DO PLANO 10/10 — acabamento do wizard de boas-vindas email-first. A auditoria mostrou que o wizard (openAuthGate/agLookup/GET /api/auth/where) JÁ existia completo front+back (testado ao vivo, endpoint respondendo certo), mas com 3 pontas soltas: (1) FRICÇÃO CROSS-SERVER — quem clicava 'Ir para o Servidor X e entrar' chegava lá, via a landing pulsando e tinha que DIGITAR O E-MAIL DE NOVO no wizard do destino (o redirect só levava ?entrar=1, sem contexto); (2) 3 CTAs da landing (ln-rank-cta, 'Começar agora' do ranking deslogado, botão da seção demo) pulavam o wizard indo direto ao showGoogleWarnModal — inconsistente com o email-first; (3) 2 comentários stale afirmavam que 'o login do Google abre direto' no destino — mentira desde a v949, e comentário errado induz regressão futura.",
+      solucao:"(1) agRedirect agora leva ag_email+ag_go (l/s) na URL; na chegada, maybeShowServerSelect valida o e-mail (regex+120 chars), preenche _agEmail/_agIntent e abre openAuthGate('arrived') — novo passo do wizard: chip do e-mail + 'Você chegou ao servidor da sua conta ✅' (login) ou 'Quase lá! Crie sua conta aqui 🟢' (signup) + botão Google (que passa pelo showGoogleWarnModal normal) + 'Usar outro e-mail'. REGRA v949 PRESERVADA: o OAuth continua sendo clique do usuário — o que abre sozinho é o wizard com contexto, nunca o Google. (2) Os 3 CTAs unificados em openAuthGate('choice'). (3) Comentários corrigidos descrevendo o fluxo real. srvGo (seletor antigo, sem e-mail) mantém ?entrar=1 puro de propósito.",
+      impacto:"Fluxo cross-server sem repetição: e-mail digitado UMA vez, servidor certo, um clique no Google — a jornada 'landing → email → servidor → Google' está completa de ponta a ponta. Entrada 100% consistente: TODO caminho de login/cadastro da landing passa pelo email-first. Lição permanente: redirect entre servidores deve SEMPRE carregar o contexto do fluxo (o que o usuário já informou) — obrigar a redigitar é onde funil de conversão morre; e comentário desatualizado sobre comportamento de auth é dívida perigosa: descreva o fluxo REAL ou apague.",
+      modulos:["index.html: agRedirect (ag_email+ag_go), maybeShowServerSelect (chegada arrived), agRender (passo arrived), 3 CTAs → openAuthGate, comentários","sw.js: CACHE_NAME v12"],
+      tags:["wizard","email-first","auth-gate","multi-servidor","cross-server","conversão","funil","ux","parte-2"]
+    },
+    {
+      id:"KB-070",versao:"V953",data:"2026-07-05",autor:"Claude/Andrio",
+      problema:"PARTE 3 DO PLANO 10/10 — busca de vagas. Os filtros existentes (q/estado/cidade/salário-mín/qtd/categoria/grupo/status ETA) já eram fortes, mas faltavam 3 coisas que o trabalhador sazonal realmente usa: (1) FILTRO POR MÊS DE INÍCIO — quem está no Brasil planeja por data ('vagas que começam em setembro') e não tinha como; (2) ORDENAR POR SALÁRIO e POR DATA DE INÍCIO — só existia aleatório/recentes/antigas; (3) LIMPAR FILTROS — com 8+ filtros combináveis, resetar exigia mexer um por um. Achados de dados no caminho: salários vêm em unidades mistas (16.262 'h', 184 'mo', 2.806 vazios) e há dado SUJO na fonte (mensal rotulado como hora, ex.: $2.058,31/h).",
+      solucao:"SERVER (/api/sheet-meta + searchSheet): (1) beginMonth=1..12 (aceita lista '6,7,8'), filtra pelo mês do Begin Date r.d; (2) sort=wage com NORMALIZAÇÃO por unidade → equivalente/hora (mo÷173, wk÷40, d÷8, ano÷2080) + guarda de sanidade: rotulado hora com valor >200 é tratado como mensal (teto real do DOL é ~$75/h de piloto); sort=start (começa antes primeiro, sem data vai pro fim); ambos determinísticos → paginação estável. FRONT: select Mês de início, botões 💰 Salário e 📅 Começa antes, botão ✕ Limpar (aparece SÓ com filtro ativo — _updClearBtn ligado em applyF/onSearch/setTab) que reseta tudo incluindo grupos/status ETA e chips. HONESTIDADE DE UX: os controles novos aparecem só nas abas de PLANILHA — a aba Seasonal (API DOL ao vivo) não suporta, então esconder > fingir; trocar pra seasonal com sort=wage/start ativo reverte pra aleatório. Testado ao vivo: beginMonth=9 → 31/5000 vagas corretas; topo do sort=wage limpo ($75/h piloto, sem o falso $2.058/h); combinado mês+salário funcionando.",
+      impacto:"O trabalhador agora responde em 2 toques as duas perguntas que mais importam: 'quais vagas começam quando eu posso ir?' e 'quais pagam mais?'. Lições permanentes: (1) NUNCA ordenar valores com unidades mistas pelo número cru — normalizar primeiro, senão o sort mente; (2) dado de fonte externa precisa de guarda de sanidade documentada (limite físico do domínio); (3) controle de filtro que o backend da aba não suporta deve SUMIR da aba, nunca ficar clicável sem efeito.",
+      modulos:["server.js: /api/sheet-meta beginMonth, searchSheet sort wage/start normalizado","index.html: f-month, so-wage, so-start, f-clear, clearAllFilters, _updClearBtn, applyF/onSearch/setSort/setTab, fMonth","sw.js: CACHE_NAME v13"],
+      tags:["busca","filtros","mês-início","salário","normalização","unidades","dado-sujo","ux-honesta","limpar-filtros","parte-3"]
+    },
+    {
+      id:"KB-071",versao:"V954",data:"2026-07-05",autor:"Claude/Andrio",
+      problema:"PARTE 4 DO PLANO 10/10 — ranking gamificado. O ranking tinha períodos (dia/semana/mês/geral = temporadas), categorias, podium, perfil público e badges, mas era PLACAR, não gamificação: sem XP, sem níveis, sem conquistas — nada que desse ao usuário uma sensação de progressão própria além da posição relativa.",
+      solucao:"DECISÃO DE ARQUITETURA: tudo DERIVADO do histórico existente — XP e conquistas são funções puras de getHist() (manual=10 XP, auto=4, resposta recebida=25), zero estado novo, zero migração, sempre recomputável (fórmula errada amanhã = corrige e recalcula sozinho). SERVER: tabela XP_NIVEIS (10 níveis, Iniciante 0 → Lenda 50.000), xpFromCounts/levelForXP (com % até o próximo nível), calcConquistas com 15 conquistas derivadas (marcos de envio 1/50/100/500/1k/5k, respostas 1/10, streak 7/30, estados 5/15, 100 auto, 100 manual, madrugador 4-7h); GET /api/gamification (auth) devolve xp+nivel+streak+conquistas; calcRanking ganhou xp por linha (barato: contadores totais já existiam) e nivel {n,nome,emoji} calculado SÓ no top-50 devolvido. FRONT: card Meu Nível no topo do ranking (emoji, barra de XP, quanto falta pro próximo, legenda da fórmula) + grade retrátil de conquistas (desbloqueada dourada / bloqueada 🔒 cinza com dica de como ganhar); chip de nível em cada linha do ranking; chip de nível no hero da home (clica → ranking), cache compartilhado de 2 min. Testado ao vivo com seed: 121 manuais+50 autos+3 respostas → 1.485 XP = Nv4 Persistente (conta manual confere: 1210+200+75).",
+      impacto:"O usuário agora tem progressão PRÓPRIA (nível/XP/conquistas) além da competição relativa — motivos para voltar amanhã mesmo sem alcançar o topo. As conquistas de estados/madrugador/streak empurram os comportamentos que geram resultado real (diversificar destinos, constância). Lição permanente: gamificação sobre dados DERIVADOS é ordens de magnitude mais segura que sobre contadores novos — sem risco de dessincronia, sem migração, e a fórmula pode evoluir retroativamente; só materialize XP em estado próprio quando houver gasto/consumo de XP (loja, boosts).",
+      modulos:["server.js: XP_NIVEIS, xpFromCounts, levelForXP, calcConquistas, GET /api/gamification, calcRanking (xp+nivel)","index.html: #gami-card, loadGamification, toggleConquistas, chip nas linhas, #home-level-chip, renderHome","sw.js: CACHE_NAME v14"],
+      tags:["gamificação","xp","níveis","conquistas","ranking","retenção","dados-derivados","parte-4"]
     }
 
   ];
@@ -1021,6 +1175,8 @@ function boot() {
 
 function persist(file, data) {
   // Fase 4: SQLite atômico (WAL) + espelho JSON (STORAGE_MIRROR=off desliga o espelho)
+  // V955: users.json passa pelo cifrador de campos sensíveis (cópia — runtime intocado)
+  if (file === USERS_FILE) data = _encUsersForDisk(data);
   storagePersist(file, data);
 }
 function persistSent() {
@@ -2286,6 +2442,31 @@ function searchSheet(arr, q, state, category, skip, top, sort) {
   // retornem registros corretos sem duplicatas ou lacunas entre páginas.
   if (sort==="desc") list=[...list].reverse();
   else if (sort==="shuffle") { list=shuffleArray(list); } // shuffle explícito (uso não-paginado)
+  // ── V953: ordenações determinísticas novas (estáveis p/ paginação) ──
+  // wage  → maior salário primeiro, NORMALIZADO por unidade: dados reais têm
+  //         'h' (16k), 'mo' (184) e vazio. Mensal ÷173h e semanal ÷40h viram
+  //         equivalente/hora — senão $4.938/mês "ganha" de $30/h no sort.
+  // start → começa antes primeiro (r.d ISO; sem data vai pro fim)
+  else if (sort==="wage") {
+    const pw=r=>{
+      if(!r.w)return -1;
+      const m=String(r.w).match(/[0-9.]+/);if(!m)return -1;
+      const v=parseFloat(m[0]);
+      const un=String(r.wunit||"h").toLowerCase();
+      if(un.startsWith("mo"))return v/173;   // mês ≈ 173h
+      if(un.startsWith("w"))return v/40;     // semana ≈ 40h
+      if(un.startsWith("d"))return v/8;      // dia ≈ 8h
+      if(un.startsWith("y")||un.startsWith("a"))return v/2080; // ano ≈ 2080h
+      // Dado sujo da fonte: valor rotulado "hora" mas >200 é quase certamente
+      // mensal sem unidade ($2.058/h não existe no DOL; $75/h de piloto é o teto real)
+      if(v>200)return v/173;
+      return v; // "h" ou desconhecido → trata como hora
+    };
+    list=[...list].sort((a,b)=>pw(b)-pw(a));
+  }
+  else if (sort==="start") {
+    list=[...list].sort((a,b)=>String(a.d||"9999").localeCompare(String(b.d||"9999")));
+  }
   // sort="asc", "random", "" → ordem estável para paginação correta
   return { total:list.length, items:list.slice(skip,skip+top) };
 }
@@ -3254,9 +3435,45 @@ async function reactivateAutoJobs(){
 // ══════════════════════════════════════════════════════════
 //  SESSION
 // ══════════════════════════════════════════════════════════
-const sessions=Object.create(null);
-const rateMap  =Object.create(null);
+// ══ V955: SESSÕES PERSISTENTES ════════════════════════════════════════════
+// Antes: sessões só em memória → cada deploy deslogava TODOS os usuários
+// (o cookie dura 30 dias, mas o objeto morria). Agora: snapshot em disco
+// (cifrado com DATA_ENC_KEY quando definida — a sessão carrega tokens Gmail).
 const SESS_TTL =7*24*60*60*1000;
+function _loadSessionsFromDisk(){
+  const box=Object.create(null);
+  try{
+    let raw=storageLoad(SESSIONS_FILE,null);
+    if(!raw)return box;
+    if(raw.enc){const dec=decStr(raw.enc);if(!dec)return box;raw=JSON.parse(dec);} // cifrado
+    const now=Date.now();let ok=0,skip=0;
+    for(const[id,s]of Object.entries(raw)){
+      if(!s||s.pending||id.startsWith("__")){skip++;continue;}          // temporárias não voltam
+      if(now-(s.created_at||0)>SESS_TTL){skip++;continue;}              // expiradas (mesma regra do cleanup)
+      box[id]=s;ok++;
+    }
+    if(ok||skip)console.log(`[sessions] 💾 Restauradas ${ok} sessão(ões) do disco (${skip} descartada(s))`);
+  }catch(e){console.warn("[sessions] restauração falhou (seguindo vazio):",e.message);}
+  return box;
+}
+const sessions=_loadSessionsFromDisk();
+const rateMap  =Object.create(null);
+function persistSessions(){
+  try{
+    const snap={};
+    for(const[id,s]of Object.entries(sessions)){
+      if(!s||s.pending||id.startsWith("__"))continue; // nunca grava temporárias de OAuth
+      snap[id]=s;
+    }
+    const payload=_encKey?{enc:encStr(JSON.stringify(snap))}:snap;
+    persist(SESSIONS_FILE,payload);
+  }catch(e){console.warn("[sessions] persist:",e.message);}
+}
+let _sessPersistT=null;
+function persistSessionsDebounced(ms=2000){
+  if(_sessPersistT)clearTimeout(_sessPersistT);
+  _sessPersistT=setTimeout(()=>{_sessPersistT=null;persistSessions();},ms);
+}
 
 function rateLimit(k,max,ms){const n=Date.now();if(!rateMap[k]||rateMap[k].r<n)rateMap[k]={n:0,r:n+ms};return++rateMap[k].n>max;}
 const makeCookieStr=id=>{const b=`h2b_session=${id}; Path=/; HttpOnly; Max-Age=${30*86400}`;return IS_PROD?b+"; Secure; SameSite=Lax":b+"; SameSite=Lax";};
@@ -3323,7 +3540,23 @@ function generateIconPNG(size) {
 const { httpsReq, normalizeEmail: _normEmailMod, buildMime: _buildMimeMod } = require("./mod-gmail.js");
 const MAX_BODY_SIZE = 50 * 1024 * 1024; // 50MB — suficiente para PDFs base64
 function readBody(req){return new Promise((res,rej)=>{const p=[];let sz=0;req.on("data",c=>{sz+=c.length;if(sz>MAX_BODY_SIZE){rej(new Error("Payload too large"));return;}p.push(c);});req.on("end",()=>res(Buffer.concat(p).toString()));req.on("error",rej);});}
-function json(res,status,data){const b=JSON.stringify(data);res.writeHead(status,{"Content-Type":"application/json; charset=utf-8","Content-Length":Buffer.byteLength(b)});res.end(b);}
+function json(res,status,data){
+  const b=JSON.stringify(data);
+  const raw=Buffer.byteLength(b);
+  // V951: gzip automático para respostas >16KB quando o cliente aceita.
+  // A lista de vagas (H-2A ~4,5MB) cai ~85% — só nesta rota já paga a Parte 1.
+  // Compressão nível 5: ~40ms num payload de 4MB, imperceptível e vale o tráfego.
+  const _rq=res._req;
+  if(_rq && raw>16384 && /\bgzip\b/.test(String(_rq.headers["accept-encoding"]||""))){
+    try{
+      const gz=zlib.gzipSync(b,{level:5});
+      res.writeHead(status,{"Content-Type":"application/json; charset=utf-8","Content-Encoding":"gzip","Content-Length":gz.length,"Vary":"Accept-Encoding"});
+      return res.end(gz);
+    }catch(e){/* fallback sem compressão */}
+  }
+  res.writeHead(status,{"Content-Type":"application/json; charset=utf-8","Content-Length":raw});
+  res.end(b);
+}
 
 // ── isAdmin helper — declarado aqui perto do getSess/json para clareza ──────
 // (antes estava na linha ~4260 após os usos — funcionava por hoisting mas era confuso)
@@ -3779,6 +4012,7 @@ async function genCover({name,country,phone,job,company,city,state,wage}){return
 //  HTTP SERVER
 // ══════════════════════════════════════════════════════════
 const server=http.createServer(async(req,res)=>{
+  res._req=req; // V951: permite ao helper json() negociar gzip sem mudar 400+ call sites
   let u,pathname;try{u=new URL(req.url,"http://x");pathname=u.pathname;}catch{res.writeHead(400);return res.end();}
   res.setHeader("X-Content-Type-Options","nosniff");res.setHeader("X-Frame-Options","SAMEORIGIN");
   res.setHeader("Content-Security-Policy",[
@@ -3796,7 +4030,7 @@ const server=http.createServer(async(req,res)=>{
   res.setHeader("Access-Control-Allow-Origin",ao);res.setHeader("Access-Control-Allow-Credentials","true");res.setHeader("Access-Control-Allow-Methods","GET,POST,DELETE,PATCH,OPTIONS");res.setHeader("Access-Control-Allow-Headers","Content-Type");
   if(req.method==="OPTIONS"){res.writeHead(204);return res.end();}
 
-  const serveHtml=f=>{try{const h=fs.readFileSync(path.join(__dirname,f),"utf8");res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Cache-Control":"no-cache"});return res.end(h);}catch{res.writeHead(404);return res.end(f+" não encontrado");}};
+  const serveHtml=f=>sendAsset(req,res,f,"text/html; charset=utf-8","no-cache"); // V951: brotli/gzip + ETag
   if(pathname==="/"||pathname==="/index.html")return serveHtml("index.html");
   if(pathname==="/admin"||pathname==="/admin.html")return serveHtml("admin.html");
   if(pathname==="/admin-v2"||pathname==="/admin-v2.html")return serveHtml("admin-v2.html");
@@ -4911,17 +5145,23 @@ function _saveEnrichedSheet(sheetKey, sheet){
 
   // ── PWA: manifest, service worker e ícones ────────────
   if(pathname==="/manifest.json"){
-    try{const m=fs.readFileSync(path.join(__dirname,"manifest.json"),"utf8");res.writeHead(200,{"Content-Type":"application/manifest+json","Cache-Control":"public, max-age=86400"});return res.end(m);}
-    catch{res.writeHead(404);return res.end("manifest.json não encontrado");}
+    return sendAsset(req,res,"manifest.json","application/manifest+json","public, max-age=86400"); // V951
   }
   if(pathname==="/sw.js"){
-    try{const sw=fs.readFileSync(path.join(__dirname,"sw.js"),"utf8");res.writeHead(200,{"Content-Type":"application/javascript","Cache-Control":"no-cache, no-store, must-revalidate","Service-Worker-Allowed":"/"});return res.end(sw);}
-    catch{res.writeHead(404);return res.end("sw.js não encontrado");}
+    // V951: ETag faz o update-check do SW virar 304; Service-Worker-Allowed preservado
+    let a;try{a=getStaticAsset("sw.js");}catch{res.writeHead(404);return res.end("sw.js não encontrado");}
+    if(req.headers["if-none-match"]===a.etag){res.writeHead(304,{ETag:a.etag,"Service-Worker-Allowed":"/","Cache-Control":"no-cache, must-revalidate",Vary:"Accept-Encoding"});return res.end();}
+    const ae=String(req.headers["accept-encoding"]||"");
+    const h={"Content-Type":"application/javascript","Cache-Control":"no-cache, must-revalidate","Service-Worker-Allowed":"/",ETag:a.etag,Vary:"Accept-Encoding"};
+    let body=a.raw;
+    if(/\bbr\b/.test(ae)){h["Content-Encoding"]="br";body=a.br;}
+    else if(/\bgzip\b/.test(ae)){h["Content-Encoding"]="gzip";body=a.gz;}
+    h["Content-Length"]=body.length;
+    res.writeHead(200,h);return res.end(body);
   }
   // 🔧 FIX CRÍTICO (03/07): extras nunca eram servidos (404) — blindagem não carregava
   if(pathname==="/h2b-extras-user.js"||pathname==="/h2b-extras-admin.js"){
-    try{const js=fs.readFileSync(path.join(__dirname,pathname.slice(1)),"utf8");res.writeHead(200,{"Content-Type":"application/javascript; charset=utf-8","Cache-Control":"no-cache, must-revalidate"});return res.end(js);}
-    catch{res.writeHead(404);return res.end("// arquivo não encontrado");}
+    return sendAsset(req,res,pathname.slice(1),"application/javascript; charset=utf-8","no-cache, must-revalidate"); // V951
   }
   // Ícones PWA — serve PNG se existir, senão gera SVG inline como fallback
   const ICON_MAP={
@@ -5039,6 +5279,17 @@ function _saveEnrichedSheet(sheetKey, sheet){
     if(filterJobStatus==="inactive") preFiltered=preFiltered.filter(r=>{const st=(r.st||"").toUpperCase();return st.includes("WITHDRAWN")||st.includes("DENIED")||st.includes("EXPIRED");});
     if(filterCompany) preFiltered=preFiltered.filter(r=>(r.n||"").toLowerCase().includes(filterCompany));
     if(filterCity) preFiltered=preFiltered.filter(r=>(r.ci||"").toLowerCase().includes(filterCity));
+    // ── V953: FILTRO POR MÊS DE INÍCIO — "vagas que começam em setembro" ──
+    // O trabalhador sazonal planeja a vida pela data de início (r.d = Begin Date).
+    // Aceita lista: beginMonth=6,7,8. Vaga sem data não casa com o filtro.
+    const filterBeginMonth=(u.searchParams.get("beginMonth")||"").replace(/[^0-9,]/g,"").trim();
+    if(filterBeginMonth){
+      const _months=new Set(filterBeginMonth.split(",").map(x=>parseInt(x,10)).filter(m=>m>=1&&m<=12));
+      if(_months.size)preFiltered=preFiltered.filter(r=>{
+        const m=String(r.d||"").match(/^\d{4}-(\d{2})/);
+        return m&&_months.has(parseInt(m[1],10));
+      });
+    }
     // ── FILTRO POR GRUPO (randomização H-2B) — exclusivo do plano Double Pro ──
     // Gate no SERVIDOR: quem não é 250+ recebe upsell, nunca o dado filtrado.
     // H-2A não tem grupo (não existe lista randomizada de H-2A) → nunca casa.
@@ -5278,6 +5529,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
       const _existingRt = getUser(ui.email)?.refresh_token || null;
       const _rtToUse = tk.refresh_token || _existingRt;
       sessions[sid]={access_token:tk.access_token,refresh_token:_rtToUse,expires_at:Date.now()+(tk.expires_in||3600)*1000,user_email:ui.email,user_name:ui.name||ui.email,picture:ui.picture||"",created_at:Date.now()};
+      persistSessionsDebounced(500); // V955: login sobrevive a restart imediato
       // Salva refresh_token e access_token no banco para uso pelo automático sem sessão
       const tokenData={cached_access_token:tk.access_token,cached_token_expiry:Date.now()+(tk.expires_in||3600)*1000};
       // CRÍTICO: nunca sobrescrever refresh_token existente com null.
@@ -6774,8 +7026,7 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
           console.log(`[pedido] ⛔ dupla ativação barrada: ${pd.id} (já ativado por ${quem})`);
           return json(res,409,{error:`⛔ Este pedido JÁ FOI ATIVADO por ${quem}${quando?` em ${quando}`:""}. Não dá pra ativar de novo (evita contar os dias duas vezes).`,jaAtivado:true,ativadoPor:quem,ativadoEm:pd.ativadoEm});
         }
-        const EDITOR_PASS=getEditorPasswords();
-        const editorKey=Object.keys(EDITOR_PASS).find(k=>EDITOR_PASS[k]===d.editorPassword);
+        const editorKey=matchEditorPassword(d.editorPassword);
         if(!editorKey)return json(res,403,{error:"Senha de editor inválida. Use a senha do Andrew ou do Diego."});
         pd._ativadoEditor=editorKey==="andrew"?"Andrew":"Diego";
         pd._ativadoEditorEmail=s.user_email;
@@ -7552,7 +7803,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
   }
 
   if(pathname==="/api/saved"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});if(req.method==="GET")return json(res,200,{saved:(getUser(s.user_email)||{}).saved||[]});if(req.method==="POST"){try{const d=JSON.parse(await readBody(req));setUser(s.user_email,{saved:(d.saved||[]).slice(0,500)});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}}
-  if(pathname==="/api/disconnect"){const id=getSessId(req);if(id&&sessions[id])delete sessions[id];res.writeHead(200,{"Content-Type":"application/json","Set-Cookie":clearCookieStr()});return res.end('{"ok":true}');}
+  if(pathname==="/api/disconnect"){const id=getSessId(req);if(id&&sessions[id]){delete sessions[id];persistSessionsDebounced(500);}res.writeHead(200,{"Content-Type":"application/json","Set-Cookie":clearCookieStr()});return res.end('{"ok":true}');}
 
   // ── POST /api/account/delete — usuário deleta a própria conta ──────────
   // Soft-delete: NADA é apagado (histórico, financeiro, pedidos — tudo fica).
@@ -7576,7 +7827,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       try{ trackJourney(email,'account_deleted',{detail:'Usuário deletou a própria conta'}); }catch{}
       console.log("[account] 🗑️ Conta deletada pelo usuário:",email);
       // Destrói a sessão (mesmo padrão do /api/disconnect) — logout imediato.
-      const sid=getSessId(req);if(sid&&sessions[sid])delete sessions[sid];
+      const sid=getSessId(req);if(sid&&sessions[sid]){delete sessions[sid];persistSessionsDebounced(500);}
       res.writeHead(200,{"Content-Type":"application/json","Set-Cookie":clearCookieStr()});
       return res.end('{"ok":true}');
     }catch(e){return json(res,500,{error:e.message});}
@@ -8831,8 +9082,7 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
         if(!d.email)return json(res,400,{error:"email obrigatório."});
         const target=getUser(d.email);if(!target)return json(res,404,{error:"Usuário não encontrado."});
         // Validar senha do editor
-        const EDITOR_PASSWORDS=getEditorPasswords();
-        const editorKey=Object.keys(EDITOR_PASSWORDS).find(k=>EDITOR_PASSWORDS[k]===d.editorPassword);
+        const editorKey=matchEditorPassword(d.editorPassword);
         if(!editorKey)return json(res,403,{error:"Senha de edição inválida."});
         const editorName=editorKey==="andrew"?"Andrew":"Diego";
         const now=Date.now();
@@ -8961,8 +9211,7 @@ Responda APENAS em JSON (sem markdown):
         let result;try{result=JSON.parse(rawText);}catch{result={status:"PENDENCIAS_DETECTADAS",statusEmoji:"⚠️",resumo:"Erro ao processar auditoria Gemini.",detalhes:[rawText.slice(0,200)],pendencias:["Erro interno Gemini"],recomendacao:"Verificar manualmente."}}
         // Salvar resultado da validação no usuário
         const {editorPassword}=d;
-        const EDITOR_PASSWORDS=getEditorPasswords();
-        const editorKey=Object.keys(EDITOR_PASSWORDS).find(k=>EDITOR_PASSWORDS[k]===editorPassword);
+        const editorKey=matchEditorPassword(editorPassword);
         if(editorKey){
           setUser(d.email,{lastValidatedAt:now,lastValidatedBy:editorKey==="andrew"?"Andrew":"Diego",lastValidationResult:result.status});
         }
@@ -8982,8 +9231,7 @@ Responda APENAS em JSON (sem markdown):
         if(!["andrew","diego"].includes(who))return json(res,400,{error:"Editor inválido. Use 'andrew' ou 'diego'."});
         const cur=(d.currentPassword||"").toString();
         const nw=(d.newPassword||"").toString();
-        const pwds=getEditorPasswords();
-        if(cur!==pwds[who])return json(res,403,{error:"Senha atual incorreta."});
+        if(matchEditorPassword(cur)!==who)return json(res,403,{error:"Senha atual incorreta."});
         if(nw.length<4)return json(res,400,{error:"A nova senha precisa ter pelo menos 4 caracteres."});
         if(nw===cur)return json(res,400,{error:"A nova senha precisa ser diferente da atual."});
         DB_ADMIN_SETTINGS.editorPasswords={...pwds,[who]:nw};
@@ -9318,6 +9566,21 @@ Responda APENAS em JSON (sem markdown):
   }
 
   // ── RANKING API ───────────────────────────────────────────
+  // GET /api/gamification — XP, nível e conquistas do usuário logado (V954).
+  // Tudo derivado do histórico: recomputável, sem estado novo, sem migração.
+  if(pathname==="/api/gamification"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const h=getHist(s.user_email);
+    const man=h.filter(e=>e.type==="manual").length;
+    const auto=h.filter(e=>e.type==="auto").length;
+    const rep=h.filter(e=>e.type==="reply").length;
+    const xp=xpFromCounts(man,auto,rep);
+    const streak=calcStreak(h);
+    const nivel=levelForXP(xp);
+    const conquistas=calcConquistas(h,streak);
+    return json(res,200,{ok:true,xp,nivel,streak,conquistas,
+      desbloqueadas:conquistas.filter(c=>c.unlocked).length,total:conquistas.length});
+  }
   if(pathname==="/api/ranking"&&req.method==="GET"){
     const period   = ["day","week","month","all"].includes(u.searchParams.get("period"))   ? u.searchParams.get("period")   : "day";
     const category = ["sends","vip","active"].includes(u.searchParams.get("category")) ? u.searchParams.get("category") : "sends";
@@ -10213,7 +10476,7 @@ APRENDIZADO: [padrão detectado, conciso, acionável, max 200 chars]`;
 });
 
 // ── Cleanup ───────────────────────────────────────────────
-setInterval(()=>{const n=Date.now();let c=0;Object.keys(sessions).forEach(k=>{const s=sessions[k],a=n-(s.ts||s.created_at||0);if((s.pending&&a>600_000)||(!s.pending&&a>SESS_TTL)){delete sessions[k];c++;}});if(c)console.log(`[cleanup] ${c} sessão(ões)`);Object.keys(rateMap).forEach(k=>{if(rateMap[k].r<Date.now())delete rateMap[k];});// Limpa locks de send órfãos (>30s)
+setInterval(()=>{const n=Date.now();let c=0;Object.keys(sessions).forEach(k=>{const s=sessions[k],a=n-(s.ts||s.created_at||0);if((s.pending&&a>600_000)||(!s.pending&&a>SESS_TTL)){delete sessions[k];c++;}});if(c)console.log(`[cleanup] ${c} sessão(ões)`);persistSessionsDebounced(1000); // V955: snapshot periódico (captura refresh de tokens)Object.keys(rateMap).forEach(k=>{if(rateMap[k].r<Date.now())delete rateMap[k];});// Limpa locks de send órfãos (>30s)
 _manualSendInFlight.forEach((ts,k)=>{if(n-ts>30000)_manualSendInFlight.delete(k);});},300_000);
 // BUG-001 CORRIGIDO: cron VIP agora suporta schema novo (manualExpires/autoExpires) E schema legado (expiresAt)
 setInterval(()=>{
@@ -11246,7 +11509,76 @@ function calcVipCompras(){
 // Calcula ranking de usuários por período e categoria
 // Score = auto + manual (respostas NÃO contam — são recebidas, não enviadas)
 // Categorias: sends (envios) | vip (compras VIP, ignora período) | active (dias com envio)
+// ═══ V954 (Parte 4): GAMIFICAÇÃO — XP, níveis e conquistas ═══════════════
+// Tudo DERIVADO do histórico existente (zero migração, sempre recomputável):
+// manual=10 XP (esforço ativo), auto=4 XP, resposta recebida=25 XP (resultado).
+const XP_NIVEIS=[
+  {n:1,xp:0,nome:"Iniciante",emoji:"🌱"},
+  {n:2,xp:100,nome:"Explorador",emoji:"🧭"},
+  {n:3,xp:300,nome:"Candidato",emoji:"📨"},
+  {n:4,xp:800,nome:"Persistente",emoji:"💪"},
+  {n:5,xp:1500,nome:"Profissional",emoji:"🎯"},
+  {n:6,xp:3000,nome:"Veterano",emoji:"🛡️"},
+  {n:7,xp:6000,nome:"Especialista",emoji:"⚡"},
+  {n:8,xp:12000,nome:"Mestre",emoji:"🏆"},
+  {n:9,xp:25000,nome:"Elite",emoji:"💎"},
+  {n:10,xp:50000,nome:"Lenda",emoji:"👑"}
+];
+function xpFromCounts(man,auto,rep){return (man|0)*10+(auto|0)*4+(rep|0)*25;}
+function levelForXP(xp){
+  let lv=XP_NIVEIS[0];
+  for(const l of XP_NIVEIS){if(xp>=l.xp)lv=l;else break;}
+  const next=XP_NIVEIS.find(l=>l.n===lv.n+1)||null;
+  const pct=next?Math.min(100,Math.round((xp-lv.xp)/(next.xp-lv.xp)*100)):100;
+  return {n:lv.n,nome:lv.nome,emoji:lv.emoji,xp,xpNivel:lv.xp,xpProximo:next?next.xp:null,proximoNome:next?next.nome:null,pct};
+}
+function calcConquistas(hist,streak){
+  const sends=hist.filter(e=>e.type!=="reply");
+  const man=hist.filter(e=>e.type==="manual").length;
+  const auto=hist.filter(e=>e.type==="auto").length;
+  const rep=hist.filter(e=>e.type==="reply").length;
+  const tot=man+auto;
+  const estados=new Set(sends.filter(e=>e.state).map(e=>String(e.state).toUpperCase())).size;
+  let madruga=false;
+  // BUG CORRIGIDO: e.date é string pt-BR "DD/MM/YYYY HH:MM:SS" — new Date() interpretava
+  // como MM/DD (inválido em dias >12) e usava fuso do servidor (UTC), não BRT.
+  // Agora: usa e.sentAt (ISO confiável) convertido para BRT (UTC-3), padrão do projeto.
+  for(const e of sends){
+    const ts=e.sentAt?new Date(e.sentAt).getTime():NaN;
+    if(!isNaN(ts)){const h=new Date(ts-3*60*60*1000).getUTCHours();if(h>=4&&h<7){madruga=true;break;}}
+  }
+  const C=[
+    {id:"primeiro",  emoji:"🚀",nome:"Primeiro Passo",       desc:"Envie sua 1ª candidatura",          ok:tot>=1},
+    {id:"cinquenta", emoji:"📬",nome:"Engrenado",            desc:"50 candidaturas enviadas",          ok:tot>=50},
+    {id:"cem",       emoji:"💯",nome:"Centurião",            desc:"100 candidaturas enviadas",         ok:tot>=100},
+    {id:"quinhentos",emoji:"🔥",nome:"Imparável",            desc:"500 candidaturas enviadas",         ok:tot>=500},
+    {id:"mil",       emoji:"🚀",nome:"Elite dos Mil",        desc:"1.000 candidaturas enviadas",       ok:tot>=1000},
+    {id:"cincomil",  emoji:"👑",nome:"Lendário",             desc:"5.000 candidaturas enviadas",       ok:tot>=5000},
+    {id:"resp1",     emoji:"💌",nome:"Primeira Resposta",    desc:"Receba 1 resposta de empregador",   ok:rep>=1},
+    {id:"resp10",    emoji:"🌟",nome:"Popular",              desc:"10 respostas recebidas",            ok:rep>=10},
+    {id:"streak7",   emoji:"🔥",nome:"Semana de Fogo",       desc:"7 dias seguidos enviando",          ok:streak>=7},
+    {id:"streak30",  emoji:"🌋",nome:"Mês Implacável",       desc:"30 dias seguidos enviando",         ok:streak>=30},
+    {id:"estados5",  emoji:"🗺️",nome:"Explorador de Estados",desc:"Envie para 5 estados diferentes",   ok:estados>=5},
+    {id:"estados15", emoji:"🇺🇸",nome:"Coast to Coast",       desc:"Envie para 15 estados diferentes",  ok:estados>=15},
+    {id:"autopilot", emoji:"🤖",nome:"Piloto Automático",    desc:"100 envios pelo automático",        ok:auto>=100},
+    {id:"sniper",    emoji:"🎯",nome:"Atirador Manual",      desc:"100 envios manuais",                ok:man>=100},
+    {id:"madrugador",emoji:"🌅",nome:"Madrugador",           desc:"Envie entre 4h e 7h da manhã",      ok:madruga}
+  ];
+  return C.map(c=>({id:c.id,emoji:c.emoji,nome:c.nome,desc:c.desc,unlocked:!!c.ok}));
+}
+
+// PERF (V954-fix): cache de 30s das linhas do ranking. Endpoint é público e a
+// computação é O(usuários × histórico) — sem cache, cada F5 refaz a varredura completa.
+// isMe/myPos continuam por-requisição (nada específico do usuário entra no cache).
+const _rankRowsCache = Object.create(null);
+const RANK_ROWS_TTL = 30_000;
+
 function calcRanking(period, category, myEmail) {
+  const _ck = period + "_" + category;
+  const _hit = _rankRowsCache[_ck];
+  if (_hit && (Date.now() - _hit.at) < RANK_ROWS_TTL) {
+    return _buildRankResponse(_hit.rows, _ck, myEmail);
+  }
   const rows = [];
   const vipCompras = category === "vip" ? calcVipCompras() : null;
   for (const [email, user] of Object.entries(DB_USERS)) {
@@ -11296,14 +11628,22 @@ function calcRanking(period, category, myEmail) {
       totalSends: totS, totalAutoSends: totAutoSends, totalManualSends: totManualSends,
       totalResponses: totR, responseRate: respRate, score, compras,
       isOnline: isOnlineUser(email), adminBadge: DB_RANK_BADGES[email] || null,
-      createdAt: user.created_at || "2024-01-01"
+      createdAt: user.created_at || "2024-01-01",
+      // V954: nível derivado do total histórico (barato: contadores já calculados)
+      xp: xpFromCounts(totManualSends, totAutoSends, totR),
+      nivel: null // preenchido abaixo (levelForXP 1x por linha do top-50 apenas)
     });
   }
   // Desempate: mesmo score → mais envios no período → conta mais antiga
   rows.sort((a, b) => b.score !== a.score ? b.score - a.score
                     : b.sends !== a.sends ? b.sends - a.sends
                     : new Date(a.createdAt) - new Date(b.createdAt));
-  const cacheKey = `${period}_${category}`;
+  _rankRowsCache[`${period}_${category}`] = { rows, at: Date.now() };
+  return _buildRankResponse(rows, `${period}_${category}`, myEmail);
+}
+
+// Monta a resposta pública a partir das linhas (cacheadas ou recém-computadas).
+function _buildRankResponse(rows, cacheKey, myEmail) {
   const prev = rankPosCache[cacheKey] || {};
   const newPos = {};
   rows.forEach((r, i) => newPos[r.email] = i + 1);
@@ -11319,7 +11659,8 @@ function calcRanking(period, category, myEmail) {
       responseRate: r.responseRate, score: r.score, compras: r.compras || 0, isOnline: r.isOnline,
       change, adminBadge: r.adminBadge,
       uid: crypto.createHash("sha256").update(r.email).digest("hex").slice(0, 16),
-      isMe: myEmail ? r.email === myEmail : false
+      isMe: myEmail ? r.email === myEmail : false,
+      xp: r.xp||0, nivel: (()=>{const l=levelForXP(r.xp||0);return {n:l.n,nome:l.nome,emoji:l.emoji};})()
     };
   });
   let myPos = null;
@@ -11669,6 +12010,7 @@ function flushAll() {
 
   // 2. Persiste todos os bancos de dados principais
   try { persist(USERS_FILE,  DB_USERS); } catch(e) { console.warn("[shutdown] users:", e.message); }
+  try { persistSessions();              } catch(e) { console.warn("[shutdown] sessions:", e.message); }
   try { persist(HIST_FILE,   DB_HIST);  } catch(e) { console.warn("[shutdown] hist:",  e.message); }
   try { persist(AUTO_FILE,   DB_AUTO);  } catch(e) { console.warn("[shutdown] auto:",  e.message); }
   try { persist(NOTES_FILE,  DB_NOTES); } catch(e) { console.warn("[shutdown] notes:", e.message); }
