@@ -13888,25 +13888,33 @@ Best regards,
 <style>.gwm-zoom{transform:scale(1.55);cursor:zoom-out!important;position:relative;z-index:5;box-shadow:0 10px 40px rgba(0,0,0,.35)}</style>
 <script>
 var _gwmTimer=null;
+// Arma (ou re-arma) a leitura obrigatória: 7s de contagem + checkbox antes de liberar o botão.
+// SEMPRE que o modal #gwm for exibido, esta função DEVE ser chamada — é ela que inicia o timer.
+function _gwmArm(){
+  var ck=document.getElementById("gwm-check");if(ck)ck.checked=false;
+  var t=7,btn=document.getElementById("gwm-ok");
+  if(btn){btn.disabled=true;btn.style.background="#cbd5e1";btn.style.cursor="not-allowed";btn.innerHTML='Leia acima… <span id="gwm-timer">7</span>s';}
+  var el=document.getElementById("gwm-timer");
+  clearInterval(_gwmTimer);
+  window._gwmTimeOk=false;
+  _gwmTimer=setInterval(function(){
+    t--;if(el)el.textContent=String(t);
+    if(t<=0){clearInterval(_gwmTimer);_gwmTimer=null;window._gwmTimeOk=true;gwmUpdateBtn();}
+  },1000);
+}
 function showGoogleWarnModal(){
   fetch("/api/warmup",{credentials:"include"}).catch(function(){});
   var m=document.getElementById("gwm");
   if(!m){location.href=_getOAuthURL();return;}
   m.style.display="flex";
-  // Leitura obrigatória: 7s de contagem + checkbox antes de liberar o botão
-  var ck=document.getElementById("gwm-check");if(ck)ck.checked=false;
-  var t=7,el=document.getElementById("gwm-timer"),btn=document.getElementById("gwm-ok");
-  if(btn){btn.disabled=true;btn.style.background="#cbd5e1";btn.style.cursor="not-allowed";btn.innerHTML='Leia acima… <span id="gwm-timer">7</span>s';el=document.getElementById("gwm-timer");}
-  clearInterval(_gwmTimer);
-  _gwmTimer=setInterval(function(){
-    t--;if(el)el.textContent=String(t);
-    if(t<=0){clearInterval(_gwmTimer);window._gwmTimeOk=true;gwmUpdateBtn();}
-  },1000);
-  window._gwmTimeOk=false;
+  _gwmArm();
 }
 function gwmUpdateBtn(){
   var btn=document.getElementById("gwm-ok"),ck=document.getElementById("gwm-check");
   if(!btn)return;
+  // Defesa em profundidade: se o modal foi exibido por algum caminho que NÃO armou o timer
+  // (_gwmTimeOk ainda undefined e nenhum timer rodando), arma agora em vez de travar para sempre.
+  if(window._gwmTimeOk===undefined&&!_gwmTimer){_gwmArm();return;}
   var ok=window._gwmTimeOk&&ck&&ck.checked;
   btn.disabled=!ok;
   if(ok){btn.style.background="linear-gradient(135deg,#4f46e5,#7c3aed)";btn.style.cursor="pointer";btn.innerHTML="✅ Entendi — Continuar com Google";}
@@ -14077,14 +14085,20 @@ function termsDecline(){
   _termsCallback=null;
   if(typeof toast==="function")toast("Você precisa aceitar os Termos para usar a H2BApply.","r");
 }
-// Interceptar modal do Google para mostrar termos primeiro
-window.showGoogleWarnModal=function(){
-  showTerms(function(){
-    var m=document.getElementById("gwm");
-    if(m){fetch("/api/warmup",{credentials:"include"}).catch(function(){});m.style.display="flex";}
-    else{location.href="/oauth/start";}
-  });
-};
+// Interceptar modal do Google para mostrar termos primeiro.
+// CORREÇÃO v947 (KB-064): a versão anterior duplicava metade da lógica do modal
+// (só fazia display=flex) e NUNCA iniciava o timer de 7s — o botão ficava travado
+// em "Leia acima… 7s" para sempre e NINGUÉM conseguia logar. A regra permanente:
+// interceptador NUNCA reimplementa — captura a referência original e delega.
+(function(){
+  var _gwmOriginalShow = window.showGoogleWarnModal;
+  window.showGoogleWarnModal=function(){
+    showTerms(function(){
+      if(typeof _gwmOriginalShow==="function"){_gwmOriginalShow();}
+      else{location.href=(typeof _getOAuthURL==="function")?_getOAuthURL():"/oauth/start";}
+    });
+  };
+})();
 </script>
 
 
