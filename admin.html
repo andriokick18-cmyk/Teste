@@ -792,13 +792,25 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
           <!-- Acerto entre sócios (quem repassa pra quem) — 100% do livro-caixa interno -->
           <div id="fin-acerto-card" style="background:rgba(0,0,0,.18);border:1px solid var(--border2);border-radius:12px;padding:13px 15px;margin-bottom:14px">
             <div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px">
-              <i class="ti ti-arrows-exchange"></i> Acerto entre sócios
+              <i class="ti ti-arrows-exchange"></i> Acerto entre sócios — passo a passo
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;font-size:12px">
-              <div style="display:flex;justify-content:space-between"><span style="color:var(--t2)">👤 Andrio recebeu</span><span id="fin-ac-recandrio" style="font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--blue)">–</span></div>
-              <div style="display:flex;justify-content:space-between"><span style="color:var(--t2)">👤 Diego recebeu</span><span id="fin-ac-recdiego" style="font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--purple)">–</span></div>
-              <div style="display:flex;justify-content:space-between"><span style="color:var(--t2)">💸 Gastos Andrio</span><span id="fin-ac-gandrio" style="font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--t2)">–</span></div>
-              <div style="display:flex;justify-content:space-between"><span style="color:var(--t2)">💸 Gastos Diego</span><span id="fin-ac-gdiego" style="font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--t2)">–</span></div>
+            <!-- Tabela por sócio: cada linha é um passo da conta. Sem mistério. -->
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:300px">
+                <thead><tr>
+                  <th style="text-align:left;padding:5px 4px;color:var(--t3);font-size:10.5px;font-weight:800;text-transform:uppercase"> </th>
+                  <th style="text-align:right;padding:5px 4px;color:var(--blue);font-size:11px;font-weight:900">👤 ANDRIO</th>
+                  <th style="text-align:right;padding:5px 4px;color:var(--purple);font-size:11px;font-weight:900">👤 DIEGO</th>
+                </tr></thead>
+                <tbody style="font-family:'JetBrains Mono',monospace">
+                  <tr style="border-top:1px solid rgba(255,255,255,.06)"><td style="padding:5px 4px;color:var(--t2);font-family:inherit">(+) Recebeu</td><td id="fin-ac-recandrio" style="text-align:right;padding:5px 4px;font-weight:700;color:var(--green)">–</td><td id="fin-ac-recdiego" style="text-align:right;padding:5px 4px;font-weight:700;color:var(--green)">–</td></tr>
+                  <tr style="border-top:1px solid rgba(255,255,255,.06)"><td style="padding:5px 4px;color:var(--t2);font-family:inherit">(−) Gastos que bancou</td><td id="fin-ac-gandrio" style="text-align:right;padding:5px 4px;font-weight:700;color:var(--red)">–</td><td id="fin-ac-gdiego" style="text-align:right;padding:5px 4px;font-weight:700;color:var(--red)">–</td></tr>
+                  <tr style="border-top:1px solid rgba(255,255,255,.06)"><td style="padding:5px 4px;color:var(--t2);font-family:inherit">(−) Metade gastos empresa</td><td id="fin-ac-geandrio" style="text-align:right;padding:5px 4px;font-weight:700;color:var(--red)">–</td><td id="fin-ac-gediego" style="text-align:right;padding:5px 4px;font-weight:700;color:var(--red)">–</td></tr>
+                  <tr style="border-top:1px solid rgba(255,255,255,.06)"><td style="padding:5px 4px;color:var(--t2);font-family:inherit">(±) Repasses já feitos</td><td id="fin-ac-repandrio" style="text-align:right;padding:5px 4px;font-weight:700;color:var(--t2)">–</td><td id="fin-ac-repdiego" style="text-align:right;padding:5px 4px;font-weight:700;color:var(--t2)">–</td></tr>
+                  <tr style="border-top:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.03)"><td style="padding:6px 4px;color:#fff;font-weight:800;font-family:inherit">(=) Está na mão de</td><td id="fin-ac-holdandrio" style="text-align:right;padding:6px 4px;font-weight:900;color:#fff">–</td><td id="fin-ac-holddiego" style="text-align:right;padding:6px 4px;font-weight:900;color:#fff">–</td></tr>
+                  <tr><td style="padding:5px 4px;color:var(--t2);font-family:inherit">🎯 Deveria ficar (½ lucro)</td><td id="fin-ac-alvoandrio" style="text-align:right;padding:5px 4px;font-weight:700;color:var(--amber)">–</td><td id="fin-ac-alvodiego" style="text-align:right;padding:5px 4px;font-weight:700;color:var(--amber)">–</td></tr>
+                </tbody>
+              </table>
             </div>
             <div id="fin-ac-result" style="margin-top:11px;padding:10px 12px;border-radius:9px;font-size:13px;font-weight:700;text-align:center;background:var(--greeng);border:1px solid var(--greenb);color:var(--green)">–</div>
             <!-- ── REPASSES JÁ FEITOS entre sócios (abatem o acerto) ── -->
@@ -855,12 +867,22 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
         <!-- FORM: REGISTRAR ENTRADA (pagamento recebido) -->
         <div id="fin-add-form" style="display:none;background:var(--glass);border:1.5px solid rgba(16,185,129,.3);border-radius:16px;padding:20px;margin-bottom:16px">
           <div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:16px;display:flex;align-items:center;gap:10px">
-            <i class="ti ti-cash" style="color:var(--green);font-size:20px"></i> Registrar entrada — pagamento recebido
+            <i class="ti ti-cash" style="color:var(--green);font-size:20px"></i> Registrar entrada — dinheiro que entrou
+          </div>
+
+          <!-- Tipo de entrada: cliente (com email) ou avulsa (fora do site) -->
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">🔀 Tipo de entrada</label>
+            <select class="form-inp" id="fin-p-tipo" onchange="finTipoEntradaChange()">
+              <option value="cliente" selected>💳 Pagamento de cliente — plano comprado no site</option>
+              <option value="avulsa">💠 Entrada avulsa — Pix/PicPay direto pro sócio, saldo inicial, acerto externo</option>
+            </select>
+            <div id="fin-p-tipo-hint" style="font-size:11px;color:var(--t3);margin-top:4px;line-height:1.4">Entrada de cliente fica ligada ao email dele. Avulsa não precisa de email — é dinheiro que entrou por fora do site e precisa aparecer na contabilidade dos sócios.</div>
           </div>
 
           <!-- Linha 1: Email + Valor pago -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-            <div class="form-group">
+            <div class="form-group" id="fin-p-email-wrap">
               <label class="form-label">📧 Email de quem pagou</label>
               <input class="form-inp" id="fin-p-email" placeholder="usuario@gmail.com" oninput="finEmailHint(this.value)">
               <div id="fin-p-email-hint" style="font-size:11px;color:var(--t3);margin-top:3px;min-height:16px"></div>
@@ -871,8 +893,8 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             </div>
           </div>
 
-          <!-- Linha 2: Plano + Preço original -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <!-- Linha 2: Plano + Preço original (só entrada de cliente) -->
+          <div id="fin-p-plano-wrap" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
             <div class="form-group">
               <label class="form-label">📦 Plano adquirido</label>
               <select class="form-inp" id="fin-p-plano" onchange="finPlanoChange()">
@@ -911,7 +933,7 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
               <div style="font-size:11px;color:var(--t3);margin-top:3px">Usado no acerto entre sócios (quem deve a quem).</div>
             </div>
             <div class="form-group">
-              <label class="form-label">📝 Nota / comprovante</label>
+              <label class="form-label">📝 Descrição / nota <span id="fin-p-nota-req" style="display:none;color:var(--red);font-size:10px;font-weight:800">— OBRIGATÓRIA na entrada avulsa</span></label>
               <input class="form-inp" id="fin-p-nota" placeholder="Ex: Pix R$25 Nubank, desconto dado, 08/06">
             </div>
           </div>
@@ -932,14 +954,17 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             </div>
           </div>
 
-          <!-- Ativar VIP -->
-          <div class="form-group" style="margin-bottom:16px">
+          <!-- Ativar VIP (só entrada de cliente) -->
+          <div class="form-group" id="fin-p-ativar-wrap" style="margin-bottom:16px">
             <label class="form-label">🤖 Ativar VIP automaticamente ao registrar?</label>
             <select class="form-inp" id="fin-p-ativar">
+              <option value="nao" selected>Não — só registrar o pagamento (ativação é pelos Pedidos)</option>
               <option value="sim">✅ Sim — registrar e já ativar o plano</option>
-              <option value="nao">Não — só registrar o pagamento</option>
             </select>
           </div>
+
+          <!-- ERRO INLINE: impossível de não ver (antes era só um toast de 3s) -->
+          <div id="fin-p-error" style="display:none;background:rgba(239,68,68,.14);border:2px solid rgba(239,68,68,.5);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13.5px;font-weight:700;color:#fca5a5;line-height:1.5"></div>
 
           <div style="display:flex;gap:10px">
             <button class="btn btn-success" style="flex:1;justify-content:center;padding:12px;font-size:15px" onclick="registrarPagamento()"><i class="ti ti-check"></i> Confirmar entrada</button>
@@ -7608,10 +7633,11 @@ async function finLoadFromServer(){
     if(!r.ok)return;
     const d=await r.json();
     if(d.ok){
-      _finCache={pagamentos:d.pagamentos||[],gastos:d.gastos||[],repasses:d.repasses||[]};
+      _finCache={pagamentos:d.pagamentos||[],gastos:d.gastos||[],repasses:d.repasses||(d.financeiro&&d.financeiro.repasses)||[]};
       window._codGift=d.codGift||{usuarios:0,ativos:0,diasTotal:0,lista:[]};
       window._receitaReal=d.receitaReal||0;
       window._receitaMes=d.receitaMes||0;
+      window._receitaAvulsa=d.receitaAvulsa||0;
       window._qtdPagantes=d.qtdPagantes||0;
       _finLoaded=true;
       // Migrar localStorage se servidor vazio
@@ -7982,31 +8008,33 @@ async function loadFinInsightsInline(){
     const bars=i.serie.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="width:100%;background:linear-gradient(180deg,#10b981,#059669);border-radius:3px 3px 0 0;height:${Math.max(4,Math.round(x.valor/sMax*70))}px" title="${f(x.valor)}"></div><div style="font-size:8px;color:var(--t3)">${x.mes}</div></div>`).join('');
     const top=i.topPagantes.map((t,n)=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--t2)">${n+1}. ${(t.nome||'').slice(0,20)}</span><strong style="color:#6ee7b7;font-family:monospace">${f(t.valor)}</strong></div>`).join('')||'<div style="font-size:11px;color:var(--t3)">—</div>';
     box.innerHTML=`
-      <div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-chart-bar"></i> Inteligência Financeira — 20 indicadores (Andrio & Diego)</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px">
-        ${c(1,'Receita total',f(i.receitaTotal),i.qtdPagantes+' pagantes','#10b981')}
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+        <span style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em"><i class="ti ti-chart-bar"></i> Indicadores essenciais — Andrio & Diego</span>
+        <button onclick="finInsights()" style="margin-left:auto;background:none;border:1px solid var(--border2);border-radius:7px;padding:3px 10px;font-size:10.5px;font-weight:700;color:var(--t3);cursor:pointer;font-family:inherit">ver análise completa</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">
+        ${c(1,'Receita total',f(i.receitaTotal),i.qtdPagantes+' pagantes'+((i.receitaAvulsa||0)>0?' + '+f(i.receitaAvulsa)+' avulsas':''),'#10b981')}
         ${c(2,'Receita do mês',f(i.receitaMes),null,'#10b981')}
-        ${c(3,'Lucro líquido',f(i.lucro),'sócio '+f(i.metade),'#34d399')}
-        ${c(4,'Ticket médio',f(i.ticketMedio),null,'#a5b4fc')}
-        ${c(5,'Despesas',f(i.despTotal),'mês '+f(i.despMes),'#f87171')}
-        ${c(6,'Novos no mês',i.novosMes,null,'#fbbf24')}
-        ${c(7,'Vencendo 7d',i.vencendo7,f(i.vencendo7Valor),'#fbbf24')}
-        ${c(8,'Vencidos',i.vencidos,'reativar','#f87171')}
-        ${c(9,'Projeção renov.',f(i.projecaoRenovacao),'7 dias','#34d399')}
-        ${c(10,'Gift/Código',i.gift,i.giftDias+'d · sem R$','#c084fc')}
-        ${c(11,'Trials ativos',i.trials,'sem R$','#94a3b8')}
-        ${c(12,'Receita VIP',f(i.porPlano.vip),i.porPlanoQtd.vip+'x','#fff')}
-        ${c(13,'Receita VIPro',f(i.porPlano.vipro),i.porPlanoQtd.vipro+'x','#fff')}
-        ${c(14,'Receita DoublePro',f(i.porPlano.doublepro),i.porPlanoQtd.doublepro+'x','#fff')}
-        ${c(15,'Gastos Andrio',f(i.despSocio.andrio),null,'#60a5fa')}
-        ${c(16,'Gastos Diego',f(i.despSocio.diego),null,'#c084fc')}
-        ${c(17,'Gastos empresa',f(i.despSocio.empresa),'50/50','#94a3b8')}
+        ${c(3,'Despesas',f(i.despTotal),'mês '+f(i.despMes),'#f87171')}
+        ${c(4,'Lucro líquido',f(i.lucro),'cada sócio '+f(i.metade),'#34d399')}
+        ${c(5,'Ticket médio',f(i.ticketMedio),i.novosMes+' novos no mês','#a5b4fc')}
+        ${c(6,'Vencendo 7d',i.vencendo7+' planos',f(i.vencendo7Valor)+' se renovarem','#fbbf24')}
+        ${c(7,'Vencidos',i.vencidos,'reativar','#f87171')}
+        ${c(8,'Sem R$',(i.trials+i.gift)+' contas',i.trials+' trial · '+i.gift+' gift/código','#94a3b8')}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
-        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;padding:11px"><div style="font-size:11px;font-weight:800;color:#fff;margin-bottom:8px">18· Receita 6 meses</div><div style="display:flex;align-items:flex-end;gap:5px;height:84px">${bars}</div></div>
-        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;padding:11px"><div style="font-size:11px;font-weight:800;color:#fff;margin-bottom:6px">19· Top 5 pagantes</div>${top}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:8px">
+        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;padding:11px">
+          <div style="font-size:11px;font-weight:800;color:#fff;margin-bottom:6px">💎 Receita por plano</div>
+          <div style="display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-family:monospace">
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--t2)">⭐ VIP (${i.porPlanoQtd.vip}x)</span><b style="color:#fff">${f(i.porPlano.vip)}</b></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--t2)">⭐🤖 VIPro (${i.porPlanoQtd.vipro}x)</span><b style="color:#fff">${f(i.porPlano.vipro)}</b></div>
+            <div style="display:flex;justify-content:space-between"><span style="color:var(--t2)">🚀💎 DoublePro (${i.porPlanoQtd.doublepro}x)</span><b style="color:#fff">${f(i.porPlano.doublepro)}</b></div>
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;padding:11px"><div style="font-size:11px;font-weight:800;color:#fff;margin-bottom:8px">📈 Receita 6 meses</div><div style="display:flex;align-items:flex-end;gap:5px;height:84px">${bars}</div></div>
+        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;padding:11px"><div style="font-size:11px;font-weight:800;color:#fff;margin-bottom:6px">🏆 Top 5 pagantes</div>${top}</div>
       </div>
-      <div style="font-size:10px;color:var(--t3);margin-top:8px">20· Despesas por categoria: ${Object.entries(i.despCat).map(([k,v])=>`${k} ${f(v)}`).join(' · ')||'nenhuma'} — tudo do servidor, Andrio e Diego veem igual.</div>`;
+      <div style="font-size:10px;color:var(--t3);margin-top:8px">Despesas por categoria: ${Object.entries(i.despCat).map(([k,v])=>`${k} ${f(v)}`).join(' · ')||'nenhuma'} — tudo do servidor, Andrio e Diego veem igual.</div>`;
   }catch(e){}
 }
 
@@ -8032,7 +8060,8 @@ async function loadFinanceiro(){
   setText('fin-codgift', _cg.usuarios+' cód.');
   setText('fin-codgift-sub', `${_cg.ativos} ativos · ${_cg.diasTotal} dias · sem R$`);
   setText('fin-receita', finFmt(totalRecebido));
-  setText('fin-qtd-pag', qtdPag+' pagante'+(qtdPag!==1?'s':'')+(totalDesconto>0?` · ${finFmt(totalDesconto)} desc.`:''));
+  const _avR=window._receitaAvulsa||0;
+  setText('fin-qtd-pag', qtdPag+' pagante'+(qtdPag!==1?'s':'')+(_avR>0?` + ${finFmt(_avR)} avulsas`:'')+(totalDesconto>0?` · ${finFmt(totalDesconto)} desc.`:''));
   setText('fin-andrio', saldo>0?finFmt(metade):'R$ 0,00');
   setText('fin-diego',  saldo>0?finFmt(metade):'R$ 0,00');
 
@@ -8060,10 +8089,29 @@ async function loadFinanceiro(){
     const reps     = data.repasses||[];
     const repA2D   = reps.filter(r=>(r.de||'')==='andrio').reduce((s,r)=>s+(r.valor||0),0); // Andrio já pagou ao Diego
     const repD2A   = reps.filter(r=>(r.de||'')==='diego').reduce((s,r)=>s+(r.valor||0),0);  // Diego já pagou ao Andrio
+    // ── Tabela passo a passo (v948): cada linha da conta, por sócio ──
+    const heldAndrio = recAndrio - gAndrio - gEmpresa/2 - repA2D + repD2A;
+    const heldDiego  = recDiego  - gDiego  - gEmpresa/2 - repD2A + repA2D;
+    const _rep=(pagou,recebeu)=>{
+      if(pagou<=0&&recebeu<=0)return '<span style="color:var(--t3)">—</span>';
+      const parts=[];
+      if(recebeu>0)parts.push('<span style="color:var(--green)">+'+finFmt(recebeu)+'</span>');
+      if(pagou>0)parts.push('<span style="color:var(--red)">−'+finFmt(pagou)+'</span>');
+      return parts.join(' ');
+    };
+    const setHtml=(id,v)=>{const el=document.getElementById(id);if(el)el.innerHTML=v;};
     setText('fin-ac-recandrio', finFmt(recAndrio));
     setText('fin-ac-recdiego',  finFmt(recDiego));
-    setText('fin-ac-gandrio',   finFmt(gAndrio));
-    setText('fin-ac-gdiego',    finFmt(gDiego));
+    setText('fin-ac-gandrio',   gAndrio>0?'−'+finFmt(gAndrio):finFmt(0));
+    setText('fin-ac-gdiego',    gDiego>0?'−'+finFmt(gDiego):finFmt(0));
+    setText('fin-ac-geandrio',  gEmpresa>0?'−'+finFmt(gEmpresa/2):finFmt(0));
+    setText('fin-ac-gediego',   gEmpresa>0?'−'+finFmt(gEmpresa/2):finFmt(0));
+    setHtml('fin-ac-repandrio', _rep(repA2D,repD2A));
+    setHtml('fin-ac-repdiego',  _rep(repD2A,repA2D));
+    setText('fin-ac-holdandrio', finFmt(heldAndrio));
+    setText('fin-ac-holddiego',  finFmt(heldDiego));
+    setText('fin-ac-alvoandrio', finFmt(metade));
+    setText('fin-ac-alvodiego',  finFmt(metade));
     renderFinRepasses(reps);
     const resEl=document.getElementById('fin-ac-result');
     if(resEl){
@@ -8071,9 +8119,7 @@ async function loadFinanceiro(){
         resEl.textContent='Sem lucro a dividir ainda.';
         resEl.style.background='var(--amberg)';resEl.style.borderColor='var(--amberb)';resEl.style.color='var(--amber)';
       } else {
-        // Quanto cada um "segura" do caixa (recebido − gastos que bancou − metade dos gastos da empresa)
-        // ± repasses: o que Andrio já pagou ao Diego sai da mão dele; o que recebeu do Diego entra.
-        const heldAndrio = recAndrio - gAndrio - gEmpresa/2 - repA2D + repD2A;
+        // heldAndrio já calculado acima (tabela passo a passo) — mesma fonte.
         const transfer   = heldAndrio - metade;   // >0: Andrio repassa; <0: Diego repassa
         const jaRepTxt   = (repA2D>0||repD2A>0)?`<br><span style="font-weight:600;font-size:10.5px;opacity:.8">já repassado: ${repD2A>0?('Diego→Andrio '+finFmt(repD2A)):''}${repD2A>0&&repA2D>0?' · ':''}${repA2D>0?('Andrio→Diego '+finFmt(repA2D)):''}</span>`:'';
         if(Math.abs(transfer)<0.01){
@@ -8183,7 +8229,7 @@ function renderFinLista(){
       const db=b.dataPagamento?new Date(b.dataPagamento):new Date(b.data);
       return db-da;
     });
-    const planoLabel={vip:'⭐ VIP',vipro:'⭐🤖 VIPro',doublepro:'🚀💎 DoublePro',vip60:'⭐ VIP 60d',vipro60:'⭐🤖 VIPro 60d',outro:'Outro'};
+    const planoLabel={vip:'⭐ VIP',vipro:'⭐🤖 VIPro',doublepro:'🚀💎 DoublePro',vip60:'⭐ VIP 60d',vipro60:'⭐🤖 VIPro 60d',outro:'Outro',avulsa:'💠 Entrada avulsa'};
     el.innerHTML=sorted.map(p=>{
       const dataPag=p.dataPagamento||p.data;
       const dateStr=dataPag?new Date(dataPag).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'–';
@@ -8196,10 +8242,15 @@ function renderFinLista(){
         :p.status==='doacao'||p.fonte==='doacao'?'<span style="background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.3);color:var(--purple);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700">🎁 DOAÇÃO</span>'
         :p.status==='codigo'||p.fonte==='codigo'?'<span style="background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:var(--blue);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700">🎟️ CÓDIGO</span>'
         :'<span style="background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.25);color:var(--green);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700">✅ PAGO</span>';
+      // Badges v948: entrada AVULSA (fora do site) + quem RECEBEU o dinheiro
+      const avulsaBadge=(p.tipo==='avulsa'||!p.email)?'<span style="background:rgba(56,189,248,.13);border:1px solid rgba(56,189,248,.32);color:#7dd3fc;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700">💠 AVULSA</span>':'';
+      const recBadge=(p.recebidoPor==='diego')
+        ?'<span style="background:rgba(168,85,247,.13);border:1px solid rgba(168,85,247,.3);color:var(--purple);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700">→ DIEGO</span>'
+        :'<span style="background:rgba(59,130,246,.13);border:1px solid rgba(59,130,246,.3);color:var(--blue);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700">→ ANDRIO</span>';
       return `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;cursor:pointer" onclick="finVerDetalhes(${p._idx},'pagamento')">
-        <div style="width:40px;height:40px;border-radius:10px;background:var(--greeng);border:1px solid var(--greenb);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">${temImg?'🖼️':'💰'}</div>
+        <div style="width:40px;height:40px;border-radius:10px;background:var(--greeng);border:1px solid var(--greenb);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">${temImg?'🖼️':(p.tipo==='avulsa'||!p.email)?'💠':'💰'}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px">${esc(p.email||'–')} ${statusBadge}</div>
+          <div style="font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px">${esc(p.email||p.nota||'Entrada avulsa')} ${avulsaBadge}${statusBadge}${recBadge}</div>
           <div style="font-size:11px;color:var(--t3);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap">
             <span>${planoLabel[p.plano]||p.plano||'–'}</span>
             <span>·</span><span>${esc(p.nota||'sem nota')}</span>
@@ -8560,6 +8611,8 @@ function showAddPagamento(){
   finFecharForms();
   const form=document.getElementById('fin-add-form');
   if(form){ form.style.display='block'; }
+  finShowFormError('');
+  finTipoEntradaChange();
   // Preenche data com hoje por padrão
   const dataEl=document.getElementById('fin-p-data');
   if(dataEl&&!dataEl.value) dataEl.value=new Date().toISOString().slice(0,10);
@@ -8581,6 +8634,29 @@ function finShowGasto(){
   form?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+// ── Tipo de entrada: cliente (email obrigatório) vs avulsa (fora do site) ──
+function finTipoEntradaChange(){
+  const tipo=document.getElementById('fin-p-tipo')?.value||'cliente';
+  const avulsa=tipo==='avulsa';
+  const show=(id,on)=>{const el=document.getElementById(id);if(el)el.style.display=on?'':'none';};
+  show('fin-p-email-wrap',!avulsa);
+  show('fin-p-plano-wrap',!avulsa);
+  show('fin-p-ativar-wrap',!avulsa);
+  show('fin-p-desconto-wrap',false);
+  const req=document.getElementById('fin-p-nota-req'); if(req)req.style.display=avulsa?'':'none';
+  const nota=document.getElementById('fin-p-nota');
+  if(nota)nota.placeholder=avulsa?'Ex: Saldo inicial — R$1.468 recebidos no PicPay do Andrio (clientes do começo)':'Ex: Pix R$25 Nubank, desconto dado, 08/06';
+  if(avulsa){const at=document.getElementById('fin-p-ativar');if(at)at.value='nao';}
+  finShowFormError('');
+}
+// Erro inline no formulário — grande, vermelho, impossível de passar batido.
+function finShowFormError(msg){
+  const el=document.getElementById('fin-p-error'); if(!el)return;
+  if(!msg){el.style.display='none';el.innerHTML='';return;}
+  el.style.display='block';
+  el.innerHTML='⛔ '+msg;
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+}
 async function registrarPagamento(){
   // Trava anti-duplo-clique: 2 cliques = 2 lançamentos = contabilidade duplicada (caso Vanessa)
   if(window._finSubmitting){ toast('Aguarde, salvando...','r'); return; }
@@ -8588,17 +8664,23 @@ async function registrarPagamento(){
   try{ await _registrarPagamentoInner(); } finally { window._finSubmitting=false; }
 }
 async function _registrarPagamentoInner(){
-  const email  = document.getElementById('fin-p-email')?.value.trim();
+  finShowFormError('');
+  const tipoEnt = document.getElementById('fin-p-tipo')?.value||'cliente';
+  const avulsa  = tipoEnt==='avulsa';
+  const email  = avulsa ? '' : (document.getElementById('fin-p-email')?.value.trim()||'');
   const valor  = parseFloat(document.getElementById('fin-p-valor')?.value)||0;
-  const orig   = parseFloat(document.getElementById('fin-p-preco-orig')?.value)||0;
-  const plano  = document.getElementById('fin-p-plano')?.value||'vipro';
+  const orig   = avulsa ? 0 : (parseFloat(document.getElementById('fin-p-preco-orig')?.value)||0);
+  const plano  = avulsa ? 'avulsa' : (document.getElementById('fin-p-plano')?.value||'vipro');
   const nota   = document.getElementById('fin-p-nota')?.value.trim();
-  const ativar = document.getElementById('fin-p-ativar')?.value==='sim';
+  const ativar = avulsa ? false : (document.getElementById('fin-p-ativar')?.value==='sim');
   const dataVal= document.getElementById('fin-p-data')?.value;
   const resEl  = document.getElementById('fin-result');
 
-  if(!email){toast('Informe o email de quem pagou','err');return;}
-  if(!valor){toast('Informe o valor recebido','err');return;}
+  // VALIDAÇÃO com erro INLINE (antes era só toast de 3s que sumia no celular
+  // — parecia que "salvou e não salvou", sem nenhuma explicação).
+  if(!valor||valor<=0){finShowFormError('Informe o <b>valor recebido</b> (maior que zero).');toast('Informe o valor recebido','err');return;}
+  if(avulsa&&(!nota||nota.length<3)){finShowFormError('Entrada avulsa exige uma <b>descrição</b> — é assim que o outro sócio vai entender do que se trata esse dinheiro. Ex.: "Saldo inicial recebido no PicPay do Andrio".');toast('Descreva a entrada avulsa','err');return;}
+  if(!avulsa&&!email){finShowFormError('Informe o <b>email de quem pagou</b> — ou troque o tipo para <b>Entrada avulsa</b> se esse dinheiro entrou por fora do site (Pix/PicPay direto, saldo inicial, etc).');toast('Informe o email de quem pagou','err');return;}
 
   const desconto=orig>0&&valor<orig?parseFloat((orig-valor).toFixed(2)):0;
   const pctDesconto=orig>0&&desconto>0?Math.round((desconto/orig)*100):0;
@@ -8612,6 +8694,7 @@ async function _registrarPagamentoInner(){
   const pgRecord = {
     id: 'fin_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6),
     email, valor, plano, nota,
+    tipo: avulsa?'avulsa':'cliente',
     precoOriginal: orig||null,
     desconto, pctDesconto,
     dataPagamento,
@@ -8642,7 +8725,11 @@ async function _registrarPagamentoInner(){
   _finLoaded=false; await finLoadFromServer();
   loadFinanceiro();
   finSetTab('entradas');
-  if(!_okP){ toast('❌ Não salvou no servidor: '+_errP,'r'); }
+  if(!_okP){
+    finShowFormError('O servidor <b>recusou</b> esta entrada: '+_errP+'<br>Nada foi salvo — corrija e tente de novo.');
+    toast('❌ Não salvou no servidor: '+_errP,'r');
+    return;
+  }
 
   if(ativar){
     const planMap={vip:{days:30,autoDays:0,plan:'vip'},vipro:{days:30,autoDays:30,plan:'vipro'},doublepro:{days:30,autoDays:30,plan:'doublepro'},vip60:{days:60,autoDays:0,plan:'vip'},vipro60:{days:60,autoDays:60,plan:'vipro'},pro:{days:0,autoDays:30,plan:'pro'},outro:{days:30,autoDays:0,plan:'vip'}};
@@ -10396,18 +10483,21 @@ const RoboContabil = (function(){
         const saldoPorSocio = Math.max(0,saldo)/2;
 
         // ── ACERTO ENTRE SÓCIOS (quem deve a quem) ──────────────────
-        // Cada pagamento tem recebidoPor ('andrio'|'diego'). O dinheiro que
-        // cada um recebeu está com ele. Para a receita ficar 50/50, quem
-        // recebeu MAIS repassa metade da diferença para o outro.
-        // Legado/sem atribuição conta como 'andrio' (dono principal).
+        // MESMA fórmula do painel principal (fonte única — v948): o que cada
+        // um segura = recebeu − gastos que bancou − metade dos gastos empresa
+        // ± repasses. Antes este robô ignorava os gastos e dava número
+        // DIFERENTE do painel — duas verdades, confusão entre os sócios.
         const recAndrio = finPags.filter(p=>(p.recebidoPor||'andrio')!=='diego').reduce((s,p)=>s+(p.valor||0),0);
         const recDiego  = finPags.filter(p=>(p.recebidoPor)==='diego').reduce((s,p)=>s+(p.valor||0),0);
+        const _rcGA     = finGastos.filter(g=>(g.pagoPor||'')==='andrio').reduce((s,g)=>s+(g.valor||0),0);
+        const _rcGD     = finGastos.filter(g=>(g.pagoPor||'')==='diego').reduce((s,g)=>s+(g.valor||0),0);
+        const _rcGE     = finGastos.filter(g=>!['andrio','diego'].includes(g.pagoPor||'')).reduce((s,g)=>s+(g.valor||0),0);
         // Repasses já feitos entre sócios abatem o acerto (mesma regra do painel)
         const _rcReps  = (finGetData().repasses)||[];
         const _rcA2D   = _rcReps.filter(r=>(r.de||'')==='andrio').reduce((s,r)=>s+(r.valor||0),0);
         const _rcD2A   = _rcReps.filter(r=>(r.de||'')==='diego').reduce((s,r)=>s+(r.valor||0),0);
-        const _holdA   = recAndrio - _rcA2D + _rcD2A;  // o que está na mão do Andrio hoje
-        const _holdD   = recDiego  - _rcD2A + _rcA2D;  // o que está na mão do Diego hoje
+        const _holdA   = recAndrio - _rcGA - _rcGE/2 - _rcA2D + _rcD2A;  // o que sobra na mão do Andrio
+        const _holdD   = recDiego  - _rcGD - _rcGE/2 - _rcD2A + _rcA2D;  // o que sobra na mão do Diego
         const acertoVal = Math.abs(_holdA-_holdD)/2;          // valor do repasse que ainda falta
         const acertoDe  = _holdA>_holdD ? 'Andrio' : (_holdD>_holdA ? 'Diego' : '');   // quem paga
         const acertoPara= _holdA>_holdD ? 'Diego'  : (_holdD>_holdA ? 'Andrio' : '');   // quem recebe

@@ -83,7 +83,7 @@ async function vipExpiryWatchdog(){
 // ── Watchdog de paused_auth_error — notifica usuário após 12h parado ─────────
 // Roda a cada 3h. Se job parado por auth_error há >12h e usuário ativo ≤30 dias,
 // envia email de notificação automática pedindo para reconectar o Gmail.
-const _authErrNotifiedAt = {}; // {email: timestamp} — cooldown de 24h por usuário
+const _authErrNotifiedAt = ctx.authErrNotifiedAtInit || {}; // {email: timestamp} — cooldown de 24h por usuário (V951: persistido em disco)
 async function authErrorWatchdog(){
   const now = Date.now();
   let notified = 0;

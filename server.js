@@ -152,6 +152,16 @@ const FINANCEIRO_FILE  = path.join(DATA_DIR, "financeiro.json");      // Dados f
 const ETA_FILE         = path.join(DATA_DIR, "eta_registry.json");    // Monitor ETA: registro/histórico de todas as vagas por case number
 const BLOCKED_FILE     = path.join(DATA_DIR, "blocked_emails.json");  // Emails banidos permanentemente
 const TRIAL_USED_FILE  = path.join(DATA_DIR, "trial_used.json");       // Histórico anti-abuse: phones/IPs que já receberam trial
+// V951: cooldowns de notificação (admin+usuário) precisam sobreviver a
+// restart/deploy — antes eram objetos só-em-memória (_notifSentAt,
+// _pedAlertSent, _authErrNotifiedAt, _refillNotifiedAt) que voltavam a
+// {} a cada deploy no Render. Como as varreduras (health-sentinel,
+// pendingOrderAlert) disparam poucos minutos após o boot, TODO deploy
+// reenviava de novo qualquer notificação "pendente", ignorando o
+// cooldown de 12-24h combinado — daí "toda vez que eu faço deploy essas
+// notificações aparecem". Persistindo em disco, o cooldown é respeitado
+// de verdade entre reinícios do processo.
+const NOTIF_COOLDOWN_FILE = path.join(DATA_DIR, "notif_cooldowns.json");
 const KB_FILE          = path.join(DATA_DIR, "knowledge_base.json");  // Base de Conhecimento Permanente (IA↔IA)
 try { fs.mkdirSync(CVS_DIR, { recursive: true }); } catch {}
 
@@ -949,6 +959,7 @@ function boot() {
       modulos:["server.js: warning de SERVER_ID ausente no boot, guarda de config contraditória no callback OAuth (fail-open por host)","index.html: maybeShowServerSelect (sem auth automático), _pulseLandingCTA (?entrar=1 destaca CTA), showSrvBlockModal (guarda destino=origem), CTA da demo via showGoogleWarnModal"],
       tags:["multi-servidor","server-id","env","lotado","loop","fail-open","landing","auth-gate","ux","cadastro","config-contraditória"]
     }
+
   ];
   for(const entry of _kbFounding){
     if(!_kbFoundingIds.has(entry.id)) DB_KB.entries.unshift(entry);
@@ -5286,25 +5297,13 @@ function _saveEnrichedSheet(sheetKey, sheet){
       if(!ex){
         // (1) Este servidor está LOTADO? Fechado para contas novas de verdade
         //     (não só no visual do seletor).
-        // ── V950: IDENTIDADE PELO HOST, NÃO SÓ PELA ENV ───────────────────
-        // O guard v949 só liberava (fail-open) quando o host batia EXATAMENTE
-        // com o servidor "aberto" específico — se a env SERVER_ID estivesse
-        // errada E a config tivesse mudado (ou o "aberto" fosse outro id),
-        // o loop de cadastro voltava. Agora a identidade REAL deste deploy é
-        // descoberta comparando req.headers.host contra a URL de TODOS os
-        // servidores da config — a env SERVER_ID só é usada quando não há
-        // nenhuma URL cadastrada que bata com o host. Isso torna a trava
-        // auto-curável: mesmo que SERVER_ID fique ausente/errada no Render,
-        // o servidor se identifica corretamente pelo próprio domínio.
+        // ── V951: identidade única pelo host, resolvida pelo helper
+        // compartilhado _resolveServerId() (usado agora em TODA rota, não só
+        // aqui) — auto-curável mesmo que SERVER_ID fique ausente/errada no
+        // Render, pois o servidor se identifica pelo próprio domínio.
         const _cfgList=_getServersConfig();
-        const _norm=u=>String(u||"").replace(/^https?:\/\//,"").replace(/\/.*$/,"").toLowerCase();
-        const _reqHost=_norm(req.headers.host);
-        const _hostMatch=_reqHost?_cfgList.find(sv=>_norm(sv.url)===_reqHost):null;
-        let _selfCfg=_cfgList.find(sv=>sv.id===SERVER_ID);
-        if(_hostMatch && (!_selfCfg || _hostMatch.id!==SERVER_ID)){
-          console.error(`[servers] 🚨 CONFIG CONTRADITÓRIA: este deploy responde por "${_reqHost}" (Servidor ${_hostMatch.id} na config), mas a env SERVER_ID=${SERVER_ID||"(ausente)"} aponta para outro id. Usando a identidade pelo HOST (mais confiável) — corrija a env SERVER_ID no Render para ${_hostMatch.id} assim que possível, senão outras áreas (ranking, badge \"Servidor N\") podem ficar inconsistentes.`);
-          _selfCfg=_hostMatch;
-        }
+        const _selfId=_resolveServerId(req);
+        const _selfCfg=_cfgList.find(sv=>sv.id===_selfId);
         if(_selfCfg&&_selfCfg.status==="lotado"){
           const _open=_cfgList.find(sv=>sv.id!==_selfCfg.id&&sv.status==="aberto"&&sv.url);
           delete sessions[sid];
@@ -5314,7 +5313,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
         }
         // (2) Já tem conta em OUTRO servidor? Consulta os irmãos por hash do
         //     e-mail. Se sim, recusa e manda a pessoa para o servidor dela.
-        const _peer=await checkAccountOnPeers(ui.email);
+        const _peer=await checkAccountOnPeers(ui.email,_selfId);
         if(_peer){
           delete sessions[sid];
           console.log(`[servers] 🚫 Cadastro recusado: ${ui.email} já tem conta no Servidor ${_peer.id} (${_peer.url})`);
@@ -6955,7 +6954,7 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
     const autoJob=getAutoJob(s.user_email);
     const stats=getAutoStats(s.user_email);
     const now2=Date.now();
-    return json(res,200,{connected:true,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",whatsapp:p.whatsapp||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",rankName:p.rankName||"",appAvatarId:p.appAvatarId||"",h2bProfile:p.h2bProfile||{},serverId:SERVER_ID,publicProfile:p.publicProfile||{},age:p.age||0,isAdmin:!!p.isAdmin,plan:planKey,totalSent,totalManual,totalAutoHist,totalReplies,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p),source:p.vip.source||"trial"}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[],senderEmails:(p.senderEmails||[]).map(s=>({email:s.email,label:s.label||"",active:s.active!==false,tokenExpired:!!s.tokenExpired,blocked:!!s.blocked,addedAt:s.addedAt})),senderMax:getMaxSenders(p),adminSettings:isAdminVip(p)?{intervalSecs:(p.adminSettings?.intervalSecs||180),senderLimits:(p.adminSettings?.senderLimits||{}),maxSenders:getMaxSenders(p)}:null});
+    return json(res,200,{connected:true,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",whatsapp:p.whatsapp||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",rankName:p.rankName||"",appAvatarId:p.appAvatarId||"",h2bProfile:p.h2bProfile||{},serverId:_resolveServerId(req),publicProfile:p.publicProfile||{},age:p.age||0,isAdmin:!!p.isAdmin,plan:planKey,totalSent,totalManual,totalAutoHist,totalReplies,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p),source:p.vip.source||"trial"}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[],senderEmails:(p.senderEmails||[]).map(s=>({email:s.email,label:s.label||"",active:s.active!==false,tokenExpired:!!s.tokenExpired,blocked:!!s.blocked,addedAt:s.addedAt})),senderMax:getMaxSenders(p),adminSettings:isAdminVip(p)?{intervalSecs:(p.adminSettings?.intervalSecs||180),senderLimits:(p.adminSettings?.senderLimits||{}),maxSenders:getMaxSenders(p)}:null});
   }
 
   if(pathname==="/api/onboard"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});setUser(s.user_email,{onboarded:true});return json(res,200,{ok:true});}
@@ -9229,7 +9228,7 @@ Responda APENAS em JSON (sem markdown):
   // ══ MULTI-SERVIDOR ═══════════════════════════════════════
   // GET /api/servers/self — dados públicos mínimos deste servidor (para peers)
   if(pathname==="/api/servers/self"&&req.method==="GET"){
-    return json(res,200,{ok:true,id:SERVER_ID,users:_countLocalUsers(),at:Date.now()});
+    return json(res,200,{ok:true,id:_resolveServerId(req),users:_countLocalUsers(),at:Date.now()});
   }
   // GET /api/servers/has-account?h=<sha256 do e-mail> — checagem de conta única
   // entre servidores. Só recebe HASH (privacidade); rate limit por IP.
@@ -9238,7 +9237,7 @@ Responda APENAS em JSON (sem markdown):
     if(rateLimit("hasacct_"+_hip,120,60_000))return json(res,429,{error:"Muitas consultas. Aguarde."});
     const h=(u.searchParams.get("h")||"").toLowerCase().trim();
     if(!/^[a-f0-9]{64}$/.test(h))return json(res,400,{error:"hash inválido"});
-    return json(res,200,{ok:true,serverId:SERVER_ID,exists:_emailHashExists(h)});
+    return json(res,200,{ok:true,serverId:_resolveServerId(req),exists:_emailHashExists(h)});
   }
   // GET /api/auth/where?email=<e-mail> — localiza em QUAL servidor o e-mail já
   // tem conta (fluxo de login do card de entrada: e-mail sem senha → servidor
@@ -9250,16 +9249,17 @@ Responda APENAS em JSON (sem markdown):
     if(rateLimit("authwhere_"+_wip,30,60_000))return json(res,429,{error:"Muitas tentativas. Aguarde um minuto."});
     const email=String(u.searchParams.get("email")||"").toLowerCase().trim();
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)||email.length>120)return json(res,400,{error:"E-mail inválido"});
+    const _selfId=_resolveServerId(req);
     const list=_getServersConfig();
-    const _svInfo=sv=>({id:sv.id,nome:sv.nome,url:sv.url||"",status:sv.status,self:sv.id===SERVER_ID});
+    const _svInfo=sv=>({id:sv.id,nome:sv.nome,url:sv.url||"",status:sv.status,self:sv.id===_selfId});
     // 1) Conta existe NESTE servidor?
     const h=crypto.createHash("sha256").update(email).digest("hex");
     if(_emailHashExists(h)){
-      const me=list.find(s=>s.id===SERVER_ID)||{id:SERVER_ID,nome:"Servidor "+SERVER_ID,status:"aberto"};
+      const me=list.find(s=>s.id===_selfId)||{id:_selfId,nome:"Servidor "+_selfId,status:"aberto"};
       return json(res,200,{ok:true,found:true,server:_svInfo(me)});
     }
     // 2) Existe em algum irmão? (fail-open: peer fora do ar = não encontrado lá)
-    const peer=await checkAccountOnPeers(email);
+    const peer=await checkAccountOnPeers(email,_selfId);
     if(peer)return json(res,200,{ok:true,found:true,server:_svInfo(peer)});
     // 3) Não existe em lugar nenhum → devolve servidores abertos p/ criar conta
     const abertos=list.filter(s=>s.status!=="lotado").map(_svInfo);
@@ -9269,26 +9269,28 @@ Responda APENAS em JSON (sem markdown):
   // Para o próprio servidor conta usuários locais; para peers busca (cache 10 min)
   // via httpsReq; se o peer estiver fora, users=null e o front mostra "—".
   if(pathname==="/api/servers"&&req.method==="GET"){
+    const _selfId=_resolveServerId(req);
     const list=_getServersConfig();
     const out=[];
     for(const sv of list){
       let users=null;
-      if(sv.id===SERVER_ID){ users=_countLocalUsers(); }
+      if(sv.id===_selfId){ users=_countLocalUsers(); }
       else if(sv.url){ const pi=await _fetchPeerJson(sv.url,"/api/servers/self"); if(pi&&typeof pi.users==="number") users=pi.users; }
-      out.push({id:sv.id,nome:sv.nome,url:sv.url,maxExibido:sv.maxExibido,status:sv.status,users,self:sv.id===SERVER_ID});
+      out.push({id:sv.id,nome:sv.nome,url:sv.url,maxExibido:sv.maxExibido,status:sv.status,users,self:sv.id===_selfId});
     }
-    return json(res,200,{ok:true,selfId:SERVER_ID,servers:out});
+    return json(res,200,{ok:true,selfId:_selfId,servers:out});
   }
   // GET /api/servers/ranking-export — top 50 público deste servidor (mesmos
   // dados já públicos no ranking: nome/avatar/plano/envios; NUNCA e-mail).
   if(pathname==="/api/servers/ranking-export"&&req.method==="GET"){
-    return json(res,200,{ok:true,serverId:SERVER_ID,list:_calcGlobalExport()});
+    return json(res,200,{ok:true,serverId:_resolveServerId(req),list:_calcGlobalExport()});
   }
   // GET /api/ranking/global — ranking geral de TODOS os servidores (local + peers).
   if(pathname==="/api/ranking/global"&&req.method==="GET"){
-    const rows=_calcGlobalExport().map(r=>({...r,serverId:SERVER_ID}));
+    const _selfId=_resolveServerId(req);
+    const rows=_calcGlobalExport().map(r=>({...r,serverId:_selfId}));
     for(const sv of _getServersConfig()){
-      if(sv.id===SERVER_ID||!sv.url) continue;
+      if(sv.id===_selfId||!sv.url) continue;
       const pr=await _fetchPeerJson(sv.url,"/api/servers/ranking-export");
       if(pr&&Array.isArray(pr.list)) rows.push(...pr.list.slice(0,50).map(r=>({
         name:String(r.name||"Usuário").slice(0,40),picture:String(r.picture||"").slice(0,500),
@@ -9297,7 +9299,7 @@ Responda APENAS em JSON (sem markdown):
       })));
     }
     rows.sort((a,b)=>b.score-a.score);
-    return json(res,200,{ok:true,selfId:SERVER_ID,list:rows.slice(0,50).map((r,i)=>({pos:i+1,...r})),updatedAt:new Date().toISOString()});
+    return json(res,200,{ok:true,selfId:_selfId,list:rows.slice(0,50).map((r,i)=>({pos:i+1,...r})),updatedAt:new Date().toISOString()});
   }
 
   if(pathname==="/api/public-stats"&&req.method==="GET"){
@@ -9354,7 +9356,7 @@ Responda APENAS em JSON (sem markdown):
       isOnline:isOnlineUser(foundEmail),totalSends:totS,totalResponses:totR,responseRate:respRate,
       streak,memberSince,last7:l7,topStates,adminBadge:DB_RANK_BADGES[foundEmail]||null,
       vipCompras:(calcVipCompras()[foundEmail]||0),
-      serverId:SERVER_ID,
+      serverId:_resolveServerId(req),
       sobre:String(pubP.sobre||"").slice(0,600),
       experiencias:String(pubP.experiencias||"").slice(0,400),
       foiContratado:["sim","nao"].includes(pubP.foiContratado)?pubP.foiContratado:"",
@@ -10261,7 +10263,29 @@ setInterval(() => {
 //  25+ variações de mensagem para nunca repetir
 // ══════════════════════════════════════════════════════════
 
-const _notifSentAt = {}; // email → {stalled: ts, finished: ts} — evita spam
+// V951: carrega cooldowns persistidos (se existirem) ANTES de criar os
+// objetos em memória — assim eles nascem já com o histórico de quando a
+// última notificação de cada tipo foi enviada, mesmo após um deploy.
+let _DB_NOTIF_COOLDOWN = { notifSentAt:{}, authErrNotifiedAt:{}, pedAlertSent:{}, refillNotifiedAt:{} };
+try{
+  if(fs.existsSync(NOTIF_COOLDOWN_FILE)){
+    const _loaded = JSON.parse(fs.readFileSync(NOTIF_COOLDOWN_FILE,"utf8"));
+    _DB_NOTIF_COOLDOWN = { ..._DB_NOTIF_COOLDOWN, ..._loaded };
+  }
+}catch(e){ console.warn("[notif-cooldown] falha ao carregar cooldowns persistidos:", e.message); }
+function _persistNotifCooldowns(){
+  try{
+    _DB_NOTIF_COOLDOWN.notifSentAt = _notifSentAt;
+    _DB_NOTIF_COOLDOWN.authErrNotifiedAt = (typeof getAuthErrNotifiedAt==="function") ? getAuthErrNotifiedAt() : (_DB_NOTIF_COOLDOWN.authErrNotifiedAt||{});
+    _DB_NOTIF_COOLDOWN.pedAlertSent = (typeof getPedAlertSent==="function") ? getPedAlertSent() : (_DB_NOTIF_COOLDOWN.pedAlertSent||{});
+    _DB_NOTIF_COOLDOWN.refillNotifiedAt = global._refillNotifiedAt||{};
+    fs.writeFileSync(NOTIF_COOLDOWN_FILE, JSON.stringify(_DB_NOTIF_COOLDOWN));
+  }catch(e){ console.warn("[notif-cooldown] falha ao salvar cooldowns:", e.message); }
+}
+setInterval(_persistNotifCooldowns, 5*60*1000); // salva a cada 5min (não só no shutdown — Render pode matar sem SIGTERM)
+global._refillNotifiedAt = _DB_NOTIF_COOLDOWN.refillNotifiedAt; // usado por mod-sentinel.js (re-engajamento)
+
+const _notifSentAt = _DB_NOTIF_COOLDOWN.notifSentAt; // email → {stalled: ts, finished: ts} — evita spam
 const _notifEmailLog = []; // log global de todos os emails automáticos enviados (max 1000)
 
 // Mensagens para FILA TRAVADA (25 variações)
@@ -11057,6 +11081,7 @@ const { initWatchdogs } = require("./mod-watchdogs.js");
 const { tokenGuardianRun, vipExpiryWatchdog, authErrorWatchdog, getAuthErrNotifiedAt } = initWatchdogs({
   DB_AUTO: ()=>DB_AUTO, autoTimers: ()=>autoTimers,
   getUser, getAutoJob, setAutoJob, addLog, sendNotifEmail, refreshTokenForUser,
+  authErrNotifiedAtInit: _DB_NOTIF_COOLDOWN.authErrNotifiedAt, // V951: sobrevive a deploy
 });
 
 // ══════════════════════════════════════════════════════════
@@ -11113,6 +11138,37 @@ function _getServersConfig(){
     status:(String(sv.status||"aberto").toLowerCase()==="lotado")?"lotado":"aberto"
   })).filter(sv=>sv.id>0);
 }
+// ── V951: IDENTIDADE ÚNICA POR HOST, usada em TODA rota que precisa saber
+// "quem sou eu" (não só no callback OAuth como antes). A env SERVER_ID é só
+// o fallback de última instância — a fonte de verdade é o host da requisição
+// batido contra a URL de cada servidor na config. Isso corrige de raiz o
+// looping do Servidor 2: antes, só o callback OAuth se autocorrigia pelo host;
+// /api/auth/where, /api/servers, /api/servers/self, /api/status etc. ainda
+// confiavam cegamente na env SERVER_ID — se ela estivesse ausente/errada no
+// Render, essas rotas relatavam a identidade ERRADA (ex.: o próprio servidor
+// aberto aparecia como "não-self"), fazendo o front redirecionar a pessoa
+// pra URL onde ela JÁ está → recarrega a landing → parece que "voltou a
+// pedir e-mail" → loop infinito. Resultado é cacheado por 60s (host não muda
+// em runtime) só para não recalcular em toda requisição.
+let _selfIdCache=null,_selfIdCacheAt=0,_selfIdWarned=false;
+function _resolveServerId(req){
+  const now=Date.now();
+  if(_selfIdCache && (now-_selfIdCacheAt)<60_000) return _selfIdCache;
+  const _norm=x=>String(x||"").replace(/^https?:\/\//,"").replace(/\/.*$/,"").toLowerCase();
+  const _reqHost=_norm(req&&req.headers&&req.headers.host);
+  const _cfgList=_getServersConfig();
+  const _hostMatch=_reqHost?_cfgList.find(sv=>_norm(sv.url)===_reqHost):null;
+  let id=SERVER_ID;
+  if(_hostMatch){
+    if(_hostMatch.id!==SERVER_ID && !_selfIdWarned){
+      _selfIdWarned=true;
+      console.error(`[servers] 🚨 CONFIG CONTRADITÓRIA: este deploy responde por "${_reqHost}" (Servidor ${_hostMatch.id} na config), mas a env SERVER_ID=${SERVER_ID||"(ausente)"} aponta para outro id. Usando a identidade pelo HOST (mais confiável) em TODAS as rotas — corrija a env SERVER_ID no Render para ${_hostMatch.id} assim que possível.`);
+    }
+    id=_hostMatch.id;
+  }
+  _selfIdCache=id;_selfIdCacheAt=now;
+  return id;
+}
 function _countLocalUsers(){
   // Conta usuários visíveis (exclui contas soft-deletadas)
   let n=0; for(const u of Object.values(DB_USERS)){ if(!u||u.accountDeleted) continue; n++; } return n;
@@ -11134,14 +11190,15 @@ function _emailHashExists(h){
 // Pergunta aos servidores irmãos se o e-mail já tem conta lá.
 // Timeout de 6s por peer e FAIL-OPEN: peer fora do ar nunca trava um cadastro
 // legítimo (disponibilidade > rigidez; o evento fica logado para auditoria).
-async function checkAccountOnPeers(email){
+async function checkAccountOnPeers(email,selfId){
+  const _self=selfId||SERVER_ID;
   const h=crypto.createHash("sha256").update(String(email||"").toLowerCase().trim()).digest("hex");
   for(const sv of _getServersConfig()){
-    if(sv.id===SERVER_ID||!sv.url)continue;
+    if(sv.id===_self||!sv.url)continue;
     try{
       const hurl=new URL(sv.url);
       if(hurl.protocol!=="https:")continue;
-      const call=httpsReq({hostname:hurl.hostname,port:hurl.port||443,path:"/api/servers/has-account?h="+h,method:"GET",headers:{"Accept":"application/json","User-Agent":"H2BApply-Server/"+SERVER_ID}});
+      const call=httpsReq({hostname:hurl.hostname,port:hurl.port||443,path:"/api/servers/has-account?h="+h,method:"GET",headers:{"Accept":"application/json","User-Agent":"H2BApply-Server/"+_self}});
       const r=await Promise.race([call,new Promise(res2=>setTimeout(()=>res2(null),6000))]);
       if(r&&r.status===200&&r.body&&r.body.exists===true)return sv;
     }catch(e){console.warn("[servers] has-account em",sv.url,"falhou (fail-open):",e.message);}
@@ -11623,6 +11680,7 @@ function flushAll() {
   try { persist(RANK_BADGES_FILE, DB_RANK_BADGES); } catch(e) { console.warn("[shutdown] rank_badges:", e.message); }
   try { persist(NOTIF_FILE,    DB_NOTIF);    } catch(e) { console.warn("[shutdown] notif:",    e.message); }
   try { persist(SUGGESTIONS_FILE, DB_SUGGESTIONS); } catch(e) { console.warn("[shutdown] suggestions:", e.message); }
+  try { _persistNotifCooldowns(); } catch(e) { console.warn("[shutdown] notif-cooldowns:", e.message); }
 
   // 3. Persiste sent_emails (conversão Set → Array)
   try {
@@ -11959,7 +12017,7 @@ RESPONDA APENAS com array JSON:
 // ══════════════════════════════════════════════════════════════════════════
 const { MSGS_VIP_EXPIRING, MSGS_NO_PROFILE, MSGS_VIP_DESYNC, MSGS_REFILL } = require("./mod-notif-templates.js");
 const { initSentinel } = require("./mod-sentinel.js");
-const { healthSentinelRun, pendingOrderAlert, queueSanitizerRun } = initSentinel({
+const { healthSentinelRun, pendingOrderAlert, queueSanitizerRun, getPedAlertSent } = initSentinel({
   DB_USERS: ()=>DB_USERS, DB_AUTO: ()=>DB_AUTO, DB_PEDIDOS: ()=>DB_PEDIDOS,
   DB_INVALID_EMAILS: ()=>DB_INVALID_EMAILS, DB_SHEETS_META: ()=>DB_SHEETS_META,
   SHEET_EXTRAS: ()=>SHEET_EXTRAS, sessions: ()=>sessions,
@@ -11967,6 +12025,7 @@ const { healthSentinelRun, pendingOrderAlert, queueSanitizerRun } = initSentinel
   getUser, getAutoJob, setAutoJob, isVipActive, sendNotifEmail,
   refreshTokenForUser, buildMime, httpsReq, getSheet,
   cooldownMaps: { notifSentAt: ()=>_notifSentAt, authErrNotifiedAt: getAuthErrNotifiedAt },
+  pedAlertSentInit: _DB_NOTIF_COOLDOWN.pedAlertSent, // V951: sobrevive a deploy
 });
 
 // ── Router do grupo saúde/operação (Fase 1 · Módulo 5) ──

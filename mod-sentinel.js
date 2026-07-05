@@ -150,7 +150,7 @@ setInterval(()=>healthSentinelRun().catch(e=>console.error("[health-sentinel]",e
 setTimeout(()=>healthSentinelRun().catch(()=>{}), 90*1000); // primeira varredura 90s após boot
 
 // ── 3. Alerta ao ADMIN de pedido pendente há >6h ────────────────────────────
-const _pedAlertSent = {}; // {pedidoId: ts}
+const _pedAlertSent = ctx.pedAlertSentInit || {}; // {pedidoId: ts} — V951: persistido em disco (sobrevive a deploy)
 async function pendingOrderAlert(){
   const now = Date.now();
   const pend = (ctx.DB_PEDIDOS()||[]).filter(p=>p.status==="pendente" && (now-(p.createdAt||0))>6*3600_000);
@@ -216,6 +216,6 @@ setTimeout(()=>{ try{queueSanitizerRun();}catch(e){} }, 3*60*1000);
 
 console.log("[health-sentinel] 🩺 Módulo carregado: desync VIP↔robô, lembrete de renovação, alerta de pedidos, sanitização de fila.");
 
-  return { healthSentinelRun, pendingOrderAlert, queueSanitizerRun };
+  return { healthSentinelRun, pendingOrderAlert, queueSanitizerRun, getPedAlertSent: ()=>_pedAlertSent };
 }
 module.exports = { initSentinel };
