@@ -2866,10 +2866,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               <option value="22">$22+/h</option><option value="25">$25+/h</option><option value="28">$28+/h</option>
             </select>
             <input class="fsel" id="f-city" type="text" placeholder="Cidade..." oninput="applyF()" style="min-width:90px;max-width:120px;display:none" title="Filtrar por cidade">
-            <div id="f-grupo-bar" style="display:none;align-items:center;gap:4px">
-              <span style="font-size:10.5px;font-weight:800;color:var(--t3);white-space:nowrap">🎯 Grupo:</span>
-              <span id="f-grupo-chips" style="display:inline-flex;gap:4px"></span>
-            </div>
+
             <select class="fsel" id="f-workers" onchange="applyF()" title="Qtd vagas" style="display:none">
               <option value="">Qtd vagas</option>
               <option value="2">2+</option><option value="5">5+</option>
@@ -2878,6 +2875,19 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <button class="fbtn on" id="so-rand" onclick="setSort('random')">🔀 Aleatório</button>
             <button class="fbtn"    id="so-desc" onclick="setSort('desc')">Recentes</button>
             <button class="fbtn"    id="so-asc"  onclick="setSort('asc')">Antigas</button>
+          </div>
+          <!-- ⭐ FILTROS ESPECIAIS — Grupo (randomização DOL) + Status ao vivo -->
+          <div id="filtros-especiais" style="display:none;align-items:center;gap:7px;padding:7px 12px 8px;overflow-x:auto;background:linear-gradient(90deg,rgba(124,58,237,.07),rgba(59,130,246,.05));border-top:1px dashed var(--border)">
+            <span style="font-size:10px;font-weight:900;color:#8b5cf6;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;display:inline-flex;align-items:center;gap:4px">⭐ Filtros especiais</span>
+            <span id="f-grupo-wrap" style="display:inline-flex;align-items:center;gap:4px">
+              <span style="font-size:10.5px;font-weight:800;color:var(--t3);white-space:nowrap">🎯 Grupo:</span>
+              <span id="f-grupo-chips" style="display:inline-flex;gap:4px"></span>
+            </span>
+            <span id="f-status-wrap" style="display:inline-flex;align-items:center;gap:4px">
+              <span style="font-size:10.5px;font-weight:800;color:var(--t3);white-space:nowrap">📡 Status:</span>
+              <span id="f-status-sel-box" style="display:inline-flex"></span>
+            </span>
+            <button onclick="showEtaExplainer()" style="border:1px solid var(--border);background:var(--surface);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:800;color:var(--t2);cursor:pointer;font-family:inherit;white-space:nowrap">❓ O que é isso?</button>
           </div>
         </div>
         <div class="jobs-view">
@@ -3948,7 +3958,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               <div id="af-grupo-box" style="margin-bottom:12px">
                 <div style="font-size:11.5px;font-weight:800;color:var(--t2);margin-bottom:6px;display:flex;align-items:center;gap:5px">🎯 Filtro por Grupo <span style="font-size:8.5px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;padding:1px 6px;border-radius:8px;font-weight:800">250+</span></div>
                 <div id="af-grupo-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
-                <div style="font-size:10px;color:var(--t3);margin-top:5px" id="af-grupo-hint">Grupos oficiais da randomização do DOL — o Grupo A é processado primeiro.</div>
+                <div id="af-status-row" style="margin-top:8px;display:none;align-items:center;gap:6px"><span style="font-size:11px;font-weight:800;color:var(--t2)">📡 Status:</span><select id="af-status-sel" class="form-inp" style="flex:1;font-size:12px" onchange="afEtaStatus=this.value"></select></div>
+                <div style="font-size:10px;color:var(--t3);margin-top:5px" id="af-grupo-hint">Grupos oficiais da randomização do DOL — o Grupo A é processado primeiro. <a href="#" onclick="event.preventDefault();showEtaExplainer()" style="color:#8b5cf6;font-weight:700">O que é isso?</a></div>
               </div>
               <!-- Filtro por número mínimo de vagas -->
               <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
@@ -5692,7 +5703,7 @@ let DOCS=[],activeResIdx=null,activeCovIdx=null;
 let JOBS=[],HIST=[],SAVED=new Set(),APPLIED=new Set();
 
 // ── Sistema de filtro de vagas ──
-var _sentJan=new Set(),_sentJul=new Set(),_sentSeasonal=new Set(),_sentLoaded=false;
+var _sentJan=new Set(),_sentJul=new Set(),_sentSeasonal=new Set(),_sentAll=new Set(),_sentLoaded=false;
 
 async function _loadSentIds(){
   try{
@@ -5702,10 +5713,17 @@ async function _loadSentIds(){
     _sentJan=new Set(d.jan2026||[]);
     _sentJul=new Set(d.jul2025||[]);
     _sentSeasonal=new Set(d.seasonal||[]);
+    // FIX "volta pra estaca zero": conjunto GLOBAL por case number — vale para
+    // TODA planilha (H-2A, jul2026 futura...). Antes só jan2026/jul2025 escondiam
+    // enviadas; nas outras abas a vaga reaparecia e o clique dava "já enviada".
+    _sentAll=new Set(d.all||[]);
+    if(!_sentAll.size){[..._sentJan,..._sentJul].forEach(function(c){_sentAll.add(c);});} // compat servidor antigo
     _sentLoaded=true;
   }catch(e){}
 }
 function _isSent(cn,sheet){
+  if(!cn)return false;
+  if(_sentAll.has(cn))return true; // case number é único — enviado é enviado em qualquer aba
   if(sheet==="jan2026")return _sentJan.has(cn);
   if(sheet==="jul2025")return _sentJul.has(cn);
   return false;
@@ -5725,6 +5743,7 @@ let sJobs=[],sTotal=0,sSkip=0,sDone=false,sLoading=false;
 let sCache={};
 let fQ="",fState="",fType="all",fStat="all",fSort="random",fWage=0,fWorkers=0,fCat="all";
 let fGrupos=[]; // Filtro por Grupo (randomização H-2B) — exclusivo Double Pro
+let fEtaStatus=""; // Filtro por Status DOL (Monitor ETA) — exclusivo Double Pro
 let curView="jobs",histTab="all";
 let autoInterval=null;
 let _autoCountdown=null;
@@ -6591,9 +6610,18 @@ function stopRankTimer(){if(_rankTimer){clearInterval(_rankTimer);_rankTimer=nul
 //  SOURCE TABS + DYNAMIC CATEGORIES
 // ═══════════════════════════════════════════
 function setTab(t){
-  // Filtro por Grupo: só faz sentido em planilhas H-2B (H-2A não tem grupo)
-  fGrupos=[];
-  setTimeout(()=>{const bar=g("#f-grupo-bar");if(bar){const show=t!=="seasonal"&&!t.startsWith("h2a");bar.style.display=show?"inline-flex":"none";if(show)renderGrupoChips();}},50);
+  // ⭐ Filtros especiais: linha aparece em toda aba de planilha.
+  // Grupo só em H-2B (H-2A não tem randomização); Status em todas.
+  fGrupos=[];fEtaStatus="";
+  setTimeout(()=>{
+    const bar=g("#filtros-especiais");if(!bar)return;
+    const isSheet=t!=="seasonal";
+    bar.style.display=isSheet?"flex":"none";
+    if(isSheet){
+      const gw=g("#f-grupo-wrap");if(gw)gw.style.display=t.startsWith("h2a")?"none":"inline-flex";
+      renderGrupoChips();renderStatusSel();
+    }
+  },50);
   tab=t;fCat="all";
   // FIX: resetar filtros que não existem nas planilhas para não contaminar os resultados
   if(t!=="seasonal"){fWage=0;fWorkers=0;const fw=g("#f-wage");if(fw)fw.value="";const wk=g("#f-workers");if(wk)wk.value="";}
@@ -6705,8 +6733,9 @@ async function loadSheetMeta(reset=false){
     if(fWage>0)p.append("minWage",String(fWage));if(fWorkers>0)p.append("minWorkers",String(fWorkers));
     if(fCity)p.append("city",fCity);
     if(fGrupos.length&&!tab.startsWith("h2a"))p.append("grupo",fGrupos.join(","));
+    if(fEtaStatus)p.append("etaStatus",fEtaStatus);
     const r=await fetch("/api/sheet-meta?"+p,{credentials:"include"});const d=await r.json();
-    if(r.status===403&&d.upsell){fGrupos=[];renderGrupoChips();showGrupoUpsell();sLoading=false;return;}
+    if(r.status===403&&d.upsell){fGrupos=[];fEtaStatus="";renderGrupoChips();renderStatusSel();showGrupoUpsell();sLoading=false;return;}
     if(reset)g("#jlist").innerHTML="";
     if(!d.jobs?.length){sDone=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">${sJobs.length?"Sem mais vagas.":"Nenhuma vaga encontrada."}</div>`;}
     else{
@@ -6887,6 +6916,70 @@ function renderGrupoChips(){
     return`<button onclick="toggleGrupo('${L}')" style="min-width:26px;padding:3px 7px;border-radius:9px;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit;transition:all .12s;border:1.5px solid ${on?gi.c:"var(--border)"};background:${on?gi.c:"transparent"};color:${on?"#fff":"var(--t3)"}">${L}</button>`;
   }).join("")+(fGrupos.length?`<button onclick="fGrupos=[];renderGrupoChips();applyF()" style="border:none;background:none;color:var(--t3);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;padding:2px 4px">✕ limpar</button>`:"");
 }
+// Filtro por Status DOL — dropdown da linha de filtros especiais
+const _ETA_STATUS_OPTS=[
+  ["","Todos os status"],
+  ["certificada","✅ Certificada (aprovada pelo DOL)"],
+  ["ativa","🟢 Certified · Ativa no DOL"],
+  ["inativa","🟡 Certified · Inativa no DOL"],
+  ["registrada","⏳ Registrada / Em análise"],
+  ["parcial","🟠 Certificação parcial"],
+  ["withdrawn","↩️ Retirada pelo empregador"],
+  ["denied","❌ Negada / Rejeitada"],
+  ["encerrada","🏁 Encerrada (contrato acabou)"]
+];
+function renderStatusSel(){
+  const box=g("#f-status-sel-box");if(!box)return;
+  if(!_etaIsFull){
+    box.innerHTML=`<button onclick="showEtaExplainer()" style="background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(99,102,241,.1));border:1.5px solid rgba(139,92,246,.4);border-radius:20px;padding:3px 12px;font-size:10.5px;font-weight:800;color:#a78bfa;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px">🔒 Status <span style="font-size:9px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;padding:1px 6px;border-radius:10px">250+</span></button>`;
+    return;
+  }
+  box.innerHTML=`<select class="fsel" style="font-size:11px;max-width:190px" onchange="fEtaStatus=this.value;applyF()">${_ETA_STATUS_OPTS.map(([v,l])=>`<option value="${v}"${fEtaStatus===v?" selected":""}>${l}</option>`).join("")}</select>`;
+}
+// ═══ EXPLICADOR: o que são os Grupos e os Status — informação oficial do DOL ═══
+function showEtaExplainer(){
+  let ov=g("#eta-explainer-ov");
+  if(!ov){
+    ov=document.createElement("div");
+    ov.id="eta-explainer-ov";
+    ov.style.cssText="position:fixed;inset:0;z-index:9300;background:rgba(4,8,20,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:14px;overflow-y:auto";
+    ov.onclick=e=>{if(e.target===ov)ov.style.display="none";};
+    document.body.appendChild(ov);
+  }
+  ov.style.display="flex";
+  const cta=_etaIsFull
+    ?`<div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:12px;padding:11px 14px;font-size:12px;color:#34d399;font-weight:700;text-align:center">✅ Você é Double Pro — os filtros e o status ao vivo já estão liberados!</div>`
+    :`<button onclick="g('#eta-explainer-ov').style.display='none';sv('plans')" style="width:100%;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;border-radius:13px;padding:14px;font-size:14px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit;box-shadow:0 8px 25px rgba(124,58,237,.45)">💎 Desbloquear Grupo + Status — Double Pro R$250</button>`;
+  ov.innerHTML=`<div style="background:linear-gradient(165deg,#0d1530,#0a1024);border:1.5px solid rgba(59,130,246,.35);border-radius:22px;max-width:460px;width:100%;padding:24px 20px 16px;box-shadow:0 24px 80px rgba(0,0,0,.65);position:relative;margin:auto;color:#e2e8f0;animation:srvPop .28s cubic-bezier(.2,.9,.3,1.2)">
+    <button onclick="g('#eta-explainer-ov').style.display='none'" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:10px;width:32px;height:32px;color:rgba(255,255,255,.7);font-size:16px;cursor:pointer">✕</button>
+    <div style="font-family:'Sora',sans-serif;font-size:19px;font-weight:800;color:#fff;margin-bottom:14px">🎯 Grupos e Status — por que isso decide sua vaga</div>
+
+    <div style="font-size:12px;font-weight:900;color:#a78bfa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">🎲 O que é o Grupo?</div>
+    <div style="font-size:12.5px;color:rgba(255,255,255,.75);line-height:1.7;margin-bottom:10px">Todo semestre, os empregadores H-2B entram com os pedidos numa janela de só <strong style="color:#fff">3 dias</strong>. Como a demanda é MUITO maior que as <strong style="color:#fff">33.000 vagas de visto</strong> do semestre, o Departamento do Trabalho (DOL) faz um <strong style="color:#fff">sorteio oficial</strong> e divide todos os pedidos em <strong style="color:#a78bfa">Grupos A, B, C… até H</strong>.</div>
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 13px;font-size:12px;line-height:1.9;margin-bottom:14px">
+      <div>🥇 <strong style="color:#34d399">Grupo A</strong> = processado PRIMEIRO e sozinho já cobre as 33.000 vagas</div>
+      <div>🥈 <strong style="color:#fbbf24">Grupos B em diante</strong> = só entram se sobrar vaga (desistências, negações) ou pelo cap suplementar</div>
+      <div>📊 Em jan/2026: <strong style="color:#fff">10.062 pedidos (162.603 posições)</strong> disputando 33.000 vistos — grupos foram de A até H</div>
+      <div>🌾 <strong style="color:#34d399">H-2A não tem grupo</strong>: agricultura não tem limite de vistos, então não existe sorteio</div>
+    </div>
+
+    <div style="font-size:12px;font-weight:900;color:#60a5fa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px">📡 O que é o Status?</div>
+    <div style="font-size:12.5px;color:rgba(255,255,255,.75);line-height:1.7;margin-bottom:10px">É a situação REAL do pedido do empregador no DOL — o nosso robô consulta a base oficial 24/7 e atualiza aqui:</div>
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 13px;font-size:11.5px;line-height:1.95;margin-bottom:14px">
+      <div>✅ <strong>Certificada</strong> — DOL aprovou: o empregador PODE trazer trabalhadores</div>
+      <div>🟢 <strong>Ativa no DOL</strong> — certificada e com anúncio ativo agora</div>
+      <div>⏳ <strong>Registrada / Em análise</strong> — ainda esperando o DOL decidir</div>
+      <div>🟠 <strong>Parcial</strong> — aprovada para menos posições que o pedido</div>
+      <div>↩️ <strong>Retirada</strong> — o próprio empregador desistiu do pedido</div>
+      <div>❌ <strong>Negada</strong> — DOL recusou (candidatar-se = tempo perdido)</div>
+      <div>🏁 <strong>Encerrada</strong> — o período do contrato já acabou</div>
+    </div>
+
+    <div style="font-size:12.5px;color:rgba(255,255,255,.8);line-height:1.7;margin-bottom:14px;background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);border-radius:12px;padding:11px 13px">💡 <strong style="color:#fff">Por que importa:</strong> candidatar-se numa vaga do <strong style="color:#34d399">Grupo A já certificada</strong> significa mirar num empregador que REALMENTE vai contratar. Sem essa informação, você gasta envios em vagas negadas, retiradas ou sem chance no sorteio.</div>
+    ${cta}
+    <div style="font-size:10px;color:rgba(255,255,255,.35);text-align:center;margin-top:9px">Fonte: randomização oficial do DOL/OFLC (Federal Register 04/03/2019) e relatórios públicos de grupos</div>
+  </div>`;
+}
 function toggleGrupo(L){
   if(!_etaIsFull){showGrupoUpsell();return;}
   const i=fGrupos.indexOf(L);
@@ -6956,7 +7049,7 @@ function etaFillCardLine(cn){
     :`${etaStatusChip(info.status)}${info.upd?'<span style="font-size:9px;font-weight:800;background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.4);padding:1px 6px;border-radius:10px">✨ Atualização</span>':""}`;
   el.innerHTML=`<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:5px">
     ${grupoHtml}${mid}
-    <button onclick="event.stopPropagation();openEtaMonitor('${esc(cn)}')" style="margin-left:auto;background:linear-gradient(135deg,#059669,#10b981);border:none;border-radius:8px;padding:4px 11px;font-size:10px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;box-shadow:0 3px 10px rgba(16,185,129,.3)">⭐ Monitor ETA</button>
+    <button onclick="event.stopPropagation();${_etaIsFull?`openEtaMonitor('${esc(cn)}')`:"showEtaExplainer()"}" style="margin-left:auto;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;border-radius:8px;padding:4px 11px;font-size:10px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px;box-shadow:0 3px 10px rgba(124,58,237,.35)">🎯 Grupo & Status</button>
   </div>`;
 }
 // ── Modal Monitor ETA (criado sob demanda; design Stripe/Linear dark) ──
@@ -7376,8 +7469,7 @@ async function doSend(){
     if(j?.id){
       APPLIED.add(j.id);
         if(tab==="seasonal")_sentSeasonal.add(j.id);
-        else if(tab==="jan2026"&&(j.caseNum||j.id))_sentJan.add(j.caseNum||j.id);
-        else if(tab==="jul2025"&&(j.caseNum||j.id))_sentJul.add(j.caseNum||j.id);
+        else if(j.caseNum||j.id)_sentAll.add(j.caseNum||j.id); // qualquer planilha
       // Seasonal card: fade out e some
       const sc=g("#jcard-"+j.id);
       if(sc){sc.style.transition="opacity .3s ease";sc.style.opacity="0";setTimeout(()=>{sc.style.display="none";sc.style.opacity="";sc.style.transition="";},320);}
@@ -9330,8 +9422,14 @@ async function loadDynamicSheets(){
 }
 
 // ── Filtro por Grupo no AUTOMÁTICO (Double Pro) ──
-let afGrupos=[];
+let afGrupos=[],afEtaStatus="";
 function renderAfGrupoChips(){
+  // Select de status (Double Pro): preenchido junto com os chips
+  const sr=g("#af-status-row"),ss=g("#af-status-sel");
+  if(sr&&ss){
+    if(_etaIsFull){sr.style.display="flex";ss.innerHTML=_ETA_STATUS_OPTS.map(([v,l])=>`<option value="${v}"${afEtaStatus===v?" selected":""}>${l}</option>`).join("");}
+    else sr.style.display="none";
+  }
   const box=g("#af-grupo-chips");if(!box)return;
   const wrap=g("#af-grupo-box");
   const isH2A=String(window.autoSelectedSrc||"").startsWith("h2a");
@@ -9699,6 +9797,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
       if(cityFilter)p.append("city",cityFilter);
       if(minWorkersFilter>0)p.append("minWorkers",String(minWorkersFilter));
       if(afGrupos.length&&!String(autoSelectedSrc||"").startsWith("h2a"))p.append("grupo",afGrupos.join(","));
+      if(typeof afEtaStatus==="string"&&afEtaStatus)p.append("etaStatus",afEtaStatus);
       const r=await fetch("/api/sheet-meta?"+p,{credentials:"include"});
       const d=await r.json();
       if(!d.jobs?.length)break;

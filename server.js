@@ -4597,7 +4597,12 @@ function _saveEnrichedSheet(sheetKey, sheet){
   if(pathname==="/api/admin/sheet/upload"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    const{name,key,data}=body;
+    // FIX v941: `body` não existia neste escopo → ReferenceError → request pendurado
+    // pra sempre (mesma classe do bug #819). Agora lê o corpo corretamente.
+    let _upBody;
+    try{ _upBody=JSON.parse(await readBody(req)); }
+    catch(e){ return json(res,400,{error:"Corpo inválido: "+e.message}); }
+    const{name,key,data}=_upBody;
     if(!name||!key||!data)return json(res,400,{error:"name, key e data obrigatórios"});
     // Sanitizar key (só letras, números, hífen, underscore)
     const safeKey=key.toLowerCase().replace(/[^a-z0-9_-]/g,"");
@@ -5008,6 +5013,33 @@ function _saveEnrichedSheet(sheetKey, sheet){
         const gr=etaGrupoDisplay(DB_ETA.cases[cn])||ETA_GRUPOS_OFICIAIS[cn]||etaGrupoFor(cn,r.visa,r.d,r.g?String(r.g):"");
         return gr&&_gs.has(gr);
       });
+    }
+    // ── FILTRO POR STATUS DOL (Monitor ETA) — também exclusivo Double Pro ──
+    // Chaves amigáveis → teste sobre o status atual do case no registro do robô.
+    const filterEta=(u.searchParams.get("etaStatus")||"").toLowerCase().replace(/[^a-z,]/g,"");
+    if(filterEta){
+      const _sE=getSess(req);
+      const _uE=_sE?.user_email?(getUser(_sE.user_email)||{}):{};
+      const _fullE=getPlan(_uE)==="doublepro"||isAdminVip(_uE);
+      if(!_fullE)return json(res,403,{error:"O Filtro por Status é exclusivo do plano Double Pro (R$250).",upsell:true,feature:"status"});
+      const TESTES={
+        certificada:st=>st.includes("certification")&&!st.includes("partial"),
+        parcial:st=>st.includes("partial"),
+        ativa:st=>st.includes("ativa"),
+        inativa:st=>st.includes("inativa"),
+        registrada:st=>st.includes("registrada")||st.includes("pending"),
+        withdrawn:st=>st.includes("withdrawn"),
+        denied:st=>st.includes("denied")||st.includes("rejected"),
+        encerrada:st=>st.includes("encerrada")||st.includes("closed")
+      };
+      const wanted=filterEta.split(",").map(k=>TESTES[k]).filter(Boolean);
+      if(wanted.length){
+        preFiltered=preFiltered.filter(r=>{
+          const c=DB_ETA.cases[String(r.c||"").toUpperCase()];
+          const st=String(c?.status||r.st||"").toLowerCase();
+          return st&&wanted.some(t=>t(st));
+        });
+      }
     }
     // searchSheet faz q/state/category + paginação no array já pré-filtrado
     const{total,items}=searchSheet(preFiltered,q,state,category,skip,top,sort);
@@ -7056,11 +7088,16 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     const s2=getSess(req);if(!s2?.user_email)return json(res,401,{error:"Não autenticado."});
     const hist=getHist(s2.user_email);
     const sentJan=new Set(),sentJul=new Set(),sentSeasonal=new Set();
+    // FIX "volta pra estaca zero": conjunto global por case number, independente
+    // de planilha — o chute por prefixo mandava H-300 (H-2A!) pro balde jul2025
+    // e planilhas novas não tinham balde nenhum → enviadas reapareciam na lista.
+    const sentAll=new Set();
 
     hist.forEach(h=>{
       const cn  = h.caseNum||"";
       const src = h.sheetSource||"";
       const id  = h.jobId||h.id||"";
+      if(cn) sentAll.add(cn);
 
       if(src==="jan2026" || (!src && (cn.startsWith("H-4")||cn.startsWith("H-5")||cn.startsWith("H-6")))){
         if(cn) sentJan.add(cn);
@@ -7083,6 +7120,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       if(!q.id && !q.caseNum) return;
       const id = q.id || q.caseNum;
       const cn = q.caseNum||"";
+      if(cn||/^H-\d/.test(String(id)))sentAll.add(cn||id); // fila do auto some de TODA planilha
       const src = autoJob.source || "";
       if(src==="jan2026"||cn.startsWith("H-4")||cn.startsWith("H-5")) sentJan.add(id);
       else if(src==="jul2025"||cn.startsWith("H-3")) sentJul.add(id);
@@ -7090,6 +7128,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     });
 
     return json(res,200,{
+      all:[...sentAll],
       jan2026:[...sentJan],
       jul2025:[...sentJul],
       seasonal:[...sentSeasonal],
@@ -8972,6 +9011,22 @@ Responda APENAS em JSON (sem markdown):
           :{locked:true,h2a:_h2a,hasGrupo:!!_gr}; // grupo E status são exclusivos do plano 250+
       }
       return json(res,200,{ok:true,full,map});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  // POST /api/admin/eta/upload-grupos {csv} — importa o PublicFacingReport
+  // novo (ex.: julho/2026). Excel → "Salvar como CSV" → colar/subir aqui.
+  // Mescla nos grupos oficiais, persiste no volume e corrige o registro na hora.
+  if(pathname==="/api/admin/eta/upload-grupos"&&req.method==="POST"){
+    const s2=getSess(req);if(!s2?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p2=getUser(s2.user_email);if(!isAdminVip(p2))return json(res,403,{error:"Não autorizado"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const r=etaParseGruposCSV(d.csv||"");
+      if(r.err)return json(res,400,{error:r.err});
+      persistGruposOficiais(String(d.fonte||"upload admin").slice(0,120));
+      etaAplicarGruposOficiais();
+      etaLog("info",`Report de randomização importado: ${r.add} grupos novos/atualizados (total ${Object.keys(ETA_GRUPOS_OFICIAIS).length})`);
+      return json(res,200,{ok:true,adicionados:r.add,total:Object.keys(ETA_GRUPOS_OFICIAIS).length});
     }catch(e){return json(res,500,{error:e.message});}
   }
   // GET /api/eta/case?c=H-... — detalhe completo (Double Pro) ou teaser (demais)
@@ -11137,14 +11192,41 @@ function etaGrupoFromBegin(begin){
 // randomização H-2B (A–H). Carregado do arquivo versionado no deploy.
 // REGRA: H-2A (H-300) NUNCA tem grupo — só o H-2B passa por lista randomizada.
 let ETA_GRUPOS_OFICIAIS={};
+const ETA_GRUPOS_FILE=path.join(DATA_DIR,"eta_grupos_oficiais.json");
 try{
-  const _gf=path.join(__dirname,"eta_grupos_oficiais.json");
+  // Preferência: cópia do volume persistente (recebe uploads de reports novos);
+  // fallback: arquivo semeado no deploy — copiado pro volume na 1ª vez.
+  let _gf=fs.existsSync(ETA_GRUPOS_FILE)?ETA_GRUPOS_FILE:path.join(__dirname,"eta_grupos_oficiais.json");
   if(fs.existsSync(_gf)){
     const _gd=JSON.parse(fs.readFileSync(_gf,"utf8"));
     ETA_GRUPOS_OFICIAIS=_gd.grupos||{};
+    if(_gf!==ETA_GRUPOS_FILE){try{fs.writeFileSync(ETA_GRUPOS_FILE,JSON.stringify(_gd));}catch{}}
     console.log(`[eta] Grupos oficiais DOL carregados: ${Object.keys(ETA_GRUPOS_OFICIAIS).length} cases (${_gd.meta?.fonte||""})`);
   }
 }catch(e){console.warn("[eta] grupos oficiais:",e.message);}
+function persistGruposOficiais(fonte){
+  try{fs.writeFileSync(ETA_GRUPOS_FILE,JSON.stringify({meta:{fonte:fonte||"upload admin",atualizadoEm:new Date().toISOString(),total:Object.keys(ETA_GRUPOS_OFICIAIS).length},grupos:ETA_GRUPOS_OFICIAIS}));}catch(e){console.warn("[eta] persist grupos:",e.message);}
+}
+// Parser do PublicFacingReport em CSV (Excel: Salvar como → CSV). Acha as colunas
+// "Case Number" e "Randomization Group" pelo cabeçalho — tolerante a ; ou , e aspas.
+function etaParseGruposCSV(txt){
+  const lines=String(txt||"").split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2)return{add:0,err:"CSV vazio"};
+  const sep=lines[0].includes(";")&&!lines[0].includes(",")?";":",";
+  const parse=l=>{const out=[];let cur="",q=false;for(const ch of l){if(ch==='"'){q=!q;continue;}if(ch===sep&&!q){out.push(cur);cur="";continue;}cur+=ch;}out.push(cur);return out.map(x=>x.trim());};
+  const head=parse(lines[0]).map(h=>h.toLowerCase());
+  const iCase=head.findIndex(h=>h.includes("case")&&h.includes("number"));
+  const iGrupo=head.findIndex(h=>h.includes("randomization")&&h.includes("group"));
+  if(iCase<0||iGrupo<0)return{add:0,err:'Cabeçalho precisa ter as colunas "Case Number" e "Randomization Group" (é o formato do PublicFacingReport do DOL).'};
+  let add=0;
+  for(let i=1;i<lines.length;i++){
+    const c=parse(lines[i]);
+    const cn=String(c[iCase]||"").toUpperCase().trim();
+    const gr=String(c[iGrupo]||"").toUpperCase().trim().slice(0,1);
+    if(/^H-\d/.test(cn)&&/^[A-Z]$/.test(gr)&&!etaIsH2A(cn,"")){if(ETA_GRUPOS_OFICIAIS[cn]!==gr){ETA_GRUPOS_OFICIAIS[cn]=gr;add++;}}
+  }
+  return{add};
+}
 function etaIsH2A(cn,visa){
   return String(cn||"").toUpperCase().startsWith("H-300")||String(visa||"").toUpperCase().includes("H-2A");
 }
