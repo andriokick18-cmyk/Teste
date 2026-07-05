@@ -4992,6 +4992,23 @@ function _saveEnrichedSheet(sheetKey, sheet){
     if(filterJobStatus==="inactive") preFiltered=preFiltered.filter(r=>{const st=(r.st||"").toUpperCase();return st.includes("WITHDRAWN")||st.includes("DENIED")||st.includes("EXPIRED");});
     if(filterCompany) preFiltered=preFiltered.filter(r=>(r.n||"").toLowerCase().includes(filterCompany));
     if(filterCity) preFiltered=preFiltered.filter(r=>(r.ci||"").toLowerCase().includes(filterCity));
+    // ── FILTRO POR GRUPO (randomização H-2B) — exclusivo do plano Double Pro ──
+    // Gate no SERVIDOR: quem não é 250+ recebe upsell, nunca o dado filtrado.
+    // H-2A não tem grupo (não existe lista randomizada de H-2A) → nunca casa.
+    const filterGrupo=(u.searchParams.get("grupo")||"").toUpperCase().replace(/[^A-H,]/g,"").trim();
+    if(filterGrupo){
+      const _sG=getSess(req);
+      const _uG=_sG?.user_email?(getUser(_sG.user_email)||{}):{};
+      const _fullG=getPlan(_uG)==="doublepro"||isAdminVip(_uG);
+      if(!_fullG)return json(res,403,{error:"O Filtro por Grupo é exclusivo do plano Double Pro (R$250).",upsell:true,feature:"grupo"});
+      const _gs=new Set(filterGrupo.split(",").filter(Boolean));
+      preFiltered=preFiltered.filter(r=>{
+        const cn=String(r.c||"").toUpperCase();
+        if(etaIsH2A(cn,r.visa))return false;
+        const gr=etaGrupoDisplay(DB_ETA.cases[cn])||ETA_GRUPOS_OFICIAIS[cn]||etaGrupoFor(cn,r.visa,r.d,r.g?String(r.g):"");
+        return gr&&_gs.has(gr);
+      });
+    }
     // searchSheet faz q/state/category + paginação no array já pré-filtrado
     const{total,items}=searchSheet(preFiltered,q,state,category,skip,top,sort);
     let filtered=items; // já paginado corretamente
@@ -7392,6 +7409,23 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     if(!isAdminVip(p)&&todayAuto>=autoLimit)return json(res,429,{error:`Limite de ${autoLimit} automáticos/dia atingido.`,limitReached:true});
     try{
       const d=JSON.parse(await readBody(req));
+      // ── FILTRO POR GRUPO no automático — gate server-side do Double Pro ──
+      // Mesmo que o front tente burlar, a fila só é filtrada por grupo p/ 250+.
+      if(Array.isArray(d.grupos)&&d.grupos.length){
+        const _fullG=getPlan(p)==="doublepro"||isAdminVip(p);
+        if(!_fullG)return json(res,403,{error:"O Filtro por Grupo é exclusivo do plano Double Pro (R$250).",upsell:true,feature:"grupo"});
+        const _gs=new Set(d.grupos.map(x=>String(x).toUpperCase().slice(0,1)).filter(x=>/^[A-H]$/.test(x)));
+        if(_gs.size&&Array.isArray(d.cases)){
+          const _antes=d.cases.length;
+          d.cases=d.cases.filter(cn=>{
+            const CN=String(cn||"").toUpperCase();
+            if(etaIsH2A(CN,""))return false;
+            const gr=etaGrupoDisplay(DB_ETA.cases[CN])||ETA_GRUPOS_OFICIAIS[CN]||"";
+            return gr&&_gs.has(gr);
+          });
+          console.log(`[auto] Filtro por grupo [${[..._gs].join(",")}]: ${_antes} → ${d.cases.length} vagas`);
+        }
+      }
       // ── Validação: perfil válido ──────────────────────────
       const profiles=(p.profiles||[]).filter(pr=>pr.active!==false);
       const hasResumeIdx=d.resumeIdx!=null||(profiles.length>0&&profiles.some(pr=>pr.resumeIdx!=null));
@@ -8931,9 +8965,11 @@ Responda APENAS em JSON (sem markdown):
       const map={};
       for(const cn of cases){
         const c=DB_ETA.cases[cn];if(!c)continue;
+        const _h2a=etaIsH2A(c.cn,c.visa);
+        const _gr=_h2a?"":etaGrupoDisplay(c);
         map[cn]=full
-          ?{grupo:c.grupo||"",status:c.status||"",upd:(c.updBadgeUntil||0)>Date.now(),last:c.lastCheckAt||0}
-          :{grupo:c.grupo||"",locked:true};
+          ?{grupo:_gr,h2a:_h2a,status:c.status||"",upd:(c.updBadgeUntil||0)>Date.now(),last:c.lastCheckAt||0}
+          :{locked:true,h2a:_h2a,hasGrupo:!!_gr}; // grupo E status são exclusivos do plano 250+
       }
       return json(res,200,{ok:true,full,map});
     }catch(e){return json(res,500,{error:e.message});}
@@ -8948,12 +8984,12 @@ Responda APENAS em JSON (sem markdown):
     const usr=getUser(s.user_email)||{};
     const full=getPlan(usr)==="doublepro"||isAdminVip(usr);
     if(!full){
-      return json(res,200,{ok:true,locked:true,cn:c.cn,grupo:c.grupo||"",empresa:c.empresa,estado:c.estado,
+      return json(res,200,{ok:true,locked:true,cn:c.cn,h2a:etaIsH2A(c.cn,c.visa),hasGrupo:!!etaGrupoDisplay(c),empresa:c.empresa,estado:c.estado,
         checks:c.checks||0,changes:c.changes||0,monitoradaDesde:c.createdAt||0});
     }
     return json(res,200,{ok:true,locked:false,case:{
       cn:c.cn,empresa:c.empresa,estado:c.estado,cidade:c.cidade||"",begin:c.begin||"",end:c.end||"",
-      grupo:c.grupo||"",visa:c.visa||"H-2B",status:c.status||"",
+      grupo:etaGrupoDisplay(c),h2a:etaIsH2A(c.cn,c.visa),visa:c.visa||"H-2B",status:c.status||"",
       hist:(c.hist||[]).slice(-20),
       lastCheckAt:c.lastCheckAt||0,nextCheckAt:c.nextCheckAt||0,
       checks:c.checks||0,changes:c.changes||0,upd:(c.updBadgeUntil||0)>Date.now()
@@ -11096,6 +11132,48 @@ function etaGrupoFromBegin(begin){
   if(m>=10)return"C";
   return"D";
 }
+// ── GRUPOS OFICIAIS DO DOL (Public Facing Reports) ──────────────────────────
+// Fonte da verdade: coluna "Randomization Group" dos relatórios oficiais de
+// randomização H-2B (A–H). Carregado do arquivo versionado no deploy.
+// REGRA: H-2A (H-300) NUNCA tem grupo — só o H-2B passa por lista randomizada.
+let ETA_GRUPOS_OFICIAIS={};
+try{
+  const _gf=path.join(__dirname,"eta_grupos_oficiais.json");
+  if(fs.existsSync(_gf)){
+    const _gd=JSON.parse(fs.readFileSync(_gf,"utf8"));
+    ETA_GRUPOS_OFICIAIS=_gd.grupos||{};
+    console.log(`[eta] Grupos oficiais DOL carregados: ${Object.keys(ETA_GRUPOS_OFICIAIS).length} cases (${_gd.meta?.fonte||""})`);
+  }
+}catch(e){console.warn("[eta] grupos oficiais:",e.message);}
+function etaIsH2A(cn,visa){
+  return String(cn||"").toUpperCase().startsWith("H-300")||String(visa||"").toUpperCase().includes("H-2A");
+}
+// Grupo canônico de um case: H-2A nunca tem; senão oficial DOL > planilha > Begin Date.
+function etaGrupoFor(cn,visa,begin,sheetG){
+  if(etaIsH2A(cn,visa))return"";
+  const oficial=ETA_GRUPOS_OFICIAIS[String(cn||"").toUpperCase().trim()];
+  if(oficial)return oficial;
+  if(sheetG)return String(sheetG).toUpperCase().slice(0,1);
+  return etaGrupoFromBegin(begin);
+}
+// Grupo para exibição/filtro respeitando ajuste manual do admin (só H-2B).
+function etaGrupoDisplay(c){
+  if(!c)return"";
+  if(etaIsH2A(c.cn,c.visa))return"";
+  if(c.grupoManual&&c.grupo)return c.grupo;
+  return ETA_GRUPOS_OFICIAIS[c.cn]||c.grupo||"";
+}
+// Migração/correção em massa: aplica grupos oficiais e limpa grupo de H-2A.
+// Roda no boot e após cada seed — idempotente e barata.
+function etaAplicarGruposOficiais(){
+  let fix=0;
+  for(const c of Object.values(DB_ETA.cases||{})){
+    if(etaIsH2A(c.cn,c.visa)){ if(c.grupo){c.grupo="";c.grupoManual=false;fix++;} continue; }
+    const of=ETA_GRUPOS_OFICIAIS[c.cn];
+    if(of){ if(c.grupo!==of){c.grupo=of;fix++;} c.grupoOficial=true; if(c.grupoManual){c.grupoManual=false;} }
+  }
+  if(fix){_etaDirty=true;etaLog("info",`Grupos oficiais DOL aplicados: ${fix} cases corrigidos (H-2A sem grupo; H-2B pela randomização real A–H)`);console.log(`[eta] grupos oficiais: ${fix} cases corrigidos`);}
+}
 // Registra mudança de status: histórico append-only + selo "atualização" por 48h.
 // Aceita QUALQUER string de status — status novos do DOL entram automaticamente.
 function etaSetStatus(c,novo,src){
@@ -11126,7 +11204,7 @@ function etaSeedFromSheets(){
         DB_ETA.cases[cn]={
           cn, empresa:String(r.n||"–").slice(0,120), estado:String(r.s||"–").slice(0,40),
           cidade:String(r.ci||"").slice(0,60), begin:String(r.d||"").slice(0,10), end:String(r.de||"").slice(0,10),
-          grupo:grupoPlan||etaGrupoFromBegin(r.d), grupoManual:false, visa:String(r.visa||"H-2B").slice(0,6),
+          grupo:etaGrupoFor(cn,r.visa,r.d,grupoPlan), grupoManual:false, visa:String(r.visa||"H-2B").slice(0,6),
           status:String(r.st||"Registrada").slice(0,80),
           hist:[{s:String(r.st||"Registrada").slice(0,80),at:now,src:"planilha"}],
           lastCheckAt:0,
@@ -11138,9 +11216,9 @@ function etaSeedFromSheets(){
         let ch=false;
         if(r.n&&cur.empresa!==r.n){cur.empresa=String(r.n).slice(0,120);ch=true;}
         if(r.ci&&cur.cidade!==r.ci){cur.cidade=String(r.ci).slice(0,60);ch=true;}
-        if(r.d&&cur.begin!==String(r.d).slice(0,10)){cur.begin=String(r.d).slice(0,10);if(!cur.grupoManual)cur.grupo=grupoPlan||etaGrupoFromBegin(cur.begin);ch=true;}
+        if(r.d&&cur.begin!==String(r.d).slice(0,10)){cur.begin=String(r.d).slice(0,10);if(!cur.grupoManual)cur.grupo=etaGrupoFor(cn,cur.visa,cur.begin,grupoPlan);ch=true;}
         if(r.de&&cur.end!==String(r.de).slice(0,10)){cur.end=String(r.de).slice(0,10);ch=true;}
-        if(grupoPlan&&!cur.grupoManual&&cur.grupo!==grupoPlan){cur.grupo=grupoPlan;ch=true;}
+        if(!cur.grupoManual){const _g=etaGrupoFor(cn,cur.visa,cur.begin,grupoPlan);if(cur.grupo!==_g){cur.grupo=_g;ch=true;}}
         // Status da planilha só vale enquanto o robô nunca consultou (DOL é mais fresco)
         if(r.st&&(cur.checks||0)===0&&etaSetStatus(cur,r.st,"planilha"))ch=true;
         if(ch)updated++;
@@ -11192,7 +11270,7 @@ async function etaTick(){
       c.lastCheckAt=now;c.checks=(c.checks||0)+1;DB_ETA.meta.checksToday++;
       const r=found[c.cn];
       if(r){
-        if(r.begin_date){const b=String(r.begin_date).slice(0,10);if(c.begin!==b){c.begin=b;if(!c.grupoManual)c.grupo=etaGrupoFromBegin(b)||c.grupo;}}
+        if(r.begin_date){const b=String(r.begin_date).slice(0,10);if(c.begin!==b){c.begin=b;if(!c.grupoManual)c.grupo=etaGrupoFor(c.cn,c.visa,b,"")||c.grupo;}}
         if(r.end_date){c.end=String(r.end_date).slice(0,10);}
         const fim=c.end&&(new Date(c.end+"T23:59:59").getTime()<now);
         const novo=fim?"Encerrada (contrato finalizado)":(r.active===true?"Certified · Ativa no DOL":"Certified · Inativa no DOL");
@@ -11214,7 +11292,8 @@ async function etaTick(){
 // Boot do sistema ETA: seed 30s após subir (planilhas carregadas), reseed diário,
 // worker a cada 45s, persistência com debounce de 3 min (+ flush no shutdown).
 setTimeout(etaSeedFromSheets, 30_000);
-setInterval(etaSeedFromSheets, 24*3600_000);
+setTimeout(etaAplicarGruposOficiais, 40_000); // corrige registro existente com grupos oficiais
+setInterval(()=>{etaSeedFromSheets();etaAplicarGruposOficiais();}, 24*3600_000);
 setInterval(etaTick, 45_000);
 setInterval(()=>{if(_etaDirty){_etaDirty=false;persistEta();}},3*60_000);
 process.on("SIGTERM",()=>{try{if(_etaDirty)persistEta();}catch{}});

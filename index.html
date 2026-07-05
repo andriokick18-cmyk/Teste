@@ -2187,7 +2187,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <div class="login-social-cards">
             <div class="login-social-card">
               <div class="login-social-av" data-handle="andrio.k">
-                <img class="login-social-img" alt="@andrio.k" src="https://unavatar.io/instagram/andrio.k" onerror="this.style.display='none';this.parentElement.classList.add('login-social-av-fallback');this.parentElement.querySelector('.login-social-av-letter').style.display='flex';">
+                <img class="login-social-img" alt="@andrio.k" src="https://unavatar.io/instagram/andrio.k" onerror="if(!this._r2&&this.src.indexOf('googleusercontent')>-1&&this.src.indexOf('=s')>-1){this._r2=1;this.src=this.src.split('=s')[0];return;}this.style.display='none';this.parentElement.classList.add('login-social-av-fallback');this.parentElement.querySelector('.login-social-av-letter').style.display='flex';">
                 <span class="login-social-av-letter" style="display:none">A</span>
               </div>
               <div class="login-social-info">
@@ -2201,7 +2201,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             </div>
             <div class="login-social-card">
               <div class="login-social-av" data-handle="diego.cardoso_oficial">
-                <img class="login-social-img" alt="@diego.cardoso_oficial" src="https://unavatar.io/instagram/diego.cardoso_oficial" onerror="this.style.display='none';this.parentElement.classList.add('login-social-av-fallback');this.parentElement.querySelector('.login-social-av-letter').style.display='flex';">
+                <img class="login-social-img" alt="@diego.cardoso_oficial" src="https://unavatar.io/instagram/diego.cardoso_oficial" onerror="if(!this._r2&&this.src.indexOf('googleusercontent')>-1&&this.src.indexOf('=s')>-1){this._r2=1;this.src=this.src.split('=s')[0];return;}this.style.display='none';this.parentElement.classList.add('login-social-av-fallback');this.parentElement.querySelector('.login-social-av-letter').style.display='flex';">
                 <span class="login-social-av-letter" style="display:none">D</span>
               </div>
               <div class="login-social-info">
@@ -2338,7 +2338,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <div class="ln-creator-top">
             <div class="ln-creator-av">
               <img src="https://unavatar.io/instagram/andrio.k" alt="Andrio"
-                onerror="this.style.display='none';this.parentElement.textContent='A'">
+                onerror="if(!this._r2&&this.src.indexOf('googleusercontent')>-1&&this.src.indexOf('=s')>-1){this._r2=1;this.src=this.src.split('=s')[0];return;}this.style.display='none';this.parentElement.textContent='A'">
             </div>
             <div>
               <div class="ln-creator-name">Andrio Kick</div>
@@ -2385,7 +2385,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <div class="ln-creator-top">
             <div class="ln-creator-av">
               <img src="https://unavatar.io/instagram/diego.cardoso_oficial" alt="Diego"
-                onerror="this.style.display='none';this.parentElement.textContent='D'">
+                onerror="if(!this._r2&&this.src.indexOf('googleusercontent')>-1&&this.src.indexOf('=s')>-1){this._r2=1;this.src=this.src.split('=s')[0];return;}this.style.display='none';this.parentElement.textContent='D'">
             </div>
             <div>
               <div class="ln-creator-name">Diego Cardoso</div>
@@ -2866,6 +2866,10 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               <option value="22">$22+/h</option><option value="25">$25+/h</option><option value="28">$28+/h</option>
             </select>
             <input class="fsel" id="f-city" type="text" placeholder="Cidade..." oninput="applyF()" style="min-width:90px;max-width:120px;display:none" title="Filtrar por cidade">
+            <div id="f-grupo-bar" style="display:none;align-items:center;gap:4px">
+              <span style="font-size:10.5px;font-weight:800;color:var(--t3);white-space:nowrap">🎯 Grupo:</span>
+              <span id="f-grupo-chips" style="display:inline-flex;gap:4px"></span>
+            </div>
             <select class="fsel" id="f-workers" onchange="applyF()" title="Qtd vagas" style="display:none">
               <option value="">Qtd vagas</option>
               <option value="2">2+</option><option value="5">5+</option>
@@ -3939,6 +3943,12 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 <div id="af-wage-feedback" style="margin-top:8px;font-size:11px;color:var(--t2);line-height:1.5;display:none">
                   Das <strong id="af-total-count">–</strong> vagas selecionadas, <strong id="af-wage-count" style="color:var(--green)">–</strong> têm salário acima de <strong id="af-wage-threshold">–</strong>/h
                 </div>
+              </div>
+              <!-- 🎯 FILTRO POR GRUPO (randomização H-2B) — Double Pro -->
+              <div id="af-grupo-box" style="margin-bottom:12px">
+                <div style="font-size:11.5px;font-weight:800;color:var(--t2);margin-bottom:6px;display:flex;align-items:center;gap:5px">🎯 Filtro por Grupo <span style="font-size:8.5px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;padding:1px 6px;border-radius:8px;font-weight:800">250+</span></div>
+                <div id="af-grupo-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+                <div style="font-size:10px;color:var(--t3);margin-top:5px" id="af-grupo-hint">Grupos oficiais da randomização do DOL — o Grupo A é processado primeiro.</div>
               </div>
               <!-- Filtro por número mínimo de vagas -->
               <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
@@ -5714,6 +5724,7 @@ let tab="seasonal";
 let sJobs=[],sTotal=0,sSkip=0,sDone=false,sLoading=false;
 let sCache={};
 let fQ="",fState="",fType="all",fStat="all",fSort="random",fWage=0,fWorkers=0,fCat="all";
+let fGrupos=[]; // Filtro por Grupo (randomização H-2B) — exclusivo Double Pro
 let curView="jobs",histTab="all";
 let autoInterval=null;
 let _autoCountdown=null;
@@ -6205,13 +6216,13 @@ function renderHdr(){
   // Avatar no header
   const av=g("#hdr-av");
   if(av){
-    if(U.picture)av.innerHTML=`<img alt="" src="${esc(U.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover"><span id="hdr-av-dot" style="display:none;position:absolute;bottom:0;right:0;width:10px;height:10px;background:#4ade80;border:2px solid var(--surface);border-radius:50%"></span>`;
+    if(U.picture)av.innerHTML=`<img alt="" referrerpolicy="no-referrer" src="${esc(U.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover"><span id="hdr-av-dot" style="display:none;position:absolute;bottom:0;right:0;width:10px;height:10px;background:#4ade80;border:2px solid var(--surface);border-radius:50%"></span>`;
     else av.textContent=(U.name||"?")[0].toUpperCase();
   }
   // Avatar no bottom nav
   const bnAv=g("#bn-av");
   if(bnAv){
-    if(U.picture)bnAv.innerHTML=`<img alt="" src="${esc(U.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+    if(U.picture)bnAv.innerHTML=`<img alt="" referrerpolicy="no-referrer" src="${esc(U.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
     else bnAv.innerHTML=`<i class="ti ti-user-circle"></i>`;
   }
   // Botão Planos no header
@@ -6253,7 +6264,7 @@ function updateAutoDot(on){
 }
 function renderSidebar(){
   const sbp=g("#sb-prof");if(sbp)sbp.style.display="block";
-  const sba=g("#sb-av");if(sba){if(U.picture)sba.innerHTML=`<img alt="" src="${esc(U.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;else sba.textContent=(U.name||"?")[0].toUpperCase();}
+  const sba=g("#sb-av");if(sba){if(U.picture)sba.innerHTML=`<img alt="" referrerpolicy="no-referrer" src="${esc(U.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;else sba.textContent=(U.name||"?")[0].toUpperCase();}
   if(g("#sb-name"))g("#sb-name").textContent=U.name;if(g("#sb-email"))g("#sb-email").textContent=U.email;
   const spb=g("#sb-plan-badge");if(spb)spb.innerHTML=planBadgeHTML();
 }
@@ -6289,7 +6300,7 @@ document.addEventListener('DOMContentLoaded', updateThemeUI);
 
 function renderDrawer(){
   updateThemeUI();
-  const da=g("#d-av");if(da){if(U.picture)da.innerHTML=`<img alt="" src="${esc(U.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;else da.textContent=(U.name||"?")[0].toUpperCase();}
+  const da=g("#d-av");if(da){if(U.picture)da.innerHTML=`<img alt="" referrerpolicy="no-referrer" src="${esc(U.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;else da.textContent=(U.name||"?")[0].toUpperCase();}
   if(g("#d-name"))g("#d-name").textContent=U.name;if(g("#d-email"))g("#d-email").textContent=U.email;
   const dp=g("#d-plan");if(dp)dp.innerHTML=planBadgeHTML();
 }
@@ -6424,7 +6435,7 @@ function renderRanking(d){
     const podAvatarInner=e.appAvatarId
       ?renderAvatarEl(e,64)
       :e.picture
-      ?`<img alt="" src="${esc(e.picture)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none';this.parentElement.setAttribute('data-ini','${ini}')">`
+      ?`<img alt="" referrerpolicy="no-referrer" src="${esc(e.picture)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="if(!this._r2&&this.src.indexOf('googleusercontent')>-1&&this.src.indexOf('=s')>-1){this._r2=1;this.src=this.src.split('=s')[0];return;}this.style.display='none';this.parentElement.setAttribute('data-ini','${ini}')">`
       :ini;
     const _podClick=(cat==="global"&&e.serverId!=null&&e.serverId!==window._srvSelfId)
       ?`toast('Este perfil vive no Servidor ${e.serverId}','g')`
@@ -6475,7 +6486,7 @@ function renderRanking(d){
           ${medalHtml}
         </div>
         <div class="rank-av-wrap">
-          <div class="rank-av" style="background:${e.isMe?"linear-gradient(135deg,#3b82f6,#8b5cf6)":"linear-gradient(135deg,#334155,#1e293b)"};overflow:hidden;padding:0;${avGlow}">${e.appAvatarId?renderAvatarEl(e,36):e.picture?`<img alt="" src="${esc(e.picture)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none';this.insertAdjacentText('afterend','${ini}')">`:ini}</div>
+          <div class="rank-av" style="background:${e.isMe?"linear-gradient(135deg,#3b82f6,#8b5cf6)":"linear-gradient(135deg,#334155,#1e293b)"};overflow:hidden;padding:0;${avGlow}">${e.appAvatarId?renderAvatarEl(e,36):e.picture?`<img alt="" referrerpolicy="no-referrer" src="${esc(e.picture)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="if(!this._r2&&this.src.indexOf('googleusercontent')>-1&&this.src.indexOf('=s')>-1){this._r2=1;this.src=this.src.split('=s')[0];return;}this.style.display='none';this.insertAdjacentText('afterend','${ini}')">`:ini}</div>
           ${e.online?'<span class="rank-av-online"></span>':""}
         </div>
         <div class="rank-main">
@@ -6529,7 +6540,7 @@ async function openRankProfile(uid){
     const p=await r.json();
     const ini=(p.name?.[0]||"?").toUpperCase();
     if(p.picture){
-      g("#rp-av").innerHTML=`<img alt="" src="${esc(p.picture)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none';this.parentElement.textContent='${ini}'">`;
+      g("#rp-av").innerHTML=`<img alt="" referrerpolicy="no-referrer" src="${esc(p.picture)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="if(!this._r2&&this.src.indexOf('googleusercontent')>-1&&this.src.indexOf('=s')>-1){this._r2=1;this.src=this.src.split('=s')[0];return;}this.style.display='none';this.parentElement.textContent='${ini}'">`;
       g("#rp-av").style.padding="0";
     } else {
       g("#rp-av").textContent=ini;
@@ -6580,6 +6591,9 @@ function stopRankTimer(){if(_rankTimer){clearInterval(_rankTimer);_rankTimer=nul
 //  SOURCE TABS + DYNAMIC CATEGORIES
 // ═══════════════════════════════════════════
 function setTab(t){
+  // Filtro por Grupo: só faz sentido em planilhas H-2B (H-2A não tem grupo)
+  fGrupos=[];
+  setTimeout(()=>{const bar=g("#f-grupo-bar");if(bar){const show=t!=="seasonal"&&!t.startsWith("h2a");bar.style.display=show?"inline-flex":"none";if(show)renderGrupoChips();}},50);
   tab=t;fCat="all";
   // FIX: resetar filtros que não existem nas planilhas para não contaminar os resultados
   if(t!=="seasonal"){fWage=0;fWorkers=0;const fw=g("#f-wage");if(fw)fw.value="";const wk=g("#f-workers");if(wk)wk.value="";}
@@ -6690,7 +6704,9 @@ async function loadSheetMeta(reset=false){
     // FIX WAGE: mandar filtro de salário e vagas pro servidor (não filtrar no frontend por lote)
     if(fWage>0)p.append("minWage",String(fWage));if(fWorkers>0)p.append("minWorkers",String(fWorkers));
     if(fCity)p.append("city",fCity);
+    if(fGrupos.length&&!tab.startsWith("h2a"))p.append("grupo",fGrupos.join(","));
     const r=await fetch("/api/sheet-meta?"+p,{credentials:"include"});const d=await r.json();
+    if(r.status===403&&d.upsell){fGrupos=[];renderGrupoChips();showGrupoUpsell();sLoading=false;return;}
     if(reset)g("#jlist").innerHTML="";
     if(!d.jobs?.length){sDone=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">${sJobs.length?"Sem mais vagas.":"Nenhuma vaga encontrada."}</div>`;}
     else{
@@ -6856,6 +6872,55 @@ function etaGrupoBadge(gr,small){
   const gi=_ETA_GRUPOS[gr];if(!gi)return"";
   return`<span style="display:inline-flex;align-items:center;gap:3px;font-size:${small?9.5:10.5}px;font-weight:800;padding:2px 8px;border-radius:20px;background:${gi.bg};color:${gi.c};border:1px solid ${gi.c}44">${gi.e} Grupo ${gr}</span>`;
 }
+// ═══ FILTRO POR GRUPO (A–H, randomização oficial H-2B) — Double Pro ═══
+function renderGrupoChips(){
+  const box=g("#f-grupo-chips");if(!box)return;
+  const LETRAS=["A","B","C","D","E","F","G","H"];
+  if(!_etaIsFull){
+    // Sem plano 250+: chips com cadeado — o toque abre o upsell
+    box.innerHTML=`<button onclick="showGrupoUpsell()" style="background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(99,102,241,.1));border:1.5px solid rgba(139,92,246,.4);border-radius:20px;padding:3px 12px;font-size:10.5px;font-weight:800;color:#a78bfa;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:4px">🔒 A–H <span style="font-size:9px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;padding:1px 6px;border-radius:10px">250+</span></button>`;
+    return;
+  }
+  box.innerHTML=LETRAS.map(L=>{
+    const on=fGrupos.includes(L);
+    const gi=_ETA_GRUPOS[L]||{c:"#94a3b8",bg:"rgba(148,163,184,.12)"};
+    return`<button onclick="toggleGrupo('${L}')" style="min-width:26px;padding:3px 7px;border-radius:9px;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit;transition:all .12s;border:1.5px solid ${on?gi.c:"var(--border)"};background:${on?gi.c:"transparent"};color:${on?"#fff":"var(--t3)"}">${L}</button>`;
+  }).join("")+(fGrupos.length?`<button onclick="fGrupos=[];renderGrupoChips();applyF()" style="border:none;background:none;color:var(--t3);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;padding:2px 4px">✕ limpar</button>`:"");
+}
+function toggleGrupo(L){
+  if(!_etaIsFull){showGrupoUpsell();return;}
+  const i=fGrupos.indexOf(L);
+  if(i>=0)fGrupos.splice(i,1);else fGrupos.push(L);
+  renderGrupoChips();applyF();
+}
+// Upsell do Filtro por Grupo / Monitor ETA — CTA pro plano de R$250
+function showGrupoUpsell(){
+  let ov=g("#grupo-upsell-ov");
+  if(!ov){
+    ov=document.createElement("div");
+    ov.id="grupo-upsell-ov";
+    ov.style.cssText="position:fixed;inset:0;z-index:9300;background:rgba(4,8,20,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto";
+    ov.onclick=e=>{if(e.target===ov)ov.style.display="none";};
+    document.body.appendChild(ov);
+  }
+  ov.style.display="flex";
+  ov.innerHTML=`<div style="background:linear-gradient(165deg,#0d1530,#0a1024);border:1.5px solid rgba(139,92,246,.45);border-radius:22px;max-width:400px;width:100%;padding:26px 20px 18px;box-shadow:0 24px 80px rgba(0,0,0,.65),0 0 60px rgba(124,58,237,.15);position:relative;margin:auto;animation:srvPop .28s cubic-bezier(.2,.9,.3,1.2)">
+    <button onclick="g('#grupo-upsell-ov').style.display='none'" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:10px;width:32px;height:32px;color:rgba(255,255,255,.7);font-size:16px;cursor:pointer">✕</button>
+    <div style="text-align:center;font-size:42px;margin-bottom:8px">🎯</div>
+    <div style="font-family:'Sora',sans-serif;font-size:20px;font-weight:800;color:#fff;text-align:center;margin-bottom:8px">Filtro por Grupo + Status DOL</div>
+    <div style="font-size:12.5px;color:rgba(255,255,255,.6);text-align:center;line-height:1.65;margin-bottom:16px">O DOL sorteia as vagas H-2B em <strong style="color:#a78bfa">grupos de A a H</strong> — quem está no <strong style="color:#34d399">Grupo A</strong> é processado primeiro. Com o <strong style="color:#fff">Double Pro</strong> você mira só nos grupos que serão certificados antes.</div>
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:13px 15px;margin-bottom:16px;font-size:12px;color:rgba(255,255,255,.8);line-height:2">
+      <div>🎯 <strong>Filtro por Grupo A–H</strong> no Manual e no Automático</div>
+      <div>🏷️ <strong>Grupo oficial DOL</strong> visível em cada vaga</div>
+      <div>📡 <strong>Status ao vivo</strong>: Certified, Ativa, Encerrada...</div>
+      <div>🕐 <strong>Linha do tempo</strong> completa de cada case</div>
+      <div>✨ Selo de <strong>atualização recente</strong> (48h)</div>
+      <div>📧 <strong>2 contas Gmail</strong> + 400 manuais + 400 autos/dia</div>
+    </div>
+    <button onclick="g('#grupo-upsell-ov').style.display='none';sv('plans')" style="width:100%;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;border-radius:13px;padding:15px;font-size:14.5px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit;box-shadow:0 8px 25px rgba(124,58,237,.45)">💎 Quero ser Double Pro — R$250</button>
+    <div style="font-size:10.5px;color:rgba(255,255,255,.4);text-align:center;margin-top:10px">Pagamento único · 30 dias · dados oficiais do DOL</div>
+  </div>`;
+}
 function etaStatusChip(status){
   const s=String(status||"");
   const ok=s.includes("Ativa")||s.includes("Full");
@@ -6884,9 +6949,10 @@ function etaFillCardLine(cn){
   const iid="s_"+cn.replace(/[^a-zA-Z0-9]/g,"_");
   const el=g("#jceta-"+iid);if(!el)return;
   const info=_etaMapCache[cn];if(!info){el.innerHTML="";return;}
-  const grupoHtml=info.grupo?etaGrupoBadge(info.grupo,true):"";
+  const h2aBadge=info.h2a?`<span style="display:inline-flex;align-items:center;gap:3px;font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:20px;background:rgba(16,185,129,.1);color:#34d399;border:1px solid rgba(16,185,129,.3)">🌾 H-2A · sem grupo</span>`:"";
+  const grupoHtml=info.h2a?h2aBadge:(info.grupo?etaGrupoBadge(info.grupo,true):"");
   const mid=info.locked
-    ?`<span style="font-size:9.5px;font-weight:700;color:var(--t3);display:inline-flex;align-items:center;gap:3px">🔒 Status ETA</span>`
+    ?`<button onclick="event.stopPropagation();showGrupoUpsell()" style="border:none;background:none;padding:0;font-size:9.5px;font-weight:700;color:var(--t3);display:inline-flex;align-items:center;gap:3px;cursor:pointer;font-family:inherit">🔒 ${info.h2a?"Status DOL":"Grupo + Status DOL"} <span style="font-size:8.5px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;padding:1px 5px;border-radius:8px;font-weight:800">250+</span></button>`
     :`${etaStatusChip(info.status)}${info.upd?'<span style="font-size:9px;font-weight:800;background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.4);padding:1px 6px;border-radius:10px">✨ Atualização</span>':""}`;
   el.innerHTML=`<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:5px">
     ${grupoHtml}${mid}
@@ -6960,7 +7026,7 @@ function etaLockedHtml(d){
     </div>
     <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 13px;margin-bottom:13px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span style="font-size:11.5px;color:rgba(255,255,255,.6)">${esc(d.empresa)} · ${esc(d.estado)}</span>
-      ${d.grupo?etaGrupoBadge(d.grupo,true):""}
+      ${d.h2a?`<span style="font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:20px;background:rgba(16,185,129,.1);color:#34d399;border:1px solid rgba(16,185,129,.3)">🌾 H-2A · sem grupo</span>`:(d.hasGrupo?`<span style="font-size:9.5px;font-weight:800;padding:2px 8px;border-radius:20px;background:rgba(139,92,246,.12);color:#a78bfa;border:1px solid rgba(139,92,246,.35)">🔒 Grupo A–H</span>`:"")}
       <span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,.4)">🔍 ${d.checks||0} consultas do robô</span>
     </div>
     <div style="position:relative;border-radius:12px;overflow:hidden;margin-bottom:14px">
@@ -7480,7 +7546,7 @@ function loadProfile(){
   const _pb=g("#prof-plan-badges");
   if(_pb){const pl=U.plan||"free";const planColors={free:"rgba(255,255,255,.15)",vip:"rgba(167,139,250,.4)",vipro:"rgba(99,102,241,.4)",doublepro:"rgba(250,204,21,.35)",pro:"rgba(6,182,212,.4)"};const planLabels={free:"Free",vip:"⭐ VIP",vipro:"⭐🤖 VIPro",doublepro:"🚀 DoublePro",pro:"🤖 Pro"};_pb.innerHTML=`<span style="background:${planColors[pl]||"rgba(255,255,255,.15)"};border:1px solid rgba(255,255,255,.25);border-radius:99px;padding:2px 10px;font-size:10px;font-weight:700;color:#fff">${planLabels[pl]||pl}</span>`+(U.vip?.manualExpires&&U.vip.manualExpires>Date.now()?`<span style="background:rgba(52,211,153,.25);border:1px solid rgba(52,211,153,.4);border-radius:99px;padding:2px 10px;font-size:10px;font-weight:700;color:#6ee7b7">${Math.ceil((U.vip.manualExpires-Date.now())/86400000)}d restantes</span>`:"");}
   _initAdminTab(); // Mostrar/ocultar aba admin conforme perfil do usuário
-  const pav=g("#pav");if(pav){if(U.picture){pav.innerHTML=`<img alt="" src="${esc(U.picture)}" style="width:100%;height:100%;object-fit:cover">`;pav.style.cssText="width:60px;height:60px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.3);flex-shrink:0";}else{pav.textContent=(U.name||"?")[0].toUpperCase();}}
+  const pav=g("#pav");if(pav){if(U.picture){pav.innerHTML=`<img alt="" referrerpolicy="no-referrer" src="${esc(U.picture)}" style="width:100%;height:100%;object-fit:cover">`;pav.style.cssText="width:60px;height:60px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.3);flex-shrink:0";}else{pav.textContent=(U.name||"?")[0].toUpperCase();}}
   const ppb=g("#p-plan-badge");if(ppb)ppb.innerHTML=planBadgeHTML();
 }
 function _renderProfileSenderSection(){
@@ -7648,7 +7714,7 @@ function getRankDisplay(entry){
 function renderAvatarEl(entry,size=36){
   const d=getRankDisplay(entry);
   if(d.type==="avatar")return`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${d.bg};display:flex;align-items:center;justify-content:center;font-size:${size*0.45}px;flex-shrink:0">${d.emoji}</div>`;
-  if(d.type==="img")return`<img alt="" src="${esc(d.src)}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0">`;
+  if(d.type==="img")return`<img alt="" referrerpolicy="no-referrer" src="${esc(d.src)}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0">`;
   return`<div style="width:${size}px;height:${size}px;border-radius:50%;background:var(--purple);display:flex;align-items:center;justify-content:center;font-size:${size*0.45}px;color:#fff;font-weight:800;flex-shrink:0">${d.letter}</div>`;
 }
 
@@ -9263,7 +9329,35 @@ async function loadDynamicSheets(){
   }catch(e){ console.warn('[sheets-list]',e.message); }
 }
 
+// ── Filtro por Grupo no AUTOMÁTICO (Double Pro) ──
+let afGrupos=[];
+function renderAfGrupoChips(){
+  const box=g("#af-grupo-chips");if(!box)return;
+  const wrap=g("#af-grupo-box");
+  const isH2A=String(window.autoSelectedSrc||"").startsWith("h2a");
+  if(wrap)wrap.style.display=isH2A?"none":"block"; // H-2A não tem grupo
+  if(isH2A){afGrupos=[];return;}
+  if(!_etaIsFull){
+    box.innerHTML=`<button onclick="showGrupoUpsell()" style="background:linear-gradient(135deg,rgba(139,92,246,.15),rgba(99,102,241,.1));border:1.5px solid rgba(139,92,246,.4);border-radius:11px;padding:8px 14px;font-size:12px;font-weight:800;color:#a78bfa;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;width:100%;justify-content:center">🔒 Desbloquear filtro por Grupo A–H — Double Pro R$250</button>`;
+    const h=g("#af-grupo-hint");if(h)h.style.display="none";
+    return;
+  }
+  const LETRAS=["A","B","C","D","E","F","G","H"];
+  box.innerHTML=LETRAS.map(L=>{
+    const on=afGrupos.includes(L);
+    const gi=_ETA_GRUPOS[L]||{c:"#94a3b8"};
+    return`<button onclick="afToggleGrupo('${L}')" style="min-width:34px;padding:7px 10px;border-radius:10px;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit;transition:all .12s;border:1.5px solid ${on?gi.c:"var(--border)"};background:${on?gi.c:"var(--surface)"};color:${on?"#fff":"var(--t2)"}">${L}</button>`;
+  }).join("")+(afGrupos.length?`<button onclick="afGrupos=[];renderAfGrupoChips();if(typeof updateAutoCount==='function')updateAutoCount()" style="border:none;background:none;color:var(--t3);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">✕ limpar</button>`:"");
+}
+function afToggleGrupo(L){
+  if(!_etaIsFull){showGrupoUpsell();return;}
+  const i=afGrupos.indexOf(L);
+  if(i>=0)afGrupos.splice(i,1);else afGrupos.push(L);
+  renderAfGrupoChips();
+  if(typeof updateAutoCount==="function")try{updateAutoCount();}catch(e){}
+}
 function selectSource(src){
+  setTimeout(renderAfGrupoChips,80);
   autoSelectedSrc=src;autoSelectedCat="all";autoSelectedCats=[];
   document.querySelectorAll(".source-btn").forEach(b=>b.classList.toggle("sel",b.dataset.src===src));
   // Unlock step 2
@@ -9604,6 +9698,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
       const minWorkersFilter=parseInt(g("#af-min-workers")?.value||"0")||0;
       if(cityFilter)p.append("city",cityFilter);
       if(minWorkersFilter>0)p.append("minWorkers",String(minWorkersFilter));
+      if(afGrupos.length&&!String(autoSelectedSrc||"").startsWith("h2a"))p.append("grupo",afGrupos.join(","));
       const r=await fetch("/api/sheet-meta?"+p,{credentials:"include"});
       const d=await r.json();
       if(!d.jobs?.length)break;
@@ -9663,6 +9758,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
       body:JSON.stringify({
         cases:allCases,
         caseMeta,
+        grupos:afGrupos.length?afGrupos:undefined, // Filtro por Grupo (gate no servidor)
         resumeIdx: _resumeIdx,
         coverIdx:  _coverIdx,
         source:autoSelectedSrc,
@@ -10005,7 +10101,7 @@ function _populateSettingsView(){
   if(nameEl) nameEl.textContent=U.name||"–";
   if(emailEl) emailEl.textContent=U.email||"–";
   if(avEl){
-    if(U.picture){ avEl.innerHTML=`<img alt="" src="${U.picture}" style="width:100%;height:100%;object-fit:cover">`; }
+    if(U.picture){ avEl.innerHTML=`<img alt="" referrerpolicy="no-referrer" src="${U.picture}" style="width:100%;height:100%;object-fit:cover">`; }
     else { avEl.textContent=(U.name||U.email||"?")[0].toUpperCase(); }
   }
 }
@@ -11532,9 +11628,9 @@ function renderHome(){
   if(gEl)gEl.textContent=gr;
   if(nEl)nEl.textContent=U.name||U.email||"–";
   // Avatar
-  const av=g("#home-avatar");if(av){if(U.picture){av.innerHTML=`<img alt="" src="${esc(U.picture)}" style="width:100%;height:100%;object-fit:cover">`;}else{av.textContent=(U.name||"?")[0].toUpperCase();}}
+  const av=g("#home-avatar");if(av){if(U.picture){av.innerHTML=`<img alt="" referrerpolicy="no-referrer" src="${esc(U.picture)}" style="width:100%;height:100%;object-fit:cover">`;}else{av.textContent=(U.name||"?")[0].toUpperCase();}}
   // Atualizar avatar na bottom nav
-  const bnAv=g("#bn-av");if(bnAv){if(U.picture){bnAv.innerHTML=`<img alt="" src="${esc(U.picture)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;}else{bnAv.innerHTML=`<span style="font-size:13px;font-weight:800;color:#fff">${(U.name||"?")[0].toUpperCase()}</span>`;}}
+  const bnAv=g("#bn-av");if(bnAv){if(U.picture){bnAv.innerHTML=`<img alt="" referrerpolicy="no-referrer" src="${esc(U.picture)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;}else{bnAv.innerHTML=`<span style="font-size:13px;font-weight:800;color:#fff">${(U.name||"?")[0].toUpperCase()}</span>`;}}
   // Badge do plano
   const planRow=g("#home-plan-row");if(planRow){
     let badges=planBadgeHTML();
@@ -14075,7 +14171,7 @@ async function loadAdminRanking(period){
       return`<div style="background:${isMe?"rgba(245,158,11,.12)":"var(--sf2)"};border:1px solid ${isMe?"rgba(245,158,11,.4)":"var(--border)"};border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px">
         <div style="font-size:18px;min-width:28px;text-align:center">${medal}</div>
         <div style="width:32px;height:32px;border-radius:50%;background:${isMe?"#f59e0b":"var(--purple)"};display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;flex-shrink:0;overflow:hidden">
-          ${r.picture?`<img alt="" src="${esc(r.picture)}" style="width:100%;height:100%;object-fit:cover">`:ini}
+          ${r.picture?`<img alt="" referrerpolicy="no-referrer" src="${esc(r.picture)}" style="width:100%;height:100%;object-fit:cover">`:ini}
         </div>
         <div style="flex:1;min-width:0">
           <div style="font-size:13px;font-weight:700;color:${isMe?"#f59e0b":"var(--text)"};display:flex;align-items:center;gap:5px">
