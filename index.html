@@ -6012,18 +6012,30 @@ async function agLookup(){
 // com ?entrar=1 (lá o card não repete e o login do Google abre direto).
 function agGoogleAt(url){
   if(!url){ closeAuthGate(); showGoogleWarnModal(); return; }
-  toast("Levando você para o servidor da sua conta…","g");
-  const dest=url+(url.includes("?")?"&":"?")+"entrar=1";
-  setTimeout(()=>{window.location.href=dest;},350);
+  agRedirect(url,"Levando você para o servidor da sua conta…");
 }
 function agSignupAt(i){
   const s=(window._agOpenSrvs||[])[i]; if(!s)return;
   if(s.self){ closeAuthGate(); showGoogleWarnModal(); return; }
-  if(s.url){
-    toast("Redirecionando para o "+(s.nome||"servidor")+"…","g");
-    const dest=s.url+(s.url.includes("?")?"&":"?")+"entrar=1";
-    setTimeout(()=>{window.location.href=dest;},350);
+  if(!s.url){
+    // NUNCA falhar em silêncio: sem URL configurada = avisar em vez de nada acontecer
+    toast("⚠️ Este servidor está sem endereço configurado. Avise o suporte no Instagram/WhatsApp.","r");
+    return;
   }
+  agRedirect(s.url,"Redirecionando para o "+(s.nome||"servidor")+"…");
+}
+// Tela de transição do redirect: o Servidor 2 pode estar "acordando" (hospedagem
+// hiberna quando ocioso) e demorar até 1 min — sem isso a pessoa acha que travou.
+function agRedirect(url,msg){
+  const body=g("#ag-body");
+  if(body)body.innerHTML=`<div style="text-align:center;padding:10px 0">
+    <div class="ag-spin"><span class="spin spin-lg"></span></div>
+    <div class="ag-title" style="font-size:17px">${esc(msg||"Redirecionando…")}</div>
+    <div class="ag-sub">Se a página demorar a abrir, é o servidor <strong style="color:rgba(255,255,255,.85)">acordando</strong> — pode levar até 1 minuto. Não feche, você será levado(a) automaticamente.</div>
+  </div>`;
+  const back=g("#ag-back");if(back)back.style.display="none";
+  const dest=url+(url.includes("?")?"&":"?")+"entrar=1";
+  setTimeout(()=>{window.location.href=dest;},900);
 }
 function openServerSelect(){
   const ov=g("#srv-select-ov"); if(!ov) return;
