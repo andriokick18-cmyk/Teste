@@ -3462,7 +3462,14 @@ function persistSessions(){
   try{
     const snap={};
     for(const[id,s]of Object.entries(sessions)){
-      if(!s||s.pending||id.startsWith("__"))continue; // nunca grava temporárias de OAuth
+      if(!s)continue;
+      // [FIX] __sender__ precisa sobreviver a restart/cold-start (Render free tier
+      // "dorme" com inatividade — se o servidor reiniciar entre o usuário clicar em
+      // "Conectar Gmail Extra" e voltar do OAuth do Google, esse estado em memória
+      // se perdia e o e-mail extra nunca era salvo). Expira sozinho em 10min (ver
+      // checagem de idade no callback), então é seguro persistir.
+      if(id.startsWith("__sender__")){snap[id]=s;continue;}
+      if(s.pending||id.startsWith("__"))continue; // demais temporárias de OAuth (login) seguem não gravadas
       snap[id]=s;
     }
     const payload=_encKey?{enc:encStr(JSON.stringify(snap))}:snap;
@@ -5672,6 +5679,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
     const st=crypto.randomBytes(20).toString("hex");
     // Salva o state com o email do dono para vincular no callback
     sessions["__sender__"+st]={ownerEmail:s.user_email,created:Date.now()};
+    persistSessions(); // grava no disco (ver ajuste em persistSessions: __sender__ agora sobrevive a restart)
     const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI,response_type:"code",scope:"openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify",access_type:"offline",prompt:"consent select_account",state:st});
     res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();
   }
