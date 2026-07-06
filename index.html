@@ -5596,6 +5596,18 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
     <div id="hd-foot" style="padding:12px 18px 18px;display:flex;gap:8px;flex-shrink:0;border-top:1px solid var(--border)"></div>
   </div>
 </div>
+<div id="log-detail-overlay" onclick="if(event.target===this)closeLogDetail()" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:220;padding:0;backdrop-filter:blur(3px)">
+  <div class="hist-detail-modal" style="background:var(--surface);width:100%;max-width:560px;max-height:93dvh;display:flex;flex-direction:column;overflow:hidden;border-radius:20px 20px 0 0;box-shadow:var(--shadowl)">
+    <div style="padding:18px 18px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:17px;font-weight:800;color:var(--text);line-height:1.3;margin-bottom:3px" id="ld-title">–</div>
+        <div style="font-size:13px;color:var(--t2);font-weight:600;display:flex;align-items:center;gap:5px"><i class="ti ti-building" style="font-size:12px"></i><span id="ld-company">–</span></div>
+      </div>
+      <button onclick="closeLogDetail()" style="background:var(--sf2);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--t2)"><i class="ti ti-x" style="font-size:16px"></i></button>
+    </div>
+    <div id="ld-body" style="flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+</div>
 <div class="drawer-ov" id="dov" onclick="closeDrawer()"></div>
 <div class="drawer" id="drawer">
   <!-- Cabeçalho gradiente com foto e plano -->
@@ -9319,7 +9331,7 @@ function renderLogs(){
   const el=g("#log-list");if(!el)return;
   if(!allLogsData.length){el.innerHTML='<div class="empty-state" style="padding:28px 0"><i class="ti ti-list-details"></i><div style="font-size:14px;font-weight:600;color:var(--t2)">Nenhum log ainda</div><div style="font-size:13px;color:var(--t3)">Os logs aparecem aqui quando você usar o Envio Automático</div></div>';return;}
   const emojis={enviado:"✅",falhou:"❌",duplicado:"🔁",pausado:"⏸",cancelado:"🚫",sistema:"ℹ️",pulado:"⏭",limite:"📊",erro_anexo:"📎"};
-  el.innerHTML=allLogsData.map(l=>{
+  el.innerHTML=allLogsData.map((l,i)=>{
     const statusClass="ls-"+(l.status||"sistema").replace(/[^a-z]/g,"");
     const em=emojis[l.status]||"•";
     const hora=l.hour||(l.date||"").split(" ")[1]||"";
@@ -9330,7 +9342,7 @@ function renderLogs(){
     const perfil=l.profileUsed||"";
     const assunto=l.subjectUsed||"";
     const horaColor=l.status==="enviado"?"var(--green)":l.status==="falhou"?"var(--red)":l.status==="duplicado"?"var(--amber)":"var(--t3)";
-    return`<div class="log-entry" style="padding:10px 12px;border-bottom:1px solid var(--border)">
+    return`<div class="log-entry" onclick="openLogDetail(${i})" style="padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer" role="button" tabindex="0">
       <div style="display:flex;align-items:flex-start;gap:8px">
         <span class="log-status ${statusClass}" style="flex-shrink:0;margin-top:1px">${em} ${esc(l.status||"–")}</span>
         <div style="flex:1;min-width:0">
@@ -9358,6 +9370,50 @@ function renderLogs(){
     </div>`;
   }).join("");
 }
+
+function openLogDetail(idx){ _openLogDetailImpl(allLogsData[idx]); }
+let _recentLogsData=[];
+function openRecentLogDetail(idx){ _openLogDetailImpl(_recentLogsData[idx]); }
+function _openLogDetailImpl(l){
+  if(!l)return;
+  const emojis={enviado:"✅",falhou:"❌",duplicado:"🔁",pausado:"⏸",cancelado:"🚫",sistema:"ℹ️",pulado:"⏭",limite:"📊",erro_anexo:"📎"};
+  const em=emojis[l.status]||"•";
+  g("#ld-title").textContent=em+" "+(l.jobTitle||l.company||"Detalhes do envio");
+  g("#ld-company").textContent=l.company||"–";
+  const local=[l.city,l.state].filter(Boolean).join(", ");
+  const rows=[
+    ["Status", (l.status||"–")],
+    ["Data/hora", [(l.date||"").split(" ")[0],l.hour||(l.date||"").split(" ")[1]].filter(Boolean).join(" · ")],
+    ["Vaga", l.jobTitle||""],
+    ["Empresa", l.company||""],
+    ["E-mail destino", l.to||""],
+    ["Enviado por (Gmail)", l.senderEmail||""],
+    ["Localização", local],
+    ["Salário", l.wage&&l.wage!=="–"?l.wage:""],
+    ["Categoria", l.category&&l.category!=="other"?l.category:""],
+    ["Fonte da planilha", l.source||""],
+    ["Perfil de currículo usado", l.profileUsed||""],
+    ["Assunto do e-mail", l.subjectUsed||""],
+    ["Anexos", l.attachCount?String(l.attachCount):""],
+    ["Nº de tentativas", l.attempt?String(l.attempt):""],
+    ["Case number (DOL)", l.caseNum||""],
+    ["ID interno", l.appId||""],
+  ].filter(([,v])=>v);
+  let html=rows.map(([k,v])=>`
+    <div style="display:flex;flex-direction:column;gap:2px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+      <div style="font-size:10px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.04em">${esc(k)}</div>
+      <div style="font-size:13px;color:var(--text);word-break:break-word">${esc(String(v))}</div>
+    </div>`).join("");
+  if(l.error){
+    html+=`<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:10px 12px">
+      <div style="font-size:10px;color:var(--red);font-weight:700;text-transform:uppercase;margin-bottom:3px">Detalhe do erro</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.4">${esc(l.error)}</div>
+    </div>`;
+  }
+  g("#ld-body").innerHTML=html||'<div style="color:var(--t3);font-size:13px">Sem detalhes adicionais.</div>';
+  g("#log-detail-overlay").style.display="flex";
+}
+function closeLogDetail(){const ov=g("#log-detail-overlay");if(ov)ov.style.display="none";}
 
 function updateLogStats(){
   const logs=allLogsData;
@@ -10069,9 +10125,10 @@ async function pollAutoStatus(){
 
 function renderRecentLogs(logs){
   const el=g("#auto-recent-logs");if(!el)return;
+  _recentLogsData=logs||[];
   if(!logs.length){el.innerHTML='<div style="padding:12px 14px;font-size:13px;color:var(--t3)">Nenhum envio ainda...</div>';return;}
   const emojis={enviado:"✅",falhou:"❌",duplicado:"🔁",pausado:"⏸",sistema:"ℹ️",cancelado:"🚫",pulado:"⏭",limite:"📊"};
-  el.innerHTML=logs.map(l=>{
+  el.innerHTML=logs.map((l,i)=>{
     const em=emojis[l.status]||"•";
     const statusClass="ls-"+(l.status||"sistema");
     // Hora: preferir l.hour, senão extrair do l.date
@@ -10088,7 +10145,7 @@ function renderRecentLogs(logs){
     const assunto=l.subjectUsed||"";
     // Status enviado: cor verde no horário
     const horaColor=l.status==="enviado"?"var(--green)":l.status==="falhou"?"var(--red)":l.status==="duplicado"?"var(--amber)":"var(--t3)";
-    return`<div class="log-entry" style="padding:10px 12px;border-bottom:1px solid var(--border);background:var(--surface)">
+    return`<div class="log-entry" onclick="openRecentLogDetail(${i})" style="padding:10px 12px;border-bottom:1px solid var(--border);background:var(--surface);cursor:pointer" role="button" tabindex="0">
       <div style="display:flex;align-items:flex-start;gap:8px">
         <span class="log-status ${statusClass}" style="flex-shrink:0;margin-top:1px">${em} ${esc(l.status||"–")}</span>
         <div style="flex:1;min-width:0">
