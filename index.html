@@ -3857,53 +3857,43 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
           <!-- LIVE DASHBOARD (quando ativo) -->
           <div id="auto-live-section" style="display:none">
-            <!-- Progress visual -->
-            <div id="auto-progress-wrap" style="background:var(--sf2);border-radius:var(--r);padding:10px 12px;margin-bottom:10px;display:none">
-              <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:var(--t2);margin-bottom:6px">
-                <span id="auto-prog-label">Progresso</span>
-                <span id="auto-prog-pct" style="color:var(--blue)">0%</span>
+            <!-- Card único: status + números + progresso -->
+            <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:14px">
+              <!-- Status banner -->
+              <div class="auto-status-banner asb-sending" id="auto-status-banner" style="margin:0;border-radius:0">
+                <span class="spin spin-sm"></span>
+                <div style="flex:1">
+                  <div id="auto-status-text" style="font-weight:700">Enviando...</div>
+                  <div id="auto-status-sub" style="font-size:11px;opacity:.8;margin-top:2px"></div>
+                </div>
+                <div id="auto-timer" style="font-size:12px;font-family:monospace;opacity:.8"></div>
               </div>
-              <div style="height:6px;background:var(--sf3);border-radius:3px;overflow:hidden">
-                <div id="auto-prog-bar" style="height:100%;background:linear-gradient(90deg,#2563eb,#7c3aed);border-radius:3px;width:0%;transition:width .5s ease"></div>
+              <div style="padding:14px 14px 16px">
+                <!-- Dashboard numbers -->
+                <div class="auto-dashboard" style="margin-bottom:14px">
+                  <div class="auto-dash-box"><div class="auto-dash-val" id="dash-sent" style="color:var(--green)">0</div><div class="auto-dash-lbl">Enviados</div></div>
+                  <div class="auto-dash-box"><div class="auto-dash-val" id="dash-failed" style="color:var(--red)">0</div><div class="auto-dash-lbl">Falhas</div></div>
+                  <div class="auto-dash-box"><div class="auto-dash-val" id="dash-queue">–</div><div class="auto-dash-lbl">Na fila</div></div>
+                  <div class="auto-dash-box"><div class="auto-dash-val" id="dash-limit">–</div><div class="auto-dash-lbl" id="dash-limit-lbl">Limite diário</div></div>
+                </div>
+                <!-- Progress -->
+                <div>
+                  <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:5px">
+                    <span style="font-weight:600">Progresso da fila</span>
+                    <span id="dash-pct" style="font-weight:800;color:var(--blue)">0%</span>
+                  </div>
+                  <div class="auto-prog-bg" style="height:10px"><div class="auto-prog-fill" id="dash-prog" style="width:0%;height:100%"></div></div>
+                  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:5px">
+                    <span id="dash-prog-sent-lbl">0 enviados</span>
+                    <span id="dash-prog-days-lbl" style="color:var(--amber);font-weight:700"></span>
+                  </div>
+                </div>
+                <!-- Intervalo e sender info (extra, admin vê mais) -->
+                <div id="auto-extra-info" style="display:none;background:var(--sf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;margin-top:12px;font-size:11px;flex-wrap:wrap;gap:8px;align-items:center">
+                  <span id="auto-interval-badge" style="background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.25);border-radius:8px;padding:2px 8px;color:#7c3aed;font-weight:700"></span>
+                  <span id="auto-sender-badge" style="background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.2);border-radius:8px;padding:2px 8px;color:var(--blue)"></span>
+                </div>
               </div>
-              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:5px">
-                <span>✅ <span id="auto-prog-sent">0</span> enviados</span>
-                <span>📬 <span id="auto-prog-queue">–</span> na fila</span>
-                <span>⏱ próximo: <span id="auto-prog-next">–</span></span>
-              </div>
-            </div>
-            <!-- Status banner -->
-            <div class="auto-status-banner asb-sending" id="auto-status-banner" style="margin-top:0;border-radius:0;margin-bottom:12px">
-              <span class="spin spin-sm"></span>
-              <div style="flex:1">
-                <div id="auto-status-text" style="font-weight:700">Enviando...</div>
-                <div id="auto-status-sub" style="font-size:11px;opacity:.8;margin-top:2px"></div>
-              </div>
-              <div id="auto-timer" style="font-size:12px;font-family:monospace;opacity:.8"></div>
-            </div>
-            <!-- Dashboard numbers -->
-            <div class="auto-dashboard">
-              <div class="auto-dash-box"><div class="auto-dash-val" id="dash-sent" style="color:var(--green)">0</div><div class="auto-dash-lbl">Enviados</div></div>
-              <div class="auto-dash-box"><div class="auto-dash-val" id="dash-failed" style="color:var(--red)">0</div><div class="auto-dash-lbl">Falhas</div></div>
-              <div class="auto-dash-box"><div class="auto-dash-val" id="dash-queue">–</div><div class="auto-dash-lbl">Na fila</div></div>
-              <div class="auto-dash-box"><div class="auto-dash-val" id="dash-limit">–</div><div class="auto-dash-lbl" id="dash-limit-lbl">Limite diário</div></div>
-            </div>
-            <!-- Progress -->
-            <div style="margin-bottom:12px">
-              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:4px">
-                <span>Progresso da fila</span>
-                <span id="dash-pct" style="font-weight:800;color:var(--blue)">0%</span>
-              </div>
-              <div class="auto-prog-bg" style="height:10px"><div class="auto-prog-fill" id="dash-prog" style="width:0%;height:100%"></div></div>
-              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t3);margin-top:4px">
-                <span id="dash-prog-sent-lbl">0 enviados</span>
-                <span id="dash-prog-days-lbl" style="color:var(--amber);font-weight:700"></span>
-              </div>
-            </div>
-            <!-- Intervalo e sender info (extra, admin vê mais) -->
-            <div id="auto-extra-info" style="display:none;background:var(--sf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;margin-bottom:10px;font-size:11px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-              <span id="auto-interval-badge" style="background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.25);border-radius:8px;padding:2px 8px;color:#7c3aed;font-weight:700"></span>
-              <span id="auto-sender-badge" style="background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.2);border-radius:8px;padding:2px 8px;color:var(--blue)"></span>
             </div>
             <!-- Next job preview -->
             <div class="next-job-card" id="next-job-card">
