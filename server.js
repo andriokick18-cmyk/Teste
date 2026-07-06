@@ -8387,7 +8387,7 @@ if(pathname==="/api/admin/pagantes"&&req.method==="GET"){try{
   for(const pg of ((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[])){
     if(!pg||!pg.email)continue;
     const e=String(pg.email).toLowerCase();
-    (finByEmail[e]=finByEmail[e]||[]).push({valor:parseVal(pg.valor),date:toTs(pg.dataPagamento)||toTs(pg.data)||pg.criadoEm||null});
+    (finByEmail[e]=finByEmail[e]||[]).push({valor:parseVal(pg.valor),date:toTs(pg.dataPagamento)||toTs(pg.data)||pg.criadoEm||null,id:pg.id||null,source:"financeiro"});
   }
   // Pedidos pagos/ativos (fallback) por email
   const pedByEmail={};
@@ -8396,7 +8396,7 @@ if(pathname==="/api/admin/pagantes"&&req.method==="GET"){try{
     const st=String(ped.status||"").toLowerCase();
     if(st!=="pago"&&st!=="ativo")continue;
     const e=String(ped.userEmail).toLowerCase();
-    (pedByEmail[e]=pedByEmail[e]||[]).push({valor:parseVal(ped.valorTotal),date:ped.ativadoEm||ped.pagoEm||ped.createdAt||null});
+    (pedByEmail[e]=pedByEmail[e]||[]).push({valor:parseVal(ped.valorTotal),date:ped.ativadoEm||ped.pagoEm||ped.createdAt||null,id:ped.id||null,source:"pedido"});
   }
   const PLAN_LABELS={free:"Free",vip:"⭐ VIP Manual",pro:"🤖 Pro",vipro:"⭐🤖 VIPro",doublepro:"🚀 DoublePro"};
   const rows=[];
@@ -8425,6 +8425,7 @@ if(pathname==="/api/admin/pagantes"&&req.method==="GET"){try{
       manualExpires:vip.manualExpires||0,autoExpires:vip.autoExpires||0,nextExpiry:nextExp,
       daysLeft,manualActive,autoActive,active:(manualActive||autoActive),status,
       lastPaymentValor:last?last.valor:0,lastPaymentDate:last?last.date:null,
+      lastPaymentId:last?last.id:null,lastPaymentSource:last?last.source:null,
       totalPago,pedidosCount:pagamentos.length,note:vip.note||""
     });
   }

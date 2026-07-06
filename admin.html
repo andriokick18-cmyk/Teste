@@ -7267,7 +7267,7 @@ function renderPagantes(){
           <span style="color:var(--purple);font-weight:700">${esc(r.planLabel)}</span>
           ${sb}
           <span style="color:var(--t3)">Vence: <strong style="color:var(--t2)">${date(r.nextExpiry)}</strong></span>
-          ${r.lastPaymentValor?`<span style="color:var(--t3)">Pagou <strong style="color:var(--green)">${money(r.lastPaymentValor)}</strong> em ${date(r.lastPaymentDate)}</span>`:'<span style="color:var(--amber)">⚠️ sem pagamento registrado</span>'}
+          ${r.lastPaymentValor?`<span style="color:var(--t3)">Pagou <strong style="color:var(--green)">${money(r.lastPaymentValor)}</strong> em ${date(r.lastPaymentDate)} <i class="ti ti-pencil" title="Corrigir este valor" onclick="pagEditarValor('${esc(r.email)}','${esc(r.lastPaymentId||'')}','${esc(r.lastPaymentSource||'')}',${r.lastPaymentValor})" style="cursor:pointer;color:var(--blue);padding:2px 3px"></i></span>`:`<span style="color:var(--amber)">⚠️ sem pagamento registrado <i class="ti ti-pencil" title="Registrar/corrigir valor" onclick="pagEditarValor('${esc(r.email)}','','',0)" style="cursor:pointer;color:var(--blue);padding:2px 3px"></i></span>`}
           ${(r.pedidosCount>1)?`<span style="color:var(--t3)">Total <strong>${money(r.totalPago)}</strong> (${r.pedidosCount}×)</span>`:''}
         </div>
       </div>
@@ -7290,6 +7290,34 @@ async function pagRenovar(email,plan){
     if(d.ok){toast('✅ +30 dias para '+email,'ok');loadPagantes();}
     else toast('Erro: '+(d.error||'falhou'),'r');
   }catch(e){toast('Erro: '+e.message,'r');}
+}
+// ── Corrigir o valor de um pagante direto da lista (sem precisar caçar no Financeiro) ──
+async function pagEditarValor(email,id,source,valorAtual){
+  if(!_finLoaded) await finLoadFromServer();
+  if(id && source==='financeiro'){
+    // Registro existe no livro-caixa: abre o MESMO modal de edição do Financeiro
+    // (motivo obrigatório + trilha de auditoria + revisão da IA).
+    finEditarRegistro(id,'pagamento');
+    return;
+  }
+  // Sem registro no livro-caixa (valor veio de Pedido antigo ou de paymentAmount legado):
+  // não dá pra "editar" o que não existe — criamos o registro CORRETO agora,
+  // que passa a ser a fonte única dali pra frente (mesmo padrão do add_pagamento).
+  const sugestao = valorAtual>0 ? valorAtual : '';
+  const novoValor = prompt(`Nenhum lançamento de pagamento existe ainda para ${email} no livro-caixa (o valor mostrado vem de um Pedido antigo).\n\nDigite o valor CORRETO recebido (R$):`, sugestao);
+  if(novoValor===null) return;
+  const v = parseFloat(String(novoValor).replace(',','.'));
+  if(!(v>0)){ toast('Valor inválido','r'); return; }
+  const nota = prompt('Nota rápida (ex.: "Correção — cliente pagou R$159, não R$300, erro de aceitação"):','Correção de valor lançada pelo painel Pagantes');
+  if(nota===null || nota.trim().length<3){ toast('Nota é obrigatória para manter a auditoria','r'); return; }
+  try{
+    const r=await fetch('/api/admin/financeiro',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'add_pagamento',pagamento:{email,valor:v,nota,recebidoPor:'andrio'}})});
+    const d=await r.json().catch(()=>null);
+    if(!(r.ok&&d&&d.ok)) throw new Error((d&&d.error)||('HTTP '+r.status));
+    toast('✅ Valor corrigido e registrado no livro-caixa (auditado)','ok');
+    _finLoaded=false; await finLoadFromServer(); loadPagantes();
+  }catch(e){ toast('❌ '+e.message,'r'); }
 }
 function exportPagantesCSV(){
   const rows=[['Nome','Email','Plano','Status','Dias Restantes','Vencimento','Ultimo Pagamento (R$)','Data Pagamento','Total Pago (R$)','Qtd Pedidos']];
