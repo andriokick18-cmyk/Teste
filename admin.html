@@ -1258,6 +1258,22 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
           <button class="btn btn-primary btn-sm" id="dm-btn-check" onclick="dolMonitorCheckNow()"><i class="ti ti-search"></i> Checar agora</button>
           <button class="btn btn-secondary btn-sm" id="dm-btn-toggle" onclick="dolMonitorToggle()">…</button>
+          <button class="btn btn-sm" id="dm-btn-notify" onclick="dolMonitorNotifyNow()" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;font-weight:800"><i class="ti ti-mail-forward"></i> Avisar pagantes agora</button>
+        </div>
+
+        <!-- 🧪 TESTE COM DADOS REAIS — pedido do dono (07/07/2026). Roda o
+             pipeline inteiro com a planilha REAL de Jan/2026 (sem esperar
+             sair a de Julho) e publica uma planilha de teste pro Manual e
+             Automático mostrarem. NUNCA avisa pagantes. Excluível a
+             qualquer momento. -->
+        <div style="background:rgba(139,92,246,.08);border:1.5px solid rgba(139,92,246,.3);border-radius:14px;padding:14px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:800;color:#a78bfa;margin-bottom:4px">🧪 Testar robô com dados reais (Jan 2026)</div>
+          <div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:10px">Roda TODO o pipeline (ler .xlsx → extrair grupos → mesclar) com a planilha real de Janeiro que você já mandou, e publica uma planilha de teste ("🧪 TESTE — Jul 2026") pro Manual e Automático mostrarem de verdade. <strong>Nunca envia e-mail pra ninguém.</strong> Quando terminar de conferir, clica em "Excluir teste" — a planilha some e a aba volta a mostrar "Em breve" (atualize a página do site pra ver).</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <button class="btn btn-primary btn-sm" id="dm-btn-test" onclick="dolMonitorRunTest()"><i class="ti ti-flask"></i> Rodar teste completo</button>
+            <button class="btn btn-sm" id="dm-btn-test-delete" onclick="dolMonitorDeleteTest()" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;font-weight:800"><i class="ti ti-trash"></i> Excluir teste</button>
+          </div>
+          <div id="dm-test-result" style="display:none;font-size:12px;line-height:1.6;background:rgba(0,0,0,.2);border-radius:8px;padding:10px 13px"></div>
         </div>
 
         <div class="section-hdr" style="margin-top:4px"><i class="ti ti-list-details" style="color:#0891b2"></i><div class="section-title">Log ao vivo</div></div>
@@ -3826,6 +3842,7 @@ function roboSubTab(name){
   if(name==='robo-contabil' && typeof rcCheckGeminiStatus==='function') setTimeout(rcCheckGeminiStatus,300);
   if(name==='dolmonitor'){
     dolMonitorPoll();
+    dolMonitorSyncTestButton();
     if(_dmPollTimer) clearInterval(_dmPollTimer);
     _dmPollTimer=setInterval(dolMonitorPoll,10000); // atualiza a cada 10s enquanto a sub-aba estiver aberta
   } else if(_dmPollTimer){
@@ -3905,6 +3922,72 @@ async function dolMonitorCheckNow(){
     setTimeout(dolMonitorPoll,3000);
   }catch(e){}
   finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-search"></i> Checar agora'; } }
+}
+async function dolMonitorNotifyNow(){
+  const btn=document.getElementById('dm-btn-notify');
+  if(!confirm('Isso envia um e-mail de alerta pra TODOS os usuários pagantes ativos que ainda não foram avisados sobre o último relatório importado. Confirma?')) return;
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Enviando…'; }
+  try{
+    const r=await fetch('/api/admin/dolmonitor/notify-now',{method:'POST',credentials:'include'});
+    const d=await r.json();
+    if(d.ok) toast(`✅ Enviado: ${d.sent} pagante(s), ${d.failed} falha(s) de ${d.total} elegíveis`,'ok');
+    else toast(d.error||'Erro','err');
+    dolMonitorPoll();
+  }catch(e){ toast('Erro ao disparar o alerta','err'); }
+  finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-mail-forward"></i> Avisar pagantes agora'; } }
+}
+
+// 🧪 TESTE COM DADOS REAIS (Jan 2026) — roda os 2 passos: (1) pipeline de
+// grupos com o .xlsx real, sem notificar ninguém; (2) publica uma planilha
+// de teste pro Manual/Automático mostrarem de verdade.
+async function dolMonitorRunTest(){
+  const btn=document.getElementById('dm-btn-test');
+  const resBox=document.getElementById('dm-test-result');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Rodando teste…'; }
+  if(resBox){ resBox.style.display=''; resBox.innerHTML='⏳ Rodando pipeline de grupos com o arquivo real de Janeiro...'; }
+  try{
+    const r1=await fetch('/api/admin/dolmonitor/test-run',{method:'POST',credentials:'include'});
+    const d1=await r1.json();
+    if(!d1.ok){ if(resBox)resBox.innerHTML='❌ Falhou no passo 1 (grupos): '+(d1.error||'erro'); return; }
+    const liveTag = d1.viaLiveDownload ? '✅ <strong>Baixou AO VIVO do dol.gov</strong> (não usou backup)' : '⚠️ Download ao vivo falhou — usou a cópia de backup salva no servidor';
+    if(resBox) resBox.innerHTML=`${liveTag}<br>✅ Passo 1/2: ${d1.rows} linhas lidas, ${d1.added} grupos novos/atualizados (total ${d1.totalGrupos} cases)<br>⏳ Publicando planilha de teste...`;
+    const r2=await fetch('/api/admin/sheet/test-publish-jan',{method:'POST',credentials:'include'});
+    const d2=await r2.json();
+    if(!d2.ok){ if(resBox)resBox.innerHTML+='<br>❌ Falhou no passo 2 (publicar planilha): '+(d2.error||'erro'); return; }
+    if(resBox) resBox.innerHTML=`${liveTag}<br>✅ Passo 1/2: ${d1.rows} linhas lidas, ${d1.added} grupos novos/atualizados (total ${d1.totalGrupos} cases)<br>✅ Passo 2/2: planilha de teste publicada com ${d2.count.toLocaleString('pt-BR')} vagas — chave <code>${d2.key}</code><br><br>👉 Abre o site (Manual e Automático) e confere. Quando terminar, clica em "Excluir teste".`;
+    toast('🧪 Teste completo! Confira no site.','ok');
+    dolMonitorSyncTestButton();
+    dolMonitorPoll();
+  }catch(e){ if(resBox)resBox.innerHTML='❌ Erro: '+e.message; }
+  finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-flask"></i> Rodar teste completo'; } }
+}
+
+async function dolMonitorDeleteTest(){
+  if(!confirm('Isso remove a planilha de teste "🧪 TESTE — Jul 2026". A aba volta a mostrar "Em breve" pra todos (depois de atualizarem a página). Confirma?')) return;
+  const btn=document.getElementById('dm-btn-test-delete');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Excluindo…'; }
+  try{
+    const r=await fetch('/api/admin/sheet/jul2026-teste',{method:'DELETE',credentials:'include'});
+    const d=await r.json();
+    if(d.ok){
+      toast('✅ Planilha de teste excluída','ok');
+      const resBox=document.getElementById('dm-test-result');
+      if(resBox){ resBox.style.display=''; resBox.innerHTML='🗑️ Teste excluído. A aba "Jul 2026" volta a mostrar "Em breve" pra quem atualizar a página.'; }
+    } else toast(d.error||'Erro','err');
+    dolMonitorSyncTestButton();
+  }catch(e){ toast('Erro ao excluir','err'); }
+  finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-trash"></i> Excluir teste'; } }
+}
+
+// Mostra/esconde o botão "Excluir teste" verificando se a planilha de teste existe
+async function dolMonitorSyncTestButton(){
+  try{
+    const r=await fetch('/api/admin/sheets',{credentials:'include'});
+    const d=await r.json();
+    const exists=(d.sheets||[]).some(sh=>sh.key==='jul2026-teste');
+    const delBtn=document.getElementById('dm-btn-test-delete');
+    if(delBtn) delBtn.style.display=exists?'':'none';
+  }catch(e){}
 }
 
 // ══════════════════════════════════════════════════════════
@@ -6681,6 +6764,14 @@ async function loadSettings(){
           <label for="cfg-email-notif-en" style="font-size:12px;font-weight:700;cursor:pointer">${s.emailNotificationsEnabled===true?'✅ Ligado — enviando normalmente':'⏸️ Desligado — nenhum e-mail automático está sendo enviado'}</label>
         </div>
       </div>
+      <div class="form-group" style="background:rgba(16,185,129,.06);border:1.5px solid rgba(16,185,129,.25);border-radius:12px;padding:13px">
+        <label class="form-label" style="color:#34d399">🚨 Alerta "Saiu a lista randomizada" pra pagantes</label>
+        <div style="font-size:11px;color:var(--t3);line-height:1.5;margin:4px 0 8px">Independente do toggle acima. Quando o Monitor DOL (aba 🤖 Robôs) importa um relatório novo de randomização, avisa por e-mail todos os usuários pagantes ativos — 1x por pagante, por relatório.</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input type="checkbox" id="cfg-report-alert-en" ${s.reportAlertEmailEnabled!==false?'checked':''} style="accent-color:var(--green);width:16px;height:16px">
+          <label for="cfg-report-alert-en" style="font-size:12px;font-weight:700;cursor:pointer">${s.reportAlertEmailEnabled!==false?'✅ Ligado — avisa pagantes quando sair lista nova':'⏸️ Desligado — ninguém é avisado'}</label>
+        </div>
+      </div>
       <div class="form-group">
         <label class="form-label">Trial automático para novos usuários</label>
         <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
@@ -6726,7 +6817,8 @@ async function saveSettings(){
   })).filter(sv=>sv.id>0);
   try{
     const emailNotifEnabled=!!document.getElementById('cfg-email-notif-en')?.checked;
-    const body={newUserTrialDays:days,newUserTrialEnabled:enabled,newUserTrialPlan:plan,emailNotificationsEnabled:emailNotifEnabled};
+    const reportAlertEnabled=!!document.getElementById('cfg-report-alert-en')?.checked;
+    const body={newUserTrialDays:days,newUserTrialEnabled:enabled,newUserTrialPlan:plan,emailNotificationsEnabled:emailNotifEnabled,reportAlertEmailEnabled:reportAlertEnabled};
     if(servers.length)body.servers=servers;
     const r=await fetch('/api/admin/settings',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json();

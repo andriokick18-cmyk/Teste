@@ -2890,71 +2890,30 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
       <!-- ══ JOBS ══ -->
       <div class="view" id="v-jobs">
-        <div class="stabs">
+        <div class="stabs" id="stabs-row">
           <button class="stab active" id="stab-seasonal" onclick="setTab('seasonal')"><i class="ti ti-globe"></i>Seasonal Jobs<span class="stab-cnt" id="sc-seasonal" style="display:none"></span></button>
           <button class="stab stab-sheet-jan" id="stab-jan2026" onclick="setTab('jan2026')" style="margin-top:8px"><i class="ti ti-sun" style="color:#f59e0b"></i><strong>Jan 2026</strong><span class="stab-cnt" id="sc-jan">–</span></button>
           <button class="stab stab-sheet-jul" id="stab-jul2025" onclick="setTab('jul2025')" style="margin-top:8px"><i class="ti ti-snowflake" style="color:#3b82f6"></i><strong>Jul 2025</strong><span class="stab-cnt" id="sc-jul">–</span></button>
           <button class="stab stab-sheet-h2a" id="stab-h2a-jun2026" onclick="setTab('h2a-jun2026')" style="margin-top:8px"><i class="ti ti-plant-2" style="color:#10b981"></i><strong>H-2A Agricultura</strong><span class="stab-cnt" id="sc-h2a">–</span></button>
+          <!-- 🔜 Placeholder Julho 2026 — o robô substitui isto automaticamente por
+               uma aba de verdade assim que o DOL publicar e o admin publicar a
+               planilha (loadDynamicSheets() troca isto sozinho, sem precisar editar
+               código de novo). -->
+          <button class="stab" id="stab-jul2026-placeholder" disabled title="Ainda não disponível — aparece sozinho quando o DOL publicar" style="margin-top:8px;opacity:.5;cursor:not-allowed;position:relative">
+            <i class="ti ti-snowflake" style="color:#94a3b8"></i><strong>Jul 2026</strong>
+            <span style="display:block;font-size:9px;font-weight:800;color:#94a3b8;letter-spacing:.03em">🔜 Em breve</span>
+          </button>
         </div>
         <div class="search-bar">
           <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="Cargo, empresa, estado..." oninput="onSearch()" autocomplete="off" inputmode="search"></div>
-          <div class="filters-row" id="filters-row">
-            <select class="fsel" id="f-state" onchange="applyF()">
-              <option value="">Todos estados</option>
-              <option>ALABAMA</option><option>ALASKA</option><option>ARIZONA</option><option>ARKANSAS</option>
-              <option>CALIFORNIA</option><option>COLORADO</option><option>CONNECTICUT</option><option>DELAWARE</option>
-              <option>FLORIDA</option><option>GEORGIA</option><option>HAWAII</option><option>IDAHO</option>
-              <option>ILLINOIS</option><option>INDIANA</option><option>IOWA</option><option>KANSAS</option>
-              <option>KENTUCKY</option><option>LOUISIANA</option><option>MAINE</option><option>MARYLAND</option>
-              <option>MASSACHUSETTS</option><option>MICHIGAN</option><option>MINNESOTA</option><option>MISSISSIPPI</option>
-              <option>MISSOURI</option><option>MONTANA</option><option>NEBRASKA</option><option>NEVADA</option>
-              <option>NEW HAMPSHIRE</option><option>NEW JERSEY</option><option>NEW MEXICO</option><option>NEW YORK</option>
-              <option>NORTH CAROLINA</option><option>NORTH DAKOTA</option><option>OHIO</option><option>OKLAHOMA</option>
-              <option>OREGON</option><option>PENNSYLVANIA</option><option>RHODE ISLAND</option><option>SOUTH CAROLINA</option>
-              <option>SOUTH DAKOTA</option><option>TENNESSEE</option><option>TEXAS</option><option>UTAH</option>
-              <option>VERMONT</option><option>VIRGINIA</option><option>WASHINGTON</option><option>WEST VIRGINIA</option>
-              <option>WISCONSIN</option><option>WYOMING</option>
-            </select>
-            <!-- Dynamic category chips inserted here by JS -->
-            <div id="cat-chips-jobs" style="display:contents"></div>
-            <button class="fbtn" id="btn-titles-filter" onclick="openTitlesFilter()" style="display:none;font-weight:800;color:#7c3aed;border-color:rgba(124,58,237,.35);background:rgba(124,58,237,.08)">
-              <i class="ti ti-filter"></i> Filtros <span id="titles-filter-badge" style="display:none;background:#7c3aed;color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:3px"></span>
+          <div class="filters-row" id="filters-row" style="overflow:visible">
+            <button class="fbtn" id="btn-master-filters" onclick="openMasterFilters()" style="font-weight:800;color:#7c3aed;border:1.5px solid rgba(124,58,237,.4);background:rgba(124,58,237,.1);white-space:nowrap">
+              <i class="ti ti-adjustments-horizontal"></i> Filtros
+              <span id="master-filters-badge" style="display:none;background:#7c3aed;color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:3px;font-weight:800"></span>
             </button>
-            <!-- Seasonal-only filters -->
-            <button class="fbtn on" id="ft-all"    onclick="setType('all')" style="display:none">Todos</button>
-            <button class="fbtn"    id="ft-agri"   onclick="setType('agricultural')" style="display:none">🌾 H-2A</button>
-            <button class="fbtn"    id="ft-nonag"  onclick="setType('non-agricultural')" style="display:none">🔧 H-2B</button>
-            <button class="fbtn on" id="fs-all"    onclick="setStat('all')" style="display:none">Todas</button>
-            <button class="fbtn"    id="fs-active" onclick="setStat('active')" style="display:none">✅ Ativas</button>
-            <select class="fsel" id="f-wage" onchange="applyF()" title="Salário mínimo">
-              <option value="">Salário</option>
-              <option value="10">$10+/h</option><option value="14">$14+/h</option>
-              <option value="16">$16+/h</option><option value="18">$18+/h</option><option value="20">$20+/h</option>
-              <option value="22">$22+/h</option><option value="25">$25+/h</option><option value="28">$28+/h</option>
-            </select>
-            <input class="fsel" id="f-city" type="text" placeholder="Cidade..." oninput="applyF()" style="min-width:90px;max-width:120px;display:none" title="Filtrar por cidade">
-
-            <select class="fsel" id="f-workers" onchange="applyF()" title="Qtd vagas" style="display:none">
-              <option value="">Qtd vagas</option>
-              <option value="2">2+</option><option value="5">5+</option>
-              <option value="10">10+</option><option value="20">20+</option>
-            </select>
             <button class="fbtn on" id="so-rand" onclick="setSort('random')">🔀 Aleatório</button>
             <button class="fbtn"    id="so-desc" onclick="setSort('desc')">Recentes</button>
             <button class="fbtn"    id="so-asc"  onclick="setSort('asc')">Antigas</button>
-          </div>
-          <!-- ⭐ FILTROS ESPECIAIS — Grupo (randomização DOL) + Status ao vivo -->
-          <div id="filtros-especiais" style="display:none;align-items:center;gap:7px;padding:7px 12px 8px;overflow-x:auto;background:linear-gradient(90deg,rgba(124,58,237,.07),rgba(59,130,246,.05));border-top:1px dashed var(--border)">
-            <span style="font-size:10px;font-weight:900;color:#8b5cf6;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;display:inline-flex;align-items:center;gap:4px">⭐ Filtros especiais</span>
-            <span id="f-grupo-wrap" style="display:inline-flex;align-items:center;gap:4px">
-              <span style="font-size:10.5px;font-weight:800;color:var(--t3);white-space:nowrap">🎯 Grupo:</span>
-              <span id="f-grupo-chips" style="display:inline-flex;gap:4px"></span>
-            </span>
-            <span id="f-status-wrap" style="display:inline-flex;align-items:center;gap:4px">
-              <span style="font-size:10.5px;font-weight:800;color:var(--t3);white-space:nowrap">📡 Status:</span>
-              <span id="f-status-sel-box" style="display:inline-flex"></span>
-            </span>
-            <button onclick="showEtaExplainer()" style="border:1px solid var(--border);background:var(--surface);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:800;color:var(--t2);cursor:pointer;font-family:inherit;white-space:nowrap">❓ O que é isso?</button>
           </div>
         </div>
         <div class="jobs-view">
@@ -5111,27 +5070,117 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
   </div>
 </div>
 
-<!-- ══ FILTRO GRANDE POR CARGO REAL (todo título que existe de fato na planilha) ══ -->
-<div class="overlay gone" id="titles-filter-overlay" onclick="if(event.target===this)closeTitlesFilter()">
-  <div class="modal" style="max-width:520px;max-height:88dvh;display:flex;flex-direction:column;overflow:hidden;padding:0">
+<!-- ══ 🔍 FILTROS — MODAL ÚNICO (redesign completo, tudo num só lugar) ══ -->
+<style>
+.mf-sec{margin-bottom:4px}
+.mf-sec-title{font-size:11.5px;font-weight:800;color:var(--t2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.mf-dp-badge{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:9px;font-weight:800;padding:2px 7px;border-radius:20px}
+.mf-check-row{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;padding:6px 2px}
+.mf-scroll-list{max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:4px 8px}
+.mf-select,.mf-input{width:100%;height:38px;border-radius:10px;border:1.5px solid var(--border2);background:var(--sf2);padding:0 12px;font-size:13px;font-family:inherit;color:var(--text)}
+.mf-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+</style>
+<div class="overlay gone" id="master-filters-overlay" onclick="if(event.target===this)closeMasterFilters()">
+  <div class="modal" style="max-width:560px;max-height:90dvh;display:flex;flex-direction:column;overflow:hidden;padding:0">
     <div class="mhandle"></div>
-    <div style="padding:14px 16px 10px;flex-shrink:0;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div style="font-size:15px;font-weight:800">🔍 Filtrar por cargo</div>
-        <button onclick="closeTitlesFilter()" style="background:none;border:none;cursor:pointer;color:var(--t3);padding:4px"><i class="ti ti-x" style="font-size:18px"></i></button>
-      </div>
-      <input class="input" id="titles-filter-search" style="height:34px;font-size:13px;margin-bottom:10px" placeholder="🔍 Buscar cargo (ex: Cook, Landscape...)" oninput="renderTitlesFilterList()">
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;padding:4px 0">
-        <input type="checkbox" id="titles-filter-all" onchange="toggleAllTitles(this.checked)" style="width:17px;height:17px">
-        Todas as vagas
-      </label>
+    <div style="padding:14px 16px 10px;flex-shrink:0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:16px;font-weight:800">🔍 Filtros</div>
+      <button onclick="closeMasterFilters()" style="background:none;border:none;cursor:pointer;color:var(--t3);padding:4px"><i class="ti ti-x" style="font-size:18px"></i></button>
     </div>
-    <div id="titles-filter-list" style="overflow-y:auto;flex:1;padding:6px 16px;display:flex;flex-direction:column;gap:2px">
-      <div style="text-align:center;padding:30px;color:var(--t3)"><span class="spin"></span></div>
+    <div style="overflow-y:auto;flex:1;padding:14px 16px 8px;display:flex;flex-direction:column;gap:18px">
+
+      <!-- CARGO ESPECÍFICO (títulos reais da planilha) -->
+      <div class="mf-sec" id="mf-titles-section">
+        <div class="mf-sec-title">🏷️ Cargo específico</div>
+        <input class="mf-input" id="titles-filter-search" placeholder="🔍 Buscar cargo (ex: Cook, Landscape...)" oninput="renderTitlesFilterList()" style="margin-bottom:8px">
+        <label class="mf-check-row"><input type="checkbox" id="titles-filter-all" onchange="toggleAllTitles(this.checked)" style="width:16px;height:16px">Todos os cargos</label>
+        <div id="titles-filter-list" class="mf-scroll-list"><div style="text-align:center;padding:20px;color:var(--t3)"><span class="spin"></span></div></div>
+      </div>
+
+      <!-- CATEGORIA RÁPIDA -->
+      <div class="mf-sec" id="mf-cat-section">
+        <div class="mf-sec-title">📂 Categoria rápida</div>
+        <div id="cat-chips-jobs" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
+
+      <!-- TIPO/STATUS (só Seasonal Jobs) -->
+      <div class="mf-sec" id="mf-type-section" style="display:none">
+        <div class="mf-sec-title">🌎 Tipo de visto</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <button class="fbtn on" id="ft-all"    onclick="setType('all')">Todos</button>
+          <button class="fbtn"    id="ft-agri"   onclick="setType('agricultural')">🌾 H-2A</button>
+          <button class="fbtn"    id="ft-nonag"  onclick="setType('non-agricultural')">🔧 H-2B</button>
+        </div>
+        <div class="mf-sec-title">📶 Status da vaga</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="fbtn on" id="fs-all"    onclick="setStat('all')">Todas</button>
+          <button class="fbtn"    id="fs-active" onclick="setStat('active')">✅ Ativas</button>
+        </div>
+      </div>
+
+      <!-- LOCALIZAÇÃO -->
+      <div class="mf-sec">
+        <div class="mf-sec-title">📍 Localização</div>
+        <select class="mf-select" id="f-state" onchange="applyF()" style="margin-bottom:8px">
+          <option value="">Todos estados</option>
+          <option>ALABAMA</option><option>ALASKA</option><option>ARIZONA</option><option>ARKANSAS</option>
+          <option>CALIFORNIA</option><option>COLORADO</option><option>CONNECTICUT</option><option>DELAWARE</option>
+          <option>FLORIDA</option><option>GEORGIA</option><option>HAWAII</option><option>IDAHO</option>
+          <option>ILLINOIS</option><option>INDIANA</option><option>IOWA</option><option>KANSAS</option>
+          <option>KENTUCKY</option><option>LOUISIANA</option><option>MAINE</option><option>MARYLAND</option>
+          <option>MASSACHUSETTS</option><option>MICHIGAN</option><option>MINNESOTA</option><option>MISSISSIPPI</option>
+          <option>MISSOURI</option><option>MONTANA</option><option>NEBRASKA</option><option>NEVADA</option>
+          <option>NEW HAMPSHIRE</option><option>NEW JERSEY</option><option>NEW MEXICO</option><option>NEW YORK</option>
+          <option>NORTH CAROLINA</option><option>NORTH DAKOTA</option><option>OHIO</option><option>OKLAHOMA</option>
+          <option>OREGON</option><option>PENNSYLVANIA</option><option>RHODE ISLAND</option><option>SOUTH CAROLINA</option>
+          <option>SOUTH DAKOTA</option><option>TENNESSEE</option><option>TEXAS</option><option>UTAH</option>
+          <option>VERMONT</option><option>VIRGINIA</option><option>WASHINGTON</option><option>WEST VIRGINIA</option>
+          <option>WISCONSIN</option><option>WYOMING</option>
+        </select>
+        <input class="mf-input" id="f-city" type="text" placeholder="Cidade (opcional)" oninput="applyF()">
+      </div>
+
+      <!-- SALÁRIO E VAGAS -->
+      <div class="mf-sec">
+        <div class="mf-row2">
+          <div>
+            <div class="mf-sec-title">💰 Salário mínimo</div>
+            <select class="mf-select" id="f-wage" onchange="applyF()">
+              <option value="">Qualquer</option>
+              <option value="10">$10+/h</option><option value="14">$14+/h</option>
+              <option value="16">$16+/h</option><option value="18">$18+/h</option><option value="20">$20+/h</option>
+              <option value="22">$22+/h</option><option value="25">$25+/h</option><option value="28">$28+/h</option>
+            </select>
+          </div>
+          <div>
+            <div class="mf-sec-title">👥 Qtd. vagas mín.</div>
+            <select class="mf-select" id="f-workers" onchange="applyF()">
+              <option value="">Qualquer</option>
+              <option value="2">2+</option><option value="5">5+</option>
+              <option value="10">10+</option><option value="20">20+</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- DOUBLE PRO: GRUPO + STATUS (só planilhas, não Seasonal) -->
+      <div class="mf-sec" id="mf-doublepro-section" style="display:none;background:rgba(139,92,246,.06);border:1.5px solid rgba(139,92,246,.2);border-radius:12px;padding:12px">
+        <div id="f-grupo-wrap">
+          <div class="mf-sec-title">🎯 Filtro por Grupo <span class="mf-dp-badge">DOUBLE PRO 250+</span></div>
+          <div id="f-grupo-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
+        </div>
+        <div id="f-status-wrap">
+          <div class="mf-sec-title">📡 Status DOL ao vivo <span class="mf-dp-badge">DOUBLE PRO 250+</span>
+            <button onclick="showEtaExplainer()" style="border:1px solid var(--border);background:var(--surface);border-radius:20px;padding:2px 9px;font-size:10px;font-weight:800;color:var(--t2);cursor:pointer;font-family:inherit;margin-left:auto">❓</button>
+          </div>
+          <div id="f-status-sel-box"></div>
+        </div>
+      </div>
+
     </div>
     <div style="padding:10px 16px;flex-shrink:0;border-top:1px solid var(--border);display:flex;gap:8px">
-      <button class="btn btn-secondary" style="flex:1" onclick="clearTitlesFilter()">Limpar</button>
-      <button class="btn btn-primary" style="flex:2" onclick="applyTitlesFilter()">Aplicar <span id="titles-filter-apply-count"></span></button>
+      <button class="btn btn-secondary" style="flex:1" onclick="clearAllFilters()">Limpar tudo</button>
+      <button class="btn btn-primary" style="flex:2" onclick="applyMasterFilters()">Aplicar <span id="master-filters-apply-count"></span></button>
     </div>
   </div>
 </div>
@@ -6740,32 +6789,15 @@ function stopRankTimer(){if(_rankTimer){clearInterval(_rankTimer);_rankTimer=nul
 //  SOURCE TABS + DYNAMIC CATEGORIES
 // ═══════════════════════════════════════════
 function setTab(t){
-  // ⭐ Filtros especiais: linha aparece em toda aba de planilha.
-  // Grupo só em H-2B (H-2A não tem randomização); Status em todas.
   fGrupos=[];fEtaStatus="";
-  setTimeout(()=>{
-    const bar=g("#filtros-especiais");if(!bar)return;
-    const isSheet=t!=="seasonal";
-    bar.style.display=isSheet?"flex":"none";
-    if(isSheet){
-      const gw=g("#f-grupo-wrap");if(gw)gw.style.display=t.startsWith("h2a")?"none":"inline-flex";
-      renderGrupoChips();renderStatusSel();
-    }
-  },50);
   tab=t;fCat="all";
-  fTitles=[];_titlesTax=null;const _tfb=g("#titles-filter-badge");if(_tfb)_tfb.style.display="none";
-  const _tfBtn=g("#btn-titles-filter");if(_tfBtn)_tfBtn.style.display=(t==="seasonal")?"none":"";
+  fTitles=[];_titlesTax=null;
+  _masterFiltersSyncBadge();
   // FIX: resetar filtros que não existem nas planilhas para não contaminar os resultados
-  if(t!=="seasonal"){fWage=0;fWorkers=0;const fw=g("#f-wage");if(fw)fw.value="";const wk=g("#f-workers");if(wk)wk.value="";}
+  if(t!=="seasonal"){fWage=0;fWorkers=0;const fw=g("#f-wage");if(fw)fw.value="";const wk=g("#f-workers");if(wk)wk.value="";const fc=g("#f-city");if(fc)fc.value="";}
   if(t!=="seasonal"&&fSort!=="random"){fSort="random";g("#so-rand")?.classList.add("on");g("#so-desc")?.classList.remove("on");g("#so-asc")?.classList.remove("on");}
-  ["seasonal","jan2026","jul2025","h2a-jun2026"].forEach(x=>{g("#stab-"+x)?.classList.toggle("active",x===t);});
-  const isSheet=t!=="seasonal";
-  // ft-*/fs-* são filtros de tipo/status que só existem na API seasonal
-  ["ft-all","ft-agri","ft-nonag","fs-all","fs-active"].forEach(id=>{const el=g("#"+id);if(el)el.style.display=isSheet?"none":"";});
-  // f-wage, f-workers e f-city funcionam em todos os modos (seasonal e sheet)
-  ["f-wage","f-workers"].forEach(id=>{const el=g("#"+id);if(el)el.style.display="";});
-  // f-city só nas sheets (sheets têm campo city; seasonal não tem)
-  const fcity=g("#f-city");if(fcity)fcity.style.display=isSheet?"":"none";
+  document.querySelectorAll(".stab").forEach(b=>b.classList.remove("active"));
+  g("#stab-"+t)?.classList.add("active");
   g("#jlist").innerHTML="";g("#lmore").innerHTML="";
   const _existing=document.getElementById("sheet-filter-warn");if(_existing)_existing.remove();
   g("#jd-empty")?.classList.remove("gone");g("#jd-content").style.display="none";closeMobDetail();
@@ -6813,36 +6845,46 @@ function renderCatChips(sheet){
 
 function selectTabCat(cat){
   fCat=cat;document.querySelectorAll("#cat-chips-jobs .cat-chip").forEach(b=>b.classList.toggle("on",b.dataset.cat===cat));
-  fTitles=[];const _b=g("#titles-filter-badge");if(_b)_b.style.display="none"; // categoria rápida e filtro grande não se misturam
+  fTitles=[];_masterFiltersSyncBadge(); // categoria rápida e cargo específico não se misturam
   sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);
 }
 
 // ═══════════════════════════════════════════
-//  🔍 FILTRO GRANDE POR CARGO REAL (Parte 3B)
-//  Substitui a limitação das ~11 categorias fixas: mostra TODO título que
-//  existe de fato na planilha (ex: "Cook" separado de "Housekeeper"), com
-//  contagem, e agrupa os isolados (≤3 vagas) em "Outros". Funciona junto
-//  com /api/sheet-meta?titles=... (server.js).
+//  🔍 MODAL MASTER DE FILTROS (redesign completo — substitui a barra
+//  espalhada de chips/selects por 1 botão único que abre 1 janela com
+//  TUDO dentro: cargo específico, categoria, tipo/status, localização,
+//  salário, qtd vagas, e os filtros Double Pro (Grupo/Status).
 // ═══════════════════════════════════════════
 let fTitles=[]; // títulos exatos selecionados (lowercase) + opcionalmente "__outros__"
 let _titlesTax=null; // cache da taxonomia já buscada (por sheet)
 
-async function openTitlesFilter(){
-  const ov=g("#titles-filter-overlay");if(!ov)return;
+async function openMasterFilters(){
+  const ov=g("#master-filters-overlay");if(!ov)return;
   ov.classList.remove("gone");
-  const searchEl=g("#titles-filter-search");if(searchEl)searchEl.value="";
-  if(!_titlesTax||_titlesTax._sheet!==tab){
-    g("#titles-filter-list").innerHTML='<div style="text-align:center;padding:30px;color:var(--t3)"><span class="spin"></span></div>';
-    try{
-      const r=await fetch(`/api/sheet-titles?sheet=${tab}`,{credentials:"include"});
-      const d=await r.json();
-      _titlesTax={_sheet:tab,titulos:d.titulos||[],outros:d.outros||{count:0,titulos:[]}};
-    }catch(e){
-      g("#titles-filter-list").innerHTML='<div style="text-align:center;padding:30px;color:var(--red)">Erro ao carregar cargos. Tente de novo.</div>';
-      return;
-    }
+  const isSheet=tab!=="seasonal";
+  const cityWrap=g("#f-city");if(cityWrap)cityWrap.style.display=isSheet?"":"none";
+  const tSec=g("#mf-type-section");if(tSec)tSec.style.display=isSheet?"none":"";
+  const dpSec=g("#mf-doublepro-section");if(dpSec)dpSec.style.display=isSheet?"":"none";
+  if(isSheet){
+    const gw=g("#f-grupo-wrap");if(gw)gw.style.display=tab.startsWith("h2a")?"none":"";
+    renderGrupoChips();renderStatusSel();
   }
-  renderTitlesFilterList();
+  const titlesSec=g("#mf-titles-section");if(titlesSec)titlesSec.style.display=isSheet?"":"none";
+  if(isSheet){
+    const searchEl=g("#titles-filter-search");if(searchEl)searchEl.value="";
+    if(!_titlesTax||_titlesTax._sheet!==tab){
+      g("#titles-filter-list").innerHTML='<div style="text-align:center;padding:20px;color:var(--t3)"><span class="spin"></span></div>';
+      try{
+        const r=await fetch(`/api/sheet-titles?sheet=${tab}`,{credentials:"include"});
+        const d=await r.json();
+        _titlesTax={_sheet:tab,titulos:d.titulos||[],outros:d.outros||{count:0,titulos:[]}};
+      }catch(e){
+        g("#titles-filter-list").innerHTML='<div style="text-align:center;padding:20px;color:var(--red)">Erro ao carregar cargos. Tente de novo.</div>';
+      }
+    }
+    renderTitlesFilterList();
+  }
+  _masterFiltersSyncBadge();
 }
 
 function renderTitlesFilterList(){
@@ -6871,19 +6913,15 @@ function renderTitlesFilterList(){
     </label>`;
   }
   g("#titles-filter-list").innerHTML=html||'<div style="text-align:center;padding:30px;color:var(--t3)">Nenhum cargo encontrado.</div>';
-  _titlesFilterSyncMaster();
-}
-
-function _titlesFilterSyncMaster(){
   const allCb=g("#titles-filter-all");if(allCb)allCb.checked=fTitles.length===0;
-  const applyCount=g("#titles-filter-apply-count");
-  if(applyCount)applyCount.textContent=fTitles.length?`(${fTitles.length})`:"";
+  _masterFiltersSyncBadge();
 }
 
 function toggleTitleChip(key,checked){
   if(checked){ if(!fTitles.includes(key)) fTitles.push(key); }
   else { fTitles=fTitles.filter(k=>k!==key); }
-  _titlesFilterSyncMaster();
+  const allCb=g("#titles-filter-all");if(allCb)allCb.checked=fTitles.length===0;
+  _masterFiltersSyncBadge();
 }
 
 function toggleAllTitles(checked){
@@ -6891,21 +6929,51 @@ function toggleAllTitles(checked){
   else { const allCb=g("#titles-filter-all");if(allCb)allCb.checked=true; } // sem nenhum título marcado = "todas" também
 }
 
-function clearTitlesFilter(){ fTitles=[]; renderTitlesFilterList(); }
-
-function applyTitlesFilter(){
-  closeTitlesFilter();
-  const badge=g("#titles-filter-badge");
-  if(badge){
-    if(fTitles.length){ badge.style.display=""; badge.textContent=String(fTitles.length); }
-    else { badge.style.display="none"; }
-  }
-  if(fTitles.length){ fCat="all"; document.querySelectorAll("#cat-chips-jobs .cat-chip").forEach(b=>b.classList.toggle("on",b.dataset.cat==="all")); }
-  sSkip=0;sDone=false;sJobs=[];
-  loadSheetMeta(true);
+// Conta quantas dimensões de filtro estão ativas agora (pra mostrar no badge)
+function _countActiveFilters(){
+  let n=0;
+  if(fTitles.length)n++;
+  if(fCat&&fCat!=="all")n++;
+  if((g("#f-state")?.value||""))n++;
+  if((g("#f-city")?.value||"").trim())n++;
+  if(parseFloat(g("#f-wage")?.value||0))n++;
+  if(parseInt(g("#f-workers")?.value||0))n++;
+  if(fGrupos&&fGrupos.length)n++;
+  if(fEtaStatus)n++;
+  if(typeof fType!=="undefined"&&fType!=="all")n++;
+  if(typeof fStat!=="undefined"&&fStat!=="all")n++;
+  return n;
 }
 
-function closeTitlesFilter(){ g("#titles-filter-overlay")?.classList.add("gone"); }
+function _masterFiltersSyncBadge(){
+  const n=_countActiveFilters();
+  const badge=g("#master-filters-badge");
+  if(badge){ if(n){badge.style.display="";badge.textContent=String(n);}else{badge.style.display="none";} }
+  const applyCount=g("#master-filters-apply-count");
+  if(applyCount)applyCount.textContent=n?`(${n})`:"";
+}
+
+function applyMasterFilters(){
+  closeMasterFilters();
+  if(fTitles.length){ fCat="all"; document.querySelectorAll("#cat-chips-jobs .cat-chip").forEach(b=>b.classList.toggle("on",b.dataset.cat==="all")); }
+  _masterFiltersSyncBadge();
+  if(tab==="seasonal"){ loadJobs(true); }
+  else { sSkip=0;sDone=false;sJobs=[]; loadSheetMeta(true); }
+}
+
+function clearAllFilters(){
+  fTitles=[]; fCat="all"; fGrupos=[]; fEtaStatus="";
+  const fs=g("#f-state");if(fs)fs.value="";
+  const fc=g("#f-city");if(fc)fc.value="";
+  const fw=g("#f-wage");if(fw)fw.value="";
+  const fwk=g("#f-workers");if(fwk)fwk.value="";
+  document.querySelectorAll("#cat-chips-jobs .cat-chip").forEach(b=>b.classList.toggle("on",b.dataset.cat==="all"));
+  renderGrupoChips();renderStatusSel();
+  renderTitlesFilterList();
+  _masterFiltersSyncBadge();
+}
+
+function closeMasterFilters(){ g("#master-filters-overlay")?.classList.add("gone"); }
 
 async function loadTabCounts(){
   for(const sh of["jan2026","jul2025","h2a-jun2026"]){
@@ -6919,9 +6987,9 @@ async function loadTabCounts(){
 // ═══════════════════════════════════════════
 let stmr;
 function onSearch(){clearTimeout(stmr);stmr=setTimeout(()=>{const q=g("#q").value.trim();if(q!==fQ){fQ=q;if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}},350);}
-function applyF(){fState=g("#f-state")?.value||"";fWage=parseFloat(g("#f-wage")?.value||0);fWorkers=parseInt(g("#f-workers")?.value||0);if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];g("#jlist").innerHTML="";loadSheetMeta(true);}}
-function setType(t){fType=t;["all","agri","nonag"].forEach(k=>g("#ft-"+k)?.classList.remove("on"));const m={all:"ft-all",agricultural:"ft-agri","non-agricultural":"ft-nonag"};g("#"+m[t])?.classList.add("on");if(tab==="seasonal")loadJobs(true);}
-function setStat(s){fStat=s;g("#fs-all")?.classList.toggle("on",s==="all");g("#fs-active")?.classList.toggle("on",s==="active");if(tab==="seasonal")loadJobs(true);}
+function applyF(){fState=g("#f-state")?.value||"";fWage=parseFloat(g("#f-wage")?.value||0);fWorkers=parseInt(g("#f-workers")?.value||0);_masterFiltersSyncBadge();if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];g("#jlist").innerHTML="";loadSheetMeta(true);}}
+function setType(t){fType=t;["all","agri","nonag"].forEach(k=>g("#ft-"+k)?.classList.remove("on"));const m={all:"ft-all",agricultural:"ft-agri","non-agricultural":"ft-nonag"};g("#"+m[t])?.classList.add("on");_masterFiltersSyncBadge();if(tab==="seasonal")loadJobs(true);}
+function setStat(s){fStat=s;g("#fs-all")?.classList.toggle("on",s==="all");g("#fs-active")?.classList.toggle("on",s==="active");_masterFiltersSyncBadge();if(tab==="seasonal")loadJobs(true);}
 function setSort(s){fSort=s;g("#so-rand")?.classList.toggle("on",s==="random");g("#so-desc")?.classList.toggle("on",s==="desc");g("#so-asc")?.classList.toggle("on",s==="asc");if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}
 
 const PAGE=25;
@@ -9684,6 +9752,25 @@ async function loadDynamicSheets(){
         chip.setAttribute('onclick',`setPesqSrc('${s.key}')`);
         chip.innerHTML=`${s.emoji||'📋'} ${s.name} <span style="font-size:9px;opacity:.85;font-weight:800">${s.visa}</span>`;
         julChip.insertAdjacentElement('afterend',chip);
+      });
+    }
+    // MANUAL — aba principal (.stabs, onde o usuário navega vagas de verdade).
+    // Cria a aba de verdade pra qualquer planilha nova publicada (ex.: Julho
+    // 2026) e remove o placeholder "🔜 Em breve" automaticamente — sem
+    // precisar editar código quando o robô publicar a próxima planilha.
+    const stabsRow=document.getElementById('stabs-row');
+    if(stabsRow){
+      extras.forEach(s=>{
+        if(document.getElementById('stab-'+s.key))return; // já existe (evita duplicar)
+        const placeholder=document.getElementById('stab-jul2026-placeholder');
+        const visaIcon=s.visa==='H-2A'?'ti-plant-2':'ti-snowflake';
+        const visaCor =s.visa==='H-2A'?'#10b981':'#3b82f6';
+        const btn=document.createElement('button');
+        btn.className='stab'; btn.id='stab-'+s.key;
+        btn.style.marginTop='8px';
+        btn.setAttribute('onclick',`setTab('${s.key}')`);
+        btn.innerHTML=`<i class="ti ${visaIcon}" style="color:${visaCor}"></i><strong>${s.name}</strong><span class="stab-cnt">${(s.count||0).toLocaleString('pt-BR')}</span>`;
+        if(placeholder){ placeholder.replaceWith(btn); } else { stabsRow.appendChild(btn); }
       });
     }
   }catch(e){ console.warn('[sheets-list]',e.message); }

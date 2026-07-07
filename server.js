@@ -238,6 +238,8 @@ const CODES_FILE  = path.join(DATA_DIR, "promo_codes.json"); // NEW: promo codes
 const PUSH_FILE   = path.join(DATA_DIR, "push_subs.json");   // NEW: push subscriptions
 const APPIDX_FILE = path.join(DATA_DIR, "app_index.json");   // NEW v13: índice de candidaturas
 const ADMIN_SETTINGS_FILE = path.join(DATA_DIR, "admin_settings.json"); // Admin global settings
+const REPORT_NOTIFS_FILE = path.join(DATA_DIR, "report_notifs.json"); // Controle de "avisei este pagante sobre este relatório" (1x cada)
+let DB_REPORT_NOTIFS = {}; // { [reportUrl]: { notifiedEmails:[], startedAt, doneAt } }
 const NOTIF_FILE     = path.join(DATA_DIR, "notifications.json");  // Global notifications from ADM
 const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
 const PEDIDOS_FILE     = path.join(DATA_DIR, "pedidos.json");         // Pedidos de plano dos usuários
@@ -283,7 +285,7 @@ let DB_CODES  = {};   // NEW: promo codes { code → { manualDays, autoDays, cre
 let DB_PUSH   = {};   // NEW: push subscriptions { userEmail → PushSubscription[] }
 // NEW v13: índice de candidaturas — { userEmail → { byThread:{tid:appId}, byMsgId:{mid:appId}, byTo:{email:[appId,...]} } }
 let DB_APP_INDEX = {};
-let DB_ADMIN_SETTINGS = { etaWorkerEnabled: true, emailNotificationsEnabled: false, newUserTrialEnabled: true, newUserTrialDays: 1, newUserTrialAutoDays: 0, newUserTrialPlan: "vip", editorPasswords: { andrew: "84800-54", diego: "Diego2026" },
+let DB_ADMIN_SETTINGS = { etaWorkerEnabled: true, emailNotificationsEnabled: false, reportAlertEmailEnabled: true, newUserTrialEnabled: true, newUserTrialDays: 1, newUserTrialAutoDays: 0, newUserTrialPlan: "vip", editorPasswords: { andrew: "84800-54", diego: "Diego2026" },
   // MULTI-SERVIDOR: lista de servidores exibida no seletor da landing.
   // status "lotado" = fechado p/ contas novas (só login); "aberto" = cadastro liberado.
   // maxExibido é o teto MOSTRADO na barra (pode ser menor que o real p/ marcar lotação).
@@ -634,6 +636,7 @@ function boot() {
   DB_RANK_BADGES = load(RANK_BADGES_FILE, {});
   const savedAdminSettings = load(ADMIN_SETTINGS_FILE, null);
   if(savedAdminSettings) Object.assign(DB_ADMIN_SETTINGS, savedAdminSettings);
+  DB_REPORT_NOTIFS = load(REPORT_NOTIFS_FILE, {});
   DB_NOTIF    = load(NOTIF_FILE,    { notifications: [] });
   DB_SUGGESTIONS = load(SUGGESTIONS_FILE, []);
   if(!Array.isArray(DB_SUGGESTIONS)) DB_SUGGESTIONS = [];
@@ -4968,6 +4971,35 @@ function _saveEnrichedSheet(sheetKey, sheet){
     delete DB_SHEETS_META[key];
     fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));
     return json(res,200,{ok:true});
+  }
+
+  // POST /api/admin/sheet/test-publish-jan — TESTE do dono (07/07/2026): clona
+  // a planilha de Jan 2026 (vagas reais já enriquecidas) e publica com a chave
+  // "jul2026-teste", só pra validar que o fluxo de "planilha nova aparece pro
+  // usuário no Manual e no Automático" funciona de ponta a ponta — sem
+  // precisar esperar a coleta real de Julho. Some quando o admin apagar pelo
+  // DELETE /api/admin/sheet/:key que já existe (mesmo botão "Excluir" de
+  // qualquer planilha extra em Planilhas & Coleta DOL).
+  if(pathname==="/api/admin/sheet/test-publish-jan"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    if(!SHEET_JAN.length)return json(res,400,{error:"Planilha de Jan 2026 está vazia — nada pra clonar."});
+    const testKey="jul2026-teste";
+    const clone=SHEET_JAN.map(r=>({...r,_sheet:testKey}));
+    try{
+      if(!fs.existsSync(SHEETS_DIR))fs.mkdirSync(SHEETS_DIR,{recursive:true});
+      const fname=`${testKey}.json`;
+      fs.writeFileSync(path.join(SHEETS_DIR,fname),JSON.stringify(clone));
+      SHEET_EXTRAS[testKey]=clone;
+      DB_SHEETS_META[testKey]={
+        name:"🧪 TESTE — Jul 2026 (cópia de Jan 2026)", file:fname,
+        uploaded:Date.now(), count:clone.length, enriched:clone.filter(r=>r.ci).length,
+        published:true, publishedAt:Date.now(), visaType:"H-2B", isTest:true,
+      };
+      fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));
+      console.log(`[test] 🧪 Planilha de teste "${testKey}" publicada (${clone.length} vagas, cópia de Jan 2026)`);
+      return json(res,200,{ok:true,key:testKey,count:clone.length});
+    }catch(e){ return json(res,500,{error:e.message}); }
   }
 
   // GET /api/admin/enrich/status — status do bot em tempo real
@@ -11018,6 +11050,89 @@ Vamos lá que a América não espera! 🇺🇸🚀
 Equipe H2BApply 🤖` },
 ];
 
+function persistReportNotifs(){
+  try{ const tmp=REPORT_NOTIFS_FILE+".tmp"; fs.writeFileSync(tmp, JSON.stringify(DB_REPORT_NOTIFS)); fs.renameSync(tmp, REPORT_NOTIFS_FILE); }
+  catch(e){ console.warn("[report-notif] persist:", e.message); }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  🚨 ALERTA "SAIU A LISTA RANDOMIZADA" — pedido do dono (06/07/2026)
+//  Dispara pelo Monitor DOL (mod-dol-monitor.js) assim que ele importa com
+//  sucesso um novo PublicFacingReport. Avisa TODOS os usuários pagantes
+//  ativos (vip.source==='payment' + VIP em dia — mesma fonte única usada
+//  em /api/admin/pagantes), 1x por pagante POR RELATÓRIO (nunca reenvia
+//  pro mesmo relatório; um relatório novo no futuro gera aviso novo).
+//  Kill-switch PRÓPRIO (DB_ADMIN_SETTINGS.reportAlertEmailEnabled) —
+//  independente do kill-switch geral de notificações (que fica desligado).
+// ══════════════════════════════════════════════════════════════════════
+async function notifyPayingUsersReportReady(reportUrl, reportLabel){
+  if (DB_ADMIN_SETTINGS.reportAlertEmailEnabled === false) {
+    console.log("[report-notif] 🔕 Alerta de lista randomizada desativado em Configurações — pulando.");
+    return { skipped: true };
+  }
+  // Precisa de sessão/refresh_token do admin com Gmail (mesmo requisito de sendNotifEmail)
+  let adminToken = null;
+  const adminSessEntry = Object.entries(sessions).find(([, s]) => s.user_email === ADMIN_EMAIL && s.access_token);
+  if (adminSessEntry) {
+    adminToken = adminSessEntry[1].access_token;
+  } else {
+    const adminUser = getUser(ADMIN_EMAIL);
+    if (adminUser?.refresh_token) {
+      try { adminToken = await refreshTokenForUser(ADMIN_EMAIL); }
+      catch (e) { console.warn("[report-notif] Não foi possível renovar token do admin:", e.message); return { error: e.message }; }
+    } else {
+      console.warn("[report-notif] Admin sem sessão/refresh_token ativo — abortando alerta.");
+      return { error: "admin_offline" };
+    }
+  }
+
+  if (!DB_REPORT_NOTIFS[reportUrl]) DB_REPORT_NOTIFS[reportUrl] = { notifiedEmails: [], startedAt: Date.now(), doneAt: null, label: reportLabel };
+  const reg = DB_REPORT_NOTIFS[reportUrl];
+  const already = new Set(reg.notifiedEmails);
+
+  // MESMA fonte única de "pagante" do /api/admin/pagantes: vip.source==='payment'
+  // (nunca trial/código/indicação) + VIP ainda ativo agora.
+  const payingUsers = Object.entries(DB_USERS).filter(([email, u]) =>
+    u?.vip?.source === "payment" && isVipActive(u) && !already.has(email)
+  );
+
+  let sent = 0, failed = 0;
+  for (const [email, u] of payingUsers) {
+    const nome = (u.name || email.split("@")[0] || "amigo").split(" ")[0];
+    const subject = `🚨🚨 SAIU A LISTA RANDOMIZADA — ${reportLabel} 🚨🚨`;
+    const body =
+`${nome}, ATENÇÃO! 🚨🚨🚨
+
+A LISTA OFICIAL DE RANDOMIZAÇÃO DO DOL (${reportLabel}) ACABOU DE SAIR — e já está disponível AGORA MESMO no H2BApply!
+
+Isso é importante pra você: os grupos oficiais (A–H) de randomização das suas vagas H-2B já foram atualizados no sistema. Quem entra primeiro se organiza melhor!
+
+👉 ENTRA AGORA: h2bapply.com
+
+Não deixa pra depois — a informação está fresquinha e pode mudar sua estratégia de candidatura! 💪🇺🇸
+
+Equipe H2BApply 🤖`;
+    try {
+      const raw = buildMime({ to: email, subject, fromName: "H2BApply 🚨 Alerta Importante", fromEmail: ADMIN_EMAIL, text: body });
+      const { status } = await httpsReq({
+        hostname: "gmail.googleapis.com", path: "/gmail/v1/users/me/messages/send", method: "POST",
+        headers: { "Authorization": "Bearer " + adminToken, "Content-Type": "application/json" },
+      }, { raw });
+      if (status === 200) { reg.notifiedEmails.push(email); sent++; }
+      else failed++;
+    } catch (e) {
+      failed++;
+      console.warn("[report-notif] erro ao notificar", email, ":", e.message);
+    }
+    persistReportNotifs(); // grava a cada envio — se cair no meio, não reenvia pra quem já recebeu
+    await new Promise(r => setTimeout(r, 2500)); // mesma pausa anti-bloqueio dos outros envios em massa
+  }
+  reg.doneAt = Date.now();
+  persistReportNotifs();
+  console.log(`[report-notif] ✅ Alerta "${reportLabel}" concluído: ${sent} enviados, ${failed} falhas, de ${payingUsers.length} pagantes elegíveis.`);
+  return { sent, failed, total: payingUsers.length };
+}
+
 async function sendNotifEmail(userEmail, tipo) {
   // 🔕 KILL SWITCH (pedido do dono, 06/07/2026): desativa TODAS as notificações
   // automáticas por e-mail enviadas pela conta admin (andrio.kick18@gmail.com)
@@ -12543,6 +12658,7 @@ const _dolMonitorCtx = {
   getSess, getUser, isAdminVip, json, readBody, DATA_DIR,
   etaParseGruposCSV, persistGruposOficiais, etaAplicarGruposOficiais, etaLog,
   getGruposCount: () => Object.keys(ETA_GRUPOS_OFICIAIS).length,
+  notifyPayingUsersReportReady,
 };
 const handleDolMonitorRoutes = createDolMonitorRouter(_dolMonitorCtx);
 startDolMonitor(_dolMonitorCtx);

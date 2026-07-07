@@ -86,13 +86,27 @@ function persistState(DATA_DIR) {
 //  helper converte tudo pra string/JSON, o que corrompe um arquivo binário
 //  como o .xlsx. Aqui mantemos o Buffer intacto.
 // ────────────────────────────────────────────────────────────────────────
+// 🩹 V2 (06/07/2026): corrigido o HTTP 403 visto em produção. Causa provável:
+// "Accept-Encoding: identity" é uma bandeira vermelha pra WAF de site .gov
+// (navegador de verdade SEMPRE anuncia gzip/deflate/br) — sozinho isso já é
+// suficiente pra alguns firewalls (Akamai etc.) bloquearem como bot. Agora
+// pedimos compressão real (como um navegador) e decodificamos a resposta.
 function httpGet(urlStr, { asBuffer = false, redirectsLeft = 5, timeoutMs = 30000 } = {}) {
   return new Promise((resolve, reject) => {
     let u;
     try { u = new URL(urlStr); } catch (e) { return reject(new Error("URL inválida: " + urlStr)); }
     const req = https.request({
       hostname: u.hostname, path: u.pathname + u.search, method: "GET",
-      headers: { "User-Agent": UA, "Accept": "*/*", "Accept-Encoding": "identity" },
+      headers: {
+        "User-Agent": UA,
+        "Accept": asBuffer
+          ? "application/octet-stream,*/*"
+          : "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+      },
     }, (resp) => {
       if ([301, 302, 303, 307, 308].includes(resp.statusCode) && resp.headers.location && redirectsLeft > 0) {
         resp.resume();
@@ -104,7 +118,13 @@ function httpGet(urlStr, { asBuffer = false, redirectsLeft = 5, timeoutMs = 3000
       resp.on("data", (c) => chunks.push(c));
       resp.on("end", () => {
         if (resp.statusCode !== 200) { reject(new Error("HTTP " + resp.statusCode + " em " + urlStr)); return; }
-        const buf = Buffer.concat(chunks);
+        let buf = Buffer.concat(chunks);
+        try {
+          const enc = String(resp.headers["content-encoding"] || "").toLowerCase();
+          if (enc === "gzip") buf = zlib.gunzipSync(buf);
+          else if (enc === "br") buf = zlib.brotliDecompressSync(buf);
+          else if (enc === "deflate") buf = zlib.inflateSync(buf);
+        } catch (e) { reject(new Error("Falha ao descomprimir resposta (" + e.message + ")")); return; }
         resolve(asBuffer ? buf : buf.toString("utf8"));
       });
     });
@@ -319,6 +339,21 @@ async function importReport(url, ctx, DATA_DIR) {
   if (typeof ctx.etaLog === "function") {
     ctx.etaLog("info", `Robô de monitoramento importou automaticamente: ${url.split("/").pop()} — ${r.add} grupos novos/atualizados`);
   }
+
+  // 🚨 Avisa todos os pagantes ativos que a lista randomizada saiu (pedido do
+  // dono, 06/07/2026) — 1x por pagante, por relatório. Não trava o robô: roda
+  // em paralelo e só loga o resultado quando terminar.
+  if (typeof ctx.notifyPayingUsersReportReady === "function") {
+    const reportLabel = url.split("/").pop().replace(/\.xlsx$/i, "");
+    log(`📧 Avisando usuários pagantes que a lista saiu...`, "info");
+    ctx.notifyPayingUsersReportReady(url, reportLabel)
+      .then((res) => {
+        if (res?.skipped) { log("🔕 Alerta de pagantes está desativado em Configurações — ninguém foi avisado.", "warn"); return; }
+        if (res?.error) { log("❌ Não deu pra avisar os pagantes: " + res.error, "error"); return; }
+        log(`📧 Pagantes avisados: ${res.sent} enviados, ${res.failed} falhas (de ${res.total} elegíveis)`, res.failed ? "warn" : "ok");
+      })
+      .catch((e) => log("❌ Erro ao avisar pagantes: " + e.message, "error"));
+  }
 }
 
 async function tick(ctx, DATA_DIR) {
@@ -386,6 +421,65 @@ function createDolMonitorRouter(ctx) {
       if (state.checking) { json(res, 200, { ok: true, alreadyRunning: true }); return true; }
       tick(ctx, DATA_DIR).catch((e) => log("❌ Erro inesperado: " + e.message, "error"));
       json(res, 200, { ok: true, started: true });
+      return true;
+    }
+
+    // POST /api/admin/dolmonitor/test-run — TESTE do dono (07/07/2026): roda o
+    // pipeline INTEIRO DE VERDADE — incluindo o DOWNLOAD AO VIVO do dol.gov —
+    // usando a URL real do relatório de Janeiro/2026 (já publicado, estável)
+    // no lugar do de Julho (que ainda não saiu). Isso testa exatamente o
+    // mesmo caminho que vai rodar em julho: mesma função de download, mesmos
+    // headers, mesmo parser, mesma mesclagem. Só NÃO notifica pagantes.
+    if (pathname === "/api/admin/dolmonitor/test-run" && req.method === "POST") {
+      const s = getSess(req); if (!s?.user_email) return json(res, 401, { error: "Não autenticado" }), true;
+      const p = getUser(s.user_email); if (!isAdminVip(p)) return json(res, 403, { error: "Não autorizado" }), true;
+      const JAN_URL = "https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/FY26_JanPeak_PublicFacingReport.xlsx";
+      log(`🧪 [TESTE] Admin ${s.user_email} disparou o teste — baixando de verdade do dol.gov (relatório de Janeiro, no lugar do de Julho)`, "info");
+      let buf, fonte;
+      try {
+        log(`🧪 [TESTE] ⬇️ Baixando ao vivo: ${JAN_URL}`, "info");
+        buf = await httpGet(JAN_URL, { asBuffer: true });
+        fonte = "download ao vivo do dol.gov";
+        log(`🧪 [TESTE] ✅ Download ao vivo funcionou! (${(buf.length / 1024).toFixed(0)} KB) — prova que o robô consegue acessar o DOL agora`, "ok");
+      } catch (e) {
+        log(`🧪 [TESTE] ⚠️ Download ao vivo falhou (${e.message}) — usando a cópia de backup salva no servidor pra não travar o teste todo`, "warn");
+        const fixturePath = path.join(__dirname, "test-fixtures", "FY26_JanPeak_PublicFacingReport.xlsx");
+        if (!fs.existsSync(fixturePath)) { json(res, 502, { error: "Download ao vivo falhou (" + e.message + ") e não há cópia de backup no servidor." }); return true; }
+        buf = fs.readFileSync(fixturePath);
+        fonte = "cópia local (download ao vivo falhou: " + e.message + ")";
+      }
+      try {
+        const rows = xlsxExtractCaseAndGroup(buf);
+        log(`🧪 [TESTE] 📊 ${rows.length} linhas lidas do .xlsx (fonte: ${fonte})`, "info");
+        const csv = rowsToCsv(rows);
+        const r = ctx.etaParseGruposCSV(csv);
+        if (r.err) { log("🧪 [TESTE] ❌ " + r.err, "error"); json(res, 400, { error: r.err }); return true; }
+        ctx.persistGruposOficiais("TESTE manual — " + fonte);
+        ctx.etaAplicarGruposOficiais();
+        const totalGrupos = ctx.getGruposCount ? ctx.getGruposCount() : "?";
+        log(`🧪 [TESTE] ✅ Concluído! ${r.add} grupos novos/atualizados (total ${totalGrupos} cases) — pagantes NÃO foram avisados (teste)`, "ok");
+        json(res, 200, { ok: true, rows: rows.length, added: r.add, totalGrupos, viaLiveDownload: fonte === "download ao vivo do dol.gov" });
+      } catch (e) {
+        log("🧪 [TESTE] ❌ Erro ao processar: " + e.message, "error");
+        json(res, 500, { error: e.message });
+      }
+      return true;
+    }
+
+    // POST /api/admin/dolmonitor/notify-now — dispara manualmente o alerta de
+    // pagantes pro último relatório importado (útil pra testar sem esperar
+    // sair um relatório novo de verdade). Respeita o mesmo "1x por pagante".
+    if (pathname === "/api/admin/dolmonitor/notify-now" && req.method === "POST") {
+      const s = getSess(req); if (!s?.user_email) return json(res, 401, { error: "Não autenticado" }), true;
+      const p = getUser(s.user_email); if (!isAdminVip(p)) return json(res, 403, { error: "Não autorizado" }), true;
+      if (!state.lastReport?.url) { json(res, 400, { error: "Nenhum relatório importado ainda." }); return true; }
+      if (typeof ctx.notifyPayingUsersReportReady !== "function") { json(res, 500, { error: "Função de alerta não disponível." }); return true; }
+      try {
+        const label = state.lastReport.url.split("/").pop().replace(/\.xlsx$/i, "");
+        log(`📧 [manual] Admin ${s.user_email} disparou o alerta de pagantes pro relatório ${label}`, "info");
+        const result = await ctx.notifyPayingUsersReportReady(state.lastReport.url, label);
+        json(res, 200, { ok: true, ...result });
+      } catch (e) { json(res, 500, { error: e.message }); }
       return true;
     }
 
