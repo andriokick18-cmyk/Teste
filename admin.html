@@ -1274,9 +1274,27 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             <button class="btn btn-sm" id="dm-btn-test-delete" onclick="dolMonitorDeleteTest()" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;font-weight:800"><i class="ti ti-trash"></i> Excluir teste</button>
           </div>
           <div id="dm-test-result" style="display:none;font-size:12px;line-height:1.6;background:rgba(0,0,0,.2);border-radius:8px;padding:10px 13px"></div>
+          <!-- 🪟 Janela SEPARADA do log de produção (pedido do dono) — só os
+               passos da última rodada de teste, reiniciada a cada clique -->
+          <div style="font-size:11px;font-weight:800;color:#a78bfa;text-transform:uppercase;letter-spacing:.03em;margin:12px 0 6px">🧪 Log do TESTE (Janeiro) — janela própria</div>
+          <div id="dm-test-log" class="enrich-log"><div class="empty-state">Clique em "Rodar teste completo" para ver os passos aqui.</div></div>
         </div>
 
-        <div class="section-hdr" style="margin-top:4px"><i class="ti ti-list-details" style="color:#0891b2"></i><div class="section-title">Log ao vivo</div></div>
+        <!-- 📚 HISTÓRICO DE RELATÓRIOS (FY23–FY26) — pedido do dono (06/07/2026):
+             baixa e mescla TODO o histórico conhecido de uma vez, com ícone de
+             estação (❄️ Jan / ☀️ Jul), em ordem cronológica. NUNCA avisa
+             pagantes — histórico não é notícia nova. Idempotente (pode rodar
+             de novo sem duplicar; pula o que já foi importado). -->
+        <div style="background:rgba(56,189,248,.08);border:1.5px solid rgba(56,189,248,.3);border-radius:14px;padding:14px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:800;color:#38bdf8;margin-bottom:4px">📚 Histórico de Relatórios (FY23 – FY26)</div>
+          <div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:10px">Baixa e mescla no registro de grupos oficiais TODOS os relatórios já publicados pelo DOL no passado (Jan/Jul de cada ano), em ordem cronológica. Só enriquece o registro de grupos — <strong>nunca avisa pagantes</strong> (relatório antigo não é notícia nova). Pode clicar de novo quando quiser: o que já foi importado é pulado automaticamente.</div>
+          <div id="dm-hist-table" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;margin-bottom:12px"></div>
+          <button class="btn btn-primary btn-sm" id="dm-btn-hist" onclick="dolMonitorImportHistorico()"><i class="ti ti-database-import"></i> Importar histórico completo</button>
+          <div style="font-size:11px;font-weight:800;color:#38bdf8;text-transform:uppercase;letter-spacing:.03em;margin:12px 0 6px">📚 Log do HISTÓRICO — janela própria</div>
+          <div id="dm-hist-log" class="enrich-log"><div class="empty-state">Clique em "Importar histórico completo" para ver os passos aqui.</div></div>
+        </div>
+
+        <div class="section-hdr" style="margin-top:4px"><i class="ti ti-list-details" style="color:#0891b2"></i><div class="section-title">🤖 Log ao vivo — PRODUÇÃO (roda sozinho a cada 5 min, vai buscar Julho)</div></div>
         <div id="dm-log" class="enrich-log"><div class="empty-state">Carregando…</div></div>
       </div>
 
@@ -3635,6 +3653,24 @@ document.addEventListener('DOMContentLoaded',()=>{
   </div>
 </div>
 
+<!-- ══ 📅 COLETA DE TEMPORADAS HISTÓRICAS — pedido do dono (07/07/2026):
+     coleta as vagas COMPLETAS (com e-mail) de FY23-25 usando o MESMO bot
+     acima, uma temporada de cada vez, e publica automaticamente. ══ -->
+<div id="hist-build-box" style="background:linear-gradient(135deg,rgba(56,189,248,.1),rgba(14,116,144,.05));border:1.5px solid rgba(56,189,248,.35);border-radius:14px;padding:16px;margin-bottom:16px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+    <div style="font-size:28px">📅</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:800;color:#fff">Coletar Temporadas Históricas (FY23–FY25)</div>
+      <div style="font-size:11px;color:var(--t3)">Usa o MESMO bot acima, uma temporada de cada vez, com vagas COMPLETAS (empresa, e-mail, salário, cidade) — não só o grupo de randomização. Publica sozinho ao terminar cada uma.</div>
+    </div>
+  </div>
+  <div id="hist-build-table" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;margin-bottom:12px"></div>
+  <button class="btn btn-primary btn-sm" id="hist-build-btn" onclick="histBuildStart()" style="width:100%;background:linear-gradient(135deg,#38bdf8,#0284c7);border:none;font-weight:700"><i class="ti ti-history"></i> Coletar todas as temporadas que faltam</button>
+  <div style="font-size:11px;font-weight:800;color:#38bdf8;text-transform:uppercase;letter-spacing:.03em;margin:12px 0 6px">📅 Log da COLETA HISTÓRICA — janela própria</div>
+  <div class="enrich-log" id="hist-build-log" style="height:200px"><div class="empty-state">Clique no botão acima pra ver os passos aqui.</div></div>
+  <div style="font-size:10px;color:var(--t3);margin-top:5px">Cada temporada pode levar bastante tempo (milhares de vagas, coleta devagar de propósito) — roda em background, pode fechar a página.</div>
+</div>
+
 <!-- Modal: Configurar nova planilha DOL -->
 <div id="dol-build-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;padding:16px;align-items:center;justify-content:center">
   <div style="background:#0f172a;border:1.5px solid rgba(16,185,129,.4);border-radius:18px;padding:24px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
@@ -3824,6 +3860,7 @@ function roboSubTab(name){
   if(name==='eta') loadEtaAdmin();
   if(name==='planilhas'){
     if(typeof loadPlanilhas==='function') loadPlanilhas();
+    if(typeof histBuildPoll==='function') histBuildPoll();
     fetch('/api/admin/enrich/status',{credentials:'include'})
       .then(r=>r.json()).then(d=>{
         if(d.ok&&(d.running||d.total>0)){
@@ -3902,6 +3939,43 @@ async function dolMonitorPoll(){
         }).join('');
       }
     }
+    // 🧪 Janela SEPARADA do log de teste (não mistura com a de produção acima)
+    const testLogEl=document.getElementById('dm-test-log');
+    if(testLogEl && Array.isArray(d.testLog)){
+      if(d.testLog.length===0){ testLogEl.innerHTML='<div class="empty-state">Clique em "Rodar teste completo" para ver os passos aqui.</div>'; }
+      else {
+        testLogEl.innerHTML=d.testLog.map(l=>{
+          const cls=l.type==='ok'?'log-ok':l.type==='warn'?'log-warn':l.type==='error'?'log-error':'log-info';
+          const t=new Date(l.ts).toLocaleTimeString('pt-BR');
+          return `<div class="${cls}">[${t}] ${(l.msg||'').replace(/</g,'&lt;')}</div>`;
+        }).join('');
+      }
+    }
+    // 📚 Tabela de histórico (ícone por estação + status) e sua janela própria de log
+    const histTableEl=document.getElementById('dm-hist-table');
+    if(histTableEl && Array.isArray(d.historico)){
+      histTableEl.innerHTML=d.historico.map(h=>{
+        const bg=h.imported?'rgba(16,185,129,.12)':'rgba(255,255,255,.04)';
+        const bd=h.imported?'rgba(16,185,129,.35)':'rgba(255,255,255,.1)';
+        const badge=h.imported?'✅':'⏳';
+        return `<div style="background:${bg};border:1px solid ${bd};border-radius:10px;padding:8px 6px;text-align:center">
+          <div style="font-size:20px">${h.icon}</div>
+          <div style="font-size:10.5px;font-weight:700;margin-top:2px">${h.label}</div>
+          <div style="font-size:13px;margin-top:2px">${badge}</div>
+        </div>`;
+      }).join('');
+    }
+    const histLogEl=document.getElementById('dm-hist-log');
+    if(histLogEl && Array.isArray(d.histLog)){
+      if(d.histLog.length===0){ histLogEl.innerHTML='<div class="empty-state">Clique em "Importar histórico completo" para ver os passos aqui.</div>'; }
+      else {
+        histLogEl.innerHTML=d.histLog.map(l=>{
+          const cls=l.type==='ok'?'log-ok':l.type==='warn'?'log-warn':l.type==='error'?'log-error':'log-info';
+          const t=new Date(l.ts).toLocaleTimeString('pt-BR');
+          return `<div class="${cls}">[${t}] ${(l.msg||'').replace(/</g,'&lt;')}</div>`;
+        }).join('');
+      }
+    }
   }catch(e){ console.warn('dolMonitorPoll:',e); }
 }
 async function dolMonitorToggle(){
@@ -3945,9 +4019,13 @@ async function dolMonitorRunTest(){
   const resBox=document.getElementById('dm-test-result');
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Rodando teste…'; }
   if(resBox){ resBox.style.display=''; resBox.innerHTML='⏳ Rodando pipeline de grupos com o arquivo real de Janeiro...'; }
+  // Poll rápido SÓ da janela de teste enquanto a requisição roda, pra ver
+  // os passos (baixando/processando) aparecerem ao vivo, não só no final.
+  const _fastPoll=setInterval(dolMonitorPoll,900);
   try{
     const r1=await fetch('/api/admin/dolmonitor/test-run',{method:'POST',credentials:'include'});
     const d1=await r1.json();
+    dolMonitorPoll();
     if(!d1.ok){ if(resBox)resBox.innerHTML='❌ Falhou no passo 1 (grupos): '+(d1.error||'erro'); return; }
     const liveTag = d1.viaLiveDownload ? '✅ <strong>Baixou AO VIVO do dol.gov</strong> (não usou backup)' : '⚠️ Download ao vivo falhou — usou a cópia de backup salva no servidor';
     if(resBox) resBox.innerHTML=`${liveTag}<br>✅ Passo 1/2: ${d1.rows} linhas lidas, ${d1.added} grupos novos/atualizados (total ${d1.totalGrupos} cases)<br>⏳ Publicando planilha de teste...`;
@@ -3959,7 +4037,10 @@ async function dolMonitorRunTest(){
     dolMonitorSyncTestButton();
     dolMonitorPoll();
   }catch(e){ if(resBox)resBox.innerHTML='❌ Erro: '+e.message; }
-  finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-flask"></i> Rodar teste completo'; } }
+  finally{
+    clearInterval(_fastPoll);
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-flask"></i> Rodar teste completo'; }
+  }
 }
 
 async function dolMonitorDeleteTest(){
@@ -3988,6 +4069,31 @@ async function dolMonitorSyncTestButton(){
     const delBtn=document.getElementById('dm-btn-test-delete');
     if(delBtn) delBtn.style.display=exists?'':'none';
   }catch(e){}
+}
+
+// 📚 IMPORTAR HISTÓRICO COMPLETO (FY23–FY26) — baixa e mescla tudo de uma vez,
+// nunca avisa pagantes, idempotente (pode clicar de novo sem duplicar).
+async function dolMonitorImportHistorico(){
+  const btn=document.getElementById('dm-btn-hist');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Importando histórico…'; }
+  const _fastPoll=setInterval(dolMonitorPoll,900);
+  try{
+    const r=await fetch('/api/admin/dolmonitor/import-historico',{method:'POST',credentials:'include'});
+    const d=await r.json();
+    dolMonitorPoll();
+    if(d.ok){
+      const okCount=(d.resultados||[]).filter(x=>x.status==='ok').length;
+      const jaCount=(d.resultados||[]).filter(x=>x.status==='ja-existia').length;
+      const errCount=(d.resultados||[]).filter(x=>x.status==='erro').length;
+      toast(`📚 Histórico: ${okCount} importado(s), ${jaCount} já existia(m)${errCount?`, ${errCount} não encontrado(s)`:''}`, errCount?'warn':'ok');
+    } else {
+      toast(d.error||'Erro ao importar histórico','err');
+    }
+  }catch(e){ toast('Erro ao importar histórico: '+e.message,'err'); }
+  finally{
+    clearInterval(_fastPoll);
+    if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-database-import"></i> Importar histórico completo'; }
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -12113,6 +12219,57 @@ async function dolBuildPoll(){
       if(progArea) progArea.style.display='block';
     }
   }catch(e){console.warn('[dol-build-poll]',e.message);}
+}
+
+// ════════════════════════════════════════════════════════════
+//  📅 COLETA DE TEMPORADAS HISTÓRICAS (FY23–FY25, vagas completas)
+// ════════════════════════════════════════════════════════════
+let _histBuildPollTimer=null;
+async function histBuildStart(){
+  const btn=document.getElementById('hist-build-btn');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Coletando…'; }
+  try{
+    const r=await fetch('/api/admin/sheet/historico-collect-all',{method:'POST',credentials:'include'});
+    const d=await r.json();
+    if(!d.ok){ toast(d.error||'Erro ao iniciar','r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-history"></i> Coletar todas as temporadas que faltam';} return; }
+    if(!_histBuildPollTimer) _histBuildPollTimer=setInterval(histBuildPoll,3000);
+    histBuildPoll();
+  }catch(e){ toast('Erro: '+e.message,'r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-history"></i> Coletar todas as temporadas que faltam';} }
+}
+async function histBuildPoll(){
+  try{
+    const r=await fetch('/api/admin/sheet/historico-status',{credentials:'include'});
+    const d=await r.json();
+    if(!d.ok) return;
+    const tableEl=document.getElementById('hist-build-table');
+    if(tableEl && Array.isArray(d.temporadas)){
+      tableEl.innerHTML=d.temporadas.map(t=>{
+        const bg=t.published?'rgba(16,185,129,.12)':'rgba(255,255,255,.04)';
+        const bd=t.published?'rgba(16,185,129,.35)':'rgba(255,255,255,.1)';
+        const badge=t.published?'✅':'⏳';
+        return `<div style="background:${bg};border:1px solid ${bd};border-radius:10px;padding:8px 6px;text-align:center">
+          <div style="font-size:20px">${t.emoji}</div>
+          <div style="font-size:10.5px;font-weight:700;margin-top:2px">${t.name}</div>
+          <div style="font-size:13px;margin-top:2px">${badge}</div>
+          ${t.published?`<div style="font-size:9px;color:var(--t3);margin-top:1px">${(t.count||0).toLocaleString('pt-BR')}</div>`:''}
+        </div>`;
+      }).join('');
+    }
+    const logEl=document.getElementById('hist-build-log');
+    if(logEl && Array.isArray(d.log)){
+      if(d.log.length===0){ logEl.innerHTML='<div class="empty-state">Clique no botão acima pra ver os passos aqui.</div>'; }
+      else{
+        const atBottom=logEl.scrollHeight-logEl.clientHeight-logEl.scrollTop<30;
+        logEl.innerHTML=d.log.map(l=>`<div class="log-${l.type||'info'}">[${new Date(l.ts).toLocaleTimeString('pt-BR')}] ${esc(l.msg)}</div>`).join('');
+        if(atBottom) logEl.scrollTop=logEl.scrollHeight;
+      }
+    }
+    const btn=document.getElementById('hist-build-btn');
+    if(btn){
+      if(d.running){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Coletando…'; }
+      else{ btn.disabled=false; btn.innerHTML='<i class="ti ti-history"></i> Coletar todas as temporadas que faltam'; if(_histBuildPollTimer){clearInterval(_histBuildPollTimer);_histBuildPollTimer=null;} }
+    }
+  }catch(e){ console.warn('[hist-build-poll]',e.message); }
 }
 
 async function dolBuildStop(){

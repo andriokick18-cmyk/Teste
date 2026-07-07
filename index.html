@@ -2904,6 +2904,18 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <span style="display:block;font-size:9px;font-weight:800;color:#94a3b8;letter-spacing:.03em">🔜 Em breve</span>
           </button>
         </div>
+        <!-- 📅 TEMPORADAS ANTERIORES — seção separada e recolhível pras
+             planilhas históricas (FY23–FY25), pra não lotar a barra
+             principal de abas. loadDynamicSheets() preenche sozinho.
+             Só aparece quando existe pelo menos 1 planilha histórica. -->
+        <div id="hist-seasons-wrap" style="display:none;background:var(--surface);border-bottom:1.5px solid var(--border);padding:0 10px">
+          <button id="hist-seasons-toggle" onclick="toggleHistSeasons()" style="width:100%;display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--t3);font-size:12px;font-weight:700;padding:8px 2px;cursor:pointer;font-family:inherit">
+            <i class="ti ti-calendar-time"></i>
+            <span id="hist-seasons-label">📅 Ver temporadas anteriores</span>
+            <i class="ti ti-chevron-down" id="hist-seasons-chevron" style="margin-left:auto;transition:transform .2s"></i>
+          </button>
+          <div id="hist-seasons-row" style="display:none;flex-wrap:wrap;gap:6px;padding-bottom:10px"></div>
+        </div>
         <div class="search-bar">
           <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="Cargo, empresa, estado..." oninput="onSearch()" autocomplete="off" inputmode="search"></div>
           <div class="filters-row" id="filters-row" style="overflow:visible">
@@ -3899,6 +3911,16 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                   <div class="source-btn-label"><strong>H-2A Agricultura</strong> <span style="display:inline-block;font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;background:rgba(16,185,129,.18);color:#10b981;margin-left:2px;vertical-align:middle">H-2A</span></div>
                   <div class="source-btn-count" id="src-h2a-cnt">–</div>
                 </button>
+              </div>
+              <!-- 📅 TEMPORADAS ANTERIORES — mesma ideia do Manual: seção
+                   separada e recolhível, loadDynamicSheets() preenche sozinho. -->
+              <div id="hist-seasons-wrap-auto" style="display:none;margin-top:10px">
+                <button id="hist-seasons-toggle-auto" onclick="toggleHistSeasonsAuto()" type="button" style="width:100%;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;color:var(--t3);font-size:12px;font-weight:700;padding:9px 12px;cursor:pointer;font-family:inherit">
+                  <i class="ti ti-calendar-time"></i>
+                  <span id="hist-seasons-label-auto">📅 Ver temporadas anteriores</span>
+                  <i class="ti ti-chevron-down" id="hist-seasons-chevron-auto" style="margin-left:auto;transition:transform .2s"></i>
+                </button>
+                <div class="source-btns" id="hist-seasons-row-auto" style="display:none;margin-top:8px"></div>
               </div>
             </div>
 
@@ -5986,6 +6008,19 @@ function maybeShowServerSelect(){
   // (já tem conta em outro servidor / este servidor está lotado) →
   // mostra o card explicativo com o caminho certo.
   if(window._srvBlock){ const b=window._srvBlock; window._srvBlock=null; showSrvBlockModal(b); return; }
+  // 🛡️ ATALHO ADMIN (?adminlogin=1): veio do redirect de agAdminGoTo — abre
+  // o login do Google JÁ, sem esperar clique nenhum (ainda passa pelo modal
+  // de aviso normal, nunca pula essa etapa). Só dispara com este parâmetro
+  // explícito — o ?entrar=1 comum de qualquer outra pessoa continua só
+  // pulsando o CTA (regra do dono, v949 — não mexer nisso).
+  try{
+    const ps0=new URLSearchParams(location.search);
+    if(ps0.get("adminlogin")==="1"){
+      try{history.replaceState({},"","/");}catch(e){}
+      setTimeout(()=>{try{showGoogleWarnModal();}catch(e){}},400);
+      return;
+    }
+  }catch(e){}
   // Veio de OUTRO servidor (?entrar=1): NÃO abre mais o login sozinho (v949) —
   // a landing SEMPRE aparece; só rola até o botão de entrada e o destaca.
   try{
@@ -6082,12 +6117,22 @@ function agRender(step,data){
   }
   if(step==="email"){
     const login=_agIntent==="login";
+    // 💾 "Lembrar meu e-mail" (pedido do dono): pré-preenche com o último
+    // e-mail salvo neste aparelho, pra pessoa não digitar de novo — ela só
+    // confere e clica Continuar. Opt-out via checkbox (unchecked → esquece).
+    let _savedEmail=""; try{ _savedEmail=localStorage.getItem("h2bLastEmail")||""; }catch(e){}
+    if(!_agEmail && _savedEmail) _agEmail=_savedEmail;
+    let _remember=true; try{ _remember=localStorage.getItem("h2bRememberEmail")!=="0"; }catch(e){}
     body.innerHTML=`
       <div class="ag-title">${login?"Entrar na sua conta":"Criar conta grátis"}</div>
       <div class="ag-sub">${login
         ?"Digite o e-mail da sua conta Google. Vamos localizar <strong style='color:rgba(255,255,255,.8)'>em qual servidor</strong> ela está — sem senha."
         :"Digite seu e-mail do Google. Se você já tiver conta, te levamos direto pro servidor certo."}</div>
       <input class="ag-input" id="ag-email" type="email" inputmode="email" autocomplete="email" placeholder="seuemail@gmail.com" value="${esc(_agEmail)}" onkeydown="if(event.key==='Enter')agLookup()">
+      <label style="display:flex;align-items:center;gap:8px;margin:10px 2px 2px;font-size:12px;color:rgba(255,255,255,.6);cursor:pointer;user-select:none">
+        <input type="checkbox" id="ag-remember" ${_remember?"checked":""} style="width:16px;height:16px;accent-color:#3b82f6;cursor:pointer;flex-shrink:0">
+        Lembrar meu e-mail neste aparelho
+      </label>
       <div class="ag-err" id="ag-err"></div>
       <button class="ag-btn primario" id="ag-continue" onclick="agLookup()">Continuar <i class="ti ti-arrow-right"></i></button>`;
     setTimeout(()=>{const i=g("#ag-email");if(i)i.focus();},150);
@@ -6101,6 +6146,24 @@ function agRender(step,data){
   }
   if(step==="result"){
     const d=data||{};
+    // 🛡️ ATALHO ADMIN (pedido do dono): e-mail de admin não segue o fluxo
+    // normal de "sua conta está no servidor X" — ele PRECISA poder entrar em
+    // QUALQUER servidor pra administrar/testar. Mostra os servidores todos;
+    // no self, autentica aqui mesmo; no remoto, redireciona já com o login
+    // pronto pra confirmar do outro lado (sem pular o aviso do Google).
+    if(d.isAdmin && Array.isArray(d.servers) && d.servers.length){
+      body.innerHTML=`
+        <div style="text-align:center"><span class="ag-email-chip">📧 ${esc(_agEmail)}</span></div>
+        <div class="ag-title">🛡️ Acesso Admin detectado</div>
+        <div class="ag-sub">Este e-mail é administrador do H2BApply. Escolha em qual servidor você quer entrar.</div>
+        ${d.servers.map(s=>`
+          <div class="ag-srv-card ${s.self?"azul":""}" style="cursor:pointer" onclick="agAdminGoTo('${esc(s.url||"")}',${s.self?"true":"false"})">
+            <div class="srv-row1" style="margin-bottom:6px"><div class="srv-name">${s.self?"🟦":"🌐"} ${esc(s.nome||("Servidor "+s.id))}${s.self?' <span style="font-size:9px;font-weight:800;background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.4);color:#93c5fd;padding:2px 7px;border-radius:12px;letter-spacing:.05em">VOCÊ ESTÁ AQUI</span>':""}</div></div>
+            <div class="srv-desc" style="margin-bottom:0">${s.self?"Entrar com Google neste servidor agora.":"Ir direto para este servidor com o login já pronto pra confirmar."}</div>
+          </div>`).join("")}
+        <button class="ag-btn fantasma" onclick="agRender('email')" style="margin-top:6px"><i class="ti ti-pencil"></i> Usar outro e-mail</button>`;
+      return;
+    }
     if(d.found&&d.server){
       const sv=d.server,nome=esc(sv.nome||("Servidor "+sv.id));
       body.innerHTML=`
@@ -6150,11 +6213,17 @@ function agRender(step,data){
 }
 async function agLookup(){
   if(_agBusy)return;
-  const inp=g("#ag-email"),err=g("#ag-err"),btn=g("#ag-continue");
+  const inp=g("#ag-email"),err=g("#ag-err"),btn=g("#ag-continue"),rem=g("#ag-remember");
   const email=(inp?inp.value:"").toLowerCase().trim();
   const showErr=m=>{if(err){err.style.display="block";err.textContent=m;}};
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){showErr("⚠️ Digite um e-mail válido (ex.: nome@gmail.com).");return;}
   _agEmail=email;_agBusy=true;
+  // 💾 "Lembrar meu e-mail": salva (ou apaga, se desmarcado) no localStorage
+  // deste aparelho — na próxima visita o campo já vem preenchido sozinho.
+  try{
+    if(!rem || rem.checked){ localStorage.setItem("h2bLastEmail",email); localStorage.setItem("h2bRememberEmail","1"); }
+    else { localStorage.removeItem("h2bLastEmail"); localStorage.setItem("h2bRememberEmail","0"); }
+  }catch(e){}
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Localizando…';}
   agRender("loading");
   try{
@@ -6173,6 +6242,26 @@ async function agLookup(){
 function agGoogleAt(url){
   if(!url){ closeAuthGate(); showGoogleWarnModal(); return; }
   agRedirect(url,"Levando você para o servidor da sua conta…");
+}
+// 🛡️ ATALHO ADMIN: no self, autentica igual ao fluxo normal (mesmo modal de
+// aviso do Google — nunca pula essa etapa, é exigência legal); no remoto,
+// redireciona já com ?adminlogin=1, que o boot deste MESMO arquivo entende
+// e abre o modal do Google sozinho do outro lado (ver maybeShowServerSelect).
+function agAdminGoTo(url,isSelf){
+  if(isSelf){ closeAuthGate(); showGoogleWarnModal(); return; }
+  if(!url){ toast("⚠️ Este servidor está sem endereço configurado. Avise o suporte no Instagram/WhatsApp.","r"); return; }
+  agRedirectAdmin(url,"Levando você (admin) direto para o login…");
+}
+function agRedirectAdmin(url,msg){
+  const body=g("#ag-body");
+  if(body)body.innerHTML=`<div style="text-align:center;padding:10px 0">
+    <div class="ag-spin"><span class="spin spin-lg"></span></div>
+    <div class="ag-title" style="font-size:17px">${esc(msg||"Redirecionando…")}</div>
+    <div class="ag-sub">Se a página demorar a abrir, é o servidor <strong style="color:rgba(255,255,255,.85)">acordando</strong> — pode levar até 1 minuto. Não feche, o login abrirá sozinho.</div>
+  </div>`;
+  const back=g("#ag-back");if(back)back.style.display="none";
+  const dest=url+(url.includes("?")?"&":"?")+"adminlogin=1";
+  setTimeout(()=>{window.location.href=dest;},900);
 }
 function agSignupAt(i){
   const s=(window._agOpenSrvs||[])[i]; if(!s)return;
@@ -9723,9 +9812,14 @@ async function loadDynamicSheets(){
       if(id){const el=document.getElementById(id);if(el)el.textContent=(s.count||0).toLocaleString('pt-BR')+' vagas';}
     });
     // injeta só planilhas que NÃO estão fixas no HTML (jan2026/jul2025/h2a-jun2026 já existem); pega futuras (ex.: Julho)
-    const extras=d.sheets.filter(s=>!['jan2026','jul2025','h2a-jun2026'].includes(s.key));
-    if(!extras.length)return;
-    // AUTO — #source-btns
+    const todasExtras=d.sheets.filter(s=>!['jan2026','jul2025','h2a-jun2026'].includes(s.key));
+    if(!todasExtras.length)return;
+    // 📅 Separa ATUAIS (ex.: Julho 2026 assim que sair) de HISTÓRICAS
+    // (FY23–FY25) — pedido do dono: temporadas antigas ficam numa seção
+    // própria, recolhível, separada, pra não lotar a barra principal.
+    const extras=todasExtras.filter(s=>!s.historico);
+    const antigas=todasExtras.filter(s=>s.historico);
+    // AUTO — #source-btns (só as ATUAIS; históricas vão pro container próprio)
     const sb=document.getElementById('source-btns');
     if(sb){
       extras.forEach(s=>{
@@ -9742,7 +9836,7 @@ async function loadDynamicSheets(){
         sb.appendChild(btn);
       });
     }
-    // MANUAL — chips (insere após a chip Jul 2025)
+    // MANUAL — chips (insere após a chip Jul 2025) — só as ATUAIS
     const julChip=document.querySelector('.pesq-src-chip[data-src="jul2025"]');
     if(julChip){
       extras.slice().reverse().forEach(s=>{
@@ -9755,8 +9849,8 @@ async function loadDynamicSheets(){
       });
     }
     // MANUAL — aba principal (.stabs, onde o usuário navega vagas de verdade).
-    // Cria a aba de verdade pra qualquer planilha nova publicada (ex.: Julho
-    // 2026) e remove o placeholder "🔜 Em breve" automaticamente — sem
+    // Cria a aba de verdade pra qualquer planilha ATUAL nova publicada (ex.:
+    // Julho 2026) e remove o placeholder "🔜 Em breve" automaticamente — sem
     // precisar editar código quando o robô publicar a próxima planilha.
     const stabsRow=document.getElementById('stabs-row');
     if(stabsRow){
@@ -9773,7 +9867,65 @@ async function loadDynamicSheets(){
         if(placeholder){ placeholder.replaceWith(btn); } else { stabsRow.appendChild(btn); }
       });
     }
+    // 📅 TEMPORADAS ANTERIORES — MANUAL: pills reaproveitando .stab (mesmo
+    // destaque ativo do setTab), dentro do container recolhível próprio.
+    if(antigas.length){
+      const wrap=document.getElementById('hist-seasons-wrap');
+      const row=document.getElementById('hist-seasons-row');
+      const label=document.getElementById('hist-seasons-label');
+      if(wrap) wrap.style.display='';
+      if(label) label.textContent=`📅 Ver ${antigas.length} temporada${antigas.length>1?'s':''} anterior${antigas.length>1?'es':''}`;
+      if(row){
+        antigas.forEach(s=>{
+          if(document.getElementById('stab-'+s.key))return;
+          const btn=document.createElement('button');
+          btn.className='stab'; btn.id='stab-'+s.key;
+          btn.style.cssText='background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:10px;padding:8px 12px;margin:0';
+          btn.setAttribute('onclick',`setTab('${s.key}')`);
+          btn.innerHTML=`<span style="margin-right:4px">${s.emoji||'📋'}</span><strong>${s.name}</strong><span class="stab-cnt" style="margin-left:6px">${(s.count||0).toLocaleString('pt-BR')}</span>`;
+          row.appendChild(btn);
+        });
+      }
+    }
+    // 📅 TEMPORADAS ANTERIORES — AUTOMÁTICO: mesma ideia, reaproveita .source-btn
+    if(antigas.length){
+      const wrapA=document.getElementById('hist-seasons-wrap-auto');
+      const rowA=document.getElementById('hist-seasons-row-auto');
+      const labelA=document.getElementById('hist-seasons-label-auto');
+      if(wrapA) wrapA.style.display='';
+      if(labelA) labelA.textContent=`📅 Ver ${antigas.length} temporada${antigas.length>1?'s':''} anterior${antigas.length>1?'es':''}`;
+      if(rowA){
+        antigas.forEach(s=>{
+          if(rowA.querySelector(`[data-src="${s.key}"]`))return;
+          const btn=document.createElement('button');
+          btn.className='source-btn'; btn.dataset.src=s.key;
+          btn.setAttribute('onclick',`selectSource('${s.key}')`);
+          btn.innerHTML=`<div class="source-btn-icon">${s.emoji||'📋'}</div>`+
+            `<div class="source-btn-label"><strong>${s.name}</strong></div>`+
+            `<div class="source-btn-count">${(s.count||0).toLocaleString('pt-BR')} vagas</div>`;
+          rowA.appendChild(btn);
+        });
+      }
+    }
   }catch(e){ console.warn('[sheets-list]',e.message); }
+}
+
+// 📅 Toggle das seções recolhíveis de temporadas anteriores (Manual/Automático)
+function toggleHistSeasons(){
+  const row=document.getElementById('hist-seasons-row');
+  const chevron=document.getElementById('hist-seasons-chevron');
+  if(!row)return;
+  const open=row.style.display==='flex';
+  row.style.display=open?'none':'flex';
+  if(chevron) chevron.style.transform=open?'rotate(0deg)':'rotate(180deg)';
+}
+function toggleHistSeasonsAuto(){
+  const row=document.getElementById('hist-seasons-row-auto');
+  const chevron=document.getElementById('hist-seasons-chevron-auto');
+  if(!row)return;
+  const open=row.style.display==='grid'||row.style.display==='flex';
+  row.style.display=open?'none':'grid';
+  if(chevron) chevron.style.transform=open?'rotate(0deg)':'rotate(180deg)';
 }
 
 // ── Filtro por Grupo no AUTOMÁTICO (Double Pro) ──

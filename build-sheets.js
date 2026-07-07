@@ -1,9 +1,34 @@
 #!/usr/bin/env node
 /**
- * build-sheets.js — H2BApply v35
+ * build-sheets.js — H2BApply v36
  * Baixa os Data Feeds H-2B e H-2A do DOL, filtra, enriquece e salva os compact JSONs.
  * Rode: node build-sheets.js
  * Cron:  0 2 * * * node /app/build-sheets.js >> /var/log/build-sheets.log 2>&1
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * 🔒 V36 (07/07/2026) — CORREÇÃO CRÍTICA DE CONTAGEM, pedido do dono:
+ * "a quantidade de vagas são a quantidade de ETA case number diferentes".
+ *
+ * O que mudou:
+ *  (1) DEDUPE POR ETA CASE NUMBER logo após o download — o feed do DOL pode
+ *      conter o MESMO case number 2x dentro do MESMO download (achado real
+ *      em h2a_jun2026_compact.json: 5000 linhas para só 4964 case numbers
+ *      únicos). Agora, se o mesmo case aparecer mais de uma vez, os
+ *      registros são MESCLADOS (nunca perde dado, nunca duplica linha) via
+ *      mod-vagas-integrity.js — o mesmo módulo usado pelo bot de coleta do
+ *      admin (server.js), então a regra nunca diverge entre os dois caminhos.
+ *  (2) SEM LIMITE ARTIFICIAL — a planilha final tem EXATAMENTE a quantidade
+ *      de vagas que existirem de verdade na fonte (se vier 8 mil, fica 8
+ *      mil; se vier 2 mil, fica 2 mil). O que faltava era garantir que
+ *      "quantidade" = "case numbers únicos", não "linhas brutas do feed".
+ *  (3) MANIFESTO DE INTEGRIDADE — ao lado de cada *_compact.json agora é
+ *      gravado um *_compact.manifest.json com a contagem exata de vagas
+ *      únicas e um hash da lista de case numbers. Prova, a qualquer
+ *      momento, que "o que foi baixado" é EXATAMENTE "o que foi publicado".
+ *  (4) GUARDA FINAL — antes de gravar em disco, roda verifyIntegrity() como
+ *      último cinto-de-segurança: se por algum motivo sobrar duplicata, o
+ *      script ABORTA o salvamento e mantém o arquivo anterior intacto.
+ * ─────────────────────────────────────────────────────────────────────────
  */
 
 "use strict";
@@ -13,6 +38,7 @@ const fs     = require("fs");
 const path   = require("path");
 const zlib   = require("zlib");
 const os     = require("os");
+const { dedupeVagas, verifyIntegrity, buildManifest } = require("./mod-vagas-integrity.js");
 
 // ─── Configuração ─────────────────────────────────────────────────────────────
 const OUT_DIR = path.join(__dirname);
@@ -266,19 +292,43 @@ async function buildSheet(type, dateStr, outFile, label) {
 
   console.log(`  📥 ${records.length} registros brutos`);
 
+  // ── 🔑 DEDUPE POR ETA CASE NUMBER (a vaga é o case number, não a linha) ──
+  // O feed usa "case_number" (ou, em versões antigas, "case_id"). Normaliza
+  // num campo próprio (_cn) só para o dedupe funcionar independente de qual
+  // dos dois nomes veio nesta resposta específica do DOL.
+  for (const rec of records) {
+    rec._cn = (rec.case_number || rec.case_id || "").trim().toUpperCase();
+  }
+  const { rows: uniqueRecords, uniqueCount, totalIn, duplicatesMerged, rowsWithoutCase } =
+    dedupeVagas(records, { caseField: "_cn" });
+  console.log(`  🔑 ${totalIn} registros brutos → ${uniqueCount} ETA Case Numbers únicos`
+    + (duplicatesMerged ? ` (${duplicatesMerged} duplicados mesclados, nenhum dado perdido)` : "")
+    + (rowsWithoutCase ? ` — ${rowsWithoutCase} registro(s) sem case number descartado(s)` : ""));
+
   let discarded = 0;
   const compact = [];
-  for (const rec of records) {
+  for (const rec of uniqueRecords) {
     if (shouldDiscard(rec)) { discarded++; continue; }
     compact.push(toCompact(rec));
   }
 
-  console.log(`  ✅ ${compact.length} vagas válidas (${discarded} descartadas)`);
+  console.log(`  ✅ ${compact.length} vagas válidas (${discarded} descartadas por regra de qualidade)`);
 
   // Validação mínima: se retornou menos de 10 vagas válidas, algo está errado
-  // (API pode ter retornado estrutura diferente ou estar com problemas)
+  // (API pode ter retornado estrutura diferente ou estar com problemas).
+  // Isto é um PISO de sanidade contra resposta quebrada da API — nunca um
+  // teto: a planilha final sempre reflete a quantidade REAL de vagas únicas
+  // encontradas na fonte, seja ela 2 mil ou 8 mil.
   if (compact.length < 10) {
     console.error(`  ❌ ABORTANDO salvamento: apenas ${compact.length} vagas válidas — suspeito de resposta inválida da API`);
+    console.log(`  ↩ Mantendo arquivo existente intacto: ${outFile}`);
+    return false;
+  }
+
+  // ── 🔒 GUARDA FINAL — nunca publicar planilha com duplicata ──
+  const check = verifyIntegrity(compact, { caseField: "c" });
+  if (!check.ok) {
+    console.error(`  ❌ ABORTANDO salvamento: guarda de integridade encontrou ${check.duplicateCases.length} case number(s) duplicado(s) e/ou ${check.rowsWithoutCase} linha(s) sem case number MESMO APÓS o dedupe — isto não deveria acontecer; revisar mod-vagas-integrity.js.`);
     console.log(`  ↩ Mantendo arquivo existente intacto: ${outFile}`);
     return false;
   }
@@ -292,12 +342,24 @@ async function buildSheet(type, dateStr, outFile, label) {
 
   fs.writeFileSync(outFile, JSON.stringify(compact));
   console.log(`  💾 Salvo: ${outFile} (${(fs.statSync(outFile).size / 1024).toFixed(1)} KB)`);
+
+  // ── 🧾 MANIFESTO — recibo de integridade ao lado do arquivo ──
+  // Prova, sem reprocessar nada, que "baixado" === "publicado": mesma
+  // quantidade E mesmo conjunto exato de ETA case numbers.
+  const manifestFile = outFile.replace(/\.json$/, ".manifest.json");
+  const manifest = buildManifest(compact, {
+    caseField: "c",
+    extra: { feedUrl: url, feedType: type, feedDate: dateStr, label },
+  });
+  fs.writeFileSync(manifestFile, JSON.stringify(manifest, null, 2));
+  console.log(`  🧾 Manifesto: ${manifestFile} (${manifest.uniqueCaseCount} vagas únicas, hash ${manifest.caseListHash.slice(0, 12)}…)`);
+
   return true;
 }
 
 async function main() {
   console.log("═══════════════════════════════════════════");
-  console.log(" H2BApply — build-sheets.js v35");
+  console.log(" H2BApply — build-sheets.js v36 (dedupe por ETA case number)");
   console.log(`  ${new Date().toISOString()}`);
   console.log("═══════════════════════════════════════════");
 

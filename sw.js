@@ -24,7 +24,25 @@
 //  v2.4 — Bump de versão para forçar reinstalação limpa em todos os clientes.
 //    Nenhuma mudança lógica; apenas limpeza de código e documentação.
 //
-const CACHE_NAME = "h2bapply-v10"; // v10: remoção definitiva do programa de indicação (KB-059)
+//  v2.5 — Bump de rotina (KB-072): correção do Robô Monitor DOL (403 no
+//    download ao vivo + baseline anti-spam + janelas de log separadas
+//    teste/produção). admin.html não é cacheado pelo SW (ver nota acima),
+//    então o bump aqui é só por convenção de entrega do projeto.
+//
+//  v2.6 — Bump de rotina (KB-073): correção de INCIDENTE REAL — o robô
+//    notificou pagantes 5x sobre relatórios históricos (FY23-25). Fix:
+//    ranking cronológico (reportRank/latestKnownRank) + crash de parsing
+//    corrigido + estrutura de backfill histórico com janela própria.
+//
+//  v2.7 — Bump de rotina (KB-074): PublicFacingReport tem muito mais dado
+//    do que se pensava (empresa/estado/data de início) — parser expandido
+//    e registro ETA enriquecido automaticamente nos 3 caminhos.
+//
+//  v2.8 — Bump de rotina (KB-075): orquestrador de coleta histórica
+//    completa (6 temporadas, vagas com e-mail) + reestruturação visual
+//    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
+//
+const CACHE_NAME = "h2bapply-v15"; // v15: lembrar e-mail + atalho admin multi-servidor (KB-077)
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

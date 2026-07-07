@@ -127,6 +127,10 @@ console.log(`[boot] Push VAPID: ${PUSH_ENABLED?"✅ configurado":"⚠️  desati
 // adminIntervalSecs: número de segundos entre envios (mín 30s para admins)
 // calcSmartInterval: corpo em src/engine/core.js (Fase 1 · Módulo 6)
 const { createCalcSmartInterval, nowBRT: _nowBRTMod, todayStrBRT: _todayStrBRTMod, toLocaleBRT: _toLocaleBRTMod, calcStreak: _calcStreakMod, last7Days: _last7DaysMod } = require("./mod-engine-core.js");
+// 🔒 Integridade de vagas — 1 vaga = 1 ETA Case Number único (KB-076).
+// Mesmo módulo usado pelo build-sheets.js standalone, pra nunca divergir a
+// regra de dedupe/merge entre o cron oficial e o bot de coleta do admin.
+const { dedupeVagas: _vagasDedupe, verifyIntegrity: _vagasVerify, buildManifest: _vagasManifest } = require("./mod-vagas-integrity.js");
 let _calcSmartIntervalImpl = null;
 function calcSmartInterval(email){
   if(!_calcSmartIntervalImpl) _calcSmartIntervalImpl = createCalcSmartInterval({ getUser, isAdminVip }); // lazy: getUser/isAdminVip declarados adiante
@@ -174,7 +178,7 @@ const DATA_DIR    = process.env.DATA_DIR || (fs.existsSync("/data") ? "/data" : 
 const { initStorage, storageLoad, storagePersist, storageInfo } = require("./storage.js");
 initStorage(DATA_DIR);
 const USERS_FILE  = path.join(DATA_DIR, "users.json");
-const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json"); // V955: sessões sobrevivem a deploy
+const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json"); // KB-078: só guarda OAuth __sender__ em andamento — login NUNCA sobrevive a deploy (de propósito)
 
 // ══ V955: CIFRAGEM EM REPOUSO (AES-256-GCM) ═══════════════════════════════
 // Protege refresh_tokens/access_tokens do Gmail gravados em disco (users.json,
@@ -1115,6 +1119,62 @@ function boot() {
       impacto:"O usuário agora tem progressão PRÓPRIA (nível/XP/conquistas) além da competição relativa — motivos para voltar amanhã mesmo sem alcançar o topo. As conquistas de estados/madrugador/streak empurram os comportamentos que geram resultado real (diversificar destinos, constância). Lição permanente: gamificação sobre dados DERIVADOS é ordens de magnitude mais segura que sobre contadores novos — sem risco de dessincronia, sem migração, e a fórmula pode evoluir retroativamente; só materialize XP em estado próprio quando houver gasto/consumo de XP (loja, boosts).",
       modulos:["server.js: XP_NIVEIS, xpFromCounts, levelForXP, calcConquistas, GET /api/gamification, calcRanking (xp+nivel)","index.html: #gami-card, loadGamification, toggleConquistas, chip nas linhas, #home-level-chip, renderHome","sw.js: CACHE_NAME v14"],
       tags:["gamificação","xp","níveis","conquistas","ranking","retenção","dados-derivados","parte-4"]
+    },
+    {
+      id:"KB-072",versao:"V955",data:"2026-07-06",autor:"Claude/Andrio",
+      problema:"Robô Monitor de Anúncios DOL (mod-dol-monitor.js, KB não numerada anterior) tinha 3 problemas encontrados numa auditoria pedida pelo dono: (1) HTTP 403 real no download do dol.gov mesmo depois de uma correção anterior de Accept-Encoding — sinal de WAF (Akamai/similar) ainda desconfiando do robô; (2) BUG CRÍTICO DE SEGURANÇA descoberto na auditoria (não pedido explicitamente): como dol_monitor_state.json ainda não existe em produção, a 1ª execução real do ciclo de 5min ia encontrar o relatório de Janeiro/2026 (já publicado, ainda na página hoje) como 'nunca visto' e ia IMPORTAR E AVISAR OS PAGANTES DE VERDADE com notícia velha; (3) o log do botão de teste (Janeiro) e o log do ciclo automático de produção (vai buscar Julho) se misturavam na MESMA janela/array, dificultando diferenciar o que é teste do que é produção — pedido explícito do dono por 'duas janelas separadas'.",
+      solucao:"(1) httpGet reforçado: Agent https keep-alive (reaproveita conexão TCP/TLS, menos sinal de bot que abrir conexão nova a cada request), conjunto completo de headers que um Chrome real manda (Sec-Fetch-Dest/Mode/Site/User, sec-ch-ua, Upgrade-Insecure-Requests), Referer apontando pra página de anúncios, RETRY automático (até 3 tentativas com backoff incremental+jitter) especificamente pra 403/429/5xx/timeout — erros tipicamente transitórios de WAF —, e quando esgota as tentativas o erro agora carrega o STATUS HTTP + um trecho do corpo da resposta (antes só 'HTTP 403' sem contexto, impossível diagnosticar). (2) Novo campo persistido state.baselined: na 1ª checagem real (arquivo de estado ainda não existe em disco), o robô marca TODOS os relatórios já publicados na página como 'conhecidos' SEM baixar e SEM notificar ninguém, logando isso claramente; só um relatório GENUINAMENTE NOVO dali em diante aciona importação + aviso a pagantes. Se o arquivo de estado já existia (deploy anterior já rodou de verdade), baselined assume true automaticamente — sem regressão pra quem já estava em produção. (3) state.log (produção) e state.testLog (teste) viraram arrays 100% independentes, com funções log()/logTest() separadas; GET /api/admin/dolmonitor/status devolve os dois; admin.html ganhou uma 2ª caixa de log dedicada (#dm-test-log) dentro do card de teste, reiniciada a cada clique em 'Rodar teste completo' pra sempre mostrar só a rodada atual, com poll rápido (900ms) enquanto a requisição está em andamento. Para a lógica de negócio NUNCA divergir entre teste e produção (pedido do dono: 'toda vez que editar um, edita o outro igual'), o download+parse+merge de grupos foi extraído pra uma função única (runGruposPipeline) chamada fisicamente pelos dois caminhos — daqui pra frente uma correção nessa função vale pros dois automaticamente, sem precisar lembrar de replicar.",
+      impacto:"O dono pode agora testar o pipeline inteiro (download real + parse + merge de grupos) usando o relatório real de Janeiro, com confiança de que é EXATAMENTE o mesmo caminho que vai rodar em Julho — e ver os passos numa janela isolada, sem ruído do robô de produção. O robô de produção não vai mais mandar e-mail de pagantes com notícia velha assim que for ligado pela primeira vez. E se o 403 persistir mesmo com os reforços de disfarce de navegador (limite físico de um WAF corporativo bloqueando IP de datacenter), agora o log mostra o suficiente pra diagnosticar sem adivinhar. Lição permanente: (a) todo robô que 'chega e já roda' precisa pensar no que acontece na SUA PRIMEIRA EXECUÇÃO quando o estado persistido ainda não existe — o cenário mais perigoso não é o robô rodando errado depois, é o robô rodando 'certo' contra dados que já são história; (b) duas superfícies (teste e produção) que devem ter o MESMO comportamento devem compartilhar a MESMA função de negócio, nunca duas cópias paralelas — cópia paralela é dívida técnica que diverge sozinha com o tempo.",
+      modulos:["mod-dol-monitor.js: httpGet (keep-alive+headers+retry+diagnóstico), state.baselined, tick() baseline, state.testLog/logTest(), runGruposPipeline compartilhado","admin.html: #dm-test-log, dolMonitorPoll (renderiza testLog), dolMonitorRunTest (poll rápido + reset da janela de teste)","sw.js: CACHE_NAME v11"],
+      tags:["dol-monitor","403","waf","baseline","anti-spam","janelas-separadas","teste-vs-produção","retry","robô"]
+    },
+    {
+      id:"KB-073",versao:"V956",data:"2026-07-06",autor:"Claude/Andrio",
+      problema:"INCIDENTE REAL em produção poucas horas depois do KB-072: a página de anúncios do DOL lista TAMBÉM relatórios históricos (FY23, FY24, FY25), não só o atual. Como o baseline da V3 só cobre a 1ª checagem depois de um dol_monitor_state.json inexistente, e o arquivo de estado JÁ EXISTIA (de uma execução real anterior, com só 1 relatório marcado como importado), o robô encontrou de uma vez vários relatórios históricos 'nunca vistos' e tratou CADA UM como notícia nova: importou e disparou e-mail real '🚨 SAIU A LISTA RANDOMIZADA' pros 17 pagantes, 5 VEZES SEGUIDAS, uma vez por relatório antigo (2023–2025) — sem confirmação de que isso pararia sozinho. Além disso, o relatório FY23_JulyPeak (392KB) quebrou o processamento com 'Cannot read properties of undefined (reading includes)', pedido explícito do dono revelou que faltava também um jeito deliberado de importar TODO o histórico (FY23–FY26) de uma vez, com ícone de estação (❄️ Jan/☀️ Jul), sem depender de o robô descobrir sozinho aos poucos.",
+      solucao:"(1) CAUSA DO CRASH: parseSheetRows monta cada linha como array esparso (cells[colIdx]=valor) — quando uma coluna fica sem <c> no XML (célula vazia, comum em relatório mais antigo com menos colunas preenchidas), o array fica com BURACO nesse índice. Array.prototype.map/filter PULAM buracos, mas findIndex NÃO pula — chama o callback com `undefined`, causando `undefined.includes(...)`. Corrigido densificando a linha (preenche todo buraco com '') antes de devolver. (2) CAUSA DO SPAM: nada no sistema comparava 'esse relatório é o mais recente de todos' antes de notificar — qualquer link 'nunca visto' virava notificação. Criado reportRank(nomeArquivo) que extrai FY+Jan/Jul do nome (aceita 'Jul' e 'July', a nomenclatura do DOL varia por ano) e devolve um número comparável (FY*2+meio). Novo campo persistido state.latestKnownRank: só um relatório com rank MAIOR que o mais recente já confirmado dispara importReport(url,ctx,DATA_DIR,notify=true) de verdade; qualquer coisa igual ou mais antiga é importada em silêncio (notify=false) — mesma mescla de grupos, mesma persistência, SEM o bloco de aviso a pagantes. Migração retroativa: se o arquivo de estado é de antes desse campo existir, latestKnownRank é reconstruído a partir do maior rank já presente em state.imported (protege quem já estava rodando antes do fix). tick() agora ordena os relatórios novos por rank crescente antes de processar, garantindo que só o de rank mais alto no fim vire 'notícia nova'. (3) ESTRUTURA NOVA — pedido explícito do dono: HIST_CANDIDATES (tabela FY23 Jan/Jul → FY26 Jan, ícone ❄️/☀️, com 2 variações de nome tentadas em Jul/July já que o DOL não é consistente) + nova rota POST /api/admin/dolmonitor/import-historico que baixa e mescla TUDO em ordem cronológica usando o MESMO runGruposPipeline compartilhado, nunca notifica, é idempotente (pula o que já foi importado, então pode clicar de novo à vontade) + 3ª janela de log totalmente separada (state.histLog/logHist(), #dm-hist-log) + tabela visual no admin com ícone de estação e badge ✅/⏳ por período (#dm-hist-table).",
+      impacto:"O robô nunca mais confunde relatório antigo com notícia nova — a proteção por ranking cronológico é estrutural (funciona mesmo se a página do DOL trouxer vários de uma vez, ou pó todo backfill manual). O crash de parsing que travava a importação do histórico está corrigido — histórico completo (FY23–FY26 Jan) agora processa sem erro. O dono ganhou uma ação deliberada e auditável (botão + tabela + log próprio) pra garantir que o registro de grupos está 100% completo, em vez de depender só da descoberta orgânica e passiva do ciclo de 5min. Lição permanente e cara: quando uma fonte de dados 'lista o mais recente' pode na verdade listar VÁRIOS itens de datas diferentes de uma vez, 'nunca visto antes' NUNCA é critério suficiente pra disparar uma ação irreversível (e-mail em massa) — é preciso comparar explicitamente CONTRA o que já se sabe ser o mais recente, com um critério ORDENÁVEL (aqui, um rank cronológico), não apenas presença/ausência num Set.",
+      modulos:["mod-dol-monitor.js: parseSheetRows (densificação anti-crash), reportRank(), HIST_CANDIDATES, state.latestKnownRank, importReport(notify), tick() ranking+ordenação, rota import-historico, state.histLog/logHist()","admin.html: card 📚 Histórico de Relatórios (#dm-hist-table, #dm-hist-log), dolMonitorImportHistorico()","sw.js: CACHE_NAME v12"],
+      tags:["dol-monitor","incidente-real","spam-email","ranking-cronológico","backfill-histórico","crash-fix","array-esparso","findIndex","pagantes"]
+    },
+    {
+      id:"KB-074",versao:"V957",data:"2026-07-07",autor:"Claude/Andrio",
+      problema:"Suposição errada no KB-073: eu tinha avaliado que o PublicFacingReport.xlsx só tem 'Case Number' + 'Randomization Group', e por isso disse ao dono que não dava pra enriquecer o histórico além do grupo. O dono mandou o arquivo real (FY26_JanPeak) como exemplo — inspecionado com openpyxl, o arquivo tem 9 colunas: Case Number, Business Name, Agent Attorney Name, Worksite State, Randomization Group, Randomization Email Date, Submitted Date, Begin Date, Case Status. Ou seja, tem empresa, estado e data de início oficiais do DOL pra TODO case H-2B do período — dado valioso que o parser antigo descartava.",
+      solucao:"xlsxExtractCaseAndGroup renomeado/expandido pra xlsxExtractFullReport: além de Case Number+Grupo (obrigatórios), extrai Business Name/Worksite State/Begin Date/Case Status (OPCIONAIS — se um relatório mais antigo não tiver a coluna, o campo fica vazio sem quebrar o import). Datas do Excel vêm como número serial puro (dias desde 1899-12-30, ex.: 46113), sem atributo de tipo no XML — criada excelSerialToISODate() com checagem de faixa plausível (20000–60000) antes de converter, pra nunca converter texto por engano. Nova função em server.js, etaSeedFromPublicFacingReport(rows), mescla empresa/estado/begin/grupo no registro DB_ETA.cases com a MESMA regra de não-regressão do etaSeedFromSheets já existente (nunca sobrescreve status depois que o robô de verificação já consultou o DOL de verdade pelo menos 1x; nunca duplica, chave = case number). runGruposPipeline (compartilhado pelos 3 caminhos — produção/teste/histórico) agora chama essa função automaticamente depois de mesclar os grupos, então TODOS os caminhos ganham o enriquecimento de graça, sem precisar duplicar em lugar nenhum. Testado com o arquivo real enviado pelo dono: 10.062 linhas, 0 campos vazios, datas convertidas batendo exatamente com o que o Python (openpyxl) mostrou (ex.: serial 46113 → 2026-04-01). Aproveitado o arquivo real como cópia de backup em test-fixtures/ (pasta que o botão de teste já esperava mas não existia).",
+      impacto:"O registro ETA (Case Monitor) agora pode ser alimentado com empresa/estado/data de início oficiais direto do DOL pra QUALQUER período histórico (FY23–FY26), sem depender do scraper de vagas (seasonaljobs.dol.gov) ter rodado pra aquele caso — uma fonte bulk, oficial, muito mais barata que checar caso a caso. Ainda não é vaga completa pro trabalhador buscar (falta cidade específica, salário, ocupação, contato — isso só vem do job order de verdade), mas é MUITO mais que só 'grupo'. Lição permanente: antes de dizer 'os dados não têm X', ler o arquivo de verdade — minha suposição anterior sobre o formato do PublicFacingReport era baseada só no que o parser JÁ extraía, não no que o arquivo realmente contém; a diferença entre 'o que o código lê hoje' e 'o que a fonte de dados realmente tem' é exatamente onde fica o valor não aproveitado.",
+      modulos:["mod-dol-monitor.js: xlsxExtractFullReport (era xlsxExtractCaseAndGroup), excelSerialToISODate, runGruposPipeline chama etaSeedFromPublicFacingReport","server.js: etaSeedFromPublicFacingReport (nova), _dolMonitorCtx","test-fixtures/FY26_JanPeak_PublicFacingReport.xlsx (novo — arquivo real enviado pelo dono)","sw.js: CACHE_NAME v13"],
+      tags:["dol-monitor","enriquecimento","business-name","worksite-state","begin-date","excel-serial-date","eta-case-monitor","correção-de-suposição"]
+    },
+    {
+      id:"KB-075",versao:"V958",data:"2026-07-07",autor:"Claude/Andrio",
+      problema:"Dono corrigiu 2 suposições erradas minhas em sequência: (1) eu tinha dito que dava pra enriquecer o histórico só com empresa/estado/data (via PublicFacingReport), mas NÃO dava pra montar vaga completa com e-mail pros períodos antigos — errado: o bot 'Nova Planilha do DOL' (_runDolBuildBot) já existe e coleta via seasonaljobs.dol.gov/archive (literalmente um endpoint de ARQUIVO histórico, aceita start_date de qualquer período) com e-mail, salário, cidade — o mesmo bot que já montou jan2026/jul2025/h2a. (2) o dono pediu pra 'postar lá pra todos' as 6 temporadas que faltam (FY23–FY25, Jan+Jul) com ícone e data, 'separado do H-2A', e reestruturar CADA lugar onde planilhas aparecem pra ficar organizado — o sistema hoje só tinha 3 fontes fixas (jan2026/jul2025/h2a) + 1 mecanismo genérico (loadDynamicSheets) que injeta extras direto na MESMA lista plana, o que ficaria poluído/confuso com mais 6 penduradas ali.",
+      solucao:"BACKEND: HISTORICAL_SEASONS (6 períodos: jul2022→jan2025, mapeando cada filing pro start_date real — Jan filed mira 1º Abril, Jul filed mira 1º Outubro, mesma regra dos pares jan2026/jul2025 já existentes) + orquestrador _runHistoricoOrchestrator() que roda o MESMO _runDolBuildBot (zero duplicação) uma temporada de cada vez (bot é singleton), aguarda cada uma terminar (await direto, sem polling — _runDolBuildBot já é uma função contínua que só resolve ao fim), PUBLICA automaticamente (DB_SHEETS_META[key].published=true + historico:true) e pula o que já foi coletado antes (idempotente). Rotas novas: GET .../historico-status (tabela de progresso) e POST .../historico-collect-all (dispara). /api/sheets-list ganhou o campo historico + emoji correto herdado do DB_SHEETS_META (antes toda extra caía no genérico 📋). CORREÇÃO DE CONSISTÊNCIA: os ícones que eu tinha usado no card de histórico de GRUPOS (KB-073) estavam invertidos — corrigido pra bater com o padrão real do site (Jan=☀️Verão, Jul=❄️Inverno, confirmado no CSS .stab-sheet-jan/.stab-sheet-jul e em /api/sheets-list). FRONTEND: nova seção recolhível '📅 Temporadas Anteriores' — separada da barra principal de abas (.stabs) no Manual e do grid principal (.source-btns) no Automático — fechada por padrão, abre sob demanda, só aparece quando existe pelo menos 1 temporada histórica publicada. loadDynamicSheets() agora separa extras 'atuais' (ex.: Julho 2026 assim que sair — continuam indo pra barra principal, sem mudança) de 'históricas' (historico:true — vão pro container novo), reaproveitando as MESMAS classes/funções (.stab+setTab, .source-btn+selectSource) então funcionam idênticas por baixo, só organizadas visualmente à parte. ADMIN: card '📅 Coletar Temporadas Históricas' com tabela de progresso (ícone+status ✅/⏳ por período) + botão + log em janela própria, no mesmo estilo dos outros painéis desta sessão.",
+      impacto:"O site agora tem estrutura pronta pra publicar as 6 temporadas históricas com vagas COMPLETAS (empresa, e-mail, salário, cidade) assim que o admin clicar 'Coletar todas' — e elas aparecem organizadas, numa seção própria, sem lotar a navegação principal nem se misturar com H-2A. Zero regressão: as abas atuais (Seasonal/Jan2026/Jul2025/H-2A) continuam exatamente onde estavam, com o mesmo comportamento; só quem tiver histórico publicado vê a seção nova. A coleta de verdade (milhares de vagas × 6 temporadas, rate-limited de propósito) precisa rodar ao vivo em produção — não dá pra simular no sandbox (sem acesso de rede ao seasonaljobs.dol.gov) e pode levar bastante tempo por temporada. Lição permanente: antes de dizer 'não dá' sobre uma fonte de dados, verificar se já existe uma ferramenta NO PRÓPRIO sistema que resolve por um caminho diferente do que eu estava olhando — o bot de coleta de vagas e o robô de PublicFacingReport são dois caminhos completamente separados pro mesmo objetivo geral, e eu só tinha considerado um deles.",
+      modulos:["server.js: HISTORICAL_SEASONS, _histSearchUrl, _runHistoricoOrchestrator, rotas historico-status/historico-collect-all, /api/sheets-list (+historico+emoji)","mod-dol-monitor.js: HIST_CANDIDATES (ícones corrigidos)","admin.html: card 📅 Coletar Temporadas Históricas (#hist-build-table, #hist-build-log), histBuildStart/histBuildPoll","index.html: #hist-seasons-wrap (Manual) + #hist-seasons-wrap-auto (Automático), toggleHistSeasons/toggleHistSeasonsAuto, loadDynamicSheets separando atuais×históricas","sw.js: CACHE_NAME v14"],
+      tags:["planilhas-históricas","coleta-completa","email","seasonaljobs-archive","reestruturação-frontend","temporadas-anteriores","ícones-consistentes","orquestrador","correção-de-suposição"]
+    },
+    {
+      id:"KB-076",versao:"V959",data:"2026-07-07",autor:"Claude/Andrio",
+      problema:"Pedido do dono: 'a quantidade de vagas são a quantidade de eta case number diferentes' — a planilha publicada pro usuário tem que ter EXATAMENTE a mesma quantidade e o MESMO conjunto de vagas que foi baixado, nem mais nem menos, e o case number é o ID único de cada vaga. Auditoria encontrou o bug de verdade: h2a_jun2026_compact.json (a planilha H-2A built-in, coletada pelo bot 'Nova Planilha do DOL' _runDolBuildBot com alvo de 5000) tinha 5000 linhas para só 4964 ETA case numbers únicos — 36 case numbers apareciam 2x. Causa-raiz: _runDolBuildBot pagina a API do DOL via $skip/$top sobre um dataset ordenado por dhTimestamp desc que MUDA AO VIVO (novos casos entram o tempo todo) — clássico bug de 'offset pagination sobre dado mutante': o mesmo registro pode legitimamente aparecer em 2 páginas diferentes se itens novos empurrarem os já vistos, e o código empilhava (push) sem checar se aquele case number já tinha sido coletado antes.",
+      solucao:"Criado mod-vagas-integrity.js (módulo compartilhado, zero dependência externa) com dedupeVagas() (mescla registros do mesmo case number SEM perder dado — mantém o mais completo e preenche os campos vazios com o outro), verifyIntegrity() (confere 1 linha = 1 case number, retorna duplicatas encontradas) e buildManifest() (hash SHA-256 da lista ordenada de case numbers + contagem — um 'recibo' que prova, sem reprocessar nada, que 'baixado'==='publicado'). Usado em 4 pontos, SEM duplicar lógica: (1) build-sheets.js (cron oficial jan2026/jul2025) — dedupe dos registros brutos do feed ANTES de filtrar/compactar, guarda final antes de gravar, manifesto .manifest.json ao lado de cada *_compact.json; (2) _runDolBuildBot (server.js, usado tanto pelo botão admin quanto por _runHistoricoOrchestrator — mesma função, correção vale pros dois automaticamente) — trocado o push cego por um Map caseIndex que mescla duplicata em vez de duplicar linha, com detecção de 'pool esgotado' (3 páginas seguidas sem NENHUM case number novo → para e loga que a fonte só tem X vagas reais, nunca infla pra bater o alvo pedido); (3) loadSheets() — auto-cura: toda vez que uma planilha é lida do disco (built-in OU extra), roda verifyIntegrity() e, se achar duplicata (como o h2a_jun2026_compact.json de produção), MESCLA e regrava o arquivo corrigido sozinho, sem precisar de migração manual; (4) upload manual de planilha (/api/admin/sheet/upload) — dedupe antes de salvar. Novo endpoint GET /api/admin/sheet/integrity lista, por planilha carregada agora, totalRows/uniqueCaseCount/ok/duplicateCases — forma do admin conferir ao vivo. Arquivo h2a_jun2026_compact.json corrigido nesta entrega (5000→4964 vagas únicas, testado e confirmado).",
+      impacto:"Garantia permanente, em TODOS os caminhos que criam ou carregam planilha de vagas: 1 vaga = 1 ETA case number, nunca duplicada, nunca inflada além do que existe de verdade na fonte, nunca menos do que foi baixado. Planilha com 8 mil vagas reais fica com 8 mil; com 2 mil, fica com 2 mil — o 'alvo' que o admin pede numa coleta (ex.: 5000) é só um teto, nunca uma quantidade fabricada. Lições permanentes: (1) paginação por $skip/$top sobre uma fonte que muda ao vivo SEMPRE precisa de dedupe por chave de negócio (aqui, o case number) — nunca confiar que 'página nova = registro novo'; (2) quando a mesma regra de negócio (dedupe/merge de vaga) é usada por processos diferentes (build-sheets.js standalone e server.js), a regra tem que morar num módulo compartilhado sem estado, senão ela diverge silenciosamente com o tempo; (3) autocura no load (em vez de exigir migração manual) é o jeito mais seguro de corrigir dado histórico corrompido — ela roda toda vez que o servidor sobe, documentada e logada, então nunca fica 'escondida'.",
+      modulos:["mod-vagas-integrity.js (novo): normCase, scoreRecord, mergeRecords, dedupeVagas, verifyIntegrity, buildManifest","build-sheets.js: dedupe dos registros brutos por case number, guarda final, manifesto .manifest.json","server.js: _runDolBuildBot (Map caseIndex + merge + detecção de pool esgotado + manifesto), loadSheets/_selfHealSheetIntegrity (auto-cura), /api/admin/sheet/upload (dedupe), /api/admin/sheet/integrity (novo, diagnóstico), _saveEnrichedSheet (checagem leve não-bloqueante)","h2a_jun2026_compact.json: corrigido de 5000→4964 vagas únicas nesta entrega"],
+      tags:["eta-case-number","integridade","dedupe","paginação","planilha-dol","case-number-único","auto-cura","manifesto","correção-de-bug-real","kb-076"]
+    },
+    {
+      id:"KB-077",versao:"V960",data:"2026-07-07",autor:"Claude/Andrio",
+      problema:"2 pedidos do dono no wizard de entrada por e-mail (openAuthGate/agLookup): (1) toda vez que a pessoa ia entrar, tinha que digitar o e-mail de novo — queria uma caixinha 'lembrar', marcada ela guarda o último e-mail usado neste aparelho e na próxima visita o campo já vem preenchido, só clica Continuar; (2) para os e-mails ADMIN (Andrio e Diego), o fluxo deveria reconhecer que é admin e oferecer escolha de servidor — no Servidor 1 vai direto pra autenticação normal aqui mesmo; no Servidor 2, redireciona pra lá com o login JÁ pronto pra confirmar (sem precisar clicar 'Entrar' de novo do outro lado). Admin é um caso especial porque, ao contrário do usuário comum ('cada conta pertence a um único servidor', regra dura do sistema), o admin PRECISA conseguir entrar em QUALQUER servidor pra administrar/testar os dois — o fluxo normal só mostra 'sua conta está no servidor X' e não dava esse acesso direto ao outro.",
+      solucao:"LEMBRAR E-MAIL: checkbox '☐ Lembrar meu e-mail neste aparelho' abaixo do campo (marcada por padrão), usando localStorage (h2bLastEmail + h2bRememberEmail) — puramente no aparelho, nunca no servidor. Ao renderizar o passo 'email', se não há e-mail em memória (_agEmail vazio), pré-preenche com o valor salvo. agLookup() salva ou apaga o e-mail salvo conforme o estado da checkbox no momento do clique em Continuar (desmarcar = esquece, some do aparelho). ATALHO ADMIN: /api/auth/where (server.js) ganhou isAdmin (via isAdminEmail() já existente em mod-config.js) e, quando true, também devolve servers (lista COMPLETA de servidores com self, não só onde a conta 'pertence'). No front, agRender('result') detecta d.isAdmin e mostra uma tela própria '🛡️ Acesso Admin detectado' com um card por servidor: clique no self chama exatamente o mesmo caminho do usuário comum (closeAuthGate + showGoogleWarnModal — o aviso legal do Google NUNCA é pulado, nem para admin); clique no remoto chama agAdminGoTo(url,false) → agRedirectAdmin() → redireciona com ?adminlogin=1 (parâmetro NOVO e específico, nunca confundido com o ?entrar=1 comum). maybeShowServerSelect() (mesmo arquivo, roda no boot do servidor de destino) reconhece adminlogin=1 e chama showGoogleWarnModal() sozinho — só para esse parâmetro explícito; o ?entrar=1 normal de qualquer outra pessoa continua só pulsando o CTA da landing, exatamente como a v949 decidiu (regra de não-regressão preservada, nada mudou pro fluxo de usuário comum).",
+      impacto:"Login fica mais rápido pra todo mundo que volta ao site (e-mail já vem preenchido, 1 clique a menos) sem perder a opção de desmarcar em aparelho compartilhado. Para os admins, entrar em qualquer um dos 2 servidores agora é 2 cliques (e-mail → escolher servidor) em vez de precisar saber a URL de cada um de cor e repetir o login manualmente lá. Lição permanente: quando um atalho precisa pular uma etapa de UX que existe por decisão explícita anterior do dono (aqui, o ?entrar=1 não abrir mais o Google sozinho, v949), a forma segura de fazer isso é um parâmetro NOVO e restrito ao caso específico (adminlogin=1), nunca reaproveitar/alterar o parâmetro genérico — assim o atalho não vaza pra ninguém que não pediu e a decisão antiga continua valendo pra todo o resto do sistema.",
+      modulos:["server.js: /api/auth/where (+isAdmin, +servers quando admin)","index.html: agRender('email') com checkbox+localStorage, agRender('result') com tela admin, agLookup (salva/apaga e-mail), agAdminGoTo/agRedirectAdmin (novas), maybeShowServerSelect (+?adminlogin=1)"],
+      tags:["login","lembrar-e-mail","localStorage","admin","atalho","multi-servidor","auth-gate","ux","não-regressão"]
+    },
+    {
+      id:"KB-078",versao:"V961",data:"2026-07-07",autor:"Claude/Andrio",
+      problema:"Pedido explícito do dono: 'toda vez que eu fizer deploy eu quero que deslogue todos os usuários... eles não podem perder token, pq o automático deles não para em deploy, apenas o login eles devem fazer novamente'. Isto é o OPOSTO do que a V955 (KB não numerada, comentário 'sessões sobrevivem a deploy') tinha implementado antes: sessions.json persistia o login em disco pra sobreviver a deploy, exatamente pra ninguém precisar entrar de novo. Auditoria confirmou que essa reversão é segura: o token que o envio AUTOMÁTICO usa é 100% independente da sessão de login — getAutoQueue()/scheduleAuto() já tenta, em ordem, (1) sessão ativa em memória, (2) cached_access_token em DB_USERS, (3) refresh_token em DB_USERS via refreshTokenForUser(email) — e essa Prioridade 3 já é o caminho usado 'sem sessão ativa' (comentário original do próprio código). Ou seja: mesmo com sessions vazio, o automático continua rodando via DB_USERS, arquivo totalmente separado (users.json) de sessions.json.",
+      solucao:"_loadSessionsFromDisk() (chamada 1x no boot) agora DESCARTA de propósito toda sessão de LOGIN encontrada no sessions.json — só preserva entradas __sender__ (OAuth de 'adicionar Gmail extra' em andamento, janela de 10min, não é login) que ainda estejam dentro do prazo. persistSessions() (chamada periodicamente e no shutdown) espelha a mesma regra: só __sender__ é gravado em disco daqui pra frente — sessão de login normal nunca mais é escrita em sessions.json, então não sobra nada de login pra um boot futuro encontrar. Log claro no boot avisa quantas sessões de login foram descartadas de propósito e reforça que DB_USERS não foi tocado. NENHUMA linha de DB_USERS, refresh_token, cached_access_token ou da engine de envio automático (scheduleAuto/refreshTokenForUser) foi alterada — a mudança é cirúrgica, só no carregamento/persistência do objeto `sessions` em memória.",
+      impacto:"A partir de agora, todo deploy (novo processo do Node sobe do zero) força todo mundo a clicar em 'Entrar' de novo — sem exceção — mas o envio automático de ninguém para, porque ele nunca dependeu da sessão de login pra funcionar, só do refresh_token salvo em DB_USERS. Efeito colateral aceito conscientemente: como Render reinicia o processo tanto em deploy quanto ao 'acordar' de inatividade (free tier), qualquer restart do processo (não só deploy manual) também vai pedir novo login — o dono foi avisado desse detalhe. Lição permanente: antes de reverter uma decisão de UX anterior (aqui, 'sessão sobrevive a deploy'), vale a pena auditar SE a funcionalidade que dependia dela (aqui, o motivo real por trás do pedido — não perder o automático) já tem um caminho independente — evita reintroduzir o problema que a decisão original tinha resolvido, enquanto ainda entrega exatamente o que foi pedido.",
+      modulos:["server.js: _loadSessionsFromDisk (descarta login, preserva __sender__), persistSessions (só grava __sender__), comentário de SESSIONS_FILE atualizado"],
+      tags:["sessões","logout","deploy","login","refresh_token","envio-automático","segurança","reversão-de-decisão","kb-078"]
     }
 
   ];
@@ -2042,11 +2102,26 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
   ];
   let uaIdx=0;
 
-  const newRows = []; // vagas coletadas
+  const newRows = []; // vagas coletadas — SEMPRE 1 linha por ETA case number
+  // 🔑 caseIndex: case number → posição em newRows. Existe SÓ pra garantir,
+  // em O(1), que o mesmo case number nunca vira 2 linhas na planilha — a
+  // API do DOL pagina por $skip sobre um dataset que muda ao vivo (novos
+  // casos entram o tempo todo, ordenado por dhTimestamp desc), então o
+  // MESMO registro pode legitimamente aparecer em 2 páginas diferentes
+  // (achado real: h2a_jun2026_compact.json tinha 36 case numbers 2x cada,
+  // 5000 linhas para só 4964 vagas de verdade). Ver mod-vagas-integrity.js.
+  const caseIndex = new Map();
   const PAGE_SIZE = 100;
   let skip = 0;
   let totalAvail = 0;
   let delay = 1200;
+  let duplicatesSkipped = 0;
+  // Detecção de "pool esgotado": se várias páginas seguidas não trouxerem
+  // NENHUM case number novo (só duplicatas do que já temos), o alvo pedido
+  // (targetCount) provavelmente não existe de verdade na fonte — parar em
+  // vez de girar para sempre tentando alcançar um número inatingível.
+  let stagnantPages = 0;
+  const MAX_STAGNANT_PAGES = 3;
 
   try{
     // ── FASE 1: COLETAR VAGAS DA API DOL ──
@@ -2084,6 +2159,7 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
             const raw = body.value||body.results||body.data||(Array.isArray(body)?body:[]);
             if(skip===0) totalAvail = body['@odata.count']||body.count||raw.length;
             if(!raw.length){ _dolBuildLog(`📭 Sem mais vagas (skip=${skip})`, 'info'); _dolBuildBot.running=false; break; }
+            const newBeforePage = newRows.length;
             for(const j of raw){
               if(newRows.length>=targetCount) break;
               const cn = (j.case_number||j.case_id||'').toUpperCase();
@@ -2116,10 +2192,34 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
                 k: detectCategory(`${j.employer_business_name||''} ${j.job_title||''} ${j.soc_title||''}`),
                 active: j.active===true,
               };
-              newRows.push(row);
+              // 🔑 DEDUPE: se este case number já existe em newRows (a API
+              // pode devolver o mesmo case em páginas diferentes, dataset
+              // muda ao vivo), MESCLA em vez de duplicar linha. Nunca perde
+              // dado — usa o merge do mod-vagas-integrity.js.
+              if(caseIndex.has(cn)){
+                const idx = caseIndex.get(cn);
+                const [merged] = _vagasDedupe([newRows[idx], row], {caseField:'c'}).rows;
+                newRows[idx] = merged;
+                duplicatesSkipped++;
+              } else {
+                caseIndex.set(cn, newRows.length);
+                newRows.push(row);
+              }
               _dolBuildBot.fetched++;
             }
-            _dolBuildLog(`📥 Coletadas ${newRows.length}/${targetCount} vagas (skip=${skip}, disponíveis=${totalAvail})`, newRows.length>=targetCount?'ok':'info');
+            const newAfterPage = newRows.length;
+            if(newAfterPage === newBeforePage){
+              stagnantPages++;
+            } else {
+              stagnantPages = 0;
+            }
+            _dolBuildLog(`📥 Coletadas ${newRows.length}/${targetCount} vagas únicas (skip=${skip}, disponíveis=${totalAvail}`
+              + (duplicatesSkipped ? `, ${duplicatesSkipped} duplicata(s) mesclada(s) até agora` : '') + `)`,
+              newRows.length>=targetCount?'ok':'info');
+            if(stagnantPages >= MAX_STAGNANT_PAGES){
+              _dolBuildLog(`🛑 ${MAX_STAGNANT_PAGES} páginas seguidas sem NENHUM case number novo — a fonte só tem ${newRows.length} vaga(s) única(s) de verdade para estes filtros (alvo pedido era ${targetCount}). Parando aqui: a planilha reflete a quantidade REAL, nunca inventa vaga para bater um número.`, 'warn');
+              _dolBuildBot.running = false;
+            }
             ok=true;
             skip+=raw.length;
           } else if(status===429||status===403){
@@ -2159,14 +2259,41 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
       _dolBuildLog('❌ Nenhuma vaga coletada. Abortando.','error');
       _dolBuildBot.running=false; _dolBuildBot.finishedAt=Date.now(); return;
     }
+
+    // 🔒 GUARDA FINAL — nunca gravar/publicar planilha com case number
+    // duplicado. Depois do dedupe em tempo real (Map caseIndex acima) isto
+    // é só um cinto-de-segurança; se disparar, algo mudou na lógica acima e
+    // é melhor abortar do que publicar dado inconsistente para o usuário.
+    const _integrity = _vagasVerify(newRows, {caseField:'c'});
+    if(!_integrity.ok){
+      _dolBuildLog(`❌ ABORTANDO: guarda de integridade encontrou ${_integrity.duplicateCases.length} case number(s) duplicado(s) — a planilha NÃO foi salva. Isto não deveria acontecer; revisar mod-vagas-integrity.js.`, 'error');
+      _dolBuildBot.running=false; _dolBuildBot.finishedAt=Date.now(); return;
+    }
+
     const withEmail = newRows.filter(r=>r.e).length;
-    _dolBuildLog(`💾 Salvando ${newRows.length} vagas (${withEmail} com email)...`, 'info');
+    const targetNote = newRows.length < targetCount
+      ? ` (alvo pedido era ${targetCount}; a fonte só tinha ${newRows.length} vaga(s) real(is)/única(s) para estes filtros — a planilha reflete a quantidade REAL, nunca é preenchida com vaga inventada ou duplicada)`
+      : '';
+    _dolBuildLog(`💾 Salvando ${newRows.length} vagas únicas (${withEmail} com email)${targetNote}...`, 'info');
     _dolBuildBot.saved = withEmail;
 
     // Garantir diretório /data/sheets
     if(!fs.existsSync(SHEETS_DIR)) fs.mkdirSync(SHEETS_DIR,{recursive:true});
     const filePath = path.join(SHEETS_DIR, sheetKey+'.json');
     fs.writeFileSync(filePath, JSON.stringify(newRows));
+
+    // 🧾 Manifesto de integridade ao lado do arquivo — recibo com a
+    // contagem exata de vagas únicas + hash da lista de case numbers.
+    // Permite provar depois, sem reprocessar nada, que "o que foi baixado"
+    // é EXATAMENTE "o que foi publicado" para o usuário.
+    try{
+      const manifestPath = path.join(SHEETS_DIR, sheetKey+'.manifest.json');
+      const manifest = _vagasManifest(newRows, {caseField:'c', extra:{
+        sheetKey, sheetName, visaType: parsed.visaClass, searchUrl,
+        targetRequested: targetCount, duplicatesMergedDuringCollection: duplicatesSkipped,
+      }});
+      fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+    }catch(e){ _dolBuildLog(`⚠️ Falha ao gravar manifesto (não bloqueia a publicação): ${e.message}`, 'warn'); }
 
     // Atualizar SHEET_EXTRAS em memória
     SHEET_EXTRAS[sheetKey] = newRows;
@@ -2180,6 +2307,7 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
       file: filePath,
       uploaded: Date.now(),
       count: newRows.length,
+      uniqueCaseCount: _integrity.uniqueCaseCount,
       visaType: parsed.visaClass,
       searchUrl,
       enriched: withEmail,
@@ -2191,8 +2319,8 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
 
     _dolBuildBot.running    = false;
     _dolBuildBot.finishedAt = Date.now();
-    _dolBuildLog(`🏁 CONCLUÍDO! ${newRows.length} vagas salvas | ${withEmail} com email | "${sheetName}"`, 'ok');
-    _dolBuildLog(`✅ Planilha pronta para publicar!`, 'ok');
+    _dolBuildLog(`🏁 CONCLUÍDO! ${newRows.length} vagas únicas salvas | ${withEmail} com email | ${duplicatesSkipped} duplicata(s) mesclada(s) na coleta | "${sheetName}"`, 'ok');
+    _dolBuildLog(`✅ Planilha pronta para publicar! Quantidade publicada = quantidade baixada = ${newRows.length} (garantido pelo manifesto).`, 'ok');
 
   }catch(e){
     _dolBuildLog(`💥 Erro fatal: ${e.message}`, 'error');
@@ -2200,6 +2328,73 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
     _dolBuildBot.finishedAt = Date.now();
     _dolBuildBot.errors++;
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  📅 COLETA DE TEMPORADAS HISTÓRICAS (vagas COMPLETAS, com e-mail) — pedido
+//  do dono (07/07/2026): usar o MESMO bot de coleta (_runDolBuildBot, via
+//  seasonaljobs.dol.gov/archive — arquivo histórico de verdade, aceita
+//  start_date de qualquer período) pra montar as 6 temporadas que faltam
+//  entre o que já existe (jan2026/jul2025 = FY26) e o início do H-2B
+//  moderno. Cada filing de Janeiro mira início 1º de Abril (☀️ Verão);
+//  cada filing de Julho mira início 1º de Outubro (❄️ Inverno) — MESMA
+//  convenção de ícone já usada em jan2026 (☀️) e jul2025 (❄️).
+// ══════════════════════════════════════════════════════════════════════════
+const HISTORICAL_SEASONS = [
+  { key:"jul2022", name:"Jul 2022", emoji:"❄️", startDate:"10/01/2022" },
+  { key:"jan2023", name:"Jan 2023", emoji:"☀️", startDate:"04/01/2023" },
+  { key:"jul2023", name:"Jul 2023", emoji:"❄️", startDate:"10/01/2023" },
+  { key:"jan2024", name:"Jan 2024", emoji:"☀️", startDate:"04/01/2024" },
+  { key:"jul2024", name:"Jul 2024", emoji:"❄️", startDate:"10/01/2024" },
+  { key:"jan2025", name:"Jan 2025", emoji:"☀️", startDate:"04/01/2025" },
+];
+function _histSearchUrl(startDate){
+  return `https://seasonaljobs.dol.gov/archive?search=&location=&start_date=${startDate}&job_type=H-2B&sort=relevancy&job_status=all`;
+}
+const _histBuild = { running:false, log:[] };
+function _histLog(msg, type='info'){
+  _histBuild.log.push({ts:Date.now(),msg,type});
+  if(_histBuild.log.length>300)_histBuild.log.shift();
+  console.log(`[hist-build] ${msg}`);
+}
+// Roda TODAS as temporadas que faltam, uma de cada vez (o bot de coleta é
+// único/singleton — não dá pra rodar 2 ao mesmo tempo). Pula a que já foi
+// publicada antes (idempotente — pode clicar de novo sem duplicar). Publica
+// AUTOMATICAMENTE cada uma ao terminar (pedido explícito do dono: "poste lá
+// pra todos") — marca historico:true pro front agrupar separado das atuais.
+async function _runHistoricoOrchestrator(){
+  if(_histBuild.running){ _histLog('Já está rodando — aguarde terminar.','warn'); return; }
+  if(_dolBuildBot.running){ _histLog('❌ O bot de coleta já está ocupado com outra planilha — pare-o primeiro (aba Planilhas & Coleta DOL).','error'); return; }
+  _histBuild.running=true;
+  _histBuild.log.length=0;
+  _histLog(`📅 Iniciando coleta de ${HISTORICAL_SEASONS.length} temporada(s) histórica(s) — vagas completas com e-mail...`,'info');
+  for(const season of HISTORICAL_SEASONS){
+    if(DB_SHEETS_META[season.key]?.published){
+      _histLog(`${season.emoji} ${season.name}: já publicada (${DB_SHEETS_META[season.key].count||0} vagas) — pulando.`,'info');
+      continue;
+    }
+    _histLog(`${season.emoji} ${season.name}: iniciando coleta ao vivo (início de vaga ${season.startDate})...`,'info');
+    try{
+      await _runDolBuildBot(_histSearchUrl(season.startDate), season.key, season.name, 5000);
+      const count=(SHEET_EXTRAS[season.key]||[]).length;
+      if(!count){
+        _histLog(`${season.emoji} ${season.name}: ⚠️ coleta terminou sem nenhuma vaga encontrada — não publicado. Pode ser que o arquivo do DOL não cubra esse período mais.`,'warn');
+        continue;
+      }
+      const withEmail=(SHEET_EXTRAS[season.key]||[]).filter(r=>r.e&&r.e.includes('@')).length;
+      if(!DB_SHEETS_META[season.key]) DB_SHEETS_META[season.key]={};
+      Object.assign(DB_SHEETS_META[season.key],{
+        published:true, publishedAt:Date.now(), name:season.name, visaType:'H-2B',
+        count, historico:true, emoji:season.emoji,
+      });
+      try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
+      _histLog(`${season.emoji} ${season.name}: ✅ coletada e publicada! ${count} vagas (${withEmail} com e-mail).`,'ok');
+    }catch(e){
+      _histLog(`${season.emoji} ${season.name}: ❌ erro — ${e.message}`,'error');
+    }
+  }
+  _histBuild.running=false;
+  _histLog(`📅 Coleta histórica concluída.`,'ok');
 }
 
 const sheetCache = new Map();
@@ -2249,6 +2444,26 @@ const CATEGORY_LABELS = {
   other:        { label:"📋 Outros",                  en:"Other" },
 };
 
+// 🔒 Auto-cura de integridade (KB-076): toda vez que uma planilha é lida do
+// disco, confere se tem case number duplicado. Se tiver (arquivo antigo,
+// gerado antes desta correção — ex.: h2a_jun2026_compact.json tinha 36
+// duplicados), MESCLA e GRAVA de volta corrigido, para o boot seguinte já
+// carregar limpo. Nunca precisa de intervenção manual — o sistema se
+// autocorrige e deixa registrado no log exatamente o que fez.
+function _selfHealSheetIntegrity(label, rows, persistPath){
+  const check = _vagasVerify(rows, {caseField:'c'});
+  if(check.ok) return rows;
+  const { rows: cleaned, duplicatesMerged } = _vagasDedupe(rows, {caseField:'c'});
+  console.warn(`[sheet] 🩹 AUTO-CURA ${label}: ${rows.length} linhas → ${cleaned.length} vagas únicas (${duplicatesMerged} case number(s) duplicado(s) mesclado(s), NENHUM dado perdido)`);
+  if(persistPath){
+    try{
+      fs.writeFileSync(persistPath, JSON.stringify(cleaned));
+      console.warn(`[sheet] 🩹 ${label}: arquivo corrigido salvo em ${persistPath}`);
+    }catch(e){ console.warn(`[sheet] ⚠️ Auto-cura ${label}: não consegui salvar o arquivo corrigido: ${e.message}`); }
+  }
+  return cleaned;
+}
+
 function loadSheets() {
   // ── Carrega DB_SHEETS_META do disco ──
   if(fs.existsSync(SHEETS_META_FILE)){
@@ -2266,14 +2481,16 @@ function loadSheets() {
     else console.log(`[sheet] 📂 Carregando ${file} de código (original)`);
     if(fs.existsSync(p)){
       try {
-        const d=JSON.parse(fs.readFileSync(p,"utf8"));
+        let d=JSON.parse(fs.readFileSync(p,"utf8"));
         if(!Array.isArray(d) || d.length === 0) {
           console.warn(`[sheet] ⚠️ ${file} existe mas está vazio ou inválido`);
           continue;
         }
+        // 🔒 Garante 1 vaga = 1 ETA case number ANTES de publicar em memória.
+        d = _selfHealSheetIntegrity(key, d, p);
         if(key==="jan") SHEET_JAN=d; else if(key==="jul") SHEET_JUL=d; else SHEET_H2A=d;
         (key==="jan"?SHEET_JAN:key==="jul"?SHEET_JUL:SHEET_H2A).forEach(r=>{if(!r.k)r.k=detectCategory(`${r.n||""} ${r.t||""}`);});
-        console.log(`[sheet] ✅ ${key}: ${d.length} vagas`);
+        console.log(`[sheet] ✅ ${key}: ${d.length} vagas (ETA case numbers únicos)`);
         anyLoaded = true;
       } catch(e) {
         console.warn(`[sheet] ❌ Erro ao ler ${file}:`, e.message);
@@ -2295,12 +2512,14 @@ function loadSheets() {
       const fp = path.join(SHEETS_DIR, meta.file);
       if(!fs.existsSync(fp)) continue;
       try{
-        const d = JSON.parse(fs.readFileSync(fp,"utf8"));
+        let d = JSON.parse(fs.readFileSync(fp,"utf8"));
         if(!Array.isArray(d)||d.length===0) continue;
+        // 🔒 Mesma garantia de integridade pras planilhas extras/históricas.
+        d = _selfHealSheetIntegrity(`extra:${metaKey}`, d, fp);
         d.forEach(r=>{if(!r.k)r.k=detectCategory(`${r.n||""} ${r.t||""}`);r._sheet=metaKey;});
         SHEET_EXTRAS[metaKey] = d;
         extrasLoaded++;
-        console.log(`[sheet] ✅ extra ${metaKey}: ${d.length} vagas`);
+        console.log(`[sheet] ✅ extra ${metaKey}: ${d.length} vagas (ETA case numbers únicos)`);
       }catch(e){ console.warn(`[sheet] ❌ Erro ao ler extra ${metaKey}:`, e.message); }
     }
     if(extrasLoaded>0) console.log(`[sheet] ✅ ${extrasLoaded} planilha(s) extra(s) carregada(s) do disco`);
@@ -3481,10 +3700,19 @@ async function reactivateAutoJobs(){
 // ══════════════════════════════════════════════════════════
 //  SESSION
 // ══════════════════════════════════════════════════════════
-// ══ V955: SESSÕES PERSISTENTES ════════════════════════════════════════════
-// Antes: sessões só em memória → cada deploy deslogava TODOS os usuários
-// (o cookie dura 30 dias, mas o objeto morria). Agora: snapshot em disco
-// (cifrado com DATA_ENC_KEY quando definida — a sessão carrega tokens Gmail).
+// ══ SESSÕES — LOGOUT FORÇADO A CADA DEPLOY (pedido do dono, 07/07/2026) ═════
+// Decisão INVERTIDA da V955 (que fazia sessões de login sobreviverem a
+// deploy): agora, toda vez que o processo sobe (deploy ou restart), TODAS as
+// sessões de LOGIN são descartadas — a pessoa precisa clicar em "Entrar" de
+// novo. Isso NUNCA toca em DB_USERS[email].refresh_token/cached_access_token
+// (arquivo separado, users.json) — o envio AUTOMÁTICO usa esse token direto
+// do banco (refreshTokenForUser, ver Prioridade 3 mais abaixo) e continua
+// rodando 100% normalmente, sem qualquer interrupção, mesmo com todo mundo
+// deslogado do navegador. Única exceção preservada: __sender__ (token
+// temporário de "adicionar Gmail extra" em andamento, <10min) — não é
+// "login", é um passo de UI no meio do caminho; se o servidor reiniciar
+// bem nessa janela (ex.: Render "acordando"), não queremos quebrar esse
+// fluxo específico.
 const SESS_TTL =7*24*60*60*1000;
 function _loadSessionsFromDisk(){
   const box=Object.create(null);
@@ -3492,13 +3720,20 @@ function _loadSessionsFromDisk(){
     let raw=storageLoad(SESSIONS_FILE,null);
     if(!raw)return box;
     if(raw.enc){const dec=decStr(raw.enc);if(!dec)return box;raw=JSON.parse(dec);} // cifrado
-    const now=Date.now();let ok=0,skip=0;
+    const now=Date.now();let kept=0,expired=0,loggedOut=0;
     for(const[id,s]of Object.entries(raw)){
-      if(!s||s.pending||id.startsWith("__")){skip++;continue;}          // temporárias não voltam
-      if(now-(s.created_at||0)>SESS_TTL){skip++;continue;}              // expiradas (mesma regra do cleanup)
-      box[id]=s;ok++;
+      if(!s){expired++;continue;}
+      // Só __sender__ (OAuth de Gmail extra em andamento) pode sobreviver,
+      // e só se ainda estiver dentro da janela de 10min dele.
+      if(id.startsWith("__sender__")){
+        if(s.pending||now-(s.created||0)>600_000){expired++;continue;}
+        box[id]=s;kept++;continue;
+      }
+      // Qualquer outra coisa (login normal, __p__ pendente de login) é
+      // descartada de propósito — é exatamente isso que "logout no deploy" significa.
+      loggedOut++;
     }
-    if(ok||skip)console.log(`[sessions] 💾 Restauradas ${ok} sessão(ões) do disco (${skip} descartada(s))`);
+    console.log(`[sessions] 🔒 Deploy detectado: ${loggedOut} sessão(ões) de login descartada(s) de propósito (pedido do dono — todos precisam entrar de novo). ${kept} entrada(s) temporária(s) de OAuth em andamento preservada(s), ${expired} expirada(s)/inválida(s). ⚠️ Tokens em DB_USERS (refresh_token) NÃO foram tocados — o envio automático continua rodando normalmente para todo mundo.`);
   }catch(e){console.warn("[sessions] restauração falhou (seguindo vazio):",e.message);}
   return box;
 }
@@ -3515,8 +3750,12 @@ function persistSessions(){
       // se perdia e o e-mail extra nunca era salvo). Expira sozinho em 10min (ver
       // checagem de idade no callback), então é seguro persistir.
       if(id.startsWith("__sender__")){snap[id]=s;continue;}
-      if(s.pending||id.startsWith("__"))continue; // demais temporárias de OAuth (login) seguem não gravadas
-      snap[id]=s;
+      // 🔒 Pedido do dono: sessões de LOGIN (e o __p__ pendente de login) NUNCA
+      // são gravadas em disco — elas só existem em memória durante o processo
+      // atual. Assim, o próximo boot (deploy ou restart) já não encontra nada
+      // pra restaurar, e todo mundo precisa entrar de novo. Isso não afeta o
+      // envio automático em nada: o token dele mora em DB_USERS, arquivo à parte.
+      continue;
     }
     const payload=_encKey?{enc:encStr(JSON.stringify(snap))}:snap;
     persist(SESSIONS_FILE,payload);
@@ -4852,6 +5091,14 @@ async function _runEnrichBot(sheetKey, resume=false){
 
 function _saveEnrichedSheet(sheetKey, sheet){
   try{
+    // 🔒 Checagem leve de integridade (não bloqueia salvamento — o bot de
+    // enriquecimento só EDITA campos das linhas já existentes, não deveria
+    // nunca introduzir duplicata; se acontecer, só avisa no log pra
+    // investigar, já que abortar aqui perderia o progresso do enriquecimento).
+    const _chk = _vagasVerify(sheet, {caseField:'c'});
+    if(!_chk.ok){
+      _enrichLog(`⚠️ Integridade: ${_chk.duplicateCases.length} case number(s) duplicado(s) detectado(s) em "${sheetKey}" — investigar (não deveria acontecer no bot de enriquecimento).`, "warn");
+    }
     // Salva SEMPRE em /data/ (disco persistente — sobrevive a deploys)
     // E também em __dirname para leitura imediata sem precisar recarregar
     const dataPath = path.join(DATA_DIR, sheetKey==="jan2026"?"jan2026_compact.json":"jul2025_compact.json");
@@ -4918,6 +5165,31 @@ function _saveEnrichedSheet(sheetKey, sheet){
     return json(res,200,{ok:true,sheets,totalVagas,totalEnriched,botStatus});
   }
 
+  // GET /api/admin/sheet/integrity — diagnóstico sob demanda (KB-076): confere,
+  // para CADA planilha carregada em memória agora, se a contagem de linhas
+  // bate com a contagem de ETA case numbers únicos. Não deveria nunca dar
+  // "false" em produção (loadSheets já se autocura no boot), mas é a forma
+  // do admin CONFERIR ao vivo, sem precisar reprocessar nada, que "quantas
+  // vagas tem" é sempre igual a "quantos case numbers diferentes existem".
+  if(pathname==="/api/admin/sheet/integrity"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const checkOne=(key,arr)=>{
+      const r=_vagasVerify(arr,{caseField:'c'});
+      return{key,totalRows:r.totalRows,uniqueCaseCount:r.uniqueCaseCount,
+        ok:r.ok,duplicateCases:r.duplicateCases.slice(0,20),
+        rowsWithoutCase:r.rowsWithoutCase};
+    };
+    const results=[
+      checkOne("jan2026",SHEET_JAN),
+      checkOne("jul2025",SHEET_JUL),
+      checkOne("h2a",SHEET_H2A),
+      ...Object.entries(SHEET_EXTRAS).map(([k,arr])=>checkOne(k,arr)),
+    ];
+    const allOk = results.every(r=>r.ok);
+    return json(res,200,{ok:true,allOk,results});
+  }
+
   // POST /api/admin/sheet/upload — recebe nova planilha (JSON compacto ou CSV)
   if(pathname==="/api/admin/sheet/upload"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
@@ -4938,8 +5210,12 @@ function _saveEnrichedSheet(sheetKey, sheet){
     catch(e){return json(res,400,{error:"JSON inválido: "+e.message});}
     if(!Array.isArray(vagas))return json(res,400,{error:"data deve ser um array de vagas"});
     // Garantir campos obrigatórios
-    const valid = vagas.filter(v=>v.c&&v.e&&v.e.includes("@"));
-    if(valid.length<1)return json(res,400,{error:`Nenhuma vaga válida (com case_number e email). Encontradas: ${vagas.length}`});
+    const validRaw = vagas.filter(v=>v.c&&v.e&&v.e.includes("@"));
+    if(validRaw.length<1)return json(res,400,{error:`Nenhuma vaga válida (com case_number e email). Encontradas: ${vagas.length}`});
+    // 🔒 DEDUPE por ETA case number — mesma regra do resto do sistema (KB-076):
+    // 1 vaga = 1 case number único. Se o admin subir um arquivo com o mesmo
+    // case number 2x, mescla em vez de publicar linha duplicada.
+    const { rows: valid, duplicatesMerged } = _vagasDedupe(validRaw, {caseField:'c'});
     // Enriquecer categorias
     valid.forEach(r=>{if(!r.k)r.k=detectCategory(`${r.n||""} ${r.t||""}`);r._sheet=safeKey;});
     // Salvar arquivo
@@ -4947,16 +5223,16 @@ function _saveEnrichedSheet(sheetKey, sheet){
     const fpath=path.join(SHEETS_DIR,fname);
     fs.writeFileSync(fpath,JSON.stringify(valid));
     SHEET_EXTRAS[safeKey]=valid;
-    DB_SHEETS_META[safeKey]={name,file:fname,uploaded:Date.now(),count:valid.length,enriched:0};
+    DB_SHEETS_META[safeKey]={name,file:fname,uploaded:Date.now(),count:valid.length,uniqueCaseCount:valid.length,enriched:0};
     fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));
-    console.log(`[sheet] ✅ Nova planilha carregada: ${safeKey} (${valid.length} vagas válidas de ${vagas.length})`);
-    addLog(s.user_email,{status:"sistema",jobTitle:`📋 Nova planilha adicionada: ${name}`,company:`${valid.length} vagas válidas — Chave: ${safeKey}`});
+    console.log(`[sheet] ✅ Nova planilha carregada: ${safeKey} (${valid.length} vagas únicas de ${vagas.length} recebidas${duplicatesMerged?`, ${duplicatesMerged} duplicata(s) mesclada(s)`:''})`);
+    addLog(s.user_email,{status:"sistema",jobTitle:`📋 Nova planilha adicionada: ${name}`,company:`${valid.length} vagas únicas — Chave: ${safeKey}${duplicatesMerged?` (${duplicatesMerged} duplicata mesclada)`:''}`});
     // Dispara enriquecimento automático imediato (não espera o watchdog de 30min)
     if(typeof _autoEnrichCycle === "function"){
       setTimeout(()=>_autoEnrichCycle().catch(e=>console.error("[auto-enrich] trigger upload erro:",e.message)), 3000);
       console.log(`[auto-enrich] 🔔 Enriquecimento de "${safeKey}" agendado em 3s`);
     }
-    return json(res,200,{ok:true,key:safeKey,count:valid.length,total:vagas.length});
+    return json(res,200,{ok:true,key:safeKey,count:valid.length,total:vagas.length,duplicatesMerged});
   }
 
   // DELETE /api/admin/sheet/:key — remove planilha extra
@@ -5170,6 +5446,29 @@ function _saveEnrichedSheet(sheetKey, sheet){
     return json(res,200,{ok:true,key,name:_dolBuildBot.name,count:SHEET_EXTRAS[key].length,visaType:_dolBuildBot.visaType});
   }
 
+  // GET /api/admin/sheet/historico-status — estado das 6 temporadas históricas
+  if(pathname==="/api/admin/sheet/historico-status"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const temporadas=HISTORICAL_SEASONS.map(se=>({
+      key:se.key, name:se.name, emoji:se.emoji,
+      published: DB_SHEETS_META[se.key]?.published===true,
+      count: DB_SHEETS_META[se.key]?.count||0,
+    }));
+    return json(res,200,{ok:true, running:_histBuild.running, temporadas, log:_histBuild.log.slice(-150)});
+  }
+
+  // POST /api/admin/sheet/historico-collect-all — dispara a coleta+publicação
+  // sequencial das temporadas que faltam (pula as já publicadas). Roda em
+  // background — front acompanha via polling do status acima.
+  if(pathname==="/api/admin/sheet/historico-collect-all"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    if(_histBuild.running) return json(res,200,{ok:true,alreadyRunning:true});
+    _runHistoricoOrchestrator().catch(e=>_histLog('Erro inesperado: '+e.message,'error'));
+    return json(res,200,{ok:true,started:true});
+  }
+
   // ── API: Email Intelligence (bounces globais) ──────────
   if(pathname==="/api/admin/email-intelligence"&&req.method==="GET"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
@@ -5299,7 +5598,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
       const arr=SHEET_EXTRAS[k]||[];
       if(!arr.length) continue;
       const visa=(meta.visaType||arr[0]?.visa||"H-2B").toUpperCase().includes("H-2A")?"H-2A":"H-2B";
-      out.push({key:k,name:meta.name||k,visa,count:arr.length,builtin:false,emoji:visa==="H-2A"?"🌾":"📋"});
+      out.push({key:k,name:meta.name||k,visa,count:arr.length,builtin:false,emoji:meta.emoji||(visa==="H-2A"?"🌾":"📋"),historico:meta.historico===true});
     }
     return json(res,200,{ok:true,sheets:out});
   }
@@ -9615,18 +9914,25 @@ Responda APENAS em JSON (sem markdown):
     const _selfId=_resolveServerId(req);
     const list=_getServersConfig();
     const _svInfo=sv=>({id:sv.id,nome:sv.nome,url:sv.url||"",status:sv.status,self:sv.id===_selfId});
+    // 🛡️ Atalho ADMIN (pedido do dono, 07/07/2026): admin não fica preso à regra
+    // "conta pertence a 1 servidor só" — ele PRECISA conseguir entrar em
+    // QUALQUER servidor pra administrar/testar. Quando o e-mail é admin, manda
+    // junto a lista COMPLETA de servidores (com self) pro front oferecer
+    // "entrar direto" em cada um, além do resultado normal de onde a conta existe.
+    const _isAdmin=isAdminEmail(email);
+    const _allServers=_isAdmin?list.map(_svInfo):undefined;
     // 1) Conta existe NESTE servidor?
     const h=crypto.createHash("sha256").update(email).digest("hex");
     if(_emailHashExists(h)){
       const me=list.find(s=>s.id===_selfId)||{id:_selfId,nome:"Servidor "+_selfId,status:"aberto"};
-      return json(res,200,{ok:true,found:true,server:_svInfo(me)});
+      return json(res,200,{ok:true,found:true,server:_svInfo(me),isAdmin:_isAdmin,servers:_allServers});
     }
     // 2) Existe em algum irmão? (fail-open: peer fora do ar = não encontrado lá)
     const peer=await checkAccountOnPeers(email,_selfId);
-    if(peer)return json(res,200,{ok:true,found:true,server:_svInfo(peer)});
+    if(peer)return json(res,200,{ok:true,found:true,server:_svInfo(peer),isAdmin:_isAdmin,servers:_allServers});
     // 3) Não existe em lugar nenhum → devolve servidores abertos p/ criar conta
     const abertos=list.filter(s=>s.status!=="lotado").map(_svInfo);
-    return json(res,200,{ok:true,found:false,openServers:abertos});
+    return json(res,200,{ok:true,found:false,openServers:abertos,isAdmin:_isAdmin,servers:_allServers});
   }
   // GET /api/servers — lista completa para o seletor da landing.
   // Para o próprio servidor conta usuários locais; para peers busca (cache 10 min)
@@ -12112,6 +12418,55 @@ function etaSeedFromSheets(){
     }
   }catch(e){console.warn("[eta] seed:",e.message);}
 }
+// Importa/mescla o PublicFacingReport OFICIAL do DOL (mod-dol-monitor.js —
+// robô/teste/histórico, os 3 caminhos, mesma função) no registro ETA. Fonte
+// tem Business Name/Worksite State/Begin Date/Status pra TODO case H-2B do
+// período, direto do DOL — não depende do scraper de vagas ter rodado.
+// MESMA regra de não-regressão do etaSeedFromSheets: nunca sobrescreve
+// status depois que o robô de verificação já consultou o caso pelo menos 1x
+// (DOL ao vivo é mais fresco que o snapshot do relatório). NUNCA duplica
+// (chave = case number); só cria o que não existe e enriquece o que existe.
+function etaSeedFromPublicFacingReport(rows){
+  try{
+    if(!Array.isArray(rows)||!rows.length)return{added:0,updated:0};
+    let added=0,updated=0;
+    const now=Date.now();
+    for(const r of rows){
+      const cn=String(r.cn||"").toUpperCase().trim();
+      if(!cn||!/^H-\d/.test(cn))continue;
+      const grupoOficial=r.gr?String(r.gr).toUpperCase().slice(0,1):"";
+      const cur=DB_ETA.cases[cn];
+      if(!cur){
+        DB_ETA.cases[cn]={
+          cn, empresa:String(r.empresa||"–").slice(0,120), estado:String(r.estado||"–").slice(0,40),
+          cidade:"", begin:String(r.begin||"").slice(0,10), end:"",
+          grupo:grupoOficial||etaGrupoFor(cn,"",r.begin,""), grupoManual:false, visa:etaIsH2A(cn,"")?"H-2A":"H-2B",
+          status:String(r.status||"Registrada").slice(0,80),
+          hist:[{s:String(r.status||"Registrada").slice(0,80),at:now,src:"dol-report"}],
+          lastCheckAt:0,
+          nextCheckAt:now+Math.floor(Math.random()*72*3600_000), // espalha a fila nas primeiras 72h
+          checks:0, changes:0, err:0, src:"dol-report", createdAt:now, updBadgeUntil:0
+        };
+        added++;
+      } else {
+        let ch=false;
+        if(r.empresa&&(cur.empresa==="–"||!cur.empresa)&&cur.empresa!==r.empresa){cur.empresa=String(r.empresa).slice(0,120);ch=true;}
+        if(r.estado&&(cur.estado==="–"||!cur.estado)&&cur.estado!==r.estado){cur.estado=String(r.estado).slice(0,40);ch=true;}
+        if(r.begin&&!cur.begin){cur.begin=String(r.begin).slice(0,10);ch=true;}
+        if(grupoOficial&&!cur.grupoManual&&cur.grupo!==grupoOficial){cur.grupo=grupoOficial;ch=true;}
+        // Status do relatório só vale enquanto o robô nunca consultou o DOL de verdade (mesma regra do etaSeedFromSheets)
+        if(r.status&&(cur.checks||0)===0&&etaSetStatus(cur,r.status,"dol-report"))ch=true;
+        if(ch)updated++;
+      }
+    }
+    if(added||updated){
+      _etaDirty=true;
+      etaLog("info",`PublicFacingReport oficial do DOL mesclado no registro ETA: ${added} novo(s), ${updated} enriquecido(s) (empresa/estado/data)`);
+      console.log(`[eta] seed dol-report: +${added} novas, ~${updated} enriquecidas`);
+    }
+    return{added,updated};
+  }catch(e){console.warn("[eta] seed dol-report:",e.message);return{added:0,updated:0,err:e.message};}
+}
 // ── WORKER ETA: 1 tick a cada 45s, até 5 cases por tick (1 request DOL) ──
 // Fila inteligente: só consulta o que venceu (nextCheckAt); nunca repete
 // consulta recente; retry com backoff em erro; nunca trava (lock + try/finally).
@@ -12657,6 +13012,7 @@ const { createDolMonitorRouter, startDolMonitor } = require("./mod-dol-monitor.j
 const _dolMonitorCtx = {
   getSess, getUser, isAdminVip, json, readBody, DATA_DIR,
   etaParseGruposCSV, persistGruposOficiais, etaAplicarGruposOficiais, etaLog,
+  etaSeedFromPublicFacingReport,
   getGruposCount: () => Object.keys(ETA_GRUPOS_OFICIAIS).length,
   notifyPayingUsersReportReady,
 };

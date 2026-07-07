@@ -19,6 +19,46 @@
    Contrato (mesmo padrão dos outros mod-*.js do projeto):
      createDolMonitorRouter(ctx) → async (req,res,pathname) → true/false
      startDolMonitor(ctx)        → liga o setInterval de 5 em 5 minutos
+
+   ═══════════════════════════════════════════════════════════════════════
+   🩹 V3 (06/07/2026) — pedido do dono, 3 correções nesta edição:
+
+   (A) HTTP 403 no download ao vivo — reforçado ainda mais o disfarce de
+       navegador real (V2 já tinha corrigido o Accept-Encoding; agora
+       adicionamos: Agent keep-alive reaproveitando conexão TCP/TLS — sites
+       .gov com WAF (Akamai/Cloudflare) desconfiam de conexão nova a cada
+       request —, o conjunto completo de headers Sec-Fetch-(Dest/Mode/Site)
+       e sec-ch-ua que um Chrome real sempre manda, Referer apontando pra página de
+       anúncios de onde o link "foi clicado", e RETRY automático (até 3
+       tentativas com backoff) especificamente para 403/429/5xx/timeout,
+       que costumam ser bloqueios momentâneos de rate-limit. Se mesmo
+       assim falhar, agora o log mostra o STATUS + um pedaço do corpo da
+       resposta do WAF (antes só dizia "HTTP 403" sem contexto nenhum —
+       impossível diagnosticar às cegas).
+   (B) BUG CRÍTICO ENCONTRADO NA AUDITORIA (não pedido explicitamente, mas
+       bloqueava o objetivo do dono): como o arquivo dol_monitor_state.json
+       ainda não existe em produção (robô novo), na primeíssima vez que o
+       ciclo de 5 em 5 min rodasse de verdade, ele ia encontrar o link de
+       Janeiro/2026 (que já está na página hoje) como "nunca visto" e ia
+       IMPORTAR E AVISAR OS PAGANTES DE VERDADE dizendo que "a lista saiu"
+       — sendo notícia velha de janeiro. Agora a PRIMEIRA checagem real só
+       faz um "baseline": marca tudo que já está publicado como "já
+       conhecido" (sem baixar, sem notificar ninguém) e loga isso
+       claramente. Daí em diante, só um relatório GENUINAMENTE NOVO (o de
+       Julho/2026, quando sair) aciona o fluxo completo de importar +
+       avisar pagantes.
+   (C) SEPARAÇÃO TOTAL DE JANELAS — pedido explícito do dono: "quero os
+       dois separados, duas janelas". Antes, o log do botão de teste
+       (Janeiro) e o log do robô de produção (roda sozinho a cada 5min,
+       vai pegar Julho) se misturavam no MESMO array/janela. Agora são
+       dois arrays independentes (state.log = produção · state.testLog =
+       teste) com duas caixas de log distintas no admin. E para nenhuma
+       lógica de negócio divergir entre os dois caminhos (o pedido do
+       dono: "toda vez que editar um, edita o outro igual"), o download+
+       parse+merge de grupos foi extraído para UMA função única
+       (runGruposPipeline) chamada tanto pelo ciclo real quanto pelo botão
+       de teste — daqui pra frente qualquer ajuste nessa função vale pros
+       dois automaticamente, é fisicamente a mesma linha de código.
    ═══════════════════════════════════════════════════════════════════════ */
 "use strict";
 const https = require("https");
@@ -28,7 +68,54 @@ const path  = require("path");
 
 const ANNOUNCEMENTS_URL = "https://www.dol.gov/agencies/eta/foreign-labor/news";
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos, como pedido
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+
+// URL real e estável do relatório de Janeiro/2026 (já publicado pelo DOL) —
+// usada SÓ pelo botão de teste, pra provar que o robô consegue acessar,
+// baixar e processar o mesmo tipo de arquivo que a produção vai buscar em
+// Julho/2026, sem esperar a de Julho sair.
+const JAN_TEST_URL = "https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/FY26_JanPeak_PublicFacingReport.xlsx";
+
+// Pool pequeno de User-Agents reais e recentes de Chrome/Edge desktop —
+// usado só pra variar entre tentativas de retry (alguns WAFs de sites .gov
+// penalizam requests repetidos com a MESMA assinatura exata em sequência).
+const UA_POOL = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+];
+
+// ────────────────────────────────────────────────────────────────────────
+//  RANKING CRONOLÓGICO — V4 (06/07/2026), correção de INCIDENTE REAL:
+//  a página de anúncios lista TAMBÉM relatórios históricos (FY23, FY24,
+//  FY25...), não só o mais recente. Antes da V4, qualquer link "nunca
+//  visto" era tratado como "notícia nova" e disparava e-mail real pros
+//  pagantes — o que causou, em produção, 5 alertas reais (17 pagantes
+//  cada) sobre relatórios de 2023/2024/2025. reportRank() dá um número
+//  comparável (FY*2 + 0=Jan/1=Jul) pra só considerar "notícia nova de
+//  verdade" o relatório com rank MAIOR que o mais recente já conhecido.
+// ────────────────────────────────────────────────────────────────────────
+function reportRank(urlOrName) {
+  const name = String(urlOrName || "").split("/").pop() || "";
+  const m = /FY(\d+)_?(Jan|July|Jul)Peak/i.exec(name);
+  if (!m) return null;
+  const fy = parseInt(m[1], 10);
+  const half = /^jan/i.test(m[2]) ? 0 : 1;
+  return fy * 2 + half;
+}
+
+// Candidatos históricos conhecidos (FY23–FY26 Jan). FY26_Jul propositalmente
+// FORA daqui — esse é o alvo real da produção (Julho/2026), não histórico.
+// Nome do arquivo de Julho variou entre anos (JulPeak vs JulyPeak) — por
+// isso cada período de julho tem 2 variações tentadas em ordem.
+const HIST_CANDIDATES = [
+  { label: "FY23 Jan", icon: "☀️", urls: ["https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/FY23_JanPeak_PublicFacingReport.xlsx"] },
+  { label: "FY23 Jul", icon: "❄️", urls: ["https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/FY23_JulyPeak_PublicFacingReport.xlsx", "https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/FY23_JulPeak_PublicFacingReport.xlsx"] },
+  { label: "FY24 Jan", icon: "☀️", urls: ["https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/FY24_JanPeak_PublicFacingReport.xlsx"] },
+  { label: "FY24 Jul", icon: "❄️", urls: ["https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/FY24_JulyPeak_PublicFacingReport.xlsx", "https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/FY24_JulPeak_PublicFacingReport.xlsx"] },
+  { label: "FY25 Jan", icon: "☀️", urls: ["https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/FY25_JanPeak_PublicFacingReport.xlsx"] },
+  { label: "FY25 Jul", icon: "❄️", urls: ["https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/FY25_JulyPeak_PublicFacingReport.xlsx", "https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/FY25_JulPeak_PublicFacingReport.xlsx"] },
+  { label: "FY26 Jan", icon: "☀️", urls: ["https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/FY26_JanPeak_PublicFacingReport.xlsx"] },
+];
 
 // ────────────────────────────────────────────────────────────────────────
 //  ESTADO (em memória + persistido em disco pra sobreviver a restart)
@@ -41,13 +128,33 @@ const state = {
   nextCheckAt: null,
   lastReport: null,        // {url, importedAt, rows, added, fonte}
   imported: [],            // urls já importadas (não repete)
-  log: [],                 // {ts,msg,type}
+  baselined: false,        // V3: true depois da 1ª checagem real (evita notificar sobre relatórios antigos)
+  latestKnownRank: null,   // V4: rank (reportRank) do relatório mais recente já confirmado — só um rank MAIOR vira "notícia nova" de verdade
+  log: [],                 // {ts,msg,type} — janela de PRODUÇÃO (ciclo automático de 5min)
+  testLog: [],             // {ts,msg,type} — janela de TESTE (botão manual, Janeiro/2026)
+  histLog: [],             // {ts,msg,type} — janela do BACKFILL HISTÓRICO (FY23–FY26)
 };
 
 function log(msg, type = "info") {
   state.log.unshift({ ts: Date.now(), msg: String(msg).slice(0, 500), type });
   if (state.log.length > 250) state.log.length = 250;
   console.log(`[dol-monitor] ${msg}`);
+}
+
+// Janela separada do teste — reiniciada a cada novo "Rodar teste completo"
+// pra sempre mostrar só os passos da última rodada (pedido do dono: janelas
+// separadas e claras, sem se misturar com o robô de produção).
+function logTest(msg, type = "info") {
+  state.testLog.unshift({ ts: Date.now(), msg: String(msg).slice(0, 500), type });
+  if (state.testLog.length > 150) state.testLog.length = 150;
+  console.log(`[dol-monitor:TESTE] ${msg}`);
+}
+
+// Janela separada do backfill histórico (FY23–FY26) — 3ª janela independente.
+function logHist(msg, type = "info") {
+  state.histLog.unshift({ ts: Date.now(), msg: String(msg).slice(0, 500), type });
+  if (state.histLog.length > 200) state.histLog.length = 200;
+  console.log(`[dol-monitor:HISTÓRICO] ${msg}`);
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -58,13 +165,36 @@ function stateFile(DATA_DIR) { return path.join(DATA_DIR, "dol_monitor_state.jso
 function loadState(DATA_DIR) {
   try {
     const f = stateFile(DATA_DIR);
-    if (fs.existsSync(f)) {
+    const existiaAntes = fs.existsSync(f);
+    if (existiaAntes) {
       const d = JSON.parse(fs.readFileSync(f, "utf8"));
       state.enabled = d.enabled !== false;
       state.imported = Array.isArray(d.imported) ? d.imported : [];
       state.lastReport = d.lastReport || null;
       state.lastCheckAt = d.lastCheckAt || null;
+      // Se o arquivo já existia mas é de uma versão anterior a V3 (sem o
+      // campo baselined), considera que já rodou antes de verdade — não
+      // precisa fazer baseline retroativo (evita reprocessar histórico).
+      state.baselined = d.baselined !== false;
+      // V4: recupera latestKnownRank. Se o arquivo é de uma versão anterior
+      // a V4 (campo ainda não existia), RECONSTRÓI a partir do maior rank
+      // entre os relatórios já importados — protege quem já estava em
+      // produção antes desta correção (evita re-notificar sobre o que já
+      // foi importado como "histórico" por engano antes do fix).
+      if (typeof d.latestKnownRank === "number") {
+        state.latestKnownRank = d.latestKnownRank;
+      } else {
+        const ranks = state.imported.map(reportRank).filter((r) => r != null);
+        state.latestKnownRank = ranks.length ? Math.max(...ranks) : null;
+        if (ranks.length) log(`🩹 Migração V4: latestKnownRank reconstruído a partir do histórico já importado (${state.latestKnownRank})`, "info");
+      }
       log(`Estado carregado do disco (${state.imported.length} relatório(s) já importado(s))`, "info");
+    } else {
+      // Primeiro boot desse robô nesse servidor: NÃO baselined ainda —
+      // a 1ª checagem real vai marcar os relatórios já publicados hoje
+      // como "conhecidos" sem notificar ninguém (ver tick()).
+      state.baselined = false;
+      state.latestKnownRank = null;
     }
   } catch (e) { console.warn("[dol-monitor] loadState:", e.message); }
 }
@@ -75,6 +205,7 @@ function persistState(DATA_DIR) {
     fs.writeFileSync(tmp, JSON.stringify({
       enabled: state.enabled, imported: state.imported,
       lastReport: state.lastReport, lastCheckAt: state.lastCheckAt,
+      baselined: state.baselined, latestKnownRank: state.latestKnownRank,
     }, null, 2));
     fs.renameSync(tmp, stateFile(DATA_DIR));
   } catch (e) { console.warn("[dol-monitor] persistState:", e.message); }
@@ -86,52 +217,111 @@ function persistState(DATA_DIR) {
 //  helper converte tudo pra string/JSON, o que corrompe um arquivo binário
 //  como o .xlsx. Aqui mantemos o Buffer intacto.
 // ────────────────────────────────────────────────────────────────────────
+// Agent com keep-alive: reaproveita a MESMA conexão TCP/TLS entre requests
+// — sites .gov atrás de WAF (Akamai etc.) tendem a desconfiar mais de
+// conexões novas em rajada do que de uma sessão contínua, como um
+// navegador real faz.
+const keepAliveAgent = new https.Agent({ keepAlive: true, maxSockets: 4, timeout: 30000 });
+
+function pickUA(attempt) { return UA_POOL[attempt % UA_POOL.length]; }
+
 // 🩹 V2 (06/07/2026): corrigido o HTTP 403 visto em produção. Causa provável:
 // "Accept-Encoding: identity" é uma bandeira vermelha pra WAF de site .gov
 // (navegador de verdade SEMPRE anuncia gzip/deflate/br) — sozinho isso já é
 // suficiente pra alguns firewalls (Akamai etc.) bloquearem como bot. Agora
 // pedimos compressão real (como um navegador) e decodificamos a resposta.
-function httpGet(urlStr, { asBuffer = false, redirectsLeft = 5, timeoutMs = 30000 } = {}) {
+// 🩹 V3 (06/07/2026): + Agent keep-alive, + headers Sec-Fetch-*/sec-ch-ua
+// completos (um Chrome real sempre manda), + Referer, + retry automático
+// com backoff pra 403/429/5xx/timeout, + corpo da resposta anexado ao erro
+// quando falha de vez (pra dar pra diagnosticar em vez de só "HTTP 403").
+function httpGetOnce(urlStr, { asBuffer, referer, uaIndex, timeoutMs }) {
   return new Promise((resolve, reject) => {
     let u;
     try { u = new URL(urlStr); } catch (e) { return reject(new Error("URL inválida: " + urlStr)); }
+    const headers = {
+      "User-Agent": pickUA(uaIndex),
+      "Accept": asBuffer
+        ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*;q=0.8"
+        : "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Cache-Control": "no-cache",
+      "Pragma": "no-cache",
+      "Connection": "keep-alive",
+      "Upgrade-Insecure-Requests": "1",
+      "sec-ch-ua": '"Chromium";v="125", "Not.A/Brand";v="24", "Google Chrome";v="125"',
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": '"Windows"',
+      "Sec-Fetch-Dest": "document",
+      "Sec-Fetch-Mode": "navigate",
+      "Sec-Fetch-Site": referer ? "same-origin" : "none",
+      "Sec-Fetch-User": "?1",
+    };
+    if (referer) headers["Referer"] = referer;
     const req = https.request({
       hostname: u.hostname, path: u.pathname + u.search, method: "GET",
-      headers: {
-        "User-Agent": UA,
-        "Accept": asBuffer
-          ? "application/octet-stream,*/*"
-          : "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-      },
+      agent: keepAliveAgent, headers,
     }, (resp) => {
-      if ([301, 302, 303, 307, 308].includes(resp.statusCode) && resp.headers.location && redirectsLeft > 0) {
+      if ([301, 302, 303, 307, 308].includes(resp.statusCode) && resp.headers.location) {
         resp.resume();
         const next = new URL(resp.headers.location, urlStr).toString();
-        resolve(httpGet(next, { asBuffer, redirectsLeft: redirectsLeft - 1, timeoutMs }));
+        resolve({ redirectTo: next });
         return;
       }
       const chunks = [];
       resp.on("data", (c) => chunks.push(c));
       resp.on("end", () => {
-        if (resp.statusCode !== 200) { reject(new Error("HTTP " + resp.statusCode + " em " + urlStr)); return; }
-        let buf = Buffer.concat(chunks);
+        const rawBuf = Buffer.concat(chunks);
+        if (resp.statusCode !== 200) {
+          const snippet = rawBuf.slice(0, 300).toString("utf8").replace(/\s+/g, " ").trim();
+          const err = new Error("HTTP " + resp.statusCode + " em " + urlStr + (snippet ? ` — corpo: "${snippet}"` : ""));
+          err.status = resp.statusCode;
+          err.bodySnippet = snippet;
+          reject(err);
+          return;
+        }
+        let buf = rawBuf;
         try {
           const enc = String(resp.headers["content-encoding"] || "").toLowerCase();
           if (enc === "gzip") buf = zlib.gunzipSync(buf);
           else if (enc === "br") buf = zlib.brotliDecompressSync(buf);
           else if (enc === "deflate") buf = zlib.inflateSync(buf);
         } catch (e) { reject(new Error("Falha ao descomprimir resposta (" + e.message + ")")); return; }
-        resolve(asBuffer ? buf : buf.toString("utf8"));
+        resolve({ data: asBuffer ? buf : buf.toString("utf8") });
       });
     });
     req.on("error", reject);
     req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error("Timeout")); });
     req.end();
   });
+}
+
+// Wrapper com redirect (até 5 saltos) + retry (até 3 tentativas) pra erros
+// tipicamente transitórios (403/429/5xx/timeout/erro de rede). onRetry é
+// opcional, usado só pra logar a tentativa no lugar certo (produção x teste).
+async function httpGet(urlStr, { asBuffer = false, referer = null, timeoutMs = 30000, maxRetries = 3, onRetry = null } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      let current = urlStr, redirects = 0;
+      while (true) {
+        const r = await httpGetOnce(current, { asBuffer, referer, uaIndex: attempt, timeoutMs });
+        if (r.redirectTo) {
+          if (++redirects > 5) throw new Error("Excesso de redirecionamentos em " + urlStr);
+          current = r.redirectTo;
+          continue;
+        }
+        return r.data;
+      }
+    } catch (e) {
+      lastErr = e;
+      const retryable = !e.status || e.status === 403 || e.status === 429 || e.status >= 500;
+      if (!retryable || attempt === maxRetries - 1) throw e;
+      if (onRetry) onRetry(attempt + 1, maxRetries, e);
+      await new Promise((r) => setTimeout(r, 700 * (attempt + 1) + Math.random() * 400));
+    }
+  }
+  throw lastErr;
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -254,14 +444,39 @@ function parseSheetRows(xmlBuf, sharedStrings) {
       }
       cells[colIdx] = value;
     }
+    // 🩹 V4 (06/07/2026): DENSIFICA a linha antes de devolver. cells[] é
+    // esparso quando uma coluna fica sem <c> no XML (célula vazia — comum
+    // em relatórios mais antigos do DOL, ex.: FY23_JulyPeak, que tem menos
+    // colunas preenchidas que o de FY26). Array.prototype.map/filter PULAM
+    // buracos, mas findIndex NÃO pula — chama o callback com `undefined`,
+    // e `undefined.includes(...)` é exatamente o crash "Cannot read
+    // properties of undefined (reading 'includes')" visto em produção.
+    for (let ci = 0; ci < cells.length; ci++) if (cells[ci] === undefined) cells[ci] = "";
     rows.push(cells);
   }
   return rows;
 }
 
-// Extrai só as colunas que interessam ("Case Number" e "Randomization Group")
-// — mesmo contrato de cabeçalho tolerante que etaParseGruposCSV já usa.
-function xlsxExtractCaseAndGroup(fileBuffer) {
+// Excel guarda datas como número serial (dias desde 1899-12-30), sem
+// atributo t="..." (é numérico "puro"). Converte pra YYYY-MM-DD; se o valor
+// não parecer um serial plausível (ex.: já é texto), devolve como veio.
+function excelSerialToISODate(raw) {
+  const s = String(raw || "").trim();
+  if (!/^\d+(\.\d+)?$/.test(s)) return s; // não é número puro — já deve ser texto/data formatada
+  const serial = parseFloat(s);
+  if (serial < 20000 || serial > 60000) return s; // fora da faixa plausível (~1954–2064) — não arrisca conversão errada
+  const utcDays = Math.floor(serial - 25569);
+  const d = new Date(utcDays * 86400 * 1000);
+  return isNaN(d.getTime()) ? s : d.toISOString().slice(0, 10);
+}
+
+// Extrai TODAS as colunas úteis do PublicFacingReport oficial do DOL:
+// Case Number + Randomization Group (obrigatórios, formato mínimo já usado
+// pelo upload manual) + Business Name/Worksite State/Begin Date/Case Status
+// (OPCIONAIS — enriquecem o registro ETA, mas relatórios mais antigos podem
+// não ter alguma dessas colunas; nesse caso o campo fica vazio, sem quebrar
+// nada). Cabeçalho tolerante (substring, case-insensitive) igual ao resto.
+function xlsxExtractFullReport(fileBuffer) {
   const entries = unzipEntries(fileBuffer);
   const sharedStrings = parseSharedStrings(entries["xl/sharedStrings.xml"]);
   const sheetKey = Object.keys(entries).filter((k) => /^xl\/worksheets\/sheet\d+\.xml$/.test(k)).sort()[0];
@@ -274,12 +489,22 @@ function xlsxExtractCaseAndGroup(fileBuffer) {
   if (iCase < 0 || iGrupo < 0) {
     throw new Error('Cabeçalho não tem "Case Number"/"Randomization Group" — formato inesperado (DOL pode ter mudado o layout)');
   }
+  const iEmpresa = header.findIndex((h) => h.includes("business") && h.includes("name"));
+  const iEstado  = header.findIndex((h) => h.includes("worksite") && h.includes("state"));
+  const iBegin   = header.findIndex((h) => h.includes("begin") && h.includes("date"));
+  const iStatus  = header.findIndex((h) => h.includes("case") && h.includes("status"));
   const out = [];
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i] || [];
     const cn = String(r[iCase] || "").trim();
-    const gr = String(r[iGrupo] || "").trim();
-    if (cn) out.push({ cn, gr });
+    if (!cn) continue;
+    out.push({
+      cn, gr: String(r[iGrupo] || "").trim(),
+      empresa: iEmpresa >= 0 ? String(r[iEmpresa] || "").trim() : "",
+      estado: iEstado >= 0 ? String(r[iEstado] || "").trim() : "",
+      begin: iBegin >= 0 ? excelSerialToISODate(r[iBegin]) : "",
+      status: iStatus >= 0 ? String(r[iStatus] || "").trim() : "",
+    });
   }
   return out;
 }
@@ -292,40 +517,64 @@ function rowsToCsv(rows) {
 }
 
 // ────────────────────────────────────────────────────────────────────────
-//  CICLO PRINCIPAL (roda a cada 5 minutos)
+//  PIPELINE ÚNICO DE GRUPOS — usado tanto pelo ciclo real (produção) quanto
+//  pelo botão de teste (Janeiro). Fisicamente a MESMA função: qualquer
+//  correção/ajuste feito aqui vale pros dois automaticamente, exatamente
+//  como o dono pediu ("toda vez que editar um, edita o outro igual").
+//  NÃO decide se marca como importado nem se notifica pagantes — isso é
+//  responsabilidade de quem chama (importReport = produção decide sim;
+//  test-run = teste decide não).
 // ────────────────────────────────────────────────────────────────────────
-async function importReport(url, ctx, DATA_DIR) {
-  log(`📰 Novo relatório encontrado no site do DOL: ${url.split("/").pop()}`, "ok");
+function runGruposPipeline(buf, ctx, logFn) {
+  const rows = xlsxExtractFullReport(buf);
+  logFn(`📊 ${rows.length} linhas lidas da planilha — processando...`, "info");
+  const csv = rowsToCsv(rows);
+  const r = ctx.etaParseGruposCSV(csv);
+  if (r.err) throw new Error(r.err);
+  // V5 (07/07/2026): o PublicFacingReport tem MUITO mais que Case+Grupo —
+  // também tem Business Name/Worksite State/Begin Date/Case Status pra TODO
+  // case H-2B do período, direto do DOL. Mescla isso no registro ETA (não
+  // sobrescreve o que o robô de verificação já atualizou — mesma regra de
+  // sempre). Não quebra se essa função não existir (compatibilidade).
+  if (typeof ctx.etaSeedFromPublicFacingReport === "function") {
+    const seedResult = ctx.etaSeedFromPublicFacingReport(rows);
+    if (seedResult && (seedResult.added || seedResult.updated)) {
+      logFn(`📇 Registro ETA enriquecido: ${seedResult.added} caso(s) novo(s), ${seedResult.updated} enriquecido(s) (empresa/estado/data)`, "info");
+    }
+  }
+  return { rows, addResult: r };
+}
+
+// ────────────────────────────────────────────────────────────────────────
+//  CICLO PRINCIPAL (roda a cada 5 minutos) — JANELA DE PRODUÇÃO
+// ────────────────────────────────────────────────────────────────────────
+async function importReport(url, ctx, DATA_DIR, notify = true) {
+  log(`📰 ${notify ? "Novo relatório encontrado" : "Relatório histórico encontrado"} no site do DOL: ${url.split("/").pop()}`, "ok");
   state.phase = "baixando";
   let buf;
   try {
-    buf = await httpGet(url, { asBuffer: true });
+    buf = await httpGet(url, {
+      asBuffer: true, referer: ANNOUNCEMENTS_URL,
+      onRetry: (n, max, e) => log(`⏳ Tentativa ${n}/${max} falhou (${e.message}) — tentando de novo...`, "warn"),
+    });
   } catch (e) {
-    log("❌ Falha ao baixar o arquivo: " + e.message, "error");
+    log("❌ Falha ao baixar o arquivo (esgotou as tentativas): " + e.message, "error");
     state.phase = "erro";
     return;
   }
   log(`⬇️ Download concluído (${(buf.length / 1024).toFixed(0)} KB)`, "ok");
 
   state.phase = "processando";
-  let rows;
+  let rows, r;
   try {
-    rows = xlsxExtractCaseAndGroup(buf);
+    ({ rows, addResult: r } = runGruposPipeline(buf, ctx, log));
   } catch (e) {
-    log("❌ Falha ao ler o .xlsx: " + e.message, "error");
+    log("❌ Falha ao processar o .xlsx: " + e.message, "error");
     state.phase = "erro";
     return;
   }
-  log(`📊 ${rows.length} linhas lidas da planilha — processando...`, "info");
 
-  const csv = rowsToCsv(rows);
-  const r = ctx.etaParseGruposCSV(csv);
-  if (r.err) {
-    log("❌ " + r.err, "error");
-    state.phase = "erro";
-    return;
-  }
-  const fonte = "Robô automático — " + url.split("/").pop();
+  const fonte = (notify ? "Robô automático — " : "Robô automático (histórico, sem aviso) — ") + url.split("/").pop();
   ctx.persistGruposOficiais(fonte);
   ctx.etaAplicarGruposOficiais();
 
@@ -335,10 +584,12 @@ async function importReport(url, ctx, DATA_DIR) {
   persistState(DATA_DIR);
 
   const totalGrupos = ctx.getGruposCount ? ctx.getGruposCount() : "?";
-  log(`✅ Importado com sucesso! ${r.add} grupos novos/atualizados (total ${totalGrupos} cases)`, "ok");
+  log(`✅ Importado com sucesso! ${r.add} grupos novos/atualizados (total ${totalGrupos} cases)${notify ? "" : " — HISTÓRICO, pagantes NÃO avisados"}`, "ok");
   if (typeof ctx.etaLog === "function") {
-    ctx.etaLog("info", `Robô de monitoramento importou automaticamente: ${url.split("/").pop()} — ${r.add} grupos novos/atualizados`);
+    ctx.etaLog("info", `Robô de monitoramento importou automaticamente: ${url.split("/").pop()} — ${r.add} grupos novos/atualizados${notify ? "" : " (histórico)"}`);
   }
+
+  if (!notify) return; // V4: relatório histórico — nunca avisa pagantes
 
   // 🚨 Avisa todos os pagantes ativos que a lista randomizada saiu (pedido do
   // dono, 06/07/2026) — 1x por pagante, por relatório. Não trava o robô: roda
@@ -363,19 +614,53 @@ async function tick(ctx, DATA_DIR) {
   state.lastCheckAt = Date.now();
   log("🔍 Verificando anúncios do DOL...", "info");
   try {
-    const html = await httpGet(ANNOUNCEMENTS_URL, { asBuffer: false });
+    const html = await httpGet(ANNOUNCEMENTS_URL, {
+      asBuffer: false,
+      onRetry: (n, max, e) => log(`⏳ Tentativa ${n}/${max} de checar a página falhou (${e.message}) — tentando de novo...`, "warn"),
+    });
     const found = extractReportLinks(html);
+
+    // ── V3: BASELINE DA 1ª CHECAGEM REAL ────────────────────────────────
+    // Primeira vez que este robô roda neste servidor (sem estado salvo em
+    // disco ainda): tudo que já está publicado HOJE é "notícia velha" —
+    // marca como conhecido SEM baixar e SEM avisar pagantes. A partir daqui
+    // só um link genuinamente novo (ex.: Julho/2026) aciona o fluxo real.
+    if (!state.baselined) {
+      const jaConhecidos = found.filter((u) => !state.imported.includes(u));
+      state.imported.push(...jaConhecidos);
+      const ranksBaseline = found.map(reportRank).filter((r) => r != null);
+      if (ranksBaseline.length) {
+        state.latestKnownRank = state.latestKnownRank == null ? Math.max(...ranksBaseline) : Math.max(state.latestKnownRank, ...ranksBaseline);
+      }
+      state.baselined = true;
+      log(`📋 Baseline inicial: ${found.length} relatório(s) já publicado(s) no site (ex.: ${found.map(u=>u.split('/').pop()).join(', ') || 'nenhum'}) marcado(s) como conhecido(s) — NINGUÉM foi avisado. A partir de agora só relatório REALMENTE NOVO (ex.: Julho 2026) vai importar e avisar os pagantes de verdade.`, "ok");
+      state.phase = "idle";
+      return;
+    }
+
     const novos = found.filter((u) => !state.imported.includes(u));
     if (novos.length === 0) {
       log(`Nada novo (${found.length} relatório(s) na página, todos já importados)`, "info");
       state.phase = "idle";
     } else {
+      // V4: processa do mais antigo pro mais novo (rank crescente) — assim,
+      // se a página trouxer VÁRIOS de uma vez (ex.: histórico nunca visto),
+      // só o de rank mais alto no final vira "notícia nova" de verdade.
+      novos.sort((a, b) => (reportRank(a) ?? Infinity) - (reportRank(b) ?? Infinity));
+      if (novos.length > 1) log(`📋 ${novos.length} relatório(s) novo(s) de uma vez — processando em ordem cronológica, só o mais recente de todos vai avisar pagantes`, "info");
       for (const url of novos) {
-        await importReport(url, ctx, DATA_DIR);
+        const rank = reportRank(url);
+        // Sem rank reconhecível (nome fora do padrão) → trata como notícia
+        // nova por segurança (mesmo comportamento de antes da V4). Com rank
+        // reconhecível, só é "notícia nova de verdade" se for MAIOR que o
+        // mais recente já confirmado.
+        const isNewest = rank == null ? true : (state.latestKnownRank == null || rank > state.latestKnownRank);
+        await importReport(url, ctx, DATA_DIR, isNewest);
+        if (isNewest && rank != null) state.latestKnownRank = rank;
       }
     }
   } catch (e) {
-    log("❌ Erro ao checar a página de anúncios: " + e.message, "error");
+    log("❌ Erro ao checar a página de anúncios (esgotou as tentativas): " + e.message, "error");
     state.phase = "erro";
   } finally {
     state.checking = false;
@@ -399,7 +684,14 @@ function createDolMonitorRouter(ctx) {
         enabled: state.enabled, checking: state.checking, phase: state.phase,
         lastCheckAt: state.lastCheckAt, nextCheckAt: state.nextCheckAt,
         lastReport: state.lastReport, importedCount: state.imported.length,
-        log: state.log.slice(0, 100),
+        baselined: state.baselined, latestKnownRank: state.latestKnownRank,
+        log: state.log.slice(0, 100),         // janela de PRODUÇÃO
+        testLog: state.testLog.slice(0, 100), // janela de TESTE (separada)
+        histLog: state.histLog.slice(0, 150), // janela do BACKFILL HISTÓRICO (separada)
+        historico: HIST_CANDIDATES.map((p2) => ({
+          label: p2.label, icon: p2.icon,
+          imported: p2.urls.some((u) => state.imported.includes(u)),
+        })),
       });
       return true;
     }
@@ -424,45 +716,106 @@ function createDolMonitorRouter(ctx) {
       return true;
     }
 
-    // POST /api/admin/dolmonitor/test-run — TESTE do dono (07/07/2026): roda o
-    // pipeline INTEIRO DE VERDADE — incluindo o DOWNLOAD AO VIVO do dol.gov —
-    // usando a URL real do relatório de Janeiro/2026 (já publicado, estável)
-    // no lugar do de Julho (que ainda não saiu). Isso testa exatamente o
-    // mesmo caminho que vai rodar em julho: mesma função de download, mesmos
-    // headers, mesmo parser, mesma mesclagem. Só NÃO notifica pagantes.
+    // POST /api/admin/dolmonitor/test-run — TESTE do dono: roda o pipeline
+    // INTEIRO DE VERDADE — incluindo o DOWNLOAD AO VIVO do dol.gov — usando
+    // a URL real do relatório de Janeiro/2026 (já publicado, estável) no
+    // lugar do de Julho (que ainda não saiu). Testa exatamente o mesmo
+    // caminho que vai rodar em julho: MESMA função de download (httpGet),
+    // MESMO parser, MESMA mesclagem (runGruposPipeline — código físicamente
+    // compartilhado com a produção). Só NÃO marca como importado e NÃO
+    // notifica pagantes. Log 100% separado da produção (janela própria).
     if (pathname === "/api/admin/dolmonitor/test-run" && req.method === "POST") {
       const s = getSess(req); if (!s?.user_email) return json(res, 401, { error: "Não autenticado" }), true;
       const p = getUser(s.user_email); if (!isAdminVip(p)) return json(res, 403, { error: "Não autorizado" }), true;
-      const JAN_URL = "https://www.dol.gov/sites/dolgov/files/ETA/oflc/pdfs/FY26_JanPeak_PublicFacingReport.xlsx";
-      log(`🧪 [TESTE] Admin ${s.user_email} disparou o teste — baixando de verdade do dol.gov (relatório de Janeiro, no lugar do de Julho)`, "info");
+
+      // Janela de teste sempre "limpa" a cada rodada — pedido do dono de
+      // ter uma janela separada e clara, só com o que aconteceu AGORA.
+      state.testLog = [];
+      logTest(`🧪 [TESTE] Admin ${s.user_email} disparou o teste completo — vai baixar de verdade o relatório de Janeiro/2026 do dol.gov (mesmo pipeline que vai rodar em Julho)`, "info");
+
       let buf, fonte;
       try {
-        log(`🧪 [TESTE] ⬇️ Baixando ao vivo: ${JAN_URL}`, "info");
-        buf = await httpGet(JAN_URL, { asBuffer: true });
+        logTest(`🧪 [TESTE] ⬇️ Baixando ao vivo: ${JAN_TEST_URL}`, "info");
+        buf = await httpGet(JAN_TEST_URL, {
+          asBuffer: true, referer: ANNOUNCEMENTS_URL,
+          onRetry: (n, max, e) => logTest(`🧪 [TESTE] ⏳ Tentativa ${n}/${max} falhou (${e.message}) — tentando de novo...`, "warn"),
+        });
         fonte = "download ao vivo do dol.gov";
-        log(`🧪 [TESTE] ✅ Download ao vivo funcionou! (${(buf.length / 1024).toFixed(0)} KB) — prova que o robô consegue acessar o DOL agora`, "ok");
+        logTest(`🧪 [TESTE] ✅ Download ao vivo funcionou! (${(buf.length / 1024).toFixed(0)} KB) — prova que o robô consegue acessar o DOL agora`, "ok");
       } catch (e) {
-        log(`🧪 [TESTE] ⚠️ Download ao vivo falhou (${e.message}) — usando a cópia de backup salva no servidor pra não travar o teste todo`, "warn");
+        logTest(`🧪 [TESTE] ⚠️ Download ao vivo falhou depois de várias tentativas (${e.message}) — tentando cópia de backup local pra não travar o teste todo`, "warn");
         const fixturePath = path.join(__dirname, "test-fixtures", "FY26_JanPeak_PublicFacingReport.xlsx");
-        if (!fs.existsSync(fixturePath)) { json(res, 502, { error: "Download ao vivo falhou (" + e.message + ") e não há cópia de backup no servidor." }); return true; }
+        if (!fs.existsSync(fixturePath)) {
+          logTest(`🧪 [TESTE] ❌ Não há cópia de backup no servidor (${fixturePath}). O download ao vivo é quem precisa ser resolvido — o motivo exato do bloqueio está no erro acima (status + corpo da resposta do dol.gov).`, "error");
+          json(res, 502, { error: "Download ao vivo falhou (" + e.message + ") e não há cópia de backup no servidor." });
+          return true;
+        }
         buf = fs.readFileSync(fixturePath);
         fonte = "cópia local (download ao vivo falhou: " + e.message + ")";
       }
       try {
-        const rows = xlsxExtractCaseAndGroup(buf);
-        log(`🧪 [TESTE] 📊 ${rows.length} linhas lidas do .xlsx (fonte: ${fonte})`, "info");
-        const csv = rowsToCsv(rows);
-        const r = ctx.etaParseGruposCSV(csv);
-        if (r.err) { log("🧪 [TESTE] ❌ " + r.err, "error"); json(res, 400, { error: r.err }); return true; }
+        const { rows, addResult: r } = runGruposPipeline(buf, ctx, logTest);
         ctx.persistGruposOficiais("TESTE manual — " + fonte);
         ctx.etaAplicarGruposOficiais();
         const totalGrupos = ctx.getGruposCount ? ctx.getGruposCount() : "?";
-        log(`🧪 [TESTE] ✅ Concluído! ${r.add} grupos novos/atualizados (total ${totalGrupos} cases) — pagantes NÃO foram avisados (teste)`, "ok");
+        logTest(`🧪 [TESTE] ✅ Concluído! ${r.add} grupos novos/atualizados (total ${totalGrupos} cases) — pagantes NÃO foram avisados (isto é só teste)`, "ok");
         json(res, 200, { ok: true, rows: rows.length, added: r.add, totalGrupos, viaLiveDownload: fonte === "download ao vivo do dol.gov" });
       } catch (e) {
-        log("🧪 [TESTE] ❌ Erro ao processar: " + e.message, "error");
+        logTest("🧪 [TESTE] ❌ Erro ao processar: " + e.message, "error");
         json(res, 500, { error: e.message });
       }
+      return true;
+    }
+
+    // POST /api/admin/dolmonitor/import-historico — pedido do dono (06/07/2026):
+    // baixa e mescla TODO o histórico conhecido (FY23 Jan/Jul até FY26 Jan) de
+    // uma vez, em ordem, com ícone de estação (❄️ Jan / ☀️ Jul). Usa o MESMO
+    // runGruposPipeline da produção e do teste (nunca diverge). NUNCA avisa
+    // pagantes (histórico não é notícia). Pula o que já foi importado antes
+    // (idempotente — pode clicar de novo sem duplicar).
+    if (pathname === "/api/admin/dolmonitor/import-historico" && req.method === "POST") {
+      const s = getSess(req); if (!s?.user_email) return json(res, 401, { error: "Não autenticado" }), true;
+      const p = getUser(s.user_email); if (!isAdminVip(p)) return json(res, 403, { error: "Não autorizado" }), true;
+
+      state.histLog = [];
+      logHist(`📚 Admin ${s.user_email} disparou a importação histórica completa (FY23–FY26 Jan) — pagantes NÃO serão avisados`, "info");
+
+      const resultados = [];
+      for (const periodo of HIST_CANDIDATES) {
+        const jaImportado = periodo.urls.some((u) => state.imported.includes(u));
+        if (jaImportado) {
+          logHist(`${periodo.icon} ${periodo.label}: já estava importado — pulando.`, "info");
+          resultados.push({ label: periodo.label, icon: periodo.icon, status: "ja-existia" });
+          continue;
+        }
+        let ok = false;
+        for (const url of periodo.urls) {
+          try {
+            logHist(`${periodo.icon} ${periodo.label}: baixando ${url.split("/").pop()}...`, "info");
+            const buf = await httpGet(url, {
+              asBuffer: true, referer: ANNOUNCEMENTS_URL, maxRetries: 2,
+              onRetry: (n, max, e) => logHist(`${periodo.icon} ${periodo.label}: ⏳ tentativa ${n}/${max} falhou (${e.message})`, "warn"),
+            });
+            const { rows, addResult: r } = runGruposPipeline(buf, ctx, (m, t) => logHist(`${periodo.icon} ${periodo.label}: ${m}`, t));
+            ctx.persistGruposOficiais(`Histórico — ${periodo.label}`);
+            ctx.etaAplicarGruposOficiais();
+            state.imported.push(url);
+            logHist(`${periodo.icon} ${periodo.label}: ✅ importado — ${r.add} grupos novos/atualizados (${rows.length} linhas)`, "ok");
+            resultados.push({ label: periodo.label, icon: periodo.icon, status: "ok", rows: rows.length, added: r.add });
+            ok = true;
+            break;
+          } catch (e) {
+            logHist(`${periodo.icon} ${periodo.label}: variação "${url.split("/").pop()}" falhou (${e.message})`, "warn");
+          }
+        }
+        if (!ok) {
+          logHist(`${periodo.icon} ${periodo.label}: ❌ não encontrado em nenhuma variação de nome testada`, "error");
+          resultados.push({ label: periodo.label, icon: periodo.icon, status: "erro" });
+        }
+      }
+      persistState(DATA_DIR);
+      logHist(`📚 Importação histórica concluída. Pagantes NÃO foram avisados (isto é histórico, não notícia nova).`, "ok");
+      json(res, 200, { ok: true, resultados });
       return true;
     }
 
