@@ -2893,7 +2893,6 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <div class="stabs" id="stabs-row">
           <button class="stab active" id="stab-seasonal" onclick="setTab('seasonal')"><i class="ti ti-globe"></i>Seasonal Jobs<span class="stab-cnt" id="sc-seasonal" style="display:none"></span></button>
           <button class="stab stab-sheet-jan" id="stab-jan2026" onclick="setTab('jan2026')" style="margin-top:8px"><i class="ti ti-sun" style="color:#f59e0b"></i><strong>Jan 2026</strong><span class="stab-cnt" id="sc-jan">–</span></button>
-          <button class="stab stab-sheet-jul" id="stab-jul2025" onclick="setTab('jul2025')" style="margin-top:8px"><i class="ti ti-snowflake" style="color:#3b82f6"></i><strong>Jul 2025</strong><span class="stab-cnt" id="sc-jul">–</span></button>
           <button class="stab stab-sheet-h2a" id="stab-h2a-jun2026" onclick="setTab('h2a-jun2026')" style="margin-top:8px"><i class="ti ti-plant-2" style="color:#10b981"></i><strong>H-2A Agricultura</strong><span class="stab-cnt" id="sc-h2a">–</span></button>
           <!-- 🔜 Placeholder Julho 2026 — o robô substitui isto automaticamente por
                uma aba de verdade assim que o DOL publicar e o admin publicar a
@@ -2905,16 +2904,19 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           </button>
         </div>
         <!-- 📅 TEMPORADAS ANTERIORES — seção separada e recolhível pras
-             planilhas históricas (FY23–FY25), pra não lotar a barra
-             principal de abas. loadDynamicSheets() preenche sozinho.
-             Só aparece quando existe pelo menos 1 planilha histórica. -->
-        <div id="hist-seasons-wrap" style="display:none;background:var(--surface);border-bottom:1.5px solid var(--border);padding:0 10px">
+             planilhas antigas (Jul 2025, Jan 2025, ...), pra não lotar a barra
+             principal de abas (que fica só com a atual + a próxima "em breve").
+             Jul 2025 é fixo aqui (pedido do dono, 07/07/2026); as demais
+             (ex. Jan 2025) loadDynamicSheets() injeta sozinho. -->
+        <div id="hist-seasons-wrap" style="display:block;background:var(--surface);border-bottom:1.5px solid var(--border);padding:0 10px">
           <button id="hist-seasons-toggle" onclick="toggleHistSeasons()" style="width:100%;display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--t3);font-size:12px;font-weight:700;padding:8px 2px;cursor:pointer;font-family:inherit">
             <i class="ti ti-calendar-time"></i>
             <span id="hist-seasons-label">📅 Ver temporadas anteriores</span>
             <i class="ti ti-chevron-down" id="hist-seasons-chevron" style="margin-left:auto;transition:transform .2s"></i>
           </button>
-          <div id="hist-seasons-row" style="display:none;flex-wrap:wrap;gap:6px;padding-bottom:10px"></div>
+          <div id="hist-seasons-row" style="display:none;flex-wrap:wrap;gap:6px;padding-bottom:10px">
+            <button class="stab stab-sheet-jul" id="stab-jul2025" onclick="setTab('jul2025')"><i class="ti ti-snowflake" style="color:#3b82f6"></i><strong>Jul 2025</strong><span class="stab-cnt" id="sc-jul">–</span></button>
+          </div>
         </div>
         <div class="search-bar">
           <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="Cargo, empresa, estado..." oninput="onSearch()" autocomplete="off" inputmode="search"></div>
@@ -3901,26 +3903,35 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                   <div class="source-btn-label"><strong>Jan 2026</strong> — Verão</div>
                   <div class="source-btn-count" id="src-jan-cnt">–</div>
                 </button>
-                <button class="source-btn" data-src="jul2025" onclick="selectSource('jul2025')">
-                  <div class="source-btn-icon">❄️</div>
-                  <div class="source-btn-label"><strong>Jul 2025</strong> — Inverno</div>
-                  <div class="source-btn-count" id="src-jul-cnt">–</div>
-                </button>
                 <button class="source-btn" data-src="h2a-jun2026" onclick="selectSource('h2a-jun2026')">
                   <div class="source-btn-icon">🌾</div>
                   <div class="source-btn-label"><strong>H-2A Agricultura</strong> <span style="display:inline-block;font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;background:rgba(16,185,129,.18);color:#10b981;margin-left:2px;vertical-align:middle">H-2A</span></div>
                   <div class="source-btn-count" id="src-h2a-cnt">–</div>
                 </button>
+                <!-- 🔜 Placeholder Julho 2026 — mesma ideia do Manual: some sozinho
+                     assim que loadDynamicSheets() achar a planilha publicada. -->
+                <button class="source-btn" id="source-btn-jul2026-placeholder" disabled title="Ainda não disponível — aparece sozinho quando o DOL publicar" style="opacity:.5;cursor:not-allowed">
+                  <div class="source-btn-icon">❄️</div>
+                  <div class="source-btn-label"><strong>Jul 2026</strong></div>
+                  <div class="source-btn-count" style="font-weight:800;color:#94a3b8">🔜 Em breve</div>
+                </button>
               </div>
               <!-- 📅 TEMPORADAS ANTERIORES — mesma ideia do Manual: seção
-                   separada e recolhível, loadDynamicSheets() preenche sozinho. -->
-              <div id="hist-seasons-wrap-auto" style="display:none;margin-top:10px">
+                   separada e recolhível. Jul 2025 é fixo aqui (pedido do dono,
+                   07/07/2026); loadDynamicSheets() injeta as demais (ex. Jan 2025). -->
+              <div id="hist-seasons-wrap-auto" style="display:block;margin-top:10px">
                 <button id="hist-seasons-toggle-auto" onclick="toggleHistSeasonsAuto()" type="button" style="width:100%;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;color:var(--t3);font-size:12px;font-weight:700;padding:9px 12px;cursor:pointer;font-family:inherit">
                   <i class="ti ti-calendar-time"></i>
                   <span id="hist-seasons-label-auto">📅 Ver temporadas anteriores</span>
                   <i class="ti ti-chevron-down" id="hist-seasons-chevron-auto" style="margin-left:auto;transition:transform .2s"></i>
                 </button>
-                <div class="source-btns" id="hist-seasons-row-auto" style="display:none;margin-top:8px"></div>
+                <div class="source-btns" id="hist-seasons-row-auto" style="display:none;margin-top:8px">
+                  <button class="source-btn" data-src="jul2025" onclick="selectSource('jul2025')">
+                    <div class="source-btn-icon">❄️</div>
+                    <div class="source-btn-label"><strong>Jul 2025</strong> — Inverno</div>
+                    <div class="source-btn-count" id="src-jul-cnt">–</div>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -9833,7 +9844,8 @@ async function loadDynamicSheets(){
           `<div class="source-btn-label"><strong>${s.name}</strong> `+
           `<span style="display:inline-block;font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px;background:${visaBg};color:${visaCor};margin-left:3px;vertical-align:middle">${s.visa}</span></div>`+
           `<div class="source-btn-count">${(s.count||0).toLocaleString('pt-BR')} vagas</div>`;
-        sb.appendChild(btn);
+        const autoPlaceholder=document.getElementById('source-btn-jul2026-placeholder');
+        if(autoPlaceholder && s.key==='jul2026'){ autoPlaceholder.replaceWith(btn); } else { sb.appendChild(btn); }
       });
     }
     // MANUAL — chips (insere após a chip Jul 2025) — só as ATUAIS

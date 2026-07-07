@@ -3653,25 +3653,43 @@ document.addEventListener('DOMContentLoaded',()=>{
   </div>
 </div>
 
-<!-- ══ 📅 COLETA DE TEMPORADAS HISTÓRICAS — pedido do dono (07/07/2026):
-     coleta as vagas COMPLETAS (com e-mail) de FY23-25 usando o MESMO bot
-     acima, uma temporada de cada vez, e publica automaticamente. ══ -->
+<!-- ══ ☀️ COLETA DA ÚLTIMA TEMPORADA QUE FALTA (Jan 2025) — pedido do dono
+     (07/07/2026): só falta Verão 2025 pra fechar a sequência
+     Jan2025 → Jul2025 → Jan2026 → Jul2026. Usa o MESMO bot acima. ══ -->
 <div id="hist-build-box" style="background:linear-gradient(135deg,rgba(56,189,248,.1),rgba(14,116,144,.05));border:1.5px solid rgba(56,189,248,.35);border-radius:14px;padding:16px;margin-bottom:16px">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-    <div style="font-size:28px">📅</div>
+    <div style="font-size:28px">☀️</div>
     <div style="flex:1;min-width:0">
-      <div style="font-size:14px;font-weight:800;color:#fff">Coletar Temporadas Históricas (FY23–FY25)</div>
-      <div style="font-size:11px;color:var(--t3)">Usa o MESMO bot acima, uma temporada de cada vez, com vagas COMPLETAS (empresa, e-mail, salário, cidade) — não só o grupo de randomização. Publica sozinho ao terminar cada uma.</div>
+      <div style="font-size:14px;font-weight:800;color:#fff">Coletar Verão 2025 (Jan 2025)</div>
+      <div style="font-size:11px;color:var(--t3)">Última temporada que falta. Usa o MESMO bot acima, vagas COMPLETAS (empresa, e-mail, salário, cidade) — janela fechada 01/04/2025–30/09/2025, nunca pega vaga de outra temporada. Publica sozinho ao terminar.</div>
     </div>
   </div>
   <div id="hist-build-table" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;margin-bottom:12px"></div>
-  <button class="btn btn-primary btn-sm" id="hist-build-btn" onclick="histBuildStart()" style="width:100%;background:linear-gradient(135deg,#38bdf8,#0284c7);border:none;font-weight:700"><i class="ti ti-history"></i> Coletar todas as temporadas que faltam</button>
-  <button class="btn btn-primary btn-sm" id="hist-refazer-todas-btn" onclick="histRefazerTodas()" style="width:100%;margin-top:8px;background:linear-gradient(135deg,#ef4444,#b91c1c);border:none;font-weight:700"><i class="ti ti-refresh-alert"></i> 🔁 Refazer TODAS as 6 do zero (apaga e recoleta certo)</button>
-  <div style="font-size:10px;color:var(--t3);margin-top:6px;text-align:center">Use isto se as 6 temporadas foram coletadas antes da correção de duplicata — apaga cada uma e recoleta com o bot já corrigido, uma de cada vez.</div>
-  <div style="font-size:11px;font-weight:800;color:#38bdf8;text-transform:uppercase;letter-spacing:.03em;margin:12px 0 6px">📅 Log da COLETA HISTÓRICA — janela própria</div>
+  <button class="btn btn-primary btn-sm" id="hist-build-btn" onclick="histBuildStart()" style="width:100%;background:linear-gradient(135deg,#38bdf8,#0284c7);border:none;font-weight:700"><i class="ti ti-history"></i> Coletar Jan 2025</button>
+  <button class="btn btn-primary btn-sm" id="hist-refazer-todas-btn" onclick="histRefazerTodas()" style="width:100%;margin-top:8px;background:linear-gradient(135deg,#ef4444,#b91c1c);border:none;font-weight:700"><i class="ti ti-refresh-alert"></i> 🔁 Refazer Jan 2025 do zero</button>
+  <div style="font-size:10px;color:var(--t3);margin-top:6px;text-align:center">Use isto se a planilha atual ficou com número estranho — apaga e recoleta com o bot corrigido.</div>
+  <div style="font-size:11px;font-weight:800;color:#38bdf8;text-transform:uppercase;letter-spacing:.03em;margin:12px 0 6px">📅 Log da coleta — janela própria</div>
   <div class="enrich-log" id="hist-build-log" style="height:200px"><div class="empty-state">Clique no botão acima pra ver os passos aqui.</div></div>
-  <div style="font-size:10px;color:var(--t3);margin-top:5px">Cada temporada pode levar bastante tempo (milhares de vagas, coleta devagar de propósito) — roda em background, pode fechar a página.</div>
+  <div style="font-size:10px;color:var(--t3);margin-top:5px">Pode levar bastante tempo (milhares de vagas, coleta devagar de propósito) — roda em background, pode fechar a página.</div>
 </div>
+
+<!-- ══ 🔭 VIGIA DE JULHO 2026 — pedido do dono (07/07/2026): "fica sempre
+     ligado o bot de a cada cinco minutos porque se sair a julho de 2026 ele
+     deve fazer". Sonda o DOL a cada 5min e coleta+publica sozinho assim que
+     a temporada abrir — mostra aqui o status pro admin acompanhar. ══ -->
+<div id="next-season-box" style="background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(79,70,229,.05));border:1.5px solid rgba(139,92,246,.35);border-radius:14px;padding:16px;margin-bottom:16px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <div style="font-size:28px">🔭</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:800;color:#fff">Vigia de Julho 2026</div>
+      <div style="font-size:11px;color:var(--t3)">Checa o DOL sozinho a cada 5 minutos. Assim que Julho 2026 (H-2B) tiver a primeira vaga real publicada, coleta tudo e publica automaticamente — sem precisar clicar em nada.</div>
+    </div>
+  </div>
+  <div id="next-season-status" style="font-size:12px;color:var(--t2);background:rgba(255,255,255,.04);border-radius:10px;padding:10px;margin-bottom:10px">Carregando status…</div>
+  <button class="btn btn-ghost btn-sm" onclick="nextSeasonCheckNow()" style="width:100%"><i class="ti ti-refresh"></i> Checar agora</button>
+</div>
+
+
 
 <!-- Modal: Configurar nova planilha DOL -->
 <div id="dol-build-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;padding:16px;align-items:center;justify-content:center">
@@ -3690,7 +3708,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px">🔗 Link Advanced Search do seasonaljobs.dol.gov</div>
       <button type="button" onclick="dolPrefillJul2026()" style="width:100%;margin-bottom:8px;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;border-radius:9px;padding:9px;font-size:12px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit">📅 Preencher pra Julho 2026 (H-2B) — a próxima temporada</button>
       <textarea id="dol-build-url" class="form-inp" rows="3" style="font-size:11px;font-family:monospace;resize:vertical" placeholder="https://seasonaljobs.dol.gov/archive?search=&location=&start_date=02/01/2026&job_type=H-2A&sort=relevancy&job_status=all"></textarea>
-      <div id="dol-build-url-info" style="font-size:10px;color:var(--t3);margin-top:4px">Cole o link e as configurações serão detectadas automaticamente</div>
+      <div id="dol-build-url-info" style="font-size:10px;color:var(--t3);margin-top:4px">Cole o link e as configurações serão detectadas automaticamente. Dica: para uma temporada FECHADA no passado (não a atual), adicione <code>&end_date=MM/DD/AAAA</code> na URL — sem isso a busca fica em aberto e pode trazer vagas de temporadas seguintes junto.</div>
     </div>
 
     <!-- Visa detectada + info -->
@@ -12060,7 +12078,7 @@ function dolPrefillJul2026(){
   const nameEl=document.getElementById('dol-build-name');
   const keyEl=document.getElementById('dol-build-key');
   const qtyEl=document.getElementById('dol-build-qty');
-  const url='https://seasonaljobs.dol.gov/archive?search=&location=&start_date=10/01/2026&job_type=H-2B&sort=relevancy&job_status=all';
+  const url='https://seasonaljobs.dol.gov/archive?search=&location=&start_date=10/01/2026&end_date=04/01/2027&job_type=H-2B&sort=relevancy&job_status=all';
   if(urlEl){ urlEl.value=url; urlEl.dispatchEvent(new Event('input')); }
   if(nameEl) nameEl.value='Julho 2026 (H-2B)';
   if(keyEl) keyEl.value='jul2026';
@@ -12082,11 +12100,12 @@ document.addEventListener('DOMContentLoaded',()=>{
       const jt=(u.searchParams.get('job_type')||'').toUpperCase();
       const js=u.searchParams.get('job_status')||'all';
       const sd=u.searchParams.get('start_date')||'';
+      const ed=u.searchParams.get('end_date')||'';
       const isH2A=jt.includes('H-2A')||jt.includes('AGRICULTURAL');
       const visa=isH2A?'H-2A':'H-2B';
       const statusLabel=js==='active'?'🟢 Apenas ativas':js==='inactive'?'🔴 Inativas':'⚪ Todas (ativas + inativas)';
       det.style.display='block';
-      det.innerHTML=`✅ URL válida detectada!<br>🪪 Visa: <strong>${visa}</strong> &nbsp;|&nbsp; 📋 Status: ${statusLabel}${sd?` &nbsp;|&nbsp; 📅 A partir de: ${sd}`:''}`;
+      det.innerHTML=`✅ URL válida detectada!<br>🪪 Visa: <strong>${visa}</strong> &nbsp;|&nbsp; 📋 Status: ${statusLabel}${sd?` &nbsp;|&nbsp; 📅 A partir de: ${sd}`:''}${ed?` até ${ed}`:' <span style="color:#f59e0b">(sem teto — pega até hoje/futuro)</span>'}`;
       if(h2aTip) h2aTip.style.display=isH2A?'block':'none';
       // Sugerir nome/key
       const nameEl=document.getElementById('dol-build-name');
@@ -12259,17 +12278,17 @@ let _histBuildPollTimer=null;
 // corrigido (sem duplicata, sem teto de 5000 artificial). Use quando TODAS
 // as 6 foram coletadas com o bot antigo (antes do KB-076).
 async function histRefazerTodas(){
-  if(!confirm('Refazer as 6 temporadas históricas DO ZERO?\n\nCada uma será APAGADA (mesmo já publicada) e coletada de novo, uma de cada vez — pode levar bastante tempo no total. Roda em background, pode fechar a página.')) return;
+  if(!confirm('Refazer "Jan 2025" DO ZERO?\n\nA planilha atual será APAGADA (mesmo já publicada) e coletada de novo. Roda em background, pode fechar a página.')) return;
   const btn=document.getElementById('hist-refazer-todas-btn');
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Refazendo as 6…'; }
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Refazendo…'; }
   try{
     const r=await fetch('/api/admin/sheet/historico-refazer-todas',{method:'POST',credentials:'include'});
     const d=await r.json();
-    if(!d.ok){ toast(d.error||'Erro ao iniciar','r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-refresh-alert"></i> 🔁 Refazer TODAS as 6 do zero (apaga e recoleta certo)';} return; }
-    toast('🔁 Refazendo as 6 temporadas do zero — acompanhe no log abaixo','g');
+    if(!d.ok){ toast(d.error||'Erro ao iniciar','r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-refresh-alert"></i> 🔁 Refazer Jan 2025 do zero';} return; }
+    toast('🔁 Refazendo Jan 2025 do zero — acompanhe no log abaixo','g');
     if(!_histBuildPollTimer) _histBuildPollTimer=setInterval(histBuildPoll,3000);
     histBuildPoll();
-  }catch(e){ toast('Erro: '+e.message,'r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-refresh-alert"></i> 🔁 Refazer TODAS as 6 do zero (apaga e recoleta certo)';} }
+  }catch(e){ toast('Erro: '+e.message,'r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-refresh-alert"></i> 🔁 Refazer Jan 2025 do zero';} }
 }
 async function histBuildStart(){
   const btn=document.getElementById('hist-build-btn');
@@ -12277,10 +12296,10 @@ async function histBuildStart(){
   try{
     const r=await fetch('/api/admin/sheet/historico-collect-all',{method:'POST',credentials:'include'});
     const d=await r.json();
-    if(!d.ok){ toast(d.error||'Erro ao iniciar','r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-history"></i> Coletar todas as temporadas que faltam';} return; }
+    if(!d.ok){ toast(d.error||'Erro ao iniciar','r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-history"></i> Coletar Jan 2025';} return; }
     if(!_histBuildPollTimer) _histBuildPollTimer=setInterval(histBuildPoll,3000);
     histBuildPoll();
-  }catch(e){ toast('Erro: '+e.message,'r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-history"></i> Coletar todas as temporadas que faltam';} }
+  }catch(e){ toast('Erro: '+e.message,'r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-history"></i> Coletar Jan 2025';} }
 }
 async function histBuildPoll(){
   try{
@@ -12316,12 +12335,12 @@ async function histBuildPoll(){
     const btn=document.getElementById('hist-build-btn');
     if(btn){
       if(d.running){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Coletando…'; }
-      else{ btn.disabled=false; btn.innerHTML='<i class="ti ti-history"></i> Coletar todas as temporadas que faltam'; if(_histBuildPollTimer){clearInterval(_histBuildPollTimer);_histBuildPollTimer=null;} }
+      else{ btn.disabled=false; btn.innerHTML='<i class="ti ti-history"></i> Coletar Jan 2025'; if(_histBuildPollTimer){clearInterval(_histBuildPollTimer);_histBuildPollTimer=null;} }
     }
     const btnTodas=document.getElementById('hist-refazer-todas-btn');
     if(btnTodas){
-      if(d.running){ btnTodas.disabled=true; btnTodas.innerHTML='<span class="spin spin-sm"></span> Refazendo as 6…'; }
-      else{ btnTodas.disabled=false; btnTodas.innerHTML='<i class="ti ti-refresh-alert"></i> 🔁 Refazer TODAS as 6 do zero (apaga e recoleta certo)'; }
+      if(d.running){ btnTodas.disabled=true; btnTodas.innerHTML='<span class="spin spin-sm"></span> Refazendo…'; }
+      else{ btnTodas.disabled=false; btnTodas.innerHTML='<i class="ti ti-refresh-alert"></i> 🔁 Refazer Jan 2025 do zero'; }
     }
   }catch(e){ console.warn('[hist-build-poll]',e.message); }
 }
@@ -12339,6 +12358,45 @@ async function histRefazer(key,name){
     histBuildPoll();
   }catch(e){ toast('Erro: '+e.message,'r'); }
 }
+
+// ════════════════════════════════════════════════════════════
+//  🔭 VIGIA DE JULHO 2026 — KB-082, checa a cada 5min sozinho no
+//  servidor; aqui só espelhamos o status pro admin acompanhar.
+// ════════════════════════════════════════════════════════════
+function _timeAgo(ts){
+  if(!ts) return 'nunca';
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60) return `${s}s atrás`;
+  if(s<3600) return `${Math.floor(s/60)}min atrás`;
+  return `${Math.floor(s/3600)}h atrás`;
+}
+async function nextSeasonPoll(){
+  const box=document.getElementById('next-season-status');
+  if(!box) return;
+  try{
+    const r=await fetch('/api/admin/sheet/next-season-status',{credentials:'include'});
+    const d=await r.json();
+    if(!d.ok) return;
+    if(d.published){
+      box.innerHTML=`✅ <strong>${d.season.emoji} ${d.season.name}</strong> já foi detectada e publicada automaticamente — ${(d.count||0).toLocaleString('pt-BR')} vagas únicas.`;
+    }else{
+      box.innerHTML=`⏳ Ainda não abriu. Última checagem: <strong>${_timeAgo(d.lastCheckAt)}</strong> (${d.checksCount||0} no total) — próxima em até 5min.${d.checking?' <span class="spin spin-sm"></span> checando agora…':''}`;
+    }
+  }catch(e){ box.innerHTML='⚠️ Não foi possível carregar o status.'; }
+}
+async function nextSeasonCheckNow(){
+  const box=document.getElementById('next-season-status');
+  if(box) box.innerHTML='<span class="spin spin-sm"></span> Checando agora…';
+  try{
+    await fetch('/api/admin/sheet/next-season-check-now',{method:'POST',credentials:'include'});
+    toast('🔭 Checagem manual disparada — pode levar alguns segundos','g');
+    setTimeout(nextSeasonPoll,4000);
+  }catch(e){ toast('Erro: '+e.message,'r'); }
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  nextSeasonPoll();
+  setInterval(nextSeasonPoll, 30_000); // atualiza o card a cada 30s (o servidor checa o DOL a cada 5min)
+});
 
 async function dolBuildStop(){
   if(!confirm('Parar a coleta agora? O que já foi coletado será salvo.')) return;

@@ -2061,17 +2061,25 @@ function _parseDolAdvancedUrl(urlStr){
     const jobType   = params.get('job_type') || 'H-2B';   // 'H-2A' ou 'H-2B'
     const jobStatus = params.get('job_status') || 'all';  // 'all', 'active'
     const startDate = params.get('start_date') || '';
+    const endDateRaw= params.get('end_date') || '';
     const search    = params.get('search') || '';
     const location  = params.get('location') || '';
-    // Converte start_date MM/DD/YYYY → YYYY-MM-DD
-    let beginDate = '';
-    if(startDate){
-      const parts = startDate.split('/');
-      if(parts.length===3) beginDate = `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
-    }
+    // Converte start_date/end_date MM/DD/YYYY → YYYY-MM-DD
+    const toIso = (mdy) => {
+      const parts = (mdy||'').split('/');
+      return parts.length===3 ? `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}` : '';
+    };
+    const beginDate = toIso(startDate);
+    // 🔒 KB-081 (pedido do dono, 07/07/2026): end_date é o TETO SUPERIOR da
+    // janela de uma temporada. Sem ele, um filtro "begin_date ge X" fica em
+    // aberto pra sempre e acaba capturando vagas de TODAS as temporadas
+    // seguintes também — foi isso que fez Jul2023/Jan2024/Jul2024/Jan2025
+    // devolverem a mesma quantidade (todas caíam no mesmo pool aberto) e
+    // Jul2022 bater no teto de 20000 (pool quase inteiro, sem limite).
+    const endDate = toIso(endDateRaw);
     const visaClass = jobType.toUpperCase().includes('H-2A') ? 'H-2A' : 'H-2B';
     const apiJobType = visaClass==='H-2A' ? 'agricultural' : 'non-agricultural';
-    return { visaClass, apiJobType, jobStatus, beginDate, search, location, ok: true };
+    return { visaClass, apiJobType, jobStatus, beginDate, endDate, search, location, ok: true };
   }catch(e){
     return { ok: false, error: e.message };
   }
@@ -2155,6 +2163,10 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
       if(parsed.visaClass==='H-2A') f.push("visa_class eq 'H-2A'");
       else f.push("visa_class eq 'H-2B'");
       if(parsed.beginDate && _useBeginDate) f.push(`begin_date ge '${parsed.beginDate}'`);
+      // 🔒 KB-081: teto superior da janela — sem isto, uma vaga de temporada
+      // futura satisfaz "begin_date ge X" de QUALQUER temporada passada e
+      // acaba indo parar em várias planilhas ao mesmo tempo.
+      if(parsed.endDate && _useBeginDate) f.push(`begin_date lt '${parsed.endDate}'`);
       if(parsed.search) p.append('$search','"'+parsed.search.replace(/"/g,'')+'"');
       if(f.length) p.append('$filter',f.join(' and '));
       if(_useOrderby) p.append('$orderby','dhTimestamp desc');
@@ -2180,10 +2192,12 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
               if(newRows.length>=targetCount) break;
               const cn = (j.case_number||j.case_id||'').toUpperCase();
               if(!cn) continue;
-              // Se o filtro de data foi removido do servidor (degradação), filtra aqui.
-              if(parsed.beginDate && !_useBeginDate){
+              // Se o filtro de data foi removido do servidor (degradação), filtra aqui
+              // (piso E teto — mesma janela que seria aplicada no servidor).
+              if(!_useBeginDate){
                 const bd=(j.begin_date||'').slice(0,10);
-                if(bd && bd < parsed.beginDate) continue;
+                if(parsed.beginDate && bd && bd < parsed.beginDate) continue;
+                if(parsed.endDate && bd && bd >= parsed.endDate) continue;
               }
               // Detectar visa pelo case number (H-300 = H-2A, H-400 = H-2B)
               const visaDet = cn.startsWith('H-300') ? 'H-2A' : cn.startsWith('H-400') ? 'H-2B' : (j.visa_class||parsed.visaClass);
@@ -2356,16 +2370,39 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
 //  cada filing de Julho mira início 1º de Outubro (❄️ Inverno) — MESMA
 //  convenção de ícone já usada em jan2026 (☀️) e jul2025 (❄️).
 // ══════════════════════════════════════════════════════════════════════════
+// 🔒 KB-081 (pedido do dono, 07/07/2026): cada temporada agora tem um
+// endDate explícito = o startDate da PRÓXIMA temporada da lista (a de
+// Jan 2025 fecha em 01/10/2025, exatamente onde a planilha built-in
+// "Julho 2025" começa — sem sobreposição, sem buraco). Antes só existia
+// startDate e o filtro "begin_date ge X" ficava aberto pra sempre, então
+// uma vaga de 2026 satisfazia o filtro de QUALQUER temporada passada e
+// aparecia em várias planilhas ao mesmo tempo com a MESMA contagem.
+// 🔒 KB-082 (pedido do dono, 07/07/2026): o dono NÃO quer mais as temporadas
+// FY22–FY24 (Jul2022/Jan2023/Jul2023/Jan2024/Jul2024) — só falta MESMO a de
+// Verão 2025 (Jan 2025) pra fechar a sequência Jan2025→Jul2025→Jan2026→Jul2026.
+// Lista reduzida a 1 item só; as chaves antigas são apagadas por
+// _cleanupRemovedHistoricalSeasons() no boot (ver abaixo).
 const HISTORICAL_SEASONS = [
-  { key:"jul2022", name:"Jul 2022", emoji:"❄️", startDate:"10/01/2022" },
-  { key:"jan2023", name:"Jan 2023", emoji:"☀️", startDate:"04/01/2023" },
-  { key:"jul2023", name:"Jul 2023", emoji:"❄️", startDate:"10/01/2023" },
-  { key:"jan2024", name:"Jan 2024", emoji:"☀️", startDate:"04/01/2024" },
-  { key:"jul2024", name:"Jul 2024", emoji:"❄️", startDate:"10/01/2024" },
-  { key:"jan2025", name:"Jan 2025", emoji:"☀️", startDate:"04/01/2025" },
+  { key:"jan2025", name:"Jan 2025", emoji:"☀️", startDate:"04/01/2025", endDate:"10/01/2025" },
 ];
-function _histSearchUrl(startDate){
-  return `https://seasonaljobs.dol.gov/archive?search=&location=&start_date=${startDate}&job_type=H-2B&sort=relevancy&job_status=all`;
+function _histSearchUrl(startDate, endDate){
+  return `https://seasonaljobs.dol.gov/archive?search=&location=&start_date=${startDate}&end_date=${endDate||''}&job_type=H-2B&sort=relevancy&job_status=all`;
+}
+// Chaves que EXISTIAM na lista antiga (FY22-24) e não devem mais existir —
+// apaga arquivo+manifesto+meta se sobrou algo de coletas anteriores.
+const _REMOVED_HISTORICAL_KEYS = ["jul2022","jan2023","jul2023","jan2024","jul2024"];
+function _cleanupRemovedHistoricalSeasons(){
+  for(const key of _REMOVED_HISTORICAL_KEYS){
+    try{
+      const meta = DB_SHEETS_META[key];
+      if(meta?.file){ try{ fs.unlinkSync(path.join(SHEETS_DIR, meta.file)); }catch{} }
+      try{ fs.unlinkSync(path.join(SHEETS_DIR, key+'.json')); }catch{}
+      try{ fs.unlinkSync(path.join(SHEETS_DIR, key+'.manifest.json')); }catch{}
+      if(SHEET_EXTRAS[key]){ delete SHEET_EXTRAS[key]; }
+      if(DB_SHEETS_META[key]){ delete DB_SHEETS_META[key]; console.log(`[cleanup] 🗑️ Temporada removida (não pedida mais): ${key}`); }
+    }catch(e){ console.warn(`[cleanup] falha ao remover ${key}: ${e.message}`); }
+  }
+  try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
 }
 const _histBuild = { running:false, log:[] };
 function _histLog(msg, type='info'){
@@ -2412,7 +2449,7 @@ async function _runHistoricoOrchestrator(force=false){
     }
     _histLog(`${season.emoji} ${season.name}: iniciando coleta ao vivo (início de vaga ${season.startDate})...`,'info');
     try{
-      await _runDolBuildBot(_histSearchUrl(season.startDate), season.key, season.name, 20000); // KB-079: teto de segurança, não alvo — bot para sozinho no tamanho real
+      await _runDolBuildBot(_histSearchUrl(season.startDate, season.endDate), season.key, season.name, 20000); // KB-079/KB-081: teto de segurança (não alvo) + janela fechada por endDate
       const arr=SHEET_EXTRAS[season.key]||[];
       const count=arr.length;
       if(!count){
@@ -2441,6 +2478,78 @@ async function _runHistoricoOrchestrator(force=false){
   _histBuild.running=false;
   _histLog(force?`🔁 Refazer TODAS concluído.`:`📅 Coleta histórica concluída.`,'ok');
 }
+
+// ══════════════════════════════════════════════════════════════════════════
+//  🔭 VIGIA DA PRÓXIMA TEMPORADA (Julho 2026) — pedido do dono (07/07/2026):
+//  "fica sempre ligado o bot de a cada cinco minutos porque se sair a julho
+//  de dois mil vinte e seis ele deve fazer". A cada 5 minutos, sonda LEVE
+//  (1 registro só, $top=1) se o DOL já tem alguma vaga H-2B com begin_date
+//  dentro da janela de Julho 2026 (01/10/2026–31/03/2027). Assim que achar a
+//  PRIMEIRA vaga real, dispara a coleta completa (mesmo bot, mesma garantia
+//  de integridade/janela fechada do KB-081) e PUBLICA sozinho — sem esperar
+//  o admin clicar em nada. Depois de publicada, para de sondar (idempotente).
+// ══════════════════════════════════════════════════════════════════════════
+const NEXT_SEASON = { key:"jul2026", name:"Julho 2026 (H-2B)", emoji:"❄️", startDate:"10/01/2026", endDate:"04/01/2027" };
+const _nextSeasonWatch = { lastCheckAt:null, lastResult:null, checking:false, found:false, checksCount:0 };
+
+async function _probeNextSeasonAvailable(){
+  const parsed = _parseDolAdvancedUrl(_histSearchUrl(NEXT_SEASON.startDate, NEXT_SEASON.endDate));
+  if(!parsed.ok) return false;
+  const p = new URLSearchParams({'api-version':'2020-06-30'});
+  const f = [`visa_class eq 'H-2B'`];
+  if(parsed.beginDate) f.push(`begin_date ge '${parsed.beginDate}'`);
+  if(parsed.endDate)   f.push(`begin_date lt '${parsed.endDate}'`);
+  p.append('$filter', f.join(' and '));
+  p.append('$top','1');
+  try{
+    const {status,body} = await httpsReq({hostname:'api.seasonaljobs.dol.gov',path:'/datahub/?'+p,method:'GET',headers:{
+      'Accept':'application/json,text/plain,*/*',
+      'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Referer':'https://seasonaljobs.dol.gov/', 'Origin':'https://seasonaljobs.dol.gov',
+    }});
+    if(status!==200) return false;
+    const raw = body.value||body.results||body.data||(Array.isArray(body)?body:[]);
+    return raw.length>0;
+  }catch{ return false; }
+}
+
+async function _nextSeasonWatchTick(){
+  if(_nextSeasonWatch.checking) return;
+  if(DB_SHEETS_META[NEXT_SEASON.key]?.published){ _nextSeasonWatch.found=true; return; } // já publicada — para de sondar
+  if(_dolBuildBot.running || _histBuild.running) return; // bot ocupado agora, tenta de novo em 5min
+  _nextSeasonWatch.checking = true;
+  _nextSeasonWatch.lastCheckAt = Date.now();
+  _nextSeasonWatch.checksCount++;
+  try{
+    const available = await _probeNextSeasonAvailable();
+    _nextSeasonWatch.lastResult = available;
+    if(available){
+      console.log(`[next-season] 🎉 ${NEXT_SEASON.name} já tem vagas no DOL — iniciando coleta completa automaticamente.`);
+      await _runDolBuildBot(_histSearchUrl(NEXT_SEASON.startDate, NEXT_SEASON.endDate), NEXT_SEASON.key, NEXT_SEASON.name, 20000);
+      const arr = SHEET_EXTRAS[NEXT_SEASON.key]||[];
+      if(arr.length){
+        const integ = _vagasVerify(arr,{caseField:'c'});
+        const withEmail = arr.filter(r=>r.e&&r.e.includes('@')).length;
+        if(!DB_SHEETS_META[NEXT_SEASON.key]) DB_SHEETS_META[NEXT_SEASON.key]={};
+        Object.assign(DB_SHEETS_META[NEXT_SEASON.key],{
+          published:true, publishedAt:Date.now(), name:NEXT_SEASON.name, visaType:'H-2B',
+          count:arr.length, uniqueCaseCount:integ.uniqueCaseCount, emoji:NEXT_SEASON.emoji, autoDetected:true,
+        });
+        try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
+        _nextSeasonWatch.found = true;
+        console.log(`[next-season] ✅ ${NEXT_SEASON.name} publicada automaticamente: ${arr.length} vagas únicas (${withEmail} com e-mail).`);
+      }else{
+        console.warn(`[next-season] ⚠️ Sonda achou vaga, mas a coleta completa voltou vazia — tenta de novo na próxima janela de 5min.`);
+      }
+    }
+  }catch(e){
+    console.warn(`[next-season] Erro na sondagem: ${e.message}`);
+  }finally{
+    _nextSeasonWatch.checking = false;
+  }
+}
+setInterval(_nextSeasonWatchTick, 5*60*1000);   // a cada 5 minutos, pedido explícito do dono
+setTimeout(_nextSeasonWatchTick, 30_000);        // 1ª checagem ~30s depois do boot
 
 const sheetCache = new Map();
 const SHEET_TTL  = 60*60*1000;
@@ -2569,6 +2678,10 @@ function loadSheets() {
     }
     if(extrasLoaded>0) console.log(`[sheet] ✅ ${extrasLoaded} planilha(s) extra(s) carregada(s) do disco`);
   }
+
+  // 🔒 KB-082: apaga qualquer resquício das temporadas FY22-24 que o dono
+  // não quer mais (o próprio dono pediu a remoção em 07/07/2026).
+  _cleanupRemovedHistoricalSeasons();
 }
 
 const CATEGORY_KEYWORDS = {
@@ -5519,6 +5632,33 @@ function _saveEnrichedSheet(sheetKey, sheet){
     return json(res,200,{ok:true, running:_histBuild.running, temporadas, log:_histBuild.log.slice(-150)});
   }
 
+  // GET /api/admin/sheet/next-season-status — status do vigia de Julho 2026
+  // (KB-082, pedido do dono: bot deve checar sozinho a cada 5min).
+  if(pathname==="/api/admin/sheet/next-season-status"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    return json(res,200,{ok:true,
+      season:{key:NEXT_SEASON.key,name:NEXT_SEASON.name,emoji:NEXT_SEASON.emoji},
+      published: DB_SHEETS_META[NEXT_SEASON.key]?.published===true,
+      count: DB_SHEETS_META[NEXT_SEASON.key]?.count||0,
+      lastCheckAt: _nextSeasonWatch.lastCheckAt,
+      lastResult: _nextSeasonWatch.lastResult,
+      checksCount: _nextSeasonWatch.checksCount,
+      checking: _nextSeasonWatch.checking,
+      intervalMinutes: 5,
+    });
+  }
+
+  // POST /api/admin/sheet/next-season-check-now — força uma checagem manual
+  // imediata (fora do ciclo de 5min), sem esperar o próximo tick.
+  if(pathname==="/api/admin/sheet/next-season-check-now"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    if(_nextSeasonWatch.checking) return json(res,200,{ok:true,alreadyChecking:true});
+    _nextSeasonWatchTick().catch(()=>{});
+    return json(res,200,{ok:true,started:true});
+  }
+
   // POST /api/admin/sheet/historico-collect-all — dispara a coleta+publicação
   // sequencial das temporadas que faltam (pula as já publicadas). Roda em
   // background — front acompanha via polling do status acima.
@@ -5575,7 +5715,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
     _histLog(`🔁 Admin ${s.user_email} pediu pra REFAZER do zero: ${season.emoji} ${season.name} (planilha antiga apagada, coletando de novo com o bot corrigido)`,'info');
     (async()=>{
       try{
-        await _runDolBuildBot(_histSearchUrl(season.startDate), season.key, season.name, 20000); // KB-079: teto de segurança, não alvo — bot para sozinho no tamanho real
+        await _runDolBuildBot(_histSearchUrl(season.startDate, season.endDate), season.key, season.name, 20000); // KB-079/KB-081: teto de segurança (não alvo) + janela fechada por endDate
         const arr=SHEET_EXTRAS[season.key]||[];
         if(!arr.length){
           _histLog(`${season.emoji} ${season.name}: ⚠️ coleta terminou sem nenhuma vaga — não publicado.`,'warn');
