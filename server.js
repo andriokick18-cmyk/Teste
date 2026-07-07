@@ -283,7 +283,7 @@ let DB_CODES  = {};   // NEW: promo codes { code → { manualDays, autoDays, cre
 let DB_PUSH   = {};   // NEW: push subscriptions { userEmail → PushSubscription[] }
 // NEW v13: índice de candidaturas — { userEmail → { byThread:{tid:appId}, byMsgId:{mid:appId}, byTo:{email:[appId,...]} } }
 let DB_APP_INDEX = {};
-let DB_ADMIN_SETTINGS = { etaWorkerEnabled: true, newUserTrialEnabled: true, newUserTrialDays: 1, newUserTrialAutoDays: 0, newUserTrialPlan: "vip", editorPasswords: { andrew: "84800-54", diego: "Diego2026" },
+let DB_ADMIN_SETTINGS = { etaWorkerEnabled: true, emailNotificationsEnabled: false, newUserTrialEnabled: true, newUserTrialDays: 1, newUserTrialAutoDays: 0, newUserTrialPlan: "vip", editorPasswords: { andrew: "84800-54", diego: "Diego2026" },
   // MULTI-SERVIDOR: lista de servidores exibida no seletor da landing.
   // status "lotado" = fechado p/ contas novas (só login); "aberto" = cadastro liberado.
   // maxExibido é o teto MOSTRADO na barra (pode ser menor que o real p/ marcar lotação).
@@ -2167,7 +2167,7 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
 
     // Atualizar SHEET_EXTRAS em memória
     SHEET_EXTRAS[sheetKey] = newRows;
-    newRows.forEach(r=>{if(!r.k)r.k=detectCategory(r.n||'');r._sheet=sheetKey;});
+    newRows.forEach(r=>{if(!r.k)r.k=detectCategory(`${r.n||''} ${r.t||''}`);r._sheet=sheetKey;});
 
     // Atualizar meta
     if(!DB_SHEETS_META[sheetKey]) DB_SHEETS_META[sheetKey]={};
@@ -2269,7 +2269,7 @@ function loadSheets() {
           continue;
         }
         if(key==="jan") SHEET_JAN=d; else if(key==="jul") SHEET_JUL=d; else SHEET_H2A=d;
-        (key==="jan"?SHEET_JAN:key==="jul"?SHEET_JUL:SHEET_H2A).forEach(r=>{if(!r.k)r.k=detectCategory(r.n||"");});
+        (key==="jan"?SHEET_JAN:key==="jul"?SHEET_JUL:SHEET_H2A).forEach(r=>{if(!r.k)r.k=detectCategory(`${r.n||""} ${r.t||""}`);});
         console.log(`[sheet] ✅ ${key}: ${d.length} vagas`);
         anyLoaded = true;
       } catch(e) {
@@ -2294,7 +2294,7 @@ function loadSheets() {
       try{
         const d = JSON.parse(fs.readFileSync(fp,"utf8"));
         if(!Array.isArray(d)||d.length===0) continue;
-        d.forEach(r=>{if(!r.k)r.k=detectCategory(r.n||"");r._sheet=metaKey;});
+        d.forEach(r=>{if(!r.k)r.k=detectCategory(`${r.n||""} ${r.t||""}`);r._sheet=metaKey;});
         SHEET_EXTRAS[metaKey] = d;
         extrasLoaded++;
         console.log(`[sheet] ✅ extra ${metaKey}: ${d.length} vagas`);
@@ -2314,12 +2314,25 @@ const CATEGORY_KEYWORDS = {
   amusement:    ['amusement','carnival','fair','theme park','waterpark','camp'],
   forest:       ['forest','timber','logging','reforestation'],
   lifeguard:    ['lifeguard','pool','aquatic','swim'],
-  food:         ['restaurant','grill','tavern','cantina','bistro','brewpub','cafeteria','diner','foodservice','food service','food prep','bartend'],
+  // ⚠️ V960 (correção do bug Housekeeper↔Cook): faltavam palavras de CARGO
+  // aqui — antes só tinha nome de lugar (restaurant/grill/...), então um
+  // título "Cook"/"Chef"/"Kitchen" nunca vencia "hotel/resort" quando o
+  // nome da empresa também aparecia no texto analisado.
+  food:         ['restaurant','grill','tavern','cantina','bistro','brewpub','cafeteria','diner','foodservice','food service','food prep','bartend','cook','chef','kitchen','dishwasher','waiter','waitress','server','banquet','busser','baker','barista'],
   ski:          ['ski ','snowboard','winter resort','mountain resort'],
 };
 
+// Prioridade: cargo (r.t) sempre vale mais que nome da empresa (r.n). Um
+// título "Cook" deve ganhar de "resort" no nome da empresa. Construído a
+// partir de JOB_TITLE_TO_CAT (mais abaixo) na primeira chamada de detectCategory.
+let _jobTitlePriorityKeys = null;
+
 function detectCategory(name) {
   const n = (name||"").toLowerCase();
+  // 1) Match por CARGO específico primeiro (mais confiável que nome de empresa)
+  if(!_jobTitlePriorityKeys) _jobTitlePriorityKeys = Object.entries(JOB_TITLE_TO_CAT).sort((a,b)=>b[0].length-a[0].length);
+  for(const[title,cat] of _jobTitlePriorityKeys){ if(n.includes(title)) return cat; }
+  // 2) Fallback: palavras-chave genéricas (nome de empresa, tipo de negócio etc.)
   for(const[cat,kws]of Object.entries(CATEGORY_KEYWORDS)){if(kws.some(k=>n.includes(k)))return cat;}
   return "other";
 }
@@ -2339,6 +2352,34 @@ function getSheetCategories(sheetName) {
     .map(([k,count])=>({key:k,label:CATEGORY_LABELS[k]?.label||k,count}));
 }
 
+// ── TAXONOMIA REAL DE CARGOS (por título exato da vaga, não categoria fixa) ──
+// Pedido do dono: os filtros de categoria (só ~11 grupos) são grossos demais
+// e causam contaminação (ex.: Cook caindo em Housekeeper). Esta função monta
+// a lista de TODOS os títulos que realmente existem na planilha, contados,
+// e agrupa em "Outros" todo título que aparece 3x ou menos (cargo isolado) —
+// exatamente como pedido, pra não gerar uma lista de milhares de checkboxes
+// com 1 vaga cada. Usada pelo modal grande de filtros (manual + automático).
+function buildTitleTaxonomy(rows) {
+  const counts = new Map(); // chave: título normalizado (lowercase) → {label, count}
+  for (const r of rows) {
+    const raw = String(r.t || "").trim().replace(/\s+/g, " ");
+    if (!raw) continue;
+    const key = raw.toLowerCase();
+    if (!counts.has(key)) counts.set(key, { label: raw, count: 0 });
+    counts.get(key).count++;
+  }
+  const all = [...counts.values()];
+  const principais = all.filter(x => x.count > 3).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  const raros = all.filter(x => x.count <= 3).sort((a, b) => a.label.localeCompare(b.label));
+  const outrosCount = raros.reduce((s, x) => s + x.count, 0);
+  return {
+    titulos: principais.map(x => ({ title: x.label, count: x.count })),
+    outros: { count: outrosCount, titulos: raros.map(x => x.label) },
+    totalTitulosDistintos: all.length,
+    totalVagas: rows.length,
+  };
+}
+
 // Fisher-Yates shuffle — embaralha sem modificar o array original
 function shuffleArray(arr) {
   const a = [...arr];
@@ -2354,6 +2395,8 @@ const JOB_TITLE_TO_CAT = {
   bartender:"food",barman:"food",barmaid:"food",cook:"food","line cook":"food",
   "prep cook":"food",chef:"food",dishwasher:"food",waiter:"food",waitress:"food",
   "food server":"food",barista:"food",baker:"food","food service":"food",
+  "kitchen staff":"food",kitchen:"food",server:"food",restaurant:"food",
+  banquet:"food",busser:"food","food prep":"food","cafeteria worker":"food",
   landscaper:"landscape","lawn care":"landscape",groundskeeper:"landscape",
   gardener:"landscape","landscape worker":"landscape",
   carpenter:"construction",electrician:"construction",plumber:"construction",
@@ -2491,7 +2534,7 @@ function normJob(j,i) {
   const ur=(j.apply_url&&j.apply_url!=="N/A")?j.apply_url:(j.employer_website||"");
   const wg=j.basic_rate_from?`$${parseFloat(j.basic_rate_from).toFixed(2)}/${j.pay_range_desc==="Month"?"mês":"h"}`:"–";
   const title=j.job_title||"Position";
-  return{id:String(j.case_number||j.case_id||("j"+i)),caseNum:String(j.case_number||j.case_id||""),title,company:j.employer_business_name||j.employer_trade_name||"–",city:j.employer_city||j.worksite_city||"–",state:j.employer_state||j.worksite_state||"–",wage:wg,workers:parseInt(j.total_positions||1),start:(j.begin_date||"–").slice(0,10),end:(j.end_date||"–").slice(0,10),email:em,phone:ph,url:ur,active:j.active===true,visa:j.visa_class||"H-2B",jobType:j.visa_class==="H-2A"?"agricultural":"non-agricultural",soc:j.soc_title||"",desc:(j.job_duties||"").replace(/\*\*[^*]+\*\*\n?/g,"").trim(),hasEmail:!!em,category:detectCategory(j.employer_business_name||"")};
+  return{id:String(j.case_number||j.case_id||("j"+i)),caseNum:String(j.case_number||j.case_id||""),title,company:j.employer_business_name||j.employer_trade_name||"–",city:j.employer_city||j.worksite_city||"–",state:j.employer_state||j.worksite_state||"–",wage:wg,workers:parseInt(j.total_positions||1),start:(j.begin_date||"–").slice(0,10),end:(j.end_date||"–").slice(0,10),email:em,phone:ph,url:ur,active:j.active===true,visa:j.visa_class||"H-2B",jobType:j.visa_class==="H-2A"?"agricultural":"non-agricultural",soc:j.soc_title||"",desc:(j.job_duties||"").replace(/\*\*[^*]+\*\*\n?/g,"").trim(),hasEmail:!!em,category:detectCategory(`${j.employer_business_name||""} ${title} ${j.soc_title||""}`)};
 }
 
 async function fetchDOL(skip,top,opts={}) {
@@ -4895,7 +4938,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
     const valid = vagas.filter(v=>v.c&&v.e&&v.e.includes("@"));
     if(valid.length<1)return json(res,400,{error:`Nenhuma vaga válida (com case_number e email). Encontradas: ${vagas.length}`});
     // Enriquecer categorias
-    valid.forEach(r=>{if(!r.k)r.k=detectCategory(r.n||"");r._sheet=safeKey;});
+    valid.forEach(r=>{if(!r.k)r.k=detectCategory(`${r.n||""} ${r.t||""}`);r._sheet=safeKey;});
     // Salvar arquivo
     const fname=`${safeKey}.json`;
     const fpath=path.join(SHEETS_DIR,fname);
@@ -5286,6 +5329,27 @@ function _saveEnrichedSheet(sheetKey, sheet){
     if(filterJobStatus==="inactive") preFiltered=preFiltered.filter(r=>{const st=(r.st||"").toUpperCase();return st.includes("WITHDRAWN")||st.includes("DENIED")||st.includes("EXPIRED");});
     if(filterCompany) preFiltered=preFiltered.filter(r=>(r.n||"").toLowerCase().includes(filterCompany));
     if(filterCity) preFiltered=preFiltered.filter(r=>(r.ci||"").toLowerCase().includes(filterCity));
+    // ── FILTRO POR CARGO EXATO (taxonomia real por título da vaga) ──
+    // titles=Cook,Line Cook,__outros__ — vem do modal grande de filtros (todo
+    // título de fato existente na planilha, não mais só as ~11 categorias fixas).
+    // __outros__ junta todo cargo que aparece 3x ou menos na planilha inteira.
+    const filterTitles=(u.searchParams.get("titles")||"").trim();
+    if(filterTitles){
+      const wantedRaw=filterTitles.split(",").map(t=>t.trim().toLowerCase()).filter(Boolean);
+      const wantOutros=wantedRaw.includes("__outros__");
+      const wantedSet=new Set(wantedRaw.filter(t=>t!=="__outros__"));
+      if(wantedSet.size||wantOutros){
+        const freq=new Map();
+        for(const r of baseArr){ const t=(r.t||"").trim().toLowerCase(); if(t) freq.set(t,(freq.get(t)||0)+1); }
+        preFiltered=preFiltered.filter(r=>{
+          const t=(r.t||"").trim().toLowerCase();
+          if(!t) return false;
+          if(wantedSet.has(t)) return true;
+          if(wantOutros && (freq.get(t)||0)<=3) return true;
+          return false;
+        });
+      }
+    }
     // ── V953: FILTRO POR MÊS DE INÍCIO — "vagas que começam em setembro" ──
     // O trabalhador sazonal planeja a vida pela data de início (r.d = Begin Date).
     // Aceita lista: beginMonth=6,7,8. Vaga sem data não casa com o filtro.
@@ -5403,6 +5467,15 @@ function _saveEnrichedSheet(sheetKey, sheet){
   if(pathname==="/api/sheet-categories"){
     const sheet=u.searchParams.get("sheet")||"";
     return json(res,200,{categories:getSheetCategoriesCached(sheet)});
+  }
+  // GET /api/sheet-titles?sheet=jan2026 — taxonomia real de cargos (todos os
+  // títulos que existem de fato na planilha, contados, com "Outros" agrupando
+  // os isolados ≤3 ocorrências). Alimenta o modal grande de filtros.
+  if(pathname==="/api/sheet-titles"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const sheet=(u.searchParams.get("sheet")||"").trim();
+    const rows = sheet==="all" ? getAllSheets() : getSheet(sheet);
+    return json(res,200,{ok:true,sheet,...buildTitleTaxonomy(rows)});
   }
   if(pathname==="/api/sheet-detail"){const c=(u.searchParams.get("case")||"").trim().toUpperCase();if(!c)return json(res,400,{error:"case obrigatório"});try{const r=await fetchByCase([c]);return json(res,200,{job:r[c]||null,notFound:!r[c]});}catch(e){return json(res,500,{error:e.message});}}
   if(pathname==="/api/sheet-batch"&&req.method==="POST"){try{const d=JSON.parse(await readBody(req));const cases=(d.cases||[]).slice(0,10).map(c=>String(c).trim().toUpperCase());const jobs=await fetchByCase(cases);return json(res,200,{jobs});}catch(e){return json(res,500,{error:e.message});}}
@@ -6067,6 +6140,7 @@ function _saveEnrichedSheet(sheetKey, sheet){
   // ── 🩺 ROTAS DE SAÚDE/OPERAÇÃO — extraídas para src/routes/admin-health.js (Fase 1 · Módulo 5)
   if(await handleAdminHealthRoutes(req,res,pathname)) return;
   if(await handleAdminV2Routes(req,res,pathname)) return;
+  if(await handleDolMonitorRoutes(req,res,pathname)) return;
 
   // ── M04: Exportar usuários como CSV ──────────────────────
   if(pathname==="/api/admin/users/export"&&req.method==="GET"){
@@ -10945,6 +11019,12 @@ Equipe H2BApply 🤖` },
 ];
 
 async function sendNotifEmail(userEmail, tipo) {
+  // 🔕 KILL SWITCH (pedido do dono, 06/07/2026): desativa TODAS as notificações
+  // automáticas por e-mail enviadas pela conta admin (andrio.kick18@gmail.com)
+  // até um novo sistema de notificações ser configurado. Reversível em
+  // DB_ADMIN_SETTINGS.emailNotificationsEnabled (toggle em Configurações ou
+  // POST /api/admin/notif/toggle-email).
+  if (DB_ADMIN_SETTINGS.emailNotificationsEnabled !== true) return;
   // Trava: não envia o mesmo tipo 2x em 24h
   const lockKey = `${userEmail}_${tipo}`;
   if (_notifLock.has(lockKey)) return;
@@ -11074,6 +11154,8 @@ function scheduleReengagement(){
 }
 
 async function runReengagement(){
+  // 🔕 Mesmo kill switch de sendNotifEmail — pedido do dono (06/07/2026).
+  if (DB_ADMIN_SETTINGS.emailNotificationsEnabled !== true) { console.log("[reengagement] 🔕 Notificações por e-mail desativadas — pulando rodada."); return; }
   const now = Date.now();
   const adminSess = Object.entries(sessions).find(([,s])=>s.user_email===ADMIN_EMAIL&&s.access_token);
   if(!adminSess){ console.warn("[reengagement] Admin offline — pulando rodada"); return; }
@@ -12009,6 +12091,53 @@ console.log(`[eta] Monitor ETA ativo | worker 45s | ${Object.keys(DB_ETA.cases||
   }
 })();
 
+// ── Recategorização corretiva (bug reportado: Housekeeper puxando vaga de
+// Cook/cozinha) — causa-raiz: detectCategory() vinha sendo chamado só com o
+// NOME DA EMPRESA (r.n), nunca com o CARGO (r.t). Uma empresa chamada
+// "Breezeway Family Resorts" contratando "Cook" caía em housekeeper só por
+// ter "resort" no nome. Os 5 pontos que faziam essa chamada errada já foram
+// corrigidos no código (agora usam empresa+cargo). Esta função roda 1x no
+// boot e força o recálculo de TODA vaga já classificada antes da correção
+// (ignora o cache de r.k existente), e persiste o resultado corrigido.
+function recategorizeAllSheets(){
+  let totalFixed=0;
+  function fixArray(arr,label){
+    let fixed=0;
+    for(const r of arr){
+      if(String(r.visa||"").toUpperCase().includes("H-2A")) continue; // H-2A tem taxonomia própria — nunca tocar aqui
+      const novo=detectCategory(`${r.n||""} ${r.t||""}`);
+      if(r.k!==novo){ r.k=novo; fixed++; }
+    }
+    if(fixed>0) console.log(`[recat] 🔧 ${label}: ${fixed}/${arr.length} vagas recategorizadas (título passou a valer, não só empresa)`);
+    return fixed;
+  }
+  totalFixed+=fixArray(SHEET_JAN,"jan2026");
+  totalFixed+=fixArray(SHEET_JUL,"jul2025");
+  // H-2A NÃO entra aqui: usa uma taxonomia agrícola própria de 20 categorias
+  // (crop, livestock, equipment_op, sheepherder...) que não existe em
+  // CATEGORY_KEYWORDS. Rodar detectCategory() nele destruiria essa
+  // classificação especializada — só H-2B (jan2026/jul2025/extras) usa
+  // CATEGORY_KEYWORDS.
+  for(const[key,arr] of Object.entries(SHEET_EXTRAS)){
+    const n=fixArray(arr,`extra:${key}`);
+    if(n>0){
+      try{
+        if(!fs.existsSync(SHEETS_DIR)) fs.mkdirSync(SHEETS_DIR,{recursive:true});
+        fs.writeFileSync(path.join(SHEETS_DIR,key+".json"), JSON.stringify(arr));
+      }catch(e){console.warn(`[recat] Erro ao persistir extra ${key}:`,e.message);}
+    }
+  }
+  // Persiste jan2026/jul2025 corrigidos em /data/ (mesmo padrão do bot de enriquecimento)
+  if(totalFixed>0){
+    try{ fs.writeFileSync(path.join(DATA_DIR,"jan2026_compact.json"), JSON.stringify(SHEET_JAN)); }catch(e){console.warn("[recat] persist jan2026:",e.message);}
+    try{ fs.writeFileSync(path.join(DATA_DIR,"jul2025_compact.json"), JSON.stringify(SHEET_JUL)); }catch(e){console.warn("[recat] persist jul2025:",e.message);}
+    console.log(`[recat] ✅ Recategorização concluída: ${totalFixed} vaga(s) corrigida(s) no total e salvas em /data/.`);
+  } else {
+    console.log("[recat] ✅ Nenhuma vaga precisou de correção de categoria.");
+  }
+}
+recategorizeAllSheets();
+
 // ── Graceful shutdown: persiste TODOS os bancos ──────────
 function flushAll() {
   console.log("[shutdown] Persistindo dados...");
@@ -12406,3 +12535,15 @@ const handleAdminV2Routes = createAdminV2Router({
   persistAdminSettings: ()=>persist(ADMIN_SETTINGS_FILE, DB_ADMIN_SETTINGS),
 });
 console.log("[admin-v2] 🚀 Painel V2 carregado: auditoria permanente, dashboard, edição universal, bots, IA, logs, financeiro, relatórios, backup, config.");
+
+// ── 📰 ROBÔ MONITOR DE ANÚNCIOS DOL (Parte 2) — checa a cada 5min, baixa e
+// importa sozinho o PublicFacingReport novo (grupos oficiais A–H) ──
+const { createDolMonitorRouter, startDolMonitor } = require("./mod-dol-monitor.js");
+const _dolMonitorCtx = {
+  getSess, getUser, isAdminVip, json, readBody, DATA_DIR,
+  etaParseGruposCSV, persistGruposOficiais, etaAplicarGruposOficiais, etaLog,
+  getGruposCount: () => Object.keys(ETA_GRUPOS_OFICIAIS).length,
+};
+const handleDolMonitorRoutes = createDolMonitorRouter(_dolMonitorCtx);
+startDolMonitor(_dolMonitorCtx);
+console.log("[dol-monitor] 📰 Módulo carregado: checa dol.gov/agencies/eta/foreign-labor/news a cada 5min e importa o report novo sozinho.");

@@ -2917,6 +2917,9 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             </select>
             <!-- Dynamic category chips inserted here by JS -->
             <div id="cat-chips-jobs" style="display:contents"></div>
+            <button class="fbtn" id="btn-titles-filter" onclick="openTitlesFilter()" style="display:none;font-weight:800;color:#7c3aed;border-color:rgba(124,58,237,.35);background:rgba(124,58,237,.08)">
+              <i class="ti ti-filter"></i> Filtros <span id="titles-filter-badge" style="display:none;background:#7c3aed;color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:3px"></span>
+            </button>
             <!-- Seasonal-only filters -->
             <button class="fbtn on" id="ft-all"    onclick="setType('all')" style="display:none">Todos</button>
             <button class="fbtn"    id="ft-agri"   onclick="setType('agricultural')" style="display:none">🌾 H-2A</button>
@@ -5108,6 +5111,31 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
   </div>
 </div>
 
+<!-- ══ FILTRO GRANDE POR CARGO REAL (todo título que existe de fato na planilha) ══ -->
+<div class="overlay gone" id="titles-filter-overlay" onclick="if(event.target===this)closeTitlesFilter()">
+  <div class="modal" style="max-width:520px;max-height:88dvh;display:flex;flex-direction:column;overflow:hidden;padding:0">
+    <div class="mhandle"></div>
+    <div style="padding:14px 16px 10px;flex-shrink:0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:15px;font-weight:800">🔍 Filtrar por cargo</div>
+        <button onclick="closeTitlesFilter()" style="background:none;border:none;cursor:pointer;color:var(--t3);padding:4px"><i class="ti ti-x" style="font-size:18px"></i></button>
+      </div>
+      <input class="input" id="titles-filter-search" style="height:34px;font-size:13px;margin-bottom:10px" placeholder="🔍 Buscar cargo (ex: Cook, Landscape...)" oninput="renderTitlesFilterList()">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;cursor:pointer;padding:4px 0">
+        <input type="checkbox" id="titles-filter-all" onchange="toggleAllTitles(this.checked)" style="width:17px;height:17px">
+        Todas as vagas
+      </label>
+    </div>
+    <div id="titles-filter-list" style="overflow-y:auto;flex:1;padding:6px 16px;display:flex;flex-direction:column;gap:2px">
+      <div style="text-align:center;padding:30px;color:var(--t3)"><span class="spin"></span></div>
+    </div>
+    <div style="padding:10px 16px;flex-shrink:0;border-top:1px solid var(--border);display:flex;gap:8px">
+      <button class="btn btn-secondary" style="flex:1" onclick="clearTitlesFilter()">Limpar</button>
+      <button class="btn btn-primary" style="flex:2" onclick="applyTitlesFilter()">Aplicar <span id="titles-filter-apply-count"></span></button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ PROFILE EDITOR — PROFISSIONAL ══ -->
 <div class="overlay gone" id="profile-editor-overlay" onclick="if(event.target===this)closeProfileEditor()">
   <div class="modal" style="max-width:640px">
@@ -6725,6 +6753,8 @@ function setTab(t){
     }
   },50);
   tab=t;fCat="all";
+  fTitles=[];_titlesTax=null;const _tfb=g("#titles-filter-badge");if(_tfb)_tfb.style.display="none";
+  const _tfBtn=g("#btn-titles-filter");if(_tfBtn)_tfBtn.style.display=(t==="seasonal")?"none":"";
   // FIX: resetar filtros que não existem nas planilhas para não contaminar os resultados
   if(t!=="seasonal"){fWage=0;fWorkers=0;const fw=g("#f-wage");if(fw)fw.value="";const wk=g("#f-workers");if(wk)wk.value="";}
   if(t!=="seasonal"&&fSort!=="random"){fSort="random";g("#so-rand")?.classList.add("on");g("#so-desc")?.classList.remove("on");g("#so-asc")?.classList.remove("on");}
@@ -6783,8 +6813,99 @@ function renderCatChips(sheet){
 
 function selectTabCat(cat){
   fCat=cat;document.querySelectorAll("#cat-chips-jobs .cat-chip").forEach(b=>b.classList.toggle("on",b.dataset.cat===cat));
+  fTitles=[];const _b=g("#titles-filter-badge");if(_b)_b.style.display="none"; // categoria rápida e filtro grande não se misturam
   sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);
 }
+
+// ═══════════════════════════════════════════
+//  🔍 FILTRO GRANDE POR CARGO REAL (Parte 3B)
+//  Substitui a limitação das ~11 categorias fixas: mostra TODO título que
+//  existe de fato na planilha (ex: "Cook" separado de "Housekeeper"), com
+//  contagem, e agrupa os isolados (≤3 vagas) em "Outros". Funciona junto
+//  com /api/sheet-meta?titles=... (server.js).
+// ═══════════════════════════════════════════
+let fTitles=[]; // títulos exatos selecionados (lowercase) + opcionalmente "__outros__"
+let _titlesTax=null; // cache da taxonomia já buscada (por sheet)
+
+async function openTitlesFilter(){
+  const ov=g("#titles-filter-overlay");if(!ov)return;
+  ov.classList.remove("gone");
+  const searchEl=g("#titles-filter-search");if(searchEl)searchEl.value="";
+  if(!_titlesTax||_titlesTax._sheet!==tab){
+    g("#titles-filter-list").innerHTML='<div style="text-align:center;padding:30px;color:var(--t3)"><span class="spin"></span></div>';
+    try{
+      const r=await fetch(`/api/sheet-titles?sheet=${tab}`,{credentials:"include"});
+      const d=await r.json();
+      _titlesTax={_sheet:tab,titulos:d.titulos||[],outros:d.outros||{count:0,titulos:[]}};
+    }catch(e){
+      g("#titles-filter-list").innerHTML='<div style="text-align:center;padding:30px;color:var(--red)">Erro ao carregar cargos. Tente de novo.</div>';
+      return;
+    }
+  }
+  renderTitlesFilterList();
+}
+
+function renderTitlesFilterList(){
+  if(!_titlesTax)return;
+  const q=(g("#titles-filter-search")?.value||"").trim().toLowerCase();
+  const list=_titlesTax.titulos.filter(t=>!q||t.title.toLowerCase().includes(q));
+  const selectedSet=new Set(fTitles);
+  let html=list.map(t=>{
+    const key=t.title.toLowerCase();
+    const checked=selectedSet.has(key)?"checked":"";
+    const safeKey=key.replace(/"/g,"&quot;");
+    return `<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:7px 4px;cursor:pointer;border-bottom:1px solid var(--border)">
+      <input type="checkbox" data-titlekey="${safeKey}" onchange="toggleTitleChip(this.dataset.titlekey,this.checked)" ${checked} style="width:16px;height:16px;flex-shrink:0">
+      <span style="flex:1">${t.title}</span>
+      <span style="color:var(--t3);font-size:11px;font-weight:700">${t.count.toLocaleString()}</span>
+    </label>`;
+  }).join("");
+  const outros=_titlesTax.outros||{count:0,titulos:[]};
+  if(outros.count>0 && (!q || "outros".includes(q))){
+    const checked=selectedSet.has("__outros__")?"checked":"";
+    const tip=(outros.titulos||[]).slice(0,40).join(", ").replace(/"/g,"&quot;");
+    html+=`<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:9px 4px;cursor:pointer;background:rgba(124,58,237,.06);border-radius:8px;margin-top:6px" title="${tip}">
+      <input type="checkbox" data-titlekey="__outros__" onchange="toggleTitleChip('__outros__',this.checked)" ${checked} style="width:16px;height:16px;flex-shrink:0">
+      <span style="flex:1">📦 Outros <span style="color:var(--t3);font-weight:400">(${outros.titulos.length} cargos isolados, ≤3 vagas cada)</span></span>
+      <span style="color:var(--t3);font-size:11px;font-weight:700">${outros.count.toLocaleString()}</span>
+    </label>`;
+  }
+  g("#titles-filter-list").innerHTML=html||'<div style="text-align:center;padding:30px;color:var(--t3)">Nenhum cargo encontrado.</div>';
+  _titlesFilterSyncMaster();
+}
+
+function _titlesFilterSyncMaster(){
+  const allCb=g("#titles-filter-all");if(allCb)allCb.checked=fTitles.length===0;
+  const applyCount=g("#titles-filter-apply-count");
+  if(applyCount)applyCount.textContent=fTitles.length?`(${fTitles.length})`:"";
+}
+
+function toggleTitleChip(key,checked){
+  if(checked){ if(!fTitles.includes(key)) fTitles.push(key); }
+  else { fTitles=fTitles.filter(k=>k!==key); }
+  _titlesFilterSyncMaster();
+}
+
+function toggleAllTitles(checked){
+  if(checked){ fTitles=[]; renderTitlesFilterList(); }
+  else { const allCb=g("#titles-filter-all");if(allCb)allCb.checked=true; } // sem nenhum título marcado = "todas" também
+}
+
+function clearTitlesFilter(){ fTitles=[]; renderTitlesFilterList(); }
+
+function applyTitlesFilter(){
+  closeTitlesFilter();
+  const badge=g("#titles-filter-badge");
+  if(badge){
+    if(fTitles.length){ badge.style.display=""; badge.textContent=String(fTitles.length); }
+    else { badge.style.display="none"; }
+  }
+  if(fTitles.length){ fCat="all"; document.querySelectorAll("#cat-chips-jobs .cat-chip").forEach(b=>b.classList.toggle("on",b.dataset.cat==="all")); }
+  sSkip=0;sDone=false;sJobs=[];
+  loadSheetMeta(true);
+}
+
+function closeTitlesFilter(){ g("#titles-filter-overlay")?.classList.add("gone"); }
 
 async function loadTabCounts(){
   for(const sh of["jan2026","jul2025","h2a-jun2026"]){
@@ -6831,6 +6952,7 @@ async function loadSheetMeta(reset=false){
   try{
     const fCity=g("#f-city")?.value.trim()||"";
     const p=new URLSearchParams({sheet:tab,skip:sSkip,top:PAGE,sort:fSort});if(fQ)p.append("q",fQ);if(fState)p.append("state",fState);if(fCat&&fCat!=="all")p.append("category",fCat);
+    if(fTitles.length)p.append("titles",fTitles.join(","));
     // FIX WAGE: mandar filtro de salário e vagas pro servidor (não filtrar no frontend por lote)
     if(fWage>0)p.append("minWage",String(fWage));if(fWorkers>0)p.append("minWorkers",String(fWorkers));
     if(fCity)p.append("city",fCity);
