@@ -93,12 +93,29 @@ const UA_POOL = [
 //  cada) sobre relatórios de 2023/2024/2025. reportRank() dá um número
 //  comparável (FY*2 + 0=Jan/1=Jul) pra só considerar "notícia nova de
 //  verdade" o relatório com rank MAIOR que o mais recente já conhecido.
+//
+//  🔒 V5 (07/07/2026) — SEGUNDO INCIDENTE REAL: mesmo com a V4, chegou um
+//  alerta falso de "planilha de 2024" pros pagantes. Causa-raiz encontrada
+//  em auditoria: (a) reportRank() só entendia ano com 2 dígitos ("FY24") —
+//  se o DOL nomeia esse arquivo específico com 4 dígitos ("FY2024"), o
+//  regex ainda casa (\d+ aceita qualquer quantidade de dígitos), mas
+//  parseInt("2024") vira um rank ABSURDAMENTE alto (2024*2=4048) comparado
+//  ao rank de 2 dígitos usado pra tudo mais (FY26=52) — parece "o relatório
+//  mais novo do universo" sem ser. (b) MAIS GRAVE: se o nome do arquivo não
+//  bate com o padrão NENHUM jeito (rank=null), o código tick() tratava isso
+//  como "notícia nova por segurança" — ou seja, qualquer nome fora do
+//  padrão dispara e-mail de verdade. Essas duas falhas juntas tornavam
+//  IMPOSSÍVEL confiar 100% no auto-aviso. Corrigido: (1) normaliza ano de 4
+//  dígitos pros últimos 2 (2024→24), então nunca mais infla o rank; (2)
+//  rank=null NUNCA mais aciona aviso automático — importa em silêncio e
+//  pede confirmação manual do admin (botão "Avisar agora" já existente).
 // ────────────────────────────────────────────────────────────────────────
 function reportRank(urlOrName) {
   const name = String(urlOrName || "").split("/").pop() || "";
   const m = /FY(\d+)_?(Jan|July|Jul)Peak/i.exec(name);
   if (!m) return null;
-  const fy = parseInt(m[1], 10);
+  let fy = parseInt(m[1], 10);
+  if (fy > 100) fy = fy % 100; // normaliza "2024" → 24 (nunca deixa o ano de 4 dígitos inflar o rank)
   const half = /^jan/i.test(m[2]) ? 0 : 1;
   return fy * 2 + half;
 }
@@ -650,13 +667,26 @@ async function tick(ctx, DATA_DIR) {
       if (novos.length > 1) log(`📋 ${novos.length} relatório(s) novo(s) de uma vez — processando em ordem cronológica, só o mais recente de todos vai avisar pagantes`, "info");
       for (const url of novos) {
         const rank = reportRank(url);
-        // Sem rank reconhecível (nome fora do padrão) → trata como notícia
-        // nova por segurança (mesmo comportamento de antes da V4). Com rank
-        // reconhecível, só é "notícia nova de verdade" se for MAIOR que o
-        // mais recente já confirmado.
-        const isNewest = rank == null ? true : (state.latestKnownRank == null || rank > state.latestKnownRank);
+        // 🔒 V5: SEM rank reconhecível (nome fora do padrão FYxx_.../FYxxxx_...)
+        // NUNCA aciona aviso automático — antes da V5 isso disparava e-mail
+        // real "por segurança", e foi exatamente essa regra que causou um
+        // alerta falso em produção. Agora: importa em SILÊNCIO (o dado fica
+        // salvo, nada se perde) e pede confirmação manual do admin — o botão
+        // "Avisar agora" (POST /api/admin/dolmonitor/notify-now) continua lá
+        // pra quando o admin conferir visualmente que é a novidade de verdade.
+        // Com rank reconhecível, só é "notícia nova de verdade" se for MAIOR
+        // que o mais recente já confirmado E o salto for de no máximo 2 (1
+        // temporada = Jan→Jul ou Jul→Jan seguinte) — um salto maior é sinal
+        // de nome mal-parseado/ano estranho, não de notícia genuína.
+        const jumpTooBig = rank != null && state.latestKnownRank != null && (rank - state.latestKnownRank) > 2;
+        const isNewest = rank != null && !jumpTooBig && (state.latestKnownRank == null || rank > state.latestKnownRank);
+        if (rank == null) {
+          log(`⚠️ Relatório com nome fora do padrão esperado (${url.split("/").pop()}) — importado em SILÊNCIO, pagantes NÃO avisados automaticamente. Confira manualmente e use "Avisar agora" se for a novidade real.`, "warn");
+        } else if (jumpTooBig) {
+          log(`⚠️ Rank calculado (${rank}) salta demais em relação ao último conhecido (${state.latestKnownRank}) — parece nome mal-formatado, não notícia genuína. Importado em SILÊNCIO; confira manualmente e use "Avisar agora" se for real.`, "warn");
+        }
         await importReport(url, ctx, DATA_DIR, isNewest);
-        if (isNewest && rank != null) state.latestKnownRank = rank;
+        if (rank != null && !jumpTooBig && (state.latestKnownRank == null || rank > state.latestKnownRank)) state.latestKnownRank = rank;
       }
     }
   } catch (e) {

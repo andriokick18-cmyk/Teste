@@ -3666,6 +3666,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   </div>
   <div id="hist-build-table" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;margin-bottom:12px"></div>
   <button class="btn btn-primary btn-sm" id="hist-build-btn" onclick="histBuildStart()" style="width:100%;background:linear-gradient(135deg,#38bdf8,#0284c7);border:none;font-weight:700"><i class="ti ti-history"></i> Coletar todas as temporadas que faltam</button>
+  <button class="btn btn-primary btn-sm" id="hist-refazer-todas-btn" onclick="histRefazerTodas()" style="width:100%;margin-top:8px;background:linear-gradient(135deg,#ef4444,#b91c1c);border:none;font-weight:700"><i class="ti ti-refresh-alert"></i> 🔁 Refazer TODAS as 6 do zero (apaga e recoleta certo)</button>
+  <div style="font-size:10px;color:var(--t3);margin-top:6px;text-align:center">Use isto se as 6 temporadas foram coletadas antes da correção de duplicata — apaga cada uma e recoleta com o bot já corrigido, uma de cada vez.</div>
   <div style="font-size:11px;font-weight:800;color:#38bdf8;text-transform:uppercase;letter-spacing:.03em;margin:12px 0 6px">📅 Log da COLETA HISTÓRICA — janela própria</div>
   <div class="enrich-log" id="hist-build-log" style="height:200px"><div class="empty-state">Clique no botão acima pra ver os passos aqui.</div></div>
   <div style="font-size:10px;color:var(--t3);margin-top:5px">Cada temporada pode levar bastante tempo (milhares de vagas, coleta devagar de propósito) — roda em background, pode fechar a página.</div>
@@ -3686,6 +3688,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     <!-- URL -->
     <div style="margin-bottom:14px">
       <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px">🔗 Link Advanced Search do seasonaljobs.dol.gov</div>
+      <button type="button" onclick="dolPrefillJul2026()" style="width:100%;margin-bottom:8px;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;border-radius:9px;padding:9px;font-size:12px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit">📅 Preencher pra Julho 2026 (H-2B) — a próxima temporada</button>
       <textarea id="dol-build-url" class="form-inp" rows="3" style="font-size:11px;font-family:monospace;resize:vertical" placeholder="https://seasonaljobs.dol.gov/archive?search=&location=&start_date=02/01/2026&job_type=H-2A&sort=relevancy&job_status=all"></textarea>
       <div id="dol-build-url-info" style="font-size:10px;color:var(--t3);margin-top:4px">Cole o link e as configurações serão detectadas automaticamente</div>
     </div>
@@ -3714,8 +3717,8 @@ document.addEventListener('DOMContentLoaded',()=>{
         <button class="dol-qty-btn btn btn-ghost btn-sm" onclick="dolSetQty(500)" data-qty="500">500</button>
         <button class="dol-qty-btn btn btn-ghost btn-sm" onclick="dolSetQty(1000)" data-qty="1000">1000</button>
       </div>
-      <input type="number" inputmode="decimal" id="dol-build-qty" class="form-inp" value="500" min="50" max="5000" placeholder="Quantidade" style="font-size:13px">
-      <div style="font-size:10px;color:var(--t3);margin-top:4px">Máximo 5000 vagas por planilha. O bot busca devagar para não sobrecarregar o DOL.</div>
+      <input type="number" inputmode="decimal" id="dol-build-qty" class="form-inp" value="500" min="50" max="20000" placeholder="Quantidade" style="font-size:13px">
+      <div style="font-size:10px;color:var(--t3);margin-top:4px">Teto de segurança: 20.000 vagas (o bot já para sozinho na quantidade REAL disponível — nunca inventa vaga pra bater esse número). Busca devagar para não sobrecarregar o DOL.</div>
     </div>
 
     <!-- Aviso H-2A -->
@@ -12045,6 +12048,26 @@ function dolSetQty(n){
   });
 }
 
+// 📅 KB-079 (pedido do dono, 07/07/2026): reduz a zero a chance de digitar a
+// URL errada pra próxima temporada — preenche os 4 campos com os valores
+// corretos de Julho 2026 (H-2B), na MESMA convenção já usada em todo o
+// sistema (jan2026/jul2025/temporadas históricas): filing de Julho mira
+// início de contrato em 1º de Outubro do mesmo ano. O admin ainda confere
+// e clica "Iniciar Coleta" — nada roda sozinho, só evita erro de digitação.
+function dolPrefillJul2026(){
+  dolBuildOpenModal();
+  const urlEl=document.getElementById('dol-build-url');
+  const nameEl=document.getElementById('dol-build-name');
+  const keyEl=document.getElementById('dol-build-key');
+  const qtyEl=document.getElementById('dol-build-qty');
+  const url='https://seasonaljobs.dol.gov/archive?search=&location=&start_date=10/01/2026&job_type=H-2B&sort=relevancy&job_status=all';
+  if(urlEl){ urlEl.value=url; urlEl.dispatchEvent(new Event('input')); }
+  if(nameEl) nameEl.value='Julho 2026 (H-2B)';
+  if(keyEl) keyEl.value='jul2026';
+  if(qtyEl) qtyEl.value=20000;
+  toast('📅 Preenchido para Julho 2026 — confira e clique em "Iniciar Coleta"','g');
+}
+
 // Detectar visa quando colar URL
 document.addEventListener('DOMContentLoaded',()=>{
   const urlEl=document.getElementById('dol-build-url');
@@ -12099,7 +12122,13 @@ async function dolBuildStart(){
   if(!sheetName){toast('Digite um nome para a planilha','r');return;}
   if(!sheetKey){toast('Digite uma chave única','r');return;}
   if(!targetCount||isNaN(targetCount)||targetCount<50){toast('Mínimo 50 vagas','r');return;}
-  if(targetCount>5000){ targetCount=5000; if(qtyEl) qtyEl.value=5000; toast('Máximo 5000 por planilha — ajustei para 5000','r'); }
+  // 🔒 KB-079: este número é um TETO de segurança (evita um clique acidental
+  // pedindo milhões), NUNCA um alvo artificial — o bot já para sozinho na
+  // quantidade REAL de vagas únicas disponíveis (dedupe + detecção de pool
+  // esgotado, ver server.js). Antes o teto era 5000, o que TRUNCAVA
+  // temporadas com mais vagas reais que isso (ex.: Jan 2026 tem 9.240) —
+  // agora é 20000, folga suficiente pra qualquer temporada real do H-2B/H-2A.
+  if(targetCount>20000){ targetCount=20000; if(qtyEl) qtyEl.value=20000; toast('Máximo 20.000 por planilha — ajustei para 20.000','r'); }
 
   // FECHA o modal e MOSTRA a caixa de log NA HORA — feedback visual garantido,
   // mesmo se a chamada falhar. O log aparece sempre.
@@ -12225,6 +12254,23 @@ async function dolBuildPoll(){
 //  📅 COLETA DE TEMPORADAS HISTÓRICAS (FY23–FY25, vagas completas)
 // ════════════════════════════════════════════════════════════
 let _histBuildPollTimer=null;
+// 🔁 KB-080: refaz as 6 temporadas históricas TODAS DE UMA VEZ — apaga cada
+// uma (mesmo que já esteja "publicada") e recoleta do zero com o bot já
+// corrigido (sem duplicata, sem teto de 5000 artificial). Use quando TODAS
+// as 6 foram coletadas com o bot antigo (antes do KB-076).
+async function histRefazerTodas(){
+  if(!confirm('Refazer as 6 temporadas históricas DO ZERO?\n\nCada uma será APAGADA (mesmo já publicada) e coletada de novo, uma de cada vez — pode levar bastante tempo no total. Roda em background, pode fechar a página.')) return;
+  const btn=document.getElementById('hist-refazer-todas-btn');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Refazendo as 6…'; }
+  try{
+    const r=await fetch('/api/admin/sheet/historico-refazer-todas',{method:'POST',credentials:'include'});
+    const d=await r.json();
+    if(!d.ok){ toast(d.error||'Erro ao iniciar','r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-refresh-alert"></i> 🔁 Refazer TODAS as 6 do zero (apaga e recoleta certo)';} return; }
+    toast('🔁 Refazendo as 6 temporadas do zero — acompanhe no log abaixo','g');
+    if(!_histBuildPollTimer) _histBuildPollTimer=setInterval(histBuildPoll,3000);
+    histBuildPoll();
+  }catch(e){ toast('Erro: '+e.message,'r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-refresh-alert"></i> 🔁 Refazer TODAS as 6 do zero (apaga e recoleta certo)';} }
+}
 async function histBuildStart(){
   const btn=document.getElementById('hist-build-btn');
   if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Coletando…'; }
@@ -12244,14 +12290,17 @@ async function histBuildPoll(){
     const tableEl=document.getElementById('hist-build-table');
     if(tableEl && Array.isArray(d.temporadas)){
       tableEl.innerHTML=d.temporadas.map(t=>{
-        const bg=t.published?'rgba(16,185,129,.12)':'rgba(255,255,255,.04)';
-        const bd=t.published?'rgba(16,185,129,.35)':'rgba(255,255,255,.1)';
-        const badge=t.published?'✅':'⏳';
+        const dup=t.published && t.integrityOk===false; // KB-079: coletada com bot antigo, tinha duplicata
+        const bg=dup?'rgba(239,68,68,.12)':t.published?'rgba(16,185,129,.12)':'rgba(255,255,255,.04)';
+        const bd=dup?'rgba(239,68,68,.4)':t.published?'rgba(16,185,129,.35)':'rgba(255,255,255,.1)';
+        const badge=dup?'⚠️':t.published?'✅':'⏳';
+        const countTxt=dup?`${(t.uniqueCaseCount||0).toLocaleString('pt-BR')} únicas`:(t.count||0).toLocaleString('pt-BR');
         return `<div style="background:${bg};border:1px solid ${bd};border-radius:10px;padding:8px 6px;text-align:center">
           <div style="font-size:20px">${t.emoji}</div>
           <div style="font-size:10.5px;font-weight:700;margin-top:2px">${t.name}</div>
-          <div style="font-size:13px;margin-top:2px">${badge}</div>
-          ${t.published?`<div style="font-size:9px;color:var(--t3);margin-top:1px">${(t.count||0).toLocaleString('pt-BR')}</div>`:''}
+          <div style="font-size:13px;margin-top:2px" title="${dup?'Coletada com o bot antigo — tinha vaga duplicada. Refaça pra corrigir.':''}">${badge}</div>
+          ${t.published?`<div style="font-size:9px;color:${dup?'#fca5a5':'var(--t3)'};margin-top:1px">${countTxt}</div>`:''}
+          ${t.published?`<button onclick="histRefazer('${t.key}','${esc(t.name)}')" style="margin-top:5px;width:100%;background:${dup?'rgba(239,68,68,.18)':'rgba(255,255,255,.06)'};border:1px solid ${dup?'rgba(239,68,68,.4)':'rgba(255,255,255,.14)'};border-radius:7px;padding:4px 2px;font-size:9px;font-weight:700;color:${dup?'#fca5a5':'rgba(255,255,255,.7)'};cursor:pointer;font-family:inherit">🔁 Refazer</button>`:''}
         </div>`;
       }).join('');
     }
@@ -12269,7 +12318,26 @@ async function histBuildPoll(){
       if(d.running){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Coletando…'; }
       else{ btn.disabled=false; btn.innerHTML='<i class="ti ti-history"></i> Coletar todas as temporadas que faltam'; if(_histBuildPollTimer){clearInterval(_histBuildPollTimer);_histBuildPollTimer=null;} }
     }
+    const btnTodas=document.getElementById('hist-refazer-todas-btn');
+    if(btnTodas){
+      if(d.running){ btnTodas.disabled=true; btnTodas.innerHTML='<span class="spin spin-sm"></span> Refazendo as 6…'; }
+      else{ btnTodas.disabled=false; btnTodas.innerHTML='<i class="ti ti-refresh-alert"></i> 🔁 Refazer TODAS as 6 do zero (apaga e recoleta certo)'; }
+    }
   }catch(e){ console.warn('[hist-build-poll]',e.message); }
+}
+
+// 🔁 KB-079: refaz UMA temporada histórica do zero (apaga a antiga, coleta de
+// novo com o bot já corrigido — sem duplicata, contagem real de vagas).
+async function histRefazer(key,name){
+  if(!confirm(`Refazer "${name}" do zero?\n\nA planilha atual será APAGADA e coletada de novo com o bot corrigido (sem duplicata). Isso pode levar alguns minutos — roda em background.`)) return;
+  try{
+    const r=await fetch('/api/admin/sheet/historico-refazer',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
+    const d=await r.json();
+    if(!d.ok){ toast(d.error||'Erro ao iniciar','r'); return; }
+    toast(`🔁 Refazendo "${name}"… acompanhe no log abaixo`,'g');
+    if(!_histBuildPollTimer) _histBuildPollTimer=setInterval(histBuildPoll,3000);
+    histBuildPoll();
+  }catch(e){ toast('Erro: '+e.message,'r'); }
 }
 
 async function dolBuildStop(){

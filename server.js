@@ -1175,6 +1175,22 @@ function boot() {
       impacto:"A partir de agora, todo deploy (novo processo do Node sobe do zero) força todo mundo a clicar em 'Entrar' de novo — sem exceção — mas o envio automático de ninguém para, porque ele nunca dependeu da sessão de login pra funcionar, só do refresh_token salvo em DB_USERS. Efeito colateral aceito conscientemente: como Render reinicia o processo tanto em deploy quanto ao 'acordar' de inatividade (free tier), qualquer restart do processo (não só deploy manual) também vai pedir novo login — o dono foi avisado desse detalhe. Lição permanente: antes de reverter uma decisão de UX anterior (aqui, 'sessão sobrevive a deploy'), vale a pena auditar SE a funcionalidade que dependia dela (aqui, o motivo real por trás do pedido — não perder o automático) já tem um caminho independente — evita reintroduzir o problema que a decisão original tinha resolvido, enquanto ainda entrega exatamente o que foi pedido.",
       modulos:["server.js: _loadSessionsFromDisk (descarta login, preserva __sender__), persistSessions (só grava __sender__), comentário de SESSIONS_FILE atualizado"],
       tags:["sessões","logout","deploy","login","refresh_token","envio-automático","segurança","reversão-de-decisão","kb-078"]
+    },
+    {
+      id:"KB-079",versao:"V962",data:"2026-07-07",autor:"Claude/Andrio",
+      problema:"3 pedidos do dono numa auditoria olhando pro painel: (1) as 6 temporadas históricas (FY22 Jul–FY25 Jan) foram coletadas ANTES do KB-076 (bug de duplicata por case number) — provavelmente têm vaga duplicada como o h2a_jun2026 tinha, e o dono não tinha como refazer nenhuma nem ver que elas precisavam de conserto ('não consigo apagar pra refazer, nem aparecem as planilhas antigas'); (2) o robô de anúncios do DOL mandou um ALERTA FALSO de e-mail pros pagantes sobre uma planilha de 2024 — mesmo depois do KB-073 (V4) ter corrigido o incidente parecido; (3) garantir que a coleta de Julho 2026 (a próxima temporada real) vai puxar a URL/data certas, e que nenhuma planilha nova é enviada pro cliente sem o admin baixar E publicar de propósito. Auditoria dos 2º incidente encontrou 2 falhas em reportRank()/tick() que sobreviveram ao KB-073: (a) reportRank só normalizava ano de 2 dígitos — um nome com ano de 4 dígitos (ex. 'FY2024') ainda casa no regex mas gera um rank absurdamente inflado (2024*2 em vez de 24*2), parecendo 'o mais novo do universo'; (b) PIOR: quando o nome do arquivo não batia com NENHUM padrão reconhecido (rank=null), o código tratava isso como 'notícia nova por segurança' e disparava e-mail de verdade — ou seja, qualquer nome fora do padrão sempre furava a proteção. Auditoria também achou que o teto de 'quantidade de vagas' em TODA coleta (build-from-dol, histórico, refazer) estava hardcoded em 5000 — isso não é só sobre duplicata: uma temporada com mais de 5000 vagas REAIS (ex. Jan 2026 tem 9.240) seria TRUNCADA por esse teto, o mesmo problema de fundo do KB-076 ('a planilha tem que ter a quantidade real, nem mais nem menos') só que na direção contrária.",
+      solucao:"HISTÓRICO: nova rota POST /api/admin/sheet/historico-refazer (key) — apaga a planilha+meta 'published' atual daquela temporada especificamente e recoleta do zero com o bot JÁ CORRIGIDO (KB-076: dedupe + detecção de pool esgotado). GET /api/admin/sheet/historico-status agora também devolve uniqueCaseCount+integrityOk por temporada (via _vagasVerify) — o admin.html mostra ⚠️ vermelho (em vez de ✅ verde) na temporada que tem duplicata E um botão '🔁 Refazer' em cada card já publicado. ALERTA FALSO: reportRank() normaliza ano de 4 dígitos pros últimos 2 (2024→24, nunca mais infla o rank); tick() agora NUNCA aciona aviso automático quando rank=null (nome fora do padrão) OU quando o salto de rank em relação ao último conhecido é maior que 2 (mais que 1 temporada de diferença, sinal de nome mal-parseado) — nesses dois casos importa em SILÊNCIO e loga pedindo confirmação manual do admin via 'Avisar agora' (rota que já existia). TETO DE VAGAS: os 3 lugares com '5000' hardcoded (build-from-dol, _runHistoricoOrchestrator, historico-refazer) viraram '20000' — deixando claro em comentário e na UI que isso é um TETO de segurança contra clique acidental, nunca um alvo artificial (quem já garante a quantidade real é o dedupe+detecção de pool esgotado do KB-076). JULHO 2026: botão '📅 Preencher pra Julho 2026' no card de coleta preenche URL/nome/chave/quantidade corretos (start_date 1º de Outubro/2026, job_type H-2B, mesma convenção já usada em jan2026/jul2025/histórico) — o admin só confere e clica 'Iniciar Coleta'; o fluxo de 'Publicar Planilha para Usuários' continua manual e obrigatório (build-publish já existia), garantindo que nenhuma planilha nova/incompleta é exposta a clientes sem o admin decidir explicitamente.",
+      impacto:"O dono agora consegue refazer qualquer temporada histórica com 2 cliques e ENXERGAR quais tinham duplicata antes de decidir. O robô de anúncios não vai mais mandar e-mail real de 'saiu a lista' baseado em suposição — só dispara sozinho quando o rank é reconhecível E cronologicamente plausível; qualquer coisa ambígua vira decisão humana. Nenhuma temporada (passada ou futura, incluindo Julho 2026) fica mais limitada a 5000 vagas por um teto artificial — a contagem final é sempre a real, podendo ser maior ou menor que isso. Lições permanentes: (1) todo 'teto de quantidade' num coletor de dados precisa ser auditado quanto a SER, DE FATO, maior que o pior caso real conhecido — um teto esquecido vira o mesmo tipo de bug que uma duplicata, só que subtraindo em vez de somando; (2) uma proteção contra falso positivo (aqui, reportRank+latestKnownRank) precisa ser reauditada sempre que aparecer um NOVO incidente parecido — a correção anterior (KB-073) resolveu o caso que ela via, mas deixou uma porta (rank=null → confia cegamente) que só apareceu num padrão de nome de arquivo diferente; (3) 'importar em silêncio, notificar manualmente' é sempre mais seguro que 'notificar automaticamente por segurança' quando a decisão envolve mandar e-mail de verdade pra clientes pagantes.",
+      modulos:["server.js: /api/admin/sheet/historico-refazer (novo), /api/admin/sheet/historico-status (+uniqueCaseCount/integrityOk), teto de vagas 5000→20000 em build-from-dol/_runHistoricoOrchestrator/historico-refazer","mod-dol-monitor.js: reportRank (normaliza ano de 4 dígitos), tick() (nunca auto-notifica com rank null ou salto>2)","admin.html: botão 🔁 Refazer por temporada histórica (com aviso ⚠️ de duplicata), botão 📅 Preencher pra Julho 2026, teto de UI 5000→20000"],
+      tags:["kb-079","alerta-falso","dol-monitor","reportRank","refazer","temporada-histórica","teto-de-vagas","julho-2026","publicação-manual","segurança"]
+    },
+    {
+      id:"KB-080",versao:"V963",data:"2026-07-07",autor:"Claude/Andrio",
+      problema:"O dono clicou no botão azul 'Coletar todas as temporadas que faltam' esperando que refizesse as 6 temporadas históricas (coletadas com o bot antigo, com duplicata) — mas esse botão, por design (KB-076/KB-079), PULA qualquer temporada já marcada como publicada, então o log só mostrou 'já publicada — pulando' 6 vezes e nada foi refeito. O botão individual '🔁 Refazer' (por temporada, do KB-079) funciona, mas exigiria 6 cliques separados — o dono queria refazer as 6 de uma vez só, com a confirmação explícita de que cada uma vai ser apagada e recoletada do zero, e queria ver, ao final de cada uma, quantas vagas ÚNICAS de verdade existem e quantas empresas diferentes estão contratando — não só '5000 vagas' genérico.",
+      solucao:"_runHistoricoOrchestrator ganhou parâmetro force (default false, comportamento antigo intacto): force=true NÃO pula temporada publicada — apaga a planilha+meta antiga (mesma limpeza do historico-refazer individual) e recoleta do zero antes de seguir pra próxima, uma de cada vez (bot é singleton). Nova rota POST /api/admin/sheet/historico-refazer-todas dispara o orquestrador com force=true. Novo botão vermelho '🔁 Refazer TODAS as 6 do zero' no admin, ao lado do botão azul original (que continua intacto pro caso normal de 'só falta uma'), com confirm() explicando que TODAS serão apagadas e recoletadas. Log de conclusão de cada temporada agora mostra: contagem de vagas ÚNICAS (via _vagasVerify, mesma garantia do KB-076), se sobrou alguma duplicata (não deveria, mas avisa se sobrar), quantas empresas diferentes (Set de nomes normalizados) e cobertura de e-mail/cidade/telefone — dá pro dono ver, sem abrir o JSON, que a planilha está completa e correta antes de decidir publicar pros usuários.",
+      impacto:"Um clique só refaz as 6 temporadas históricas do zero, cada uma com prova de integridade e completude no próprio log — sem precisar confiar cegamente que '5000' significa 5000 vagas de verdade. Lição permanente: quando dois botões parecidos existem pro mesmo card ('coletar o que falta' vs 'refazer tudo'), o texto do botão e o comportamento têm que deixar CLARÍSSIMO qual dos dois é — a confusão aqui não foi um bug de código, foi um botão certo fazendo exatamente o que sempre fez, mas não o que o dono queria naquele momento; a solução certa não é mudar o comportamento do botão existente (quebraria quem usa 'só o que falta' de propósito), é adicionar um SEGUNDO botão, visualmente distinto (vermelho vs azul), com sua própria confirmação explícita.",
+      modulos:["server.js: _runHistoricoOrchestrator (+parâmetro force, log de integridade/empresas/completude), /api/admin/sheet/historico-refazer-todas (novo)","admin.html: botão 🔁 Refazer TODAS as 6 do zero (#hist-refazer-todas-btn), histRefazerTodas(), reset de estado dos 2 botões no poll"],
+      tags:["kb-080","refazer-todas","temporada-histórica","integridade","empresas","completude","ux","confirmação","um-clique"]
     }
 
   ];
@@ -2362,39 +2378,68 @@ function _histLog(msg, type='info'){
 // publicada antes (idempotente — pode clicar de novo sem duplicar). Publica
 // AUTOMATICAMENTE cada uma ao terminar (pedido explícito do dono: "poste lá
 // pra todos") — marca historico:true pro front agrupar separado das atuais.
-async function _runHistoricoOrchestrator(){
+// force=true (KB-080, pedido do dono 07/07/2026): em vez de PULAR temporada
+// já publicada, APAGA (planilha+meta) e recoleta do zero com o bot já
+// corrigido (KB-076) — usado pelo botão "🔁 Refazer TODAS as 6 do zero".
+// force=false (padrão) mantém o comportamento original: só coleta o que
+// ainda falta, nunca mexe no que já está publicado.
+async function _runHistoricoOrchestrator(force=false){
   if(_histBuild.running){ _histLog('Já está rodando — aguarde terminar.','warn'); return; }
   if(_dolBuildBot.running){ _histLog('❌ O bot de coleta já está ocupado com outra planilha — pare-o primeiro (aba Planilhas & Coleta DOL).','error'); return; }
   _histBuild.running=true;
   _histBuild.log.length=0;
-  _histLog(`📅 Iniciando coleta de ${HISTORICAL_SEASONS.length} temporada(s) histórica(s) — vagas completas com e-mail...`,'info');
+  _histLog(force
+    ? `🔁 REFAZENDO TODAS as ${HISTORICAL_SEASONS.length} temporada(s) histórica(s) DO ZERO — apagando as antigas e coletando de novo com o bot corrigido (sem duplicata, sem teto artificial)...`
+    : `📅 Iniciando coleta de ${HISTORICAL_SEASONS.length} temporada(s) histórica(s) — vagas completas com e-mail...`, 'info');
   for(const season of HISTORICAL_SEASONS){
-    if(DB_SHEETS_META[season.key]?.published){
+    if(!force && DB_SHEETS_META[season.key]?.published){
       _histLog(`${season.emoji} ${season.name}: já publicada (${DB_SHEETS_META[season.key].count||0} vagas) — pulando.`,'info');
       continue;
     }
+    if(force && DB_SHEETS_META[season.key]?.published){
+      // Apaga a planilha antiga (arquivo + meta) ANTES de recoletar — sem
+      // isso ela continuaria marcada como "published" e a coleta nova só
+      // ficaria em memória sem nunca virar a versão oficial.
+      try{
+        const oldMeta=DB_SHEETS_META[season.key];
+        if(oldMeta?.file){try{fs.unlinkSync(path.join(SHEETS_DIR,oldMeta.file));}catch{}}
+        delete SHEET_EXTRAS[season.key];
+        delete DB_SHEETS_META[season.key];
+        _histLog(`${season.emoji} ${season.name}: 🗑️ planilha antiga apagada (tinha ${oldMeta?.count||'?'} vagas, possivelmente com duplicata) — recoletando do zero.`,'warn');
+      }catch(e){
+        _histLog(`${season.emoji} ${season.name}: ⚠️ falha ao apagar a versão antiga (${e.message}) — tentando recoletar mesmo assim.`,'warn');
+      }
+    }
     _histLog(`${season.emoji} ${season.name}: iniciando coleta ao vivo (início de vaga ${season.startDate})...`,'info');
     try{
-      await _runDolBuildBot(_histSearchUrl(season.startDate), season.key, season.name, 5000);
-      const count=(SHEET_EXTRAS[season.key]||[]).length;
+      await _runDolBuildBot(_histSearchUrl(season.startDate), season.key, season.name, 20000); // KB-079: teto de segurança, não alvo — bot para sozinho no tamanho real
+      const arr=SHEET_EXTRAS[season.key]||[];
+      const count=arr.length;
       if(!count){
         _histLog(`${season.emoji} ${season.name}: ⚠️ coleta terminou sem nenhuma vaga encontrada — não publicado. Pode ser que o arquivo do DOL não cubra esse período mais.`,'warn');
         continue;
       }
-      const withEmail=(SHEET_EXTRAS[season.key]||[]).filter(r=>r.e&&r.e.includes('@')).length;
+      // 🔒 KB-080: prova de integridade + completude ANTES de publicar —
+      // exatamente o que o dono pediu: "ele baixa, vê quantas vagas tem de
+      // verdade, e publica só essa quantidade, sem inventar vaga a mais".
+      const integ=_vagasVerify(arr,{caseField:'c'});
+      const withEmail=arr.filter(r=>r.e&&r.e.includes('@')).length;
+      const withCity =arr.filter(r=>r.ci).length;
+      const withPhone=arr.filter(r=>r.ph).length;
+      const nEmpresas=new Set(arr.map(r=>(r.n||'').trim().toLowerCase()).filter(Boolean)).size;
       if(!DB_SHEETS_META[season.key]) DB_SHEETS_META[season.key]={};
       Object.assign(DB_SHEETS_META[season.key],{
         published:true, publishedAt:Date.now(), name:season.name, visaType:'H-2B',
-        count, historico:true, emoji:season.emoji,
+        count, uniqueCaseCount:integ.uniqueCaseCount, historico:true, emoji:season.emoji,
       });
       try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
-      _histLog(`${season.emoji} ${season.name}: ✅ coletada e publicada! ${count} vagas (${withEmail} com e-mail).`,'ok');
+      _histLog(`${season.emoji} ${season.name}: ✅ ${integ.ok?'publicado':'⚠️ publicado com aviso'}! ${count} vagas ÚNICAS (1 vaga = 1 ETA case number, ${integ.duplicateCases.length} duplicata detectada${integ.duplicateCases.length===1?'':'s'}) de ${nEmpresas} empresa(s) diferente(s) — ${withEmail} com e-mail, ${withCity} com cidade, ${withPhone} com telefone.`, integ.ok?'ok':'warn');
     }catch(e){
       _histLog(`${season.emoji} ${season.name}: ❌ erro — ${e.message}`,'error');
     }
   }
   _histBuild.running=false;
-  _histLog(`📅 Coleta histórica concluída.`,'ok');
+  _histLog(force?`🔁 Refazer TODAS concluído.`:`📅 Coleta histórica concluída.`,'ok');
 }
 
 const sheetCache = new Map();
@@ -5394,7 +5439,11 @@ function _saveEnrichedSheet(sheetKey, sheet){
     const safeKey=sheetKey.toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,30);
     if(!safeKey) return json(res,400,{error:"Chave inválida"});
     // Iniciar em background
-    _runDolBuildBot(searchUrl, safeKey, sheetName, Math.min(parseInt(targetCount)||500,5000)).catch(e=>_dolBuildLog('Erro bg: '+e.message,'error'));
+    // 🔒 KB-079: 20000 é um TETO de segurança, não um alvo — o bot já para
+    // sozinho no tamanho REAL do pool (dedupe + detecção de pool esgotado).
+    // Antes o teto era 5000 e TRUNCAVA temporadas com mais vagas reais que
+    // isso (ex.: Jan 2026 tem 9.240 vagas reais).
+    _runDolBuildBot(searchUrl, safeKey, sheetName, Math.min(parseInt(targetCount)||500,20000)).catch(e=>_dolBuildLog('Erro bg: '+e.message,'error'));
     return json(res,200,{ok:true,key:safeKey,visaType:parsed.visaClass,message:`Bot iniciado: "${sheetName}" | ${targetCount} vagas | ${parsed.visaClass}`});
   }
 
@@ -5450,11 +5499,23 @@ function _saveEnrichedSheet(sheetKey, sheet){
   if(pathname==="/api/admin/sheet/historico-status"&&req.method==="GET"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    const temporadas=HISTORICAL_SEASONS.map(se=>({
-      key:se.key, name:se.name, emoji:se.emoji,
-      published: DB_SHEETS_META[se.key]?.published===true,
-      count: DB_SHEETS_META[se.key]?.count||0,
-    }));
+    // 🔒 KB-079: além de published/count, mostra se a planilha JÁ EM MEMÓRIA
+    // tem integridade (1 vaga = 1 ETA case number) — assim o admin enxerga,
+    // sem clicar em nada, se alguma das 6 precisa ser refeita (coletada com
+    // o bot antigo, antes do dedupe do KB-076). loadSheets() já se autocura
+    // sozinho no boot, então isto tende a aparecer sempre ok:true — mas o
+    // admin pode conferir e, se quiser, ainda assim refazer do zero.
+    const temporadas=HISTORICAL_SEASONS.map(se=>{
+      const arr=SHEET_EXTRAS[se.key]||[];
+      const integ=arr.length?_vagasVerify(arr,{caseField:'c'}):null;
+      return{
+        key:se.key, name:se.name, emoji:se.emoji,
+        published: DB_SHEETS_META[se.key]?.published===true,
+        count: DB_SHEETS_META[se.key]?.count||0,
+        uniqueCaseCount: integ?integ.uniqueCaseCount:null,
+        integrityOk: integ?integ.ok:null,
+      };
+    });
     return json(res,200,{ok:true, running:_histBuild.running, temporadas, log:_histBuild.log.slice(-150)});
   }
 
@@ -5465,8 +5526,76 @@ function _saveEnrichedSheet(sheetKey, sheet){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
     if(_histBuild.running) return json(res,200,{ok:true,alreadyRunning:true});
-    _runHistoricoOrchestrator().catch(e=>_histLog('Erro inesperado: '+e.message,'error'));
+    _runHistoricoOrchestrator(false).catch(e=>_histLog('Erro inesperado: '+e.message,'error'));
     return json(res,200,{ok:true,started:true});
+  }
+
+  // POST /api/admin/sheet/historico-refazer-todas — KB-080 (pedido do dono,
+  // 07/07/2026): "exclua essas anteriores e refaça TODAS, uma por uma tá
+  // demorado". Em vez de pular as 6 já publicadas, APAGA cada uma e recoleta
+  // do zero com o bot corrigido — mesmo resultado de clicar "🔁 Refazer" 6
+  // vezes, só que com 1 clique só. Roda em sequência (o bot é singleton),
+  // acompanhe pelo mesmo log/tabela desta seção.
+  if(pathname==="/api/admin/sheet/historico-refazer-todas"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    if(_histBuild.running) return json(res,200,{ok:true,alreadyRunning:true});
+    _runHistoricoOrchestrator(true).catch(e=>_histLog('Erro inesperado: '+e.message,'error'));
+    return json(res,200,{ok:true,started:true});
+  }
+
+  // POST /api/admin/sheet/historico-refazer — KB-079 (pedido do dono,
+  // 07/07/2026): as 6 temporadas históricas foram coletadas ANTES da
+  // correção do bug de duplicata por ETA case number (KB-076) — o próprio
+  // bot ("Nova Planilha do DOL"/_runDolBuildBot) que as gerou tinha a falha.
+  // Esta rota permite REFAZER uma temporada específica do zero, do jeito
+  // certo: apaga a planilha e o "published" atuais (não fica lixo pra trás)
+  // e roda a coleta de novo com o bot JÁ CORRIGIDO (dedupe + detecção de
+  // pool esgotado) — o resultado é a contagem REAL de vagas únicas, nunca
+  // um número inflado/artificial. Idempotente: pode clicar de novo à vontade.
+  if(pathname==="/api/admin/sheet/historico-refazer"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    let body; try{ body=JSON.parse(await readBody(req)); }catch(e){ return json(res,400,{error:"Corpo inválido: "+e.message}); }
+    const key=String(body?.key||"");
+    const season=HISTORICAL_SEASONS.find(se=>se.key===key);
+    if(!season) return json(res,400,{error:"Temporada desconhecida: "+key});
+    if(_dolBuildBot.running) return json(res,409,{error:"O bot de coleta já está ocupado com outra planilha — aguarde terminar e tente de novo."});
+    if(_histBuild.running) return json(res,409,{error:"A coleta histórica em lote já está rodando — aguarde terminar e tente de novo."});
+    // Apaga o que existe agora (arquivo + meta + memória) — SEM isso, o
+    // orquestrador normal pularia achando que "já está publicada".
+    try{
+      const oldMeta=DB_SHEETS_META[key];
+      if(oldMeta?.file){try{fs.unlinkSync(path.join(SHEETS_DIR,oldMeta.file));}catch{}}
+      delete SHEET_EXTRAS[key];
+      delete DB_SHEETS_META[key];
+      fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));
+    }catch(e){ return json(res,500,{error:"Falha ao limpar a temporada antiga: "+e.message}); }
+    _histBuild.running=true; _histBuild.log.length=0;
+    _histLog(`🔁 Admin ${s.user_email} pediu pra REFAZER do zero: ${season.emoji} ${season.name} (planilha antiga apagada, coletando de novo com o bot corrigido)`,'info');
+    (async()=>{
+      try{
+        await _runDolBuildBot(_histSearchUrl(season.startDate), season.key, season.name, 20000); // KB-079: teto de segurança, não alvo — bot para sozinho no tamanho real
+        const arr=SHEET_EXTRAS[season.key]||[];
+        if(!arr.length){
+          _histLog(`${season.emoji} ${season.name}: ⚠️ coleta terminou sem nenhuma vaga — não publicado.`,'warn');
+        }else{
+          const withEmail=arr.filter(r=>r.e&&r.e.includes('@')).length;
+          if(!DB_SHEETS_META[season.key]) DB_SHEETS_META[season.key]={};
+          Object.assign(DB_SHEETS_META[season.key],{
+            published:true, publishedAt:Date.now(), name:season.name, visaType:'H-2B',
+            count:arr.length, historico:true, emoji:season.emoji,
+          });
+          try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
+          _histLog(`${season.emoji} ${season.name}: ✅ refeita do zero! ${arr.length} vagas únicas (${withEmail} com e-mail) — número REAL, sem duplicata.`,'ok');
+        }
+      }catch(e){
+        _histLog(`${season.emoji} ${season.name}: ❌ erro ao refazer — ${e.message}`,'error');
+      }finally{
+        _histBuild.running=false;
+      }
+    })();
+    return json(res,200,{ok:true,started:true,key});
   }
 
   // ── API: Email Intelligence (bounces globais) ──────────
