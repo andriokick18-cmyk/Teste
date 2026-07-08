@@ -3488,6 +3488,20 @@ document.addEventListener('DOMContentLoaded',()=>{
   </div>
 </div>
 
+<!-- ══ 🌱 SEMEAR PLANILHA JULHO 2026 — botão de segurança (KB-086,
+     08/07/2026): se por qualquer motivo o boot não publicar a planilha
+     sozinho, isso força a partir do arquivo bundled no próprio deploy. ══ -->
+<div id="j26seed-box" style="background:linear-gradient(135deg,rgba(52,211,153,.1),rgba(5,150,105,.05));border:1.5px solid rgba(52,211,153,.35);border-radius:14px;padding:16px;margin-bottom:16px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <div style="font-size:24px">🌱</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:800;color:#fff">Semear Planilha "Julho 2026" agora</div>
+      <div style="font-size:11px;color:var(--t3)">Só use se a planilha "Julho 2026 (H-2B)" não apareceu sozinha em Planilhas de Vagas depois do deploy. Publica na hora a partir do arquivo que já veio junto com o código — não baixa nada da internet.</div>
+    </div>
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="j26SeedNow()" style="width:100%;background:linear-gradient(135deg,#34d399,#059669);border:none;font-weight:700"><i class="ti ti-seeding"></i> Semear agora</button>
+  <div id="j26seed-result" style="display:none;margin-top:8px;font-size:11.5px;font-weight:700;padding:7px 11px;border-radius:8px"></div>
+</div>
 
 <!-- ══ 🎯 GRUPOS — JULHO 2026 (novo bot, pedido do dono 07/07/2026) ══
      Escopo único: grupo A–H só de Julho 2026, só do relatório oficial
@@ -3587,6 +3601,8 @@ document.addEventListener('DOMContentLoaded',()=>{
       <button class="btn btn-ghost btn-sm" onclick="dnwCheckNow()" style="flex:1"><i class="ti ti-refresh"></i> Checar agora</button>
       <button class="btn btn-ghost btn-sm" onclick="dnwSendTestEmail()" style="flex:1"><i class="ti ti-mail"></i> Enviar e-mail teste</button>
     </div>
+    <button class="btn btn-sm" id="dnw-gemini-btn" onclick="dnwGeminiAnalyze()" style="width:100%;margin-top:8px;background:linear-gradient(135deg,rgba(139,92,246,.18),rgba(99,102,241,.12));border:1px solid rgba(139,92,246,.4);color:#c4b5fd;font-weight:800"><i class="ti ti-sparkles"></i> 🤖 Analisar erro com Gemini</button>
+    <div id="dnw-gemini-report" style="display:none;margin-top:10px;background:rgba(0,0,0,.3);border:1px solid rgba(139,92,246,.3);border-radius:10px;padding:12px;font-size:12px;color:var(--t2);line-height:1.6;white-space:pre-wrap;max-height:400px;overflow-y:auto"></div>
   </div>
 
   <div id="dnw-admins-box" style="font-size:10.5px;color:var(--t3);margin-bottom:12px">Avisa: …</div>
@@ -11509,6 +11525,18 @@ function _j26TimeAgo(ts){
   if(s<3600) return `${Math.floor(s/60)}min atrás`;
   return `${Math.floor(s/3600)}h atrás`;
 }
+async function j26SeedNow(){
+  const out=document.getElementById('j26seed-result');
+  const show=(msg,ok)=>{if(out){out.style.display='block';out.style.background=ok?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)';out.style.color=ok?'#34d399':'#f87171';out.textContent=msg;}};
+  try{
+    const r=await fetch('/api/admin/sheet/seed-jul2026',{method:'POST',credentials:'include'});
+    const d=await r.json();
+    if(!r.ok){ show('❌ '+(d.error||'Erro'),false); toast(d.error||'Erro','err'); return; }
+    if(d.skipped){ show(`ℹ️ Já existia planilha publicada (${d.count} vagas) — nada foi sobrescrito.`,true); }
+    else { show(`✅ Planilha "Julho 2026" publicada: ${d.count} vagas${d.novosGrupos?`, ${d.novosGrupos} grupo(s) aplicado(s)`:''}.`,true); toast('🌱 Planilha Julho 2026 publicada!','ok'); }
+    if(typeof loadPlanilhas==='function') loadPlanilhas();
+  }catch(e){ show('❌ '+e.message,false); toast(e.message,'err'); }
+}
 async function j26LoadStatus(){
   const statsEl=document.getElementById('j26-stats');
   const distEl=document.getElementById('j26-distribuicao');
@@ -11740,6 +11768,20 @@ async function dnwSetBaseline(){
     if(d.ok){ toast('✅ Baseline atualizado','ok'); dnwLoadStatus(); }
     else toast(d.error||'Erro','err');
   }catch(e){ toast(e.message,'err'); }
+}
+async function dnwGeminiAnalyze(){
+  const btn=document.getElementById('dnw-gemini-btn');
+  const box=document.getElementById('dnw-gemini-report');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Gemini analisando…'; }
+  if(box){ box.style.display='block'; box.textContent='Analisando o erro mais recente...'; }
+  try{
+    const r=await fetch('/api/admin/dol-news-watch/gemini-analyze',{method:'POST',credentials:'include'});
+    const d=await r.json();
+    if(!d.ok){ if(box) box.textContent='❌ '+(d.error||'Erro na análise'); toast(d.error||'Erro','err'); return; }
+    if(box) box.textContent=d.report;
+    toast('✅ Análise do Gemini pronta','ok');
+  }catch(e){ if(box) box.textContent='❌ '+e.message; toast(e.message,'err'); }
+  finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-sparkles"></i> 🤖 Analisar erro com Gemini'; } }
 }
 
 function plUploadJSON(){
