@@ -3940,6 +3940,641 @@ async function genCover({name,country,phone,job,company,city,state,wage}){return
 // ══════════════════════════════════════════════════════════
 //  HTTP SERVER
 // ══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
+//  🎯 GRUPOS — JULHO 2026 (sistema novo, pedido do dono 07/07/2026)
+//  ─────────────────────────────────────────────────────────────────────
+//  Substitui o antigo Monitor ETA (apagado por completo). Este aqui é
+//  MENOR DE PROPÓSITO — só existe pra uma coisa: guardar o grupo A–H
+//  oficial de cada vaga da temporada de Julho 2026 (início 01/10/2026).
+//
+//  REGRA INEGOCIÁVEL (mesma lição de sempre, agora reforçada em código):
+//    Grupo NUNCA é adivinhado, calculado ou herdado de outra temporada.
+//    Só existe se vier do relatório oficial do DOL (PublicFacingReport)
+//    — via upload manual (CSV ou XLSX de verdade) OU download automático
+//    a partir do link que o próprio DOL publica. Cada linha importada é
+//    VALIDADA contra a Begin Date esperada (01/10/2026); linha que não
+//    bate é REJEITADA e aparece no log — nunca aceita "no chute".
+//
+//  Este bot NÃO participa da coleta de vagas (isso é o Enriquecimento,
+//  que continua intocado) — só enriquece com grupo o que já existir na
+//  planilha "jul2026" quando ela for publicada.
+// ══════════════════════════════════════════════════════════════════════════
+
+const GRUPOS_J26_FILE = path.join(DATA_DIR, "grupos_jul2026.json");
+const GRUPOS_J26_SEASON = Object.freeze({
+  key: "jul2026",
+  label: "Julho 2026 (H-2B)",
+  beginDateISO: "2026-10-01", // toda linha do relatório oficial tem que bater com isto
+});
+const GRUPOS_J26_NEWS_URL = "https://www.dol.gov/agencies/eta/foreign-labor/news";
+
+let DB_GRUPOS_J26 = {
+  mapa: {}, // { "H-400-26117-XXXXXX": { grupo:"A", manual:false, empresa, estado, importadoEm, fonte } }
+  meta: {
+    ultimaImportacao: null,     // {at, fonte, arquivo, novos, atualizados, rejeitados, totalNoRelatorio}
+    historicoImportacoes: [],   // até 30, mais recente primeiro
+    autoCheckEnabled: true,
+    ultimaChecagemAutoAt: null,
+    proximaChecagemAutoAt: null,
+    ultimoResultadoAuto: null,  // 'nao-encontrado' | 'ja-importado' | 'importado' | 'erro'
+    urlJaImportada: null,       // link já processado — não reimporta o mesmo
+    checksCount: 0,
+  }
+};
+
+function loadGruposJ26(){
+  try{
+    if(fs.existsSync(GRUPOS_J26_FILE)){
+      const d = JSON.parse(fs.readFileSync(GRUPOS_J26_FILE,"utf8"));
+      if(d && typeof d==="object"){
+        DB_GRUPOS_J26.mapa = d.mapa || {};
+        DB_GRUPOS_J26.meta = { ...DB_GRUPOS_J26.meta, ...(d.meta||{}) };
+      }
+    }
+  }catch(e){ console.warn("[grupos-j26] falha ao carregar:", e.message); }
+}
+function persistGruposJ26(){
+  try{
+    const tmp = GRUPOS_J26_FILE+".tmp";
+    fs.writeFileSync(tmp, JSON.stringify(DB_GRUPOS_J26));
+    fs.renameSync(tmp, GRUPOS_J26_FILE);
+  }catch(e){ console.warn("[grupos-j26] falha ao salvar:", e.message); }
+}
+function grupoJ26Log(msg, type='info'){
+  console.log(`[grupos-j26] ${msg}`);
+  botLog('grupos-jul2026','Grupos — Julho 2026', msg, type);
+}
+
+// ── Conversão de data serial do Excel (ex.: 46296 → "2026-10-01") ──────────
+function excelSerialToISO(serial){
+  const n = parseFloat(serial);
+  if(!Number.isFinite(n) || n<=0) return "";
+  const ms = Date.UTC(1899,11,30) + Math.round(n)*86400000;
+  const d = new Date(ms);
+  if(isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0,10);
+}
+// Aceita tanto serial do Excel quanto string de data já formatada (upload manual às vezes já vem como "10/01/2026" ou "2026-10-01")
+function anyDateToISO(v){
+  const s = String(v||"").trim();
+  if(!s) return "";
+  if(/^\d+(\.\d+)?$/.test(s)) return excelSerialToISO(s); // serial puro
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if(iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s); // MM/DD/YYYY
+  if(us) return `${us[3]}-${us[1].padStart(2,"0")}-${us[2].padStart(2,"0")}`;
+  return "";
+}
+
+// ── Leitor de XLSX SEM dependência externa — só zlib/fs nativos do Node ──
+// Testado contra um PublicFacingReport real do DOL (8.759 linhas, extração
+// 100% correta: cabeçalho, case number, grupo e datas todos batendo).
+function _zipReadEntries(buf){
+  let eocdOffset = -1;
+  for(let i=buf.length-22; i>=0; i--){
+    if(buf.readUInt32LE(i)===0x06054b50){ eocdOffset=i; break; }
+  }
+  if(eocdOffset===-1) throw new Error("Arquivo não é um .xlsx/.zip válido (EOCD não encontrado)");
+  const cdOffset = buf.readUInt32LE(eocdOffset+16);
+  const cdCount  = buf.readUInt16LE(eocdOffset+10);
+  const entries = {};
+  let p = cdOffset;
+  for(let i=0;i<cdCount;i++){
+    if(buf.readUInt32LE(p)!==0x02014b50) throw new Error("Central directory corrompida");
+    const compMethod = buf.readUInt16LE(p+10);
+    const compSize    = buf.readUInt32LE(p+20);
+    const nameLen     = buf.readUInt16LE(p+28);
+    const extraLen    = buf.readUInt16LE(p+30);
+    const commentLen  = buf.readUInt16LE(p+32);
+    const localHeaderOffset = buf.readUInt32LE(p+42);
+    const name = buf.toString("utf8", p+46, p+46+nameLen);
+    entries[name] = { compMethod, compSize, localHeaderOffset };
+    p += 46+nameLen+extraLen+commentLen;
+  }
+  return entries;
+}
+function _zipExtract(buf, entry){
+  const lp = entry.localHeaderOffset;
+  const nameLen  = buf.readUInt16LE(lp+26);
+  const extraLen = buf.readUInt16LE(lp+28);
+  const dataStart = lp+30+nameLen+extraLen;
+  const compData = buf.slice(dataStart, dataStart+entry.compSize);
+  if(entry.compMethod===0) return compData;
+  if(entry.compMethod===8) return zlib.inflateRawSync(compData);
+  throw new Error("Método de compressão .xlsx não suportado: "+entry.compMethod);
+}
+function _xmlDecodeEntities(s){
+  return s.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,"&");
+}
+function _xlsxParseSharedStrings(xml){
+  const strings=[];
+  const siRe=/<si>([\s\S]*?)<\/si>/g;
+  let m;
+  while((m=siRe.exec(xml))){
+    const tRe=/<t[^>]*>([\s\S]*?)<\/t>/g;
+    let tm, text="";
+    while((tm=tRe.exec(m[1]))) text+=tm[1];
+    strings.push(_xmlDecodeEntities(text));
+  }
+  return strings;
+}
+function _colLetterToIndex(letters){
+  let n=0;
+  for(let i=0;i<letters.length;i++) n = n*26 + (letters.charCodeAt(i)-64);
+  return n-1;
+}
+function _xlsxParseSheet(xml, sharedStrings){
+  const rows=[];
+  const rowRe=/<row[^>]*r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g;
+  let rm;
+  while((rm=rowRe.exec(xml))){
+    const rowIdx = parseInt(rm[1],10)-1;
+    const cellRe = /<c\s+([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+    let cm; const row=[];
+    while((cm=cellRe.exec(rm[2]))){
+      const attrs=cm[1], body=cm[2]||"";
+      const rMatch=/r="([A-Z]+)\d+"/.exec(attrs);
+      if(!rMatch) continue;
+      const colIdx=_colLetterToIndex(rMatch[1]);
+      const tMatch=/\bt="([a-zA-Z]+)"/.exec(attrs);
+      const type=tMatch?tMatch[1]:null;
+      let val="";
+      const vMatch=/<v>([\s\S]*?)<\/v>/.exec(body);
+      if(vMatch){ val = type==="s" ? (sharedStrings[parseInt(vMatch[1],10)]||"") : vMatch[1]; }
+      else{
+        const isMatch=/<is>([\s\S]*?)<\/is>/.exec(body);
+        if(isMatch){ const tInner=/<t[^>]*>([\s\S]*?)<\/t>/.exec(isMatch[1]); val = tInner?_xmlDecodeEntities(tInner[1]):""; }
+      }
+      row[colIdx]=val;
+    }
+    rows[rowIdx]=row;
+  }
+  return rows;
+}
+function xlsxBufferToRows(buf){
+  const entries = _zipReadEntries(buf);
+  const sheetName = Object.keys(entries).find(n=>/^xl\/worksheets\/sheet1\.xml$/i.test(n)) || Object.keys(entries).find(n=>/^xl\/worksheets\/.*\.xml$/i.test(n));
+  if(!sheetName) throw new Error("Nenhuma planilha (xl/worksheets/sheetN.xml) encontrada dentro do .xlsx");
+  const sharedEntry = entries["xl/sharedStrings.xml"];
+  const sharedStrings = sharedEntry ? _xlsxParseSharedStrings(_zipExtract(buf, sharedEntry).toString("utf8")) : [];
+  const sheetXml = _zipExtract(buf, entries[sheetName]).toString("utf8");
+  const rows = _xlsxParseSheet(sheetXml, sharedStrings);
+  // Normaliza buracos (linhas vazias no meio) pra array denso, sem furo de índice
+  const dense = [];
+  for(let i=0;i<rows.length;i++) dense.push(rows[i]||[]);
+  return dense;
+}
+
+// ── CSV simples (Excel → Salvar como CSV → colar/subir aqui) ──────────────
+function csvTextToRows(text){
+  const rows=[];
+  let row=[], field="", inQuotes=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQuotes){
+      if(c==='"'){ if(text[i+1]==='"'){field+='"';i++;} else inQuotes=false; }
+      else field+=c;
+    }else{
+      if(c==='"') inQuotes=true;
+      else if(c===','){ row.push(field); field=""; }
+      else if(c==='\r'){ /* ignore */ }
+      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=""; }
+      else field+=c;
+    }
+  }
+  if(field.length||row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r=>r.some(c=>String(c||"").trim()!==""));
+}
+
+// ── Detecção de cabeçalho — robusta a variação de nome (o antigo Monitor
+// DOL quebrava com "Cabeçalho não tem Case Number/Randomization Group"
+// porque exigia texto EXATO; aqui é por substring, sem acento, minúsculo). ──
+function _normHeader(s){
+  return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+}
+function j26DetectHeaders(headerRow){
+  const norm = (headerRow||[]).map(_normHeader);
+  const findCol = (...needles) => norm.findIndex(h => needles.every(n=>h.includes(n)));
+  const idx = {
+    caseNumber: findCol("case","number"),
+    grupo:      findCol("randomization","group"),
+    beginDate:  findCol("begin","date"),
+    empresa:    findCol("business","name"),
+    estado:     findCol("worksite","state"),
+    status:     findCol("case","status"),
+  };
+  const ok = idx.caseNumber>=0 && idx.grupo>=0;
+  return { ok, idx, missing: ok?[]:["case number","randomization group"].filter((_,i)=>i===0?idx.caseNumber<0:idx.grupo<0) };
+}
+
+// ── Parser central: rows brutas (CSV ou XLSX) → linhas validadas ──────────
+// NUNCA aceita uma linha sem confirmar que o case number bate com H-2B
+// (H-400) e, se a coluna Begin Date existir, que a data bate EXATAMENTE
+// com a temporada de Julho 2026 (01/10/2026) — senão REJEITA a linha.
+function j26ParseReportRows(rows){
+  if(!rows||!rows.length) return { ok:false, error:"Arquivo vazio ou ilegível." };
+  // Acha a linha de cabeçalho de verdade (pode não ser a linha 0 se sobrar
+  // linha de título/logo acima, comum em exports manuais do Excel)
+  let headerRowIdx = -1, headers = null;
+  for(let i=0;i<Math.min(5,rows.length);i++){
+    const det = j26DetectHeaders(rows[i]);
+    if(det.ok){ headerRowIdx=i; headers=det; break; }
+  }
+  if(headerRowIdx===-1){
+    return { ok:false, error:`Cabeçalho não encontrado (procurei "Case Number" e "Randomization Group" nas primeiras 5 linhas). O DOL pode ter mudado o formato — confira o arquivo manualmente.` };
+  }
+  const { idx } = headers;
+  const accepted = [];
+  let rejectedWrongSeason = 0, rejectedNoCase = 0, rejectedNoGroup = 0, rejectedNotH2B = 0;
+  const rejectedSamples = [];
+  for(let i=headerRowIdx+1;i<rows.length;i++){
+    const r = rows[i]; if(!r||!r.length) continue;
+    const cn = String(r[idx.caseNumber]||"").toUpperCase().trim();
+    if(!cn || !/^H-\d{3}-\d{5}-\d+$/.test(cn)){ rejectedNoCase++; continue; }
+    if(!cn.startsWith("H-400")){ rejectedNotH2B++; if(rejectedSamples.length<5)rejectedSamples.push(`${cn}: não é H-2B (só H-400 entra em grupo)`); continue; }
+    const grupo = String(r[idx.grupo]||"").toUpperCase().trim().slice(0,1);
+    if(!/^[A-H]$/.test(grupo)){ rejectedNoGroup++; continue; }
+    if(idx.beginDate>=0){
+      const bd = anyDateToISO(r[idx.beginDate]);
+      if(bd && bd!==GRUPOS_J26_SEASON.beginDateISO){
+        rejectedWrongSeason++;
+        if(rejectedSamples.length<5) rejectedSamples.push(`${cn}: begin_date="${bd}" ≠ ${GRUPOS_J26_SEASON.beginDateISO} (não é Julho 2026)`);
+        continue;
+      }
+    }
+    accepted.push({
+      cn, grupo,
+      empresa: idx.empresa>=0 ? String(r[idx.empresa]||"").trim().slice(0,120) : "",
+      estado:  idx.estado>=0  ? String(r[idx.estado]||"").trim().slice(0,40)   : "",
+      status:  idx.status>=0  ? String(r[idx.status]||"").trim().slice(0,80)   : "",
+    });
+  }
+  return {
+    ok: true, headerRowIdx, totalLinhas: rows.length-headerRowIdx-1,
+    accepted, rejectedWrongSeason, rejectedNoCase, rejectedNoGroup, rejectedNotH2B, rejectedSamples,
+  };
+}
+
+// ── Importação: mescla linhas validadas no mapa oficial (nunca sobrescreve
+// ajuste manual do admin) e persiste. Fonte da verdade única. ──────────────
+function j26ImportRows(parsed, fonte, arquivo){
+  const now = Date.now();
+  let novos=0, atualizados=0;
+  for(const row of parsed.accepted){
+    const cur = DB_GRUPOS_J26.mapa[row.cn];
+    if(!cur){
+      DB_GRUPOS_J26.mapa[row.cn] = { grupo:row.grupo, manual:false, empresa:row.empresa, estado:row.estado, status:row.status, importadoEm:now, fonte };
+      novos++;
+    } else if(!cur.manual && cur.grupo!==row.grupo){
+      cur.grupo=row.grupo; cur.empresa=row.empresa||cur.empresa; cur.estado=row.estado||cur.estado; cur.status=row.status||cur.status; cur.importadoEm=now; cur.fonte=fonte;
+      atualizados++;
+    }
+  }
+  const entry = {
+    at: now, fonte, arquivo: arquivo||"", novos, atualizados,
+    rejeitados: parsed.rejectedWrongSeason+parsed.rejectedNoCase+parsed.rejectedNoGroup+parsed.rejectedNotH2B,
+    rejeitadosPorTemporadaErrada: parsed.rejectedWrongSeason,
+    totalNoRelatorio: parsed.totalLinhas,
+    amostraRejeitados: parsed.rejectedSamples,
+  };
+  DB_GRUPOS_J26.meta.ultimaImportacao = entry;
+  DB_GRUPOS_J26.meta.historicoImportacoes.unshift(entry);
+  if(DB_GRUPOS_J26.meta.historicoImportacoes.length>30) DB_GRUPOS_J26.meta.historicoImportacoes.length=30;
+  persistGruposJ26();
+  grupoJ26Log(`📥 Importação (${fonte}${arquivo?': '+arquivo:''}): ${novos} novo(s), ${atualizados} atualizado(s), ${entry.rejeitados} rejeitado(s) (${parsed.rejectedWrongSeason} de outra temporada, ${parsed.rejectedNotH2B} não-H-2B) — total no mapa: ${Object.keys(DB_GRUPOS_J26.mapa).length}`, entry.rejeitados>0?'warn':'ok');
+  if(parsed.rejectedSamples.length){
+    for(const s of parsed.rejectedSamples) grupoJ26Log(`🚫 Rejeitada: ${s}`,'warn');
+  }
+  j26ApplyGroupsToSheet();
+  return entry;
+}
+
+// ── Download binário (preserva bytes — httpsReq genérico faz .toString()
+// e corromperia um .xlsx binário) ──────────────────────────────────────────
+function httpsGetBuffer(url, extraHeaders){
+  return new Promise((resolve,reject)=>{
+    let u; try{ u=new URL(url); }catch(e){ return reject(new Error("URL inválida: "+url)); }
+    const req = https.request({
+      hostname:u.hostname, path:u.pathname+u.search, method:"GET",
+      headers:{ "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36", ...extraHeaders },
+    }, resp=>{
+      if(resp.statusCode>=300 && resp.statusCode<400 && resp.headers.location){
+        return httpsGetBuffer(new URL(resp.headers.location,url).toString(), extraHeaders).then(resolve,reject);
+      }
+      const chunks=[];
+      resp.on("data",c=>chunks.push(c));
+      resp.on("end",()=>resolve({status:resp.statusCode, buffer:Buffer.concat(chunks)}));
+    });
+    req.on("error",reject);
+    req.setTimeout(30000,()=>{ req.destroy(); reject(new Error("Timeout")); });
+    req.end();
+  });
+}
+
+// ── Checador automático: acha o link do relatório de Julho 2026 na página
+// de anúncios do DOL, baixa e importa sozinho. Escopo ÚNICO: só aceita link
+// cujo nome sugira Julho 2026 (evita importar o report errado por engano). ──
+async function j26CheckDolNewsAndImport(){
+  DB_GRUPOS_J26.meta.checksCount = (DB_GRUPOS_J26.meta.checksCount||0)+1;
+  DB_GRUPOS_J26.meta.ultimaChecagemAutoAt = Date.now();
+  try{
+    const { status, buffer } = await httpsGetBuffer(GRUPOS_J26_NEWS_URL);
+    if(status!==200){
+      DB_GRUPOS_J26.meta.ultimoResultadoAuto='erro';
+      grupoJ26Log(`⚠️ Checagem do DOL: HTTP ${status} ao acessar a página de anúncios.`,'warn');
+      persistGruposJ26(); return { ok:false, reason:'http-'+status };
+    }
+    const html = buffer.toString("utf8");
+    // Procura qualquer link .xlsx com "PublicFacingReport" no nome, prioriza
+    // o que mencionar "Jul" (Julho) e "26" (2026) — nome real do DOL costuma
+    // ser algo como ".../FY26_JulPeak_PublicFacingReport.xlsx"
+    const hrefRe = /href="([^"]+PublicFacingReport[^"]*\.xlsx)"/gi;
+    const links = [];
+    let m; while((m=hrefRe.exec(html))) links.push(m[1]);
+    const candidate = links.find(l=>/jul/i.test(l) && /26/.test(l)) || links.find(l=>/jul/i.test(l));
+    if(!candidate){
+      DB_GRUPOS_J26.meta.ultimoResultadoAuto='nao-encontrado';
+      persistGruposJ26();
+      return { ok:true, found:false };
+    }
+    const fullUrl = candidate.startsWith("http") ? candidate : new URL(candidate, GRUPOS_J26_NEWS_URL).toString();
+    if(DB_GRUPOS_J26.meta.urlJaImportada===fullUrl){
+      DB_GRUPOS_J26.meta.ultimoResultadoAuto='ja-importado';
+      persistGruposJ26();
+      return { ok:true, found:true, jaImportado:true };
+    }
+    grupoJ26Log(`🔗 Relatório de Julho 2026 encontrado no site do DOL: ${fullUrl}`,'ok');
+    const dl = await httpsGetBuffer(fullUrl);
+    if(dl.status!==200 || dl.buffer.length<1000){
+      DB_GRUPOS_J26.meta.ultimoResultadoAuto='erro';
+      grupoJ26Log(`❌ Falha ao baixar o relatório (HTTP ${dl.status}, ${dl.buffer.length} bytes).`,'error');
+      persistGruposJ26(); return { ok:false, reason:'download-failed' };
+    }
+    grupoJ26Log(`⬇️ Download concluído (${(dl.buffer.length/1024).toFixed(0)} KB). Processando...`,'info');
+    const rows = xlsxBufferToRows(dl.buffer);
+    const parsed = j26ParseReportRows(rows);
+    if(!parsed.ok){
+      DB_GRUPOS_J26.meta.ultimoResultadoAuto='erro';
+      grupoJ26Log(`❌ Falha ao processar o .xlsx baixado: ${parsed.error}`,'error');
+      persistGruposJ26(); return { ok:false, reason:'parse-failed', error:parsed.error };
+    }
+    j26ImportRows(parsed, 'auto-dol', fullUrl.split("/").pop());
+    DB_GRUPOS_J26.meta.urlJaImportada = fullUrl;
+    DB_GRUPOS_J26.meta.ultimoResultadoAuto = 'importado';
+    persistGruposJ26();
+    return { ok:true, found:true, imported:true };
+  }catch(e){
+    DB_GRUPOS_J26.meta.ultimoResultadoAuto='erro';
+    grupoJ26Log(`❌ Erro na checagem automática: ${e.message}`,'error');
+    persistGruposJ26();
+    return { ok:false, reason:'exception', error:e.message };
+  }
+}
+async function j26AutoTick(){
+  if(DB_GRUPOS_J26.meta.autoCheckEnabled===false) return;
+  if(DB_GRUPOS_J26.meta.ultimoResultadoAuto==='importado' && DB_GRUPOS_J26.meta.urlJaImportada) return; // já achou e importou — não precisa mais varrer
+  await j26CheckDolNewsAndImport();
+}
+
+// ── Aplica os grupos importados direto nas vagas da planilha "jul2026" (se
+// ela já tiver sido publicada) — grava o campo `g` linha a linha e persiste
+// no mesmo arquivo/local que o resto do sistema já usa pra essa planilha. ──
+function j26ApplyGroupsToSheet(){
+  const arr = SHEET_EXTRAS["jul2026"];
+  if(!arr || !arr.length) return { applied:0, sheetExists:false };
+  let applied=0;
+  for(const r of arr){
+    const cn = String(r.c||"").toUpperCase();
+    const g = DB_GRUPOS_J26.mapa[cn];
+    if(g && r.g!==g.grupo){ r.g=g.grupo; applied++; }
+  }
+  if(applied>0){
+    try{
+      const meta = DB_SHEETS_META["jul2026"];
+      const fp = path.join(SHEETS_DIR, meta?.file||"jul2026.json");
+      fs.writeFileSync(fp, JSON.stringify(arr));
+      grupoJ26Log(`📋 Grupo aplicado em ${applied} vaga(s) da planilha "Julho 2026" já publicada.`,'ok');
+    }catch(e){ grupoJ26Log(`⚠️ Grupos aplicados em memória mas falhou salvar no arquivo da planilha: ${e.message}`,'warn'); }
+  }
+  return { applied, sheetExists:true };
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+//  📰 VIGIA DE ANÚNCIOS — DOL NEWS (bot novo, pedido do dono 08/07/2026)
+//  ─────────────────────────────────────────────────────────────────────
+//  Troca a ideia de "baixar a planilha sozinho" (que deu trabalho demais)
+//  por algo bem mais simples e confiável: só FICAR DE OLHO na página de
+//  anúncios do DOL e AVISAR POR E-MAIL todo admin assim que aparecer
+//  publicação nova — quem baixa/confere é humano, o robô só vigia.
+//
+//  https://www.dol.gov/agencies/eta/foreign-labor/news
+//
+//  Checa a cada 10 minutos. O último anúncio conhecido no momento em que
+//  este bot foi criado (08/07/2026) foi o de 29/06/2026 ("OFLC Issues
+//  Technical Release Notes for the Occupational Employment and Wage
+//  Statistics Update for the July 2026 through June 2027 Wage Year") —
+//  isso vira o ponto de partida (baseline). Qualquer anúncio com data
+//  MAIS NOVA que essa dispara o e-mail. Nunca reenvia o mesmo aviso 2x.
+// ══════════════════════════════════════════════════════════════════════════
+
+const DOL_NEWS_URL = "https://www.dol.gov/agencies/eta/foreign-labor/news";
+const DOL_NEWS_WATCH_FILE = path.join(DATA_DIR, "dol_news_watch.json");
+// Baseline conhecido na hora em que o dono pediu esse bot — "decore essa
+// publicação" (pedido explícito, 08/07/2026, JulPeak.png com data 29/06/2026).
+const DOL_NEWS_KNOWN_BASELINE = Object.freeze({
+  date: "2026-06-29",
+  title: "OFLC Issues Technical Release Notes for the Occupational Employment and Wage Statistics Update for the July 2026 through June 2027 Wage Year",
+});
+
+let DB_DOL_NEWS_WATCH = {
+  ultimaConhecida: { ...DOL_NEWS_KNOWN_BASELINE, detectadaEm: null, origem: "baseline-inicial" },
+  autoCheckEnabled: true,
+  ultimaChecagemAt: null,
+  proximaChecagemAt: null,
+  checksCount: 0,
+  ultimoResultado: null, // 'sem-novidade' | 'nova-encontrada' | 'erro-http' | 'erro-parse'
+  ultimoErro: null,
+  historicoAlertas: [],  // {at, date, title, emailsEnviados:[...]}
+};
+
+function loadDolNewsWatch(){
+  try{
+    if(fs.existsSync(DOL_NEWS_WATCH_FILE)){
+      const d = JSON.parse(fs.readFileSync(DOL_NEWS_WATCH_FILE,"utf8"));
+      if(d && typeof d==="object") DB_DOL_NEWS_WATCH = { ...DB_DOL_NEWS_WATCH, ...d };
+    }
+  }catch(e){ console.warn("[dol-news-watch] falha ao carregar:", e.message); }
+}
+function persistDolNewsWatch(){
+  try{
+    const tmp = DOL_NEWS_WATCH_FILE+".tmp";
+    fs.writeFileSync(tmp, JSON.stringify(DB_DOL_NEWS_WATCH));
+    fs.renameSync(tmp, DOL_NEWS_WATCH_FILE);
+  }catch(e){ console.warn("[dol-news-watch] falha ao salvar:", e.message); }
+}
+function dolNewsLog(msg, type='info'){
+  console.log(`[dol-news-watch] ${msg}`);
+  botLog('dol-news-watch','Vigia de Anúncios DOL', msg, type);
+}
+
+// ── Todo mundo que conta como "administrador" no sistema: o Set fixo
+// (ADMIN_EMAILS) + qualquer usuário com isAdmin:true no cadastro. ──────────
+function getAllAdminEmails(){
+  const set = new Set(ADMIN_EMAILS);
+  try{
+    for(const [email,u] of Object.entries(DB_USERS||{})){
+      if(u?.isAdmin) set.add(String(email).trim().toLowerCase());
+    }
+  }catch{}
+  return [...set].filter(Boolean);
+}
+
+// ── Envia um e-mail simples de admin pra admin, reaproveitando o MESMO
+// esquema de token que já existe pros avisos de pedido de plano: tenta o
+// token do admin principal, se não tiver tenta qualquer outro admin —
+// nunca deixa de avisar só porque uma conta específica deslogou. ──────────
+async function sendAdminAlertEmail(subject, text){
+  const admins = getAllAdminEmails();
+  if(!admins.length){ dolNewsLog("⚠️ Nenhum admin cadastrado — e-mail não enviado.","warn"); return { ok:false, enviados:[] }; }
+  let adminToken=null, adminTokenFrom=null;
+  const sessEntry = Object.values(sessions).find(ss=>ss.user_email===ADMIN_EMAIL && ss.access_token);
+  if(sessEntry?.access_token){ adminToken=sessEntry.access_token; adminTokenFrom=ADMIN_EMAIL; }
+  if(!adminToken){ try{ const t=await refreshTokenForUser(ADMIN_EMAIL); if(t){ adminToken=t; adminTokenFrom=ADMIN_EMAIL; } }catch{} }
+  if(!adminToken){
+    for(const ae of admins){
+      if(ae===ADMIN_EMAIL) continue;
+      const se=Object.values(sessions).find(ss=>ss.user_email===ae && ss.access_token);
+      if(se?.access_token){ adminToken=se.access_token; adminTokenFrom=ae; break; }
+      try{ const t=await refreshTokenForUser(ae); if(t){ adminToken=t; adminTokenFrom=ae; break; } }catch{}
+    }
+  }
+  if(!adminToken){
+    dolNewsLog("❌ Nenhum admin com token do Gmail válido no momento — e-mail NÃO enviado. Faça login de novo com uma conta admin.","error");
+    return { ok:false, enviados:[] };
+  }
+  const enviados=[], falhas=[];
+  for(const toEmail of admins){
+    try{
+      const raw = buildMime({ to:toEmail, subject, fromName:"H2BApply 📰", fromEmail:adminTokenFrom, text });
+      await httpsReq({hostname:"gmail.googleapis.com",path:"/gmail/v1/users/me/messages/send",method:"POST",headers:{"Authorization":"Bearer "+adminToken,"Content-Type":"application/json"}},{raw});
+      enviados.push(toEmail);
+    }catch(e){ falhas.push(toEmail); dolNewsLog(`❌ Falha ao enviar pra ${toEmail}: ${e.message}`,'error'); }
+  }
+  dolNewsLog(`✉️ E-mail "${subject}" enviado via ${adminTokenFrom} para: ${enviados.join(", ")||"ninguém"}${falhas.length?` (falhou pra: ${falhas.join(", ")})`:""}`, enviados.length?'ok':'error');
+  return { ok:enviados.length>0, enviados, falhas };
+}
+
+// ── Extrai a data+título do anúncio mais recente da página do DOL. Duas
+// estratégias (a página é HTML de verdade, não uma API — sem garantia de
+// estrutura fixa, então tenta achar em heading tags primeiro, e cai pro
+// texto puro se não achar nada assim). ─────────────────────────────────────
+const _MESES_EN = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
+function _parseEnDateToISO(mesNome, dia, ano){
+  const m = _MESES_EN[String(mesNome||"").toLowerCase()];
+  if(!m) return "";
+  return `${ano}-${String(m).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+}
+function dolNewsParseLatest(html){
+  const DATE_TITLE_RE = /([A-Z][a-z]+)\s+(\d{1,2}),\s+(\d{4})\.\s*([^<\r\n]{8,300})/;
+  // Estratégia A: dentro de headings (h1–h4) — mais confiável, é onde o DOL
+  // normalmente coloca "Mês DD, AAAA. Título do anúncio".
+  const headingRe = /<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi;
+  let hm;
+  while((hm=headingRe.exec(html))){
+    const text = hm[1].replace(/<[^>]+>/g,"").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").trim();
+    const dm = DATE_TITLE_RE.exec(text);
+    if(dm){
+      const iso = _parseEnDateToISO(dm[1], dm[2], dm[3]);
+      if(iso) return { ok:true, date:iso, title:dm[4].trim(), estrategia:"heading" };
+    }
+  }
+  // Estratégia B (reserva): varre o texto puro da página inteira (tira tag)
+  // e pega a PRIMEIRA ocorrência do padrão "Mês DD, AAAA. Texto" — a página
+  // lista do mais novo pro mais antigo, então a primeira ocorrência real
+  // (depois do menu/cabeçalho do site) deve ser o anúncio mais recente.
+  const plain = html.replace(/<script[\s\S]*?<\/script>/gi,"").replace(/<style[\s\S]*?<\/style>/gi,"").replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/\s+/g," ");
+  const globalRe = new RegExp(DATE_TITLE_RE.source, "g");
+  let gm;
+  while((gm=globalRe.exec(plain))){
+    const iso = _parseEnDateToISO(gm[1], gm[2], gm[3]);
+    if(iso){
+      // Ignora datas absurdas (proteção contra casar com algo tipo rodapé "January 1, 1970")
+      const y = parseInt(gm[3],10);
+      if(y>=2024 && y<=2030) return { ok:true, date:iso, title:gm[4].trim(), estrategia:"texto-puro" };
+    }
+  }
+  return { ok:false };
+}
+
+// ── Checagem principal: busca a página, extrai o anúncio mais recente,
+// compara com o que já é conhecido. Só dispara e-mail se a data for
+// GENUINAMENTE mais nova — nunca "no chute", nunca reenvia a mesma. ────────
+async function dolNewsCheckNow(){
+  DB_DOL_NEWS_WATCH.checksCount = (DB_DOL_NEWS_WATCH.checksCount||0)+1;
+  DB_DOL_NEWS_WATCH.ultimaChecagemAt = Date.now();
+  DB_DOL_NEWS_WATCH.proximaChecagemAt = Date.now()+10*60*1000;
+  try{
+    const { status, buffer } = await httpsGetBuffer(DOL_NEWS_URL);
+    if(status!==200){
+      DB_DOL_NEWS_WATCH.ultimoResultado='erro-http';
+      DB_DOL_NEWS_WATCH.ultimoErro=`HTTP ${status}`;
+      dolNewsLog(`⚠️ Checagem: HTTP ${status} ao acessar a página de anúncios do DOL.`,'warn');
+      persistDolNewsWatch();
+      return { ok:false, reason:'http-'+status };
+    }
+    const html = buffer.toString("utf8");
+    const found = dolNewsParseLatest(html);
+    if(!found.ok){
+      DB_DOL_NEWS_WATCH.ultimoResultado='erro-parse';
+      DB_DOL_NEWS_WATCH.ultimoErro='Não consegui achar nenhum anúncio com data no HTML da página — o DOL pode ter mudado o layout.';
+      dolNewsLog(`⚠️ Checagem: página carregou (${(buffer.length/1024).toFixed(0)}KB) mas não consegui identificar nenhum anúncio com data. Confira manualmente — o DOL pode ter mudado o layout.`,'warn');
+      persistDolNewsWatch();
+      return { ok:false, reason:'parse-failed' };
+    }
+    const baseline = DB_DOL_NEWS_WATCH.ultimaConhecida;
+    if(found.date > baseline.date || (found.date===baseline.date && found.title!==baseline.title)){
+      // 🚨 Anúncio novo!
+      dolNewsLog(`🚨 ANÚNCIO NOVO detectado (via ${found.estrategia}): "${found.date}" — "${found.title}"`,'ok');
+      const admins = getAllAdminEmails();
+      const subject = `🚨 DOL publicou anúncio novo — confira agora!`;
+      const text = `O robô do H2BApply detectou uma publicação NOVA na página de anúncios do DOL.
+
+📅 Data: ${found.date}
+📰 Título: ${found.title}
+
+🔗 Confira e baixe o que for preciso: ${DOL_NEWS_URL}
+
+Se for a lista randomizada de Julho 2026, faça o download logo!
+
+— Vigia de Anúncios DOL · H2BApply 🤖`;
+      const sendResult = await sendAdminAlertEmail(subject, text);
+      DB_DOL_NEWS_WATCH.ultimaConhecida = { date:found.date, title:found.title, detectadaEm:Date.now(), origem:found.estrategia };
+      DB_DOL_NEWS_WATCH.ultimoResultado='nova-encontrada';
+      DB_DOL_NEWS_WATCH.ultimoErro=null;
+      DB_DOL_NEWS_WATCH.historicoAlertas.unshift({ at:Date.now(), date:found.date, title:found.title, emailsEnviados:sendResult.enviados||[] });
+      if(DB_DOL_NEWS_WATCH.historicoAlertas.length>30) DB_DOL_NEWS_WATCH.historicoAlertas.length=30;
+      persistDolNewsWatch();
+      return { ok:true, novo:true, date:found.date, title:found.title, emailsEnviados:sendResult.enviados };
+    }
+    DB_DOL_NEWS_WATCH.ultimoResultado='sem-novidade';
+    DB_DOL_NEWS_WATCH.ultimoErro=null;
+    persistDolNewsWatch();
+    return { ok:true, novo:false, date:found.date, title:found.title };
+  }catch(e){
+    DB_DOL_NEWS_WATCH.ultimoResultado='erro-http';
+    DB_DOL_NEWS_WATCH.ultimoErro=e.message;
+    dolNewsLog(`❌ Erro na checagem: ${e.message}`,'error');
+    persistDolNewsWatch();
+    return { ok:false, reason:'exception', error:e.message };
+  }
+}
+async function dolNewsAutoTick(){
+  if(DB_DOL_NEWS_WATCH.autoCheckEnabled===false) return;
+  await dolNewsCheckNow();
+}
+
+
 const server=http.createServer(async(req,res)=>{
   res._req=req; // V951: permite ao helper json() negociar gzip sem mudar 400+ call sites
   let u,pathname;try{u=new URL(req.url,"http://x");pathname=u.pathname;}catch{res.writeHead(400);return res.end();}
@@ -4755,640 +5390,6 @@ function _saveEnrichedSheet(sheetKey, sheet){
     }
     _enrichBot.savedAt = Date.now();
   }catch(e){ _enrichLog(`❌ Erro ao salvar: ${e.message}`,"error"); }
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-//  🎯 GRUPOS — JULHO 2026 (sistema novo, pedido do dono 07/07/2026)
-//  ─────────────────────────────────────────────────────────────────────
-//  Substitui o antigo Monitor ETA (apagado por completo). Este aqui é
-//  MENOR DE PROPÓSITO — só existe pra uma coisa: guardar o grupo A–H
-//  oficial de cada vaga da temporada de Julho 2026 (início 01/10/2026).
-//
-//  REGRA INEGOCIÁVEL (mesma lição de sempre, agora reforçada em código):
-//    Grupo NUNCA é adivinhado, calculado ou herdado de outra temporada.
-//    Só existe se vier do relatório oficial do DOL (PublicFacingReport)
-//    — via upload manual (CSV ou XLSX de verdade) OU download automático
-//    a partir do link que o próprio DOL publica. Cada linha importada é
-//    VALIDADA contra a Begin Date esperada (01/10/2026); linha que não
-//    bate é REJEITADA e aparece no log — nunca aceita "no chute".
-//
-//  Este bot NÃO participa da coleta de vagas (isso é o Enriquecimento,
-//  que continua intocado) — só enriquece com grupo o que já existir na
-//  planilha "jul2026" quando ela for publicada.
-// ══════════════════════════════════════════════════════════════════════════
-
-const GRUPOS_J26_FILE = path.join(DATA_DIR, "grupos_jul2026.json");
-const GRUPOS_J26_SEASON = Object.freeze({
-  key: "jul2026",
-  label: "Julho 2026 (H-2B)",
-  beginDateISO: "2026-10-01", // toda linha do relatório oficial tem que bater com isto
-});
-const GRUPOS_J26_NEWS_URL = "https://www.dol.gov/agencies/eta/foreign-labor/news";
-
-let DB_GRUPOS_J26 = {
-  mapa: {}, // { "H-400-26117-XXXXXX": { grupo:"A", manual:false, empresa, estado, importadoEm, fonte } }
-  meta: {
-    ultimaImportacao: null,     // {at, fonte, arquivo, novos, atualizados, rejeitados, totalNoRelatorio}
-    historicoImportacoes: [],   // até 30, mais recente primeiro
-    autoCheckEnabled: true,
-    ultimaChecagemAutoAt: null,
-    proximaChecagemAutoAt: null,
-    ultimoResultadoAuto: null,  // 'nao-encontrado' | 'ja-importado' | 'importado' | 'erro'
-    urlJaImportada: null,       // link já processado — não reimporta o mesmo
-    checksCount: 0,
-  }
-};
-
-function loadGruposJ26(){
-  try{
-    if(fs.existsSync(GRUPOS_J26_FILE)){
-      const d = JSON.parse(fs.readFileSync(GRUPOS_J26_FILE,"utf8"));
-      if(d && typeof d==="object"){
-        DB_GRUPOS_J26.mapa = d.mapa || {};
-        DB_GRUPOS_J26.meta = { ...DB_GRUPOS_J26.meta, ...(d.meta||{}) };
-      }
-    }
-  }catch(e){ console.warn("[grupos-j26] falha ao carregar:", e.message); }
-}
-function persistGruposJ26(){
-  try{
-    const tmp = GRUPOS_J26_FILE+".tmp";
-    fs.writeFileSync(tmp, JSON.stringify(DB_GRUPOS_J26));
-    fs.renameSync(tmp, GRUPOS_J26_FILE);
-  }catch(e){ console.warn("[grupos-j26] falha ao salvar:", e.message); }
-}
-function grupoJ26Log(msg, type='info'){
-  console.log(`[grupos-j26] ${msg}`);
-  botLog('grupos-jul2026','Grupos — Julho 2026', msg, type);
-}
-
-// ── Conversão de data serial do Excel (ex.: 46296 → "2026-10-01") ──────────
-function excelSerialToISO(serial){
-  const n = parseFloat(serial);
-  if(!Number.isFinite(n) || n<=0) return "";
-  const ms = Date.UTC(1899,11,30) + Math.round(n)*86400000;
-  const d = new Date(ms);
-  if(isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0,10);
-}
-// Aceita tanto serial do Excel quanto string de data já formatada (upload manual às vezes já vem como "10/01/2026" ou "2026-10-01")
-function anyDateToISO(v){
-  const s = String(v||"").trim();
-  if(!s) return "";
-  if(/^\d+(\.\d+)?$/.test(s)) return excelSerialToISO(s); // serial puro
-  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
-  if(iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s); // MM/DD/YYYY
-  if(us) return `${us[3]}-${us[1].padStart(2,"0")}-${us[2].padStart(2,"0")}`;
-  return "";
-}
-
-// ── Leitor de XLSX SEM dependência externa — só zlib/fs nativos do Node ──
-// Testado contra um PublicFacingReport real do DOL (8.759 linhas, extração
-// 100% correta: cabeçalho, case number, grupo e datas todos batendo).
-function _zipReadEntries(buf){
-  let eocdOffset = -1;
-  for(let i=buf.length-22; i>=0; i--){
-    if(buf.readUInt32LE(i)===0x06054b50){ eocdOffset=i; break; }
-  }
-  if(eocdOffset===-1) throw new Error("Arquivo não é um .xlsx/.zip válido (EOCD não encontrado)");
-  const cdOffset = buf.readUInt32LE(eocdOffset+16);
-  const cdCount  = buf.readUInt16LE(eocdOffset+10);
-  const entries = {};
-  let p = cdOffset;
-  for(let i=0;i<cdCount;i++){
-    if(buf.readUInt32LE(p)!==0x02014b50) throw new Error("Central directory corrompida");
-    const compMethod = buf.readUInt16LE(p+10);
-    const compSize    = buf.readUInt32LE(p+20);
-    const nameLen     = buf.readUInt16LE(p+28);
-    const extraLen    = buf.readUInt16LE(p+30);
-    const commentLen  = buf.readUInt16LE(p+32);
-    const localHeaderOffset = buf.readUInt32LE(p+42);
-    const name = buf.toString("utf8", p+46, p+46+nameLen);
-    entries[name] = { compMethod, compSize, localHeaderOffset };
-    p += 46+nameLen+extraLen+commentLen;
-  }
-  return entries;
-}
-function _zipExtract(buf, entry){
-  const lp = entry.localHeaderOffset;
-  const nameLen  = buf.readUInt16LE(lp+26);
-  const extraLen = buf.readUInt16LE(lp+28);
-  const dataStart = lp+30+nameLen+extraLen;
-  const compData = buf.slice(dataStart, dataStart+entry.compSize);
-  if(entry.compMethod===0) return compData;
-  if(entry.compMethod===8) return zlib.inflateRawSync(compData);
-  throw new Error("Método de compressão .xlsx não suportado: "+entry.compMethod);
-}
-function _xmlDecodeEntities(s){
-  return s.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,"&");
-}
-function _xlsxParseSharedStrings(xml){
-  const strings=[];
-  const siRe=/<si>([\s\S]*?)<\/si>/g;
-  let m;
-  while((m=siRe.exec(xml))){
-    const tRe=/<t[^>]*>([\s\S]*?)<\/t>/g;
-    let tm, text="";
-    while((tm=tRe.exec(m[1]))) text+=tm[1];
-    strings.push(_xmlDecodeEntities(text));
-  }
-  return strings;
-}
-function _colLetterToIndex(letters){
-  let n=0;
-  for(let i=0;i<letters.length;i++) n = n*26 + (letters.charCodeAt(i)-64);
-  return n-1;
-}
-function _xlsxParseSheet(xml, sharedStrings){
-  const rows=[];
-  const rowRe=/<row[^>]*r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g;
-  let rm;
-  while((rm=rowRe.exec(xml))){
-    const rowIdx = parseInt(rm[1],10)-1;
-    const cellRe = /<c\s+([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
-    let cm; const row=[];
-    while((cm=cellRe.exec(rm[2]))){
-      const attrs=cm[1], body=cm[2]||"";
-      const rMatch=/r="([A-Z]+)\d+"/.exec(attrs);
-      if(!rMatch) continue;
-      const colIdx=_colLetterToIndex(rMatch[1]);
-      const tMatch=/\bt="([a-zA-Z]+)"/.exec(attrs);
-      const type=tMatch?tMatch[1]:null;
-      let val="";
-      const vMatch=/<v>([\s\S]*?)<\/v>/.exec(body);
-      if(vMatch){ val = type==="s" ? (sharedStrings[parseInt(vMatch[1],10)]||"") : vMatch[1]; }
-      else{
-        const isMatch=/<is>([\s\S]*?)<\/is>/.exec(body);
-        if(isMatch){ const tInner=/<t[^>]*>([\s\S]*?)<\/t>/.exec(isMatch[1]); val = tInner?_xmlDecodeEntities(tInner[1]):""; }
-      }
-      row[colIdx]=val;
-    }
-    rows[rowIdx]=row;
-  }
-  return rows;
-}
-function xlsxBufferToRows(buf){
-  const entries = _zipReadEntries(buf);
-  const sheetName = Object.keys(entries).find(n=>/^xl\/worksheets\/sheet1\.xml$/i.test(n)) || Object.keys(entries).find(n=>/^xl\/worksheets\/.*\.xml$/i.test(n));
-  if(!sheetName) throw new Error("Nenhuma planilha (xl/worksheets/sheetN.xml) encontrada dentro do .xlsx");
-  const sharedEntry = entries["xl/sharedStrings.xml"];
-  const sharedStrings = sharedEntry ? _xlsxParseSharedStrings(_zipExtract(buf, sharedEntry).toString("utf8")) : [];
-  const sheetXml = _zipExtract(buf, entries[sheetName]).toString("utf8");
-  const rows = _xlsxParseSheet(sheetXml, sharedStrings);
-  // Normaliza buracos (linhas vazias no meio) pra array denso, sem furo de índice
-  const dense = [];
-  for(let i=0;i<rows.length;i++) dense.push(rows[i]||[]);
-  return dense;
-}
-
-// ── CSV simples (Excel → Salvar como CSV → colar/subir aqui) ──────────────
-function csvTextToRows(text){
-  const rows=[];
-  let row=[], field="", inQuotes=false;
-  for(let i=0;i<text.length;i++){
-    const c=text[i];
-    if(inQuotes){
-      if(c==='"'){ if(text[i+1]==='"'){field+='"';i++;} else inQuotes=false; }
-      else field+=c;
-    }else{
-      if(c==='"') inQuotes=true;
-      else if(c===','){ row.push(field); field=""; }
-      else if(c==='\r'){ /* ignore */ }
-      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=""; }
-      else field+=c;
-    }
-  }
-  if(field.length||row.length){ row.push(field); rows.push(row); }
-  return rows.filter(r=>r.some(c=>String(c||"").trim()!==""));
-}
-
-// ── Detecção de cabeçalho — robusta a variação de nome (o antigo Monitor
-// DOL quebrava com "Cabeçalho não tem Case Number/Randomization Group"
-// porque exigia texto EXATO; aqui é por substring, sem acento, minúsculo). ──
-function _normHeader(s){
-  return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
-}
-function j26DetectHeaders(headerRow){
-  const norm = (headerRow||[]).map(_normHeader);
-  const findCol = (...needles) => norm.findIndex(h => needles.every(n=>h.includes(n)));
-  const idx = {
-    caseNumber: findCol("case","number"),
-    grupo:      findCol("randomization","group"),
-    beginDate:  findCol("begin","date"),
-    empresa:    findCol("business","name"),
-    estado:     findCol("worksite","state"),
-    status:     findCol("case","status"),
-  };
-  const ok = idx.caseNumber>=0 && idx.grupo>=0;
-  return { ok, idx, missing: ok?[]:["case number","randomization group"].filter((_,i)=>i===0?idx.caseNumber<0:idx.grupo<0) };
-}
-
-// ── Parser central: rows brutas (CSV ou XLSX) → linhas validadas ──────────
-// NUNCA aceita uma linha sem confirmar que o case number bate com H-2B
-// (H-400) e, se a coluna Begin Date existir, que a data bate EXATAMENTE
-// com a temporada de Julho 2026 (01/10/2026) — senão REJEITA a linha.
-function j26ParseReportRows(rows){
-  if(!rows||!rows.length) return { ok:false, error:"Arquivo vazio ou ilegível." };
-  // Acha a linha de cabeçalho de verdade (pode não ser a linha 0 se sobrar
-  // linha de título/logo acima, comum em exports manuais do Excel)
-  let headerRowIdx = -1, headers = null;
-  for(let i=0;i<Math.min(5,rows.length);i++){
-    const det = j26DetectHeaders(rows[i]);
-    if(det.ok){ headerRowIdx=i; headers=det; break; }
-  }
-  if(headerRowIdx===-1){
-    return { ok:false, error:`Cabeçalho não encontrado (procurei "Case Number" e "Randomization Group" nas primeiras 5 linhas). O DOL pode ter mudado o formato — confira o arquivo manualmente.` };
-  }
-  const { idx } = headers;
-  const accepted = [];
-  let rejectedWrongSeason = 0, rejectedNoCase = 0, rejectedNoGroup = 0, rejectedNotH2B = 0;
-  const rejectedSamples = [];
-  for(let i=headerRowIdx+1;i<rows.length;i++){
-    const r = rows[i]; if(!r||!r.length) continue;
-    const cn = String(r[idx.caseNumber]||"").toUpperCase().trim();
-    if(!cn || !/^H-\d{3}-\d{5}-\d+$/.test(cn)){ rejectedNoCase++; continue; }
-    if(!cn.startsWith("H-400")){ rejectedNotH2B++; if(rejectedSamples.length<5)rejectedSamples.push(`${cn}: não é H-2B (só H-400 entra em grupo)`); continue; }
-    const grupo = String(r[idx.grupo]||"").toUpperCase().trim().slice(0,1);
-    if(!/^[A-H]$/.test(grupo)){ rejectedNoGroup++; continue; }
-    if(idx.beginDate>=0){
-      const bd = anyDateToISO(r[idx.beginDate]);
-      if(bd && bd!==GRUPOS_J26_SEASON.beginDateISO){
-        rejectedWrongSeason++;
-        if(rejectedSamples.length<5) rejectedSamples.push(`${cn}: begin_date="${bd}" ≠ ${GRUPOS_J26_SEASON.beginDateISO} (não é Julho 2026)`);
-        continue;
-      }
-    }
-    accepted.push({
-      cn, grupo,
-      empresa: idx.empresa>=0 ? String(r[idx.empresa]||"").trim().slice(0,120) : "",
-      estado:  idx.estado>=0  ? String(r[idx.estado]||"").trim().slice(0,40)   : "",
-      status:  idx.status>=0  ? String(r[idx.status]||"").trim().slice(0,80)   : "",
-    });
-  }
-  return {
-    ok: true, headerRowIdx, totalLinhas: rows.length-headerRowIdx-1,
-    accepted, rejectedWrongSeason, rejectedNoCase, rejectedNoGroup, rejectedNotH2B, rejectedSamples,
-  };
-}
-
-// ── Importação: mescla linhas validadas no mapa oficial (nunca sobrescreve
-// ajuste manual do admin) e persiste. Fonte da verdade única. ──────────────
-function j26ImportRows(parsed, fonte, arquivo){
-  const now = Date.now();
-  let novos=0, atualizados=0;
-  for(const row of parsed.accepted){
-    const cur = DB_GRUPOS_J26.mapa[row.cn];
-    if(!cur){
-      DB_GRUPOS_J26.mapa[row.cn] = { grupo:row.grupo, manual:false, empresa:row.empresa, estado:row.estado, status:row.status, importadoEm:now, fonte };
-      novos++;
-    } else if(!cur.manual && cur.grupo!==row.grupo){
-      cur.grupo=row.grupo; cur.empresa=row.empresa||cur.empresa; cur.estado=row.estado||cur.estado; cur.status=row.status||cur.status; cur.importadoEm=now; cur.fonte=fonte;
-      atualizados++;
-    }
-  }
-  const entry = {
-    at: now, fonte, arquivo: arquivo||"", novos, atualizados,
-    rejeitados: parsed.rejectedWrongSeason+parsed.rejectedNoCase+parsed.rejectedNoGroup+parsed.rejectedNotH2B,
-    rejeitadosPorTemporadaErrada: parsed.rejectedWrongSeason,
-    totalNoRelatorio: parsed.totalLinhas,
-    amostraRejeitados: parsed.rejectedSamples,
-  };
-  DB_GRUPOS_J26.meta.ultimaImportacao = entry;
-  DB_GRUPOS_J26.meta.historicoImportacoes.unshift(entry);
-  if(DB_GRUPOS_J26.meta.historicoImportacoes.length>30) DB_GRUPOS_J26.meta.historicoImportacoes.length=30;
-  persistGruposJ26();
-  grupoJ26Log(`📥 Importação (${fonte}${arquivo?': '+arquivo:''}): ${novos} novo(s), ${atualizados} atualizado(s), ${entry.rejeitados} rejeitado(s) (${parsed.rejectedWrongSeason} de outra temporada, ${parsed.rejectedNotH2B} não-H-2B) — total no mapa: ${Object.keys(DB_GRUPOS_J26.mapa).length}`, entry.rejeitados>0?'warn':'ok');
-  if(parsed.rejectedSamples.length){
-    for(const s of parsed.rejectedSamples) grupoJ26Log(`🚫 Rejeitada: ${s}`,'warn');
-  }
-  j26ApplyGroupsToSheet();
-  return entry;
-}
-
-// ── Download binário (preserva bytes — httpsReq genérico faz .toString()
-// e corromperia um .xlsx binário) ──────────────────────────────────────────
-function httpsGetBuffer(url, extraHeaders){
-  return new Promise((resolve,reject)=>{
-    let u; try{ u=new URL(url); }catch(e){ return reject(new Error("URL inválida: "+url)); }
-    const req = https.request({
-      hostname:u.hostname, path:u.pathname+u.search, method:"GET",
-      headers:{ "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36", ...extraHeaders },
-    }, resp=>{
-      if(resp.statusCode>=300 && resp.statusCode<400 && resp.headers.location){
-        return httpsGetBuffer(new URL(resp.headers.location,url).toString(), extraHeaders).then(resolve,reject);
-      }
-      const chunks=[];
-      resp.on("data",c=>chunks.push(c));
-      resp.on("end",()=>resolve({status:resp.statusCode, buffer:Buffer.concat(chunks)}));
-    });
-    req.on("error",reject);
-    req.setTimeout(30000,()=>{ req.destroy(); reject(new Error("Timeout")); });
-    req.end();
-  });
-}
-
-// ── Checador automático: acha o link do relatório de Julho 2026 na página
-// de anúncios do DOL, baixa e importa sozinho. Escopo ÚNICO: só aceita link
-// cujo nome sugira Julho 2026 (evita importar o report errado por engano). ──
-async function j26CheckDolNewsAndImport(){
-  DB_GRUPOS_J26.meta.checksCount = (DB_GRUPOS_J26.meta.checksCount||0)+1;
-  DB_GRUPOS_J26.meta.ultimaChecagemAutoAt = Date.now();
-  try{
-    const { status, buffer } = await httpsGetBuffer(GRUPOS_J26_NEWS_URL);
-    if(status!==200){
-      DB_GRUPOS_J26.meta.ultimoResultadoAuto='erro';
-      grupoJ26Log(`⚠️ Checagem do DOL: HTTP ${status} ao acessar a página de anúncios.`,'warn');
-      persistGruposJ26(); return { ok:false, reason:'http-'+status };
-    }
-    const html = buffer.toString("utf8");
-    // Procura qualquer link .xlsx com "PublicFacingReport" no nome, prioriza
-    // o que mencionar "Jul" (Julho) e "26" (2026) — nome real do DOL costuma
-    // ser algo como ".../FY26_JulPeak_PublicFacingReport.xlsx"
-    const hrefRe = /href="([^"]+PublicFacingReport[^"]*\.xlsx)"/gi;
-    const links = [];
-    let m; while((m=hrefRe.exec(html))) links.push(m[1]);
-    const candidate = links.find(l=>/jul/i.test(l) && /26/.test(l)) || links.find(l=>/jul/i.test(l));
-    if(!candidate){
-      DB_GRUPOS_J26.meta.ultimoResultadoAuto='nao-encontrado';
-      persistGruposJ26();
-      return { ok:true, found:false };
-    }
-    const fullUrl = candidate.startsWith("http") ? candidate : new URL(candidate, GRUPOS_J26_NEWS_URL).toString();
-    if(DB_GRUPOS_J26.meta.urlJaImportada===fullUrl){
-      DB_GRUPOS_J26.meta.ultimoResultadoAuto='ja-importado';
-      persistGruposJ26();
-      return { ok:true, found:true, jaImportado:true };
-    }
-    grupoJ26Log(`🔗 Relatório de Julho 2026 encontrado no site do DOL: ${fullUrl}`,'ok');
-    const dl = await httpsGetBuffer(fullUrl);
-    if(dl.status!==200 || dl.buffer.length<1000){
-      DB_GRUPOS_J26.meta.ultimoResultadoAuto='erro';
-      grupoJ26Log(`❌ Falha ao baixar o relatório (HTTP ${dl.status}, ${dl.buffer.length} bytes).`,'error');
-      persistGruposJ26(); return { ok:false, reason:'download-failed' };
-    }
-    grupoJ26Log(`⬇️ Download concluído (${(dl.buffer.length/1024).toFixed(0)} KB). Processando...`,'info');
-    const rows = xlsxBufferToRows(dl.buffer);
-    const parsed = j26ParseReportRows(rows);
-    if(!parsed.ok){
-      DB_GRUPOS_J26.meta.ultimoResultadoAuto='erro';
-      grupoJ26Log(`❌ Falha ao processar o .xlsx baixado: ${parsed.error}`,'error');
-      persistGruposJ26(); return { ok:false, reason:'parse-failed', error:parsed.error };
-    }
-    j26ImportRows(parsed, 'auto-dol', fullUrl.split("/").pop());
-    DB_GRUPOS_J26.meta.urlJaImportada = fullUrl;
-    DB_GRUPOS_J26.meta.ultimoResultadoAuto = 'importado';
-    persistGruposJ26();
-    return { ok:true, found:true, imported:true };
-  }catch(e){
-    DB_GRUPOS_J26.meta.ultimoResultadoAuto='erro';
-    grupoJ26Log(`❌ Erro na checagem automática: ${e.message}`,'error');
-    persistGruposJ26();
-    return { ok:false, reason:'exception', error:e.message };
-  }
-}
-async function j26AutoTick(){
-  if(DB_GRUPOS_J26.meta.autoCheckEnabled===false) return;
-  if(DB_GRUPOS_J26.meta.ultimoResultadoAuto==='importado' && DB_GRUPOS_J26.meta.urlJaImportada) return; // já achou e importou — não precisa mais varrer
-  await j26CheckDolNewsAndImport();
-}
-
-// ── Aplica os grupos importados direto nas vagas da planilha "jul2026" (se
-// ela já tiver sido publicada) — grava o campo `g` linha a linha e persiste
-// no mesmo arquivo/local que o resto do sistema já usa pra essa planilha. ──
-function j26ApplyGroupsToSheet(){
-  const arr = SHEET_EXTRAS["jul2026"];
-  if(!arr || !arr.length) return { applied:0, sheetExists:false };
-  let applied=0;
-  for(const r of arr){
-    const cn = String(r.c||"").toUpperCase();
-    const g = DB_GRUPOS_J26.mapa[cn];
-    if(g && r.g!==g.grupo){ r.g=g.grupo; applied++; }
-  }
-  if(applied>0){
-    try{
-      const meta = DB_SHEETS_META["jul2026"];
-      const fp = path.join(SHEETS_DIR, meta?.file||"jul2026.json");
-      fs.writeFileSync(fp, JSON.stringify(arr));
-      grupoJ26Log(`📋 Grupo aplicado em ${applied} vaga(s) da planilha "Julho 2026" já publicada.`,'ok');
-    }catch(e){ grupoJ26Log(`⚠️ Grupos aplicados em memória mas falhou salvar no arquivo da planilha: ${e.message}`,'warn'); }
-  }
-  return { applied, sheetExists:true };
-}
-
-
-// ══════════════════════════════════════════════════════════════════════════
-//  📰 VIGIA DE ANÚNCIOS — DOL NEWS (bot novo, pedido do dono 08/07/2026)
-//  ─────────────────────────────────────────────────────────────────────
-//  Troca a ideia de "baixar a planilha sozinho" (que deu trabalho demais)
-//  por algo bem mais simples e confiável: só FICAR DE OLHO na página de
-//  anúncios do DOL e AVISAR POR E-MAIL todo admin assim que aparecer
-//  publicação nova — quem baixa/confere é humano, o robô só vigia.
-//
-//  https://www.dol.gov/agencies/eta/foreign-labor/news
-//
-//  Checa a cada 10 minutos. O último anúncio conhecido no momento em que
-//  este bot foi criado (08/07/2026) foi o de 29/06/2026 ("OFLC Issues
-//  Technical Release Notes for the Occupational Employment and Wage
-//  Statistics Update for the July 2026 through June 2027 Wage Year") —
-//  isso vira o ponto de partida (baseline). Qualquer anúncio com data
-//  MAIS NOVA que essa dispara o e-mail. Nunca reenvia o mesmo aviso 2x.
-// ══════════════════════════════════════════════════════════════════════════
-
-const DOL_NEWS_URL = "https://www.dol.gov/agencies/eta/foreign-labor/news";
-const DOL_NEWS_WATCH_FILE = path.join(DATA_DIR, "dol_news_watch.json");
-// Baseline conhecido na hora em que o dono pediu esse bot — "decore essa
-// publicação" (pedido explícito, 08/07/2026, JulPeak.png com data 29/06/2026).
-const DOL_NEWS_KNOWN_BASELINE = Object.freeze({
-  date: "2026-06-29",
-  title: "OFLC Issues Technical Release Notes for the Occupational Employment and Wage Statistics Update for the July 2026 through June 2027 Wage Year",
-});
-
-let DB_DOL_NEWS_WATCH = {
-  ultimaConhecida: { ...DOL_NEWS_KNOWN_BASELINE, detectadaEm: null, origem: "baseline-inicial" },
-  autoCheckEnabled: true,
-  ultimaChecagemAt: null,
-  proximaChecagemAt: null,
-  checksCount: 0,
-  ultimoResultado: null, // 'sem-novidade' | 'nova-encontrada' | 'erro-http' | 'erro-parse'
-  ultimoErro: null,
-  historicoAlertas: [],  // {at, date, title, emailsEnviados:[...]}
-};
-
-function loadDolNewsWatch(){
-  try{
-    if(fs.existsSync(DOL_NEWS_WATCH_FILE)){
-      const d = JSON.parse(fs.readFileSync(DOL_NEWS_WATCH_FILE,"utf8"));
-      if(d && typeof d==="object") DB_DOL_NEWS_WATCH = { ...DB_DOL_NEWS_WATCH, ...d };
-    }
-  }catch(e){ console.warn("[dol-news-watch] falha ao carregar:", e.message); }
-}
-function persistDolNewsWatch(){
-  try{
-    const tmp = DOL_NEWS_WATCH_FILE+".tmp";
-    fs.writeFileSync(tmp, JSON.stringify(DB_DOL_NEWS_WATCH));
-    fs.renameSync(tmp, DOL_NEWS_WATCH_FILE);
-  }catch(e){ console.warn("[dol-news-watch] falha ao salvar:", e.message); }
-}
-function dolNewsLog(msg, type='info'){
-  console.log(`[dol-news-watch] ${msg}`);
-  botLog('dol-news-watch','Vigia de Anúncios DOL', msg, type);
-}
-
-// ── Todo mundo que conta como "administrador" no sistema: o Set fixo
-// (ADMIN_EMAILS) + qualquer usuário com isAdmin:true no cadastro. ──────────
-function getAllAdminEmails(){
-  const set = new Set(ADMIN_EMAILS);
-  try{
-    for(const [email,u] of Object.entries(DB_USERS||{})){
-      if(u?.isAdmin) set.add(String(email).trim().toLowerCase());
-    }
-  }catch{}
-  return [...set].filter(Boolean);
-}
-
-// ── Envia um e-mail simples de admin pra admin, reaproveitando o MESMO
-// esquema de token que já existe pros avisos de pedido de plano: tenta o
-// token do admin principal, se não tiver tenta qualquer outro admin —
-// nunca deixa de avisar só porque uma conta específica deslogou. ──────────
-async function sendAdminAlertEmail(subject, text){
-  const admins = getAllAdminEmails();
-  if(!admins.length){ dolNewsLog("⚠️ Nenhum admin cadastrado — e-mail não enviado.","warn"); return { ok:false, enviados:[] }; }
-  let adminToken=null, adminTokenFrom=null;
-  const sessEntry = Object.values(sessions).find(ss=>ss.user_email===ADMIN_EMAIL && ss.access_token);
-  if(sessEntry?.access_token){ adminToken=sessEntry.access_token; adminTokenFrom=ADMIN_EMAIL; }
-  if(!adminToken){ try{ const t=await refreshTokenForUser(ADMIN_EMAIL); if(t){ adminToken=t; adminTokenFrom=ADMIN_EMAIL; } }catch{} }
-  if(!adminToken){
-    for(const ae of admins){
-      if(ae===ADMIN_EMAIL) continue;
-      const se=Object.values(sessions).find(ss=>ss.user_email===ae && ss.access_token);
-      if(se?.access_token){ adminToken=se.access_token; adminTokenFrom=ae; break; }
-      try{ const t=await refreshTokenForUser(ae); if(t){ adminToken=t; adminTokenFrom=ae; break; } }catch{}
-    }
-  }
-  if(!adminToken){
-    dolNewsLog("❌ Nenhum admin com token do Gmail válido no momento — e-mail NÃO enviado. Faça login de novo com uma conta admin.","error");
-    return { ok:false, enviados:[] };
-  }
-  const enviados=[], falhas=[];
-  for(const toEmail of admins){
-    try{
-      const raw = buildMime({ to:toEmail, subject, fromName:"H2BApply 📰", fromEmail:adminTokenFrom, text });
-      await httpsReq({hostname:"gmail.googleapis.com",path:"/gmail/v1/users/me/messages/send",method:"POST",headers:{"Authorization":"Bearer "+adminToken,"Content-Type":"application/json"}},{raw});
-      enviados.push(toEmail);
-    }catch(e){ falhas.push(toEmail); dolNewsLog(`❌ Falha ao enviar pra ${toEmail}: ${e.message}`,'error'); }
-  }
-  dolNewsLog(`✉️ E-mail "${subject}" enviado via ${adminTokenFrom} para: ${enviados.join(", ")||"ninguém"}${falhas.length?` (falhou pra: ${falhas.join(", ")})`:""}`, enviados.length?'ok':'error');
-  return { ok:enviados.length>0, enviados, falhas };
-}
-
-// ── Extrai a data+título do anúncio mais recente da página do DOL. Duas
-// estratégias (a página é HTML de verdade, não uma API — sem garantia de
-// estrutura fixa, então tenta achar em heading tags primeiro, e cai pro
-// texto puro se não achar nada assim). ─────────────────────────────────────
-const _MESES_EN = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
-function _parseEnDateToISO(mesNome, dia, ano){
-  const m = _MESES_EN[String(mesNome||"").toLowerCase()];
-  if(!m) return "";
-  return `${ano}-${String(m).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
-}
-function dolNewsParseLatest(html){
-  const DATE_TITLE_RE = /([A-Z][a-z]+)\s+(\d{1,2}),\s+(\d{4})\.\s*([^<\r\n]{8,300})/;
-  // Estratégia A: dentro de headings (h1–h4) — mais confiável, é onde o DOL
-  // normalmente coloca "Mês DD, AAAA. Título do anúncio".
-  const headingRe = /<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi;
-  let hm;
-  while((hm=headingRe.exec(html))){
-    const text = hm[1].replace(/<[^>]+>/g,"").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").trim();
-    const dm = DATE_TITLE_RE.exec(text);
-    if(dm){
-      const iso = _parseEnDateToISO(dm[1], dm[2], dm[3]);
-      if(iso) return { ok:true, date:iso, title:dm[4].trim(), estrategia:"heading" };
-    }
-  }
-  // Estratégia B (reserva): varre o texto puro da página inteira (tira tag)
-  // e pega a PRIMEIRA ocorrência do padrão "Mês DD, AAAA. Texto" — a página
-  // lista do mais novo pro mais antigo, então a primeira ocorrência real
-  // (depois do menu/cabeçalho do site) deve ser o anúncio mais recente.
-  const plain = html.replace(/<script[\s\S]*?<\/script>/gi,"").replace(/<style[\s\S]*?<\/style>/gi,"").replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/\s+/g," ");
-  const globalRe = new RegExp(DATE_TITLE_RE.source, "g");
-  let gm;
-  while((gm=globalRe.exec(plain))){
-    const iso = _parseEnDateToISO(gm[1], gm[2], gm[3]);
-    if(iso){
-      // Ignora datas absurdas (proteção contra casar com algo tipo rodapé "January 1, 1970")
-      const y = parseInt(gm[3],10);
-      if(y>=2024 && y<=2030) return { ok:true, date:iso, title:gm[4].trim(), estrategia:"texto-puro" };
-    }
-  }
-  return { ok:false };
-}
-
-// ── Checagem principal: busca a página, extrai o anúncio mais recente,
-// compara com o que já é conhecido. Só dispara e-mail se a data for
-// GENUINAMENTE mais nova — nunca "no chute", nunca reenvia a mesma. ────────
-async function dolNewsCheckNow(){
-  DB_DOL_NEWS_WATCH.checksCount = (DB_DOL_NEWS_WATCH.checksCount||0)+1;
-  DB_DOL_NEWS_WATCH.ultimaChecagemAt = Date.now();
-  DB_DOL_NEWS_WATCH.proximaChecagemAt = Date.now()+10*60*1000;
-  try{
-    const { status, buffer } = await httpsGetBuffer(DOL_NEWS_URL);
-    if(status!==200){
-      DB_DOL_NEWS_WATCH.ultimoResultado='erro-http';
-      DB_DOL_NEWS_WATCH.ultimoErro=`HTTP ${status}`;
-      dolNewsLog(`⚠️ Checagem: HTTP ${status} ao acessar a página de anúncios do DOL.`,'warn');
-      persistDolNewsWatch();
-      return { ok:false, reason:'http-'+status };
-    }
-    const html = buffer.toString("utf8");
-    const found = dolNewsParseLatest(html);
-    if(!found.ok){
-      DB_DOL_NEWS_WATCH.ultimoResultado='erro-parse';
-      DB_DOL_NEWS_WATCH.ultimoErro='Não consegui achar nenhum anúncio com data no HTML da página — o DOL pode ter mudado o layout.';
-      dolNewsLog(`⚠️ Checagem: página carregou (${(buffer.length/1024).toFixed(0)}KB) mas não consegui identificar nenhum anúncio com data. Confira manualmente — o DOL pode ter mudado o layout.`,'warn');
-      persistDolNewsWatch();
-      return { ok:false, reason:'parse-failed' };
-    }
-    const baseline = DB_DOL_NEWS_WATCH.ultimaConhecida;
-    if(found.date > baseline.date || (found.date===baseline.date && found.title!==baseline.title)){
-      // 🚨 Anúncio novo!
-      dolNewsLog(`🚨 ANÚNCIO NOVO detectado (via ${found.estrategia}): "${found.date}" — "${found.title}"`,'ok');
-      const admins = getAllAdminEmails();
-      const subject = `🚨 DOL publicou anúncio novo — confira agora!`;
-      const text = `O robô do H2BApply detectou uma publicação NOVA na página de anúncios do DOL.
-
-📅 Data: ${found.date}
-📰 Título: ${found.title}
-
-🔗 Confira e baixe o que for preciso: ${DOL_NEWS_URL}
-
-Se for a lista randomizada de Julho 2026, faça o download logo!
-
-— Vigia de Anúncios DOL · H2BApply 🤖`;
-      const sendResult = await sendAdminAlertEmail(subject, text);
-      DB_DOL_NEWS_WATCH.ultimaConhecida = { date:found.date, title:found.title, detectadaEm:Date.now(), origem:found.estrategia };
-      DB_DOL_NEWS_WATCH.ultimoResultado='nova-encontrada';
-      DB_DOL_NEWS_WATCH.ultimoErro=null;
-      DB_DOL_NEWS_WATCH.historicoAlertas.unshift({ at:Date.now(), date:found.date, title:found.title, emailsEnviados:sendResult.enviados||[] });
-      if(DB_DOL_NEWS_WATCH.historicoAlertas.length>30) DB_DOL_NEWS_WATCH.historicoAlertas.length=30;
-      persistDolNewsWatch();
-      return { ok:true, novo:true, date:found.date, title:found.title, emailsEnviados:sendResult.enviados };
-    }
-    DB_DOL_NEWS_WATCH.ultimoResultado='sem-novidade';
-    DB_DOL_NEWS_WATCH.ultimoErro=null;
-    persistDolNewsWatch();
-    return { ok:true, novo:false, date:found.date, title:found.title };
-  }catch(e){
-    DB_DOL_NEWS_WATCH.ultimoResultado='erro-http';
-    DB_DOL_NEWS_WATCH.ultimoErro=e.message;
-    dolNewsLog(`❌ Erro na checagem: ${e.message}`,'error');
-    persistDolNewsWatch();
-    return { ok:false, reason:'exception', error:e.message };
-  }
-}
-async function dolNewsAutoTick(){
-  if(DB_DOL_NEWS_WATCH.autoCheckEnabled===false) return;
-  await dolNewsCheckNow();
 }
 
   // ════ GESTÃO DE PLANILHAS DE VAGAS ════════════════════════
