@@ -12229,7 +12229,7 @@ async function dolBuildPoll(){
     const lblEl=document.getElementById('dol-build-prog-label');
     if(bar) bar.style.width=pct+'%';
     if(pctEl) pctEl.textContent=pct+'%';
-    if(lblEl) lblEl.textContent=running?`Coletando vagas... ${d.fetched||0}/${d.target||0} — ${d.name||''}`:finished?`✅ Concluído: ${d.fetched||0} vagas coletadas`:'Aguardando...';
+    if(lblEl) lblEl.textContent=running?(d.phase===2?`Fase 2/2 — verificando vaga por vaga... ${d.fetched||0}/${d.target||0} — ${d.name||''}`:`Fase 1/2 — listando case numbers... ${d.casesListed||0}/${d.target||0} — ${d.name||''}`):finished?`✅ Concluído: ${d.fetched||0} vagas verificadas`:'Aguardando...';
 
     // Stats
     const setT=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};

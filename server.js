@@ -2035,7 +2035,7 @@ const _dolBuildBot = {
   name: null,
   visaType: null,  // 'H-2A' ou 'H-2B'
   target: 0,       // quantas vagas o admin quer
-  fetched: 0,      // quantas já buscamos
+  fetched: 0,      // fase 2: quantas vagas já foram checadas individualmente
   saved: 0,        // quantas com email salvas
   errors: 0,
   startedAt: null,
@@ -2043,6 +2043,8 @@ const _dolBuildBot = {
   published: false,
   searchUrl: null, // URL original do advanced search
   log: [],
+  phase: 0,          // 1 = listando case numbers, 2 = buscando vaga por vaga
+  casesListed: 0,    // fase 1: quantos case numbers já foram encontrados
 };
 
 function _dolBuildLog(msg, type='info'){
@@ -2086,6 +2088,101 @@ function _parseDolAdvancedUrl(urlStr){
 }
 
 // Roda o bot de construção em background
+// ══════════════════════════════════════════════════════════════════════════
+//  🔎 LOOKUP INDIVIDUAL POR CASE NUMBER — pedido do dono (07/07/2026):
+//  "é pra usar o eta case number e acessar o site de cada vaga individual".
+//  Uma busca em lote com $filter de intervalo de data pode "encontrar
+//  qualquer vaga pra colocar" (o dono viu isso acontecer: Julho 2026 nem
+//  abriu de verdade — janela de filing foi 3-5/jul/2026, tudo ainda
+//  "Pending Processing" — e mesmo assim o bot antigo publicou 2.673 vagas
+//  completas, que não podiam ser reais). A partir de agora, a fonte da
+//  VERDADE de cada vaga é sempre o lookup EXATO por case number — nunca o
+//  campo solto de uma resposta em lote.
+//  1) tenta o datahub com $filter=case_number eq 'X' (exato, sem ambiguidade
+//     de intervalo — só pode voltar 0 ou 1 registro, o registro CERTO).
+//  2) se isso falhar, raspa https://seasonaljobs.dol.gov/jobs/{case_number}
+//     (a mesma página que o dono mandou de exemplo) e procura o bloco
+//     __NEXT_DATA__ com os dados da vaga.
+// ══════════════════════════════════════════════════════════════════════════
+function _deepFindByCaseNumber(node, caseNumber, depth){
+  depth = depth||0;
+  if(depth>7 || node==null || typeof node!=='object') return null;
+  if(!Array.isArray(node)){
+    const cn = node.case_number||node.caseNumber||node.case_id||node.caseId;
+    if(cn && String(cn).toUpperCase()===caseNumber.toUpperCase()) return node;
+  }
+  const keys = Array.isArray(node) ? node.map((_,i)=>i) : Object.keys(node);
+  for(const k of keys){
+    const found = _deepFindByCaseNumber(node[k], caseNumber, depth+1);
+    if(found) return found;
+  }
+  return null;
+}
+
+function _normalizeJobToRow(j, cn){
+  const pick = (...keys) => { for(const k of keys){ const v=j[k]; if(v!=null && v!=='' && v!=='N/A') return v; } return ''; };
+  const em = pick('apply_email','applyEmail','employer_email','employerEmail');
+  const wRaw = pick('basic_rate_from','basicRateFrom','wage_from','wageFrom');
+  const cnUp = cn.toUpperCase();
+  return {
+    c: cnUp,
+    t: pick('job_title','jobTitle','title') || 'Seasonal Worker',
+    n: pick('employer_business_name','employerBusinessName','employer_trade_name','employerTradeName','company') || '–',
+    s: String(pick('employer_state','employerState','worksite_state','worksiteState')||'').toUpperCase(),
+    ci: pick('employer_city','employerCity','worksite_city','worksiteCity'),
+    e: em,
+    w: wRaw ? String(parseFloat(wRaw).toFixed(2)) : '',
+    wunit: (pick('pay_range_desc','payRangeDesc')==='Month') ? 'mo' : 'h',
+    wk: parseInt(pick('total_positions','totalPositions')||0)||0,
+    d: String(pick('begin_date','beginDate')||'').slice(0,10),
+    de: String(pick('end_date','endDate')||'').slice(0,10),
+    ph: pick('apply_phone','applyPhone','employer_phone','employerPhone'),
+    desc: String(pick('job_duties','jobDuties','description')||'').replace(/\*\*[^*]+\*\*\n?/g,'').trim().slice(0,500),
+    soc: pick('soc_title','socTitle'),
+    url: `https://seasonaljobs.dol.gov/jobs/${cnUp}`,
+    visa: cnUp.startsWith('H-300') ? 'H-2A' : cnUp.startsWith('H-400') ? 'H-2B' : (pick('visa_class','visaClass')||'H-2B'),
+    k: detectCategory(`${pick('employer_business_name','employerBusinessName')||''} ${pick('job_title','jobTitle')||''} ${pick('soc_title','socTitle')||''}`),
+    active: pick('active')===true,
+  };
+}
+
+async function _fetchDolCaseByNumber(caseNumber, ua){
+  // 1) Lookup exato no datahub — SEM intervalo de data, filtro de igualdade
+  // pura. Não tem como "pegar vaga errada" aqui: ou bate o case number, ou
+  // não volta nada.
+  try{
+    const p = new URLSearchParams({'api-version':'2020-06-30'});
+    p.append('$filter', `case_number eq '${caseNumber.replace(/'/g,"''")}'`);
+    p.append('$top','1');
+    const {status,body} = await httpsReq({hostname:'api.seasonaljobs.dol.gov',path:'/datahub/?'+p,method:'GET',headers:{
+      'Accept':'application/json,text/plain,*/*','Accept-Encoding':'identity',
+      'User-Agent':ua,'Referer':'https://seasonaljobs.dol.gov/','Origin':'https://seasonaljobs.dol.gov',
+    }});
+    if(status===200){
+      const raw = body?.value||body?.results||body?.data||(Array.isArray(body)?body:[]);
+      if(raw && raw.length) return {ok:true, source:'datahub-exact', row:_normalizeJobToRow(raw[0], caseNumber)};
+    }
+  }catch{}
+  // 2) Fallback: a própria página individual que o dono mandou de exemplo
+  // (https://seasonaljobs.dol.gov/jobs/{case_number}) — raspa o bloco
+  // __NEXT_DATA__ (Next.js embute os dados da página nesse <script> JSON).
+  try{
+    const {status,body} = await httpsReq({hostname:'seasonaljobs.dol.gov',path:`/jobs/${encodeURIComponent(caseNumber)}`,method:'GET',headers:{
+      'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'User-Agent':ua,
+    }});
+    if(status===200 && typeof body==='string'){
+      const m = body.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+      if(m){
+        let nd; try{ nd = JSON.parse(m[1]); }catch{ nd=null; }
+        const found = nd ? _deepFindByCaseNumber(nd, caseNumber) : null;
+        if(found) return {ok:true, source:'html-scrape', row:_normalizeJobToRow(found, caseNumber)};
+      }
+    }
+  }catch{}
+  return {ok:false};
+}
+
 async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
   if(_dolBuildBot.running){
     _dolBuildLog('Bot já está rodando','warn'); return;
@@ -2099,6 +2196,8 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
   _dolBuildBot.visaType   = parsed.visaClass;
   _dolBuildBot.target     = targetCount;
   _dolBuildBot.fetched    = 0;
+  _dolBuildBot.phase      = 1;
+  _dolBuildBot.casesListed = 0;
   _dolBuildBot.saved      = 0;
   _dolBuildBot.errors     = 0;
   _dolBuildBot.startedAt  = Date.now();
@@ -2109,6 +2208,7 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
 
   _dolBuildLog(`🚀 Iniciando: "${sheetName}" | ${targetCount} vagas | ${parsed.visaClass} | ${parsed.jobStatus==='all'?'Todas':'Ativas'}`, 'ok');
   _dolBuildLog(`🔗 URL: ${searchUrl}`, 'info');
+  _dolBuildLog(`🧭 Método: 2 fases — (1) lista os ETA case numbers dentro da janela, (2) busca CADA vaga individualmente por case number (nunca confia em campo solto de resposta em lote).`, 'info');
 
   const HDR = (ua) => ({
     'Accept':'application/json,text/plain,*/*',
@@ -2126,36 +2226,27 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
   ];
   let uaIdx=0;
 
-  const newRows = []; // vagas coletadas — SEMPRE 1 linha por ETA case number
-  // 🔑 caseIndex: case number → posição em newRows. Existe SÓ pra garantir,
-  // em O(1), que o mesmo case number nunca vira 2 linhas na planilha — a
-  // API do DOL pagina por $skip sobre um dataset que muda ao vivo (novos
-  // casos entram o tempo todo, ordenado por dhTimestamp desc), então o
-  // MESMO registro pode legitimamente aparecer em 2 páginas diferentes
-  // (achado real: h2a_jun2026_compact.json tinha 36 case numbers 2x cada,
-  // 5000 linhas para só 4964 vagas de verdade). Ver mod-vagas-integrity.js.
-  const caseIndex = new Map();
   const PAGE_SIZE = 100;
   let skip = 0;
   let totalAvail = 0;
   let delay = 1200;
-  let duplicatesSkipped = 0;
   // Detecção de "pool esgotado": se várias páginas seguidas não trouxerem
-  // NENHUM case number novo (só duplicatas do que já temos), o alvo pedido
-  // (targetCount) provavelmente não existe de verdade na fonte — parar em
-  // vez de girar para sempre tentando alcançar um número inatingível.
+  // NENHUM case number novo, o alvo pedido provavelmente não existe de
+  // verdade na fonte — parar em vez de girar pra sempre.
   let stagnantPages = 0;
   const MAX_STAGNANT_PAGES = 3;
 
   try{
-    // ── FASE 1: COLETAR VAGAS DA API DOL ──
-    // Degradação progressiva: se o DOL recusar um campo OData (400), o bot
-    // REMOVE o campo problemático e continua, em vez de falhar. Ordem de
-    // remoção: $orderby (dhTimestamp) → $filter begin_date (passa a filtrar
-    // a data no lado do servidor). Assim a coleta funciona mesmo se o DOL
-    // mudou o nome de um campo.
+    // ── FASE 1: LISTAR OS ETA CASE NUMBERS DENTRO DA JANELA ──
+    // Só extrai o case_number de cada resultado — nenhum outro campo desta
+    // resposta em lote é usado pra montar a vaga. Ainda serve pra restringir
+    // a janela (não escaneia o H-2B inteiro desde sempre), mas quem decide
+    // se a vaga é real e o que ela contém é SEMPRE o lookup individual da
+    // FASE 2 — nunca esta listagem.
+    const caseNumbers = []; // ordem de descoberta, sem duplicata
+    const caseSeen = new Set();
     let _useOrderby=true, _useBeginDate=true;
-    while(_dolBuildBot.running && newRows.length < targetCount){
+    while(_dolBuildBot.running && caseNumbers.length < targetCount){
       uaIdx = (uaIdx+1) % UAS.length;
       const p = new URLSearchParams({'api-version':'2020-06-30'});
       const f = [];
@@ -2164,8 +2255,7 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
       else f.push("visa_class eq 'H-2B'");
       if(parsed.beginDate && _useBeginDate) f.push(`begin_date ge ${parsed.beginDate}T00:00:00Z`);
       // 🔒 KB-081: teto superior da janela — sem isto, uma vaga de temporada
-      // futura satisfaz "begin_date ge X" de QUALQUER temporada passada e
-      // acaba indo parar em várias planilhas ao mesmo tempo.
+      // futura satisfaz "begin_date ge X" de QUALQUER temporada passada.
       if(parsed.endDate && _useBeginDate) f.push(`begin_date lt ${parsed.endDate}T00:00:00Z`);
       if(parsed.search) p.append('$search','"'+parsed.search.replace(/"/g,'')+'"');
       if(f.length) p.append('$filter',f.join(' and '));
@@ -2187,67 +2277,19 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
             const raw = body.value||body.results||body.data||(Array.isArray(body)?body:[]);
             if(skip===0) totalAvail = body['@odata.count']||body.count||raw.length;
             if(!raw.length){ _dolBuildLog(`📭 Sem mais vagas (skip=${skip})`, 'info'); _dolBuildBot.running=false; break; }
-            const newBeforePage = newRows.length;
+            const newBefore = caseNumbers.length;
             for(const j of raw){
-              if(newRows.length>=targetCount) break;
+              if(caseNumbers.length>=targetCount) break;
               const cn = (j.case_number||j.case_id||'').toUpperCase();
-              if(!cn) continue;
-              // Se o filtro de data foi removido do servidor (degradação), filtra aqui
-              // (piso E teto — mesma janela que seria aplicada no servidor).
-              if(!_useBeginDate){
-                const bd=(j.begin_date||'').slice(0,10);
-                if(parsed.beginDate && bd && bd < parsed.beginDate) continue;
-                if(parsed.endDate && bd && bd >= parsed.endDate) continue;
-              }
-              // Detectar visa pelo case number (H-300 = H-2A, H-400 = H-2B)
-              const visaDet = cn.startsWith('H-300') ? 'H-2A' : cn.startsWith('H-400') ? 'H-2B' : (j.visa_class||parsed.visaClass);
-              const em = (j.apply_email&&j.apply_email!=='N/A')?j.apply_email:(j.employer_email&&j.employer_email!=='N/A')?j.employer_email:'';
-              const row = {
-                c: cn,
-                t: j.job_title||'Seasonal Worker',
-                n: j.employer_business_name||j.employer_trade_name||'–',
-                s: (j.employer_state||j.worksite_state||'').toUpperCase(),
-                ci: j.employer_city||j.worksite_city||'',
-                e: em,
-                w: j.basic_rate_from ? String(parseFloat(j.basic_rate_from).toFixed(2)) : '',
-                wunit: j.pay_range_desc==='Month'?'mo':'h',
-                wk: parseInt(j.total_positions||0)||0,
-                d: (j.begin_date||'').slice(0,10),
-                de: (j.end_date||'').slice(0,10),
-                ph: j.apply_phone&&j.apply_phone!=='N/A'?j.apply_phone:(j.employer_phone||''),
-                desc: (j.job_duties||'').replace(/\*\*[^*]+\*\*\n?/g,'').trim().slice(0,500),
-                soc: j.soc_title||'',
-                url: `https://seasonaljobs.dol.gov/jobs/${cn}`,
-                visa: visaDet,
-                k: detectCategory(`${j.employer_business_name||''} ${j.job_title||''} ${j.soc_title||''}`),
-                active: j.active===true,
-              };
-              // 🔑 DEDUPE: se este case number já existe em newRows (a API
-              // pode devolver o mesmo case em páginas diferentes, dataset
-              // muda ao vivo), MESCLA em vez de duplicar linha. Nunca perde
-              // dado — usa o merge do mod-vagas-integrity.js.
-              if(caseIndex.has(cn)){
-                const idx = caseIndex.get(cn);
-                const [merged] = _vagasDedupe([newRows[idx], row], {caseField:'c'}).rows;
-                newRows[idx] = merged;
-                duplicatesSkipped++;
-              } else {
-                caseIndex.set(cn, newRows.length);
-                newRows.push(row);
-              }
-              _dolBuildBot.fetched++;
+              if(!cn || caseSeen.has(cn)) continue;
+              caseSeen.add(cn); caseNumbers.push(cn);
             }
-            const newAfterPage = newRows.length;
-            if(newAfterPage === newBeforePage){
-              stagnantPages++;
-            } else {
-              stagnantPages = 0;
-            }
-            _dolBuildLog(`📥 Coletadas ${newRows.length}/${targetCount} vagas únicas (skip=${skip}, disponíveis=${totalAvail}`
-              + (duplicatesSkipped ? `, ${duplicatesSkipped} duplicata(s) mesclada(s) até agora` : '') + `)`,
-              newRows.length>=targetCount?'ok':'info');
+            const newAfter = caseNumbers.length;
+            stagnantPages = (newAfter===newBefore) ? stagnantPages+1 : 0;
+            _dolBuildBot.casesListed = caseNumbers.length;
+            _dolBuildLog(`📋 Fase 1/2 — case numbers encontrados: ${caseNumbers.length}/${targetCount} (skip=${skip}, disponíveis=${totalAvail})`, 'info');
             if(stagnantPages >= MAX_STAGNANT_PAGES){
-              _dolBuildLog(`🛑 ${MAX_STAGNANT_PAGES} páginas seguidas sem NENHUM case number novo — a fonte só tem ${newRows.length} vaga(s) única(s) de verdade para estes filtros (alvo pedido era ${targetCount}). Parando aqui: a planilha reflete a quantidade REAL, nunca inventa vaga para bater um número.`, 'warn');
+              _dolBuildLog(`🛑 ${MAX_STAGNANT_PAGES} páginas seguidas sem case number novo — a fonte só tem ${caseNumbers.length} vaga(s) de verdade para estes filtros (alvo pedido era ${targetCount}). Indo pra fase 2 com o que foi achado.`, 'warn');
               _dolBuildBot.running = false;
             }
             ok=true;
@@ -2256,80 +2298,122 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
             _dolBuildLog(`⚠️ DOL ${status} — throttle (attempt ${attempt})`, 'warn');
             delay = Math.min(delay+2000, 8000);
           } else {
-            // Mostra o CORPO da resposta — o DOL devolve a mensagem do erro de
-            // filtro/campo aqui (ex.: "Could not find a property named ...").
             let snip=''; try{ snip=(typeof body==='string'?body:JSON.stringify(body)).slice(0,300); }catch{}
             _dolBuildLog(`❌ DOL HTTP ${status} — ${snip||'(sem corpo)'}`, 'error');
-            // 4xx = campo/filtro recusado → DEGRADA e tenta a MESMA página de novo.
             if(status>=400 && status<500 && (_useOrderby || _useBeginDate)){
               if(_useOrderby){ _useOrderby=false; _dolBuildLog('🔧 Removendo $orderby (dhTimestamp) e tentando de novo...','warn'); }
-              else if(_useBeginDate){ _useBeginDate=false; _dolBuildLog('🔧 Removendo filtro de data do servidor (vou filtrar a data localmente) e tentando de novo...','warn'); }
-              attempt--; // não conta como tentativa perdida; refaz a mesma página já degradada
-              // ok continua false → o while interno repete imediatamente
+              else if(_useBeginDate){ _useBeginDate=false; _dolBuildLog('🔧 Removendo filtro de data do servidor (vou filtrar na fase 2, por vaga) e tentando de novo...','warn'); }
+              attempt--;
             } else {
               _dolBuildBot.errors++;
               if(_dolBuildBot.errors>=5){
                 _dolBuildLog('🛑 Muitos erros seguidos do DOL — abortando para não travar. Confira o link/filtros acima.','error');
                 _dolBuildBot.running=false;
               }
-              ok=true; // não retenta esta mesma página
+              ok=true;
             }
           }
         }catch(e){
           _dolBuildLog(`❌ Erro: ${e.message}`, 'error'); _dolBuildBot.errors++;
         }
       }
-      if(!ok || newRows.length>=targetCount) break;
+      if(!ok) break;
       if(!_dolBuildBot.running) break;
       await new Promise(r=>setTimeout(r,delay));
     }
 
-    // ── FASE 2: SALVAR PLANILHA ──
+    if(caseNumbers.length===0){
+      _dolBuildLog('❌ Nenhum case number encontrado nesta janela. Abortando (nada foi publicado).','error');
+      _dolBuildBot.running=false; _dolBuildBot.finishedAt=Date.now(); return;
+    }
+
+    // ── FASE 2: BUSCAR CADA VAGA INDIVIDUALMENTE POR CASE NUMBER ──
+    // Pedido explícito do dono: nunca confiar em campo de resposta em
+    // lote — pra CADA case number achado na fase 1, faz um lookup exato
+    // (datahub $filter=case_number eq 'X', com fallback pra raspar
+    // https://seasonaljobs.dol.gov/jobs/{case_number}). Só entra na
+    // planilha o que vier de um lookup INDIVIDUAL confirmado — e só se o
+    // begin_date bater com a janela pedida (proteção extra: se o lookup
+    // trouxer uma vaga com data fora da temporada, REJEITA, não publica).
+    _dolBuildBot.running = true; // reabre — fase 1 pode ter marcado false ao esgotar o pool
+    _dolBuildBot.phase = 2;
+    _dolBuildBot.target = caseNumbers.length; // fase 2: alvo passa a ser "quantos case numbers checar"
+    _dolBuildLog(`🔎 Fase 2/2 — buscando ${caseNumbers.length} vaga(s) individualmente por case number...`, 'info');
+    const newRows = [];
+    let rejected = 0, notFound = 0;
+    const CONCURRENCY = 4;
+    let idx = 0;
+    async function worker(){
+      while(idx < caseNumbers.length && _dolBuildBot.running){
+        const myIdx = idx++;
+        const cn = caseNumbers[myIdx];
+        uaIdx = (uaIdx+1) % UAS.length;
+        const result = await _fetchDolCaseByNumber(cn, UAS[uaIdx]);
+        _dolBuildBot.fetched++;
+        if(result.ok){
+          const row = result.row;
+          // Validação: a vaga individual TEM que cair dentro da janela
+          // pedida — se não bater, é sinal de dado ruim/errado e é
+          // REJEITADA (nunca "qualquer vaga pra completar o número").
+          const bd = row.d;
+          const inWindow = (!parsed.beginDate || (bd && bd>=parsed.beginDate)) && (!parsed.endDate || (bd && bd<parsed.endDate));
+          if(inWindow){
+            newRows.push(row);
+          } else {
+            rejected++;
+            if(rejected<=5) _dolBuildLog(`🚫 Rejeitada ${cn}: begin_date="${bd||'(vazio)'}" fora da janela ${parsed.beginDate||'?'}–${parsed.endDate||'?'} — não vai pra planilha.`,'warn');
+          }
+        } else {
+          notFound++;
+          if(notFound<=5) _dolBuildLog(`⚠️ ${cn}: não encontrada em lookup individual (nem datahub exato, nem página) — pulando.`,'warn');
+        }
+        if((_dolBuildBot.fetched % 50)===0 || _dolBuildBot.fetched===caseNumbers.length){
+          _dolBuildLog(`🔎 Fase 2/2 — ${_dolBuildBot.fetched}/${caseNumbers.length} verificadas | ${newRows.length} confirmadas | ${rejected} rejeitadas (fora da janela) | ${notFound} não encontradas`, 'info');
+        }
+        await new Promise(r=>setTimeout(r,250)); // gentil com o DOL — 1 requisição individual por vez por worker
+      }
+    }
+    await Promise.all(Array.from({length:Math.min(CONCURRENCY,caseNumbers.length)},()=>worker()));
+
+    // ── FASE 3: SALVAR PLANILHA ──
     if(newRows.length===0){
-      _dolBuildLog('❌ Nenhuma vaga coletada. Abortando.','error');
+      _dolBuildLog(`❌ Nenhuma vaga CONFIRMADA por lookup individual (${rejected} rejeitada(s) fora da janela, ${notFound} não encontrada(s)). Abortando — nada foi publicado.`,'error');
       _dolBuildBot.running=false; _dolBuildBot.finishedAt=Date.now(); return;
     }
 
     // 🔒 GUARDA FINAL — nunca gravar/publicar planilha com case number
-    // duplicado. Depois do dedupe em tempo real (Map caseIndex acima) isto
-    // é só um cinto-de-segurança; se disparar, algo mudou na lógica acima e
-    // é melhor abortar do que publicar dado inconsistente para o usuário.
+    // duplicado.
     const _integrity = _vagasVerify(newRows, {caseField:'c'});
     if(!_integrity.ok){
-      _dolBuildLog(`❌ ABORTANDO: guarda de integridade encontrou ${_integrity.duplicateCases.length} case number(s) duplicado(s) — a planilha NÃO foi salva. Isto não deveria acontecer; revisar mod-vagas-integrity.js.`, 'error');
+      _dolBuildLog(`❌ ABORTANDO: guarda de integridade encontrou ${_integrity.duplicateCases.length} case number(s) duplicado(s) — a planilha NÃO foi salva.`, 'error');
       _dolBuildBot.running=false; _dolBuildBot.finishedAt=Date.now(); return;
     }
 
     const withEmail = newRows.filter(r=>r.e).length;
     const targetNote = newRows.length < targetCount
-      ? ` (alvo pedido era ${targetCount}; a fonte só tinha ${newRows.length} vaga(s) real(is)/única(s) para estes filtros — a planilha reflete a quantidade REAL, nunca é preenchida com vaga inventada ou duplicada)`
+      ? ` (alvo pedido era ${targetCount}; a fonte só tinha ${newRows.length} vaga(s) real(is)/confirmada(s) individualmente para estes filtros — nunca preenchida com vaga inventada, duplicada ou fora da janela)`
       : '';
-    _dolBuildLog(`💾 Salvando ${newRows.length} vagas únicas (${withEmail} com email)${targetNote}...`, 'info');
+    _dolBuildLog(`💾 Salvando ${newRows.length} vagas confirmadas individualmente (${withEmail} com email)${targetNote}...`, 'info');
     _dolBuildBot.saved = withEmail;
 
-    // Garantir diretório /data/sheets
     if(!fs.existsSync(SHEETS_DIR)) fs.mkdirSync(SHEETS_DIR,{recursive:true});
     const filePath = path.join(SHEETS_DIR, sheetKey+'.json');
     fs.writeFileSync(filePath, JSON.stringify(newRows));
 
-    // 🧾 Manifesto de integridade ao lado do arquivo — recibo com a
-    // contagem exata de vagas únicas + hash da lista de case numbers.
-    // Permite provar depois, sem reprocessar nada, que "o que foi baixado"
-    // é EXATAMENTE "o que foi publicado" para o usuário.
+    // 🧾 Manifesto de integridade ao lado do arquivo.
     try{
       const manifestPath = path.join(SHEETS_DIR, sheetKey+'.manifest.json');
       const manifest = _vagasManifest(newRows, {caseField:'c', extra:{
         sheetKey, sheetName, visaType: parsed.visaClass, searchUrl,
-        targetRequested: targetCount, duplicatesMergedDuringCollection: duplicatesSkipped,
+        targetRequested: targetCount, method:'per-case-lookup',
+        casesListedPhase1: caseNumbers.length, rejectedOutOfWindow: rejected, notFoundIndividually: notFound,
       }});
       fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
     }catch(e){ _dolBuildLog(`⚠️ Falha ao gravar manifesto (não bloqueia a publicação): ${e.message}`, 'warn'); }
 
-    // Atualizar SHEET_EXTRAS em memória
     SHEET_EXTRAS[sheetKey] = newRows;
     newRows.forEach(r=>{if(!r.k)r.k=detectCategory(`${r.n||''} ${r.t||''}`);r._sheet=sheetKey;});
 
-    // Atualizar meta
     if(!DB_SHEETS_META[sheetKey]) DB_SHEETS_META[sheetKey]={};
     Object.assign(DB_SHEETS_META[sheetKey],{
       name: sheetName,
@@ -2343,14 +2427,14 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
       enriched: withEmail,
       enrichedAt: Date.now(),
       enrichedTotal: newRows.length,
-      source: 'dol-build',
+      source: 'dol-build-per-case',
     });
     try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
 
     _dolBuildBot.running    = false;
     _dolBuildBot.finishedAt = Date.now();
-    _dolBuildLog(`🏁 CONCLUÍDO! ${newRows.length} vagas únicas salvas | ${withEmail} com email | ${duplicatesSkipped} duplicata(s) mesclada(s) na coleta | "${sheetName}"`, 'ok');
-    _dolBuildLog(`✅ Planilha pronta para publicar! Quantidade publicada = quantidade baixada = ${newRows.length} (garantido pelo manifesto).`, 'ok');
+    _dolBuildLog(`🏁 CONCLUÍDO! ${newRows.length} vagas confirmadas individualmente | ${withEmail} com email | ${rejected} rejeitada(s) fora da janela | ${notFound} não encontrada(s) | "${sheetName}"`, 'ok');
+    _dolBuildLog(`✅ Planilha pronta para publicar! Cada linha veio de um lookup individual por case number — nenhuma vaga foi aceita "no chute" de uma busca em lote.`, 'ok');
 
   }catch(e){
     _dolBuildLog(`💥 Erro fatal: ${e.message}`, 'error');
@@ -5586,12 +5670,18 @@ function _saveEnrichedSheet(sheetKey, sheet){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
     const b=_dolBuildBot;
-    const pct=b.target>0?Math.round((b.fetched/b.target)*100):0;
+    // Fase 1 (listar case numbers) conta até 40% da barra; fase 2 (buscar
+    // vaga por vaga, a parte que realmente demora) completa os outros 60%.
+    let pct;
+    if(b.phase===2 && b.target>0) pct = 40 + Math.round((b.fetched/b.target)*60);
+    else if(b.phase===1 && b.casesListed>=0) pct = Math.min(40, Math.round((b.casesListed/Math.max(1,b.target||1))*40));
+    else pct = 0;
     return json(res,200,{ok:true,
       running:b.running,
       key:b.key,name:b.name,visaType:b.visaType,
       target:b.target,fetched:b.fetched,saved:b.saved,errors:b.errors,
-      pct:Math.min(pct,100),
+      phase:b.phase, casesListed:b.casesListed,
+      pct:Math.min(Math.max(pct,0),100),
       startedAt:b.startedAt,finishedAt:b.finishedAt,
       published:b.published,
       log:b.log.slice(-50),
