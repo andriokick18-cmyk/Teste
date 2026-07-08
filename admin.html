@@ -3587,6 +3587,8 @@ document.addEventListener('DOMContentLoaded',()=>{
       <button class="btn btn-ghost btn-sm" onclick="dnwCheckNow()" style="flex:1"><i class="ti ti-refresh"></i> Checar agora</button>
       <button class="btn btn-ghost btn-sm" onclick="dnwSendTestEmail()" style="flex:1"><i class="ti ti-mail"></i> Enviar e-mail teste</button>
     </div>
+    <button class="btn btn-sm" id="dnw-gemini-btn" onclick="dnwGeminiAnalyze()" style="width:100%;margin-top:8px;background:linear-gradient(135deg,rgba(139,92,246,.18),rgba(99,102,241,.12));border:1px solid rgba(139,92,246,.4);color:#c4b5fd;font-weight:800"><i class="ti ti-sparkles"></i> 🤖 Analisar erro com Gemini</button>
+    <div id="dnw-gemini-report" style="display:none;margin-top:10px;background:rgba(0,0,0,.3);border:1px solid rgba(139,92,246,.3);border-radius:10px;padding:12px;font-size:12px;color:var(--t2);line-height:1.6;white-space:pre-wrap;max-height:400px;overflow-y:auto"></div>
   </div>
 
   <div id="dnw-admins-box" style="font-size:10.5px;color:var(--t3);margin-bottom:12px">Avisa: …</div>
@@ -11740,6 +11742,20 @@ async function dnwSetBaseline(){
     if(d.ok){ toast('✅ Baseline atualizado','ok'); dnwLoadStatus(); }
     else toast(d.error||'Erro','err');
   }catch(e){ toast(e.message,'err'); }
+}
+async function dnwGeminiAnalyze(){
+  const btn=document.getElementById('dnw-gemini-btn');
+  const box=document.getElementById('dnw-gemini-report');
+  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Gemini analisando…'; }
+  if(box){ box.style.display='block'; box.textContent='Analisando o erro mais recente...'; }
+  try{
+    const r=await fetch('/api/admin/dol-news-watch/gemini-analyze',{method:'POST',credentials:'include'});
+    const d=await r.json();
+    if(!d.ok){ if(box) box.textContent='❌ '+(d.error||'Erro na análise'); toast(d.error||'Erro','err'); return; }
+    if(box) box.textContent=d.report;
+    toast('✅ Análise do Gemini pronta','ok');
+  }catch(e){ if(box) box.textContent='❌ '+e.message; toast(e.message,'err'); }
+  finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-sparkles"></i> 🤖 Analisar erro com Gemini'; } }
 }
 
 function plUploadJSON(){

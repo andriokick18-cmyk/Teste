@@ -2161,6 +2161,64 @@ function loadSheets() {
     }
     if(extrasLoaded>0) console.log(`[sheet] ✅ ${extrasLoaded} planilha(s) extra(s) carregada(s) do disco`);
   }
+
+  // ── 🌱 SEED AUTOMÁTICO "jul2026" — pedido do dono (08/07/2026): a lista
+  // randomizada de Julho 2026 acabou de sair e foi enviada pra mim. Deixo
+  // um jul2026_compact.json BUNDLED no código (mesma ideia do jan2026/
+  // jul2025/h2a) com os 2.625 case numbers + grupo oficial + empresa/estado
+  // já extraídos do PublicFacingReport real. No primeiro boot depois deste
+  // deploy, se "jul2026" ainda NÃO existe no registro (nunca foi semeada
+  // nem enriquecida antes), carrega esse arquivo, publica na hora (usuário
+  // já pode se candidatar) e entrega pro Enriquecimento automático (roda
+  // sozinho 15s depois do boot) completar e-mail/telefone/cidade/cargo.
+  // Se "jul2026" já existe (progresso real de enriquecimento em /data/),
+  // NUNCA mexe — só roda essa semeadura 1 vez, na vida do deploy.
+  if(!DB_SHEETS_META["jul2026"]){
+    try{
+      const seedPath = path.join(__dirname, "jul2026_compact.json");
+      if(fs.existsSync(seedPath)){
+        let seed = JSON.parse(fs.readFileSync(seedPath,"utf8"));
+        if(Array.isArray(seed) && seed.length){
+          seed = _selfHealSheetIntegrity("jul2026", seed, seedPath);
+          seed.forEach(r=>{ if(!r.k) r.k=detectCategory(`${r.n||""} ${r.t||""}`); r._sheet="jul2026"; });
+          SHEET_EXTRAS["jul2026"] = seed;
+          DB_SHEETS_META["jul2026"] = {
+            name: "Julho 2026 (H-2B)", key: "jul2026", emoji: "❄️",
+            published: true, publishedAt: Date.now(), visaType: "H-2B",
+            count: seed.length, uniqueCaseCount: seed.length,
+            source: "seed-bundled-publicfacingreport",
+            uploaded: Date.now(),
+          };
+          try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
+          try{
+            if(!fs.existsSync(SHEETS_DIR)) fs.mkdirSync(SHEETS_DIR,{recursive:true});
+            fs.writeFileSync(path.join(SHEETS_DIR,"jul2026.json"), JSON.stringify(seed));
+          }catch(e){ console.warn("[sheet] ⚠️ jul2026 seed: falha ao gravar em /data/sheets:", e.message); }
+          console.log(`[sheet] 🌱 jul2026 semeada do arquivo bundled: ${seed.length} vagas publicadas (sem e-mail ainda — Enriquecimento automático completa sozinho a partir de 15s após o boot).`);
+
+          // Também alimenta o mapa de grupos oficiais (mesmos dados, mesma
+          // fonte) — assim o card "Grupos — Julho 2026" já mostra as
+          // estatísticas certas sem precisar reimportar nada.
+          try{
+            let novos=0;
+            for(const r of seed){
+              const cn=String(r.c||"").toUpperCase();
+              if(r.g && /^[A-H]$/.test(r.g) && !DB_GRUPOS_J26.mapa[cn]){
+                DB_GRUPOS_J26.mapa[cn] = { grupo:r.g, manual:false, empresa:r.n||"", estado:r.s||"", status:r.st||"", importadoEm:Date.now(), fonte:'seed-bundled' };
+                novos++;
+              }
+            }
+            if(novos>0){
+              DB_GRUPOS_J26.meta.ultimaImportacao = { at:Date.now(), fonte:'seed-bundled', arquivo:'jul2026_compact.json', novos, atualizados:0, rejeitados:0, totalNoRelatorio:seed.length };
+              DB_GRUPOS_J26.meta.historicoImportacoes.unshift(DB_GRUPOS_J26.meta.ultimaImportacao);
+              persistGruposJ26();
+              console.log(`[grupos-j26] 🌱 ${novos} grupo(s) semeado(s) junto com a planilha jul2026.`);
+            }
+          }catch(e){ console.warn("[grupos-j26] ⚠️ falha ao semear grupos junto com jul2026:", e.message); }
+        }
+      }
+    }catch(e){ console.warn("[sheet] ⚠️ Falha ao semear jul2026 do arquivo bundled:", e.message); }
+  }
 }
 
 const CATEGORY_KEYWORDS = {
@@ -4254,16 +4312,38 @@ function j26ImportRows(parsed, fonte, arquivo){
 function httpsGetBuffer(url, extraHeaders){
   return new Promise((resolve,reject)=>{
     let u; try{ u=new URL(url); }catch(e){ return reject(new Error("URL inválida: "+url)); }
+    // 🔧 KB-085 (dono, 08/07/2026): dol.gov devolveu HTTP 403 — sites .gov
+    // costumam ter WAF (Akamai/F5) que bloqueia requisição "de script" (só
+    // User-Agent, sem o resto dos headers que um navegador de verdade manda
+    // sempre junto). Isso aqui deixa a requisição bem mais parecida com uma
+    // aba de Chrome de verdade — não é garantia de passar por um WAF sério
+    // (isso pode exigir TLS fingerprint que o Node não replica), mas reduz
+    // bastante a chance de bloqueio por header incompleto, que é o motivo
+    // mais comum.
     const req = https.request({
       hostname:u.hostname, path:u.pathname+u.search, method:"GET",
-      headers:{ "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36", ...extraHeaders },
+      headers:{
+        "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language":"en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7",
+        "Accept-Encoding":"identity", // sem gzip — não descomprimimos, então pedir só o texto puro
+        "Connection":"keep-alive",
+        "Upgrade-Insecure-Requests":"1",
+        "Sec-Fetch-Dest":"document",
+        "Sec-Fetch-Mode":"navigate",
+        "Sec-Fetch-Site":"none",
+        "Sec-Fetch-User":"?1",
+        "Cache-Control":"no-cache",
+        "Referer":`https://${u.hostname}/`,
+        ...extraHeaders,
+      },
     }, resp=>{
       if(resp.statusCode>=300 && resp.statusCode<400 && resp.headers.location){
         return httpsGetBuffer(new URL(resp.headers.location,url).toString(), extraHeaders).then(resolve,reject);
       }
       const chunks=[];
       resp.on("data",c=>chunks.push(c));
-      resp.on("end",()=>resolve({status:resp.statusCode, buffer:Buffer.concat(chunks)}));
+      resp.on("end",()=>resolve({status:resp.statusCode, buffer:Buffer.concat(chunks), headers:resp.headers}));
     });
     req.on("error",reject);
     req.setTimeout(30000,()=>{ req.destroy(); reject(new Error("Timeout")); });
@@ -4395,6 +4475,7 @@ let DB_DOL_NEWS_WATCH = {
   checksCount: 0,
   ultimoResultado: null, // 'sem-novidade' | 'nova-encontrada' | 'erro-http' | 'erro-parse'
   ultimoErro: null,
+  ultimoErroDetalhe: null, // {status, headers, corpoAmostra, at} — pro botão "Analisar com Gemini"
   historicoAlertas: [],  // {at, date, title, emailsEnviados:[...]}
 };
 
@@ -4515,10 +4596,16 @@ async function dolNewsCheckNow(){
   DB_DOL_NEWS_WATCH.ultimaChecagemAt = Date.now();
   DB_DOL_NEWS_WATCH.proximaChecagemAt = Date.now()+10*60*1000;
   try{
-    const { status, buffer } = await httpsGetBuffer(DOL_NEWS_URL);
+    const { status, buffer, headers } = await httpsGetBuffer(DOL_NEWS_URL);
     if(status!==200){
       DB_DOL_NEWS_WATCH.ultimoResultado='erro-http';
       DB_DOL_NEWS_WATCH.ultimoErro=`HTTP ${status}`;
+      // 🩺 Guarda contexto rico do erro (pro botão "Analisar com Gemini")
+      DB_DOL_NEWS_WATCH.ultimoErroDetalhe = {
+        status, headers: headers||{},
+        corpoAmostra: buffer.toString("utf8").slice(0,800),
+        at: Date.now(),
+      };
       dolNewsLog(`⚠️ Checagem: HTTP ${status} ao acessar a página de anúncios do DOL.`,'warn');
       persistDolNewsWatch();
       return { ok:false, reason:'http-'+status };
@@ -4528,10 +4615,12 @@ async function dolNewsCheckNow(){
     if(!found.ok){
       DB_DOL_NEWS_WATCH.ultimoResultado='erro-parse';
       DB_DOL_NEWS_WATCH.ultimoErro='Não consegui achar nenhum anúncio com data no HTML da página — o DOL pode ter mudado o layout.';
+      DB_DOL_NEWS_WATCH.ultimoErroDetalhe = { status, headers: headers||{}, corpoAmostra: html.slice(0,800), at: Date.now() };
       dolNewsLog(`⚠️ Checagem: página carregou (${(buffer.length/1024).toFixed(0)}KB) mas não consegui identificar nenhum anúncio com data. Confira manualmente — o DOL pode ter mudado o layout.`,'warn');
       persistDolNewsWatch();
       return { ok:false, reason:'parse-failed' };
     }
+    DB_DOL_NEWS_WATCH.ultimoErroDetalhe = null;
     const baseline = DB_DOL_NEWS_WATCH.ultimaConhecida;
     if(found.date > baseline.date || (found.date===baseline.date && found.title!==baseline.title)){
       // 🚨 Anúncio novo!
@@ -4572,6 +4661,298 @@ Se for a lista randomizada de Julho 2026, faça o download logo!
 async function dolNewsAutoTick(){
   if(DB_DOL_NEWS_WATCH.autoCheckEnabled===false) return;
   await dolNewsCheckNow();
+}
+
+
+// ════════════════════════════════════════════════════════════
+//  BOT DE ENRIQUECIMENTO DE PLANILHAS
+//  Acessa DOL API para cada ETA case number e preenche todos
+//  os campos que faltam: ci, d, de, wk, ph, desc, url
+// ════════════════════════════════════════════════════════════
+async function _runEnrichBot(sheetKey, resume=false){
+  if(_enrichBot.running && !resume){
+    _enrichLog("Bot já está rodando","warn"); return;
+  }
+  const sheet = sheetKey==="jan2026" ? SHEET_JAN
+              : sheetKey==="jul2025" ? SHEET_JUL
+              : SHEET_EXTRAS[sheetKey];
+  if(!sheet || !sheet.length){
+    _enrichLog(`Planilha não encontrada: ${sheetKey}`,"error"); return;
+  }
+
+  // startIdx real: conta vagas que JÁ TÊM email no disco
+  // Assim, após deploy/reinício, retoma exatamente de onde o disco parou
+  const alreadyDone = sheet.filter(r => r.e && r.e.includes("@")).length;
+  const startIdx = resume
+    ? Math.max(0, alreadyDone > 0 ? alreadyDone - 5 : 0) // volta 5 para garantir sem gap
+    : 0;
+
+  _enrichBot.running   = true;
+  _enrichBot.sheetKey  = sheetKey;
+  _enrichBot.total     = sheet.length;
+  _enrichBot.done      = startIdx;
+  _enrichBot.ok        = resume ? alreadyDone : 0;
+  _enrichBot.noEmail   = resume ? (_enrichBot.noEmail||0) : 0;
+  _enrichBot.errors    = resume ? (_enrichBot.errors||0) : 0;
+  _enrichBot.startedAt = (resume && _enrichBot.startedAt) ? _enrichBot.startedAt : Date.now();
+  _enrichBot.log       = resume ? _enrichBot.log : [];
+  _enrichBot.savedAt   = null;
+
+  _enrichLog(`📌 Ponto de retomada: ${startIdx}/${sheet.length} (${alreadyDone} vagas já têm email no disco)`, "info");
+
+  _enrichLog(`🚀 Bot iniciado: ${sheet.length} vagas — planilha "${sheetKey}"${resume?` (retomando de ${startIdx})`:''}`, "ok");
+  _enrichLog(`🔍 Buscando: email, cidade, datas, workers, telefone, funções, URL`, "info");
+
+  // Rotação de User-Agents para evitar fingerprinting do DOL
+  const USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+  ];
+  let _uaIdx = Math.floor(Math.random() * USER_AGENTS.length);
+
+  const getHDR = () => {
+    _uaIdx = (_uaIdx + 1) % USER_AGENTS.length;
+    return {
+      "Accept":"application/json, text/plain, */*",
+      "Accept-Language":"en-US,en;q=0.9",
+      "Accept-Encoding":"identity",
+      "User-Agent": USER_AGENTS[_uaIdx],
+      "Cache-Control":"no-cache",
+      "Pragma":"no-cache",
+      "Referer":"https://seasonaljobs.dol.gov/",
+      "Origin":"https://seasonaljobs.dol.gov",
+      "sec-fetch-dest":"empty",
+      "sec-fetch-mode":"cors",
+      "sec-fetch-site":"same-site",
+    };
+  };
+
+  // Delay entre vagas — aumenta dinamicamente ao pegar 403
+  let _interDelay = 800;
+  let _consecutive403 = 0;
+
+  // Processar UMA VAGA POR VEZ — garante que cada case number é buscado individualmente
+  for(let i = startIdx; i < sheet.length; i++){
+    if(!_enrichBot.running) break;
+
+    const row = sheet[i];
+    const cn  = (row.c||"").toUpperCase();
+    _enrichBot.done = i + 1;
+
+    // Loop de retry com backoff exponencial para 403/429
+    let attempt = 0;
+    let processed = false;
+
+    while(attempt < 6 && !processed && _enrichBot.running){
+      if(attempt > 0){
+        // Backoff: 15s, 30s, 60s, 120s, 240s
+        const waitMs = Math.min(15000 * Math.pow(2, attempt - 1), 240000);
+        _enrichLog(`⏳ [${i+1}/${sheet.length}] ${cn} — retry ${attempt}/5, aguardando ${Math.round(waitMs/1000)}s...`, "warn");
+        await new Promise(r=>setTimeout(r, waitMs));
+        if(!_enrichBot.running) break;
+      }
+      attempt++;
+
+    try{
+      // Buscar case number específico na API do DOL
+      const params = new URLSearchParams({"api-version":"2020-06-30"});
+      params.append("$filter", `case_number eq '${row.c}'`);
+      params.append("$top", "1");
+
+      const {status, body} = await httpsReq({
+        hostname:"api.seasonaljobs.dol.gov",
+        path:"/datahub/?"+params,
+        method:"GET",
+        headers:getHDR()
+      });
+
+      if(status===200){
+        _consecutive403 = 0;
+        // Recupera velocidade gradualmente após 403s
+        if(_interDelay > 800) _interDelay = Math.max(800, _interDelay - 300);
+        const raw = body.value||body.results||body.data||[];
+        const dol = raw[0]||null;
+        processed = true;
+
+        if(dol){
+          // ═══ COLETAR TODOS OS CAMPOS DO SITE seasonaljobs.dol.gov ═══
+          // Visíveis na página: salário, cidade, datas, workers, funções,
+          // telefone, email, endereço worksite, horário, SOC, experiência, requisitos
+
+          // Localização
+          row.ci    = (dol.worksite_city||dol.employer_city||row.ci||"").trim();
+          row.st_ab = (dol.worksite_state||dol.employer_state||row.st_ab||"").trim(); // estado abreviado
+          row.addr  = (dol.worksite_address||dol.employer_address||row.addr||"").trim(); // endereço worksite
+          row.zip   = (dol.worksite_postal_code||dol.employer_postal_code||row.zip||"").trim();
+
+          // Período e vagas
+          row.d     = (dol.begin_date||dol.start_date||row.d||"").slice(0,10);
+          row.de    = (dol.end_date||dol.expiration_date||row.de||"").slice(0,10);
+          row.wk    = parseInt(dol.total_positions||dol.nbr_workers_requested||0)||row.wk||0;
+
+          // Salário
+          row.w     = row.w||(dol.basic_rate_from?String(parseFloat(dol.basic_rate_from).toFixed(2)):"");
+          row.wmax  = dol.basic_rate_to?String(parseFloat(dol.basic_rate_to).toFixed(2)):(row.wmax||"");
+          row.wunit = row.wunit||(dol.pay_range_desc==="Month"?"mês":"h");
+          row.winfo = (dol.wage_offer_description||dol.additional_wage_information||row.winfo||"").slice(0,300);
+
+          // Contato
+          row.ph    = ((dol.apply_phone||dol.employer_phone||row.ph||"")).replace(/[^0-9+()\- ]/g,"").trim();
+          row.ph2   = (dol.employer_phone||row.ph2||"").replace(/[^0-9+()\- ]/g,"").trim();
+          row.site  = (dol.employer_website||dol.apply_url||row.site||"").trim();
+
+          // Cargo e empresa
+          row.s     = (dol.worksite_state||dol.employer_state||row.s||"").toUpperCase().trim();
+          if(dol.job_title) row.t = dol.job_title.trim();
+          row.n     = (dol.employer_business_name||dol.employer_trade_name||row.n||"").trim();
+          row.st    = (dol.case_status||row.st||"").trim();
+          row.soc   = (dol.soc_code||dol.onet_code||row.soc||"").trim(); // código SOC
+          row.socT  = (dol.soc_title||row.socT||"").trim(); // título SOC
+
+          // Descrição das funções (completa)
+          if(dol.job_duties)
+            row.desc = dol.job_duties.replace(/\*\*[^*]+\*\*/g,"").trim().slice(0,1500);
+
+          // Requisitos
+          row.exp   = dol.experience_required==="Yes"?1:0;
+          row.req   = (dol.special_requirements||row.req||"").slice(0,400);
+          row.hrs   = dol.nbr_hours_per_week?String(dol.nbr_hours_per_week):(row.hrs||"");
+          row.sched = (dol.work_schedule||row.sched||"").trim(); // horário (ex: 7:00 A.M. - 1:00 P.M.)
+          row.ft    = dol.full_time_position==="Yes"?"sim":""; // full time?
+
+          // URL oficial da vaga
+          row.url   = `https://seasonaljobs.dol.gov/jobs/${row.c}`;
+
+          // Tipo de visto
+          row.visa  = row.c.startsWith("H-300")?"H-2A":row.c.startsWith("H-400")?"H-2B":(row.visa||"H-2B");
+
+          // Email — todos os campos possíveis do DOL
+          const emails = [
+            dol.apply_email, dol.employer_email,
+            dol.employer_poc_email, dol.attorney_agent_email,
+            dol.employer_contact_email,
+          ].map(e=>(e||"").trim().toLowerCase())
+           .filter(e=>e && e.includes("@") && e!=="n/a" && !e.startsWith("n/a"));
+          if(!row.e && emails.length>0){
+            row.e = emails[0];
+            _enrichLog(`📧 [${i+1}/${sheet.length}] ${cn}: email → ${row.e}`, "ok");
+          } else if(row.e && emails.length>0 && !emails.includes(row.e)){
+            // Manter o existente mas logar que há outros
+          }
+
+          _enrichBot.ok++;
+          if(!row.e||!row.e.includes("@")){
+            _enrichBot.noEmail++;
+            _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} SEM EMAIL | ${(row.t||"?").slice(0,40)} | ${row.ci||row.s||"?"}`, "warn");
+          } else {
+            // Log de cada vaga OK — em tempo real
+            _enrichLog(`✅ [${i+1}/${sheet.length}] ${cn} | ${(row.t||"?").slice(0,35)} | ${row.ci||"?"}, ${row.s||"?"} | $${row.w||"?"}/h | ${row.e}`, "info");
+          }
+        } else {
+          // Não encontrou na API — case number inválido ou expirado
+          _enrichBot.errors++;
+          _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — não encontrado no DOL`, "warn");
+        }
+
+      } else if(status===403 || status===429){
+        // DOL bloqueia com 403 (rate limit/anti-bot) ou 429 (rate limit explícito)
+        // Não conta como erro — vai retry com backoff
+        _consecutive403++;
+        // Aumenta delay permanente proporcionalmente
+        _interDelay = Math.min(3000 + _consecutive403 * 500, 8000);
+        // Não marca processed → while faz retry automático
+        _enrichLog(`🚫 [${i+1}/${sheet.length}] ${cn} — HTTP ${status} (bloqueio DOL, tentativa ${attempt}/5, delay→${_interDelay}ms)`, "warn");
+      } else {
+        // Qualquer outro erro HTTP (404, 500, etc.) — conta como erro, não faz retry
+        processed = true;
+        _enrichBot.errors++;
+        _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} — DOL retornou HTTP ${status}`, "warn");
+      }
+    }catch(e){
+      // Erro de rede — pode tentar de novo
+      if(attempt < 6){
+        _enrichLog(`🔌 [${i+1}/${sheet.length}] ${cn} — erro de rede (retry ${attempt}/5): ${e.message}`, "warn");
+        // processed continua false → while faz retry
+      } else {
+        processed = true;
+        _enrichBot.errors++;
+        _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — falhou após 5 tentativas: ${e.message}`, "error");
+      }
+    }
+    } // fim while retry
+
+    // Se esgotou retries sem processar (ex: 5x 403 seguidos)
+    if(!processed && _enrichBot.running){
+      _enrichBot.errors++;
+      _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — desistindo após 5 tentativas (DOL bloqueando)`, "error");
+    }
+
+    // Salvar após CADA VAGA processada — zero perda de dados
+    // O disco persistente /data/ garante que sobrevive a deploy, reinício e fechamento do browser
+    _saveEnrichedSheet(sheetKey, sheet);
+    _enrichBot.savedAt = Date.now();
+    // Log de progresso a cada 10 vagas (não poluir o log a cada 1)
+    if(_enrichBot.done % 10 === 0){
+      const pct = Math.round((_enrichBot.done/sheet.length)*100);
+      _enrichLog(`💾 [${_enrichBot.done}/${sheet.length}] ${pct}% — ok:${_enrichBot.ok} semEmail:${_enrichBot.noEmail} delay:${_interDelay}ms`, "ok");
+    }
+
+    // Delay adaptativo entre vagas (aumenta quando DOL bloqueia, reduz quando ok)
+    await new Promise(r=>setTimeout(r, _interDelay));
+  }
+
+  // Finalizar
+  _enrichBot.done    = sheet.length;
+  _enrichBot.running = false;
+  _saveEnrichedSheet(sheetKey, sheet);
+  _enrichBot.savedAt = Date.now();
+
+  // Atualizar meta para planilhas builtin também (jan2026, jul2025)
+  if(!DB_SHEETS_META[sheetKey]){
+    DB_SHEETS_META[sheetKey] = {name: sheetKey==="jan2026"?"Janeiro 2026 (H-2B)":"Julho 2025 (H-2B)", file:sheetKey+".json"};
+  }
+  DB_SHEETS_META[sheetKey].enriched    = _enrichBot.ok;
+  DB_SHEETS_META[sheetKey].enrichedAt  = Date.now();
+  DB_SHEETS_META[sheetKey].enrichedTotal = _enrichBot.total;
+  fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2));
+
+  const semEmail = sheet.filter(r=>!r.e||!r.e.includes("@")).length;
+  _enrichLog(`🏁 CONCLUÍDO! ok:${_enrichBot.ok} | semEmail:${semEmail} | erros:${_enrichBot.errors}`, "ok");
+  _enrichLog(`📥 Baixe a planilha enriquecida no botão "⬇️ Baixar JSON"`, "ok");
+}
+
+function _saveEnrichedSheet(sheetKey, sheet){
+  try{
+    // 🔒 Checagem leve de integridade (não bloqueia salvamento — o bot de
+    // enriquecimento só EDITA campos das linhas já existentes, não deveria
+    // nunca introduzir duplicata; se acontecer, só avisa no log pra
+    // investigar, já que abortar aqui perderia o progresso do enriquecimento).
+    const _chk = _vagasVerify(sheet, {caseField:'c'});
+    if(!_chk.ok){
+      _enrichLog(`⚠️ Integridade: ${_chk.duplicateCases.length} case number(s) duplicado(s) detectado(s) em "${sheetKey}" — investigar (não deveria acontecer no bot de enriquecimento).`, "warn");
+    }
+    // Salva SEMPRE em /data/ (disco persistente — sobrevive a deploys)
+    // E também em __dirname para leitura imediata sem precisar recarregar
+    const dataPath = path.join(DATA_DIR, sheetKey==="jan2026"?"jan2026_compact.json":"jul2025_compact.json");
+    const srcPath  = path.join(__dirname, sheetKey==="jan2026"?"jan2026_compact.json":"jul2025_compact.json");
+    const payload  = JSON.stringify(sheet);
+
+    if(sheetKey==="jan2026"||sheetKey==="jul2025"){
+      // Salva no disco persistente (/data/) — não é sobrescrito no deploy
+      fs.writeFileSync(dataPath, payload);
+      // Salva também na pasta do código (para leitura imediata neste boot)
+      try{fs.writeFileSync(srcPath, payload);}catch{}
+      _enrichLog(`💾 Salvo em /data/ e código: ${sheet.length} vagas`, "ok");
+    } else if(SHEET_EXTRAS[sheetKey]){
+      const meta = DB_SHEETS_META[sheetKey];
+      const fp = path.join(SHEETS_DIR, meta?.file||`${sheetKey}.json`);
+      fs.writeFileSync(fp, payload); // extras já ficam em /data/sheets/
+    }
+    _enrichBot.savedAt = Date.now();
+  }catch(e){ _enrichLog(`❌ Erro ao salvar: ${e.message}`,"error"); }
 }
 
 
@@ -5101,297 +5482,6 @@ ul li{margin-bottom:6px}
     return json(res,200,{ok:true});
   }
 
-// ════════════════════════════════════════════════════════════
-//  BOT DE ENRIQUECIMENTO DE PLANILHAS
-//  Acessa DOL API para cada ETA case number e preenche todos
-//  os campos que faltam: ci, d, de, wk, ph, desc, url
-// ════════════════════════════════════════════════════════════
-async function _runEnrichBot(sheetKey, resume=false){
-  if(_enrichBot.running && !resume){
-    _enrichLog("Bot já está rodando","warn"); return;
-  }
-  const sheet = sheetKey==="jan2026" ? SHEET_JAN
-              : sheetKey==="jul2025" ? SHEET_JUL
-              : SHEET_EXTRAS[sheetKey];
-  if(!sheet || !sheet.length){
-    _enrichLog(`Planilha não encontrada: ${sheetKey}`,"error"); return;
-  }
-
-  // startIdx real: conta vagas que JÁ TÊM email no disco
-  // Assim, após deploy/reinício, retoma exatamente de onde o disco parou
-  const alreadyDone = sheet.filter(r => r.e && r.e.includes("@")).length;
-  const startIdx = resume
-    ? Math.max(0, alreadyDone > 0 ? alreadyDone - 5 : 0) // volta 5 para garantir sem gap
-    : 0;
-
-  _enrichBot.running   = true;
-  _enrichBot.sheetKey  = sheetKey;
-  _enrichBot.total     = sheet.length;
-  _enrichBot.done      = startIdx;
-  _enrichBot.ok        = resume ? alreadyDone : 0;
-  _enrichBot.noEmail   = resume ? (_enrichBot.noEmail||0) : 0;
-  _enrichBot.errors    = resume ? (_enrichBot.errors||0) : 0;
-  _enrichBot.startedAt = (resume && _enrichBot.startedAt) ? _enrichBot.startedAt : Date.now();
-  _enrichBot.log       = resume ? _enrichBot.log : [];
-  _enrichBot.savedAt   = null;
-
-  _enrichLog(`📌 Ponto de retomada: ${startIdx}/${sheet.length} (${alreadyDone} vagas já têm email no disco)`, "info");
-
-  _enrichLog(`🚀 Bot iniciado: ${sheet.length} vagas — planilha "${sheetKey}"${resume?` (retomando de ${startIdx})`:''}`, "ok");
-  _enrichLog(`🔍 Buscando: email, cidade, datas, workers, telefone, funções, URL`, "info");
-
-  // Rotação de User-Agents para evitar fingerprinting do DOL
-  const USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
-  ];
-  let _uaIdx = Math.floor(Math.random() * USER_AGENTS.length);
-
-  const getHDR = () => {
-    _uaIdx = (_uaIdx + 1) % USER_AGENTS.length;
-    return {
-      "Accept":"application/json, text/plain, */*",
-      "Accept-Language":"en-US,en;q=0.9",
-      "Accept-Encoding":"identity",
-      "User-Agent": USER_AGENTS[_uaIdx],
-      "Cache-Control":"no-cache",
-      "Pragma":"no-cache",
-      "Referer":"https://seasonaljobs.dol.gov/",
-      "Origin":"https://seasonaljobs.dol.gov",
-      "sec-fetch-dest":"empty",
-      "sec-fetch-mode":"cors",
-      "sec-fetch-site":"same-site",
-    };
-  };
-
-  // Delay entre vagas — aumenta dinamicamente ao pegar 403
-  let _interDelay = 800;
-  let _consecutive403 = 0;
-
-  // Processar UMA VAGA POR VEZ — garante que cada case number é buscado individualmente
-  for(let i = startIdx; i < sheet.length; i++){
-    if(!_enrichBot.running) break;
-
-    const row = sheet[i];
-    const cn  = (row.c||"").toUpperCase();
-    _enrichBot.done = i + 1;
-
-    // Loop de retry com backoff exponencial para 403/429
-    let attempt = 0;
-    let processed = false;
-
-    while(attempt < 6 && !processed && _enrichBot.running){
-      if(attempt > 0){
-        // Backoff: 15s, 30s, 60s, 120s, 240s
-        const waitMs = Math.min(15000 * Math.pow(2, attempt - 1), 240000);
-        _enrichLog(`⏳ [${i+1}/${sheet.length}] ${cn} — retry ${attempt}/5, aguardando ${Math.round(waitMs/1000)}s...`, "warn");
-        await new Promise(r=>setTimeout(r, waitMs));
-        if(!_enrichBot.running) break;
-      }
-      attempt++;
-
-    try{
-      // Buscar case number específico na API do DOL
-      const params = new URLSearchParams({"api-version":"2020-06-30"});
-      params.append("$filter", `case_number eq '${row.c}'`);
-      params.append("$top", "1");
-
-      const {status, body} = await httpsReq({
-        hostname:"api.seasonaljobs.dol.gov",
-        path:"/datahub/?"+params,
-        method:"GET",
-        headers:getHDR()
-      });
-
-      if(status===200){
-        _consecutive403 = 0;
-        // Recupera velocidade gradualmente após 403s
-        if(_interDelay > 800) _interDelay = Math.max(800, _interDelay - 300);
-        const raw = body.value||body.results||body.data||[];
-        const dol = raw[0]||null;
-        processed = true;
-
-        if(dol){
-          // ═══ COLETAR TODOS OS CAMPOS DO SITE seasonaljobs.dol.gov ═══
-          // Visíveis na página: salário, cidade, datas, workers, funções,
-          // telefone, email, endereço worksite, horário, SOC, experiência, requisitos
-
-          // Localização
-          row.ci    = (dol.worksite_city||dol.employer_city||row.ci||"").trim();
-          row.st_ab = (dol.worksite_state||dol.employer_state||row.st_ab||"").trim(); // estado abreviado
-          row.addr  = (dol.worksite_address||dol.employer_address||row.addr||"").trim(); // endereço worksite
-          row.zip   = (dol.worksite_postal_code||dol.employer_postal_code||row.zip||"").trim();
-
-          // Período e vagas
-          row.d     = (dol.begin_date||dol.start_date||row.d||"").slice(0,10);
-          row.de    = (dol.end_date||dol.expiration_date||row.de||"").slice(0,10);
-          row.wk    = parseInt(dol.total_positions||dol.nbr_workers_requested||0)||row.wk||0;
-
-          // Salário
-          row.w     = row.w||(dol.basic_rate_from?String(parseFloat(dol.basic_rate_from).toFixed(2)):"");
-          row.wmax  = dol.basic_rate_to?String(parseFloat(dol.basic_rate_to).toFixed(2)):(row.wmax||"");
-          row.wunit = row.wunit||(dol.pay_range_desc==="Month"?"mês":"h");
-          row.winfo = (dol.wage_offer_description||dol.additional_wage_information||row.winfo||"").slice(0,300);
-
-          // Contato
-          row.ph    = ((dol.apply_phone||dol.employer_phone||row.ph||"")).replace(/[^0-9+()\- ]/g,"").trim();
-          row.ph2   = (dol.employer_phone||row.ph2||"").replace(/[^0-9+()\- ]/g,"").trim();
-          row.site  = (dol.employer_website||dol.apply_url||row.site||"").trim();
-
-          // Cargo e empresa
-          row.s     = (dol.worksite_state||dol.employer_state||row.s||"").toUpperCase().trim();
-          if(dol.job_title) row.t = dol.job_title.trim();
-          row.n     = (dol.employer_business_name||dol.employer_trade_name||row.n||"").trim();
-          row.st    = (dol.case_status||row.st||"").trim();
-          row.soc   = (dol.soc_code||dol.onet_code||row.soc||"").trim(); // código SOC
-          row.socT  = (dol.soc_title||row.socT||"").trim(); // título SOC
-
-          // Descrição das funções (completa)
-          if(dol.job_duties)
-            row.desc = dol.job_duties.replace(/\*\*[^*]+\*\*/g,"").trim().slice(0,1500);
-
-          // Requisitos
-          row.exp   = dol.experience_required==="Yes"?1:0;
-          row.req   = (dol.special_requirements||row.req||"").slice(0,400);
-          row.hrs   = dol.nbr_hours_per_week?String(dol.nbr_hours_per_week):(row.hrs||"");
-          row.sched = (dol.work_schedule||row.sched||"").trim(); // horário (ex: 7:00 A.M. - 1:00 P.M.)
-          row.ft    = dol.full_time_position==="Yes"?"sim":""; // full time?
-
-          // URL oficial da vaga
-          row.url   = `https://seasonaljobs.dol.gov/jobs/${row.c}`;
-
-          // Tipo de visto
-          row.visa  = row.c.startsWith("H-300")?"H-2A":row.c.startsWith("H-400")?"H-2B":(row.visa||"H-2B");
-
-          // Email — todos os campos possíveis do DOL
-          const emails = [
-            dol.apply_email, dol.employer_email,
-            dol.employer_poc_email, dol.attorney_agent_email,
-            dol.employer_contact_email,
-          ].map(e=>(e||"").trim().toLowerCase())
-           .filter(e=>e && e.includes("@") && e!=="n/a" && !e.startsWith("n/a"));
-          if(!row.e && emails.length>0){
-            row.e = emails[0];
-            _enrichLog(`📧 [${i+1}/${sheet.length}] ${cn}: email → ${row.e}`, "ok");
-          } else if(row.e && emails.length>0 && !emails.includes(row.e)){
-            // Manter o existente mas logar que há outros
-          }
-
-          _enrichBot.ok++;
-          if(!row.e||!row.e.includes("@")){
-            _enrichBot.noEmail++;
-            _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} SEM EMAIL | ${(row.t||"?").slice(0,40)} | ${row.ci||row.s||"?"}`, "warn");
-          } else {
-            // Log de cada vaga OK — em tempo real
-            _enrichLog(`✅ [${i+1}/${sheet.length}] ${cn} | ${(row.t||"?").slice(0,35)} | ${row.ci||"?"}, ${row.s||"?"} | $${row.w||"?"}/h | ${row.e}`, "info");
-          }
-        } else {
-          // Não encontrou na API — case number inválido ou expirado
-          _enrichBot.errors++;
-          _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — não encontrado no DOL`, "warn");
-        }
-
-      } else if(status===403 || status===429){
-        // DOL bloqueia com 403 (rate limit/anti-bot) ou 429 (rate limit explícito)
-        // Não conta como erro — vai retry com backoff
-        _consecutive403++;
-        // Aumenta delay permanente proporcionalmente
-        _interDelay = Math.min(3000 + _consecutive403 * 500, 8000);
-        // Não marca processed → while faz retry automático
-        _enrichLog(`🚫 [${i+1}/${sheet.length}] ${cn} — HTTP ${status} (bloqueio DOL, tentativa ${attempt}/5, delay→${_interDelay}ms)`, "warn");
-      } else {
-        // Qualquer outro erro HTTP (404, 500, etc.) — conta como erro, não faz retry
-        processed = true;
-        _enrichBot.errors++;
-        _enrichLog(`⚠️ [${i+1}/${sheet.length}] ${cn} — DOL retornou HTTP ${status}`, "warn");
-      }
-    }catch(e){
-      // Erro de rede — pode tentar de novo
-      if(attempt < 6){
-        _enrichLog(`🔌 [${i+1}/${sheet.length}] ${cn} — erro de rede (retry ${attempt}/5): ${e.message}`, "warn");
-        // processed continua false → while faz retry
-      } else {
-        processed = true;
-        _enrichBot.errors++;
-        _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — falhou após 5 tentativas: ${e.message}`, "error");
-      }
-    }
-    } // fim while retry
-
-    // Se esgotou retries sem processar (ex: 5x 403 seguidos)
-    if(!processed && _enrichBot.running){
-      _enrichBot.errors++;
-      _enrichLog(`❌ [${i+1}/${sheet.length}] ${cn} — desistindo após 5 tentativas (DOL bloqueando)`, "error");
-    }
-
-    // Salvar após CADA VAGA processada — zero perda de dados
-    // O disco persistente /data/ garante que sobrevive a deploy, reinício e fechamento do browser
-    _saveEnrichedSheet(sheetKey, sheet);
-    _enrichBot.savedAt = Date.now();
-    // Log de progresso a cada 10 vagas (não poluir o log a cada 1)
-    if(_enrichBot.done % 10 === 0){
-      const pct = Math.round((_enrichBot.done/sheet.length)*100);
-      _enrichLog(`💾 [${_enrichBot.done}/${sheet.length}] ${pct}% — ok:${_enrichBot.ok} semEmail:${_enrichBot.noEmail} delay:${_interDelay}ms`, "ok");
-    }
-
-    // Delay adaptativo entre vagas (aumenta quando DOL bloqueia, reduz quando ok)
-    await new Promise(r=>setTimeout(r, _interDelay));
-  }
-
-  // Finalizar
-  _enrichBot.done    = sheet.length;
-  _enrichBot.running = false;
-  _saveEnrichedSheet(sheetKey, sheet);
-  _enrichBot.savedAt = Date.now();
-
-  // Atualizar meta para planilhas builtin também (jan2026, jul2025)
-  if(!DB_SHEETS_META[sheetKey]){
-    DB_SHEETS_META[sheetKey] = {name: sheetKey==="jan2026"?"Janeiro 2026 (H-2B)":"Julho 2025 (H-2B)", file:sheetKey+".json"};
-  }
-  DB_SHEETS_META[sheetKey].enriched    = _enrichBot.ok;
-  DB_SHEETS_META[sheetKey].enrichedAt  = Date.now();
-  DB_SHEETS_META[sheetKey].enrichedTotal = _enrichBot.total;
-  fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2));
-
-  const semEmail = sheet.filter(r=>!r.e||!r.e.includes("@")).length;
-  _enrichLog(`🏁 CONCLUÍDO! ok:${_enrichBot.ok} | semEmail:${semEmail} | erros:${_enrichBot.errors}`, "ok");
-  _enrichLog(`📥 Baixe a planilha enriquecida no botão "⬇️ Baixar JSON"`, "ok");
-}
-
-function _saveEnrichedSheet(sheetKey, sheet){
-  try{
-    // 🔒 Checagem leve de integridade (não bloqueia salvamento — o bot de
-    // enriquecimento só EDITA campos das linhas já existentes, não deveria
-    // nunca introduzir duplicata; se acontecer, só avisa no log pra
-    // investigar, já que abortar aqui perderia o progresso do enriquecimento).
-    const _chk = _vagasVerify(sheet, {caseField:'c'});
-    if(!_chk.ok){
-      _enrichLog(`⚠️ Integridade: ${_chk.duplicateCases.length} case number(s) duplicado(s) detectado(s) em "${sheetKey}" — investigar (não deveria acontecer no bot de enriquecimento).`, "warn");
-    }
-    // Salva SEMPRE em /data/ (disco persistente — sobrevive a deploys)
-    // E também em __dirname para leitura imediata sem precisar recarregar
-    const dataPath = path.join(DATA_DIR, sheetKey==="jan2026"?"jan2026_compact.json":"jul2025_compact.json");
-    const srcPath  = path.join(__dirname, sheetKey==="jan2026"?"jan2026_compact.json":"jul2025_compact.json");
-    const payload  = JSON.stringify(sheet);
-
-    if(sheetKey==="jan2026"||sheetKey==="jul2025"){
-      // Salva no disco persistente (/data/) — não é sobrescrito no deploy
-      fs.writeFileSync(dataPath, payload);
-      // Salva também na pasta do código (para leitura imediata neste boot)
-      try{fs.writeFileSync(srcPath, payload);}catch{}
-      _enrichLog(`💾 Salvo em /data/ e código: ${sheet.length} vagas`, "ok");
-    } else if(SHEET_EXTRAS[sheetKey]){
-      const meta = DB_SHEETS_META[sheetKey];
-      const fp = path.join(SHEETS_DIR, meta?.file||`${sheetKey}.json`);
-      fs.writeFileSync(fp, payload); // extras já ficam em /data/sheets/
-    }
-    _enrichBot.savedAt = Date.now();
-  }catch(e){ _enrichLog(`❌ Erro ao salvar: ${e.message}`,"error"); }
-}
-
   // ════ GESTÃO DE PLANILHAS DE VAGAS ════════════════════════
   // GET /api/admin/sheets — lista todas as planilhas
   if(pathname==="/api/admin/sheets"&&req.method==="GET"){
@@ -5835,6 +5925,65 @@ function _saveEnrichedSheet(sheetKey, sheet){
       `Isto é um e-mail de teste do Vigia de Anúncios DOL do H2BApply.\n\nSe você recebeu isto, o envio está funcionando — quando o DOL publicar um anúncio novo de verdade, o aviso vai chegar exatamente assim.\n\n🔗 Página vigiada: ${DOL_NEWS_URL}\n\n— H2BApply 🤖`
     );
     return json(res,200,{ok:r.ok, enviados:r.enviados, falhas:r.falhas});
+  }
+
+  // POST /api/admin/dol-news-watch/gemini-analyze — pedido do dono (08/07/2026):
+  // botão que manda o erro real (status HTTP, headers de resposta, pedaço do
+  // corpo, log recente do bot) pro Gemini analisar e explicar o que fazer.
+  if(pathname==="/api/admin/dol-news-watch/gemini-analyze"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    if(!getGeminiKey())return json(res,503,{error:"Gemini API não configurada (GEMINI_API_KEY) neste servidor."});
+    try{
+      const logsRecentes = DB_BOT_LOGS.filter(l=>l.bot==='dol-news-watch').slice(0,25)
+        .map(l=>`[${new Date(l.ts).toLocaleString('pt-BR')}] ${l.type.toUpperCase()}: ${l.msg}`).join("\n");
+      const det = DB_DOL_NEWS_WATCH.ultimoErroDetalhe;
+      const systemPrompt = `Você é um engenheiro backend Node.js sênior, especialista em scraping/HTTP e em bloqueios de WAF (Akamai, Cloudflare, F5) de sites governamentais dos EUA (.gov). Um robô Node.js está tentando fazer um GET simples (https.request nativo do Node, sem headless browser) na URL https://www.dol.gov/agencies/eta/foreign-labor/news a cada 10 minutos, só pra ler o HTML e achar o anúncio mais recente. Ele está recebendo erro. Analise o que foi capturado abaixo e produza um relatório em português do Brasil, direto e prático, estruturado assim:
+
+1. DIAGNÓSTICO (o que provavelmente está causando isso, com base no status HTTP e nos headers de resposta — ex.: WAF/bot-detection, rate limit, geo-block, TLS fingerprint, User-Agent, falta de headers de navegador, etc.)
+2. É CONTORNÁVEL A PARTIR DE UM SERVIDOR NODE.JS PURO? (seja honesto — se for um bloqueio de fingerprint TLS/JA3 que exige browser real, diga isso claramente, não invente solução que não existe)
+3. O QUE TENTAR PRIMEIRO (passos concretos e realistas, em ordem)
+4. SE NADA FUNCIONAR — ALTERNATIVA (ex.: usar um serviço de proxy/browser headless tipo Browserless/ScrapingBee, ou trocar a estratégia pra um RSS/API oficial se existir, ou avisar o admin pra checar manualmente)
+5. NOTA DE CONFIANÇA (0-10) de que esse tipo de bloqueio é contornável só com ajuste de código.
+
+Seja honesto — não prometa que qualquer ajuste de header vai resolver se os sinais (ex: bloqueio mesmo com headers de navegador completos) sugerem um bloqueio mais sério.`;
+      const contextText = `STATUS HTTP recebido: ${det?.status ?? '(não registrado)'}
+HEADERS de resposta do servidor:
+${det?.headers ? JSON.stringify(det.headers, null, 2) : '(não capturado)'}
+
+PRIMEIROS ~800 CARACTERES DO CORPO DA RESPOSTA:
+${det?.corpoAmostra || '(vazio ou não capturado)'}
+
+ÚLTIMO RESULTADO: ${DB_DOL_NEWS_WATCH.ultimoResultado || '?'}
+ÚLTIMO ERRO: ${DB_DOL_NEWS_WATCH.ultimoErro || '?'}
+
+LOG RECENTE DO ROBÔ (mais novo primeiro):
+${logsRecentes || '(sem logs ainda)'}
+
+HEADERS QUE O ROBÔ ENVIOU NA REQUISIÇÃO:
+User-Agent: Chrome 124 desktop (Windows)
+Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — conjunto completo estilo navegador real (não é só User-Agent sozinho)`;
+      const GEMINI_MODELS=["gemini-2.5-flash","gemini-2.0-flash","gemini-2.5-flash-lite"];
+      let text="", lastErr="";
+      for(const modelName of GEMINI_MODELS){
+        try{
+          const geminiUrl=`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${getGeminiKey()}`;
+          const payload={system_instruction:{parts:[{text:systemPrompt}]},contents:[{role:"user",parts:[{text:contextText}]}],generationConfig:{temperature:0.4,maxOutputTokens:2000,topP:0.95}};
+          const result = await new Promise((resolve,reject)=>{
+            const body=JSON.stringify(payload); const gurl=new URL(geminiUrl);
+            const opts={hostname:gurl.hostname,path:gurl.pathname+gurl.search,method:"POST",headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(body)}};
+            const req2=https.request(opts,resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{try{resolve({status:resp.statusCode,body:JSON.parse(Buffer.concat(ch).toString())});}catch{reject(new Error("Resposta inválida do Gemini"));}});});
+            req2.on("error",reject); req2.setTimeout(40000,()=>{req2.destroy();reject(new Error("Timeout"));});
+            req2.write(body); req2.end();
+          });
+          if(result.status===200){ text=result.body?.candidates?.[0]?.content?.parts?.[0]?.text||""; if(text){ console.log(`[dol-news-watch] ✅ Análise Gemini via ${modelName}`); break; } }
+          else{ lastErr = result.body?.error?.message || `HTTP ${result.status}`; }
+        }catch(e){ lastErr=e.message; }
+      }
+      if(!text){ dolNewsLog(`❌ Análise Gemini falhou: ${lastErr}`,'error'); return json(res,502,{error:"Erro na análise: "+lastErr}); }
+      dolNewsLog(`🤖 Análise Gemini gerada por ${s.user_email} (${text.length} caracteres)`,'info');
+      return json(res,200,{ok:true,report:text,generatedAt:new Date().toISOString()});
+    }catch(e){ return json(res,500,{error:e.message}); }
   }
 
   // GET /api/admin/enrich/status — status do bot em tempo real
