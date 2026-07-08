@@ -12378,7 +12378,12 @@ async function nextSeasonPoll(){
     const d=await r.json();
     if(!d.ok) return;
     if(d.published){
-      box.innerHTML=`✅ <strong>${d.season.emoji} ${d.season.name}</strong> já foi detectada e publicada automaticamente — ${(d.count||0).toLocaleString('pt-BR')} vagas únicas.`;
+      if(d.stillRefreshing){
+        const horasRestantes=Math.max(0,48-(d.hoursSincePublish||0));
+        box.innerHTML=`✅ <strong>${d.season.emoji} ${d.season.name}</strong> publicada — ${(d.count||0).toLocaleString('pt-BR')} vagas até agora.<br>🔁 Ainda atualizando a cada 5min por mais ${horasRestantes.toFixed(1)}h (pega vaga nova que for entrando) — última atualização: ${_timeAgo(d.lastRefreshAt)}.`;
+      }else{
+        box.innerHTML=`✅ <strong>${d.season.emoji} ${d.season.name}</strong> publicada e estabilizada — ${(d.count||0).toLocaleString('pt-BR')} vagas únicas.`;
+      }
     }else{
       box.innerHTML=`⏳ Ainda não abriu. Última checagem: <strong>${_timeAgo(d.lastCheckAt)}</strong> (${d.checksCount||0} no total) — próxima em até 5min.${d.checking?' <span class="spin spin-sm"></span> checando agora…':''}`;
     }

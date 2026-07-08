@@ -599,6 +599,24 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .stab-sheet-jul.active{border-bottom-color:#3b82f6!important}
 .stab-sheet-jan .stab-cnt{background:#fffbeb;color:#d97706;border-color:#fde68a}
 .stab-sheet-jul .stab-cnt{background:#eff6ff;color:#3b82f6;border-color:#bfdbfe}
+/* ✨ "EM BREVE" — pedido do dono (07/07/2026): tem que chamar atenção de
+   verdade, tipo brilhante/reluzente, não cinza apagado. Borda com gradiente
+   animado girando + brilho pulsante + selo com sparkle. Usado no placeholder
+   da próxima temporada (Manual .stab e Automático .source-btn) até o robô
+   substituir pela aba de verdade sozinho. */
+@keyframes emBreveSpin{to{background-position:300% 0}}
+@keyframes emBreveGlow{0%,100%{box-shadow:0 0 6px 1px rgba(217,70,239,.35),0 0 0 1px rgba(217,70,239,.25) inset}50%{box-shadow:0 0 16px 4px rgba(217,70,239,.65),0 0 0 1px rgba(250,204,21,.4) inset}}
+@keyframes emBreveShine{0%{transform:translateX(-120%) skewX(-20deg)}100%{transform:translateX(220%) skewX(-20deg)}}
+.em-breve{position:relative;opacity:1!important;cursor:not-allowed;overflow:hidden;
+  background:linear-gradient(90deg,#7c3aed,#d946ef,#f59e0b,#7c3aed) 0 0/300% 100%!important;
+  border:1.5px solid transparent!important;color:#fff!important;
+  animation:emBreveSpin 4s linear infinite, emBreveGlow 2s ease-in-out infinite;}
+.em-breve *{color:#fff!important;position:relative;z-index:1}
+.em-breve::before{content:"";position:absolute;inset:0;width:34%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);
+  animation:emBreveShine 2.6s ease-in-out infinite;z-index:0;pointer-events:none}
+.em-breve-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:900;
+  letter-spacing:.04em;text-transform:uppercase;position:relative;z-index:1}
 /* Search */
 .search-bar{padding:9px 11px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .search-wrap{position:relative;margin-bottom:7px}
@@ -2898,9 +2916,9 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                uma aba de verdade assim que o DOL publicar e o admin publicar a
                planilha (loadDynamicSheets() troca isto sozinho, sem precisar editar
                código de novo). -->
-          <button class="stab" id="stab-jul2026-placeholder" disabled title="Ainda não disponível — aparece sozinho quando o DOL publicar" style="margin-top:8px;opacity:.5;cursor:not-allowed;position:relative">
-            <i class="ti ti-snowflake" style="color:#94a3b8"></i><strong>Jul 2026</strong>
-            <span style="display:block;font-size:9px;font-weight:800;color:#94a3b8;letter-spacing:.03em">🔜 Em breve</span>
+          <button class="stab em-breve" id="stab-jul2026-placeholder" disabled title="Ainda não disponível — aparece sozinho quando o DOL publicar" style="margin-top:8px;position:relative">
+            <i class="ti ti-sparkles"></i><strong>Jul 2026</strong>
+            <span class="em-breve-badge">✨ Em breve</span>
           </button>
         </div>
         <!-- 📅 TEMPORADAS ANTERIORES — seção separada e recolhível pras
@@ -3910,10 +3928,10 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 </button>
                 <!-- 🔜 Placeholder Julho 2026 — mesma ideia do Manual: some sozinho
                      assim que loadDynamicSheets() achar a planilha publicada. -->
-                <button class="source-btn" id="source-btn-jul2026-placeholder" disabled title="Ainda não disponível — aparece sozinho quando o DOL publicar" style="opacity:.5;cursor:not-allowed">
-                  <div class="source-btn-icon">❄️</div>
+                <button class="source-btn em-breve" id="source-btn-jul2026-placeholder" disabled title="Ainda não disponível — aparece sozinho quando o DOL publicar">
+                  <div class="source-btn-icon">✨</div>
                   <div class="source-btn-label"><strong>Jul 2026</strong></div>
-                  <div class="source-btn-count" style="font-weight:800;color:#94a3b8">🔜 Em breve</div>
+                  <div class="em-breve-badge" style="justify-content:center;margin-top:2px">✨ Em breve</div>
                 </button>
               </div>
               <!-- 📅 TEMPORADAS ANTERIORES — mesma ideia do Manual: seção

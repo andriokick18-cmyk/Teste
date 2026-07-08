@@ -2162,11 +2162,11 @@ async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
       if(parsed.jobStatus==='active') f.push('active eq true');
       if(parsed.visaClass==='H-2A') f.push("visa_class eq 'H-2A'");
       else f.push("visa_class eq 'H-2B'");
-      if(parsed.beginDate && _useBeginDate) f.push(`begin_date ge '${parsed.beginDate}'`);
+      if(parsed.beginDate && _useBeginDate) f.push(`begin_date ge ${parsed.beginDate}T00:00:00Z`);
       // 🔒 KB-081: teto superior da janela — sem isto, uma vaga de temporada
       // futura satisfaz "begin_date ge X" de QUALQUER temporada passada e
       // acaba indo parar em várias planilhas ao mesmo tempo.
-      if(parsed.endDate && _useBeginDate) f.push(`begin_date lt '${parsed.endDate}'`);
+      if(parsed.endDate && _useBeginDate) f.push(`begin_date lt ${parsed.endDate}T00:00:00Z`);
       if(parsed.search) p.append('$search','"'+parsed.search.replace(/"/g,'')+'"');
       if(f.length) p.append('$filter',f.join(' and '));
       if(_useOrderby) p.append('$orderby','dhTimestamp desc');
@@ -2497,8 +2497,8 @@ async function _probeNextSeasonAvailable(){
   if(!parsed.ok) return false;
   const p = new URLSearchParams({'api-version':'2020-06-30'});
   const f = [`visa_class eq 'H-2B'`];
-  if(parsed.beginDate) f.push(`begin_date ge '${parsed.beginDate}'`);
-  if(parsed.endDate)   f.push(`begin_date lt '${parsed.endDate}'`);
+  if(parsed.beginDate) f.push(`begin_date ge ${parsed.beginDate}T00:00:00Z`);
+  if(parsed.endDate)   f.push(`begin_date lt ${parsed.endDate}T00:00:00Z`);
   p.append('$filter', f.join(' and '));
   p.append('$top','1');
   try{
@@ -2515,16 +2515,34 @@ async function _probeNextSeasonAvailable(){
 
 async function _nextSeasonWatchTick(){
   if(_nextSeasonWatch.checking) return;
-  if(DB_SHEETS_META[NEXT_SEASON.key]?.published){ _nextSeasonWatch.found=true; return; } // já publicada — para de sondar
   if(_dolBuildBot.running || _histBuild.running) return; // bot ocupado agora, tenta de novo em 5min
+  const meta = DB_SHEETS_META[NEXT_SEASON.key];
+  const alreadyPublished = meta?.published===true;
+  // 🔁 KB-083 (dono, 07/07/2026): não trava pra sempre na 1ª vaga achada —
+  // cases de uma temporada nova costumam ser lançados aos poucos nas
+  // primeiras horas/dias. Depois de publicar pela 1ª vez, continua
+  // RE-COLETANDO (sobrescreve com a lista mais completa) por 48h, pra
+  // pegar vaga que entrou depois do primeiro achado. Depois disso, para
+  // de gastar chamada — a temporada já estabilizou.
+  const hoursSincePublish = alreadyPublished ? (Date.now()-(meta.publishedAt||0))/3600000 : null;
+  if(alreadyPublished && hoursSincePublish>48){ _nextSeasonWatch.found=true; return; }
+
   _nextSeasonWatch.checking = true;
   _nextSeasonWatch.lastCheckAt = Date.now();
   _nextSeasonWatch.checksCount++;
   try{
-    const available = await _probeNextSeasonAvailable();
-    _nextSeasonWatch.lastResult = available;
-    if(available){
-      console.log(`[next-season] 🎉 ${NEXT_SEASON.name} já tem vagas no DOL — iniciando coleta completa automaticamente.`);
+    // Se já publicou uma vez, já sabemos que a temporada existe — pula a
+    // sonda leve e recoleta direto pra capturar o que entrou de novo.
+    let shouldCollect = alreadyPublished;
+    if(!shouldCollect){
+      const available = await _probeNextSeasonAvailable();
+      _nextSeasonWatch.lastResult = available;
+      shouldCollect = available;
+    }
+    if(shouldCollect){
+      console.log(alreadyPublished
+        ? `[next-season] 🔁 Recoletando ${NEXT_SEASON.name} (dentro da janela de 48h pós-publicação) pra pegar vaga nova...`
+        : `[next-season] 🎉 ${NEXT_SEASON.name} já tem vagas no DOL — iniciando coleta completa automaticamente.`);
       await _runDolBuildBot(_histSearchUrl(NEXT_SEASON.startDate, NEXT_SEASON.endDate), NEXT_SEASON.key, NEXT_SEASON.name, 20000);
       const arr = SHEET_EXTRAS[NEXT_SEASON.key]||[];
       if(arr.length){
@@ -2532,13 +2550,16 @@ async function _nextSeasonWatchTick(){
         const withEmail = arr.filter(r=>r.e&&r.e.includes('@')).length;
         if(!DB_SHEETS_META[NEXT_SEASON.key]) DB_SHEETS_META[NEXT_SEASON.key]={};
         Object.assign(DB_SHEETS_META[NEXT_SEASON.key],{
-          published:true, publishedAt:Date.now(), name:NEXT_SEASON.name, visaType:'H-2B',
+          published:true,
+          publishedAt: alreadyPublished ? meta.publishedAt : Date.now(), // preserva a 1ª publicação
+          lastRefreshAt: Date.now(),
+          name:NEXT_SEASON.name, visaType:'H-2B',
           count:arr.length, uniqueCaseCount:integ.uniqueCaseCount, emoji:NEXT_SEASON.emoji, autoDetected:true,
         });
         try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
         _nextSeasonWatch.found = true;
-        console.log(`[next-season] ✅ ${NEXT_SEASON.name} publicada automaticamente: ${arr.length} vagas únicas (${withEmail} com e-mail).`);
-      }else{
+        console.log(`[next-season] ✅ ${NEXT_SEASON.name}: ${arr.length} vagas únicas (${withEmail} com e-mail) — publicada${alreadyPublished?' (atualizada)':' automaticamente'}.`);
+      }else if(!alreadyPublished){
         console.warn(`[next-season] ⚠️ Sonda achou vaga, mas a coleta completa voltou vazia — tenta de novo na próxima janela de 5min.`);
       }
     }
@@ -2925,7 +2946,7 @@ async function fetchDOL(skip,top,opts={}) {
   if(jobStatus==="active")f.push("active eq true");if(jobStatus==="inactive")f.push("active eq false");
   if(jobType==="agricultural")f.push("visa_class eq 'H-2A'");if(jobType==="non-agricultural")f.push("visa_class eq 'H-2B'");
   if(state)f.push(`(employer_state eq '${state}' or worksite_state eq '${state}')`);
-  if(beginDate)f.push(`begin_date ge '${beginDate}'`);
+  if(beginDate)f.push(`begin_date ge ${beginDate}T00:00:00Z`);
   if(f.length)p.append("$filter",f.join(" and "));
   p.append("$orderby","dhTimestamp "+(sort==="asc"?"asc":"desc"));
   p.append("$top",String(top));p.append("$skip",String(skip));
@@ -5637,10 +5658,17 @@ function _saveEnrichedSheet(sheetKey, sheet){
   if(pathname==="/api/admin/sheet/next-season-status"&&req.method==="GET"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const meta=DB_SHEETS_META[NEXT_SEASON.key];
+    const published=meta?.published===true;
+    const hoursSincePublish=published?(Date.now()-(meta.publishedAt||0))/3600000:null;
     return json(res,200,{ok:true,
       season:{key:NEXT_SEASON.key,name:NEXT_SEASON.name,emoji:NEXT_SEASON.emoji},
-      published: DB_SHEETS_META[NEXT_SEASON.key]?.published===true,
-      count: DB_SHEETS_META[NEXT_SEASON.key]?.count||0,
+      published,
+      count: meta?.count||0,
+      publishedAt: meta?.publishedAt||null,
+      lastRefreshAt: meta?.lastRefreshAt||null,
+      stillRefreshing: published && hoursSincePublish!==null && hoursSincePublish<=48,
+      hoursSincePublish,
       lastCheckAt: _nextSeasonWatch.lastCheckAt,
       lastResult: _nextSeasonWatch.lastResult,
       checksCount: _nextSeasonWatch.checksCount,
@@ -8532,8 +8560,12 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     // Normalize categories (only known keys)
     const KNOWN_CATS=["landscape","construction","housekeeper","seafood","farm","golf","amusement","forest","lifeguard","other"];
     const categories=Array.isArray(d.categories)?d.categories.filter(c=>KNOWN_CATS.includes(c)):[];
-    // Normalize sheets
-    const KNOWN_SHEETS=["jan2026","jul2025","dol"];
+    // Normalize sheets — KNOWN_SHEETS era uma lista estática (só jan2026/
+    // jul2025/dol), então QUALQUER planilha nova (h2a, jan2025, jul2026...)
+    // era descartada em silêncio aqui se o usuário tentasse selecioná-la
+    // num perfil de envio automático. Agora é dinâmico: sempre inclui as
+    // fixas + todas as chaves publicadas em SHEET_EXTRAS no momento do save.
+    const KNOWN_SHEETS=["jan2026","jul2025","h2a-jun2026","dol",...Object.keys(SHEET_EXTRAS)];
     const sheets=Array.isArray(d.sheets)?d.sheets.filter(s=>KNOWN_SHEETS.includes(s)):[];
     const prf={id:d.id||crypto.randomUUID(),name:String(d.name).slice(0,80),desc:String(d.desc||"").slice(0,200),active:d.active!==false,isGeneral:!!d.isGeneral,subjects,emailBodies,subject:subjects[0]||String(d.subject||"").slice(0,200),body:emailBodies[0]||String(d.body||"").slice(0,5000),categories,sheets,resumeIdx:d.resumeIdx??null,pdfName:d.pdfName?String(d.pdfName).slice(0,200):undefined,pdfSize:d.pdfSize||0,coverIdx:d.coverIdx??null,state:String(d.state||"").slice(0,40),updatedAt:new Date().toISOString(),createdAt:d.createdAt||new Date().toISOString()};if(idx>=0)prfs[idx]=prf;else{if(prfs.length>=20)return json(res,429,{error:"Limite de 20 perfis atingido"});prfs.unshift(prf);}setUser(s.user_email,{profiles:prfs});return json(res,200,{ok:true,profile:prf});}catch(e){return json(res,500,{error:e.message});}}
   if(pathname==="/api/profiles/delete"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});try{const d=JSON.parse(await readBody(req));if(!d.id)return json(res,400,{error:"id obrigatório"});const p=getUser(s.user_email)||{};setUser(s.user_email,{profiles:(p.profiles||[]).filter(pr=>pr.id!==d.id)});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
