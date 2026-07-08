@@ -25,6 +25,7 @@ async function tokenGuardianRun() {
     .filter(([,j]) => j.active || NEEDS_TOKEN.has(j.status))
     .map(([e]) => e);
 
+  let renewed=0, pausedNoToken=0, pausedRevoked=0, checked=emails.length;
   for (const email of emails) {
     const u = ctx.getUser(email);
     if (!u?.refresh_token) {
@@ -35,6 +36,7 @@ async function tokenGuardianRun() {
         ctx.setAutoJob(email, {...job, active:false, status:"paused_no_refresh_token"});
         if (ctx.autoTimers().has(email)) { clearTimeout(ctx.autoTimers().get(email)); ctx.autoTimers().delete(email); }
         ctx.addLog(email, {status:"pausado", jobTitle:"🔐 Sem token de autenticação", company:"Faça login novamente no H2BApply para reativar o envio automático.", error:"Nenhum refresh_token disponível"});
+        pausedNoToken++;
       }
       continue;
     }
@@ -44,6 +46,7 @@ async function tokenGuardianRun() {
       try {
         await ctx.refreshTokenForUser(email);
         console.log(`[token-guardian] ✅ Token renovado: ${email}`);
+        renewed++;
       } catch(e) {
         const msg = e.message || "";
         // invalid_grant = usuário revogou acesso no Google → único caso onde para definitivamente
@@ -55,12 +58,19 @@ async function tokenGuardianRun() {
             ctx.addLog(email, {status:"pausado", jobTitle:"🔐 Acesso Google revogado pelo usuário", company:"O usuário removeu o acesso do H2BApply no painel Google. Faça login novamente para reativar.", error: msg});
             // Notifica usuário por email para que saiba que precisa fazer login novamente
             ctx.sendNotifEmail(email, "token_revoked").catch(e => console.warn("[notif/token_revoked/guardian]", e.message));
+            pausedRevoked++;
           }
         }
         // Outros erros (rede, timeout) → tenta de novo no próximo ciclo
         console.warn(`[token-guardian] ⚠️ ${email}:`, msg);
       }
     }
+  }
+  // 📜 Log unificado (aba "Logs dos Robôs") — 1 linha-resumo por execução.
+  if(typeof ctx.botLog==="function" && (checked>0 || renewed>0 || pausedNoToken>0 || pausedRevoked>0)){
+    ctx.botLog('token-guardian','Token Guardian',
+      `Checou ${checked} conta(s) ativa(s): ${renewed} token(s) renovado(s), ${pausedNoToken} pausada(s) por falta de token, ${pausedRevoked} pausada(s) por acesso revogado no Google`,
+      (pausedNoToken>0||pausedRevoked>0)?'warn':'info');
   }
 }
 
@@ -108,6 +118,11 @@ async function authErrorWatchdog(){
     }
   }
   if(notified>0) console.log(`[auth-watchdog] ✅ ${notified} usuários notificados sobre auth_error`);
+  if(typeof ctx.botLog==="function"){
+    ctx.botLog('auth-watchdog','Auth Error Watchdog',
+      notified>0 ? `${notified} usuário(s) notificado(s) sobre erro de autenticação parado há >12h` : `Verificação rodou, nenhum usuário precisou ser notificado`,
+      notified>0?'warn':'info');
+  }
 }
 
 

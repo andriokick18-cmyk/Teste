@@ -1142,57 +1142,12 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
         </div>
       </div>
 
-      <!-- ══ MONITOR ETA ══ -->
-      <div class="view" id="view-eta">
-        <div style="max-width:860px">
-          <div class="section-hdr"><i class="ti ti-radar-2" style="color:#10b981"></i><div class="section-title">Monitor ETA — Robô 24/7</div>
-            <button class="btn btn-ghost btn-sm" onclick="loadEtaAdmin()" title="Atualizar"><i class="ti ti-refresh"></i></button>
-            <button class="btn btn-sm" id="eta-toggle-btn" onclick="etaAdminToggle()" style="margin-left:auto;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:var(--green);font-weight:800">…</button>
-          </div>
-          <div style="font-size:12px;color:var(--t3);line-height:1.6;margin-bottom:14px">O robô consulta a base oficial do DOL por ETA Case Number, em fila inteligente (nunca repete consulta recente), salva histórico de cada mudança e funciona mesmo com o painel fechado. Grupo por padrão vem do Begin Date (🟢A Abr–Jun · 🟡B Jul–Set · 🔵C Out–Dez · 🔴D Jan–Mar) e pode ser corrigido manualmente abaixo.</div>
-          <div id="eta-admin-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px"><div class="empty-state">Carregando…</div></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:13px"><div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;margin-bottom:9px">📊 Por status</div><div id="eta-by-status" style="font-size:12px;display:flex;flex-direction:column;gap:5px">–</div></div>
-            <div style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:13px"><div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;margin-bottom:9px">🎯 Por grupo</div><div id="eta-by-grupo" style="font-size:12px;display:flex;flex-direction:column;gap:5px">–</div></div>
-          </div>
-          <div style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:13px;margin-bottom:14px">
-            <div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;margin-bottom:10px">⚡ Ações rápidas</div>
-            <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:8px">
-              <input class="form-inp" id="eta-cn-input" placeholder="ETA Case Number (ex: H-400-26001-520313)" style="text-transform:uppercase">
-              <button class="btn btn-primary btn-sm" onclick="etaAdminCheckNow()"><i class="ti ti-search"></i> Consultar agora</button>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 110px auto;gap:8px">
-              <input class="form-inp" id="eta-cn-grupo-input" placeholder="Case Number para ajustar grupo" style="text-transform:uppercase">
-              <select class="form-inp" id="eta-grupo-sel"><option value="">Automático</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option><option>H</option></select>
-              <button class="btn btn-secondary btn-sm" onclick="etaAdminSetGrupo()"><i class="ti ti-tag"></i> Definir grupo</button>
-            </div>
-          <!-- 📥 IMPORTAR REPORT DE RANDOMIZAÇÃO (grupos oficiais A–H) -->
-          <div style="margin-top:12px;background:rgba(139,92,246,.08);border:1.5px solid rgba(139,92,246,.3);border-radius:12px;padding:13px">
-            <div style="font-size:13px;font-weight:800;color:#a78bfa;margin-bottom:4px">📥 Importar report de randomização (grupos oficiais)</div>
-            <div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:9px">Quando o DOL publicar o novo <strong>PublicFacingReport</strong> (ex.: julho/2026): abra o .xlsx no Excel → <strong>Salvar como → CSV</strong> → suba aqui. Os grupos A–H de todas as vagas são atualizados na hora e ficam salvos pra sempre no volume.</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-              <input type="file" id="eta-grupos-file" accept=".csv,text/csv" style="font-size:11px;color:var(--t2);flex:1;min-width:170px">
-              <button class="btn btn-primary btn-sm" id="eta-grupos-btn" onclick="etaAdminUploadGrupos()"><i class="ti ti-upload"></i> Importar grupos</button>
-            </div>
-            <div id="eta-grupos-result" style="display:none;margin-top:8px;font-size:11.5px;font-weight:700;padding:7px 11px;border-radius:8px"></div>
-          </div>
-            <div id="eta-admin-action-result" style="font-size:12px;margin-top:8px"></div>
-          </div>
-          <div class="section-hdr" style="margin-top:4px"><i class="ti ti-list-details" style="color:#0891b2"></i><div class="section-title">Logs do robô</div><button class="btn btn-ghost btn-sm" onclick="loadEtaLogs()"><i class="ti ti-refresh"></i></button></div>
-          <div id="eta-admin-logs" style="background:rgba(0,0,0,.25);border:1px solid var(--border2);border-radius:12px;padding:10px 13px;max-height:320px;overflow-y:auto;font-size:11.5px;font-family:'JetBrains Mono',monospace;line-height:1.7"><div class="empty-state">Carregando…</div></div>
-        </div>
-      </div>
-
       <!-- ═══════════════════════════════════════════════════════════
-           🤖 ROBÔS — hub unificado (Parte 1 da reorganização pedida)
-           Todos os robôs do sistema (Planilhas & Coleta DOL, Monitor ETA,
-           Robô de Teste, Robô de Auditoria) vivem aqui dentro, cada um em
-           sua própria sub-aba. As views originais (view-planilhas,
-           view-eta, view-robot, view-robo-contabil) NÃO foram apagadas
-           nem tiveram o conteúdo interno alterado — elas são realocadas
-           (appendChild) para dentro do painel da sub-aba certa na hora
-           que o admin clica, exatamente como o código já fazia com
-           view-incidentes. Zero risco às funções internas de cada robô.
+           🤖 ROBÔS — hub unificado
+           Só sobrou o Enriquecimento de Planilha entre os robôs "de
+           planilha" (pedido do dono, 07/07/2026 — Monitor ETA e Monitor
+           DOL/Anúncios foram apagados por completo, junto com todo o
+           conceito de grupo/status de randomização).
            ═══════════════════════════════════════════════════════════ -->
       <style>
       .robos-tab{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;font-size:12.5px;font-weight:700;color:var(--t2);background:var(--glass);border:1px solid var(--border2);cursor:pointer;font-family:inherit;transition:all .12s}
@@ -1209,93 +1164,26 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
           </div>
         </div>
         <div id="robos-subnav" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
-          <button class="robos-tab active" data-sub="planilhas" onclick="roboSubTab('planilhas')"><i class="ti ti-table-import"></i> Planilhas &amp; Coleta DOL</button>
-          <button class="robos-tab" data-sub="eta" onclick="roboSubTab('eta')"><i class="ti ti-radar-2"></i> Monitor ETA</button>
+          <button class="robos-tab active" data-sub="planilhas" onclick="roboSubTab('planilhas')"><i class="ti ti-table-import"></i> Planilhas &amp; Enriquecimento</button>
           <button class="robos-tab" data-sub="robot" onclick="roboSubTab('robot')"><i class="ti ti-robot"></i> Robô de Teste</button>
           <button class="robos-tab" data-sub="robo-contabil" onclick="roboSubTab('robo-contabil')"><i class="ti ti-report-money"></i> Robô de Auditoria</button>
-          <button class="robos-tab" data-sub="dolmonitor" onclick="roboSubTab('dolmonitor')"><i class="ti ti-news"></i> 📰 Monitor DOL (Anúncios)</button>
+          <button class="robos-tab" data-sub="logs" onclick="roboSubTab('logs')"><i class="ti ti-list-details"></i> 📜 Logs dos Robôs</button>
         </div>
         <div id="robos-sub-planilhas" class="robos-panel"></div>
-        <div id="robos-sub-eta" class="robos-panel" style="display:none"></div>
         <div id="robos-sub-robot" class="robos-panel" style="display:none"></div>
         <div id="robos-sub-robo-contabil" class="robos-panel" style="display:none"></div>
-        <div id="robos-sub-dolmonitor" class="robos-panel" style="display:none"></div>
-      </div>
-
-      <!-- 📰 MONITOR DOL (ANÚNCIOS) — Parte 2: robô que checa dol.gov/.../news a
-           cada 5min, acha o PublicFacingReport novo, baixa e importa sozinho -->
-      <div class="view" id="view-dolmonitor">
-        <div class="section-hdr">
-          <i class="ti ti-news" style="color:#38bdf8"></i>
-          <div>
-            <div class="section-title">📰 Monitor de Anúncios DOL</div>
-            <div class="section-sub">Checa dol.gov/agencies/eta/foreign-labor/news a cada 5 min. Quando sair o relatório novo de randomização (ex.: Julho 2026), baixa e importa os grupos A–H sozinho — sem precisar de ninguém subir arquivo manual.</div>
-          </div>
-          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="dolMonitorPoll()"><i class="ti ti-refresh"></i></button>
-        </div>
-
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
-          <div class="stat-card" style="padding:12px;text-align:center">
-            <div class="stat-val" id="dm-status-val">–</div>
-            <div style="font-size:10px;color:var(--t3)">Status</div>
-          </div>
-          <div class="stat-card" style="padding:12px;text-align:center">
-            <div class="stat-val" id="dm-last-check" style="font-size:15px">–</div>
-            <div style="font-size:10px;color:var(--t3)">Última checagem</div>
-          </div>
-          <div class="stat-card" style="padding:12px;text-align:center">
-            <div class="stat-val" id="dm-next-check" style="font-size:15px">–</div>
-            <div style="font-size:10px;color:var(--t3)">Próxima checagem</div>
-          </div>
-          <div class="stat-card stat-green" style="padding:12px;text-align:center">
-            <div class="stat-val" id="dm-imported-count">–</div>
-            <div style="font-size:10px;color:var(--t3)">Relatórios importados</div>
+        <div id="robos-sub-logs" class="robos-panel" style="display:none">
+          <div style="max-width:900px">
+            <div class="section-hdr" style="margin-bottom:10px">
+              <i class="ti ti-list-details" style="color:#a78bfa"></i>
+              <div class="section-title">📜 Logs dos Robôs</div>
+              <button class="btn btn-ghost btn-sm" onclick="loadBotLogs()" title="Atualizar" style="margin-left:auto"><i class="ti ti-refresh"></i></button>
+            </div>
+            <div style="font-size:12px;color:var(--t3);line-height:1.6;margin-bottom:12px">Tudo que cada robô do sistema fez — em ordem, com o robô que fez, quando e o resultado. Clique num robô abaixo pra filtrar só ele.</div>
+            <div id="bot-logs-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"></div>
+            <div id="bot-logs-feed" style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;max-height:600px;overflow-y:auto"><div class="empty-state">Carregando…</div></div>
           </div>
         </div>
-
-        <div id="dm-last-report" style="display:none;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:12px;padding:13px;margin-bottom:14px;font-size:12.5px;color:var(--green)"></div>
-
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center">
-          <button class="btn btn-primary btn-sm" id="dm-btn-check" onclick="dolMonitorCheckNow()"><i class="ti ti-search"></i> Checar agora</button>
-          <button class="btn btn-secondary btn-sm" id="dm-btn-toggle" onclick="dolMonitorToggle()">…</button>
-          <button class="btn btn-sm" id="dm-btn-notify" onclick="dolMonitorNotifyNow()" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;font-weight:800"><i class="ti ti-mail-forward"></i> Avisar pagantes agora</button>
-        </div>
-
-        <!-- 🧪 TESTE COM DADOS REAIS — pedido do dono (07/07/2026). Roda o
-             pipeline inteiro com a planilha REAL de Jan/2026 (sem esperar
-             sair a de Julho) e publica uma planilha de teste pro Manual e
-             Automático mostrarem. NUNCA avisa pagantes. Excluível a
-             qualquer momento. -->
-        <div style="background:rgba(139,92,246,.08);border:1.5px solid rgba(139,92,246,.3);border-radius:14px;padding:14px;margin-bottom:16px">
-          <div style="font-size:13px;font-weight:800;color:#a78bfa;margin-bottom:4px">🧪 Testar robô com dados reais (Jan 2026)</div>
-          <div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:10px">Roda TODO o pipeline (ler .xlsx → extrair grupos → mesclar) com a planilha real de Janeiro que você já mandou, e publica uma planilha de teste ("🧪 TESTE — Jul 2026") pro Manual e Automático mostrarem de verdade. <strong>Nunca envia e-mail pra ninguém.</strong> Quando terminar de conferir, clica em "Excluir teste" — a planilha some e a aba volta a mostrar "Em breve" (atualize a página do site pra ver).</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-            <button class="btn btn-primary btn-sm" id="dm-btn-test" onclick="dolMonitorRunTest()"><i class="ti ti-flask"></i> Rodar teste completo</button>
-            <button class="btn btn-sm" id="dm-btn-test-delete" onclick="dolMonitorDeleteTest()" style="display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;font-weight:800"><i class="ti ti-trash"></i> Excluir teste</button>
-          </div>
-          <div id="dm-test-result" style="display:none;font-size:12px;line-height:1.6;background:rgba(0,0,0,.2);border-radius:8px;padding:10px 13px"></div>
-          <!-- 🪟 Janela SEPARADA do log de produção (pedido do dono) — só os
-               passos da última rodada de teste, reiniciada a cada clique -->
-          <div style="font-size:11px;font-weight:800;color:#a78bfa;text-transform:uppercase;letter-spacing:.03em;margin:12px 0 6px">🧪 Log do TESTE (Janeiro) — janela própria</div>
-          <div id="dm-test-log" class="enrich-log"><div class="empty-state">Clique em "Rodar teste completo" para ver os passos aqui.</div></div>
-        </div>
-
-        <!-- 📚 HISTÓRICO DE RELATÓRIOS (FY23–FY26) — pedido do dono (06/07/2026):
-             baixa e mescla TODO o histórico conhecido de uma vez, com ícone de
-             estação (❄️ Jan / ☀️ Jul), em ordem cronológica. NUNCA avisa
-             pagantes — histórico não é notícia nova. Idempotente (pode rodar
-             de novo sem duplicar; pula o que já foi importado). -->
-        <div style="background:rgba(56,189,248,.08);border:1.5px solid rgba(56,189,248,.3);border-radius:14px;padding:14px;margin-bottom:16px">
-          <div style="font-size:13px;font-weight:800;color:#38bdf8;margin-bottom:4px">📚 Histórico de Relatórios (FY23 – FY26)</div>
-          <div style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:10px">Baixa e mescla no registro de grupos oficiais TODOS os relatórios já publicados pelo DOL no passado (Jan/Jul de cada ano), em ordem cronológica. Só enriquece o registro de grupos — <strong>nunca avisa pagantes</strong> (relatório antigo não é notícia nova). Pode clicar de novo quando quiser: o que já foi importado é pulado automaticamente.</div>
-          <div id="dm-hist-table" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;margin-bottom:12px"></div>
-          <button class="btn btn-primary btn-sm" id="dm-btn-hist" onclick="dolMonitorImportHistorico()"><i class="ti ti-database-import"></i> Importar histórico completo</button>
-          <div style="font-size:11px;font-weight:800;color:#38bdf8;text-transform:uppercase;letter-spacing:.03em;margin:12px 0 6px">📚 Log do HISTÓRICO — janela própria</div>
-          <div id="dm-hist-log" class="enrich-log"><div class="empty-state">Clique em "Importar histórico completo" para ver os passos aqui.</div></div>
-        </div>
-
-        <div class="section-hdr" style="margin-top:4px"><i class="ti ti-list-details" style="color:#0891b2"></i><div class="section-title">🤖 Log ao vivo — PRODUÇÃO (roda sozinho a cada 5 min, vai buscar Julho)</div></div>
-        <div id="dm-log" class="enrich-log"><div class="empty-state">Carregando…</div></div>
       </div>
 
       <!-- SETTINGS -->
@@ -2729,6 +2617,14 @@ const RobotV2 = (function(){
     // Mostrar relatório
     const rep=el('rb-report');
     if(rep) rep.style.display='';
+
+    // 📜 Log unificado (aba "Logs dos Robôs") — resumo da rodada.
+    try{
+      fetch('/api/admin/bots/log-run',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({bot:'robot-teste',botLabel:'Robô de Teste',
+          msg:`Rodada concluída em ${elapsed}s: ✅${_stats.ok} ok, ❌${_stats.err} erro(s), ⚠️${_stats.warn} aviso(s), 📨${_stats.send} e-mail(is) enviado(s)`,
+          type:_stats.err>0?'error':(_stats.warn>0?'warn':'ok')})});
+    }catch(e){}
   }
 
   function _updateEmailTags(){
@@ -3592,162 +3488,75 @@ document.addEventListener('DOMContentLoaded',()=>{
   </div>
 </div>
 
-<!-- ══ BOT DE CONSTRUÇÃO — Criar planilha do DOL Advanced Search ══ -->
-<div id="dol-build-box" style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.05));border:1.5px solid rgba(16,185,129,.35);border-radius:14px;padding:16px;margin-bottom:16px">
+
+<!-- ══ 🎯 GRUPOS — JULHO 2026 (novo bot, pedido do dono 07/07/2026) ══
+     Escopo único: grupo A–H só de Julho 2026, só do relatório oficial
+     do DOL (upload manual ou download automático) — nunca adivinhado. -->
+<div id="j26-box" style="background:linear-gradient(135deg,rgba(167,139,250,.1),rgba(124,58,237,.05));border:1.5px solid rgba(167,139,250,.35);border-radius:14px;padding:16px;margin-bottom:16px">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-    <div style="font-size:28px">🌐</div>
+    <div style="font-size:28px">🎯</div>
     <div style="flex:1;min-width:0">
-      <div style="font-size:14px;font-weight:800;color:#fff">Criar Planilha via DOL Advanced Search</div>
-      <div style="font-size:11px;color:var(--t3)">Cole o link do seasonaljobs.dol.gov/archive e o sistema coleta as vagas automaticamente — funciona com H-2A e H-2B — fica salvo para sempre!</div>
-    </div>
-    <div id="dol-build-status-badge" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;color:var(--t2);white-space:nowrap">⏹ Parado</div>
-  </div>
-
-  <!-- Botão principal (visível quando parado) -->
-  <div id="dol-build-start-area">
-    <button class="btn btn-primary" style="width:100%;background:linear-gradient(135deg,#10b981,#059669);border:none;font-size:13px;padding:12px" onclick="dolBuildOpenModal()">
-      <i class="ti ti-world-download"></i> Criar nova planilha do DOL
-    </button>
-  </div>
-
-  <!-- Progresso (visível quando rodando ou concluído) -->
-  <div id="dol-build-progress-area" style="display:none">
-    <!-- Barra de progresso -->
-    <div style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-bottom:6px">
-        <span id="dol-build-prog-label">Coletando vagas...</span>
-        <span id="dol-build-prog-pct" style="font-weight:700;color:var(--green)">0%</span>
-      </div>
-      <div style="background:rgba(255,255,255,.08);border-radius:8px;height:10px;overflow:hidden">
-        <div id="dol-build-prog-bar" style="background:linear-gradient(90deg,#10b981,#059669);height:10px;border-radius:8px;width:0%;transition:.5s ease"></div>
-      </div>
-    </div>
-    <!-- Stats -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px">
-      <div style="background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:8px;padding:8px;text-align:center">
-        <div id="dol-build-stat-fetched" style="font-weight:900;color:var(--green);font-size:18px">0</div>
-        <div style="font-size:10px;color:var(--t3)">📥 Coletadas</div>
-      </div>
-      <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:8px;text-align:center">
-        <div id="dol-build-stat-saved" style="font-weight:900;color:var(--blue);font-size:18px">0</div>
-        <div style="font-size:10px;color:var(--t3)">📧 Com email</div>
-      </div>
-      <div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:8px;text-align:center">
-        <div id="dol-build-stat-errors" style="font-weight:900;color:var(--red);font-size:18px">0</div>
-        <div style="font-size:10px;color:var(--t3)">❌ Erros</div>
-      </div>
-    </div>
-    <!-- Botões de controle -->
-    <div style="display:flex;gap:8px;margin-bottom:12px">
-      <button id="dol-build-btn-stop" class="btn btn-ghost btn-sm" onclick="dolBuildStop()" style="color:var(--red);border-color:rgba(239,68,68,.3)"><i class="ti ti-player-stop"></i> Parar</button>
-      <button id="dol-build-btn-publish" class="btn btn-primary btn-sm" onclick="dolBuildPublish()" style="display:none;background:linear-gradient(135deg,#6366f1,#4f46e5);border:none;flex:1"><i class="ti ti-rocket"></i> Publicar Planilha para Usuários</button>
-      <button id="dol-build-btn-new" class="btn btn-ghost btn-sm" onclick="dolBuildReset()" style="display:none"><i class="ti ti-plus"></i> Nova Planilha</button>
-    </div>
-    <!-- Log -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-      <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.05em">📋 Log</div>
-      <button onclick="document.getElementById('dol-build-log').scrollTop=document.getElementById('dol-build-log').scrollHeight" style="background:none;border:1px solid var(--border2);border-radius:5px;padding:2px 7px;font-size:10px;color:var(--t3);cursor:pointer">↓ Fim</button>
-    </div>
-    <div class="enrich-log" id="dol-build-log" style="height:200px"></div>
-    <div style="font-size:10px;color:var(--t3);margin-top:5px">Roda em background — pode fechar a página! ✅</div>
-  </div>
-</div>
-
-<!-- ══ ☀️ COLETA DA ÚLTIMA TEMPORADA QUE FALTA (Jan 2025) — pedido do dono
-     (07/07/2026): só falta Verão 2025 pra fechar a sequência
-     Jan2025 → Jul2025 → Jan2026 → Jul2026. Usa o MESMO bot acima. ══ -->
-<div id="hist-build-box" style="background:linear-gradient(135deg,rgba(56,189,248,.1),rgba(14,116,144,.05));border:1.5px solid rgba(56,189,248,.35);border-radius:14px;padding:16px;margin-bottom:16px">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-    <div style="font-size:28px">☀️</div>
-    <div style="flex:1;min-width:0">
-      <div style="font-size:14px;font-weight:800;color:#fff">Coletar Verão 2025 (Jan 2025)</div>
-      <div style="font-size:11px;color:var(--t3)">Última temporada que falta. Usa o MESMO bot acima, vagas COMPLETAS (empresa, e-mail, salário, cidade) — janela fechada 01/04/2025–30/09/2025, nunca pega vaga de outra temporada. Publica sozinho ao terminar.</div>
+      <div style="font-size:14px;font-weight:800;color:#fff">Grupos — Julho 2026</div>
+      <div style="font-size:11px;color:var(--t3)">Grupo A–H de cada vaga, só pra Julho 2026 (início 01/10/2026) — sempre e só do relatório oficial do DOL. Nunca calculado, nunca adivinhado.</div>
     </div>
   </div>
-  <div id="hist-build-table" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;margin-bottom:12px"></div>
-  <button class="btn btn-primary btn-sm" id="hist-build-btn" onclick="histBuildStart()" style="width:100%;background:linear-gradient(135deg,#38bdf8,#0284c7);border:none;font-weight:700"><i class="ti ti-history"></i> Coletar Jan 2025</button>
-  <button class="btn btn-primary btn-sm" id="hist-refazer-todas-btn" onclick="histRefazerTodas()" style="width:100%;margin-top:8px;background:linear-gradient(135deg,#ef4444,#b91c1c);border:none;font-weight:700"><i class="ti ti-refresh-alert"></i> 🔁 Refazer Jan 2025 do zero</button>
-  <div style="font-size:10px;color:var(--t3);margin-top:6px;text-align:center">Use isto se a planilha atual ficou com número estranho — apaga e recoleta com o bot corrigido.</div>
-  <div style="font-size:11px;font-weight:800;color:#38bdf8;text-transform:uppercase;letter-spacing:.03em;margin:12px 0 6px">📅 Log da coleta — janela própria</div>
-  <div class="enrich-log" id="hist-build-log" style="height:200px"><div class="empty-state">Clique no botão acima pra ver os passos aqui.</div></div>
-  <div style="font-size:10px;color:var(--t3);margin-top:5px">Pode levar bastante tempo (milhares de vagas, coleta devagar de propósito) — roda em background, pode fechar a página.</div>
-</div>
 
-<!-- ══ 🔭 VIGIA DE JULHO 2026 — pedido do dono (07/07/2026): "fica sempre
-     ligado o bot de a cada cinco minutos porque se sair a julho de 2026 ele
-     deve fazer". Sonda o DOL a cada 5min e coleta+publica sozinho assim que
-     a temporada abrir — mostra aqui o status pro admin acompanhar. ══ -->
-<div id="next-season-box" style="background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(79,70,229,.05));border:1.5px solid rgba(139,92,246,.35);border-radius:14px;padding:16px;margin-bottom:16px">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-    <div style="font-size:28px">🔭</div>
-    <div style="flex:1;min-width:0">
-      <div style="font-size:14px;font-weight:800;color:#fff">Vigia de Julho 2026</div>
-      <div style="font-size:11px;color:var(--t3)">Checa o DOL sozinho a cada 5 minutos. Assim que Julho 2026 (H-2B) tiver a primeira vaga real publicada, coleta tudo e publica automaticamente — sem precisar clicar em nada.</div>
+  <!-- Stats -->
+  <div id="j26-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-bottom:12px">
+    <div class="empty-state" style="grid-column:1/-1">Carregando…</div>
+  </div>
+
+  <!-- Distribuição por grupo -->
+  <div id="j26-distribuicao" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px"></div>
+
+  <!-- Vigia automático -->
+  <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 13px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+      <div style="font-size:12px;font-weight:800;color:#c4b5fd">🔭 Vigia automático (checa dol.gov a cada 5min)</div>
+      <button class="btn btn-sm" id="j26-auto-toggle" onclick="j26ToggleAuto()" style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:var(--green);font-weight:800;font-size:10.5px;padding:4px 10px">…</button>
+    </div>
+    <div id="j26-auto-status" style="font-size:11px;color:var(--t3)">Carregando…</div>
+    <button class="btn btn-ghost btn-sm" onclick="j26CheckNow()" style="margin-top:8px;width:100%"><i class="ti ti-refresh"></i> Checar agora</button>
+  </div>
+
+  <!-- Upload manual -->
+  <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 13px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:#c4b5fd;margin-bottom:6px">📤 Importar manualmente</div>
+    <div style="font-size:10.5px;color:var(--t3);margin-bottom:8px">Suba o <strong>.xlsx</strong> original do DOL (PublicFacingReport) ou cole o CSV (Excel → Salvar como → CSV). Linha que não bater com a data de início de Julho 2026 é rejeitada automaticamente — nunca mistura com outra temporada.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <input type="file" id="j26-file-input" accept=".xlsx,.csv,text/csv" style="font-size:11px;color:var(--t2);flex:1;min-width:170px">
+      <button class="btn btn-primary btn-sm" id="j26-upload-btn" onclick="j26UploadFile()"><i class="ti ti-upload"></i> Importar arquivo</button>
+    </div>
+    <details style="font-size:10.5px;color:var(--t3)">
+      <summary style="cursor:pointer;font-weight:700">Ou colar CSV direto</summary>
+      <textarea id="j26-csv-paste" class="form-inp" rows="4" style="font-size:10.5px;font-family:monospace;margin-top:6px" placeholder="Case Number,Business Name,Worksite State,Randomization Group,Begin Date,Case Status&#10;H-400-26117-000001,Acme LLC,TEXAS,A,10/01/2026,Pending Processing"></textarea>
+      <button class="btn btn-secondary btn-sm" onclick="j26UploadCSVPaste()" style="margin-top:6px;width:100%">Importar CSV colado</button>
+    </details>
+    <div id="j26-upload-result" style="display:none;margin-top:8px;font-size:11.5px;font-weight:700;padding:7px 11px;border-radius:8px"></div>
+  </div>
+
+  <!-- Consulta individual -->
+  <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 13px;margin-bottom:14px">
+    <div style="font-size:12px;font-weight:800;color:#c4b5fd;margin-bottom:8px">🔍 Consultar / ajustar 1 case number</div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:8px">
+      <input class="form-inp" id="j26-lookup-cn" placeholder="H-400-26117-000000" style="text-transform:uppercase;font-size:12px">
+      <button class="btn btn-secondary btn-sm" onclick="j26Lookup()">Buscar</button>
+    </div>
+    <div id="j26-lookup-result" style="font-size:11.5px"></div>
+    <div style="display:grid;grid-template-columns:1fr 90px auto;gap:8px;margin-top:8px">
+      <input class="form-inp" id="j26-manual-cn" placeholder="Case number pra forçar grupo" style="text-transform:uppercase;font-size:12px">
+      <select class="form-inp" id="j26-manual-grupo" style="font-size:12px"><option value="">Grupo</option><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option><option>G</option><option>H</option></select>
+      <button class="btn btn-secondary btn-sm" onclick="j26SetManual()">Forçar</button>
     </div>
   </div>
-  <div id="next-season-status" style="font-size:12px;color:var(--t2);background:rgba(255,255,255,.04);border-radius:10px;padding:10px;margin-bottom:10px">Carregando status…</div>
-  <button class="btn btn-ghost btn-sm" onclick="nextSeasonCheckNow()" style="width:100%"><i class="ti ti-refresh"></i> Checar agora</button>
-</div>
 
-
-
-<!-- Modal: Configurar nova planilha DOL -->
-<div id="dol-build-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;padding:16px;align-items:center;justify-content:center">
-  <div style="background:#0f172a;border:1.5px solid rgba(16,185,129,.4);border-radius:18px;padding:24px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
-      <div style="font-size:28px">🌐</div>
-      <div style="flex:1">
-        <div style="font-size:16px;font-weight:800;color:#fff">Nova Planilha do DOL</div>
-        <div style="font-size:11px;color:var(--t3)">Cole o link Advanced Search e configure abaixo</div>
-      </div>
-      <button onclick="document.getElementById('dol-build-modal').style.display='none'" style="background:rgba(255,255,255,.1);border:none;border-radius:8px;color:#fff;padding:4px 10px;cursor:pointer;font-size:14px">✕</button>
-    </div>
-
-    <!-- URL -->
-    <div style="margin-bottom:14px">
-      <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px">🔗 Link Advanced Search do seasonaljobs.dol.gov</div>
-      <button type="button" onclick="dolPrefillJul2026()" style="width:100%;margin-bottom:8px;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;border-radius:9px;padding:9px;font-size:12px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit">📅 Preencher pra Julho 2026 (H-2B) — a próxima temporada</button>
-      <textarea id="dol-build-url" class="form-inp" rows="3" style="font-size:11px;font-family:monospace;resize:vertical" placeholder="https://seasonaljobs.dol.gov/archive?search=&location=&start_date=02/01/2026&job_type=H-2A&sort=relevancy&job_status=all"></textarea>
-      <div id="dol-build-url-info" style="font-size:10px;color:var(--t3);margin-top:4px">Cole o link e as configurações serão detectadas automaticamente. Dica: para uma temporada FECHADA no passado (não a atual), adicione <code>&end_date=MM/DD/AAAA</code> na URL — sem isso a busca fica em aberto e pode trazer vagas de temporadas seguintes junto.</div>
-    </div>
-
-    <!-- Visa detectada + info -->
-    <div id="dol-build-visa-detected" style="display:none;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:10px;margin-bottom:14px;font-size:12px;color:#6ee7b7"></div>
-
-    <!-- Nome -->
-    <div style="margin-bottom:14px">
-      <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px">📋 Nome da planilha</div>
-      <input type="text" id="dol-build-name" class="form-inp" placeholder="Ex: H-2A Janeiro 2026" style="font-size:13px">
-    </div>
-
-    <!-- Chave -->
-    <div style="margin-bottom:14px">
-      <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px">🗝️ Chave única (sem espaços)</div>
-      <input type="text" id="dol-build-key" class="form-inp" placeholder="Ex: h2a-jan2026" style="font-size:13px">
-    </div>
-
-    <!-- Quantidade -->
-    <div style="margin-bottom:18px">
-      <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px">🔢 Quantas vagas quer coletar?</div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px">
-        <button class="dol-qty-btn btn btn-ghost btn-sm" onclick="dolSetQty(100)" data-qty="100">100</button>
-        <button class="dol-qty-btn btn btn-ghost btn-sm" onclick="dolSetQty(300)" data-qty="300">300</button>
-        <button class="dol-qty-btn btn btn-ghost btn-sm" onclick="dolSetQty(500)" data-qty="500">500</button>
-        <button class="dol-qty-btn btn btn-ghost btn-sm" onclick="dolSetQty(1000)" data-qty="1000">1000</button>
-      </div>
-      <input type="number" inputmode="decimal" id="dol-build-qty" class="form-inp" value="500" min="50" max="20000" placeholder="Quantidade" style="font-size:13px">
-      <div style="font-size:10px;color:var(--t3);margin-top:4px">Teto de segurança: 20.000 vagas (o bot já para sozinho na quantidade REAL disponível — nunca inventa vaga pra bater esse número). Busca devagar para não sobrecarregar o DOL.</div>
-    </div>
-
-    <!-- Aviso H-2A -->
-    <div id="dol-build-h2a-tip" style="display:none;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:10px;margin-bottom:14px;font-size:11px;color:#fde68a">
-      ⚠️ <strong>Atenção:</strong> Vagas H-2A requerem perfil específico H-2A nos usuários. Ao publicar, o sistema avisará automaticamente que é necessário criar perfil H-2A.
-    </div>
-
-    <button type="button" class="btn btn-primary" style="width:100%;background:linear-gradient(135deg,#10b981,#059669);border:none;font-size:14px;padding:13px;font-weight:700" onclick="dolBuildStart()">
-      <i class="ti ti-rocket"></i> Iniciar Coleta
-    </button>
+  <div style="display:flex;gap:8px;margin-bottom:14px">
+    <button class="btn btn-ghost btn-sm" onclick="j26Export()" style="flex:1"><i class="ti ti-download"></i> Exportar mapa</button>
+    <button class="btn btn-ghost btn-sm" onclick="j26Reset()" style="flex:1;color:var(--red);border-color:rgba(239,68,68,.3)"><i class="ti ti-trash"></i> Resetar tudo</button>
   </div>
+
+  <div style="font-size:11px;font-weight:800;color:#c4b5fd;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px">📜 Últimas importações</div>
+  <div id="j26-historico" style="background:rgba(0,0,0,.25);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;max-height:220px;overflow-y:auto;font-size:11px;font-family:'JetBrains Mono',monospace;line-height:1.7"><div class="empty-state">Nenhuma importação ainda.</div></div>
 </div>
 
 <!-- Upload nova planilha -->
@@ -3809,7 +3618,7 @@ function showView(name) {
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
   const v = document.getElementById('view-'+name);
   if(v) v.classList.add('active');
-  const titles={dashboard:'Dashboard','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'Eventos & Crashes',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',pagantes:'💳 Pagantes',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas',eta:'📡 Monitor ETA — Robô de Monitoramento de Vagas',robos:'🤖 Robôs'};
+  const titles={dashboard:'Dashboard','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'Eventos & Crashes',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',pagantes:'💳 Pagantes',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas',robos:'🤖 Robôs'};
   setText('view-title', titles[name]||name);
   if(name==='robo-contabil' && typeof rcCheckGeminiStatus==='function') setTimeout(rcCheckGeminiStatus,300);
   if(name==='incidentes'){
@@ -3829,22 +3638,12 @@ function showView(name) {
   if(name==='events') renderEventsView();
   if(name==='codes') loadCodes();
   if(name==='ranking') loadRankingAdmin();
-  if(name==='eta') loadEtaAdmin();
   if(name==='planilhas'){
     // Verifica se bot de enriquecimento está rodando
     fetch('/api/admin/enrich/status',{credentials:'include'})
       .then(r=>r.json()).then(d=>{
         if(d.ok&&(d.running||d.total>0)){
           if(!_enrichPollTimer) enrichStartPoll();
-        }
-      }).catch(()=>{});
-    // Verifica se bot de construção DOL está rodando
-    fetch('/api/admin/sheet/build-status',{credentials:'include'})
-      .then(r=>r.json()).then(d=>{
-        if(d.ok&&(d.running||d.finishedAt)){
-          dolBuildShowProgress();
-          if(d.running) dolBuildStartPoll();
-          else dolBuildPoll(); // atualiza UI com último estado
         }
       }).catch(()=>{});
   }
@@ -3878,244 +3677,74 @@ function roboSubTab(name){
     real.style.display='block';
     panel.appendChild(real);
   }
-  if(name==='eta') loadEtaAdmin();
   if(name==='planilhas'){
     if(typeof loadPlanilhas==='function') loadPlanilhas();
-    if(typeof histBuildPoll==='function') histBuildPoll();
     fetch('/api/admin/enrich/status',{credentials:'include'})
       .then(r=>r.json()).then(d=>{
         if(d.ok&&(d.running||d.total>0)){
           if(!_enrichPollTimer) enrichStartPoll();
         }
       }).catch(()=>{});
-    fetch('/api/admin/sheet/build-status',{credentials:'include'})
-      .then(r=>r.json()).then(d=>{
-        if(d.ok&&(d.running||d.finishedAt)){
-          dolBuildShowProgress();
-          if(d.running) dolBuildStartPoll();
-          else dolBuildPoll();
-        }
-      }).catch(()=>{});
   }
   if(name==='robo-contabil' && typeof rcCheckGeminiStatus==='function') setTimeout(rcCheckGeminiStatus,300);
-  if(name==='dolmonitor'){
-    dolMonitorPoll();
-    dolMonitorSyncTestButton();
-    if(_dmPollTimer) clearInterval(_dmPollTimer);
-    _dmPollTimer=setInterval(dolMonitorPoll,10000); // atualiza a cada 10s enquanto a sub-aba estiver aberta
-  } else if(_dmPollTimer){
-    clearInterval(_dmPollTimer); _dmPollTimer=null;
-  }
+  if(name==='logs'){ loadBotLogs(); }
 }
 
-// ══════════════════════════════════════════════════════════
-//  📰 MONITOR DOL (ANÚNCIOS) — front-end da sub-aba (Parte 2)
-// ══════════════════════════════════════════════════════════
-let _dmPollTimer=null;
-function _dmFmtRelative(ts){
-  if(!ts) return '–';
-  const diffMs=ts-Date.now();
-  const abs=Math.abs(diffMs);
-  const min=Math.round(abs/60000);
-  if(min<1) return diffMs>=0?'em instantes':'agora mesmo';
-  if(min<60) return diffMs>=0?`em ${min}min`:`há ${min}min`;
-  const h=Math.round(min/60);
-  return diffMs>=0?`em ${h}h`:`há ${h}h`;
-}
-async function dolMonitorPoll(){
-  try{
-    const r=await fetch('/api/admin/dolmonitor/status',{credentials:'include'});
-    const d=await r.json();
-    if(!d.ok) return;
-    const statusEl=document.getElementById('dm-status-val');
-    if(statusEl){
-      const map={idle:'⏹ Ocioso',verificando:'🔍 Verificando…',baixando:'⬇️ Baixando…',processando:'⚙️ Processando…',concluido:'✅ Concluído',erro:'⚠️ Erro'};
-      statusEl.textContent=map[d.phase]||d.phase||'–';
-    }
-    setText('dm-last-check', _dmFmtRelative(d.lastCheckAt));
-    setText('dm-next-check', d.enabled ? _dmFmtRelative(d.nextCheckAt) : 'pausado');
-    setText('dm-imported-count', d.importedCount ?? 0);
-    const btnToggle=document.getElementById('dm-btn-toggle');
-    if(btnToggle) btnToggle.innerHTML = d.enabled ? '<i class="ti ti-player-pause"></i> Pausar robô' : '<i class="ti ti-player-play"></i> Ligar robô';
-    const lastBox=document.getElementById('dm-last-report');
-    if(lastBox){
-      if(d.lastReport){
-        lastBox.style.display='';
-        const dt=new Date(d.lastReport.importedAt).toLocaleString('pt-BR');
-        lastBox.innerHTML=`✅ Último relatório importado: <strong>${(d.lastReport.url||'').split('/').pop()}</strong><br>${d.lastReport.rows} linhas · ${d.lastReport.added} grupos novos/atualizados · ${dt}`;
-      } else {
-        lastBox.style.display='';
-        lastBox.style.background='rgba(245,158,11,.08)';lastBox.style.borderColor='rgba(245,158,11,.25)';lastBox.style.color='var(--amber)';
-        lastBox.innerHTML='⏳ Nenhum relatório importado por este robô ainda — aguardando o DOL publicar o próximo (ex.: Julho 2026).';
-      }
-    }
-    const logEl=document.getElementById('dm-log');
-    if(logEl && Array.isArray(d.log)){
-      if(d.log.length===0){ logEl.innerHTML='<div class="empty-state">Sem eventos ainda.</div>'; }
-      else {
-        logEl.innerHTML=d.log.map(l=>{
-          const cls=l.type==='ok'?'log-ok':l.type==='warn'?'log-warn':l.type==='error'?'log-error':'log-info';
-          const t=new Date(l.ts).toLocaleTimeString('pt-BR');
-          return `<div class="${cls}">[${t}] ${(l.msg||'').replace(/</g,'&lt;')}</div>`;
-        }).join('');
-      }
-    }
-    // 🧪 Janela SEPARADA do log de teste (não mistura com a de produção acima)
-    const testLogEl=document.getElementById('dm-test-log');
-    if(testLogEl && Array.isArray(d.testLog)){
-      if(d.testLog.length===0){ testLogEl.innerHTML='<div class="empty-state">Clique em "Rodar teste completo" para ver os passos aqui.</div>'; }
-      else {
-        testLogEl.innerHTML=d.testLog.map(l=>{
-          const cls=l.type==='ok'?'log-ok':l.type==='warn'?'log-warn':l.type==='error'?'log-error':'log-info';
-          const t=new Date(l.ts).toLocaleTimeString('pt-BR');
-          return `<div class="${cls}">[${t}] ${(l.msg||'').replace(/</g,'&lt;')}</div>`;
-        }).join('');
-      }
-    }
-    // 📚 Tabela de histórico (ícone por estação + status) e sua janela própria de log
-    const histTableEl=document.getElementById('dm-hist-table');
-    if(histTableEl && Array.isArray(d.historico)){
-      histTableEl.innerHTML=d.historico.map(h=>{
-        const bg=h.imported?'rgba(16,185,129,.12)':'rgba(255,255,255,.04)';
-        const bd=h.imported?'rgba(16,185,129,.35)':'rgba(255,255,255,.1)';
-        const badge=h.imported?'✅':'⏳';
-        return `<div style="background:${bg};border:1px solid ${bd};border-radius:10px;padding:8px 6px;text-align:center">
-          <div style="font-size:20px">${h.icon}</div>
-          <div style="font-size:10.5px;font-weight:700;margin-top:2px">${h.label}</div>
-          <div style="font-size:13px;margin-top:2px">${badge}</div>
-        </div>`;
-      }).join('');
-    }
-    const histLogEl=document.getElementById('dm-hist-log');
-    if(histLogEl && Array.isArray(d.histLog)){
-      if(d.histLog.length===0){ histLogEl.innerHTML='<div class="empty-state">Clique em "Importar histórico completo" para ver os passos aqui.</div>'; }
-      else {
-        histLogEl.innerHTML=d.histLog.map(l=>{
-          const cls=l.type==='ok'?'log-ok':l.type==='warn'?'log-warn':l.type==='error'?'log-error':'log-info';
-          const t=new Date(l.ts).toLocaleTimeString('pt-BR');
-          return `<div class="${cls}">[${t}] ${(l.msg||'').replace(/</g,'&lt;')}</div>`;
-        }).join('');
-      }
-    }
-  }catch(e){ console.warn('dolMonitorPoll:',e); }
-}
-async function dolMonitorToggle(){
-  const btn=document.getElementById('dm-btn-toggle');
-  const wantEnable = btn && btn.textContent.includes('Ligar');
-  try{
-    const r=await fetch('/api/admin/dolmonitor/toggle',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:wantEnable})});
-    await r.json();
-    dolMonitorPoll();
-  }catch(e){ if(typeof toast==='function') toast('Erro ao ligar/pausar o robô','error'); }
-}
-async function dolMonitorCheckNow(){
-  const btn=document.getElementById('dm-btn-check');
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Checando…'; }
-  try{
-    await fetch('/api/admin/dolmonitor/check-now',{method:'POST',credentials:'include'});
-    dolMonitorPoll();
-    setTimeout(dolMonitorPoll,3000);
-  }catch(e){}
-  finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-search"></i> Checar agora'; } }
-}
-async function dolMonitorNotifyNow(){
-  const btn=document.getElementById('dm-btn-notify');
-  if(!confirm('Isso envia um e-mail de alerta pra TODOS os usuários pagantes ativos que ainda não foram avisados sobre o último relatório importado. Confirma?')) return;
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Enviando…'; }
-  try{
-    const r=await fetch('/api/admin/dolmonitor/notify-now',{method:'POST',credentials:'include'});
-    const d=await r.json();
-    if(d.ok) toast(`✅ Enviado: ${d.sent} pagante(s), ${d.failed} falha(s) de ${d.total} elegíveis`,'ok');
-    else toast(d.error||'Erro','err');
-    dolMonitorPoll();
-  }catch(e){ toast('Erro ao disparar o alerta','err'); }
-  finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-mail-forward"></i> Avisar pagantes agora'; } }
-}
+// ══════════════════════════════════════════════════════════════════════════
+//  📜 LOGS DOS ROBÔS — feed unificado, pedido do dono (07/07/2026).
+// ══════════════════════════════════════════════════════════════════════════
+let _botLogsFilter='';
+const _botLogTypeIcon={info:'ℹ️',ok:'✅',warn:'⚠️',error:'❌'};
+const _botLogTypeColor={info:'var(--t3)',ok:'#10b981',warn:'#f59e0b',error:'#ef4444'};
 
-// 🧪 TESTE COM DADOS REAIS (Jan 2026) — roda os 2 passos: (1) pipeline de
-// grupos com o .xlsx real, sem notificar ninguém; (2) publica uma planilha
-// de teste pro Manual/Automático mostrarem de verdade.
-async function dolMonitorRunTest(){
-  const btn=document.getElementById('dm-btn-test');
-  const resBox=document.getElementById('dm-test-result');
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Rodando teste…'; }
-  if(resBox){ resBox.style.display=''; resBox.innerHTML='⏳ Rodando pipeline de grupos com o arquivo real de Janeiro...'; }
-  // Poll rápido SÓ da janela de teste enquanto a requisição roda, pra ver
-  // os passos (baixando/processando) aparecerem ao vivo, não só no final.
-  const _fastPoll=setInterval(dolMonitorPoll,900);
+async function loadBotLogs(){
+  const chipsEl=document.getElementById('bot-logs-chips');
+  const feedEl=document.getElementById('bot-logs-feed');
+  if(!chipsEl||!feedEl) return;
   try{
-    const r1=await fetch('/api/admin/dolmonitor/test-run',{method:'POST',credentials:'include'});
-    const d1=await r1.json();
-    dolMonitorPoll();
-    if(!d1.ok){ if(resBox)resBox.innerHTML='❌ Falhou no passo 1 (grupos): '+(d1.error||'erro'); return; }
-    const liveTag = d1.viaLiveDownload ? '✅ <strong>Baixou AO VIVO do dol.gov</strong> (não usou backup)' : '⚠️ Download ao vivo falhou — usou a cópia de backup salva no servidor';
-    if(resBox) resBox.innerHTML=`${liveTag}<br>✅ Passo 1/2: ${d1.rows} linhas lidas, ${d1.added} grupos novos/atualizados (total ${d1.totalGrupos} cases)<br>⏳ Publicando planilha de teste...`;
-    const r2=await fetch('/api/admin/sheet/test-publish-jan',{method:'POST',credentials:'include'});
-    const d2=await r2.json();
-    if(!d2.ok){ if(resBox)resBox.innerHTML+='<br>❌ Falhou no passo 2 (publicar planilha): '+(d2.error||'erro'); return; }
-    if(resBox) resBox.innerHTML=`${liveTag}<br>✅ Passo 1/2: ${d1.rows} linhas lidas, ${d1.added} grupos novos/atualizados (total ${d1.totalGrupos} cases)<br>✅ Passo 2/2: planilha de teste publicada com ${d2.count.toLocaleString('pt-BR')} vagas — chave <code>${d2.key}</code><br><br>👉 Abre o site (Manual e Automático) e confere. Quando terminar, clica em "Excluir teste".`;
-    toast('🧪 Teste completo! Confira no site.','ok');
-    dolMonitorSyncTestButton();
-    dolMonitorPoll();
-  }catch(e){ if(resBox)resBox.innerHTML='❌ Erro: '+e.message; }
-  finally{
-    clearInterval(_fastPoll);
-    if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-flask"></i> Rodar teste completo'; }
-  }
-}
-
-async function dolMonitorDeleteTest(){
-  if(!confirm('Isso remove a planilha de teste "🧪 TESTE — Jul 2026". A aba volta a mostrar "Em breve" pra todos (depois de atualizarem a página). Confirma?')) return;
-  const btn=document.getElementById('dm-btn-test-delete');
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Excluindo…'; }
-  try{
-    const r=await fetch('/api/admin/sheet/jul2026-teste',{method:'DELETE',credentials:'include'});
+    const url='/api/admin/bots/logs'+(_botLogsFilter?`?bot=${encodeURIComponent(_botLogsFilter)}&limit=300`:'?limit=300');
+    const r=await fetch(url,{credentials:'include'});
     const d=await r.json();
-    if(d.ok){
-      toast('✅ Planilha de teste excluída','ok');
-      const resBox=document.getElementById('dm-test-result');
-      if(resBox){ resBox.style.display=''; resBox.innerHTML='🗑️ Teste excluído. A aba "Jul 2026" volta a mostrar "Em breve" pra quem atualizar a página.'; }
-    } else toast(d.error||'Erro','err');
-    dolMonitorSyncTestButton();
-  }catch(e){ toast('Erro ao excluir','err'); }
-  finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-trash"></i> Excluir teste'; } }
-}
+    if(!d.ok){ feedEl.innerHTML='<div class="empty-state" style="color:var(--red)">Erro ao carregar logs</div>'; return; }
 
-// Mostra/esconde o botão "Excluir teste" verificando se a planilha de teste existe
-async function dolMonitorSyncTestButton(){
-  try{
-    const r=await fetch('/api/admin/sheets',{credentials:'include'});
-    const d=await r.json();
-    const exists=(d.sheets||[]).some(sh=>sh.key==='jul2026-teste');
-    const delBtn=document.getElementById('dm-btn-test-delete');
-    if(delBtn) delBtn.style.display=exists?'':'none';
-  }catch(e){}
-}
+    // Chips de filtro por robô, com contador
+    const totalCount=Object.values(d.counts||{}).reduce((a,b)=>a+b,0);
+    chipsEl.innerHTML = [
+      `<button onclick="botLogsSetFilter('')" style="background:${!_botLogsFilter?'rgba(167,139,250,.18)':'rgba(255,255,255,.05)'};border:1px solid ${!_botLogsFilter?'rgba(167,139,250,.4)':'var(--border2)'};color:${!_botLogsFilter?'#a78bfa':'var(--t2)'};border-radius:20px;padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit">🌐 Todos <span style="opacity:.7">${totalCount}</span></button>`,
+      ...d.bots.map(b=>{
+        const n=d.counts?.[b.id]||0;
+        const active=_botLogsFilter===b.id;
+        return `<button onclick="botLogsSetFilter('${b.id}')" title="${esc(b.desc)}" style="background:${active?'rgba(167,139,250,.18)':'rgba(255,255,255,.05)'};border:1px solid ${active?'rgba(167,139,250,.4)':'var(--border2)'};color:${active?'#a78bfa':'var(--t2)'};border-radius:20px;padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit">${esc(b.label)} <span style="opacity:.7">${n}</span></button>`;
+      })
+    ].join('');
 
-// 📚 IMPORTAR HISTÓRICO COMPLETO (FY23–FY26) — baixa e mescla tudo de uma vez,
-// nunca avisa pagantes, idempotente (pode clicar de novo sem duplicar).
-async function dolMonitorImportHistorico(){
-  const btn=document.getElementById('dm-btn-hist');
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Importando histórico…'; }
-  const _fastPoll=setInterval(dolMonitorPoll,900);
-  try{
-    const r=await fetch('/api/admin/dolmonitor/import-historico',{method:'POST',credentials:'include'});
-    const d=await r.json();
-    dolMonitorPoll();
-    if(d.ok){
-      const okCount=(d.resultados||[]).filter(x=>x.status==='ok').length;
-      const jaCount=(d.resultados||[]).filter(x=>x.status==='ja-existia').length;
-      const errCount=(d.resultados||[]).filter(x=>x.status==='erro').length;
-      toast(`📚 Histórico: ${okCount} importado(s), ${jaCount} já existia(m)${errCount?`, ${errCount} não encontrado(s)`:''}`, errCount?'warn':'ok');
-    } else {
-      toast(d.error||'Erro ao importar histórico','err');
+    if(!d.logs.length){
+      feedEl.innerHTML='<div class="empty-state">Nenhum log ainda — os robôs vão aparecer aqui assim que rodarem.</div>';
+      return;
     }
-  }catch(e){ toast('Erro ao importar histórico: '+e.message,'err'); }
-  finally{
-    clearInterval(_fastPoll);
-    if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-database-import"></i> Importar histórico completo'; }
-  }
+    feedEl.innerHTML=d.logs.map(l=>{
+      const icon=_botLogTypeIcon[l.type]||'ℹ️';
+      const color=_botLogTypeColor[l.type]||'var(--t3)';
+      const time=new Date(l.ts).toLocaleString('pt-BR');
+      return `<div style="display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border)">
+        <div style="font-size:15px;flex-shrink:0">${icon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
+            <strong style="font-size:12px;color:#a78bfa">${esc(l.botLabel||l.bot)}</strong>
+            <span style="font-size:10px;color:var(--t3)">${time}</span>
+          </div>
+          <div style="font-size:12.5px;color:${color};margin-top:2px;word-break:break-word">${esc(l.msg)}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){ feedEl.innerHTML='<div class="empty-state" style="color:var(--red)">Erro: '+esc(e.message)+'</div>'; }
 }
+function botLogsSetFilter(botId){
+  _botLogsFilter=botId;
+  loadBotLogs();
+}
+// Atualiza sozinho a cada 20s, só enquanto a sub-aba "logs" estiver aberta.
+setInterval(()=>{ if(window._roboActiveSub==='logs') loadBotLogs(); }, 20_000);
 
 // ══════════════════════════════════════════════════════════
 //  DATA FETCH
@@ -6775,105 +6404,6 @@ async function hideFromRanking(uid,hide){
 // ══════════════════════════════════════════════════════════
 //  SETTINGS
 // ══════════════════════════════════════════════════════════
-// ══ 📡 MONITOR ETA (admin) ═══════════════════════════════════════════════
-let _etaWorkerEnabled=true;
-async function loadEtaAdmin(){
-  const box=document.getElementById('eta-admin-stats');
-  try{
-    const r=await fetch('/api/admin/eta/stats',{credentials:'include'});
-    const d=await r.json();
-    if(!d.ok)throw new Error(d.error||'Erro');
-    _etaWorkerEnabled=d.workerEnabled!==false;
-    const tbtn=document.getElementById('eta-toggle-btn');
-    if(tbtn){
-      tbtn.innerHTML=_etaWorkerEnabled?'🟢 Robô LIGADO — pausar':'🔴 Robô PAUSADO — ligar';
-      tbtn.style.background=_etaWorkerEnabled?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)';
-      tbtn.style.borderColor=_etaWorkerEnabled?'rgba(16,185,129,.4)':'rgba(239,68,68,.4)';
-      tbtn.style.color=_etaWorkerEnabled?'var(--green)':'var(--red)';
-    }
-    const fmt=ts=>ts?new Date(ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'–';
-    const cards=[
-      ['📦 Vagas monitoradas',(d.total||0).toLocaleString('pt-BR'),'#3b82f6'],
-      ['⏳ Na fila agora',(d.fila||0).toLocaleString('pt-BR'),'#f59e0b'],
-      ['🔍 Consultas hoje',String(d.checksToday||0),'#10b981'],
-      ['⚠️ Erros hoje',String(d.errorsToday||0),d.errorsToday>0?'#ef4444':'#94a3b8'],
-      ['✨ Com atualização (48h)',String(d.updAtivas||0),'#a855f7'],
-      ['🕓 Última sincronização',fmt(d.lastSyncAt),'#0891b2'],
-      ['⏭️ Próxima consulta',fmt(d.proximaConsulta),'#0891b2'],
-      ['📥 Último seed de planilha',fmt(d.lastSeedAt),'#94a3b8'],
-    ];
-    box.innerHTML=cards.map(([l,v,c])=>`<div style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:11px 13px"><div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em">${l}</div><div style="font-size:17px;font-weight:800;color:${c};margin-top:3px;font-family:'JetBrains Mono',monospace">${v}</div></div>`).join('');
-    const bs=document.getElementById('eta-by-status');
-    if(bs)bs.innerHTML=Object.entries(d.byStatus||{}).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:8px"><span style="color:var(--t2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${k}</span><span style="font-weight:800;font-family:'JetBrains Mono',monospace">${v.toLocaleString('pt-BR')}</span></div>`).join('')||'–';
-    const bg=document.getElementById('eta-by-grupo');
-    const gEmoji={A:'🟢',B:'🟡',C:'🔵',D:'🔴'};
-    if(bg)bg.innerHTML=Object.entries(d.byGrupo||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div style="display:flex;justify-content:space-between;gap:8px"><span style="color:var(--t2)">${gEmoji[k]||'⚪'} ${k==='–'?'Sem grupo (aguardando Begin Date)':'Grupo '+k}</span><span style="font-weight:800;font-family:'JetBrains Mono',monospace">${v.toLocaleString('pt-BR')}</span></div>`).join('')||'–';
-    loadEtaLogs();
-  }catch(e){if(box)box.innerHTML=`<div style="color:var(--red);font-size:12px">Erro: ${e.message}</div>`;}
-}
-async function loadEtaLogs(){
-  const el=document.getElementById('eta-admin-logs');if(!el)return;
-  try{
-    const r=await fetch('/api/admin/eta/logs',{credentials:'include'});
-    const d=await r.json();
-    const logs=d.logs||[];
-    el.innerHTML=logs.length?logs.map(l=>{
-      const c=l.level==='err'?'var(--red)':l.level==='upd'?'var(--green)':'var(--t2)';
-      const t=new Date(l.at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      return `<div><span style="color:var(--t3)">[${t}]</span> <span style="color:${c}">${l.msg.replace(/[<>&]/g,ch=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch]))}</span></div>`;
-    }).join(''):'<div style="color:var(--t3)">Nenhum evento ainda — o robô loga cada mudança de status e importação aqui.</div>';
-  }catch(e){el.innerHTML=`<div style="color:var(--red)">Erro: ${e.message}</div>`;}
-}
-async function etaAdminToggle(){
-  try{
-    const r=await fetch('/api/admin/eta/toggle',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:!_etaWorkerEnabled})});
-    const d=await r.json();
-    if(d.ok){toast(d.workerEnabled?'🟢 Robô ETA ligado':'⏸️ Robô ETA pausado','ok');loadEtaAdmin();}
-    else toast(d.error||'Erro','err');
-  }catch(e){toast(e.message,'err');}
-}
-async function etaAdminCheckNow(){
-  const cn=(document.getElementById('eta-cn-input')?.value||'').trim().toUpperCase();
-  const rs=document.getElementById('eta-admin-action-result');
-  if(!cn){if(rs){rs.textContent='⚠️ Informe o case number.';rs.style.color='var(--amber)';}return;}
-  try{
-    const r=await fetch('/api/admin/eta/check-now',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({caseNumber:cn})});
-    const d=await r.json();
-    if(d.ok){if(rs){rs.textContent='✅ '+cn+' entrou na frente da fila — consulta disparada agora. Veja os logs em instantes.';rs.style.color='var(--green)';}setTimeout(loadEtaAdmin,4000);}
-    else{if(rs){rs.textContent='❌ '+(d.error||'Erro');rs.style.color='var(--red)';}}
-  }catch(e){if(rs){rs.textContent='❌ '+e.message;rs.style.color='var(--red)';}}
-}
-async function etaAdminUploadGrupos(){
-  const inp=document.getElementById('eta-grupos-file');
-  const btn=document.getElementById('eta-grupos-btn');
-  const out=document.getElementById('eta-grupos-result');
-  const show=(msg,ok)=>{if(out){out.style.display='block';out.style.background=ok?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)';out.style.color=ok?'#34d399':'#f87171';out.textContent=msg;}};
-  const file=inp?.files?.[0];
-  if(!file){show('⚠️ Escolha o arquivo CSV primeiro (Excel → Salvar como → CSV).',false);return;}
-  if(file.size>25*1024*1024){show('⚠️ Arquivo muito grande (máx 25MB).',false);return;}
-  btn.disabled=true;btn.innerHTML='<span class="spin spin-sm"></span> Importando...';
-  try{
-    const csv=await file.text();
-    const r=await fetch('/api/admin/eta/upload-grupos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({csv,fonte:file.name})});
-    const d=await r.json();
-    if(!r.ok)throw new Error(d.error||'Falha na importação');
-    show(`✅ ${d.adicionados} grupos novos/atualizados — total de ${d.total} cases com grupo oficial. Registro do robô corrigido na hora.`,true);
-    if(typeof loadEtaAdmin==='function')loadEtaAdmin();
-  }catch(e){show('❌ '+e.message,false);}
-  finally{btn.disabled=false;btn.innerHTML='<i class="ti ti-upload"></i> Importar grupos';}
-}
-async function etaAdminSetGrupo(){
-  const cn=(document.getElementById('eta-cn-grupo-input')?.value||'').trim().toUpperCase();
-  const gr=document.getElementById('eta-grupo-sel')?.value||'';
-  const rs=document.getElementById('eta-admin-action-result');
-  if(!cn){if(rs){rs.textContent='⚠️ Informe o case number.';rs.style.color='var(--amber)';}return;}
-  try{
-    const r=await fetch('/api/admin/eta/set-grupo',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({caseNumber:cn,grupo:gr})});
-    const d=await r.json();
-    if(d.ok){if(rs){rs.textContent='✅ Grupo de '+cn+' → '+(d.grupo||'automático');rs.style.color='var(--green)';}loadEtaAdmin();}
-    else{if(rs){rs.textContent='❌ '+(d.error||'Erro');rs.style.color='var(--red)';}}
-  }catch(e){if(rs){rs.textContent='❌ '+e.message;rs.style.color='var(--red)';}}
-}
 
 async function loadSettings(){
   const el=document.getElementById('settings-form');
@@ -6889,14 +6419,6 @@ async function loadSettings(){
         <div style="display:flex;align-items:center;gap:10px">
           <input type="checkbox" id="cfg-email-notif-en" ${s.emailNotificationsEnabled===true?'checked':''} style="accent-color:var(--red);width:16px;height:16px">
           <label for="cfg-email-notif-en" style="font-size:12px;font-weight:700;cursor:pointer">${s.emailNotificationsEnabled===true?'✅ Ligado — enviando normalmente':'⏸️ Desligado — nenhum e-mail automático está sendo enviado'}</label>
-        </div>
-      </div>
-      <div class="form-group" style="background:rgba(16,185,129,.06);border:1.5px solid rgba(16,185,129,.25);border-radius:12px;padding:13px">
-        <label class="form-label" style="color:#34d399">🚨 Alerta "Saiu a lista randomizada" pra pagantes</label>
-        <div style="font-size:11px;color:var(--t3);line-height:1.5;margin:4px 0 8px">Independente do toggle acima. Quando o Monitor DOL (aba 🤖 Robôs) importa um relatório novo de randomização, avisa por e-mail todos os usuários pagantes ativos — 1x por pagante, por relatório.</div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <input type="checkbox" id="cfg-report-alert-en" ${s.reportAlertEmailEnabled!==false?'checked':''} style="accent-color:var(--green);width:16px;height:16px">
-          <label for="cfg-report-alert-en" style="font-size:12px;font-weight:700;cursor:pointer">${s.reportAlertEmailEnabled!==false?'✅ Ligado — avisa pagantes quando sair lista nova':'⏸️ Desligado — ninguém é avisado'}</label>
         </div>
       </div>
       <div class="form-group">
@@ -6944,8 +6466,7 @@ async function saveSettings(){
   })).filter(sv=>sv.id>0);
   try{
     const emailNotifEnabled=!!document.getElementById('cfg-email-notif-en')?.checked;
-    const reportAlertEnabled=!!document.getElementById('cfg-report-alert-en')?.checked;
-    const body={newUserTrialDays:days,newUserTrialEnabled:enabled,newUserTrialPlan:plan,emailNotificationsEnabled:emailNotifEnabled,reportAlertEmailEnabled:reportAlertEnabled};
+    const body={newUserTrialDays:days,newUserTrialEnabled:enabled,newUserTrialPlan:plan,emailNotificationsEnabled:emailNotifEnabled};
     if(servers.length)body.servers=servers;
     const r=await fetch('/api/admin/settings',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json();
@@ -11627,6 +11148,14 @@ async function rcStart(){
     rcLog('info','💡 Baixe o relatório e envie para o desenvolvedor para melhorias!');
     toast('✅ Auditoria do Gemini concluída! Baixe o relatório.','g');
 
+    // 📜 Log unificado (aba "Logs dos Robôs") — resumo da auditoria.
+    try{
+      fetch('/api/admin/bots/log-run',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({bot:'robo-auditoria',botLabel:'Robô de Auditoria',
+          msg:`Análise concluída: ${total} usuário(s), ${ok>=0?ok:0} robô(s) ok, ${travados} travado(s), ${d.pedidosPendentes||0} pedido(s) pendente(s)`,
+          type:travados>0?'warn':'ok'})});
+    }catch(e){}
+
   }catch(e){
     rcLog('err','❌ Erro de conexão: '+e.message);
   }finally{
@@ -11849,6 +11378,7 @@ async function enrichPollStatus(){
 async function loadPlanilhas(){
   const list = document.getElementById('pl-list');
   if(list) list.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div>';
+  if(typeof j26LoadStatus==='function') j26LoadStatus();
   try{
     const r = await fetch('/api/admin/sheets',{credentials:'include'});
     const d = await r.json();
@@ -11919,6 +11449,159 @@ async function loadPlanilhas(){
     const list=document.getElementById('pl-list');
     if(list) list.innerHTML=`<div class="empty-state" style="color:var(--red)">Erro: ${esc(e.message)}</div>`;
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  🎯 GRUPOS — JULHO 2026 — front do admin
+// ══════════════════════════════════════════════════════════════════════════
+let _j26AutoEnabled=true;
+function _j26TimeAgo(ts){
+  if(!ts) return 'nunca';
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60) return `${s}s atrás`;
+  if(s<3600) return `${Math.floor(s/60)}min atrás`;
+  return `${Math.floor(s/3600)}h atrás`;
+}
+async function j26LoadStatus(){
+  const statsEl=document.getElementById('j26-stats');
+  const distEl=document.getElementById('j26-distribuicao');
+  const autoStatusEl=document.getElementById('j26-auto-status');
+  const autoBtn=document.getElementById('j26-auto-toggle');
+  const histEl=document.getElementById('j26-historico');
+  if(!statsEl) return;
+  try{
+    const r=await fetch('/api/admin/grupos-j26/status',{credentials:'include'});
+    const d=await r.json();
+    if(!d.ok){ statsEl.innerHTML=`<div class="empty-state" style="color:var(--red);grid-column:1/-1">Erro ao carregar</div>`; return; }
+    _j26AutoEnabled = d.meta.autoCheckEnabled!==false;
+
+    const cards=[
+      ['📦 Vagas com grupo', d.total.toLocaleString('pt-BR'), '#a78bfa'],
+      ['✏️ Ajustadas manualmente', d.manuais.toLocaleString('pt-BR'), '#f59e0b'],
+      ['📥 Última importação', d.meta.ultimaImportacao ? new Date(d.meta.ultimaImportacao.at).toLocaleDateString('pt-BR') : '–', '#0891b2'],
+    ];
+    statsEl.innerHTML=cards.map(([l,v,c])=>`<div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:9px 11px"><div style="font-size:9.5px;font-weight:700;color:var(--t3);text-transform:uppercase">${l}</div><div style="font-size:15px;font-weight:800;color:${c};margin-top:2px">${v}</div></div>`).join('');
+
+    const gEmoji={A:'🟢',B:'🟡',C:'🔵',D:'🔴',E:'🟣',F:'🟠',G:'⚪',H:'⚫'};
+    const grupos=Object.entries(d.byGrupo||{}).sort((a,b)=>a[0].localeCompare(b[0]));
+    distEl.innerHTML = grupos.length
+      ? grupos.map(([g,n])=>`<div style="background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700">${gEmoji[g]||'⚪'} ${g}: <span style="color:#a78bfa">${n.toLocaleString('pt-BR')}</span></div>`).join('')
+      : `<div style="font-size:11px;color:var(--t3)">Nenhum grupo importado ainda.</div>`;
+
+    if(autoBtn){
+      autoBtn.innerHTML = _j26AutoEnabled ? '🟢 Ligado — pausar' : '🔴 Pausado — ligar';
+      autoBtn.style.background = _j26AutoEnabled ? 'rgba(16,185,129,.15)' : 'rgba(239,68,68,.15)';
+      autoBtn.style.borderColor = _j26AutoEnabled ? 'rgba(16,185,129,.4)' : 'rgba(239,68,68,.4)';
+      autoBtn.style.color = _j26AutoEnabled ? 'var(--green)' : 'var(--red)';
+    }
+    if(autoStatusEl){
+      const resLabel={'nao-encontrado':'⏳ Relatório de Julho 2026 ainda não publicado','ja-importado':'✅ Já importado, só observando','importado':'✅ Importado com sucesso','erro':'⚠️ Erro na última checagem'}[d.meta.ultimoResultadoAuto]||'⏳ Aguardando primeira checagem';
+      autoStatusEl.innerHTML = `${resLabel} · última checagem: <strong>${_j26TimeAgo(d.meta.ultimaChecagemAutoAt)}</strong> (${d.meta.checksCount||0} no total)`;
+    }
+    if(histEl){
+      const hist=d.meta.historicoImportacoes||[];
+      histEl.innerHTML = hist.length
+        ? hist.map(h=>`<div>[${new Date(h.at).toLocaleString('pt-BR')}] <span style="color:#a78bfa">${esc(h.fonte)}</span>${h.arquivo?` (${esc(h.arquivo)})`:''} — <span style="color:var(--green)">+${h.novos} novo(s)</span>, ${h.atualizados} atualizado(s)${h.rejeitados?`, <span style="color:var(--amber)">${h.rejeitados} rejeitado(s)</span>`:''}</div>`).join('')
+        : `<div class="empty-state">Nenhuma importação ainda.</div>`;
+    }
+  }catch(e){ statsEl.innerHTML=`<div class="empty-state" style="color:var(--red);grid-column:1/-1">Erro: ${esc(e.message)}</div>`; }
+}
+async function j26ToggleAuto(){
+  try{
+    const r=await fetch('/api/admin/grupos-j26/toggle-auto',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:!_j26AutoEnabled})});
+    const d=await r.json();
+    if(d.ok){ toast(d.enabled?'🟢 Vigia ligado':'⏸️ Vigia pausado','ok'); j26LoadStatus(); }
+    else toast(d.error||'Erro','err');
+  }catch(e){ toast(e.message,'err'); }
+}
+async function j26CheckNow(){
+  toast('🔍 Checando o site do DOL agora…','g');
+  try{
+    const r=await fetch('/api/admin/grupos-j26/check-now',{method:'POST',credentials:'include'});
+    const d=await r.json();
+    if(d.ok){
+      const res=d.result||{};
+      if(res.imported) toast('🎉 Relatório de Julho 2026 encontrado e importado!','g');
+      else if(res.found && res.jaImportado) toast('Relatório já tinha sido importado antes.','ok');
+      else if(res.found===false) toast('Ainda não achei o relatório de Julho 2026 no site do DOL.','warn');
+      else toast('Checagem concluída — veja o log.','ok');
+    } else toast(d.error||'Erro','err');
+    j26LoadStatus();
+  }catch(e){ toast(e.message,'err'); }
+}
+async function j26UploadFile(){
+  const inp=document.getElementById('j26-file-input');
+  const btn=document.getElementById('j26-upload-btn');
+  const out=document.getElementById('j26-upload-result');
+  const show=(msg,ok)=>{if(out){out.style.display='block';out.style.background=ok?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)';out.style.color=ok?'#34d399':'#f87171';out.textContent=msg;}};
+  const file=inp?.files?.[0];
+  if(!file){ show('⚠️ Escolha um arquivo primeiro.',false); return; }
+  if(file.size>30*1024*1024){ show('⚠️ Arquivo muito grande (máx 30MB).',false); return; }
+  btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Importando...';
+  try{
+    let body;
+    if(/\.xlsx$/i.test(file.name)){
+      const buf=await file.arrayBuffer();
+      const b64=btoa(new Uint8Array(buf).reduce((s,b)=>s+String.fromCharCode(b),''));
+      body={xlsxBase64:b64, filename:file.name};
+    } else {
+      const text=await file.text();
+      body={csv:text, filename:file.name};
+    }
+    const r=await fetch('/api/admin/grupos-j26/upload',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error||'Falha na importação');
+    show(`✅ ${d.novos||0} novo(s), ${d.atualizados||0} atualizado(s)${d.rejeitados?`, ${d.rejeitados} rejeitado(s)`:''} de ${d.totalNoRelatorio||'?'} linha(s) no arquivo.`,true);
+    j26LoadStatus();
+  }catch(e){ show('❌ '+e.message,false); }
+  finally{ btn.disabled=false; btn.innerHTML='<i class="ti ti-upload"></i> Importar arquivo'; }
+}
+async function j26UploadCSVPaste(){
+  const csv=document.getElementById('j26-csv-paste')?.value||'';
+  const out=document.getElementById('j26-upload-result');
+  const show=(msg,ok)=>{if(out){out.style.display='block';out.style.background=ok?'rgba(16,185,129,.12)':'rgba(239,68,68,.12)';out.style.color=ok?'#34d399':'#f87171';out.textContent=msg;}};
+  if(!csv.trim()){ show('⚠️ Cole o CSV primeiro.',false); return; }
+  try{
+    const r=await fetch('/api/admin/grupos-j26/upload',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({csv,filename:'colado-manualmente.csv'})});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error||'Falha na importação');
+    show(`✅ ${d.novos||0} novo(s), ${d.atualizados||0} atualizado(s)${d.rejeitados?`, ${d.rejeitados} rejeitado(s)`:''}.`,true);
+    j26LoadStatus();
+  }catch(e){ show('❌ '+e.message,false); }
+}
+async function j26Lookup(){
+  const cn=(document.getElementById('j26-lookup-cn')?.value||'').trim().toUpperCase();
+  const out=document.getElementById('j26-lookup-result');
+  if(!cn){ if(out)out.innerHTML='<span style="color:var(--amber)">Informe o case number.</span>'; return; }
+  try{
+    const r=await fetch('/api/admin/grupos-j26/lookup?cn='+encodeURIComponent(cn),{credentials:'include'});
+    const d=await r.json();
+    if(!d.ok){ if(out)out.innerHTML=`<span style="color:var(--red)">${esc(d.error||'Não encontrado')}</span>`; return; }
+    if(out)out.innerHTML=`<strong style="color:#a78bfa">Grupo ${esc(d.grupo)}</strong>${d.manual?' <span style="color:var(--amber)">(ajuste manual)</span>':''} — ${esc(d.empresa||'–')} · ${esc(d.estado||'–')} · ${esc(d.status||'–')}`;
+  }catch(e){ if(out)out.innerHTML=`<span style="color:var(--red)">${esc(e.message)}</span>`; }
+}
+async function j26SetManual(){
+  const cn=(document.getElementById('j26-manual-cn')?.value||'').trim().toUpperCase();
+  const grupo=document.getElementById('j26-manual-grupo')?.value||'';
+  if(!cn||!grupo){ toast('Informe case number e grupo.','warn'); return; }
+  try{
+    const r=await fetch('/api/admin/grupos-j26/set-manual',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({cn,grupo})});
+    const d=await r.json();
+    if(d.ok){ toast(`✅ ${cn} → Grupo ${grupo} (protegido)`,'ok'); j26LoadStatus(); }
+    else toast(d.error||'Erro','err');
+  }catch(e){ toast(e.message,'err'); }
+}
+function j26Export(){
+  window.open('/api/admin/grupos-j26/export','_blank');
+}
+async function j26Reset(){
+  if(!confirm('Apagar TODOS os grupos de Julho 2026 já importados?\n\nIsso não pode ser desfeito — você vai precisar reimportar o relatório do zero.')) return;
+  try{
+    const r=await fetch('/api/admin/grupos-j26/reset',{method:'POST',credentials:'include'});
+    const d=await r.json();
+    if(d.ok){ toast(`🔁 ${d.apagados} case(s) apagado(s)`,'ok'); j26LoadStatus(); }
+    else toast(d.error||'Erro','err');
+  }catch(e){ toast(e.message,'err'); }
 }
 
 function plUploadJSON(){
@@ -12046,404 +11729,6 @@ Isso vai remover todas as ${key} vagas do automático e manual.`)) return;
     if(d.ok){ toast('✅ Planilha removida','g'); loadPlanilhas(); }
     else toast('Erro: '+(d.error||'?'),'r');
   }catch(e){ toast('Erro: '+e.message,'r'); }
-}
-
-// ════════════════════════════════════════════════════════════
-//  DOL BUILD BOT — Criar planilha do Advanced Search
-// ════════════════════════════════════════════════════════════
-let _dolBuildPollTimer = null;
-
-function dolBuildOpenModal(){
-  document.getElementById('dol-build-modal').style.display='flex';
-}
-
-function dolSetQty(n){
-  document.getElementById('dol-build-qty').value=n;
-  document.querySelectorAll('.dol-qty-btn').forEach(b=>{
-    b.style.background = parseInt(b.dataset.qty)===n ? 'rgba(16,185,129,.3)' : '';
-    b.style.borderColor = parseInt(b.dataset.qty)===n ? 'rgba(16,185,129,.7)' : '';
-    b.style.color = parseInt(b.dataset.qty)===n ? '#6ee7b7' : '';
-  });
-}
-
-// 📅 KB-079 (pedido do dono, 07/07/2026): reduz a zero a chance de digitar a
-// URL errada pra próxima temporada — preenche os 4 campos com os valores
-// corretos de Julho 2026 (H-2B), na MESMA convenção já usada em todo o
-// sistema (jan2026/jul2025/temporadas históricas): filing de Julho mira
-// início de contrato em 1º de Outubro do mesmo ano. O admin ainda confere
-// e clica "Iniciar Coleta" — nada roda sozinho, só evita erro de digitação.
-function dolPrefillJul2026(){
-  dolBuildOpenModal();
-  const urlEl=document.getElementById('dol-build-url');
-  const nameEl=document.getElementById('dol-build-name');
-  const keyEl=document.getElementById('dol-build-key');
-  const qtyEl=document.getElementById('dol-build-qty');
-  const url='https://seasonaljobs.dol.gov/archive?search=&location=&start_date=10/01/2026&end_date=04/01/2027&job_type=H-2B&sort=relevancy&job_status=all';
-  if(urlEl){ urlEl.value=url; urlEl.dispatchEvent(new Event('input')); }
-  if(nameEl) nameEl.value='Julho 2026 (H-2B)';
-  if(keyEl) keyEl.value='jul2026';
-  if(qtyEl) qtyEl.value=20000;
-  toast('📅 Preenchido para Julho 2026 — confira e clique em "Iniciar Coleta"','g');
-}
-
-// Detectar visa quando colar URL
-document.addEventListener('DOMContentLoaded',()=>{
-  const urlEl=document.getElementById('dol-build-url');
-  if(urlEl) urlEl.addEventListener('input',()=>{
-    const v=urlEl.value.trim();
-    const info=document.getElementById('dol-build-url-info');
-    const det=document.getElementById('dol-build-visa-detected');
-    const h2aTip=document.getElementById('dol-build-h2a-tip');
-    if(!v){det.style.display='none';if(h2aTip)h2aTip.style.display='none';return;}
-    try{
-      const u=new URL(v.startsWith('http')?v:'https://seasonaljobs.dol.gov'+v);
-      const jt=(u.searchParams.get('job_type')||'').toUpperCase();
-      const js=u.searchParams.get('job_status')||'all';
-      const sd=u.searchParams.get('start_date')||'';
-      const ed=u.searchParams.get('end_date')||'';
-      const isH2A=jt.includes('H-2A')||jt.includes('AGRICULTURAL');
-      const visa=isH2A?'H-2A':'H-2B';
-      const statusLabel=js==='active'?'🟢 Apenas ativas':js==='inactive'?'🔴 Inativas':'⚪ Todas (ativas + inativas)';
-      det.style.display='block';
-      det.innerHTML=`✅ URL válida detectada!<br>🪪 Visa: <strong>${visa}</strong> &nbsp;|&nbsp; 📋 Status: ${statusLabel}${sd?` &nbsp;|&nbsp; 📅 A partir de: ${sd}`:''}${ed?` até ${ed}`:' <span style="color:#f59e0b">(sem teto — pega até hoje/futuro)</span>'}`;
-      if(h2aTip) h2aTip.style.display=isH2A?'block':'none';
-      // Sugerir nome/key
-      const nameEl=document.getElementById('dol-build-name');
-      const keyEl=document.getElementById('dol-build-key');
-      if(nameEl&&!nameEl.value){
-        const now=new Date();
-        const mes=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][now.getMonth()];
-        nameEl.value=`${visa} ${mes} ${now.getFullYear()}`;
-      }
-      if(keyEl&&!keyEl.value&&nameEl){
-        keyEl.value=nameEl.value.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
-      }
-    }catch(e){ det.style.display='none'; if(h2aTip) h2aTip.style.display='none'; }
-  });
-});
-
-function dolBuildLogLine(msg,type){
-  const logEl=document.getElementById('dol-build-log'); if(!logEl) return;
-  const now=new Date().toLocaleTimeString('pt-BR');
-  logEl.innerHTML += `<div class="log-${type||'info'}">[${now}] ${esc(msg)}</div>`;
-  logEl.scrollTop=logEl.scrollHeight;
-}
-async function dolBuildStart(){
-  const urlEl=document.getElementById('dol-build-url');
-  const nameEl=document.getElementById('dol-build-name');
-  const keyEl=document.getElementById('dol-build-key');
-  const qtyEl=document.getElementById('dol-build-qty');
-  const searchUrl=(urlEl?.value||'').trim();
-  const sheetName=(nameEl?.value||'').trim();
-  const sheetKey=(keyEl?.value||'').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'');
-  let targetCount=parseInt(qtyEl?.value||'500');
-  if(!searchUrl){toast('Cole o link do DOL Advanced Search','r');return;}
-  if(!sheetName){toast('Digite um nome para a planilha','r');return;}
-  if(!sheetKey){toast('Digite uma chave única','r');return;}
-  if(!targetCount||isNaN(targetCount)||targetCount<50){toast('Mínimo 50 vagas','r');return;}
-  // 🔒 KB-079: este número é um TETO de segurança (evita um clique acidental
-  // pedindo milhões), NUNCA um alvo artificial — o bot já para sozinho na
-  // quantidade REAL de vagas únicas disponíveis (dedupe + detecção de pool
-  // esgotado, ver server.js). Antes o teto era 5000, o que TRUNCAVA
-  // temporadas com mais vagas reais que isso (ex.: Jan 2026 tem 9.240) —
-  // agora é 20000, folga suficiente pra qualquer temporada real do H-2B/H-2A.
-  if(targetCount>20000){ targetCount=20000; if(qtyEl) qtyEl.value=20000; toast('Máximo 20.000 por planilha — ajustei para 20.000','r'); }
-
-  // FECHA o modal e MOSTRA a caixa de log NA HORA — feedback visual garantido,
-  // mesmo se a chamada falhar. O log aparece sempre.
-  const modal=document.getElementById('dol-build-modal'); if(modal) modal.style.display='none';
-  dolBuildShowProgress();
-  const logEl=document.getElementById('dol-build-log'); if(logEl) logEl.innerHTML='';
-  const badge=document.getElementById('dol-build-status-badge');
-  dolBuildLogLine(`🚀 Iniciando: "${sheetName}" — ${targetCount} vagas`,'ok');
-  dolBuildLogLine(`🔗 ${searchUrl}`,'info');
-  dolBuildLogLine('📡 Enviando pedido ao servidor...','info');
-  if(badge) badge.textContent='⚡ Enviando...';
-
-  try{
-    const r=await fetch('/api/admin/sheet/build-from-dol',{
-      method:'POST',credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({searchUrl,sheetKey,sheetName,targetCount})
-    });
-    let d=null; try{ d=await r.json(); }catch(_){ d=null; }
-    if(r.ok && d && d.ok){
-      dolBuildLogLine(`✅ Servidor aceitou (${d.visaType||''}). Coletando do DOL...`,'ok');
-      toast(`🚀 Coleta iniciada: "${sheetName}"`,'g');
-      dolBuildStartPoll();
-    }else{
-      const motivo=((d&&d.error)||r.statusText||'sem resposta do servidor');
-      dolBuildLogLine(`❌ Servidor recusou (HTTP ${r.status}): ${motivo}`,'error');
-      dolBuildLogLine('Confira o link e tente novamente.','warn');
-      if(badge) badge.textContent='⏹ Erro';
-      const bN=document.getElementById('dol-build-btn-new'); if(bN) bN.style.display='';
-      const bS=document.getElementById('dol-build-btn-stop'); if(bS) bS.style.display='none';
-      toast('Falha ao iniciar — veja o log','r');
-    }
-  }catch(e){
-    dolBuildLogLine(`💥 Falha de rede ao falar com o servidor: ${e.message}`,'error');
-    if(badge) badge.textContent='⏹ Erro';
-    const bN=document.getElementById('dol-build-btn-new'); if(bN) bN.style.display='';
-    toast('Falha de rede — veja o log','r');
-  }
-}
-
-function dolBuildShowProgress(){
-  document.getElementById('dol-build-start-area').style.display='none';
-  document.getElementById('dol-build-progress-area').style.display='block';
-  document.getElementById('dol-build-btn-stop').style.display='';
-  document.getElementById('dol-build-btn-publish').style.display='none';
-  document.getElementById('dol-build-btn-new').style.display='none';
-}
-
-function dolBuildStartPoll(){
-  if(_dolBuildPollTimer) return;
-  _dolBuildPollTimer=setInterval(dolBuildPoll, 2500);
-  dolBuildPoll();
-}
-
-function dolBuildStopPoll(){
-  if(_dolBuildPollTimer){ clearInterval(_dolBuildPollTimer); _dolBuildPollTimer=null; }
-}
-
-async function dolBuildPoll(){
-  try{
-    const r=await fetch('/api/admin/sheet/build-status',{credentials:'include'});
-    const d=await r.json();
-    if(!d.ok) return;
-    const pct=d.pct||0;
-    const running=d.running;
-    const finished=!running&&d.finishedAt;
-
-    // Badge
-    const badge=document.getElementById('dol-build-status-badge');
-    if(badge){
-      if(running) badge.textContent='⚡ Rodando...';
-      else if(finished&&d.fetched>0) badge.textContent='✅ Concluído';
-      else badge.textContent='⏹ Parado';
-    }
-
-    // Progresso
-    const bar=document.getElementById('dol-build-prog-bar');
-    const pctEl=document.getElementById('dol-build-prog-pct');
-    const lblEl=document.getElementById('dol-build-prog-label');
-    if(bar) bar.style.width=pct+'%';
-    if(pctEl) pctEl.textContent=pct+'%';
-    if(lblEl) lblEl.textContent=running?(d.phase===2?`Fase 2/2 — verificando vaga por vaga... ${d.fetched||0}/${d.target||0} — ${d.name||''}`:`Fase 1/2 — listando case numbers... ${d.casesListed||0}/${d.target||0} — ${d.name||''}`):finished?`✅ Concluído: ${d.fetched||0} vagas verificadas`:'Aguardando...';
-
-    // Stats
-    const setT=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-    setT('dol-build-stat-fetched',d.fetched||0);
-    setT('dol-build-stat-saved',d.saved||0);
-    setT('dol-build-stat-errors',d.errors||0);
-
-    // Log
-    const logEl=document.getElementById('dol-build-log');
-    if(logEl&&d.log?.length){
-      const atBottom=logEl.scrollHeight-logEl.clientHeight-logEl.scrollTop<30;
-      logEl.innerHTML=d.log.map(l=>`<div class="log-${l.type||'info'}">[${new Date(l.ts).toLocaleTimeString('pt-BR')}] ${esc(l.msg)}</div>`).join('');
-      if(atBottom) logEl.scrollTop=logEl.scrollHeight;
-    }
-
-    // Mostrar/esconder botões
-    const btnStop=document.getElementById('dol-build-btn-stop');
-    const btnPublish=document.getElementById('dol-build-btn-publish');
-    const btnNew=document.getElementById('dol-build-btn-new');
-    if(btnStop) btnStop.style.display=running?'':'none';
-    if(finished&&(d.fetched||0)>0){
-      if(btnPublish) btnPublish.style.display=d.published?'none':'';
-      if(btnNew) btnNew.style.display='';
-      if(d.published&&btnPublish) btnPublish.textContent='✅ Publicada!';
-    }
-
-    // Se terminou, parar poll
-    if(!running) dolBuildStopPoll();
-
-    // Mostrar painel de progresso se bot rodando
-    if(running||finished){
-      const startArea=document.getElementById('dol-build-start-area');
-      const progArea=document.getElementById('dol-build-progress-area');
-      if(startArea) startArea.style.display='none';
-      if(progArea) progArea.style.display='block';
-    }
-  }catch(e){console.warn('[dol-build-poll]',e.message);}
-}
-
-// ════════════════════════════════════════════════════════════
-//  📅 COLETA DE TEMPORADAS HISTÓRICAS (FY23–FY25, vagas completas)
-// ════════════════════════════════════════════════════════════
-let _histBuildPollTimer=null;
-// 🔁 KB-080: refaz as 6 temporadas históricas TODAS DE UMA VEZ — apaga cada
-// uma (mesmo que já esteja "publicada") e recoleta do zero com o bot já
-// corrigido (sem duplicata, sem teto de 5000 artificial). Use quando TODAS
-// as 6 foram coletadas com o bot antigo (antes do KB-076).
-async function histRefazerTodas(){
-  if(!confirm('Refazer "Jan 2025" DO ZERO?\n\nA planilha atual será APAGADA (mesmo já publicada) e coletada de novo. Roda em background, pode fechar a página.')) return;
-  const btn=document.getElementById('hist-refazer-todas-btn');
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Refazendo…'; }
-  try{
-    const r=await fetch('/api/admin/sheet/historico-refazer-todas',{method:'POST',credentials:'include'});
-    const d=await r.json();
-    if(!d.ok){ toast(d.error||'Erro ao iniciar','r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-refresh-alert"></i> 🔁 Refazer Jan 2025 do zero';} return; }
-    toast('🔁 Refazendo Jan 2025 do zero — acompanhe no log abaixo','g');
-    if(!_histBuildPollTimer) _histBuildPollTimer=setInterval(histBuildPoll,3000);
-    histBuildPoll();
-  }catch(e){ toast('Erro: '+e.message,'r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-refresh-alert"></i> 🔁 Refazer Jan 2025 do zero';} }
-}
-async function histBuildStart(){
-  const btn=document.getElementById('hist-build-btn');
-  if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Coletando…'; }
-  try{
-    const r=await fetch('/api/admin/sheet/historico-collect-all',{method:'POST',credentials:'include'});
-    const d=await r.json();
-    if(!d.ok){ toast(d.error||'Erro ao iniciar','r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-history"></i> Coletar Jan 2025';} return; }
-    if(!_histBuildPollTimer) _histBuildPollTimer=setInterval(histBuildPoll,3000);
-    histBuildPoll();
-  }catch(e){ toast('Erro: '+e.message,'r'); if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-history"></i> Coletar Jan 2025';} }
-}
-async function histBuildPoll(){
-  try{
-    const r=await fetch('/api/admin/sheet/historico-status',{credentials:'include'});
-    const d=await r.json();
-    if(!d.ok) return;
-    const tableEl=document.getElementById('hist-build-table');
-    if(tableEl && Array.isArray(d.temporadas)){
-      tableEl.innerHTML=d.temporadas.map(t=>{
-        const dup=t.published && t.integrityOk===false; // KB-079: coletada com bot antigo, tinha duplicata
-        const bg=dup?'rgba(239,68,68,.12)':t.published?'rgba(16,185,129,.12)':'rgba(255,255,255,.04)';
-        const bd=dup?'rgba(239,68,68,.4)':t.published?'rgba(16,185,129,.35)':'rgba(255,255,255,.1)';
-        const badge=dup?'⚠️':t.published?'✅':'⏳';
-        const countTxt=dup?`${(t.uniqueCaseCount||0).toLocaleString('pt-BR')} únicas`:(t.count||0).toLocaleString('pt-BR');
-        return `<div style="background:${bg};border:1px solid ${bd};border-radius:10px;padding:8px 6px;text-align:center">
-          <div style="font-size:20px">${t.emoji}</div>
-          <div style="font-size:10.5px;font-weight:700;margin-top:2px">${t.name}</div>
-          <div style="font-size:13px;margin-top:2px" title="${dup?'Coletada com o bot antigo — tinha vaga duplicada. Refaça pra corrigir.':''}">${badge}</div>
-          ${t.published?`<div style="font-size:9px;color:${dup?'#fca5a5':'var(--t3)'};margin-top:1px">${countTxt}</div>`:''}
-          ${t.published?`<button onclick="histRefazer('${t.key}','${esc(t.name)}')" style="margin-top:5px;width:100%;background:${dup?'rgba(239,68,68,.18)':'rgba(255,255,255,.06)'};border:1px solid ${dup?'rgba(239,68,68,.4)':'rgba(255,255,255,.14)'};border-radius:7px;padding:4px 2px;font-size:9px;font-weight:700;color:${dup?'#fca5a5':'rgba(255,255,255,.7)'};cursor:pointer;font-family:inherit">🔁 Refazer</button>`:''}
-        </div>`;
-      }).join('');
-    }
-    const logEl=document.getElementById('hist-build-log');
-    if(logEl && Array.isArray(d.log)){
-      if(d.log.length===0){ logEl.innerHTML='<div class="empty-state">Clique no botão acima pra ver os passos aqui.</div>'; }
-      else{
-        const atBottom=logEl.scrollHeight-logEl.clientHeight-logEl.scrollTop<30;
-        logEl.innerHTML=d.log.map(l=>`<div class="log-${l.type||'info'}">[${new Date(l.ts).toLocaleTimeString('pt-BR')}] ${esc(l.msg)}</div>`).join('');
-        if(atBottom) logEl.scrollTop=logEl.scrollHeight;
-      }
-    }
-    const btn=document.getElementById('hist-build-btn');
-    if(btn){
-      if(d.running){ btn.disabled=true; btn.innerHTML='<span class="spin spin-sm"></span> Coletando…'; }
-      else{ btn.disabled=false; btn.innerHTML='<i class="ti ti-history"></i> Coletar Jan 2025'; if(_histBuildPollTimer){clearInterval(_histBuildPollTimer);_histBuildPollTimer=null;} }
-    }
-    const btnTodas=document.getElementById('hist-refazer-todas-btn');
-    if(btnTodas){
-      if(d.running){ btnTodas.disabled=true; btnTodas.innerHTML='<span class="spin spin-sm"></span> Refazendo…'; }
-      else{ btnTodas.disabled=false; btnTodas.innerHTML='<i class="ti ti-refresh-alert"></i> 🔁 Refazer Jan 2025 do zero'; }
-    }
-  }catch(e){ console.warn('[hist-build-poll]',e.message); }
-}
-
-// 🔁 KB-079: refaz UMA temporada histórica do zero (apaga a antiga, coleta de
-// novo com o bot já corrigido — sem duplicata, contagem real de vagas).
-async function histRefazer(key,name){
-  if(!confirm(`Refazer "${name}" do zero?\n\nA planilha atual será APAGADA e coletada de novo com o bot corrigido (sem duplicata). Isso pode levar alguns minutos — roda em background.`)) return;
-  try{
-    const r=await fetch('/api/admin/sheet/historico-refazer',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
-    const d=await r.json();
-    if(!d.ok){ toast(d.error||'Erro ao iniciar','r'); return; }
-    toast(`🔁 Refazendo "${name}"… acompanhe no log abaixo`,'g');
-    if(!_histBuildPollTimer) _histBuildPollTimer=setInterval(histBuildPoll,3000);
-    histBuildPoll();
-  }catch(e){ toast('Erro: '+e.message,'r'); }
-}
-
-// ════════════════════════════════════════════════════════════
-//  🔭 VIGIA DE JULHO 2026 — KB-082, checa a cada 5min sozinho no
-//  servidor; aqui só espelhamos o status pro admin acompanhar.
-// ════════════════════════════════════════════════════════════
-function _timeAgo(ts){
-  if(!ts) return 'nunca';
-  const s=Math.floor((Date.now()-ts)/1000);
-  if(s<60) return `${s}s atrás`;
-  if(s<3600) return `${Math.floor(s/60)}min atrás`;
-  return `${Math.floor(s/3600)}h atrás`;
-}
-async function nextSeasonPoll(){
-  const box=document.getElementById('next-season-status');
-  if(!box) return;
-  try{
-    const r=await fetch('/api/admin/sheet/next-season-status',{credentials:'include'});
-    const d=await r.json();
-    if(!d.ok) return;
-    if(d.published){
-      if(d.stillRefreshing){
-        const horasRestantes=Math.max(0,48-(d.hoursSincePublish||0));
-        box.innerHTML=`✅ <strong>${d.season.emoji} ${d.season.name}</strong> publicada — ${(d.count||0).toLocaleString('pt-BR')} vagas até agora.<br>🔁 Ainda atualizando a cada 5min por mais ${horasRestantes.toFixed(1)}h (pega vaga nova que for entrando) — última atualização: ${_timeAgo(d.lastRefreshAt)}.`;
-      }else{
-        box.innerHTML=`✅ <strong>${d.season.emoji} ${d.season.name}</strong> publicada e estabilizada — ${(d.count||0).toLocaleString('pt-BR')} vagas únicas.`;
-      }
-    }else{
-      box.innerHTML=`⏳ Ainda não abriu. Última checagem: <strong>${_timeAgo(d.lastCheckAt)}</strong> (${d.checksCount||0} no total) — próxima em até 5min.${d.checking?' <span class="spin spin-sm"></span> checando agora…':''}`;
-    }
-  }catch(e){ box.innerHTML='⚠️ Não foi possível carregar o status.'; }
-}
-async function nextSeasonCheckNow(){
-  const box=document.getElementById('next-season-status');
-  if(box) box.innerHTML='<span class="spin spin-sm"></span> Checando agora…';
-  try{
-    await fetch('/api/admin/sheet/next-season-check-now',{method:'POST',credentials:'include'});
-    toast('🔭 Checagem manual disparada — pode levar alguns segundos','g');
-    setTimeout(nextSeasonPoll,4000);
-  }catch(e){ toast('Erro: '+e.message,'r'); }
-}
-document.addEventListener('DOMContentLoaded',()=>{
-  nextSeasonPoll();
-  setInterval(nextSeasonPoll, 30_000); // atualiza o card a cada 30s (o servidor checa o DOL a cada 5min)
-});
-
-async function dolBuildStop(){
-  if(!confirm('Parar a coleta agora? O que já foi coletado será salvo.')) return;
-  try{
-    await fetch('/api/admin/sheet/build-stop',{method:'POST',credentials:'include'});
-    toast('⏹ Bot parado — dados coletados até aqui foram salvos','g');
-    dolBuildStopPoll();
-    setTimeout(dolBuildPoll,500);
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-
-async function dolBuildPublish(){
-  const btn=document.getElementById('dol-build-btn-publish');
-  const visaInfo=document.getElementById('dol-build-status-badge')?.textContent||'';
-  const isH2A=visaInfo.includes('H-2A')||btn?.dataset?.visa==='H-2A';
-  const confirmMsg=isH2A
-    ? '🌾 Publicar esta planilha H-2A?\n\n⚠️ Usuários precisam ter perfil H-2A cadastrado para usar essas vagas. O sistema não envia vagas H-2A para perfis H-2B.'
-    : 'Publicar esta planilha para os usuários no Automático e Manual?';
-  if(!confirm(confirmMsg)) return;
-  try{
-    const r=await fetch('/api/admin/sheet/build-publish',{method:'POST',credentials:'include'});
-    const d=await r.json();
-    if(d.ok){
-      toast(`📢 Planilha "${d.name}" publicada! ${d.count} vagas disponíveis para ${d.visaType}`,'g');
-      if(btn){ btn.textContent='✅ Publicada!'; btn.style.opacity='.6'; btn.disabled=true; }
-      setTimeout(loadPlanilhas, 1000);
-    }else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-
-function dolBuildReset(){
-  dolBuildStopPoll();
-  document.getElementById('dol-build-start-area').style.display='';
-  document.getElementById('dol-build-progress-area').style.display='none';
-  document.getElementById('dol-build-status-badge').textContent='⏹ Parado';
-  // Limpar modal
-  const url=document.getElementById('dol-build-url');if(url)url.value='';
-  const nm=document.getElementById('dol-build-name');if(nm)nm.value='';
-  const k=document.getElementById('dol-build-key');if(k)k.value='';
-  const qt=document.getElementById('dol-build-qty');if(qt)qt.value='500';
-  const det=document.getElementById('dol-build-visa-detected');if(det)det.style.display='none';
-  const h2aTip=document.getElementById('dol-build-h2a-tip');if(h2aTip)h2aTip.style.display='none';
 }
 
 // ════════════════════════════════════════════════════════════

@@ -242,13 +242,10 @@ const CODES_FILE  = path.join(DATA_DIR, "promo_codes.json"); // NEW: promo codes
 const PUSH_FILE   = path.join(DATA_DIR, "push_subs.json");   // NEW: push subscriptions
 const APPIDX_FILE = path.join(DATA_DIR, "app_index.json");   // NEW v13: índice de candidaturas
 const ADMIN_SETTINGS_FILE = path.join(DATA_DIR, "admin_settings.json"); // Admin global settings
-const REPORT_NOTIFS_FILE = path.join(DATA_DIR, "report_notifs.json"); // Controle de "avisei este pagante sobre este relatório" (1x cada)
-let DB_REPORT_NOTIFS = {}; // { [reportUrl]: { notifiedEmails:[], startedAt, doneAt } }
 const NOTIF_FILE     = path.join(DATA_DIR, "notifications.json");  // Global notifications from ADM
 const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
 const PEDIDOS_FILE     = path.join(DATA_DIR, "pedidos.json");         // Pedidos de plano dos usuários
 const FINANCEIRO_FILE  = path.join(DATA_DIR, "financeiro.json");      // Dados financeiros (entradas + gastos)
-const ETA_FILE         = path.join(DATA_DIR, "eta_registry.json");    // Monitor ETA: registro/histórico de todas as vagas por case number
 const BLOCKED_FILE     = path.join(DATA_DIR, "blocked_emails.json");  // Emails banidos permanentemente
 const TRIAL_USED_FILE  = path.join(DATA_DIR, "trial_used.json");       // Histórico anti-abuse: phones/IPs que já receberam trial
 // V951: cooldowns de notificação (admin+usuário) precisam sobreviver a
@@ -289,7 +286,7 @@ let DB_CODES  = {};   // NEW: promo codes { code → { manualDays, autoDays, cre
 let DB_PUSH   = {};   // NEW: push subscriptions { userEmail → PushSubscription[] }
 // NEW v13: índice de candidaturas — { userEmail → { byThread:{tid:appId}, byMsgId:{mid:appId}, byTo:{email:[appId,...]} } }
 let DB_APP_INDEX = {};
-let DB_ADMIN_SETTINGS = { etaWorkerEnabled: true, emailNotificationsEnabled: false, reportAlertEmailEnabled: true, newUserTrialEnabled: true, newUserTrialDays: 1, newUserTrialAutoDays: 0, newUserTrialPlan: "vip", editorPasswords: { andrew: "84800-54", diego: "Diego2026" },
+let DB_ADMIN_SETTINGS = { emailNotificationsEnabled: false, newUserTrialEnabled: true, newUserTrialDays: 1, newUserTrialAutoDays: 0, newUserTrialPlan: "vip", editorPasswords: { andrew: "84800-54", diego: "Diego2026" },
   // MULTI-SERVIDOR: lista de servidores exibida no seletor da landing.
   // status "lotado" = fechado p/ contas novas (só login); "aberto" = cadastro liberado.
   // maxExibido é o teto MOSTRADO na barra (pode ser menor que o real p/ marcar lotação).
@@ -334,8 +331,6 @@ let DB_FINANCEIRO  = {pagamentos:[],gastos:[]};  // Dados financeiros persistent
 // Registro permanente de TODAS as vagas por ETA Case Number: status, grupo,
 // histórico completo, agenda de consultas. Alimentado pelas planilhas +
 // worker independente que consulta o DOL 24/7 (não depende de interface).
-let DB_ETA      = { cases:{}, meta:{ createdAt:Date.now(), lastSeedAt:0, lastSyncAt:0, checksDay:"", checksToday:0, errorsToday:0 } };
-let DB_ETA_LOGS = []; // ring buffer em memória (últimos 400 eventos do robô)
 let DB_BLOCKED     = {emails:[]};               // Emails banidos permanentemente
 let DB_TRIAL_USED  = {phones:{},ips:{},googleIds:{}};  // Anti-abuse: {phones:{"+5511...":"email"}, ips:{"1.2.3.4":["email1","email2"]}, googleIds:{"108...":"email"}}
 // Base de Conhecimento Permanente — transferência de conhecimento entre IAs e versões
@@ -640,16 +635,12 @@ function boot() {
   DB_RANK_BADGES = load(RANK_BADGES_FILE, {});
   const savedAdminSettings = load(ADMIN_SETTINGS_FILE, null);
   if(savedAdminSettings) Object.assign(DB_ADMIN_SETTINGS, savedAdminSettings);
-  DB_REPORT_NOTIFS = load(REPORT_NOTIFS_FILE, {});
   DB_NOTIF    = load(NOTIF_FILE,    { notifications: [] });
   DB_SUGGESTIONS = load(SUGGESTIONS_FILE, []);
   if(!Array.isArray(DB_SUGGESTIONS)) DB_SUGGESTIONS = [];
   DB_PEDIDOS = load(PEDIDOS_FILE, []);
   if(!Array.isArray(DB_PEDIDOS)) DB_PEDIDOS = [];
   DB_FINANCEIRO = load(FINANCEIRO_FILE, {pagamentos:[],gastos:[],repasses:[]});
-  DB_ETA = load(ETA_FILE, { cases:{}, meta:{ createdAt:Date.now(), lastSeedAt:0, lastSyncAt:0, checksDay:"", checksToday:0, errorsToday:0 } });
-  if(!DB_ETA.cases) DB_ETA.cases={};
-  if(!DB_ETA.meta)  DB_ETA.meta={ createdAt:Date.now(), lastSeedAt:0, lastSyncAt:0, checksDay:"", checksToday:0, errorsToday:0 };
   if(!DB_FINANCEIRO.pagamentos) DB_FINANCEIRO = {pagamentos:[],gastos:[],repasses:[]};
   if(!Array.isArray(DB_FINANCEIRO.repasses)) DB_FINANCEIRO.repasses = []; // repasses entre sócios (dinheiro que um já pagou ao outro)
   DB_BLOCKED = load(BLOCKED_FILE, {emails:[]});
@@ -2008,6 +1999,20 @@ const SHEETS_META_FILE = path.join(DATA_DIR, "sheets_meta.json");
 let DB_SHEETS_META = {}; // { "jul2026": { name, file, uploaded, count, enriched, enrichedAt } }
 
 // ── Bot de Enriquecimento de Planilhas ──────────────────
+// ══════════════════════════════════════════════════════════════════════════
+//  📜 LOG UNIFICADO DE TODOS OS ROBÔS — pedido do dono (07/07/2026):
+//  "preciso de logs inteligentes pra eu visualizar na página adm" pra saber
+//  o que cada robô do sistema fez, quando e como. Ring buffer global — cada
+//  robô empurra uma linha aqui além do log próprio dele (não substitui,
+//  soma). Lido pela aba nova "📜 Logs dos Robôs" no admin.
+// ══════════════════════════════════════════════════════════════════════════
+const DB_BOT_LOGS = [];
+const BOT_LOG_CAP = 1500;
+function botLog(botId, botLabel, msg, type='info'){
+  DB_BOT_LOGS.unshift({ ts:Date.now(), bot:botId, botLabel, msg:String(msg||'').slice(0,400), type });
+  if(DB_BOT_LOGS.length>BOT_LOG_CAP) DB_BOT_LOGS.length=BOT_LOG_CAP;
+}
+
 const _enrichBot = {
   running: false,
   sheetKey: null,
@@ -2026,635 +2031,8 @@ function _enrichLog(msg, type='info'){
   _enrichBot.log.push(line);
   if(_enrichBot.log.length > 200) _enrichBot.log.shift();
   console.log(`[enrich] ${msg}`);
+  botLog('enrich','Enriquecimento de Planilha',msg,type);
 }
-
-// ── Bot de Construção de Planilha via DOL Advanced Search ──
-const _dolBuildBot = {
-  running: false,
-  key: null,
-  name: null,
-  visaType: null,  // 'H-2A' ou 'H-2B'
-  target: 0,       // quantas vagas o admin quer
-  fetched: 0,      // fase 2: quantas vagas já foram checadas individualmente
-  saved: 0,        // quantas com email salvas
-  errors: 0,
-  startedAt: null,
-  finishedAt: null,
-  published: false,
-  searchUrl: null, // URL original do advanced search
-  log: [],
-  phase: 0,          // 1 = listando case numbers, 2 = buscando vaga por vaga
-  casesListed: 0,    // fase 1: quantos case numbers já foram encontrados
-};
-
-function _dolBuildLog(msg, type='info'){
-  const line = { ts: Date.now(), msg, type };
-  _dolBuildBot.log.push(line);
-  if(_dolBuildBot.log.length > 300) _dolBuildBot.log.shift();
-  console.log(`[dol-build] ${msg}`);
-}
-
-// Parseia URL do advanced search do seasonaljobs.dol.gov para extrair filtros
-function _parseDolAdvancedUrl(urlStr){
-  try{
-    // Suporta: https://seasonaljobs.dol.gov/archive?search=&location=&start_date=02/01/2026&job_type=H-2A&sort=relevancy&job_status=all
-    const u = new URL(urlStr.startsWith('http') ? urlStr : 'https://seasonaljobs.dol.gov' + urlStr);
-    const params = u.searchParams;
-    const jobType   = params.get('job_type') || 'H-2B';   // 'H-2A' ou 'H-2B'
-    const jobStatus = params.get('job_status') || 'all';  // 'all', 'active'
-    const startDate = params.get('start_date') || '';
-    const endDateRaw= params.get('end_date') || '';
-    const search    = params.get('search') || '';
-    const location  = params.get('location') || '';
-    // Converte start_date/end_date MM/DD/YYYY → YYYY-MM-DD
-    const toIso = (mdy) => {
-      const parts = (mdy||'').split('/');
-      return parts.length===3 ? `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}` : '';
-    };
-    const beginDate = toIso(startDate);
-    // 🔒 KB-081 (pedido do dono, 07/07/2026): end_date é o TETO SUPERIOR da
-    // janela de uma temporada. Sem ele, um filtro "begin_date ge X" fica em
-    // aberto pra sempre e acaba capturando vagas de TODAS as temporadas
-    // seguintes também — foi isso que fez Jul2023/Jan2024/Jul2024/Jan2025
-    // devolverem a mesma quantidade (todas caíam no mesmo pool aberto) e
-    // Jul2022 bater no teto de 20000 (pool quase inteiro, sem limite).
-    const endDate = toIso(endDateRaw);
-    const visaClass = jobType.toUpperCase().includes('H-2A') ? 'H-2A' : 'H-2B';
-    const apiJobType = visaClass==='H-2A' ? 'agricultural' : 'non-agricultural';
-    return { visaClass, apiJobType, jobStatus, beginDate, endDate, search, location, ok: true };
-  }catch(e){
-    return { ok: false, error: e.message };
-  }
-}
-
-// Roda o bot de construção em background
-// ══════════════════════════════════════════════════════════════════════════
-//  🔎 LOOKUP INDIVIDUAL POR CASE NUMBER — pedido do dono (07/07/2026):
-//  "é pra usar o eta case number e acessar o site de cada vaga individual".
-//  Uma busca em lote com $filter de intervalo de data pode "encontrar
-//  qualquer vaga pra colocar" (o dono viu isso acontecer: Julho 2026 nem
-//  abriu de verdade — janela de filing foi 3-5/jul/2026, tudo ainda
-//  "Pending Processing" — e mesmo assim o bot antigo publicou 2.673 vagas
-//  completas, que não podiam ser reais). A partir de agora, a fonte da
-//  VERDADE de cada vaga é sempre o lookup EXATO por case number — nunca o
-//  campo solto de uma resposta em lote.
-//  1) tenta o datahub com $filter=case_number eq 'X' (exato, sem ambiguidade
-//     de intervalo — só pode voltar 0 ou 1 registro, o registro CERTO).
-//  2) se isso falhar, raspa https://seasonaljobs.dol.gov/jobs/{case_number}
-//     (a mesma página que o dono mandou de exemplo) e procura o bloco
-//     __NEXT_DATA__ com os dados da vaga.
-// ══════════════════════════════════════════════════════════════════════════
-function _deepFindByCaseNumber(node, caseNumber, depth){
-  depth = depth||0;
-  if(depth>7 || node==null || typeof node!=='object') return null;
-  if(!Array.isArray(node)){
-    const cn = node.case_number||node.caseNumber||node.case_id||node.caseId;
-    if(cn && String(cn).toUpperCase()===caseNumber.toUpperCase()) return node;
-  }
-  const keys = Array.isArray(node) ? node.map((_,i)=>i) : Object.keys(node);
-  for(const k of keys){
-    const found = _deepFindByCaseNumber(node[k], caseNumber, depth+1);
-    if(found) return found;
-  }
-  return null;
-}
-
-function _normalizeJobToRow(j, cn){
-  const pick = (...keys) => { for(const k of keys){ const v=j[k]; if(v!=null && v!=='' && v!=='N/A') return v; } return ''; };
-  const em = pick('apply_email','applyEmail','employer_email','employerEmail');
-  const wRaw = pick('basic_rate_from','basicRateFrom','wage_from','wageFrom');
-  const cnUp = cn.toUpperCase();
-  return {
-    c: cnUp,
-    t: pick('job_title','jobTitle','title') || 'Seasonal Worker',
-    n: pick('employer_business_name','employerBusinessName','employer_trade_name','employerTradeName','company') || '–',
-    s: String(pick('employer_state','employerState','worksite_state','worksiteState')||'').toUpperCase(),
-    ci: pick('employer_city','employerCity','worksite_city','worksiteCity'),
-    e: em,
-    w: wRaw ? String(parseFloat(wRaw).toFixed(2)) : '',
-    wunit: (pick('pay_range_desc','payRangeDesc')==='Month') ? 'mo' : 'h',
-    wk: parseInt(pick('total_positions','totalPositions')||0)||0,
-    d: String(pick('begin_date','beginDate')||'').slice(0,10),
-    de: String(pick('end_date','endDate')||'').slice(0,10),
-    ph: pick('apply_phone','applyPhone','employer_phone','employerPhone'),
-    desc: String(pick('job_duties','jobDuties','description')||'').replace(/\*\*[^*]+\*\*\n?/g,'').trim().slice(0,500),
-    soc: pick('soc_title','socTitle'),
-    url: `https://seasonaljobs.dol.gov/jobs/${cnUp}`,
-    visa: cnUp.startsWith('H-300') ? 'H-2A' : cnUp.startsWith('H-400') ? 'H-2B' : (pick('visa_class','visaClass')||'H-2B'),
-    k: detectCategory(`${pick('employer_business_name','employerBusinessName')||''} ${pick('job_title','jobTitle')||''} ${pick('soc_title','socTitle')||''}`),
-    active: pick('active')===true,
-  };
-}
-
-async function _fetchDolCaseByNumber(caseNumber, ua){
-  // 1) Lookup exato no datahub — SEM intervalo de data, filtro de igualdade
-  // pura. Não tem como "pegar vaga errada" aqui: ou bate o case number, ou
-  // não volta nada.
-  try{
-    const p = new URLSearchParams({'api-version':'2020-06-30'});
-    p.append('$filter', `case_number eq '${caseNumber.replace(/'/g,"''")}'`);
-    p.append('$top','1');
-    const {status,body} = await httpsReq({hostname:'api.seasonaljobs.dol.gov',path:'/datahub/?'+p,method:'GET',headers:{
-      'Accept':'application/json,text/plain,*/*','Accept-Encoding':'identity',
-      'User-Agent':ua,'Referer':'https://seasonaljobs.dol.gov/','Origin':'https://seasonaljobs.dol.gov',
-    }});
-    if(status===200){
-      const raw = body?.value||body?.results||body?.data||(Array.isArray(body)?body:[]);
-      if(raw && raw.length) return {ok:true, source:'datahub-exact', row:_normalizeJobToRow(raw[0], caseNumber)};
-    }
-  }catch{}
-  // 2) Fallback: a própria página individual que o dono mandou de exemplo
-  // (https://seasonaljobs.dol.gov/jobs/{case_number}) — raspa o bloco
-  // __NEXT_DATA__ (Next.js embute os dados da página nesse <script> JSON).
-  try{
-    const {status,body} = await httpsReq({hostname:'seasonaljobs.dol.gov',path:`/jobs/${encodeURIComponent(caseNumber)}`,method:'GET',headers:{
-      'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'User-Agent':ua,
-    }});
-    if(status===200 && typeof body==='string'){
-      const m = body.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
-      if(m){
-        let nd; try{ nd = JSON.parse(m[1]); }catch{ nd=null; }
-        const found = nd ? _deepFindByCaseNumber(nd, caseNumber) : null;
-        if(found) return {ok:true, source:'html-scrape', row:_normalizeJobToRow(found, caseNumber)};
-      }
-    }
-  }catch{}
-  return {ok:false};
-}
-
-async function _runDolBuildBot(searchUrl, sheetKey, sheetName, targetCount){
-  if(_dolBuildBot.running){
-    _dolBuildLog('Bot já está rodando','warn'); return;
-  }
-  const parsed = _parseDolAdvancedUrl(searchUrl);
-  if(!parsed.ok){ _dolBuildLog('URL inválida: '+parsed.error,'error'); return; }
-
-  _dolBuildBot.running    = true;
-  _dolBuildBot.key        = sheetKey;
-  _dolBuildBot.name       = sheetName;
-  _dolBuildBot.visaType   = parsed.visaClass;
-  _dolBuildBot.target     = targetCount;
-  _dolBuildBot.fetched    = 0;
-  _dolBuildBot.phase      = 1;
-  _dolBuildBot.casesListed = 0;
-  _dolBuildBot.saved      = 0;
-  _dolBuildBot.errors     = 0;
-  _dolBuildBot.startedAt  = Date.now();
-  _dolBuildBot.finishedAt = null;
-  _dolBuildBot.published  = false;
-  _dolBuildBot.searchUrl  = searchUrl;
-  _dolBuildBot.log        = [];
-
-  _dolBuildLog(`🚀 Iniciando: "${sheetName}" | ${targetCount} vagas | ${parsed.visaClass} | ${parsed.jobStatus==='all'?'Todas':'Ativas'}`, 'ok');
-  _dolBuildLog(`🔗 URL: ${searchUrl}`, 'info');
-  _dolBuildLog(`🧭 Método: 2 fases — (1) lista os ETA case numbers dentro da janela, (2) busca CADA vaga individualmente por case number (nunca confia em campo solto de resposta em lote).`, 'info');
-
-  const HDR = (ua) => ({
-    'Accept':'application/json,text/plain,*/*',
-    'Accept-Language':'en-US,en;q=0.9',
-    'Accept-Encoding':'identity',
-    'User-Agent': ua,
-    'Cache-Control':'no-cache',
-    'Referer':'https://seasonaljobs.dol.gov/',
-    'Origin':'https://seasonaljobs.dol.gov',
-  });
-  const UAS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0',
-  ];
-  let uaIdx=0;
-
-  const PAGE_SIZE = 100;
-  let skip = 0;
-  let totalAvail = 0;
-  let delay = 1200;
-  // Detecção de "pool esgotado": se várias páginas seguidas não trouxerem
-  // NENHUM case number novo, o alvo pedido provavelmente não existe de
-  // verdade na fonte — parar em vez de girar pra sempre.
-  let stagnantPages = 0;
-  const MAX_STAGNANT_PAGES = 3;
-
-  try{
-    // ── FASE 1: LISTAR OS ETA CASE NUMBERS DENTRO DA JANELA ──
-    // Só extrai o case_number de cada resultado — nenhum outro campo desta
-    // resposta em lote é usado pra montar a vaga. Ainda serve pra restringir
-    // a janela (não escaneia o H-2B inteiro desde sempre), mas quem decide
-    // se a vaga é real e o que ela contém é SEMPRE o lookup individual da
-    // FASE 2 — nunca esta listagem.
-    const caseNumbers = []; // ordem de descoberta, sem duplicata
-    const caseSeen = new Set();
-    let _useOrderby=true, _useBeginDate=true;
-    while(_dolBuildBot.running && caseNumbers.length < targetCount){
-      uaIdx = (uaIdx+1) % UAS.length;
-      const p = new URLSearchParams({'api-version':'2020-06-30'});
-      const f = [];
-      if(parsed.jobStatus==='active') f.push('active eq true');
-      if(parsed.visaClass==='H-2A') f.push("visa_class eq 'H-2A'");
-      else f.push("visa_class eq 'H-2B'");
-      if(parsed.beginDate && _useBeginDate) f.push(`begin_date ge ${parsed.beginDate}T00:00:00Z`);
-      // 🔒 KB-081: teto superior da janela — sem isto, uma vaga de temporada
-      // futura satisfaz "begin_date ge X" de QUALQUER temporada passada.
-      if(parsed.endDate && _useBeginDate) f.push(`begin_date lt ${parsed.endDate}T00:00:00Z`);
-      if(parsed.search) p.append('$search','"'+parsed.search.replace(/"/g,'')+'"');
-      if(f.length) p.append('$filter',f.join(' and '));
-      if(_useOrderby) p.append('$orderby','dhTimestamp desc');
-      p.append('$top',String(PAGE_SIZE));
-      p.append('$skip',String(skip));
-
-      let attempt=0, ok=false;
-      while(attempt<4 && !ok && _dolBuildBot.running){
-        if(attempt>0){
-          const wait = Math.min(15000*Math.pow(2,attempt-1),60000);
-          _dolBuildLog(`⏳ Retry ${attempt}/3 em ${Math.round(wait/1000)}s...`,'warn');
-          await new Promise(r=>setTimeout(r,wait));
-        }
-        attempt++;
-        try{
-          const {status,body} = await httpsReq({hostname:'api.seasonaljobs.dol.gov',path:'/datahub/?'+p,method:'GET',headers:HDR(UAS[uaIdx])});
-          if(status===200){
-            const raw = body.value||body.results||body.data||(Array.isArray(body)?body:[]);
-            if(skip===0) totalAvail = body['@odata.count']||body.count||raw.length;
-            if(!raw.length){ _dolBuildLog(`📭 Sem mais vagas (skip=${skip})`, 'info'); _dolBuildBot.running=false; break; }
-            const newBefore = caseNumbers.length;
-            for(const j of raw){
-              if(caseNumbers.length>=targetCount) break;
-              const cn = (j.case_number||j.case_id||'').toUpperCase();
-              if(!cn || caseSeen.has(cn)) continue;
-              caseSeen.add(cn); caseNumbers.push(cn);
-            }
-            const newAfter = caseNumbers.length;
-            stagnantPages = (newAfter===newBefore) ? stagnantPages+1 : 0;
-            _dolBuildBot.casesListed = caseNumbers.length;
-            _dolBuildLog(`📋 Fase 1/2 — case numbers encontrados: ${caseNumbers.length}/${targetCount} (skip=${skip}, disponíveis=${totalAvail})`, 'info');
-            if(stagnantPages >= MAX_STAGNANT_PAGES){
-              _dolBuildLog(`🛑 ${MAX_STAGNANT_PAGES} páginas seguidas sem case number novo — a fonte só tem ${caseNumbers.length} vaga(s) de verdade para estes filtros (alvo pedido era ${targetCount}). Indo pra fase 2 com o que foi achado.`, 'warn');
-              _dolBuildBot.running = false;
-            }
-            ok=true;
-            skip+=raw.length;
-          } else if(status===429||status===403){
-            _dolBuildLog(`⚠️ DOL ${status} — throttle (attempt ${attempt})`, 'warn');
-            delay = Math.min(delay+2000, 8000);
-          } else {
-            let snip=''; try{ snip=(typeof body==='string'?body:JSON.stringify(body)).slice(0,300); }catch{}
-            _dolBuildLog(`❌ DOL HTTP ${status} — ${snip||'(sem corpo)'}`, 'error');
-            if(status>=400 && status<500 && (_useOrderby || _useBeginDate)){
-              if(_useOrderby){ _useOrderby=false; _dolBuildLog('🔧 Removendo $orderby (dhTimestamp) e tentando de novo...','warn'); }
-              else if(_useBeginDate){ _useBeginDate=false; _dolBuildLog('🔧 Removendo filtro de data do servidor (vou filtrar na fase 2, por vaga) e tentando de novo...','warn'); }
-              attempt--;
-            } else {
-              _dolBuildBot.errors++;
-              if(_dolBuildBot.errors>=5){
-                _dolBuildLog('🛑 Muitos erros seguidos do DOL — abortando para não travar. Confira o link/filtros acima.','error');
-                _dolBuildBot.running=false;
-              }
-              ok=true;
-            }
-          }
-        }catch(e){
-          _dolBuildLog(`❌ Erro: ${e.message}`, 'error'); _dolBuildBot.errors++;
-        }
-      }
-      if(!ok) break;
-      if(!_dolBuildBot.running) break;
-      await new Promise(r=>setTimeout(r,delay));
-    }
-
-    if(caseNumbers.length===0){
-      _dolBuildLog('❌ Nenhum case number encontrado nesta janela. Abortando (nada foi publicado).','error');
-      _dolBuildBot.running=false; _dolBuildBot.finishedAt=Date.now(); return;
-    }
-
-    // ── FASE 2: BUSCAR CADA VAGA INDIVIDUALMENTE POR CASE NUMBER ──
-    // Pedido explícito do dono: nunca confiar em campo de resposta em
-    // lote — pra CADA case number achado na fase 1, faz um lookup exato
-    // (datahub $filter=case_number eq 'X', com fallback pra raspar
-    // https://seasonaljobs.dol.gov/jobs/{case_number}). Só entra na
-    // planilha o que vier de um lookup INDIVIDUAL confirmado — e só se o
-    // begin_date bater com a janela pedida (proteção extra: se o lookup
-    // trouxer uma vaga com data fora da temporada, REJEITA, não publica).
-    _dolBuildBot.running = true; // reabre — fase 1 pode ter marcado false ao esgotar o pool
-    _dolBuildBot.phase = 2;
-    _dolBuildBot.target = caseNumbers.length; // fase 2: alvo passa a ser "quantos case numbers checar"
-    _dolBuildLog(`🔎 Fase 2/2 — buscando ${caseNumbers.length} vaga(s) individualmente por case number...`, 'info');
-    const newRows = [];
-    let rejected = 0, notFound = 0;
-    const CONCURRENCY = 4;
-    let idx = 0;
-    async function worker(){
-      while(idx < caseNumbers.length && _dolBuildBot.running){
-        const myIdx = idx++;
-        const cn = caseNumbers[myIdx];
-        uaIdx = (uaIdx+1) % UAS.length;
-        const result = await _fetchDolCaseByNumber(cn, UAS[uaIdx]);
-        _dolBuildBot.fetched++;
-        if(result.ok){
-          const row = result.row;
-          // Validação: a vaga individual TEM que cair dentro da janela
-          // pedida — se não bater, é sinal de dado ruim/errado e é
-          // REJEITADA (nunca "qualquer vaga pra completar o número").
-          const bd = row.d;
-          const inWindow = (!parsed.beginDate || (bd && bd>=parsed.beginDate)) && (!parsed.endDate || (bd && bd<parsed.endDate));
-          if(inWindow){
-            newRows.push(row);
-          } else {
-            rejected++;
-            if(rejected<=5) _dolBuildLog(`🚫 Rejeitada ${cn}: begin_date="${bd||'(vazio)'}" fora da janela ${parsed.beginDate||'?'}–${parsed.endDate||'?'} — não vai pra planilha.`,'warn');
-          }
-        } else {
-          notFound++;
-          if(notFound<=5) _dolBuildLog(`⚠️ ${cn}: não encontrada em lookup individual (nem datahub exato, nem página) — pulando.`,'warn');
-        }
-        if((_dolBuildBot.fetched % 50)===0 || _dolBuildBot.fetched===caseNumbers.length){
-          _dolBuildLog(`🔎 Fase 2/2 — ${_dolBuildBot.fetched}/${caseNumbers.length} verificadas | ${newRows.length} confirmadas | ${rejected} rejeitadas (fora da janela) | ${notFound} não encontradas`, 'info');
-        }
-        await new Promise(r=>setTimeout(r,250)); // gentil com o DOL — 1 requisição individual por vez por worker
-      }
-    }
-    await Promise.all(Array.from({length:Math.min(CONCURRENCY,caseNumbers.length)},()=>worker()));
-
-    // ── FASE 3: SALVAR PLANILHA ──
-    if(newRows.length===0){
-      _dolBuildLog(`❌ Nenhuma vaga CONFIRMADA por lookup individual (${rejected} rejeitada(s) fora da janela, ${notFound} não encontrada(s)). Abortando — nada foi publicado.`,'error');
-      _dolBuildBot.running=false; _dolBuildBot.finishedAt=Date.now(); return;
-    }
-
-    // 🔒 GUARDA FINAL — nunca gravar/publicar planilha com case number
-    // duplicado.
-    const _integrity = _vagasVerify(newRows, {caseField:'c'});
-    if(!_integrity.ok){
-      _dolBuildLog(`❌ ABORTANDO: guarda de integridade encontrou ${_integrity.duplicateCases.length} case number(s) duplicado(s) — a planilha NÃO foi salva.`, 'error');
-      _dolBuildBot.running=false; _dolBuildBot.finishedAt=Date.now(); return;
-    }
-
-    const withEmail = newRows.filter(r=>r.e).length;
-    const targetNote = newRows.length < targetCount
-      ? ` (alvo pedido era ${targetCount}; a fonte só tinha ${newRows.length} vaga(s) real(is)/confirmada(s) individualmente para estes filtros — nunca preenchida com vaga inventada, duplicada ou fora da janela)`
-      : '';
-    _dolBuildLog(`💾 Salvando ${newRows.length} vagas confirmadas individualmente (${withEmail} com email)${targetNote}...`, 'info');
-    _dolBuildBot.saved = withEmail;
-
-    if(!fs.existsSync(SHEETS_DIR)) fs.mkdirSync(SHEETS_DIR,{recursive:true});
-    const filePath = path.join(SHEETS_DIR, sheetKey+'.json');
-    fs.writeFileSync(filePath, JSON.stringify(newRows));
-
-    // 🧾 Manifesto de integridade ao lado do arquivo.
-    try{
-      const manifestPath = path.join(SHEETS_DIR, sheetKey+'.manifest.json');
-      const manifest = _vagasManifest(newRows, {caseField:'c', extra:{
-        sheetKey, sheetName, visaType: parsed.visaClass, searchUrl,
-        targetRequested: targetCount, method:'per-case-lookup',
-        casesListedPhase1: caseNumbers.length, rejectedOutOfWindow: rejected, notFoundIndividually: notFound,
-      }});
-      fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-    }catch(e){ _dolBuildLog(`⚠️ Falha ao gravar manifesto (não bloqueia a publicação): ${e.message}`, 'warn'); }
-
-    SHEET_EXTRAS[sheetKey] = newRows;
-    newRows.forEach(r=>{if(!r.k)r.k=detectCategory(`${r.n||''} ${r.t||''}`);r._sheet=sheetKey;});
-
-    if(!DB_SHEETS_META[sheetKey]) DB_SHEETS_META[sheetKey]={};
-    Object.assign(DB_SHEETS_META[sheetKey],{
-      name: sheetName,
-      key: sheetKey,
-      file: filePath,
-      uploaded: Date.now(),
-      count: newRows.length,
-      uniqueCaseCount: _integrity.uniqueCaseCount,
-      visaType: parsed.visaClass,
-      searchUrl,
-      enriched: withEmail,
-      enrichedAt: Date.now(),
-      enrichedTotal: newRows.length,
-      source: 'dol-build-per-case',
-    });
-    try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
-
-    _dolBuildBot.running    = false;
-    _dolBuildBot.finishedAt = Date.now();
-    _dolBuildLog(`🏁 CONCLUÍDO! ${newRows.length} vagas confirmadas individualmente | ${withEmail} com email | ${rejected} rejeitada(s) fora da janela | ${notFound} não encontrada(s) | "${sheetName}"`, 'ok');
-    _dolBuildLog(`✅ Planilha pronta para publicar! Cada linha veio de um lookup individual por case number — nenhuma vaga foi aceita "no chute" de uma busca em lote.`, 'ok');
-
-  }catch(e){
-    _dolBuildLog(`💥 Erro fatal: ${e.message}`, 'error');
-    _dolBuildBot.running    = false;
-    _dolBuildBot.finishedAt = Date.now();
-    _dolBuildBot.errors++;
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-//  📅 COLETA DE TEMPORADAS HISTÓRICAS (vagas COMPLETAS, com e-mail) — pedido
-//  do dono (07/07/2026): usar o MESMO bot de coleta (_runDolBuildBot, via
-//  seasonaljobs.dol.gov/archive — arquivo histórico de verdade, aceita
-//  start_date de qualquer período) pra montar as 6 temporadas que faltam
-//  entre o que já existe (jan2026/jul2025 = FY26) e o início do H-2B
-//  moderno. Cada filing de Janeiro mira início 1º de Abril (☀️ Verão);
-//  cada filing de Julho mira início 1º de Outubro (❄️ Inverno) — MESMA
-//  convenção de ícone já usada em jan2026 (☀️) e jul2025 (❄️).
-// ══════════════════════════════════════════════════════════════════════════
-// 🔒 KB-081 (pedido do dono, 07/07/2026): cada temporada agora tem um
-// endDate explícito = o startDate da PRÓXIMA temporada da lista (a de
-// Jan 2025 fecha em 01/10/2025, exatamente onde a planilha built-in
-// "Julho 2025" começa — sem sobreposição, sem buraco). Antes só existia
-// startDate e o filtro "begin_date ge X" ficava aberto pra sempre, então
-// uma vaga de 2026 satisfazia o filtro de QUALQUER temporada passada e
-// aparecia em várias planilhas ao mesmo tempo com a MESMA contagem.
-// 🔒 KB-082 (pedido do dono, 07/07/2026): o dono NÃO quer mais as temporadas
-// FY22–FY24 (Jul2022/Jan2023/Jul2023/Jan2024/Jul2024) — só falta MESMO a de
-// Verão 2025 (Jan 2025) pra fechar a sequência Jan2025→Jul2025→Jan2026→Jul2026.
-// Lista reduzida a 1 item só; as chaves antigas são apagadas por
-// _cleanupRemovedHistoricalSeasons() no boot (ver abaixo).
-const HISTORICAL_SEASONS = [
-  { key:"jan2025", name:"Jan 2025", emoji:"☀️", startDate:"04/01/2025", endDate:"10/01/2025" },
-];
-function _histSearchUrl(startDate, endDate){
-  return `https://seasonaljobs.dol.gov/archive?search=&location=&start_date=${startDate}&end_date=${endDate||''}&job_type=H-2B&sort=relevancy&job_status=all`;
-}
-// Chaves que EXISTIAM na lista antiga (FY22-24) e não devem mais existir —
-// apaga arquivo+manifesto+meta se sobrou algo de coletas anteriores.
-const _REMOVED_HISTORICAL_KEYS = ["jul2022","jan2023","jul2023","jan2024","jul2024"];
-function _cleanupRemovedHistoricalSeasons(){
-  for(const key of _REMOVED_HISTORICAL_KEYS){
-    try{
-      const meta = DB_SHEETS_META[key];
-      if(meta?.file){ try{ fs.unlinkSync(path.join(SHEETS_DIR, meta.file)); }catch{} }
-      try{ fs.unlinkSync(path.join(SHEETS_DIR, key+'.json')); }catch{}
-      try{ fs.unlinkSync(path.join(SHEETS_DIR, key+'.manifest.json')); }catch{}
-      if(SHEET_EXTRAS[key]){ delete SHEET_EXTRAS[key]; }
-      if(DB_SHEETS_META[key]){ delete DB_SHEETS_META[key]; console.log(`[cleanup] 🗑️ Temporada removida (não pedida mais): ${key}`); }
-    }catch(e){ console.warn(`[cleanup] falha ao remover ${key}: ${e.message}`); }
-  }
-  try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
-}
-const _histBuild = { running:false, log:[] };
-function _histLog(msg, type='info'){
-  _histBuild.log.push({ts:Date.now(),msg,type});
-  if(_histBuild.log.length>300)_histBuild.log.shift();
-  console.log(`[hist-build] ${msg}`);
-}
-// Roda TODAS as temporadas que faltam, uma de cada vez (o bot de coleta é
-// único/singleton — não dá pra rodar 2 ao mesmo tempo). Pula a que já foi
-// publicada antes (idempotente — pode clicar de novo sem duplicar). Publica
-// AUTOMATICAMENTE cada uma ao terminar (pedido explícito do dono: "poste lá
-// pra todos") — marca historico:true pro front agrupar separado das atuais.
-// force=true (KB-080, pedido do dono 07/07/2026): em vez de PULAR temporada
-// já publicada, APAGA (planilha+meta) e recoleta do zero com o bot já
-// corrigido (KB-076) — usado pelo botão "🔁 Refazer TODAS as 6 do zero".
-// force=false (padrão) mantém o comportamento original: só coleta o que
-// ainda falta, nunca mexe no que já está publicado.
-async function _runHistoricoOrchestrator(force=false){
-  if(_histBuild.running){ _histLog('Já está rodando — aguarde terminar.','warn'); return; }
-  if(_dolBuildBot.running){ _histLog('❌ O bot de coleta já está ocupado com outra planilha — pare-o primeiro (aba Planilhas & Coleta DOL).','error'); return; }
-  _histBuild.running=true;
-  _histBuild.log.length=0;
-  _histLog(force
-    ? `🔁 REFAZENDO TODAS as ${HISTORICAL_SEASONS.length} temporada(s) histórica(s) DO ZERO — apagando as antigas e coletando de novo com o bot corrigido (sem duplicata, sem teto artificial)...`
-    : `📅 Iniciando coleta de ${HISTORICAL_SEASONS.length} temporada(s) histórica(s) — vagas completas com e-mail...`, 'info');
-  for(const season of HISTORICAL_SEASONS){
-    if(!force && DB_SHEETS_META[season.key]?.published){
-      _histLog(`${season.emoji} ${season.name}: já publicada (${DB_SHEETS_META[season.key].count||0} vagas) — pulando.`,'info');
-      continue;
-    }
-    if(force && DB_SHEETS_META[season.key]?.published){
-      // Apaga a planilha antiga (arquivo + meta) ANTES de recoletar — sem
-      // isso ela continuaria marcada como "published" e a coleta nova só
-      // ficaria em memória sem nunca virar a versão oficial.
-      try{
-        const oldMeta=DB_SHEETS_META[season.key];
-        if(oldMeta?.file){try{fs.unlinkSync(path.join(SHEETS_DIR,oldMeta.file));}catch{}}
-        delete SHEET_EXTRAS[season.key];
-        delete DB_SHEETS_META[season.key];
-        _histLog(`${season.emoji} ${season.name}: 🗑️ planilha antiga apagada (tinha ${oldMeta?.count||'?'} vagas, possivelmente com duplicata) — recoletando do zero.`,'warn');
-      }catch(e){
-        _histLog(`${season.emoji} ${season.name}: ⚠️ falha ao apagar a versão antiga (${e.message}) — tentando recoletar mesmo assim.`,'warn');
-      }
-    }
-    _histLog(`${season.emoji} ${season.name}: iniciando coleta ao vivo (início de vaga ${season.startDate})...`,'info');
-    try{
-      await _runDolBuildBot(_histSearchUrl(season.startDate, season.endDate), season.key, season.name, 20000); // KB-079/KB-081: teto de segurança (não alvo) + janela fechada por endDate
-      const arr=SHEET_EXTRAS[season.key]||[];
-      const count=arr.length;
-      if(!count){
-        _histLog(`${season.emoji} ${season.name}: ⚠️ coleta terminou sem nenhuma vaga encontrada — não publicado. Pode ser que o arquivo do DOL não cubra esse período mais.`,'warn');
-        continue;
-      }
-      // 🔒 KB-080: prova de integridade + completude ANTES de publicar —
-      // exatamente o que o dono pediu: "ele baixa, vê quantas vagas tem de
-      // verdade, e publica só essa quantidade, sem inventar vaga a mais".
-      const integ=_vagasVerify(arr,{caseField:'c'});
-      const withEmail=arr.filter(r=>r.e&&r.e.includes('@')).length;
-      const withCity =arr.filter(r=>r.ci).length;
-      const withPhone=arr.filter(r=>r.ph).length;
-      const nEmpresas=new Set(arr.map(r=>(r.n||'').trim().toLowerCase()).filter(Boolean)).size;
-      if(!DB_SHEETS_META[season.key]) DB_SHEETS_META[season.key]={};
-      Object.assign(DB_SHEETS_META[season.key],{
-        published:true, publishedAt:Date.now(), name:season.name, visaType:'H-2B',
-        count, uniqueCaseCount:integ.uniqueCaseCount, historico:true, emoji:season.emoji,
-      });
-      try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
-      _histLog(`${season.emoji} ${season.name}: ✅ ${integ.ok?'publicado':'⚠️ publicado com aviso'}! ${count} vagas ÚNICAS (1 vaga = 1 ETA case number, ${integ.duplicateCases.length} duplicata detectada${integ.duplicateCases.length===1?'':'s'}) de ${nEmpresas} empresa(s) diferente(s) — ${withEmail} com e-mail, ${withCity} com cidade, ${withPhone} com telefone.`, integ.ok?'ok':'warn');
-    }catch(e){
-      _histLog(`${season.emoji} ${season.name}: ❌ erro — ${e.message}`,'error');
-    }
-  }
-  _histBuild.running=false;
-  _histLog(force?`🔁 Refazer TODAS concluído.`:`📅 Coleta histórica concluída.`,'ok');
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-//  🔭 VIGIA DA PRÓXIMA TEMPORADA (Julho 2026) — pedido do dono (07/07/2026):
-//  "fica sempre ligado o bot de a cada cinco minutos porque se sair a julho
-//  de dois mil vinte e seis ele deve fazer". A cada 5 minutos, sonda LEVE
-//  (1 registro só, $top=1) se o DOL já tem alguma vaga H-2B com begin_date
-//  dentro da janela de Julho 2026 (01/10/2026–31/03/2027). Assim que achar a
-//  PRIMEIRA vaga real, dispara a coleta completa (mesmo bot, mesma garantia
-//  de integridade/janela fechada do KB-081) e PUBLICA sozinho — sem esperar
-//  o admin clicar em nada. Depois de publicada, para de sondar (idempotente).
-// ══════════════════════════════════════════════════════════════════════════
-const NEXT_SEASON = { key:"jul2026", name:"Julho 2026 (H-2B)", emoji:"❄️", startDate:"10/01/2026", endDate:"04/01/2027" };
-const _nextSeasonWatch = { lastCheckAt:null, lastResult:null, checking:false, found:false, checksCount:0 };
-
-async function _probeNextSeasonAvailable(){
-  const parsed = _parseDolAdvancedUrl(_histSearchUrl(NEXT_SEASON.startDate, NEXT_SEASON.endDate));
-  if(!parsed.ok) return false;
-  const p = new URLSearchParams({'api-version':'2020-06-30'});
-  const f = [`visa_class eq 'H-2B'`];
-  if(parsed.beginDate) f.push(`begin_date ge ${parsed.beginDate}T00:00:00Z`);
-  if(parsed.endDate)   f.push(`begin_date lt ${parsed.endDate}T00:00:00Z`);
-  p.append('$filter', f.join(' and '));
-  p.append('$top','1');
-  try{
-    const {status,body} = await httpsReq({hostname:'api.seasonaljobs.dol.gov',path:'/datahub/?'+p,method:'GET',headers:{
-      'Accept':'application/json,text/plain,*/*',
-      'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Referer':'https://seasonaljobs.dol.gov/', 'Origin':'https://seasonaljobs.dol.gov',
-    }});
-    if(status!==200) return false;
-    const raw = body.value||body.results||body.data||(Array.isArray(body)?body:[]);
-    return raw.length>0;
-  }catch{ return false; }
-}
-
-async function _nextSeasonWatchTick(){
-  if(_nextSeasonWatch.checking) return;
-  if(_dolBuildBot.running || _histBuild.running) return; // bot ocupado agora, tenta de novo em 5min
-  const meta = DB_SHEETS_META[NEXT_SEASON.key];
-  const alreadyPublished = meta?.published===true;
-  // 🔁 KB-083 (dono, 07/07/2026): não trava pra sempre na 1ª vaga achada —
-  // cases de uma temporada nova costumam ser lançados aos poucos nas
-  // primeiras horas/dias. Depois de publicar pela 1ª vez, continua
-  // RE-COLETANDO (sobrescreve com a lista mais completa) por 48h, pra
-  // pegar vaga que entrou depois do primeiro achado. Depois disso, para
-  // de gastar chamada — a temporada já estabilizou.
-  const hoursSincePublish = alreadyPublished ? (Date.now()-(meta.publishedAt||0))/3600000 : null;
-  if(alreadyPublished && hoursSincePublish>48){ _nextSeasonWatch.found=true; return; }
-
-  _nextSeasonWatch.checking = true;
-  _nextSeasonWatch.lastCheckAt = Date.now();
-  _nextSeasonWatch.checksCount++;
-  try{
-    // Se já publicou uma vez, já sabemos que a temporada existe — pula a
-    // sonda leve e recoleta direto pra capturar o que entrou de novo.
-    let shouldCollect = alreadyPublished;
-    if(!shouldCollect){
-      const available = await _probeNextSeasonAvailable();
-      _nextSeasonWatch.lastResult = available;
-      shouldCollect = available;
-    }
-    if(shouldCollect){
-      console.log(alreadyPublished
-        ? `[next-season] 🔁 Recoletando ${NEXT_SEASON.name} (dentro da janela de 48h pós-publicação) pra pegar vaga nova...`
-        : `[next-season] 🎉 ${NEXT_SEASON.name} já tem vagas no DOL — iniciando coleta completa automaticamente.`);
-      await _runDolBuildBot(_histSearchUrl(NEXT_SEASON.startDate, NEXT_SEASON.endDate), NEXT_SEASON.key, NEXT_SEASON.name, 20000);
-      const arr = SHEET_EXTRAS[NEXT_SEASON.key]||[];
-      if(arr.length){
-        const integ = _vagasVerify(arr,{caseField:'c'});
-        const withEmail = arr.filter(r=>r.e&&r.e.includes('@')).length;
-        if(!DB_SHEETS_META[NEXT_SEASON.key]) DB_SHEETS_META[NEXT_SEASON.key]={};
-        Object.assign(DB_SHEETS_META[NEXT_SEASON.key],{
-          published:true,
-          publishedAt: alreadyPublished ? meta.publishedAt : Date.now(), // preserva a 1ª publicação
-          lastRefreshAt: Date.now(),
-          name:NEXT_SEASON.name, visaType:'H-2B',
-          count:arr.length, uniqueCaseCount:integ.uniqueCaseCount, emoji:NEXT_SEASON.emoji, autoDetected:true,
-        });
-        try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
-        _nextSeasonWatch.found = true;
-        console.log(`[next-season] ✅ ${NEXT_SEASON.name}: ${arr.length} vagas únicas (${withEmail} com e-mail) — publicada${alreadyPublished?' (atualizada)':' automaticamente'}.`);
-      }else if(!alreadyPublished){
-        console.warn(`[next-season] ⚠️ Sonda achou vaga, mas a coleta completa voltou vazia — tenta de novo na próxima janela de 5min.`);
-      }
-    }
-  }catch(e){
-    console.warn(`[next-season] Erro na sondagem: ${e.message}`);
-  }finally{
-    _nextSeasonWatch.checking = false;
-  }
-}
-setInterval(_nextSeasonWatchTick, 5*60*1000);   // a cada 5 minutos, pedido explícito do dono
-setTimeout(_nextSeasonWatchTick, 30_000);        // 1ª checagem ~30s depois do boot
 
 const sheetCache = new Map();
 const SHEET_TTL  = 60*60*1000;
@@ -2783,10 +2161,6 @@ function loadSheets() {
     }
     if(extrasLoaded>0) console.log(`[sheet] ✅ ${extrasLoaded} planilha(s) extra(s) carregada(s) do disco`);
   }
-
-  // 🔒 KB-082: apaga qualquer resquício das temporadas FY22-24 que o dono
-  // não quer mais (o próprio dono pediu a remoção em 07/07/2026).
-  _cleanupRemovedHistoricalSeasons();
 }
 
 const CATEGORY_KEYWORDS = {
@@ -5383,6 +4757,425 @@ function _saveEnrichedSheet(sheetKey, sheet){
   }catch(e){ _enrichLog(`❌ Erro ao salvar: ${e.message}`,"error"); }
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+//  🎯 GRUPOS — JULHO 2026 (sistema novo, pedido do dono 07/07/2026)
+//  ─────────────────────────────────────────────────────────────────────
+//  Substitui o antigo Monitor ETA (apagado por completo). Este aqui é
+//  MENOR DE PROPÓSITO — só existe pra uma coisa: guardar o grupo A–H
+//  oficial de cada vaga da temporada de Julho 2026 (início 01/10/2026).
+//
+//  REGRA INEGOCIÁVEL (mesma lição de sempre, agora reforçada em código):
+//    Grupo NUNCA é adivinhado, calculado ou herdado de outra temporada.
+//    Só existe se vier do relatório oficial do DOL (PublicFacingReport)
+//    — via upload manual (CSV ou XLSX de verdade) OU download automático
+//    a partir do link que o próprio DOL publica. Cada linha importada é
+//    VALIDADA contra a Begin Date esperada (01/10/2026); linha que não
+//    bate é REJEITADA e aparece no log — nunca aceita "no chute".
+//
+//  Este bot NÃO participa da coleta de vagas (isso é o Enriquecimento,
+//  que continua intocado) — só enriquece com grupo o que já existir na
+//  planilha "jul2026" quando ela for publicada.
+// ══════════════════════════════════════════════════════════════════════════
+
+const GRUPOS_J26_FILE = path.join(DATA_DIR, "grupos_jul2026.json");
+const GRUPOS_J26_SEASON = Object.freeze({
+  key: "jul2026",
+  label: "Julho 2026 (H-2B)",
+  beginDateISO: "2026-10-01", // toda linha do relatório oficial tem que bater com isto
+});
+const GRUPOS_J26_NEWS_URL = "https://www.dol.gov/agencies/eta/foreign-labor/news";
+
+let DB_GRUPOS_J26 = {
+  mapa: {}, // { "H-400-26117-XXXXXX": { grupo:"A", manual:false, empresa, estado, importadoEm, fonte } }
+  meta: {
+    ultimaImportacao: null,     // {at, fonte, arquivo, novos, atualizados, rejeitados, totalNoRelatorio}
+    historicoImportacoes: [],   // até 30, mais recente primeiro
+    autoCheckEnabled: true,
+    ultimaChecagemAutoAt: null,
+    proximaChecagemAutoAt: null,
+    ultimoResultadoAuto: null,  // 'nao-encontrado' | 'ja-importado' | 'importado' | 'erro'
+    urlJaImportada: null,       // link já processado — não reimporta o mesmo
+    checksCount: 0,
+  }
+};
+
+function loadGruposJ26(){
+  try{
+    if(fs.existsSync(GRUPOS_J26_FILE)){
+      const d = JSON.parse(fs.readFileSync(GRUPOS_J26_FILE,"utf8"));
+      if(d && typeof d==="object"){
+        DB_GRUPOS_J26.mapa = d.mapa || {};
+        DB_GRUPOS_J26.meta = { ...DB_GRUPOS_J26.meta, ...(d.meta||{}) };
+      }
+    }
+  }catch(e){ console.warn("[grupos-j26] falha ao carregar:", e.message); }
+}
+function persistGruposJ26(){
+  try{
+    const tmp = GRUPOS_J26_FILE+".tmp";
+    fs.writeFileSync(tmp, JSON.stringify(DB_GRUPOS_J26));
+    fs.renameSync(tmp, GRUPOS_J26_FILE);
+  }catch(e){ console.warn("[grupos-j26] falha ao salvar:", e.message); }
+}
+function grupoJ26Log(msg, type='info'){
+  console.log(`[grupos-j26] ${msg}`);
+  botLog('grupos-jul2026','Grupos — Julho 2026', msg, type);
+}
+
+// ── Conversão de data serial do Excel (ex.: 46296 → "2026-10-01") ──────────
+function excelSerialToISO(serial){
+  const n = parseFloat(serial);
+  if(!Number.isFinite(n) || n<=0) return "";
+  const ms = Date.UTC(1899,11,30) + Math.round(n)*86400000;
+  const d = new Date(ms);
+  if(isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0,10);
+}
+// Aceita tanto serial do Excel quanto string de data já formatada (upload manual às vezes já vem como "10/01/2026" ou "2026-10-01")
+function anyDateToISO(v){
+  const s = String(v||"").trim();
+  if(!s) return "";
+  if(/^\d+(\.\d+)?$/.test(s)) return excelSerialToISO(s); // serial puro
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if(iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s); // MM/DD/YYYY
+  if(us) return `${us[3]}-${us[1].padStart(2,"0")}-${us[2].padStart(2,"0")}`;
+  return "";
+}
+
+// ── Leitor de XLSX SEM dependência externa — só zlib/fs nativos do Node ──
+// Testado contra um PublicFacingReport real do DOL (8.759 linhas, extração
+// 100% correta: cabeçalho, case number, grupo e datas todos batendo).
+function _zipReadEntries(buf){
+  let eocdOffset = -1;
+  for(let i=buf.length-22; i>=0; i--){
+    if(buf.readUInt32LE(i)===0x06054b50){ eocdOffset=i; break; }
+  }
+  if(eocdOffset===-1) throw new Error("Arquivo não é um .xlsx/.zip válido (EOCD não encontrado)");
+  const cdOffset = buf.readUInt32LE(eocdOffset+16);
+  const cdCount  = buf.readUInt16LE(eocdOffset+10);
+  const entries = {};
+  let p = cdOffset;
+  for(let i=0;i<cdCount;i++){
+    if(buf.readUInt32LE(p)!==0x02014b50) throw new Error("Central directory corrompida");
+    const compMethod = buf.readUInt16LE(p+10);
+    const compSize    = buf.readUInt32LE(p+20);
+    const nameLen     = buf.readUInt16LE(p+28);
+    const extraLen    = buf.readUInt16LE(p+30);
+    const commentLen  = buf.readUInt16LE(p+32);
+    const localHeaderOffset = buf.readUInt32LE(p+42);
+    const name = buf.toString("utf8", p+46, p+46+nameLen);
+    entries[name] = { compMethod, compSize, localHeaderOffset };
+    p += 46+nameLen+extraLen+commentLen;
+  }
+  return entries;
+}
+function _zipExtract(buf, entry){
+  const lp = entry.localHeaderOffset;
+  const nameLen  = buf.readUInt16LE(lp+26);
+  const extraLen = buf.readUInt16LE(lp+28);
+  const dataStart = lp+30+nameLen+extraLen;
+  const compData = buf.slice(dataStart, dataStart+entry.compSize);
+  if(entry.compMethod===0) return compData;
+  if(entry.compMethod===8) return zlib.inflateRawSync(compData);
+  throw new Error("Método de compressão .xlsx não suportado: "+entry.compMethod);
+}
+function _xmlDecodeEntities(s){
+  return s.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,"&");
+}
+function _xlsxParseSharedStrings(xml){
+  const strings=[];
+  const siRe=/<si>([\s\S]*?)<\/si>/g;
+  let m;
+  while((m=siRe.exec(xml))){
+    const tRe=/<t[^>]*>([\s\S]*?)<\/t>/g;
+    let tm, text="";
+    while((tm=tRe.exec(m[1]))) text+=tm[1];
+    strings.push(_xmlDecodeEntities(text));
+  }
+  return strings;
+}
+function _colLetterToIndex(letters){
+  let n=0;
+  for(let i=0;i<letters.length;i++) n = n*26 + (letters.charCodeAt(i)-64);
+  return n-1;
+}
+function _xlsxParseSheet(xml, sharedStrings){
+  const rows=[];
+  const rowRe=/<row[^>]*r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g;
+  let rm;
+  while((rm=rowRe.exec(xml))){
+    const rowIdx = parseInt(rm[1],10)-1;
+    const cellRe = /<c\s+([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+    let cm; const row=[];
+    while((cm=cellRe.exec(rm[2]))){
+      const attrs=cm[1], body=cm[2]||"";
+      const rMatch=/r="([A-Z]+)\d+"/.exec(attrs);
+      if(!rMatch) continue;
+      const colIdx=_colLetterToIndex(rMatch[1]);
+      const tMatch=/\bt="([a-zA-Z]+)"/.exec(attrs);
+      const type=tMatch?tMatch[1]:null;
+      let val="";
+      const vMatch=/<v>([\s\S]*?)<\/v>/.exec(body);
+      if(vMatch){ val = type==="s" ? (sharedStrings[parseInt(vMatch[1],10)]||"") : vMatch[1]; }
+      else{
+        const isMatch=/<is>([\s\S]*?)<\/is>/.exec(body);
+        if(isMatch){ const tInner=/<t[^>]*>([\s\S]*?)<\/t>/.exec(isMatch[1]); val = tInner?_xmlDecodeEntities(tInner[1]):""; }
+      }
+      row[colIdx]=val;
+    }
+    rows[rowIdx]=row;
+  }
+  return rows;
+}
+function xlsxBufferToRows(buf){
+  const entries = _zipReadEntries(buf);
+  const sheetName = Object.keys(entries).find(n=>/^xl\/worksheets\/sheet1\.xml$/i.test(n)) || Object.keys(entries).find(n=>/^xl\/worksheets\/.*\.xml$/i.test(n));
+  if(!sheetName) throw new Error("Nenhuma planilha (xl/worksheets/sheetN.xml) encontrada dentro do .xlsx");
+  const sharedEntry = entries["xl/sharedStrings.xml"];
+  const sharedStrings = sharedEntry ? _xlsxParseSharedStrings(_zipExtract(buf, sharedEntry).toString("utf8")) : [];
+  const sheetXml = _zipExtract(buf, entries[sheetName]).toString("utf8");
+  const rows = _xlsxParseSheet(sheetXml, sharedStrings);
+  // Normaliza buracos (linhas vazias no meio) pra array denso, sem furo de índice
+  const dense = [];
+  for(let i=0;i<rows.length;i++) dense.push(rows[i]||[]);
+  return dense;
+}
+
+// ── CSV simples (Excel → Salvar como CSV → colar/subir aqui) ──────────────
+function csvTextToRows(text){
+  const rows=[];
+  let row=[], field="", inQuotes=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQuotes){
+      if(c==='"'){ if(text[i+1]==='"'){field+='"';i++;} else inQuotes=false; }
+      else field+=c;
+    }else{
+      if(c==='"') inQuotes=true;
+      else if(c===','){ row.push(field); field=""; }
+      else if(c==='\r'){ /* ignore */ }
+      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=""; }
+      else field+=c;
+    }
+  }
+  if(field.length||row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r=>r.some(c=>String(c||"").trim()!==""));
+}
+
+// ── Detecção de cabeçalho — robusta a variação de nome (o antigo Monitor
+// DOL quebrava com "Cabeçalho não tem Case Number/Randomization Group"
+// porque exigia texto EXATO; aqui é por substring, sem acento, minúsculo). ──
+function _normHeader(s){
+  return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+}
+function j26DetectHeaders(headerRow){
+  const norm = (headerRow||[]).map(_normHeader);
+  const findCol = (...needles) => norm.findIndex(h => needles.every(n=>h.includes(n)));
+  const idx = {
+    caseNumber: findCol("case","number"),
+    grupo:      findCol("randomization","group"),
+    beginDate:  findCol("begin","date"),
+    empresa:    findCol("business","name"),
+    estado:     findCol("worksite","state"),
+    status:     findCol("case","status"),
+  };
+  const ok = idx.caseNumber>=0 && idx.grupo>=0;
+  return { ok, idx, missing: ok?[]:["case number","randomization group"].filter((_,i)=>i===0?idx.caseNumber<0:idx.grupo<0) };
+}
+
+// ── Parser central: rows brutas (CSV ou XLSX) → linhas validadas ──────────
+// NUNCA aceita uma linha sem confirmar que o case number bate com H-2B
+// (H-400) e, se a coluna Begin Date existir, que a data bate EXATAMENTE
+// com a temporada de Julho 2026 (01/10/2026) — senão REJEITA a linha.
+function j26ParseReportRows(rows){
+  if(!rows||!rows.length) return { ok:false, error:"Arquivo vazio ou ilegível." };
+  // Acha a linha de cabeçalho de verdade (pode não ser a linha 0 se sobrar
+  // linha de título/logo acima, comum em exports manuais do Excel)
+  let headerRowIdx = -1, headers = null;
+  for(let i=0;i<Math.min(5,rows.length);i++){
+    const det = j26DetectHeaders(rows[i]);
+    if(det.ok){ headerRowIdx=i; headers=det; break; }
+  }
+  if(headerRowIdx===-1){
+    return { ok:false, error:`Cabeçalho não encontrado (procurei "Case Number" e "Randomization Group" nas primeiras 5 linhas). O DOL pode ter mudado o formato — confira o arquivo manualmente.` };
+  }
+  const { idx } = headers;
+  const accepted = [];
+  let rejectedWrongSeason = 0, rejectedNoCase = 0, rejectedNoGroup = 0, rejectedNotH2B = 0;
+  const rejectedSamples = [];
+  for(let i=headerRowIdx+1;i<rows.length;i++){
+    const r = rows[i]; if(!r||!r.length) continue;
+    const cn = String(r[idx.caseNumber]||"").toUpperCase().trim();
+    if(!cn || !/^H-\d{3}-\d{5}-\d+$/.test(cn)){ rejectedNoCase++; continue; }
+    if(!cn.startsWith("H-400")){ rejectedNotH2B++; if(rejectedSamples.length<5)rejectedSamples.push(`${cn}: não é H-2B (só H-400 entra em grupo)`); continue; }
+    const grupo = String(r[idx.grupo]||"").toUpperCase().trim().slice(0,1);
+    if(!/^[A-H]$/.test(grupo)){ rejectedNoGroup++; continue; }
+    if(idx.beginDate>=0){
+      const bd = anyDateToISO(r[idx.beginDate]);
+      if(bd && bd!==GRUPOS_J26_SEASON.beginDateISO){
+        rejectedWrongSeason++;
+        if(rejectedSamples.length<5) rejectedSamples.push(`${cn}: begin_date="${bd}" ≠ ${GRUPOS_J26_SEASON.beginDateISO} (não é Julho 2026)`);
+        continue;
+      }
+    }
+    accepted.push({
+      cn, grupo,
+      empresa: idx.empresa>=0 ? String(r[idx.empresa]||"").trim().slice(0,120) : "",
+      estado:  idx.estado>=0  ? String(r[idx.estado]||"").trim().slice(0,40)   : "",
+      status:  idx.status>=0  ? String(r[idx.status]||"").trim().slice(0,80)   : "",
+    });
+  }
+  return {
+    ok: true, headerRowIdx, totalLinhas: rows.length-headerRowIdx-1,
+    accepted, rejectedWrongSeason, rejectedNoCase, rejectedNoGroup, rejectedNotH2B, rejectedSamples,
+  };
+}
+
+// ── Importação: mescla linhas validadas no mapa oficial (nunca sobrescreve
+// ajuste manual do admin) e persiste. Fonte da verdade única. ──────────────
+function j26ImportRows(parsed, fonte, arquivo){
+  const now = Date.now();
+  let novos=0, atualizados=0;
+  for(const row of parsed.accepted){
+    const cur = DB_GRUPOS_J26.mapa[row.cn];
+    if(!cur){
+      DB_GRUPOS_J26.mapa[row.cn] = { grupo:row.grupo, manual:false, empresa:row.empresa, estado:row.estado, status:row.status, importadoEm:now, fonte };
+      novos++;
+    } else if(!cur.manual && cur.grupo!==row.grupo){
+      cur.grupo=row.grupo; cur.empresa=row.empresa||cur.empresa; cur.estado=row.estado||cur.estado; cur.status=row.status||cur.status; cur.importadoEm=now; cur.fonte=fonte;
+      atualizados++;
+    }
+  }
+  const entry = {
+    at: now, fonte, arquivo: arquivo||"", novos, atualizados,
+    rejeitados: parsed.rejectedWrongSeason+parsed.rejectedNoCase+parsed.rejectedNoGroup+parsed.rejectedNotH2B,
+    rejeitadosPorTemporadaErrada: parsed.rejectedWrongSeason,
+    totalNoRelatorio: parsed.totalLinhas,
+    amostraRejeitados: parsed.rejectedSamples,
+  };
+  DB_GRUPOS_J26.meta.ultimaImportacao = entry;
+  DB_GRUPOS_J26.meta.historicoImportacoes.unshift(entry);
+  if(DB_GRUPOS_J26.meta.historicoImportacoes.length>30) DB_GRUPOS_J26.meta.historicoImportacoes.length=30;
+  persistGruposJ26();
+  grupoJ26Log(`📥 Importação (${fonte}${arquivo?': '+arquivo:''}): ${novos} novo(s), ${atualizados} atualizado(s), ${entry.rejeitados} rejeitado(s) (${parsed.rejectedWrongSeason} de outra temporada, ${parsed.rejectedNotH2B} não-H-2B) — total no mapa: ${Object.keys(DB_GRUPOS_J26.mapa).length}`, entry.rejeitados>0?'warn':'ok');
+  if(parsed.rejectedSamples.length){
+    for(const s of parsed.rejectedSamples) grupoJ26Log(`🚫 Rejeitada: ${s}`,'warn');
+  }
+  j26ApplyGroupsToSheet();
+  return entry;
+}
+
+// ── Download binário (preserva bytes — httpsReq genérico faz .toString()
+// e corromperia um .xlsx binário) ──────────────────────────────────────────
+function httpsGetBuffer(url, extraHeaders){
+  return new Promise((resolve,reject)=>{
+    let u; try{ u=new URL(url); }catch(e){ return reject(new Error("URL inválida: "+url)); }
+    const req = https.request({
+      hostname:u.hostname, path:u.pathname+u.search, method:"GET",
+      headers:{ "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36", ...extraHeaders },
+    }, resp=>{
+      if(resp.statusCode>=300 && resp.statusCode<400 && resp.headers.location){
+        return httpsGetBuffer(new URL(resp.headers.location,url).toString(), extraHeaders).then(resolve,reject);
+      }
+      const chunks=[];
+      resp.on("data",c=>chunks.push(c));
+      resp.on("end",()=>resolve({status:resp.statusCode, buffer:Buffer.concat(chunks)}));
+    });
+    req.on("error",reject);
+    req.setTimeout(30000,()=>{ req.destroy(); reject(new Error("Timeout")); });
+    req.end();
+  });
+}
+
+// ── Checador automático: acha o link do relatório de Julho 2026 na página
+// de anúncios do DOL, baixa e importa sozinho. Escopo ÚNICO: só aceita link
+// cujo nome sugira Julho 2026 (evita importar o report errado por engano). ──
+async function j26CheckDolNewsAndImport(){
+  DB_GRUPOS_J26.meta.checksCount = (DB_GRUPOS_J26.meta.checksCount||0)+1;
+  DB_GRUPOS_J26.meta.ultimaChecagemAutoAt = Date.now();
+  try{
+    const { status, buffer } = await httpsGetBuffer(GRUPOS_J26_NEWS_URL);
+    if(status!==200){
+      DB_GRUPOS_J26.meta.ultimoResultadoAuto='erro';
+      grupoJ26Log(`⚠️ Checagem do DOL: HTTP ${status} ao acessar a página de anúncios.`,'warn');
+      persistGruposJ26(); return { ok:false, reason:'http-'+status };
+    }
+    const html = buffer.toString("utf8");
+    // Procura qualquer link .xlsx com "PublicFacingReport" no nome, prioriza
+    // o que mencionar "Jul" (Julho) e "26" (2026) — nome real do DOL costuma
+    // ser algo como ".../FY26_JulPeak_PublicFacingReport.xlsx"
+    const hrefRe = /href="([^"]+PublicFacingReport[^"]*\.xlsx)"/gi;
+    const links = [];
+    let m; while((m=hrefRe.exec(html))) links.push(m[1]);
+    const candidate = links.find(l=>/jul/i.test(l) && /26/.test(l)) || links.find(l=>/jul/i.test(l));
+    if(!candidate){
+      DB_GRUPOS_J26.meta.ultimoResultadoAuto='nao-encontrado';
+      persistGruposJ26();
+      return { ok:true, found:false };
+    }
+    const fullUrl = candidate.startsWith("http") ? candidate : new URL(candidate, GRUPOS_J26_NEWS_URL).toString();
+    if(DB_GRUPOS_J26.meta.urlJaImportada===fullUrl){
+      DB_GRUPOS_J26.meta.ultimoResultadoAuto='ja-importado';
+      persistGruposJ26();
+      return { ok:true, found:true, jaImportado:true };
+    }
+    grupoJ26Log(`🔗 Relatório de Julho 2026 encontrado no site do DOL: ${fullUrl}`,'ok');
+    const dl = await httpsGetBuffer(fullUrl);
+    if(dl.status!==200 || dl.buffer.length<1000){
+      DB_GRUPOS_J26.meta.ultimoResultadoAuto='erro';
+      grupoJ26Log(`❌ Falha ao baixar o relatório (HTTP ${dl.status}, ${dl.buffer.length} bytes).`,'error');
+      persistGruposJ26(); return { ok:false, reason:'download-failed' };
+    }
+    grupoJ26Log(`⬇️ Download concluído (${(dl.buffer.length/1024).toFixed(0)} KB). Processando...`,'info');
+    const rows = xlsxBufferToRows(dl.buffer);
+    const parsed = j26ParseReportRows(rows);
+    if(!parsed.ok){
+      DB_GRUPOS_J26.meta.ultimoResultadoAuto='erro';
+      grupoJ26Log(`❌ Falha ao processar o .xlsx baixado: ${parsed.error}`,'error');
+      persistGruposJ26(); return { ok:false, reason:'parse-failed', error:parsed.error };
+    }
+    j26ImportRows(parsed, 'auto-dol', fullUrl.split("/").pop());
+    DB_GRUPOS_J26.meta.urlJaImportada = fullUrl;
+    DB_GRUPOS_J26.meta.ultimoResultadoAuto = 'importado';
+    persistGruposJ26();
+    return { ok:true, found:true, imported:true };
+  }catch(e){
+    DB_GRUPOS_J26.meta.ultimoResultadoAuto='erro';
+    grupoJ26Log(`❌ Erro na checagem automática: ${e.message}`,'error');
+    persistGruposJ26();
+    return { ok:false, reason:'exception', error:e.message };
+  }
+}
+async function j26AutoTick(){
+  if(DB_GRUPOS_J26.meta.autoCheckEnabled===false) return;
+  if(DB_GRUPOS_J26.meta.ultimoResultadoAuto==='importado' && DB_GRUPOS_J26.meta.urlJaImportada) return; // já achou e importou — não precisa mais varrer
+  await j26CheckDolNewsAndImport();
+}
+
+// ── Aplica os grupos importados direto nas vagas da planilha "jul2026" (se
+// ela já tiver sido publicada) — grava o campo `g` linha a linha e persiste
+// no mesmo arquivo/local que o resto do sistema já usa pra essa planilha. ──
+function j26ApplyGroupsToSheet(){
+  const arr = SHEET_EXTRAS["jul2026"];
+  if(!arr || !arr.length) return { applied:0, sheetExists:false };
+  let applied=0;
+  for(const r of arr){
+    const cn = String(r.c||"").toUpperCase();
+    const g = DB_GRUPOS_J26.mapa[cn];
+    if(g && r.g!==g.grupo){ r.g=g.grupo; applied++; }
+  }
+  if(applied>0){
+    try{
+      const meta = DB_SHEETS_META["jul2026"];
+      const fp = path.join(SHEETS_DIR, meta?.file||"jul2026.json");
+      fs.writeFileSync(fp, JSON.stringify(arr));
+      grupoJ26Log(`📋 Grupo aplicado em ${applied} vaga(s) da planilha "Julho 2026" já publicada.`,'ok');
+    }catch(e){ grupoJ26Log(`⚠️ Grupos aplicados em memória mas falhou salvar no arquivo da planilha: ${e.message}`,'warn'); }
+  }
+  return { applied, sheetExists:true };
+}
+
   // ════ GESTÃO DE PLANILHAS DE VAGAS ════════════════════════
   // GET /api/admin/sheets — lista todas as planilhas
   if(pathname==="/api/admin/sheets"&&req.method==="GET"){
@@ -5495,6 +5288,12 @@ function _saveEnrichedSheet(sheetKey, sheet){
       setTimeout(()=>_autoEnrichCycle().catch(e=>console.error("[auto-enrich] trigger upload erro:",e.message)), 3000);
       console.log(`[auto-enrich] 🔔 Enriquecimento de "${safeKey}" agendado em 3s`);
     }
+    // 🎯 Se essa é a planilha de Julho 2026 e já existem grupos oficiais
+    // importados, aplica na hora — não precisa esperar a próxima importação.
+    if(safeKey==="jul2026" && typeof j26ApplyGroupsToSheet==="function"){
+      const r = j26ApplyGroupsToSheet();
+      if(r.applied>0) console.log(`[grupos-j26] ✅ ${r.applied} grupo(s) já existente(s) aplicado(s) na planilha recém-publicada.`);
+    }
     return json(res,200,{ok:true,key:safeKey,count:valid.length,total:vagas.length,duplicatesMerged});
   }
 
@@ -5539,6 +5338,223 @@ function _saveEnrichedSheet(sheetKey, sheet){
       console.log(`[test] 🧪 Planilha de teste "${testKey}" publicada (${clone.length} vagas, cópia de Jan 2026)`);
       return json(res,200,{ok:true,key:testKey,count:clone.length});
     }catch(e){ return json(res,500,{error:e.message}); }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  📜 LOGS UNIFICADOS DE TODOS OS ROBÔS — pedido do dono (07/07/2026):
+  //  "preciso de logs inteligentes pra eu visualizar" — 1 feed só, todo robô
+  //  do sistema, filtrável, pra saber o que cada um fez e quando.
+  // ══════════════════════════════════════════════════════════════════════
+  const BOT_REGISTRY = [
+    {id:'enrich',        label:'Enriquecimento de Planilha', desc:'Completa e-mail/telefone/cidade/salário de vagas já coletadas, por ETA case number.'},
+    {id:'grupos-jul2026',label:'Grupos — Julho 2026',        desc:'Grupo A–H só de Julho 2026, só do relatório oficial do DOL (upload manual ou download automático) — nunca adivinhado.'},
+    {id:'robot-teste',   label:'Robô de Teste',               desc:'Simula um usuário real (QA) e limpa os dados de teste no final.'},
+    {id:'robo-auditoria',label:'Robô de Auditoria',           desc:'Coleta dados do sistema e manda pro Gemini analisar — só lê, nunca altera.'},
+    {id:'sentinel',      label:'Health Sentinel',             desc:'Detecta VIP com robô parado, VIP expirando, planilha desatualizada — notifica sozinho.'},
+    {id:'token-guardian',label:'Token Guardian',              desc:'Renova o token do Gmail de cada usuário ativo a cada 10min, antes que expire.'},
+    {id:'auth-watchdog', label:'Auth Error Watchdog',         desc:'Avisa usuário cujo robô parou por erro de autenticação há mais de 12h.'},
+  ];
+
+  // GET /api/admin/bots/logs — feed unificado (opcional ?bot=chave, ?limit=)
+  if(pathname==="/api/admin/bots/logs"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const botFilter=(u.searchParams.get("bot")||"").trim();
+    const limit=Math.min(500,Math.max(1,parseInt(u.searchParams.get("limit")||"200",10)));
+    let logs=DB_BOT_LOGS;
+    if(botFilter) logs=logs.filter(l=>l.bot===botFilter);
+    // Conta por robô (pro filtro em chips na tela, com número)
+    const counts={};
+    for(const l of DB_BOT_LOGS){ counts[l.bot]=(counts[l.bot]||0)+1; }
+    return json(res,200,{ok:true, bots:BOT_REGISTRY, counts, logs:logs.slice(0,limit)});
+  }
+
+  // POST /api/admin/bots/log-run — robôs client-driven (Robô de Teste, Robô
+  // de Auditoria) reportam um resumo da rodada aqui quando terminam.
+  if(pathname==="/api/admin/bots/log-run"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const bot=String(d.bot||"").slice(0,40);
+      const known=BOT_REGISTRY.find(b=>b.id===bot);
+      if(!known) return json(res,400,{error:"Robô desconhecido: "+bot});
+      botLog(bot, known.label, String(d.msg||"").slice(0,400), ["info","ok","warn","error"].includes(d.type)?d.type:"info");
+      return json(res,200,{ok:true});
+    }catch(e){ return json(res,400,{error:"Corpo inválido: "+e.message}); }
+  }
+
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  🎯 GRUPOS — JULHO 2026 — rotas admin
+  // ══════════════════════════════════════════════════════════════════════
+
+  // GET /api/admin/grupos-j26/status — visão geral + distribuição + histórico
+  if(pathname==="/api/admin/grupos-j26/status"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const entries = Object.entries(DB_GRUPOS_J26.mapa);
+    const byGrupo = {};
+    for(const [,v] of entries) byGrupo[v.grupo]=(byGrupo[v.grupo]||0)+1;
+    const manuais = entries.filter(([,v])=>v.manual).length;
+    return json(res,200,{ok:true,
+      season: GRUPOS_J26_SEASON,
+      total: entries.length,
+      byGrupo, manuais,
+      meta: DB_GRUPOS_J26.meta,
+    });
+  }
+
+  // GET /api/admin/grupos-j26/lookup?cn=H-400-... — consulta 1 case number
+  if(pathname==="/api/admin/grupos-j26/lookup"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const cn=(u.searchParams.get("cn")||"").toUpperCase().trim();
+    if(!cn) return json(res,400,{error:"Informe ?cn="});
+    const c=DB_GRUPOS_J26.mapa[cn];
+    if(!c) return json(res,404,{error:"Case number não está no mapa de grupos de Julho 2026 (relatório oficial ainda não importado ou vaga fora da temporada)."});
+    return json(res,200,{ok:true,cn,...c});
+  }
+
+  // POST /api/admin/grupos-j26/upload — {csv:"..."} OU {xlsxBase64:"...", filename}
+  if(pathname==="/api/admin/grupos-j26/upload"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      let rows;
+      let filename = String(d.filename||"upload").slice(0,120);
+      if(d.xlsxBase64){
+        let buf;
+        try{ buf=Buffer.from(d.xlsxBase64,"base64"); }
+        catch(e){ return json(res,400,{error:"Base64 inválido."}); }
+        try{ rows = xlsxBufferToRows(buf); }
+        catch(e){ grupoJ26Log(`❌ Falha ao ler .xlsx enviado (${filename}): ${e.message}`,'error'); return json(res,400,{error:"Falha ao ler o .xlsx: "+e.message}); }
+      } else if(typeof d.csv==="string" && d.csv.trim()){
+        rows = csvTextToRows(d.csv);
+      } else {
+        return json(res,400,{error:"Envie 'csv' (texto) ou 'xlsxBase64' (arquivo .xlsx em base64)."});
+      }
+      const parsed = j26ParseReportRows(rows);
+      if(!parsed.ok){
+        grupoJ26Log(`❌ Upload manual (${filename}) rejeitado: ${parsed.error}`,'error');
+        return json(res,400,{error:parsed.error});
+      }
+      if(!parsed.accepted.length){
+        grupoJ26Log(`⚠️ Upload manual (${filename}): 0 linhas aceitas de ${parsed.totalLinhas} no arquivo (todas rejeitadas — confira se é mesmo o relatório de Julho 2026).`,'warn');
+        return json(res,200,{ok:true,novos:0,atualizados:0,rejeitados:parsed.totalLinhas,detalhe:"Nenhuma linha aceita — confira se o arquivo é do período certo."});
+      }
+      const entry = j26ImportRows(parsed, 'upload-manual', filename);
+      return json(res,200,{ok:true,...entry});
+    }catch(e){ return json(res,500,{error:e.message}); }
+  }
+
+  // POST /api/admin/grupos-j26/check-now — força checagem imediata no site do DOL
+  if(pathname==="/api/admin/grupos-j26/check-now"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    grupoJ26Log(`🔍 Checagem manual disparada por ${s.user_email}...`,'info');
+    const r = await j26CheckDolNewsAndImport();
+    return json(res,200,{ok:true,result:r});
+  }
+
+  // POST /api/admin/grupos-j26/toggle-auto — liga/desliga a checagem automática
+  if(pathname==="/api/admin/grupos-j26/toggle-auto"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      DB_GRUPOS_J26.meta.autoCheckEnabled = !!d.enabled;
+      persistGruposJ26();
+      grupoJ26Log(`Checagem automática ${d.enabled?'LIGADA':'PAUSADA'} por ${s.user_email}`,'info');
+      return json(res,200,{ok:true,enabled:DB_GRUPOS_J26.meta.autoCheckEnabled});
+    }catch(e){ return json(res,500,{error:e.message}); }
+  }
+
+  // POST /api/admin/grupos-j26/set-manual — força grupo de 1 case (protegido contra reimportação)
+  if(pathname==="/api/admin/grupos-j26/set-manual"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const cn=String(d.cn||"").toUpperCase().trim();
+      const grupo=String(d.grupo||"").toUpperCase().trim().slice(0,1);
+      if(!cn) return json(res,400,{error:"cn obrigatório"});
+      if(!/^[A-H]$/.test(grupo)) return json(res,400,{error:"grupo deve ser uma letra de A a H"});
+      const cur = DB_GRUPOS_J26.mapa[cn] || {empresa:"",estado:"",status:""};
+      DB_GRUPOS_J26.mapa[cn] = { ...cur, grupo, manual:true, importadoEm:Date.now(), fonte:'manual-admin' };
+      persistGruposJ26();
+      grupoJ26Log(`✏️ Grupo de ${cn} definido manualmente para ${grupo} por ${s.user_email} (protegido — reimportação não sobrescreve)`,'info');
+      return json(res,200,{ok:true,cn,grupo});
+    }catch(e){ return json(res,500,{error:e.message}); }
+  }
+
+  // POST /api/admin/grupos-j26/clear-manual — remove a trava manual (volta a aceitar reimportação)
+  if(pathname==="/api/admin/grupos-j26/clear-manual"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const cn=String(d.cn||"").toUpperCase().trim();
+      const cur = DB_GRUPOS_J26.mapa[cn];
+      if(!cur) return json(res,404,{error:"Case number não encontrado."});
+      cur.manual=false;
+      persistGruposJ26();
+      grupoJ26Log(`🔓 Trava manual removida de ${cn} por ${s.user_email}`,'info');
+      return json(res,200,{ok:true});
+    }catch(e){ return json(res,500,{error:e.message}); }
+  }
+
+  // POST /api/admin/grupos-j26/delete-case — remove 1 entrada do mapa
+  if(pathname==="/api/admin/grupos-j26/delete-case"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const cn=String(d.cn||"").toUpperCase().trim();
+      if(!DB_GRUPOS_J26.mapa[cn]) return json(res,404,{error:"Case number não encontrado."});
+      delete DB_GRUPOS_J26.mapa[cn];
+      persistGruposJ26();
+      grupoJ26Log(`🗑️ ${cn} removido do mapa por ${s.user_email}`,'info');
+      return json(res,200,{ok:true});
+    }catch(e){ return json(res,500,{error:e.message}); }
+  }
+
+  // POST /api/admin/grupos-j26/reset — apaga TUDO (confirmação no front)
+  if(pathname==="/api/admin/grupos-j26/reset"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const totalAntes = Object.keys(DB_GRUPOS_J26.mapa).length;
+    DB_GRUPOS_J26.mapa = {};
+    DB_GRUPOS_J26.meta.ultimaImportacao = null;
+    DB_GRUPOS_J26.meta.historicoImportacoes = [];
+    DB_GRUPOS_J26.meta.urlJaImportada = null;
+    DB_GRUPOS_J26.meta.ultimoResultadoAuto = null;
+    persistGruposJ26();
+    grupoJ26Log(`🔁 RESET completo por ${s.user_email} — ${totalAntes} case(s) apagado(s). Pronto pra recomeçar do zero.`,'warn');
+    return json(res,200,{ok:true,apagados:totalAntes});
+  }
+
+  // GET /api/admin/grupos-j26/export — mapa completo (backup/auditoria)
+  if(pathname==="/api/admin/grupos-j26/export"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    return json(res,200,{ok:true,season:GRUPOS_J26_SEASON,exportedAt:Date.now(),mapa:DB_GRUPOS_J26.mapa});
+  }
+
+  // GET /api/admin/grupos-j26/list — lista paginada (pra tela de admin)
+  if(pathname==="/api/admin/grupos-j26/list"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const skip=Math.max(0,parseInt(u.searchParams.get("skip")||"0",10));
+    const top=Math.min(200,Math.max(1,parseInt(u.searchParams.get("top")||"50",10)));
+    const filterGrupo=(u.searchParams.get("grupo")||"").toUpperCase().slice(0,1);
+    const q=(u.searchParams.get("q")||"").toUpperCase().trim();
+    let list = Object.entries(DB_GRUPOS_J26.mapa).map(([cn,v])=>({cn,...v}));
+    if(filterGrupo) list=list.filter(x=>x.grupo===filterGrupo);
+    if(q) list=list.filter(x=>x.cn.includes(q)||String(x.empresa||"").toUpperCase().includes(q));
+    list.sort((a,b)=>b.importadoEm-a.importadoEm);
+    return json(res,200,{ok:true,total:list.length,items:list.slice(skip,skip+top)});
   }
 
   // GET /api/admin/enrich/status — status do bot em tempo real
@@ -5636,224 +5652,6 @@ function _saveEnrichedSheet(sheetKey, sheet){
       estados:Object.entries(states).sort((a,b)=>b[1]-a[1]).slice(0,10),
       meta:DB_SHEETS_META[key]||null,
     });
-  }
-
-  // ════════════════════════════════════════════════════════
-  //  DOL BUILD BOT — Criar planilha direto do Advanced Search
-  // ════════════════════════════════════════════════════════
-
-  // POST /api/admin/sheet/build-from-dol — inicia coleta
-  if(pathname==="/api/admin/sheet/build-from-dol"&&req.method==="POST"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    let b={};
-    try{ b=JSON.parse((await readBody(req))||"{}"); }
-    catch(e){ return json(res,400,{error:"JSON inválido no corpo do pedido"}); }
-    const {searchUrl,sheetKey,sheetName,targetCount}=b;
-    if(!searchUrl||!sheetKey||!sheetName||!targetCount) return json(res,400,{error:"searchUrl, sheetKey, sheetName e targetCount são obrigatórios"});
-    if(_dolBuildBot.running) return json(res,409,{error:"Bot já está rodando. Aguarde ou pare primeiro."});
-    const parsed=_parseDolAdvancedUrl(searchUrl);
-    if(!parsed.ok) return json(res,400,{error:"URL inválida: "+parsed.error});
-    const safeKey=sheetKey.toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,30);
-    if(!safeKey) return json(res,400,{error:"Chave inválida"});
-    // Iniciar em background
-    // 🔒 KB-079: 20000 é um TETO de segurança, não um alvo — o bot já para
-    // sozinho no tamanho REAL do pool (dedupe + detecção de pool esgotado).
-    // Antes o teto era 5000 e TRUNCAVA temporadas com mais vagas reais que
-    // isso (ex.: Jan 2026 tem 9.240 vagas reais).
-    _runDolBuildBot(searchUrl, safeKey, sheetName, Math.min(parseInt(targetCount)||500,20000)).catch(e=>_dolBuildLog('Erro bg: '+e.message,'error'));
-    return json(res,200,{ok:true,key:safeKey,visaType:parsed.visaClass,message:`Bot iniciado: "${sheetName}" | ${targetCount} vagas | ${parsed.visaClass}`});
-  }
-
-  // GET /api/admin/sheet/build-status — status do bot
-  if(pathname==="/api/admin/sheet/build-status"&&req.method==="GET"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    const b=_dolBuildBot;
-    // Fase 1 (listar case numbers) conta até 40% da barra; fase 2 (buscar
-    // vaga por vaga, a parte que realmente demora) completa os outros 60%.
-    let pct;
-    if(b.phase===2 && b.target>0) pct = 40 + Math.round((b.fetched/b.target)*60);
-    else if(b.phase===1 && b.casesListed>=0) pct = Math.min(40, Math.round((b.casesListed/Math.max(1,b.target||1))*40));
-    else pct = 0;
-    return json(res,200,{ok:true,
-      running:b.running,
-      key:b.key,name:b.name,visaType:b.visaType,
-      target:b.target,fetched:b.fetched,saved:b.saved,errors:b.errors,
-      phase:b.phase, casesListed:b.casesListed,
-      pct:Math.min(Math.max(pct,0),100),
-      startedAt:b.startedAt,finishedAt:b.finishedAt,
-      published:b.published,
-      log:b.log.slice(-50),
-    });
-  }
-
-  // POST /api/admin/sheet/build-stop — para o bot
-  if(pathname==="/api/admin/sheet/build-stop"&&req.method==="POST"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    _dolBuildBot.running=false;
-    _dolBuildLog('⏹️ Bot parado pelo admin','warn');
-    return json(res,200,{ok:true});
-  }
-
-  // POST /api/admin/sheet/build-publish — publica a planilha construída
-  if(pathname==="/api/admin/sheet/build-publish"&&req.method==="POST"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    const key=_dolBuildBot.key;
-    if(!key||_dolBuildBot.running) return json(res,400,{error:_dolBuildBot.running?"Bot ainda rodando":"Nenhuma planilha construída"});
-    if(!SHEET_EXTRAS[key]||!SHEET_EXTRAS[key].length) return json(res,404,{error:"Planilha não encontrada em memória"});
-    _dolBuildBot.published=true;
-    // Marca a planilha como PUBLICADA de verdade (persistente) para aparecer
-    // na lista do usuário. Sem isso, publicar não expunha nada.
-    if(!DB_SHEETS_META[key]) DB_SHEETS_META[key]={};
-    Object.assign(DB_SHEETS_META[key],{
-      published:true, publishedAt:Date.now(),
-      name:_dolBuildBot.name||DB_SHEETS_META[key].name||key,
-      visaType:_dolBuildBot.visaType||DB_SHEETS_META[key].visaType||'H-2B',
-      count:(SHEET_EXTRAS[key]||[]).length,
-    });
-    try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
-    _dolBuildLog(`📢 Planilha "${_dolBuildBot.name}" publicada! Já aparece para os usuários.`,'ok');
-    return json(res,200,{ok:true,key,name:_dolBuildBot.name,count:SHEET_EXTRAS[key].length,visaType:_dolBuildBot.visaType});
-  }
-
-  // GET /api/admin/sheet/historico-status — estado das 6 temporadas históricas
-  if(pathname==="/api/admin/sheet/historico-status"&&req.method==="GET"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    // 🔒 KB-079: além de published/count, mostra se a planilha JÁ EM MEMÓRIA
-    // tem integridade (1 vaga = 1 ETA case number) — assim o admin enxerga,
-    // sem clicar em nada, se alguma das 6 precisa ser refeita (coletada com
-    // o bot antigo, antes do dedupe do KB-076). loadSheets() já se autocura
-    // sozinho no boot, então isto tende a aparecer sempre ok:true — mas o
-    // admin pode conferir e, se quiser, ainda assim refazer do zero.
-    const temporadas=HISTORICAL_SEASONS.map(se=>{
-      const arr=SHEET_EXTRAS[se.key]||[];
-      const integ=arr.length?_vagasVerify(arr,{caseField:'c'}):null;
-      return{
-        key:se.key, name:se.name, emoji:se.emoji,
-        published: DB_SHEETS_META[se.key]?.published===true,
-        count: DB_SHEETS_META[se.key]?.count||0,
-        uniqueCaseCount: integ?integ.uniqueCaseCount:null,
-        integrityOk: integ?integ.ok:null,
-      };
-    });
-    return json(res,200,{ok:true, running:_histBuild.running, temporadas, log:_histBuild.log.slice(-150)});
-  }
-
-  // GET /api/admin/sheet/next-season-status — status do vigia de Julho 2026
-  // (KB-082, pedido do dono: bot deve checar sozinho a cada 5min).
-  if(pathname==="/api/admin/sheet/next-season-status"&&req.method==="GET"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    const meta=DB_SHEETS_META[NEXT_SEASON.key];
-    const published=meta?.published===true;
-    const hoursSincePublish=published?(Date.now()-(meta.publishedAt||0))/3600000:null;
-    return json(res,200,{ok:true,
-      season:{key:NEXT_SEASON.key,name:NEXT_SEASON.name,emoji:NEXT_SEASON.emoji},
-      published,
-      count: meta?.count||0,
-      publishedAt: meta?.publishedAt||null,
-      lastRefreshAt: meta?.lastRefreshAt||null,
-      stillRefreshing: published && hoursSincePublish!==null && hoursSincePublish<=48,
-      hoursSincePublish,
-      lastCheckAt: _nextSeasonWatch.lastCheckAt,
-      lastResult: _nextSeasonWatch.lastResult,
-      checksCount: _nextSeasonWatch.checksCount,
-      checking: _nextSeasonWatch.checking,
-      intervalMinutes: 5,
-    });
-  }
-
-  // POST /api/admin/sheet/next-season-check-now — força uma checagem manual
-  // imediata (fora do ciclo de 5min), sem esperar o próximo tick.
-  if(pathname==="/api/admin/sheet/next-season-check-now"&&req.method==="POST"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    if(_nextSeasonWatch.checking) return json(res,200,{ok:true,alreadyChecking:true});
-    _nextSeasonWatchTick().catch(()=>{});
-    return json(res,200,{ok:true,started:true});
-  }
-
-  // POST /api/admin/sheet/historico-collect-all — dispara a coleta+publicação
-  // sequencial das temporadas que faltam (pula as já publicadas). Roda em
-  // background — front acompanha via polling do status acima.
-  if(pathname==="/api/admin/sheet/historico-collect-all"&&req.method==="POST"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    if(_histBuild.running) return json(res,200,{ok:true,alreadyRunning:true});
-    _runHistoricoOrchestrator(false).catch(e=>_histLog('Erro inesperado: '+e.message,'error'));
-    return json(res,200,{ok:true,started:true});
-  }
-
-  // POST /api/admin/sheet/historico-refazer-todas — KB-080 (pedido do dono,
-  // 07/07/2026): "exclua essas anteriores e refaça TODAS, uma por uma tá
-  // demorado". Em vez de pular as 6 já publicadas, APAGA cada uma e recoleta
-  // do zero com o bot corrigido — mesmo resultado de clicar "🔁 Refazer" 6
-  // vezes, só que com 1 clique só. Roda em sequência (o bot é singleton),
-  // acompanhe pelo mesmo log/tabela desta seção.
-  if(pathname==="/api/admin/sheet/historico-refazer-todas"&&req.method==="POST"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    if(_histBuild.running) return json(res,200,{ok:true,alreadyRunning:true});
-    _runHistoricoOrchestrator(true).catch(e=>_histLog('Erro inesperado: '+e.message,'error'));
-    return json(res,200,{ok:true,started:true});
-  }
-
-  // POST /api/admin/sheet/historico-refazer — KB-079 (pedido do dono,
-  // 07/07/2026): as 6 temporadas históricas foram coletadas ANTES da
-  // correção do bug de duplicata por ETA case number (KB-076) — o próprio
-  // bot ("Nova Planilha do DOL"/_runDolBuildBot) que as gerou tinha a falha.
-  // Esta rota permite REFAZER uma temporada específica do zero, do jeito
-  // certo: apaga a planilha e o "published" atuais (não fica lixo pra trás)
-  // e roda a coleta de novo com o bot JÁ CORRIGIDO (dedupe + detecção de
-  // pool esgotado) — o resultado é a contagem REAL de vagas únicas, nunca
-  // um número inflado/artificial. Idempotente: pode clicar de novo à vontade.
-  if(pathname==="/api/admin/sheet/historico-refazer"&&req.method==="POST"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    let body; try{ body=JSON.parse(await readBody(req)); }catch(e){ return json(res,400,{error:"Corpo inválido: "+e.message}); }
-    const key=String(body?.key||"");
-    const season=HISTORICAL_SEASONS.find(se=>se.key===key);
-    if(!season) return json(res,400,{error:"Temporada desconhecida: "+key});
-    if(_dolBuildBot.running) return json(res,409,{error:"O bot de coleta já está ocupado com outra planilha — aguarde terminar e tente de novo."});
-    if(_histBuild.running) return json(res,409,{error:"A coleta histórica em lote já está rodando — aguarde terminar e tente de novo."});
-    // Apaga o que existe agora (arquivo + meta + memória) — SEM isso, o
-    // orquestrador normal pularia achando que "já está publicada".
-    try{
-      const oldMeta=DB_SHEETS_META[key];
-      if(oldMeta?.file){try{fs.unlinkSync(path.join(SHEETS_DIR,oldMeta.file));}catch{}}
-      delete SHEET_EXTRAS[key];
-      delete DB_SHEETS_META[key];
-      fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));
-    }catch(e){ return json(res,500,{error:"Falha ao limpar a temporada antiga: "+e.message}); }
-    _histBuild.running=true; _histBuild.log.length=0;
-    _histLog(`🔁 Admin ${s.user_email} pediu pra REFAZER do zero: ${season.emoji} ${season.name} (planilha antiga apagada, coletando de novo com o bot corrigido)`,'info');
-    (async()=>{
-      try{
-        await _runDolBuildBot(_histSearchUrl(season.startDate, season.endDate), season.key, season.name, 20000); // KB-079/KB-081: teto de segurança (não alvo) + janela fechada por endDate
-        const arr=SHEET_EXTRAS[season.key]||[];
-        if(!arr.length){
-          _histLog(`${season.emoji} ${season.name}: ⚠️ coleta terminou sem nenhuma vaga — não publicado.`,'warn');
-        }else{
-          const withEmail=arr.filter(r=>r.e&&r.e.includes('@')).length;
-          if(!DB_SHEETS_META[season.key]) DB_SHEETS_META[season.key]={};
-          Object.assign(DB_SHEETS_META[season.key],{
-            published:true, publishedAt:Date.now(), name:season.name, visaType:'H-2B',
-            count:arr.length, historico:true, emoji:season.emoji,
-          });
-          try{ fs.writeFileSync(SHEETS_META_FILE, JSON.stringify(DB_SHEETS_META,null,2)); }catch{}
-          _histLog(`${season.emoji} ${season.name}: ✅ refeita do zero! ${arr.length} vagas únicas (${withEmail} com e-mail) — número REAL, sem duplicata.`,'ok');
-        }
-      }catch(e){
-        _histLog(`${season.emoji} ${season.name}: ❌ erro ao refazer — ${e.message}`,'error');
-      }finally{
-        _histBuild.running=false;
-      }
-    })();
-    return json(res,200,{ok:true,started:true,key});
   }
 
   // ── API: Email Intelligence (bounces globais) ──────────
@@ -6078,50 +5876,6 @@ function _saveEnrichedSheet(sheetKey, sheet){
         const m=String(r.d||"").match(/^\d{4}-(\d{2})/);
         return m&&_months.has(parseInt(m[1],10));
       });
-    }
-    // ── FILTRO POR GRUPO (randomização H-2B) — exclusivo do plano Double Pro ──
-    // Gate no SERVIDOR: quem não é 250+ recebe upsell, nunca o dado filtrado.
-    // H-2A não tem grupo (não existe lista randomizada de H-2A) → nunca casa.
-    const filterGrupo=(u.searchParams.get("grupo")||"").toUpperCase().replace(/[^A-H,]/g,"").trim();
-    if(filterGrupo){
-      const _sG=getSess(req);
-      const _uG=_sG?.user_email?(getUser(_sG.user_email)||{}):{};
-      const _fullG=getPlan(_uG)==="doublepro"||isAdminVip(_uG);
-      if(!_fullG)return json(res,403,{error:"O Filtro por Grupo é exclusivo do plano Double Pro (R$250).",upsell:true,feature:"grupo"});
-      const _gs=new Set(filterGrupo.split(",").filter(Boolean));
-      preFiltered=preFiltered.filter(r=>{
-        const cn=String(r.c||"").toUpperCase();
-        if(etaIsH2A(cn,r.visa))return false;
-        const gr=etaGrupoDisplay(DB_ETA.cases[cn])||ETA_GRUPOS_OFICIAIS[cn]||etaGrupoFor(cn,r.visa,r.d,r.g?String(r.g):"");
-        return gr&&_gs.has(gr);
-      });
-    }
-    // ── FILTRO POR STATUS DOL (Monitor ETA) — também exclusivo Double Pro ──
-    // Chaves amigáveis → teste sobre o status atual do case no registro do robô.
-    const filterEta=(u.searchParams.get("etaStatus")||"").toLowerCase().replace(/[^a-z,]/g,"");
-    if(filterEta){
-      const _sE=getSess(req);
-      const _uE=_sE?.user_email?(getUser(_sE.user_email)||{}):{};
-      const _fullE=getPlan(_uE)==="doublepro"||isAdminVip(_uE);
-      if(!_fullE)return json(res,403,{error:"O Filtro por Status é exclusivo do plano Double Pro (R$250).",upsell:true,feature:"status"});
-      const TESTES={
-        certificada:st=>st.includes("certification")&&!st.includes("partial"),
-        parcial:st=>st.includes("partial"),
-        ativa:st=>st.includes("ativa"),
-        inativa:st=>st.includes("inativa"),
-        registrada:st=>st.includes("registrada")||st.includes("pending"),
-        withdrawn:st=>st.includes("withdrawn"),
-        denied:st=>st.includes("denied")||st.includes("rejected"),
-        encerrada:st=>st.includes("encerrada")||st.includes("closed")
-      };
-      const wanted=filterEta.split(",").map(k=>TESTES[k]).filter(Boolean);
-      if(wanted.length){
-        preFiltered=preFiltered.filter(r=>{
-          const c=DB_ETA.cases[String(r.c||"").toUpperCase()];
-          const st=String(c?.status||r.st||"").toLowerCase();
-          return st&&wanted.some(t=>t(st));
-        });
-      }
     }
     // searchSheet faz q/state/category + paginação no array já pré-filtrado
     const{total,items}=searchSheet(preFiltered,q,state,category,skip,top,sort);
@@ -6858,7 +6612,6 @@ function _saveEnrichedSheet(sheetKey, sheet){
   // ── 🩺 ROTAS DE SAÚDE/OPERAÇÃO — extraídas para src/routes/admin-health.js (Fase 1 · Módulo 5)
   if(await handleAdminHealthRoutes(req,res,pathname)) return;
   if(await handleAdminV2Routes(req,res,pathname)) return;
-  if(await handleDolMonitorRoutes(req,res,pathname)) return;
 
   // ── M04: Exportar usuários como CSV ──────────────────────
   if(pathname==="/api/admin/users/export"&&req.method==="GET"){
@@ -8677,23 +8430,6 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     if(!isAdminVip(p)&&todayAuto>=autoLimit)return json(res,429,{error:`Limite de ${autoLimit} automáticos/dia atingido.`,limitReached:true});
     try{
       const d=JSON.parse(await readBody(req));
-      // ── FILTRO POR GRUPO no automático — gate server-side do Double Pro ──
-      // Mesmo que o front tente burlar, a fila só é filtrada por grupo p/ 250+.
-      if(Array.isArray(d.grupos)&&d.grupos.length){
-        const _fullG=getPlan(p)==="doublepro"||isAdminVip(p);
-        if(!_fullG)return json(res,403,{error:"O Filtro por Grupo é exclusivo do plano Double Pro (R$250).",upsell:true,feature:"grupo"});
-        const _gs=new Set(d.grupos.map(x=>String(x).toUpperCase().slice(0,1)).filter(x=>/^[A-H]$/.test(x)));
-        if(_gs.size&&Array.isArray(d.cases)){
-          const _antes=d.cases.length;
-          d.cases=d.cases.filter(cn=>{
-            const CN=String(cn||"").toUpperCase();
-            if(etaIsH2A(CN,""))return false;
-            const gr=etaGrupoDisplay(DB_ETA.cases[CN])||ETA_GRUPOS_OFICIAIS[CN]||"";
-            return gr&&_gs.has(gr);
-          });
-          console.log(`[auto] Filtro por grupo [${[..._gs].join(",")}]: ${_antes} → ${d.cases.length} vagas`);
-        }
-      }
       // ── Validação: perfil válido ──────────────────────────
       const profiles=(p.profiles||[]).filter(pr=>pr.active!==false);
       const hasResumeIdx=d.resumeIdx!=null||(profiles.length>0&&profiles.some(pr=>pr.resumeIdx!=null));
@@ -10085,63 +9821,6 @@ Responda APENAS em JSON (sem markdown):
         return json(res,200,{ok:true});
       }catch(e){return json(res,500,{error:e.message});}
     }
-    // ── ADMIN: Monitor ETA ─────────────────────────────────
-    if(pathname==="/api/admin/eta/stats"&&req.method==="GET"){
-      const now=Date.now();
-      const all=Object.values(DB_ETA.cases||{});
-      const byStatus={},byGrupo={};
-      let fila=0,updAtivas=0,proxima=Infinity;
-      for(const c of all){
-        byStatus[c.status||"–"]=(byStatus[c.status||"–"]||0)+1;
-        byGrupo[c.grupo||"–"]=(byGrupo[c.grupo||"–"]||0)+1;
-        if((c.nextCheckAt||0)<=now)fila++;
-        if((c.updBadgeUntil||0)>now)updAtivas++;
-        if((c.nextCheckAt||0)>now&&c.nextCheckAt<proxima)proxima=c.nextCheckAt;
-      }
-      return json(res,200,{ok:true,total:all.length,byStatus,byGrupo,fila,updAtivas,
-        checksToday:DB_ETA.meta.checksToday||0,errorsToday:DB_ETA.meta.errorsToday||0,
-        lastSyncAt:DB_ETA.meta.lastSyncAt||0,lastSeedAt:DB_ETA.meta.lastSeedAt||0,
-        proximaConsulta:isFinite(proxima)?proxima:0,
-        workerEnabled:DB_ADMIN_SETTINGS.etaWorkerEnabled!==false});
-    }
-    if(pathname==="/api/admin/eta/logs"&&req.method==="GET"){
-      return json(res,200,{ok:true,logs:DB_ETA_LOGS.slice(0,200)});
-    }
-    if(pathname==="/api/admin/eta/toggle"&&req.method==="POST"){
-      try{
-        const d=JSON.parse(await readBody(req));
-        DB_ADMIN_SETTINGS.etaWorkerEnabled=!!d.enabled;
-        persist(ADMIN_SETTINGS_FILE,DB_ADMIN_SETTINGS);
-        etaLog("info",`Robô ETA ${d.enabled?"LIGADO":"PAUSADO"} por ${s.user_email}`);
-        return json(res,200,{ok:true,workerEnabled:!!d.enabled});
-      }catch(e){return json(res,500,{error:e.message});}
-    }
-    if(pathname==="/api/admin/eta/check-now"&&req.method==="POST"){
-      try{
-        const d=JSON.parse(await readBody(req));
-        const cn=String(d.caseNumber||"").toUpperCase().trim();
-        const c=DB_ETA.cases[cn];
-        if(!c)return json(res,404,{error:"Case não encontrado no registro."});
-        c.nextCheckAt=0;_etaDirty=true;
-        etaTick().catch(()=>{}); // dispara já, sem esperar o próximo tick
-        return json(res,200,{ok:true});
-      }catch(e){return json(res,500,{error:e.message});}
-    }
-    if(pathname==="/api/admin/eta/set-grupo"&&req.method==="POST"){
-      try{
-        const d=JSON.parse(await readBody(req));
-        const cn=String(d.caseNumber||"").toUpperCase().trim();
-        const c=DB_ETA.cases[cn];
-        if(!c)return json(res,404,{error:"Case não encontrado no registro."});
-        const gr=String(d.grupo||"").toUpperCase().slice(0,1);
-        if(gr&&!/^[A-H]$/.test(gr))return json(res,400,{error:"Grupo deve ser uma letra de A a H (ou vazio para automático)."});
-        if(gr){c.grupo=gr;c.grupoManual=true;}
-        else{c.grupoManual=false;c.grupo=etaGrupoFromBegin(c.begin);}
-        _etaDirty=true;
-        etaLog("info",`Grupo de ${cn} → ${c.grupo||"automático"} (por ${s.user_email})`,cn);
-        return json(res,200,{ok:true,grupo:c.grupo});
-      }catch(e){return json(res,500,{error:e.message});}
-    }
     // ── ADMIN: Ranking Management ──────────────────────────
     if(pathname==="/api/admin/ranking"&&req.method==="GET"){
       const period  =["day","week","month","all"].includes(u.searchParams.get("period"))  ?u.searchParams.get("period")  :"day";
@@ -10217,65 +9896,6 @@ Responda APENAS em JSON (sem markdown):
       console.log(`[codes] ${code} usado por ${s.user_email} manual:${c.manualDays}d auto:${c.autoDays}d`);
       return json(res,200,{ok:true,manualDays:c.manualDays,autoDays:c.autoDays,manualExpiresDate:c.manualDays>0?new Date(manualExpires).toLocaleDateString("pt-BR"):null,autoExpiresDate:c.autoDays>0?new Date(autoExpires).toLocaleDateString("pt-BR"):null});
     }catch(e){return json(res,500,{error:e.message});}
-  }
-  // ══ MONITOR ETA (usuário) ═══════════════════════════════
-  // POST /api/eta/map {cases:[...]} — badges dos cards (grupo p/ todos;
-  // status/atualização SÓ para Double Pro — os demais recebem locked:true).
-  if(pathname==="/api/eta/map"&&req.method==="POST"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
-    try{
-      const d=JSON.parse(await readBody(req));
-      const cases=(Array.isArray(d.cases)?d.cases:[]).slice(0,60).map(c=>String(c||"").toUpperCase().trim());
-      const usr=getUser(s.user_email)||{};
-      const full=getPlan(usr)==="doublepro"||isAdminVip(usr);
-      const map={};
-      for(const cn of cases){
-        const c=DB_ETA.cases[cn];if(!c)continue;
-        const _h2a=etaIsH2A(c.cn,c.visa);
-        const _gr=_h2a?"":etaGrupoDisplay(c);
-        map[cn]=full
-          ?{grupo:_gr,h2a:_h2a,status:c.status||"",upd:(c.updBadgeUntil||0)>Date.now(),last:c.lastCheckAt||0}
-          :{locked:true,h2a:_h2a,hasGrupo:!!_gr}; // grupo E status são exclusivos do plano 250+
-      }
-      return json(res,200,{ok:true,full,map});
-    }catch(e){return json(res,500,{error:e.message});}
-  }
-  // POST /api/admin/eta/upload-grupos {csv} — importa o PublicFacingReport
-  // novo (ex.: julho/2026). Excel → "Salvar como CSV" → colar/subir aqui.
-  // Mescla nos grupos oficiais, persiste no volume e corrige o registro na hora.
-  if(pathname==="/api/admin/eta/upload-grupos"&&req.method==="POST"){
-    const s2=getSess(req);if(!s2?.user_email)return json(res,401,{error:"Não autenticado"});
-    const p2=getUser(s2.user_email);if(!isAdminVip(p2))return json(res,403,{error:"Não autorizado"});
-    try{
-      const d=JSON.parse(await readBody(req));
-      const r=etaParseGruposCSV(d.csv||"");
-      if(r.err)return json(res,400,{error:r.err});
-      persistGruposOficiais(String(d.fonte||"upload admin").slice(0,120));
-      etaAplicarGruposOficiais();
-      etaLog("info",`Report de randomização importado: ${r.add} grupos novos/atualizados (total ${Object.keys(ETA_GRUPOS_OFICIAIS).length})`);
-      return json(res,200,{ok:true,adicionados:r.add,total:Object.keys(ETA_GRUPOS_OFICIAIS).length});
-    }catch(e){return json(res,500,{error:e.message});}
-  }
-  // GET /api/eta/case?c=H-... — detalhe completo (Double Pro) ou teaser (demais)
-  if(pathname==="/api/eta/case"&&req.method==="GET"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
-    const cn=(u.searchParams.get("c")||"").toUpperCase().trim();
-    if(!cn)return json(res,400,{error:"Case number obrigatório."});
-    const c=DB_ETA.cases[cn];
-    if(!c)return json(res,404,{error:"Esta vaga ainda não entrou no monitoramento. O robô importa vagas novas automaticamente."});
-    const usr=getUser(s.user_email)||{};
-    const full=getPlan(usr)==="doublepro"||isAdminVip(usr);
-    if(!full){
-      return json(res,200,{ok:true,locked:true,cn:c.cn,h2a:etaIsH2A(c.cn,c.visa),hasGrupo:!!etaGrupoDisplay(c),empresa:c.empresa,estado:c.estado,
-        checks:c.checks||0,changes:c.changes||0,monitoradaDesde:c.createdAt||0});
-    }
-    return json(res,200,{ok:true,locked:false,case:{
-      cn:c.cn,empresa:c.empresa,estado:c.estado,cidade:c.cidade||"",begin:c.begin||"",end:c.end||"",
-      grupo:etaGrupoDisplay(c),h2a:etaIsH2A(c.cn,c.visa),visa:c.visa||"H-2B",status:c.status||"",
-      hist:(c.hist||[]).slice(-20),
-      lastCheckAt:c.lastCheckAt||0,nextCheckAt:c.nextCheckAt||0,
-      checks:c.checks||0,changes:c.changes||0,upd:(c.updBadgeUntil||0)>Date.now()
-    }});
   }
 
   // ══ MULTI-SERVIDOR ═══════════════════════════════════════
@@ -11747,89 +11367,6 @@ Vamos lá que a América não espera! 🇺🇸🚀
 Equipe H2BApply 🤖` },
 ];
 
-function persistReportNotifs(){
-  try{ const tmp=REPORT_NOTIFS_FILE+".tmp"; fs.writeFileSync(tmp, JSON.stringify(DB_REPORT_NOTIFS)); fs.renameSync(tmp, REPORT_NOTIFS_FILE); }
-  catch(e){ console.warn("[report-notif] persist:", e.message); }
-}
-
-// ══════════════════════════════════════════════════════════════════════
-//  🚨 ALERTA "SAIU A LISTA RANDOMIZADA" — pedido do dono (06/07/2026)
-//  Dispara pelo Monitor DOL (mod-dol-monitor.js) assim que ele importa com
-//  sucesso um novo PublicFacingReport. Avisa TODOS os usuários pagantes
-//  ativos (vip.source==='payment' + VIP em dia — mesma fonte única usada
-//  em /api/admin/pagantes), 1x por pagante POR RELATÓRIO (nunca reenvia
-//  pro mesmo relatório; um relatório novo no futuro gera aviso novo).
-//  Kill-switch PRÓPRIO (DB_ADMIN_SETTINGS.reportAlertEmailEnabled) —
-//  independente do kill-switch geral de notificações (que fica desligado).
-// ══════════════════════════════════════════════════════════════════════
-async function notifyPayingUsersReportReady(reportUrl, reportLabel){
-  if (DB_ADMIN_SETTINGS.reportAlertEmailEnabled === false) {
-    console.log("[report-notif] 🔕 Alerta de lista randomizada desativado em Configurações — pulando.");
-    return { skipped: true };
-  }
-  // Precisa de sessão/refresh_token do admin com Gmail (mesmo requisito de sendNotifEmail)
-  let adminToken = null;
-  const adminSessEntry = Object.entries(sessions).find(([, s]) => s.user_email === ADMIN_EMAIL && s.access_token);
-  if (adminSessEntry) {
-    adminToken = adminSessEntry[1].access_token;
-  } else {
-    const adminUser = getUser(ADMIN_EMAIL);
-    if (adminUser?.refresh_token) {
-      try { adminToken = await refreshTokenForUser(ADMIN_EMAIL); }
-      catch (e) { console.warn("[report-notif] Não foi possível renovar token do admin:", e.message); return { error: e.message }; }
-    } else {
-      console.warn("[report-notif] Admin sem sessão/refresh_token ativo — abortando alerta.");
-      return { error: "admin_offline" };
-    }
-  }
-
-  if (!DB_REPORT_NOTIFS[reportUrl]) DB_REPORT_NOTIFS[reportUrl] = { notifiedEmails: [], startedAt: Date.now(), doneAt: null, label: reportLabel };
-  const reg = DB_REPORT_NOTIFS[reportUrl];
-  const already = new Set(reg.notifiedEmails);
-
-  // MESMA fonte única de "pagante" do /api/admin/pagantes: vip.source==='payment'
-  // (nunca trial/código/indicação) + VIP ainda ativo agora.
-  const payingUsers = Object.entries(DB_USERS).filter(([email, u]) =>
-    u?.vip?.source === "payment" && isVipActive(u) && !already.has(email)
-  );
-
-  let sent = 0, failed = 0;
-  for (const [email, u] of payingUsers) {
-    const nome = (u.name || email.split("@")[0] || "amigo").split(" ")[0];
-    const subject = `🚨🚨 SAIU A LISTA RANDOMIZADA — ${reportLabel} 🚨🚨`;
-    const body =
-`${nome}, ATENÇÃO! 🚨🚨🚨
-
-A LISTA OFICIAL DE RANDOMIZAÇÃO DO DOL (${reportLabel}) ACABOU DE SAIR — e já está disponível AGORA MESMO no H2BApply!
-
-Isso é importante pra você: os grupos oficiais (A–H) de randomização das suas vagas H-2B já foram atualizados no sistema. Quem entra primeiro se organiza melhor!
-
-👉 ENTRA AGORA: h2bapply.com
-
-Não deixa pra depois — a informação está fresquinha e pode mudar sua estratégia de candidatura! 💪🇺🇸
-
-Equipe H2BApply 🤖`;
-    try {
-      const raw = buildMime({ to: email, subject, fromName: "H2BApply 🚨 Alerta Importante", fromEmail: ADMIN_EMAIL, text: body });
-      const { status } = await httpsReq({
-        hostname: "gmail.googleapis.com", path: "/gmail/v1/users/me/messages/send", method: "POST",
-        headers: { "Authorization": "Bearer " + adminToken, "Content-Type": "application/json" },
-      }, { raw });
-      if (status === 200) { reg.notifiedEmails.push(email); sent++; }
-      else failed++;
-    } catch (e) {
-      failed++;
-      console.warn("[report-notif] erro ao notificar", email, ":", e.message);
-    }
-    persistReportNotifs(); // grava a cada envio — se cair no meio, não reenvia pra quem já recebeu
-    await new Promise(r => setTimeout(r, 2500)); // mesma pausa anti-bloqueio dos outros envios em massa
-  }
-  reg.doneAt = Date.now();
-  persistReportNotifs();
-  console.log(`[report-notif] ✅ Alerta "${reportLabel}" concluído: ${sent} enviados, ${failed} falhas, de ${payingUsers.length} pagantes elegíveis.`);
-  return { sent, failed, total: payingUsers.length };
-}
-
 async function sendNotifEmail(userEmail, tipo) {
   // 🔕 KILL SWITCH (pedido do dono, 06/07/2026): desativa TODAS as notificações
   // automáticas por e-mail enviadas pela conta admin (andrio.kick18@gmail.com)
@@ -12248,6 +11785,7 @@ const { tokenGuardianRun, vipExpiryWatchdog, authErrorWatchdog, getAuthErrNotifi
   DB_AUTO: ()=>DB_AUTO, autoTimers: ()=>autoTimers,
   getUser, getAutoJob, setAutoJob, addLog, sendNotifEmail, refreshTokenForUser,
   authErrNotifiedAtInit: _DB_NOTIF_COOLDOWN.authErrNotifiedAt, // V951: sobrevive a deploy
+  botLog, // 📜 log unificado — pedido do dono (07/07/2026)
 });
 
 // ══════════════════════════════════════════════════════════
@@ -12632,6 +12170,10 @@ function persistFinanceiro() {
 
 // ── BOOT ─────────────────────────────────────────────────
 boot();loadSheets();
+loadGruposJ26();
+setTimeout(j26AutoTick, 45_000);              // 1ª checagem ~45s depois do boot
+setInterval(j26AutoTick, 5*60_000);            // depois, a cada 5 minutos — pedido do dono
+console.log(`[grupos-j26] 🎯 Sistema de Grupos — Julho 2026 pronto | ${Object.keys(DB_GRUPOS_J26.mapa).length} case(s) no mapa`);
 
 // ── Correção pontual pedida pelo Andrio (05/07/26): o gasto "RENDER 41 DOLARES"
 // foi lançado como R$ 2.010,00 por engano — o valor real é US$ 41 (câmbio 5,17
@@ -12651,279 +12193,6 @@ try{
     console.log('[fin] ✅ Gasto RENDER corrigido: R$2.010,00 → US$41 (R$211,97)');
   }
 }catch(e){console.warn('[fin] fix render41:',e.message);}
-
-// ════════════════════════════════════════════════════════════════════════
-//  📡 MONITOR ETA — SISTEMA INTELIGENTE DE MONITORAMENTO POR CASE NUMBER
-//  Worker 100% independente da interface: roda 24/7 no servidor, sobrevive
-//  a fechamento de navegador/painel e a restart (persistência + reseed).
-//  Fonte Fase 1: API oficial datahub do DOL (a mesma já usada no site,
-//  estável e testada). Arquitetura de provider pronta p/ plugar FLAG (Fase 2).
-// ════════════════════════════════════════════════════════════════════════
-let _etaDirty=false;
-function persistEta(){
-  try{
-    const tmp=ETA_FILE+".tmp";
-    fs.writeFileSync(tmp,JSON.stringify(DB_ETA));
-    fs.renameSync(tmp,ETA_FILE);
-  }catch(e){console.warn("[eta] persist:",e.message);}
-}
-function etaLog(level,msg,cn){
-  DB_ETA_LOGS.unshift({at:Date.now(),level,msg:String(msg||"").slice(0,300),cn:cn||""});
-  if(DB_ETA_LOGS.length>400)DB_ETA_LOGS.length=400;
-}
-// Grupo derivado do Begin Date (temporadas H-2B). Planilha com coluna de grupo
-// (r.g) ou ajuste manual do admin sempre têm prioridade sobre a derivação.
-//   🟢 A = início Abr–Jun · 🟡 B = Jul–Set · 🔵 C = Out–Dez · 🔴 D = Jan–Mar
-function etaGrupoFromBegin(begin){
-  const m=parseInt(String(begin||"").slice(5,7),10);
-  if(!m||m<1||m>12)return"";
-  if(m>=4&&m<=6)return"A";
-  if(m>=7&&m<=9)return"B";
-  if(m>=10)return"C";
-  return"D";
-}
-// ── GRUPOS OFICIAIS DO DOL (Public Facing Reports) ──────────────────────────
-// Fonte da verdade: coluna "Randomization Group" dos relatórios oficiais de
-// randomização H-2B (A–H). Carregado do arquivo versionado no deploy.
-// REGRA: H-2A (H-300) NUNCA tem grupo — só o H-2B passa por lista randomizada.
-let ETA_GRUPOS_OFICIAIS={};
-const ETA_GRUPOS_FILE=path.join(DATA_DIR,"eta_grupos_oficiais.json");
-try{
-  // Preferência: cópia do volume persistente (recebe uploads de reports novos);
-  // fallback: arquivo semeado no deploy — copiado pro volume na 1ª vez.
-  let _gf=fs.existsSync(ETA_GRUPOS_FILE)?ETA_GRUPOS_FILE:path.join(__dirname,"eta_grupos_oficiais.json");
-  if(fs.existsSync(_gf)){
-    const _gd=JSON.parse(fs.readFileSync(_gf,"utf8"));
-    ETA_GRUPOS_OFICIAIS=_gd.grupos||{};
-    if(_gf!==ETA_GRUPOS_FILE){try{fs.writeFileSync(ETA_GRUPOS_FILE,JSON.stringify(_gd));}catch{}}
-    console.log(`[eta] Grupos oficiais DOL carregados: ${Object.keys(ETA_GRUPOS_OFICIAIS).length} cases (${_gd.meta?.fonte||""})`);
-  }
-}catch(e){console.warn("[eta] grupos oficiais:",e.message);}
-function persistGruposOficiais(fonte){
-  try{fs.writeFileSync(ETA_GRUPOS_FILE,JSON.stringify({meta:{fonte:fonte||"upload admin",atualizadoEm:new Date().toISOString(),total:Object.keys(ETA_GRUPOS_OFICIAIS).length},grupos:ETA_GRUPOS_OFICIAIS}));}catch(e){console.warn("[eta] persist grupos:",e.message);}
-}
-// Parser do PublicFacingReport em CSV (Excel: Salvar como → CSV). Acha as colunas
-// "Case Number" e "Randomization Group" pelo cabeçalho — tolerante a ; ou , e aspas.
-function etaParseGruposCSV(txt){
-  const lines=String(txt||"").split(/\r?\n/).filter(l=>l.trim());
-  if(lines.length<2)return{add:0,err:"CSV vazio"};
-  const sep=lines[0].includes(";")&&!lines[0].includes(",")?";":",";
-  const parse=l=>{const out=[];let cur="",q=false;for(const ch of l){if(ch==='"'){q=!q;continue;}if(ch===sep&&!q){out.push(cur);cur="";continue;}cur+=ch;}out.push(cur);return out.map(x=>x.trim());};
-  const head=parse(lines[0]).map(h=>h.toLowerCase());
-  const iCase=head.findIndex(h=>h.includes("case")&&h.includes("number"));
-  const iGrupo=head.findIndex(h=>h.includes("randomization")&&h.includes("group"));
-  if(iCase<0||iGrupo<0)return{add:0,err:'Cabeçalho precisa ter as colunas "Case Number" e "Randomization Group" (é o formato do PublicFacingReport do DOL).'};
-  let add=0;
-  for(let i=1;i<lines.length;i++){
-    const c=parse(lines[i]);
-    const cn=String(c[iCase]||"").toUpperCase().trim();
-    const gr=String(c[iGrupo]||"").toUpperCase().trim().slice(0,1);
-    if(/^H-\d/.test(cn)&&/^[A-Z]$/.test(gr)&&!etaIsH2A(cn,"")){if(ETA_GRUPOS_OFICIAIS[cn]!==gr){ETA_GRUPOS_OFICIAIS[cn]=gr;add++;}}
-  }
-  return{add};
-}
-function etaIsH2A(cn,visa){
-  return String(cn||"").toUpperCase().startsWith("H-300")||String(visa||"").toUpperCase().includes("H-2A");
-}
-// Grupo canônico de um case: H-2A nunca tem; senão oficial DOL > planilha > Begin Date.
-function etaGrupoFor(cn,visa,begin,sheetG){
-  if(etaIsH2A(cn,visa))return"";
-  const oficial=ETA_GRUPOS_OFICIAIS[String(cn||"").toUpperCase().trim()];
-  if(oficial)return oficial;
-  if(sheetG)return String(sheetG).toUpperCase().slice(0,1);
-  return etaGrupoFromBegin(begin);
-}
-// Grupo para exibição/filtro respeitando ajuste manual do admin (só H-2B).
-function etaGrupoDisplay(c){
-  if(!c)return"";
-  if(etaIsH2A(c.cn,c.visa))return"";
-  if(c.grupoManual&&c.grupo)return c.grupo;
-  return ETA_GRUPOS_OFICIAIS[c.cn]||c.grupo||"";
-}
-// Migração/correção em massa: aplica grupos oficiais e limpa grupo de H-2A.
-// Roda no boot e após cada seed — idempotente e barata.
-function etaAplicarGruposOficiais(){
-  let fix=0;
-  for(const c of Object.values(DB_ETA.cases||{})){
-    if(etaIsH2A(c.cn,c.visa)){ if(c.grupo){c.grupo="";c.grupoManual=false;fix++;} continue; }
-    const of=ETA_GRUPOS_OFICIAIS[c.cn];
-    if(of){ if(c.grupo!==of){c.grupo=of;fix++;} c.grupoOficial=true; if(c.grupoManual){c.grupoManual=false;} }
-  }
-  if(fix){_etaDirty=true;etaLog("info",`Grupos oficiais DOL aplicados: ${fix} cases corrigidos (H-2A sem grupo; H-2B pela randomização real A–H)`);console.log(`[eta] grupos oficiais: ${fix} cases corrigidos`);}
-}
-// Registra mudança de status: histórico append-only + selo "atualização" por 48h.
-// Aceita QUALQUER string de status — status novos do DOL entram automaticamente.
-function etaSetStatus(c,novo,src){
-  novo=String(novo||"").trim().slice(0,80);
-  if(!novo||c.status===novo)return false;
-  c.hist=Array.isArray(c.hist)?c.hist:[];
-  c.hist.push({s:novo,at:Date.now(),src:src||"sistema"});
-  if(c.hist.length>40)c.hist=c.hist.slice(-40); // nunca explode o arquivo
-  c.status=novo;
-  c.changes=(c.changes||0)+1;
-  c.updBadgeUntil=Date.now()+48*3600_000;
-  return true;
-}
-// Importa/mescla planilhas no registro ETA. NUNCA duplica (chave = case number);
-// só atualiza campos alterados. Roda no boot e 1x/dia (pega planilhas novas).
-function etaSeedFromSheets(){
-  try{
-    const sheets=getAllSheets();
-    if(!sheets.length)return; // planilhas ainda carregando — próximo ciclo pega
-    let added=0,updated=0;
-    const now=Date.now();
-    for(const r of sheets){
-      const cn=String(r.c||"").toUpperCase().trim();
-      if(!cn||!/^H-\d/.test(cn))continue;
-      const grupoPlan=r.g?String(r.g).toUpperCase().slice(0,1):"";
-      const cur=DB_ETA.cases[cn];
-      if(!cur){
-        DB_ETA.cases[cn]={
-          cn, empresa:String(r.n||"–").slice(0,120), estado:String(r.s||"–").slice(0,40),
-          cidade:String(r.ci||"").slice(0,60), begin:String(r.d||"").slice(0,10), end:String(r.de||"").slice(0,10),
-          grupo:etaGrupoFor(cn,r.visa,r.d,grupoPlan), grupoManual:false, visa:String(r.visa||"H-2B").slice(0,6),
-          status:String(r.st||"Registrada").slice(0,80),
-          hist:[{s:String(r.st||"Registrada").slice(0,80),at:now,src:"planilha"}],
-          lastCheckAt:0,
-          nextCheckAt:now+Math.floor(Math.random()*72*3600_000), // espalha a fila nas primeiras 72h
-          checks:0, changes:0, err:0, src:"planilha", createdAt:now, updBadgeUntil:0
-        };
-        added++;
-      } else {
-        let ch=false;
-        if(r.n&&cur.empresa!==r.n){cur.empresa=String(r.n).slice(0,120);ch=true;}
-        if(r.ci&&cur.cidade!==r.ci){cur.cidade=String(r.ci).slice(0,60);ch=true;}
-        if(r.d&&cur.begin!==String(r.d).slice(0,10)){cur.begin=String(r.d).slice(0,10);if(!cur.grupoManual)cur.grupo=etaGrupoFor(cn,cur.visa,cur.begin,grupoPlan);ch=true;}
-        if(r.de&&cur.end!==String(r.de).slice(0,10)){cur.end=String(r.de).slice(0,10);ch=true;}
-        if(!cur.grupoManual){const _g=etaGrupoFor(cn,cur.visa,cur.begin,grupoPlan);if(cur.grupo!==_g){cur.grupo=_g;ch=true;}}
-        // Status da planilha só vale enquanto o robô nunca consultou (DOL é mais fresco)
-        if(r.st&&(cur.checks||0)===0&&etaSetStatus(cur,r.st,"planilha"))ch=true;
-        if(ch)updated++;
-      }
-    }
-    DB_ETA.meta.lastSeedAt=now;
-    if(added||updated){
-      _etaDirty=true;
-      etaLog("info",`Importação de planilhas: ${added} novas, ${updated} atualizadas (total ${Object.keys(DB_ETA.cases).length})`);
-      console.log(`[eta] seed: +${added} novas, ~${updated} atualizadas, total ${Object.keys(DB_ETA.cases).length}`);
-    }
-  }catch(e){console.warn("[eta] seed:",e.message);}
-}
-// Importa/mescla o PublicFacingReport OFICIAL do DOL (mod-dol-monitor.js —
-// robô/teste/histórico, os 3 caminhos, mesma função) no registro ETA. Fonte
-// tem Business Name/Worksite State/Begin Date/Status pra TODO case H-2B do
-// período, direto do DOL — não depende do scraper de vagas ter rodado.
-// MESMA regra de não-regressão do etaSeedFromSheets: nunca sobrescreve
-// status depois que o robô de verificação já consultou o caso pelo menos 1x
-// (DOL ao vivo é mais fresco que o snapshot do relatório). NUNCA duplica
-// (chave = case number); só cria o que não existe e enriquece o que existe.
-function etaSeedFromPublicFacingReport(rows){
-  try{
-    if(!Array.isArray(rows)||!rows.length)return{added:0,updated:0};
-    let added=0,updated=0;
-    const now=Date.now();
-    for(const r of rows){
-      const cn=String(r.cn||"").toUpperCase().trim();
-      if(!cn||!/^H-\d/.test(cn))continue;
-      const grupoOficial=r.gr?String(r.gr).toUpperCase().slice(0,1):"";
-      const cur=DB_ETA.cases[cn];
-      if(!cur){
-        DB_ETA.cases[cn]={
-          cn, empresa:String(r.empresa||"–").slice(0,120), estado:String(r.estado||"–").slice(0,40),
-          cidade:"", begin:String(r.begin||"").slice(0,10), end:"",
-          grupo:grupoOficial||etaGrupoFor(cn,"",r.begin,""), grupoManual:false, visa:etaIsH2A(cn,"")?"H-2A":"H-2B",
-          status:String(r.status||"Registrada").slice(0,80),
-          hist:[{s:String(r.status||"Registrada").slice(0,80),at:now,src:"dol-report"}],
-          lastCheckAt:0,
-          nextCheckAt:now+Math.floor(Math.random()*72*3600_000), // espalha a fila nas primeiras 72h
-          checks:0, changes:0, err:0, src:"dol-report", createdAt:now, updBadgeUntil:0
-        };
-        added++;
-      } else {
-        let ch=false;
-        if(r.empresa&&(cur.empresa==="–"||!cur.empresa)&&cur.empresa!==r.empresa){cur.empresa=String(r.empresa).slice(0,120);ch=true;}
-        if(r.estado&&(cur.estado==="–"||!cur.estado)&&cur.estado!==r.estado){cur.estado=String(r.estado).slice(0,40);ch=true;}
-        if(r.begin&&!cur.begin){cur.begin=String(r.begin).slice(0,10);ch=true;}
-        if(grupoOficial&&!cur.grupoManual&&cur.grupo!==grupoOficial){cur.grupo=grupoOficial;ch=true;}
-        // Status do relatório só vale enquanto o robô nunca consultou o DOL de verdade (mesma regra do etaSeedFromSheets)
-        if(r.status&&(cur.checks||0)===0&&etaSetStatus(cur,r.status,"dol-report"))ch=true;
-        if(ch)updated++;
-      }
-    }
-    if(added||updated){
-      _etaDirty=true;
-      etaLog("info",`PublicFacingReport oficial do DOL mesclado no registro ETA: ${added} novo(s), ${updated} enriquecido(s) (empresa/estado/data)`);
-      console.log(`[eta] seed dol-report: +${added} novas, ~${updated} enriquecidas`);
-    }
-    return{added,updated};
-  }catch(e){console.warn("[eta] seed dol-report:",e.message);return{added:0,updated:0,err:e.message};}
-}
-// ── WORKER ETA: 1 tick a cada 45s, até 5 cases por tick (1 request DOL) ──
-// Fila inteligente: só consulta o que venceu (nextCheckAt); nunca repete
-// consulta recente; retry com backoff em erro; nunca trava (lock + try/finally).
-let _etaTickRunning=false;
-async function etaTick(){
-  if(_etaTickRunning)return;
-  if(DB_ADMIN_SETTINGS.etaWorkerEnabled===false)return;
-  _etaTickRunning=true;
-  try{
-    const ds=todayStr();
-    if(DB_ETA.meta.checksDay!==ds){DB_ETA.meta.checksDay=ds;DB_ETA.meta.checksToday=0;DB_ETA.meta.errorsToday=0;}
-    const now=Date.now();
-    const due=Object.values(DB_ETA.cases)
-      .filter(c=>(c.nextCheckAt||0)<=now)
-      .sort((a,b)=>(a.nextCheckAt||0)-(b.nextCheckAt||0))
-      .slice(0,5);
-    if(!due.length)return;
-    const HDR={"Accept":"application/json","Accept-Encoding":"identity","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Cache-Control":"no-cache","Referer":"https://seasonaljobs.dol.gov/"};
-    const p=new URLSearchParams({"api-version":"2020-06-30"});
-    p.append("$filter",due.map(c=>`case_number eq '${c.cn}'`).join(" or "));
-    p.append("$top",String(due.length));
-    let found={};
-    try{
-      const{status,body}=await httpsReq({hostname:"api.seasonaljobs.dol.gov",path:"/datahub/?"+p,method:"GET",headers:HDR});
-      if(status!==200)throw new Error("DOL HTTP "+status);
-      const raw=body.value||body.results||body.data||(Array.isArray(body)?body:[]);
-      for(const r of raw){const cn=String(r.case_number||r.case_id||"").toUpperCase();if(cn)found[cn]=r;}
-    }catch(e){
-      DB_ETA.meta.errorsToday=(DB_ETA.meta.errorsToday||0)+1;
-      etaLog("err","Consulta DOL falhou: "+e.message);
-      for(const c of due){c.err=(c.err||0)+1;c.nextCheckAt=now+30*60_000;} // retry em 30 min
-      _etaDirty=true;
-      return;
-    }
-    for(const c of due){
-      c.lastCheckAt=now;c.checks=(c.checks||0)+1;DB_ETA.meta.checksToday++;
-      const r=found[c.cn];
-      if(r){
-        if(r.begin_date){const b=String(r.begin_date).slice(0,10);if(c.begin!==b){c.begin=b;if(!c.grupoManual)c.grupo=etaGrupoFor(c.cn,c.visa,b,"")||c.grupo;}}
-        if(r.end_date){c.end=String(r.end_date).slice(0,10);}
-        const fim=c.end&&(new Date(c.end+"T23:59:59").getTime()<now);
-        const novo=fim?"Encerrada (contrato finalizado)":(r.active===true?"Certified · Ativa no DOL":"Certified · Inativa no DOL");
-        if(etaSetStatus(c,novo,"dol"))etaLog("upd",`${c.cn} → ${novo}`,c.cn);
-        const dBegin=c.begin?new Date(c.begin+"T12:00:00").getTime()-now:Infinity;
-        // Perto do começo do contrato = mais movimento = checa 2x/dia
-        c.nextCheckAt=now+(fim?7*86400_000:(dBegin>0&&dBegin<30*86400_000?12*3600_000:24*3600_000));
-        c.err=0;
-      } else {
-        if(etaSetStatus(c,"Não listada no DOL","dol"))etaLog("upd",`${c.cn} → Não listada no DOL`,c.cn);
-        c.nextCheckAt=now+48*3600_000;
-      }
-    }
-    DB_ETA.meta.lastSyncAt=now;
-    _etaDirty=true;
-  }catch(e){console.warn("[eta] tick:",e.message);}
-  finally{_etaTickRunning=false;}
-}
-// Boot do sistema ETA: seed 30s após subir (planilhas carregadas), reseed diário,
-// worker a cada 45s, persistência com debounce de 3 min (+ flush no shutdown).
-setTimeout(etaSeedFromSheets, 30_000);
-setTimeout(etaAplicarGruposOficiais, 40_000); // corrige registro existente com grupos oficiais
-setInterval(()=>{etaSeedFromSheets();etaAplicarGruposOficiais();}, 24*3600_000);
-setInterval(etaTick, 45_000);
-setInterval(()=>{if(_etaDirty){_etaDirty=false;persistEta();}},3*60_000);
-process.on("SIGTERM",()=>{try{if(_etaDirty)persistEta();}catch{}});
-console.log(`[eta] Monitor ETA ativo | worker 45s | ${Object.keys(DB_ETA.cases||{}).length} cases no registro`);
 
 // ── Migração automática: copiar planilhas enriquecidas para /data/ ──────────
 // Se o bot já enriqueceu (enrichedAt no meta) mas o arquivo em /data/ não existe,
@@ -13367,6 +12636,7 @@ const { healthSentinelRun, pendingOrderAlert, queueSanitizerRun, getPedAlertSent
   refreshTokenForUser, buildMime, httpsReq, getSheet,
   cooldownMaps: { notifSentAt: ()=>_notifSentAt, authErrNotifiedAt: getAuthErrNotifiedAt },
   pedAlertSentInit: _DB_NOTIF_COOLDOWN.pedAlertSent, // V951: sobrevive a deploy
+  botLog, // 📜 log unificado — pedido do dono (07/07/2026)
 });
 
 // ── Router do grupo saúde/operação (Fase 1 · Módulo 5) ──
@@ -13396,17 +12666,3 @@ const handleAdminV2Routes = createAdminV2Router({
   persistAdminSettings: ()=>persist(ADMIN_SETTINGS_FILE, DB_ADMIN_SETTINGS),
 });
 console.log("[admin-v2] 🚀 Painel V2 carregado: auditoria permanente, dashboard, edição universal, bots, IA, logs, financeiro, relatórios, backup, config.");
-
-// ── 📰 ROBÔ MONITOR DE ANÚNCIOS DOL (Parte 2) — checa a cada 5min, baixa e
-// importa sozinho o PublicFacingReport novo (grupos oficiais A–H) ──
-const { createDolMonitorRouter, startDolMonitor } = require("./mod-dol-monitor.js");
-const _dolMonitorCtx = {
-  getSess, getUser, isAdminVip, json, readBody, DATA_DIR,
-  etaParseGruposCSV, persistGruposOficiais, etaAplicarGruposOficiais, etaLog,
-  etaSeedFromPublicFacingReport,
-  getGruposCount: () => Object.keys(ETA_GRUPOS_OFICIAIS).length,
-  notifyPayingUsersReportReady,
-};
-const handleDolMonitorRoutes = createDolMonitorRouter(_dolMonitorCtx);
-startDolMonitor(_dolMonitorCtx);
-console.log("[dol-monitor] 📰 Módulo carregado: checa dol.gov/agencies/eta/foreign-labor/news a cada 5min e importa o report novo sozinho.");

@@ -134,6 +134,20 @@ async function healthSentinelRun(){
 
   S.notificados = notified.slice(-100);
 
+  // 📜 Log unificado (aba "Logs dos Robôs" no admin) — 1 linha-resumo por
+  // execução, sem spammar 1 linha por usuário.
+  try{
+    if(typeof ctx.botLog==="function"){
+      const alertasPlanilha=(S.planilhas||[]).filter(p=>p.alerta).length;
+      ctx.botLog('sentinel','Health Sentinel',
+        `Rodou: ${S.vipDesync.length} VIP c/ robô parado, ${S.vipExpiring.length} expirando em breve, `+
+        `${(S.vipsSemPerfil||[]).length} sem perfil, ${S.finishedIdle.length} p/ reengajar, `+
+        `${alertasPlanilha} planilha(s) com alerta, ${notified.length} notificação(ões) enviada(s), `+
+        `token do admin: ${S.adminToken?.ok?'ok':'🚨 QUEBRADO'}`,
+        S.adminToken?.ok?'info':'error');
+    }
+  }catch(e){}
+
   // 🧹 Higiene de memória (varredura total 03/07): poda os mapas de cooldown
   // que crescem 1 chave por usuário/evento para sempre (vazamento lento).
   try{
