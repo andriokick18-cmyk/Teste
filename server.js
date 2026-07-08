@@ -5176,6 +5176,221 @@ function j26ApplyGroupsToSheet(){
   return { applied, sheetExists:true };
 }
 
+
+// ══════════════════════════════════════════════════════════════════════════
+//  📰 VIGIA DE ANÚNCIOS — DOL NEWS (bot novo, pedido do dono 08/07/2026)
+//  ─────────────────────────────────────────────────────────────────────
+//  Troca a ideia de "baixar a planilha sozinho" (que deu trabalho demais)
+//  por algo bem mais simples e confiável: só FICAR DE OLHO na página de
+//  anúncios do DOL e AVISAR POR E-MAIL todo admin assim que aparecer
+//  publicação nova — quem baixa/confere é humano, o robô só vigia.
+//
+//  https://www.dol.gov/agencies/eta/foreign-labor/news
+//
+//  Checa a cada 10 minutos. O último anúncio conhecido no momento em que
+//  este bot foi criado (08/07/2026) foi o de 29/06/2026 ("OFLC Issues
+//  Technical Release Notes for the Occupational Employment and Wage
+//  Statistics Update for the July 2026 through June 2027 Wage Year") —
+//  isso vira o ponto de partida (baseline). Qualquer anúncio com data
+//  MAIS NOVA que essa dispara o e-mail. Nunca reenvia o mesmo aviso 2x.
+// ══════════════════════════════════════════════════════════════════════════
+
+const DOL_NEWS_URL = "https://www.dol.gov/agencies/eta/foreign-labor/news";
+const DOL_NEWS_WATCH_FILE = path.join(DATA_DIR, "dol_news_watch.json");
+// Baseline conhecido na hora em que o dono pediu esse bot — "decore essa
+// publicação" (pedido explícito, 08/07/2026, JulPeak.png com data 29/06/2026).
+const DOL_NEWS_KNOWN_BASELINE = Object.freeze({
+  date: "2026-06-29",
+  title: "OFLC Issues Technical Release Notes for the Occupational Employment and Wage Statistics Update for the July 2026 through June 2027 Wage Year",
+});
+
+let DB_DOL_NEWS_WATCH = {
+  ultimaConhecida: { ...DOL_NEWS_KNOWN_BASELINE, detectadaEm: null, origem: "baseline-inicial" },
+  autoCheckEnabled: true,
+  ultimaChecagemAt: null,
+  proximaChecagemAt: null,
+  checksCount: 0,
+  ultimoResultado: null, // 'sem-novidade' | 'nova-encontrada' | 'erro-http' | 'erro-parse'
+  ultimoErro: null,
+  historicoAlertas: [],  // {at, date, title, emailsEnviados:[...]}
+};
+
+function loadDolNewsWatch(){
+  try{
+    if(fs.existsSync(DOL_NEWS_WATCH_FILE)){
+      const d = JSON.parse(fs.readFileSync(DOL_NEWS_WATCH_FILE,"utf8"));
+      if(d && typeof d==="object") DB_DOL_NEWS_WATCH = { ...DB_DOL_NEWS_WATCH, ...d };
+    }
+  }catch(e){ console.warn("[dol-news-watch] falha ao carregar:", e.message); }
+}
+function persistDolNewsWatch(){
+  try{
+    const tmp = DOL_NEWS_WATCH_FILE+".tmp";
+    fs.writeFileSync(tmp, JSON.stringify(DB_DOL_NEWS_WATCH));
+    fs.renameSync(tmp, DOL_NEWS_WATCH_FILE);
+  }catch(e){ console.warn("[dol-news-watch] falha ao salvar:", e.message); }
+}
+function dolNewsLog(msg, type='info'){
+  console.log(`[dol-news-watch] ${msg}`);
+  botLog('dol-news-watch','Vigia de Anúncios DOL', msg, type);
+}
+
+// ── Todo mundo que conta como "administrador" no sistema: o Set fixo
+// (ADMIN_EMAILS) + qualquer usuário com isAdmin:true no cadastro. ──────────
+function getAllAdminEmails(){
+  const set = new Set(ADMIN_EMAILS);
+  try{
+    for(const [email,u] of Object.entries(DB_USERS||{})){
+      if(u?.isAdmin) set.add(String(email).trim().toLowerCase());
+    }
+  }catch{}
+  return [...set].filter(Boolean);
+}
+
+// ── Envia um e-mail simples de admin pra admin, reaproveitando o MESMO
+// esquema de token que já existe pros avisos de pedido de plano: tenta o
+// token do admin principal, se não tiver tenta qualquer outro admin —
+// nunca deixa de avisar só porque uma conta específica deslogou. ──────────
+async function sendAdminAlertEmail(subject, text){
+  const admins = getAllAdminEmails();
+  if(!admins.length){ dolNewsLog("⚠️ Nenhum admin cadastrado — e-mail não enviado.","warn"); return { ok:false, enviados:[] }; }
+  let adminToken=null, adminTokenFrom=null;
+  const sessEntry = Object.values(sessions).find(ss=>ss.user_email===ADMIN_EMAIL && ss.access_token);
+  if(sessEntry?.access_token){ adminToken=sessEntry.access_token; adminTokenFrom=ADMIN_EMAIL; }
+  if(!adminToken){ try{ const t=await refreshTokenForUser(ADMIN_EMAIL); if(t){ adminToken=t; adminTokenFrom=ADMIN_EMAIL; } }catch{} }
+  if(!adminToken){
+    for(const ae of admins){
+      if(ae===ADMIN_EMAIL) continue;
+      const se=Object.values(sessions).find(ss=>ss.user_email===ae && ss.access_token);
+      if(se?.access_token){ adminToken=se.access_token; adminTokenFrom=ae; break; }
+      try{ const t=await refreshTokenForUser(ae); if(t){ adminToken=t; adminTokenFrom=ae; break; } }catch{}
+    }
+  }
+  if(!adminToken){
+    dolNewsLog("❌ Nenhum admin com token do Gmail válido no momento — e-mail NÃO enviado. Faça login de novo com uma conta admin.","error");
+    return { ok:false, enviados:[] };
+  }
+  const enviados=[], falhas=[];
+  for(const toEmail of admins){
+    try{
+      const raw = buildMime({ to:toEmail, subject, fromName:"H2BApply 📰", fromEmail:adminTokenFrom, text });
+      await httpsReq({hostname:"gmail.googleapis.com",path:"/gmail/v1/users/me/messages/send",method:"POST",headers:{"Authorization":"Bearer "+adminToken,"Content-Type":"application/json"}},{raw});
+      enviados.push(toEmail);
+    }catch(e){ falhas.push(toEmail); dolNewsLog(`❌ Falha ao enviar pra ${toEmail}: ${e.message}`,'error'); }
+  }
+  dolNewsLog(`✉️ E-mail "${subject}" enviado via ${adminTokenFrom} para: ${enviados.join(", ")||"ninguém"}${falhas.length?` (falhou pra: ${falhas.join(", ")})`:""}`, enviados.length?'ok':'error');
+  return { ok:enviados.length>0, enviados, falhas };
+}
+
+// ── Extrai a data+título do anúncio mais recente da página do DOL. Duas
+// estratégias (a página é HTML de verdade, não uma API — sem garantia de
+// estrutura fixa, então tenta achar em heading tags primeiro, e cai pro
+// texto puro se não achar nada assim). ─────────────────────────────────────
+const _MESES_EN = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
+function _parseEnDateToISO(mesNome, dia, ano){
+  const m = _MESES_EN[String(mesNome||"").toLowerCase()];
+  if(!m) return "";
+  return `${ano}-${String(m).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+}
+function dolNewsParseLatest(html){
+  const DATE_TITLE_RE = /([A-Z][a-z]+)\s+(\d{1,2}),\s+(\d{4})\.\s*([^<\r\n]{8,300})/;
+  // Estratégia A: dentro de headings (h1–h4) — mais confiável, é onde o DOL
+  // normalmente coloca "Mês DD, AAAA. Título do anúncio".
+  const headingRe = /<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi;
+  let hm;
+  while((hm=headingRe.exec(html))){
+    const text = hm[1].replace(/<[^>]+>/g,"").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").trim();
+    const dm = DATE_TITLE_RE.exec(text);
+    if(dm){
+      const iso = _parseEnDateToISO(dm[1], dm[2], dm[3]);
+      if(iso) return { ok:true, date:iso, title:dm[4].trim(), estrategia:"heading" };
+    }
+  }
+  // Estratégia B (reserva): varre o texto puro da página inteira (tira tag)
+  // e pega a PRIMEIRA ocorrência do padrão "Mês DD, AAAA. Texto" — a página
+  // lista do mais novo pro mais antigo, então a primeira ocorrência real
+  // (depois do menu/cabeçalho do site) deve ser o anúncio mais recente.
+  const plain = html.replace(/<script[\s\S]*?<\/script>/gi,"").replace(/<style[\s\S]*?<\/style>/gi,"").replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/\s+/g," ");
+  const globalRe = new RegExp(DATE_TITLE_RE.source, "g");
+  let gm;
+  while((gm=globalRe.exec(plain))){
+    const iso = _parseEnDateToISO(gm[1], gm[2], gm[3]);
+    if(iso){
+      // Ignora datas absurdas (proteção contra casar com algo tipo rodapé "January 1, 1970")
+      const y = parseInt(gm[3],10);
+      if(y>=2024 && y<=2030) return { ok:true, date:iso, title:gm[4].trim(), estrategia:"texto-puro" };
+    }
+  }
+  return { ok:false };
+}
+
+// ── Checagem principal: busca a página, extrai o anúncio mais recente,
+// compara com o que já é conhecido. Só dispara e-mail se a data for
+// GENUINAMENTE mais nova — nunca "no chute", nunca reenvia a mesma. ────────
+async function dolNewsCheckNow(){
+  DB_DOL_NEWS_WATCH.checksCount = (DB_DOL_NEWS_WATCH.checksCount||0)+1;
+  DB_DOL_NEWS_WATCH.ultimaChecagemAt = Date.now();
+  DB_DOL_NEWS_WATCH.proximaChecagemAt = Date.now()+10*60*1000;
+  try{
+    const { status, buffer } = await httpsGetBuffer(DOL_NEWS_URL);
+    if(status!==200){
+      DB_DOL_NEWS_WATCH.ultimoResultado='erro-http';
+      DB_DOL_NEWS_WATCH.ultimoErro=`HTTP ${status}`;
+      dolNewsLog(`⚠️ Checagem: HTTP ${status} ao acessar a página de anúncios do DOL.`,'warn');
+      persistDolNewsWatch();
+      return { ok:false, reason:'http-'+status };
+    }
+    const html = buffer.toString("utf8");
+    const found = dolNewsParseLatest(html);
+    if(!found.ok){
+      DB_DOL_NEWS_WATCH.ultimoResultado='erro-parse';
+      DB_DOL_NEWS_WATCH.ultimoErro='Não consegui achar nenhum anúncio com data no HTML da página — o DOL pode ter mudado o layout.';
+      dolNewsLog(`⚠️ Checagem: página carregou (${(buffer.length/1024).toFixed(0)}KB) mas não consegui identificar nenhum anúncio com data. Confira manualmente — o DOL pode ter mudado o layout.`,'warn');
+      persistDolNewsWatch();
+      return { ok:false, reason:'parse-failed' };
+    }
+    const baseline = DB_DOL_NEWS_WATCH.ultimaConhecida;
+    if(found.date > baseline.date || (found.date===baseline.date && found.title!==baseline.title)){
+      // 🚨 Anúncio novo!
+      dolNewsLog(`🚨 ANÚNCIO NOVO detectado (via ${found.estrategia}): "${found.date}" — "${found.title}"`,'ok');
+      const admins = getAllAdminEmails();
+      const subject = `🚨 DOL publicou anúncio novo — confira agora!`;
+      const text = `O robô do H2BApply detectou uma publicação NOVA na página de anúncios do DOL.
+
+📅 Data: ${found.date}
+📰 Título: ${found.title}
+
+🔗 Confira e baixe o que for preciso: ${DOL_NEWS_URL}
+
+Se for a lista randomizada de Julho 2026, faça o download logo!
+
+— Vigia de Anúncios DOL · H2BApply 🤖`;
+      const sendResult = await sendAdminAlertEmail(subject, text);
+      DB_DOL_NEWS_WATCH.ultimaConhecida = { date:found.date, title:found.title, detectadaEm:Date.now(), origem:found.estrategia };
+      DB_DOL_NEWS_WATCH.ultimoResultado='nova-encontrada';
+      DB_DOL_NEWS_WATCH.ultimoErro=null;
+      DB_DOL_NEWS_WATCH.historicoAlertas.unshift({ at:Date.now(), date:found.date, title:found.title, emailsEnviados:sendResult.enviados||[] });
+      if(DB_DOL_NEWS_WATCH.historicoAlertas.length>30) DB_DOL_NEWS_WATCH.historicoAlertas.length=30;
+      persistDolNewsWatch();
+      return { ok:true, novo:true, date:found.date, title:found.title, emailsEnviados:sendResult.enviados };
+    }
+    DB_DOL_NEWS_WATCH.ultimoResultado='sem-novidade';
+    DB_DOL_NEWS_WATCH.ultimoErro=null;
+    persistDolNewsWatch();
+    return { ok:true, novo:false, date:found.date, title:found.title };
+  }catch(e){
+    DB_DOL_NEWS_WATCH.ultimoResultado='erro-http';
+    DB_DOL_NEWS_WATCH.ultimoErro=e.message;
+    dolNewsLog(`❌ Erro na checagem: ${e.message}`,'error');
+    persistDolNewsWatch();
+    return { ok:false, reason:'exception', error:e.message };
+  }
+}
+async function dolNewsAutoTick(){
+  if(DB_DOL_NEWS_WATCH.autoCheckEnabled===false) return;
+  await dolNewsCheckNow();
+}
+
   // ════ GESTÃO DE PLANILHAS DE VAGAS ════════════════════════
   // GET /api/admin/sheets — lista todas as planilhas
   if(pathname==="/api/admin/sheets"&&req.method==="GET"){
@@ -5348,6 +5563,7 @@ function j26ApplyGroupsToSheet(){
   const BOT_REGISTRY = [
     {id:'enrich',        label:'Enriquecimento de Planilha', desc:'Completa e-mail/telefone/cidade/salário de vagas já coletadas, por ETA case number.'},
     {id:'grupos-jul2026',label:'Grupos — Julho 2026',        desc:'Grupo A–H só de Julho 2026, só do relatório oficial do DOL (upload manual ou download automático) — nunca adivinhado.'},
+    {id:'dol-news-watch', label:'Vigia de Anúncios DOL',      desc:'Checa dol.gov/agencies/eta/foreign-labor/news a cada 10min. Anúncio novo = e-mail pra todos os admins na hora.'},
     {id:'robot-teste',   label:'Robô de Teste',               desc:'Simula um usuário real (QA) e limpa os dados de teste no final.'},
     {id:'robo-auditoria',label:'Robô de Auditoria',           desc:'Coleta dados do sistema e manda pro Gemini analisar — só lê, nunca altera.'},
     {id:'sentinel',      label:'Health Sentinel',             desc:'Detecta VIP com robô parado, VIP expirando, planilha desatualizada — notifica sozinho.'},
@@ -5555,6 +5771,69 @@ function j26ApplyGroupsToSheet(){
     if(q) list=list.filter(x=>x.cn.includes(q)||String(x.empresa||"").toUpperCase().includes(q));
     list.sort((a,b)=>b.importadoEm-a.importadoEm);
     return json(res,200,{ok:true,total:list.length,items:list.slice(skip,skip+top)});
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  📰 VIGIA DE ANÚNCIOS — DOL NEWS — rotas admin
+  // ══════════════════════════════════════════════════════════════════════
+
+  // GET /api/admin/dol-news-watch/status
+  if(pathname==="/api/admin/dol-news-watch/status"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    return json(res,200,{ok:true, ...DB_DOL_NEWS_WATCH, url:DOL_NEWS_URL, admins:getAllAdminEmails()});
+  }
+
+  // POST /api/admin/dol-news-watch/check-now
+  if(pathname==="/api/admin/dol-news-watch/check-now"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    dolNewsLog(`🔍 Checagem manual disparada por ${s.user_email}...`,'info');
+    const r = await dolNewsCheckNow();
+    return json(res,200,{ok:true,result:r});
+  }
+
+  // POST /api/admin/dol-news-watch/toggle-auto
+  if(pathname==="/api/admin/dol-news-watch/toggle-auto"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      DB_DOL_NEWS_WATCH.autoCheckEnabled=!!d.enabled;
+      persistDolNewsWatch();
+      dolNewsLog(`Vigia ${d.enabled?'LIGADO':'PAUSADO'} por ${s.user_email}`,'info');
+      return json(res,200,{ok:true,enabled:DB_DOL_NEWS_WATCH.autoCheckEnabled});
+    }catch(e){ return json(res,500,{error:e.message}); }
+  }
+
+  // POST /api/admin/dol-news-watch/set-baseline — corrige manualmente o
+  // "último anúncio conhecido" (usado se a extração automática errar).
+  if(pathname==="/api/admin/dol-news-watch/set-baseline"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const date=String(d.date||"").trim();
+      const title=String(d.title||"").trim().slice(0,300);
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json(res,400,{error:"Data deve estar em formato AAAA-MM-DD."});
+      if(!title) return json(res,400,{error:"Título obrigatório."});
+      DB_DOL_NEWS_WATCH.ultimaConhecida = { date, title, detectadaEm:Date.now(), origem:'manual-admin' };
+      persistDolNewsWatch();
+      dolNewsLog(`✏️ Baseline ajustado manualmente por ${s.user_email}: "${date}" — "${title}"`,'info');
+      return json(res,200,{ok:true});
+    }catch(e){ return json(res,500,{error:e.message}); }
+  }
+
+  // POST /api/admin/dol-news-watch/send-test-email — confirma que o envio
+  // de verdade funciona, sem esperar uma publicação nova de verdade.
+  if(pathname==="/api/admin/dol-news-watch/send-test-email"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
+    const r = await sendAdminAlertEmail(
+      "✅ Teste — Vigia de Anúncios DOL",
+      `Isto é um e-mail de teste do Vigia de Anúncios DOL do H2BApply.\n\nSe você recebeu isto, o envio está funcionando — quando o DOL publicar um anúncio novo de verdade, o aviso vai chegar exatamente assim.\n\n🔗 Página vigiada: ${DOL_NEWS_URL}\n\n— H2BApply 🤖`
+    );
+    return json(res,200,{ok:r.ok, enviados:r.enviados, falhas:r.falhas});
   }
 
   // GET /api/admin/enrich/status — status do bot em tempo real
@@ -12174,6 +12453,10 @@ loadGruposJ26();
 setTimeout(j26AutoTick, 45_000);              // 1ª checagem ~45s depois do boot
 setInterval(j26AutoTick, 5*60_000);            // depois, a cada 5 minutos — pedido do dono
 console.log(`[grupos-j26] 🎯 Sistema de Grupos — Julho 2026 pronto | ${Object.keys(DB_GRUPOS_J26.mapa).length} case(s) no mapa`);
+loadDolNewsWatch();
+setTimeout(dolNewsAutoTick, 60_000);           // 1ª checagem ~60s depois do boot
+setInterval(dolNewsAutoTick, 10*60_000);       // depois, a cada 10 minutos
+console.log(`[dol-news-watch] 📰 Vigia de Anúncios DOL pronto | último conhecido: ${DB_DOL_NEWS_WATCH.ultimaConhecida.date} — admins: ${getAllAdminEmails().join(", ")}`);
 
 // ── Correção pontual pedida pelo Andrio (05/07/26): o gasto "RENDER 41 DOLARES"
 // foi lançado como R$ 2.010,00 por engano — o valor real é US$ 41 (câmbio 5,17

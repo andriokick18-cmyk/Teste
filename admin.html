@@ -3559,6 +3559,52 @@ document.addEventListener('DOMContentLoaded',()=>{
   <div id="j26-historico" style="background:rgba(0,0,0,.25);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;max-height:220px;overflow-y:auto;font-size:11px;font-family:'JetBrains Mono',monospace;line-height:1.7"><div class="empty-state">Nenhuma importação ainda.</div></div>
 </div>
 
+
+<!-- ══ 📰 VIGIA DE ANÚNCIOS — DOL NEWS (bot novo, pedido do dono 08/07/2026) ══
+     Não baixa nada sozinho — só vigia a página e avisa por e-mail todo
+     admin quando aparecer publicação nova. -->
+<div id="dnw-box" style="background:linear-gradient(135deg,rgba(56,189,248,.1),rgba(8,145,178,.05));border:1.5px solid rgba(56,189,248,.35);border-radius:14px;padding:16px;margin-bottom:16px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+    <div style="font-size:28px">📰</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:800;color:#fff">Vigia de Anúncios — DOL News</div>
+      <div style="font-size:11px;color:var(--t3)">Fica de olho em <a href="https://www.dol.gov/agencies/eta/foreign-labor/news" target="_blank" style="color:#38bdf8">dol.gov/agencies/eta/foreign-labor/news</a> a cada 10min. Não baixa nada — só avisa TODOS os admins por e-mail assim que aparecer um anúncio novo.</div>
+    </div>
+  </div>
+
+  <div id="dnw-baseline" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 13px;margin-bottom:12px">
+    <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-bottom:4px">📌 Último anúncio conhecido</div>
+    <div id="dnw-baseline-content" style="font-size:12px;color:var(--t2)">Carregando…</div>
+  </div>
+
+  <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 13px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px">
+      <div style="font-size:12px;font-weight:800;color:#7dd3fc">🔭 Vigia automático</div>
+      <button class="btn btn-sm" id="dnw-auto-toggle" onclick="dnwToggleAuto()" style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:var(--green);font-weight:800;font-size:10.5px;padding:4px 10px">…</button>
+    </div>
+    <div id="dnw-auto-status" style="font-size:11px;color:var(--t3)">Carregando…</div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-ghost btn-sm" onclick="dnwCheckNow()" style="flex:1"><i class="ti ti-refresh"></i> Checar agora</button>
+      <button class="btn btn-ghost btn-sm" onclick="dnwSendTestEmail()" style="flex:1"><i class="ti ti-mail"></i> Enviar e-mail teste</button>
+    </div>
+  </div>
+
+  <div id="dnw-admins-box" style="font-size:10.5px;color:var(--t3);margin-bottom:12px">Avisa: …</div>
+
+  <details style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 13px;margin-bottom:12px">
+    <summary style="cursor:pointer;font-size:12px;font-weight:800;color:#7dd3fc">✏️ Corrigir manualmente o último anúncio conhecido</summary>
+    <div style="font-size:10.5px;color:var(--t3);margin:8px 0">Use isso só se o robô ler a página errado — muda o que ele considera "já visto", sem mandar e-mail.</div>
+    <div style="display:grid;gap:8px">
+      <input class="form-inp" id="dnw-baseline-date" placeholder="AAAA-MM-DD (ex: 2026-06-29)" style="font-size:12px">
+      <input class="form-inp" id="dnw-baseline-title" placeholder="Título exato do anúncio" style="font-size:12px">
+      <button class="btn btn-secondary btn-sm" onclick="dnwSetBaseline()">Salvar</button>
+    </div>
+  </details>
+
+  <div style="font-size:11px;font-weight:800;color:#7dd3fc;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px">📜 Alertas já enviados</div>
+  <div id="dnw-historico" style="background:rgba(0,0,0,.25);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;max-height:200px;overflow-y:auto;font-size:11px;font-family:'JetBrains Mono',monospace;line-height:1.7"><div class="empty-state">Nenhum alerta enviado ainda.</div></div>
+</div>
+
 <!-- Upload nova planilha -->
 <div style="background:rgba(255,255,255,.03);border:1.5px dashed rgba(255,255,255,.15);border-radius:14px;padding:14px;margin-bottom:16px;text-align:center">
   <div style="font-size:13px;font-weight:700;color:var(--t2);margin-bottom:8px">📤 Adicionar nova planilha (ex: Jul 2026)</div>
@@ -11379,6 +11425,7 @@ async function loadPlanilhas(){
   const list = document.getElementById('pl-list');
   if(list) list.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i> Carregando...</div>';
   if(typeof j26LoadStatus==='function') j26LoadStatus();
+  if(typeof dnwLoadStatus==='function') dnwLoadStatus();
   try{
     const r = await fetch('/api/admin/sheets',{credentials:'include'});
     const d = await r.json();
@@ -11600,6 +11647,97 @@ async function j26Reset(){
     const r=await fetch('/api/admin/grupos-j26/reset',{method:'POST',credentials:'include'});
     const d=await r.json();
     if(d.ok){ toast(`🔁 ${d.apagados} case(s) apagado(s)`,'ok'); j26LoadStatus(); }
+    else toast(d.error||'Erro','err');
+  }catch(e){ toast(e.message,'err'); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  📰 VIGIA DE ANÚNCIOS — DOL NEWS — front do admin
+// ══════════════════════════════════════════════════════════════════════════
+let _dnwAutoEnabled=true;
+function _dnwTimeAgo(ts){
+  if(!ts) return 'nunca';
+  const s=Math.floor((Date.now()-ts)/1000);
+  if(s<60) return `${s}s atrás`;
+  if(s<3600) return `${Math.floor(s/60)}min atrás`;
+  return `${Math.floor(s/3600)}h atrás`;
+}
+async function dnwLoadStatus(){
+  const baseEl=document.getElementById('dnw-baseline-content');
+  const autoStatusEl=document.getElementById('dnw-auto-status');
+  const autoBtn=document.getElementById('dnw-auto-toggle');
+  const adminsEl=document.getElementById('dnw-admins-box');
+  const histEl=document.getElementById('dnw-historico');
+  if(!baseEl) return;
+  try{
+    const r=await fetch('/api/admin/dol-news-watch/status',{credentials:'include'});
+    const d=await r.json();
+    if(!d.ok){ baseEl.innerHTML=`<span style="color:var(--red)">Erro ao carregar</span>`; return; }
+    _dnwAutoEnabled = d.autoCheckEnabled!==false;
+
+    const b=d.ultimaConhecida||{};
+    baseEl.innerHTML = `<strong>${esc(b.date||'?')}</strong> — ${esc(b.title||'(nenhum ainda)')}${b.origem==='manual-admin'?' <span style="color:var(--amber);font-size:10px">(ajustado manualmente)</span>':''}`;
+
+    if(autoBtn){
+      autoBtn.innerHTML = _dnwAutoEnabled ? '🟢 Ligado — pausar' : '🔴 Pausado — ligar';
+      autoBtn.style.background = _dnwAutoEnabled ? 'rgba(16,185,129,.15)' : 'rgba(239,68,68,.15)';
+      autoBtn.style.borderColor = _dnwAutoEnabled ? 'rgba(16,185,129,.4)' : 'rgba(239,68,68,.4)';
+      autoBtn.style.color = _dnwAutoEnabled ? 'var(--green)' : 'var(--red)';
+    }
+    if(autoStatusEl){
+      const resLabel={'sem-novidade':'✅ Nada novo desde a última checagem','nova-encontrada':'🚨 Anúncio novo — e-mail enviado!','erro-http':'⚠️ Erro ao acessar a página','erro-parse':'⚠️ Não consegui ler a página (layout pode ter mudado)'}[d.ultimoResultado]||'⏳ Aguardando primeira checagem';
+      autoStatusEl.innerHTML = `${resLabel} · última: <strong>${_dnwTimeAgo(d.ultimaChecagemAt)}</strong> (${d.checksCount||0} no total)${d.ultimoErro?`<br><span style="color:var(--amber)">${esc(d.ultimoErro)}</span>`:''}`;
+    }
+    if(adminsEl){
+      adminsEl.textContent = 'Avisa: ' + (d.admins&&d.admins.length ? d.admins.join(', ') : 'nenhum admin cadastrado');
+    }
+    if(histEl){
+      const hist=d.historicoAlertas||[];
+      histEl.innerHTML = hist.length
+        ? hist.map(h=>`<div>[${new Date(h.at).toLocaleString('pt-BR')}] <strong style="color:#38bdf8">${esc(h.date)}</strong> — ${esc(h.title)}<br><span style="color:var(--t3)">→ ${esc((h.emailsEnviados||[]).join(', ')||'ninguém (falha)')}</span></div>`).join('<hr style="border-color:var(--border);margin:6px 0">')
+        : `<div class="empty-state">Nenhum alerta enviado ainda.</div>`;
+    }
+  }catch(e){ baseEl.innerHTML=`<span style="color:var(--red)">Erro: ${esc(e.message)}</span>`; }
+}
+async function dnwToggleAuto(){
+  try{
+    const r=await fetch('/api/admin/dol-news-watch/toggle-auto',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:!_dnwAutoEnabled})});
+    const d=await r.json();
+    if(d.ok){ toast(d.enabled?'🟢 Vigia ligado':'⏸️ Vigia pausado','ok'); dnwLoadStatus(); }
+    else toast(d.error||'Erro','err');
+  }catch(e){ toast(e.message,'err'); }
+}
+async function dnwCheckNow(){
+  toast('🔍 Checando o site do DOL agora…','g');
+  try{
+    const r=await fetch('/api/admin/dol-news-watch/check-now',{method:'POST',credentials:'include'});
+    const d=await r.json();
+    if(d.ok){
+      const res=d.result||{};
+      if(res.novo) toast(`🚨 Anúncio novo encontrado e e-mail enviado! (${res.date})`,'g');
+      else if(res.ok===false) toast('⚠️ Não consegui checar — veja o log.','warn');
+      else toast(`Sem novidade — último continua sendo ${res.date||'?'}.`,'ok');
+    } else toast(d.error||'Erro','err');
+    dnwLoadStatus();
+  }catch(e){ toast(e.message,'err'); }
+}
+async function dnwSendTestEmail(){
+  toast('✉️ Enviando e-mail de teste…','g');
+  try{
+    const r=await fetch('/api/admin/dol-news-watch/send-test-email',{method:'POST',credentials:'include'});
+    const d=await r.json();
+    if(d.ok) toast(`✅ Teste enviado pra: ${(d.enviados||[]).join(', ')}`,'g');
+    else toast('❌ Falha ao enviar — confira se algum admin está logado com Gmail.','err');
+  }catch(e){ toast(e.message,'err'); }
+}
+async function dnwSetBaseline(){
+  const date=(document.getElementById('dnw-baseline-date')?.value||'').trim();
+  const title=(document.getElementById('dnw-baseline-title')?.value||'').trim();
+  if(!date||!title){ toast('Preencha data e título.','warn'); return; }
+  try{
+    const r=await fetch('/api/admin/dol-news-watch/set-baseline',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({date,title})});
+    const d=await r.json();
+    if(d.ok){ toast('✅ Baseline atualizado','ok'); dnwLoadStatus(); }
     else toast(d.error||'Erro','err');
   }catch(e){ toast(e.message,'err'); }
 }
