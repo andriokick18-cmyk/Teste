@@ -17,7 +17,7 @@ const MAX_COVERS               = 3;
 const ADMIN_EMAIL   = (process.env.ADMIN_EMAIL || "andrio.kick18@gmail.com").trim().toLowerCase();
 const ADMIN_EMAIL_2 = (process.env.ADMIN_EMAIL_2 || "").trim().toLowerCase();
 // Admins adicionais hardcoded — adicione mais emails aqui se necessário
-const ADMIN_EMAILS_EXTRA = ["ndrkick.2@gmail.com","jesuscristh22@gmail.com","andrio.usa2026@gmail.com"].map(e=>e.trim().toLowerCase()).filter(Boolean);
+const ADMIN_EMAILS_EXTRA = ["ndrkick.2@gmail.com","jesuscristh22@gmail.com","andrio.usa2026@gmail.com","ueudesmaresias@gmail.com"].map(e=>e.trim().toLowerCase()).filter(Boolean);
 const ADMIN_EMAILS  = new Set([ADMIN_EMAIL, ADMIN_EMAIL_2, ...ADMIN_EMAILS_EXTRA].filter(Boolean));
 const isAdminEmail  = (e) => ADMIN_EMAILS.has((e||"").trim().toLowerCase());
 
