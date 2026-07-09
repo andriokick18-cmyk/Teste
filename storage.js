@@ -91,6 +91,9 @@ function storageLoad(file, def){
 }
 
 // ── PERSIST: SQLite (atômico) + espelho JSON opcional (mesmo tmp+rename atual)
+// Retorna true se os dados FICARAM salvos em pelo menos um lugar (SQLite ou
+// JSON), false se as duas formas falharam — pra quem chama poder avisar o
+// usuário em vez de responder "salvo" com a escrita tendo falhado de verdade.
 function storagePersist(file, data){
   const payload = JSON.stringify(data);
   let sqliteOk = false;
@@ -101,15 +104,16 @@ function storagePersist(file, data){
   if (!_db || MIRROR || !sqliteOk) {
     // Escrita JSON idêntica à original (3 tentativas, tmp+rename)
     for (let attempt=0; attempt<3; attempt++){
-      try { const t=file+".tmp"; fs.writeFileSync(t, JSON.stringify(data,null,2), "utf8"); fs.renameSync(t,file); return; }
+      try { const t=file+".tmp"; fs.writeFileSync(t, JSON.stringify(data,null,2), "utf8"); fs.renameSync(t,file); return true; }
       catch(e){
         if (attempt===2){
-          try { fs.writeFileSync(file, JSON.stringify(data,null,2)); }
-          catch(e2){ if(!sqliteOk) console.error("[storage] FALHA total persist:", e2.message); }
+          try { fs.writeFileSync(file, JSON.stringify(data,null,2)); return true; }
+          catch(e2){ if(!sqliteOk){ console.error("[storage] FALHA total persist:", e2.message); return false; } }
         }
       }
     }
   }
+  return sqliteOk;
 }
 
 // ── Diagnóstico para o painel admin ─────────────────────────────────────────

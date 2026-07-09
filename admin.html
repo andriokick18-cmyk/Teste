@@ -260,10 +260,10 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
     </div>
     <div class="sb-nav">
       <div class="sb-label">Monitor</div>
-      <button class="sb-item active" onclick="showView('dashboard')"><i class="ti ti-dashboard"></i>Dashboard<span class="sb-badge sb-badge-r" id="sb-alerts" style="display:none">0</span></button>
+      <button class="sb-item active" onclick="showView('dashboard')"><i class="ti ti-dashboard"></i>Visão Geral<span class="sb-badge sb-badge-r" id="sb-alerts" style="display:none">0</span></button>
       <!-- IA Admin removido do menu a pedido do dono (não utilizado) -->
       <button class="sb-item" onclick="showView('workers')"><i class="ti ti-robot"></i>Automáticos<span class="sb-badge sb-badge-g" id="sb-workers">0</span></button>
-      <button class="sb-item" onclick="showView('events')"><i class="ti ti-alert-triangle"></i>Eventos<span class="sb-badge sb-badge-a" id="sb-events-cnt" style="display:none">0</span></button>
+      <button class="sb-item" onclick="showView('events')"><i class="ti ti-receipt"></i>Pagamentos<span class="sb-badge sb-badge-g" id="sb-events-cnt" style="display:none">0</span></button>
       <div class="sb-label">Usuários</div>
       <button class="sb-item" onclick="showView('users')"><i class="ti ti-users"></i>Todos Usuários</button>
       <button class="sb-item" onclick="showView('vip');loadVipList();loadFinanceiro()"><i class="ti ti-diamond"></i>VIP & Planos</button>
@@ -282,7 +282,7 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
       <button class="sb-item" onclick="showView('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
       <button class="sb-item" onclick="showView('notificacoes')"><i class="ti ti-bell"></i>Notificações</button>
       <button class="sb-item" onclick="showView('sugestoes');loadSugestoes()"><i class="ti ti-bulb"></i>Sugestões<span class="sb-badge sb-badge-a" id="sb-sugestoes" style="display:none">0</span></button>
-      <button class="sb-item" onclick="showView('settings')"><i class="ti ti-settings"></i>Configurações</button>
+      <button class="sb-item" onclick="showView('settings');bkCarregarLista()"><i class="ti ti-settings"></i>Configurações</button>
       <button class="sb-item" onclick="showView('incidentes')" style="background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(220,38,38,.08));border:1px solid rgba(239,68,68,.3);color:#f87171;font-weight:800">
         <i class="ti ti-alert-octagon" style="color:#f87171"></i>Central de Incidentes
         <span class="sb-badge sb-badge-r" id="sb-incidentes" style="display:none">0</span>
@@ -315,23 +315,30 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
 
     <div class="content" id="content">
 
-      <!-- DASHBOARD -->
+      <!-- VISÃO GERAL (ex-"Dashboard") ─────────────────────────────────────
+           PROPÓSITO DESTA ABA (2026-07-08, reestruturação): esta tela responde
+           só a UMA pergunta — "está tudo bem, e se não, o que eu faço agora?".
+           Ela não é o lugar para ações em massa (Fix Auto, Reset Diário,
+           Robô de Teste) nem para exports (Logs/JSON/CSV) — essas ações já
+           têm home própria em Automáticos, Robôs e Logs & Export, e ficavam
+           duplicadas aqui. Também unificamos em UM painel os 4 sistemas de
+           alerta que existiam soltos e sobrepostos (alert-banners solto,
+           admin-alert-banner do cockpit, cockpit-critico/atencao/info que
+           dependia de /api/admin/cockpit — endpoint que NÃO EXISTE no
+           server.js, ou seja o painel de prioridades nunca funcionou — e um
+           4º aviso de VIP vencendo injetado por checkVipExpiryAlert() com
+           prazo diferente dos outros). Agora é só "priorities-panel". -->
       <div class="view active" id="view-dashboard">
-        <div id="alert-banners"></div>
-        <!-- COCKPIT DE PRIORIDADES -->
-        <div id="cockpit-panel" style="margin-bottom:16px;display:none">
-          <div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
-            <span><i class="ti ti-alert-octagon" style="color:var(--red)"></i> Prioridades</span>
-            <button onclick="loadCockpit()" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:11px"><i class="ti ti-refresh"></i></button>
+        <div class="section" id="priorities-panel" style="margin-bottom:16px">
+          <div class="section-hdr">
+            <i class="ti ti-alert-triangle" style="color:var(--amber)"></i>
+            <div class="section-title">Precisa de atenção</div>
+            <div class="section-sub" id="priorities-sub">carregando...</div>
+            <div class="section-actions"><button class="btn btn-ghost btn-sm" onclick="renderPriorities()"><i class="ti ti-refresh"></i></button></div>
           </div>
-          <!-- Banner dinâmico: pedidos críticos + auth_error -->
-          <div id="admin-alert-banner" style="display:none;background:linear-gradient(135deg,rgba(239,68,68,.15),rgba(239,68,68,.05));border:1.5px solid rgba(239,68,68,.4);border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:6px">
-            <div style="font-size:12px;font-weight:800;color:#f87171;display:flex;align-items:center;gap:6px"><i class="ti ti-alert-triangle"></i> Atenção imediata necessária</div>
-            <div id="admin-alert-body" style="font-size:11px;color:var(--t2);display:flex;flex-direction:column;gap:4px"></div>
+          <div id="priorities-list" style="display:flex;flex-direction:column;gap:6px">
+            <div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>
           </div>
-          <div id="cockpit-critico" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
-          <div id="cockpit-atencao" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
-          <div id="cockpit-info" style="display:flex;flex-direction:column;gap:4px"></div>
         </div>
         <div class="stat-grid" id="stat-grid">
           <div class="stat-card stat-blue" title="Usuários com sessão ativa agora (acessaram nos últimos 30min)"><i class="ti ti-users stat-icon"></i><div class="stat-val" id="s-online">–</div><div class="stat-lbl">Online agora</div><div class="stat-sub" id="s-sessions">– sessões ativas</div></div>
@@ -357,39 +364,20 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             <div style="font-size:10px;color:var(--t3);font-weight:600;margin-top:2px">Trial ativos</div>
           </div>
         </div>
-        <!-- AÇÕES RÁPIDAS ADMIN -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-          <button onclick="adminResetDaily()" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(217,119,6,.08));border:1.5px solid rgba(245,158,11,.35);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:var(--amber);cursor:pointer;font-family:inherit;transition:all .14s" title="Reseta os envios de hoje de TODOS os usuários — permite que todos enviem novamente">
-            <i class="ti ti-calendar-stats" style="font-size:15px"></i> ♻️ Resetar Diários
-          </button>
-          <button onclick="adminFixAuto()" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(79,70,229,.08));border:1.5px solid rgba(99,102,241,.35);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:#a78bfa;cursor:pointer;font-family:inherit;transition:all .14s" title="Diagnostica e repara automáticos travados de todos os usuários">
-            <i class="ti ti-tool" style="font-size:15px"></i> 🔧 Fix Auto Geral
-          </button>
-          <button onclick="showView('robos');roboSubTab('robot')" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(167,139,250,.12),rgba(139,92,246,.06));border:1.5px solid rgba(167,139,250,.25);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:#a78bfa;cursor:pointer;font-family:inherit">
-            <i class="ti ti-robot" style="font-size:15px"></i> 🤖 Robô de Teste
-          </button>
-          <!-- DOWNLOADS DE LOGS -->
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button onclick="downloadLogs('claude')" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(5,150,105,.08));border:1.5px solid rgba(16,185,129,.35);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:var(--green);cursor:pointer;font-family:inherit" title="Baixar relatório formatado para colar no Claude">
-              <i class="ti ti-brand-openai" style="font-size:15px"></i> 📋 Logs para Claude
-            </button>
-            <button onclick="downloadLogs('json')" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(37,99,235,.06));border:1.5px solid rgba(59,130,246,.3);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:var(--blue);cursor:pointer;font-family:inherit" title="Export completo em JSON">
-              <i class="ti ti-file-type-json" style="font-size:15px"></i> JSON Completo
-            </button>
-            <button onclick="downloadLogs('csv')" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:var(--t2);cursor:pointer;font-family:inherit" title="Export resumido em CSV">
-              <i class="ti ti-table" style="font-size:15px"></i> CSV
-            </button>
-            <button onclick="downloadLogs('claude','errors')" style="display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(220,38,38,.06));border:1.5px solid rgba(239,68,68,.3);border-radius:10px;padding:8px 16px;font-size:12px;font-weight:800;color:var(--red);cursor:pointer;font-family:inherit" title="Só usuários com erros — mais compacto para diagnóstico">
-              <i class="ti ti-bug" style="font-size:15px"></i> Só Erros
-            </button>
-          </div>
-        </div>
+        <!-- Ações em massa (Resetar Diários, Fix Auto Geral, Robô de Teste) e os
+             exports (Logs p/ Claude, JSON, CSV, Só Erros) foram REMOVIDOS daqui:
+             são exatamente os mesmos botões que já existem em Automáticos e em
+             Logs & Export, só que sem o contexto/instruções que só existe lá.
+             Ter os dois causava risco de clicar "Resetar Diários" sem querer,
+             fora do contexto onde isso faz sentido. Quem precisar deles, vai
+             até a aba certa — 1 clique na Visão Geral, 1 clique lá. -->
 
         <div class="section">
           <div class="section-hdr">
             <i class="ti ti-robot" style="color:var(--green)"></i>
-            <div class="section-title">Workers Ativos</div>
+            <div class="section-title">Automáticos</div>
             <div class="section-sub" id="workers-count-lbl">carregando...</div>
+            <div class="section-actions"><button class="btn btn-ghost btn-sm" onclick="showView('workers')">Ver todos →</button></div>
           </div>
           <div class="tbl-wrap" id="dash-workers-table">
             <div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>
@@ -400,7 +388,7 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             <i class="ti ti-alert-circle" style="color:var(--amber)"></i>
             <div class="section-title">Eventos Recentes</div>
             <div class="section-sub">Watchdog + crash reports</div>
-            <div class="section-actions"><button class="btn btn-ghost btn-sm" onclick="showView('events')">Ver todos →</button></div>
+            <div class="section-actions"><button class="btn btn-ghost btn-sm" onclick="showView('incidentes');setTimeout(()=>toggleIncTab('logs'),50)">Ver todos →</button></div>
           </div>
           <div class="tbl-wrap" id="dash-events-list">
             <div class="empty-state"><i class="ti ti-check"></i>Nenhum evento crítico</div>
@@ -417,10 +405,14 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             <div class="section-sub" id="workers-detail-lbl">–</div>
             <div class="section-actions">
               <button class="btn btn-ghost btn-sm" onclick="loadBulkStatus()" id="btn-bulk-refresh"><i class="ti ti-refresh"></i> Diagnóstico Completo</button>
-              <button class="btn btn-amber btn-sm" onclick="adminFixAuto()"><i class="ti ti-tool"></i> Fix Auto Geral</button>
-              <button class="btn btn-success btn-sm" onclick="adminResetDaily()"><i class="ti ti-calendar-stats"></i> Reset Diário</button>
             </div>
           </div>
+          <!-- "Fix Auto Geral" e "Reset Diário" (versões EM MASSA, afetando todo
+               mundo de uma vez) foram removidos daqui — 2026-07-08, a pedido do
+               dono: essas ações de risco não devem ficar num botão de fácil
+               acesso. Corrigir/resetar continua possível, mas só por usuário,
+               de dentro do perfil de cada um (botão "Fix" e "Reset diário" no
+               perfil) — mais seguro e cada ação já mostra pra quem é. -->
           <!-- PAINEL DE DIAGNÓSTICO RÁPIDO -->
           <div id="bulk-status-panel" style="display:none;margin-bottom:14px"></div>
           <div class="tbl-wrap">
@@ -435,33 +427,60 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
               <button class="btn btn-ghost btn-sm" onclick="loadLive()"><i class="ti ti-refresh"></i> Atualizar</button>
             </div>
             <div id="workers-table-body">
-              <div class="empty-state"><i class="ti ti-robot"></i>Nenhum worker encontrado</div>
+              <div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- EVENTS -->
+      <!-- CONFIRMAÇÃO DE PAGAMENTOS (2026-07-08: era "Eventos & Crash Reports"
+           — reestruturada a pedido do dono. Os logs técnicos de watchdog que
+           moravam aqui foram para Central de Incidentes → aba "Logs Técnicos"
+           (não sumiram, só mudaram de casa). Esta tela agora é o LIVRO-CAIXA:
+           todo pagamento confirmado (status pago/ativo em /api/pedidos — o
+           MESMO dado de "Pedidos de Plano", sem duplicar nada), um por um,
+           mais recente primeiro. "Pedidos de Plano" é fila de trabalho
+           (aprovar pendente); esta aba é o registro/conferência do que já
+           entrou — pra isso, sempre mínima informação à primeira vista, e
+           botões pra ver comprovante / baixar o recibo completo. -->
       <div class="view" id="view-events">
         <div class="section">
           <div class="section-hdr">
-            <i class="ti ti-alert-triangle" style="color:var(--amber)"></i>
-            <div class="section-title">Eventos & Crash Reports</div>
-            <div class="section-sub">Watchdog global — últimas 500 ocorrências</div>
-            <div class="section-actions">
-              <select class="filter-sel" id="ev-filter" onchange="filterEvents()">
-                <option value="">Todos</option>
-                <option value="error">🔴 Erros</option>
-                <option value="warn">🟡 Alertas</option>
-                <option value="info">🔵 Info</option>
-              </select>
-              <button class="btn btn-ghost btn-sm" onclick="clearEventsCache()" title="Limpar cache de eventos"><i class="ti ti-trash"></i> Limpar</button>
+            <i class="ti ti-receipt" style="color:var(--green)"></i>
+            <div class="section-title">Confirmação de Pagamentos</div>
+            <div class="section-sub" id="pgc-sub">carregando...</div>
+            <div class="section-actions"><button class="btn btn-ghost btn-sm" onclick="loadPagamentosFeed()"><i class="ti ti-refresh"></i> Atualizar</button></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+            <div style="background:var(--greeng);border:1.5px solid var(--greenb);border-radius:12px;padding:12px;text-align:center">
+              <div style="font-size:20px;font-weight:900;color:var(--green)" id="pgc-stat-total">–</div>
+              <div style="font-size:10px;color:var(--t3);font-weight:600;margin-top:2px">Total confirmado</div>
+            </div>
+            <div style="background:var(--glass);border:1.5px solid var(--border2);border-radius:12px;padding:12px;text-align:center">
+              <div style="font-size:20px;font-weight:900;color:#fff" id="pgc-stat-count">–</div>
+              <div style="font-size:10px;color:var(--t3);font-weight:600;margin-top:2px">Pagamentos no período</div>
+            </div>
+            <div style="background:var(--glass);border:1.5px solid var(--border2);border-radius:12px;padding:12px;text-align:center">
+              <div style="font-size:20px;font-weight:900;color:var(--cyan)" id="pgc-stat-hoje">–</div>
+              <div style="font-size:10px;color:var(--t3);font-weight:600;margin-top:2px">Confirmados hoje</div>
             </div>
           </div>
-          <div class="tbl-wrap">
-            <div class="event-list" id="events-list">
-              <div class="empty-state"><i class="ti ti-check"></i>Nenhum evento</div>
-            </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            <div class="search-wrap" style="flex:1;min-width:160px"><i class="ti ti-search"></i><input class="search-inp" id="pgc-search" placeholder="Buscar nome ou email..." oninput="renderPagamentosFeed()"></div>
+            <select class="filter-sel" id="pgc-period" onchange="loadPagamentosFeed()">
+              <option value="7">Últimos 7 dias</option>
+              <option value="30" selected>Últimos 30 dias</option>
+              <option value="90">Últimos 90 dias</option>
+              <option value="0">Tudo</option>
+            </select>
+          </div>
+
+          <div style="font-size:11px;color:var(--t3);margin-bottom:10px">Pedidos pendentes de aprovação ficam em <span style="color:var(--blue);cursor:pointer;text-decoration:underline" onclick="showView('pedidos')">Pedidos de Plano →</span></div>
+
+          <div id="pgc-list" style="display:flex;flex-direction:column;gap:10px">
+            <div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>
           </div>
         </div>
       </div>
@@ -1220,6 +1239,19 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             </div>
             <button onclick="changeEditorPassword()" id="ep-btn" style="background:linear-gradient(135deg,#6d28d9,#7c3aed);color:#fff;border:none;border-radius:8px;padding:11px 20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-device-floppy"></i> Salvar nova senha</button>
             <div id="ep-result" style="font-size:12px;margin-top:2px"></div>
+          </div>
+
+          <!-- ══ BACKUPS (2026-07-08) ══ Roda sozinho todo dia às 03h BRT
+               (financeiro.json, pedidos.json, users.json — tudo em DATA_DIR),
+               guarda os últimos 20. Aqui dá pra ver, forçar um agora, ou
+               restaurar (com senha de editor + confirmação escrita). -->
+          <div class="section-hdr" style="margin-top:28px"><i class="ti ti-database" style="color:var(--green)"></i><div class="section-title">Backups</div></div>
+          <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:16px;display:flex;flex-direction:column;gap:12px;max-width:560px">
+            <div style="font-size:12px;color:var(--t3);line-height:1.6">Backup completo automático todo dia às 03h (Brasília) — copia TODOS os dados (usuários, pedidos, financeiro, tudo) pra uma pasta com data. Guarda os últimos 20 dias. Também dá pra forçar um agora.</div>
+            <button class="btn btn-success btn-sm" onclick="bkCriar()" id="bk-criar-btn" style="align-self:flex-start"><i class="ti ti-device-floppy"></i> Criar backup agora</button>
+            <div id="bk-lista">
+              <div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>
+            </div>
           </div>
         </div>
       </div>
@@ -2984,6 +3016,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       <button class="btn btn-ghost btn-sm" onclick="toggleIncTab('missoes')" id="btn-tab-missoes"><i class="ti ti-list-check"></i> Missões</button>
       <button class="btn btn-ghost btn-sm" onclick="toggleIncTab('regras')" id="btn-tab-regras"><i class="ti ti-brain"></i> Regras</button>
       <button class="btn btn-ghost btn-sm" onclick="toggleIncTab('saude')" id="btn-tab-saude"><i class="ti ti-heart-rate-monitor"></i> Saúde</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleIncTab('logs')" id="btn-tab-logs"><i class="ti ti-terminal-2"></i> Logs Técnicos</button>
       <div style="position:relative;display:inline-block">
         <button class="btn btn-ghost btn-sm" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none'"><i class="ti ti-download"></i> Download ▾</button>
         <div style="display:none;position:absolute;right:0;top:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;z-index:100;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.3)">
@@ -3067,6 +3100,31 @@ document.addEventListener('DOMContentLoaded',()=>{
     </div>
     <div id="inc-health-panel" style="display:flex;flex-direction:column;gap:8px">
       <div style="text-align:center;padding:20px;color:var(--t3)">Carregando saúde...</div>
+    </div>
+  </div>
+
+  <!-- TAB: LOGS TÉCNICOS (2026-07-08: era a aba "Eventos" separada — mudou
+       de lugar porque "Eventos" agora mostra confirmação de pagamentos.
+       O conteúdo é o mesmo watchdog global de sempre, só de casa nova. -->
+  <div id="inc-tab-logs" style="display:none">
+    <div class="section-hdr" style="padding:0;margin-bottom:12px">
+      <i class="ti ti-terminal-2" style="color:var(--amber)"></i>
+      <div class="section-title">Logs Técnicos</div>
+      <div class="section-sub">Watchdog global — últimas 500 ocorrências</div>
+      <div class="section-actions">
+        <select class="filter-sel" id="ev-filter" onchange="filterEvents()">
+          <option value="">Todos</option>
+          <option value="error">🔴 Erros</option>
+          <option value="warn">🟡 Alertas</option>
+          <option value="info">🔵 Info</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="clearEventsCache()" title="Limpar cache de eventos"><i class="ti ti-trash"></i> Limpar</button>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <div class="event-list" id="events-list">
+        <div class="empty-state"><i class="ti ti-check"></i>Nenhum evento</div>
+      </div>
     </div>
   </div>
 </div>
@@ -3680,7 +3738,7 @@ function showView(name) {
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
   const v = document.getElementById('view-'+name);
   if(v) v.classList.add('active');
-  const titles={dashboard:'Dashboard','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'Eventos & Crashes',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',pagantes:'💳 Pagantes',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas',robos:'🤖 Robôs'};
+  const titles={dashboard:'Visão Geral','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'💳 Confirmação de Pagamentos',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',pagantes:'💳 Pagantes',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas',robos:'🤖 Robôs'};
   setText('view-title', titles[name]||name);
   if(name==='robo-contabil' && typeof rcCheckGeminiStatus==='function') setTimeout(rcCheckGeminiStatus,300);
   if(name==='incidentes'){
@@ -3697,7 +3755,7 @@ function showView(name) {
   if(name==='users'){ renderUsersTable(); loadJourneyFeed(); }
   if(name==='logs-export') loadLogsPreview();
   if(name==='workers') renderWorkersTable();
-  if(name==='events') renderEventsView();
+  if(name==='events') loadPagamentosFeed();
   if(name==='codes') loadCodes();
   if(name==='ranking') loadRankingAdmin();
   if(name==='planilhas'){
@@ -3863,7 +3921,7 @@ async function refreshAll() {
     }
 
     if(currentView==='workers') renderWorkersTable();
-    if(currentView==='events')  renderEventsView();
+    if(currentView==='events')  loadPagamentosFeed();
     if(currentView==='users'){   renderUsersTable(); loadJourneyFeed(); }
 
     // Live refresh modal if open
@@ -3915,58 +3973,8 @@ function updateDashboard() {
   }
 
   _updateConversionCards();
-  // ── Banner dinâmico de alertas críticos ──────────────────────
-  (async()=>{
-    const banner=document.getElementById('admin-alert-banner');
-    const bannerBody=document.getElementById('admin-alert-body');
-    if(!banner||!bannerBody) return;
-    const items=[];
-    // Pedidos pendentes há >24h
-    try{
-      const r=await fetch('/api/admin/pedidos-criticos',{credentials:'include'});
-      const d=await r.json();
-      if(d.ok&&d.total>0){
-        items.push(`<div style="display:flex;align-items:center;justify-content:space-between"><span>💳 <strong>${d.total} pedido(s)</strong> pendentes há mais de 24h — R$${d.criticos.reduce((a,p)=>a+(p.valor||0),0).toFixed(2)}</span><button onclick="showView('pedidos');pedSetTab('pendente',null)" style="background:rgba(239,68,68,.2);color:#f87171;border:1px solid rgba(239,68,68,.4);border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">Ver pedidos →</button></div>`);
-      }
-    }catch{}
-    // Usuários com paused_auth_error há >12h
-    const authErrUsers=(liveData?.users||[]).filter(u=>u.autoStatus==='paused_auth_error');
-    if(authErrUsers.length>0){
-      items.push(`<div style="display:flex;align-items:center;justify-content:space-between"><span>🔑 <strong>${authErrUsers.length} usuário(s)</strong> com erro de autenticação — fila pausada</span><button onclick="showView('incidentes')" style="background:rgba(239,68,68,.2);color:#f87171;border:1px solid rgba(239,68,68,.4);border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">Ver incidentes →</button></div>`);
-    }
-    // VIPs expirando em ≤3 dias
-    const _vipExp=(liveData?.users||[]).filter(u=>{
-      if(!u.vip||u.plan==='free')return false;
-      const exp=Math.max(u.vipManual||0,u.vipAuto||0);
-      return exp>Date.now()&&exp<Date.now()+3*86400000;
-    });
-    if(_vipExp.length>0){
-      items.push(`<div style="display:flex;align-items:center;justify-content:space-between"><span>👑 <strong>${_vipExp.length} plano(s)</strong> VIP vencendo em ≤3 dias</span><button onclick="showView('vencimentos')" style="background:rgba(245,158,11,.2);color:var(--amber);border:1px solid rgba(245,158,11,.4);border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">Ver vencimentos →</button></div>`);
-    }
-    if(items.length>0){
-      banner.style.display='flex';
-      bannerBody.innerHTML=items.join('');
-    } else {
-      banner.style.display='none';
-    }
-  })();
 
-  // Alert banners
-  const banners = document.getElementById('alert-banners');
-  if(banners){
-    let html='';
-    if(d.diskOk===false) html+=`<div class="alert-banner ab-err" style="border-color:var(--redb)"><i class="ti ti-database-x"></i><strong>⚠️ DISCO VOLÁTIL (/tmp)!</strong> Dados perdem no próximo deploy. Configure DATA_DIR=/data URGENTE!</div>`;
-    if(d.stalledCount>0) html+=`<div class="alert-banner ab-warn"><i class="ti ti-alert-triangle"></i><strong>${d.stalledCount} fila(s) travada(s)</strong> — Watchdog tentando reiniciar. Veja "Automáticos".</div>`;
-    const noOauth=(d.users||[]).filter(u=>u.hasAuto&&u.oauthOk===false);
-    if(noOauth.length) html+=`<div class="alert-banner ab-err"><i class="ti ti-lock"></i><strong>${noOauth.length} usuário(s) com OAuth expirado</strong> — Automático pausado. Precisam fazer login novamente.</div>`;
-    const noPdf=(d.users||[]).filter(u=>u.hasAuto&&u.hasPdf===false);
-    if(noPdf.length) html+=`<div class="alert-banner ab-warn"><i class="ti ti-file-x"></i><strong>${noPdf.length} usuário(s) sem PDF</strong> — Envios podem falhar. Verifique os perfis.</div>`;
-    if(!d.stalledCount&&!noOauth.length&&!noPdf.length&&d.activeAutoCount>0)
-      html+=`<div class="alert-banner ab-ok"><i class="ti ti-check"></i><strong>Sistema operacional</strong> — ${d.activeAutoCount} automático(s) rodando normalmente.</div>`;
-    banners.innerHTML=html;
-  }
-
-  // Sidebar badges
+  // Sidebar badges (contadores das outras abas — não mexe em prioridades)
   const wEl=document.getElementById('sb-workers');
   if(wEl){
     const wc=d.activeAutoCount||0;
@@ -3974,34 +3982,116 @@ function updateDashboard() {
     wEl.style.background=wc>0?'rgba(16,185,129,.2)':'rgba(107,114,128,.2)';
     wEl.style.color=wc>0?'var(--green)':'var(--t3)';
   }
-  const evEl=document.getElementById('sb-events-cnt');
-  if(evEl){
-    const evErr=allEvents.filter(e=>e.level==='error').length;
-    evEl.textContent=evErr||'0';
-    evEl.style.display=evErr>0?'':'none';
-  }
-  const alertsEl=document.getElementById('sb-alerts');
-  if(alertsEl){
-    const noOauthLen=(d.users||[]).filter(u=>u.hasAuto&&u.oauthOk===false).length;
-    const noPdfLen=(d.users||[]).filter(u=>u.hasAuto&&u.hasPdf===false).length;
-    const count=(d.stalledCount||0)+noOauthLen+noPdfLen;
-    alertsEl.style.display=count>0?'':'none';
-    alertsEl.textContent=count;
-  }
+  // NOTA: sb-events-cnt (badge da aba "Pagamentos") não é mais atualizado
+  // aqui — antes contava erros do watchdog, mas essa aba virou confirmação
+  // de pagamentos. Agora só loadPagamentosFeed() escreve nesse badge
+  // (contagem de pagamentos confirmados hoje), pra não ter duas fontes
+  // escrevendo valores diferentes no mesmo lugar.
 
   renderDashWorkers();
   renderDashEvents();
-  loadCockpit();
+  renderPriorities();
 }
 
+// ══════════════════════════════════════════════════════════
+//  "PRECISA DE ATENÇÃO" — painel único de prioridades
+//  Substitui 4 sistemas de alerta que existiam soltos e
+//  sobrepostos na Visão Geral (ver comentário no HTML da view).
+//  sb-alerts (badge vermelho da sidebar) é atualizado aqui, e só
+//  aqui, para não haver duas fontes de verdade pro mesmo número.
+// ══════════════════════════════════════════════════════════
+async function renderPriorities(){
+  const list = document.getElementById('priorities-list');
+  const sub  = document.getElementById('priorities-sub');
+  if(!list || !liveData) return;
+  const d = liveData;
+  const items = []; // {level:'critico'|'atencao', icon, msg, link}
+
+  if(d.diskOk===false){
+    items.push({level:'critico',icon:'💾',msg:'Disco volátil (/tmp) — dados podem se perder no próximo deploy! Configure DATA_DIR=/data.',link:null});
+  }
+  if(d.stalledCount>0){
+    items.push({level:'critico',icon:'🔴',msg:`${d.stalledCount} fila(s) travada(s) — watchdog tentando reiniciar`,link:'workers'});
+  }
+  const authErr=(d.users||[]).filter(u=>u.hasAuto&&u.oauthOk===false);
+  if(authErr.length){
+    items.push({level:'critico',icon:'🔑',msg:`${authErr.length} usuário(s) com OAuth expirado — automático pausado, precisam logar de novo`,link:'incidentes'});
+  }
+  try{
+    const r=await fetch('/api/admin/pedidos-criticos',{credentials:'include'});
+    const pd=await r.json();
+    if(pd.ok && pd.total>0){
+      const soma=(pd.criticos||[]).reduce((a,p)=>a+(p.valor||0),0);
+      items.push({level:'critico',icon:'💳',msg:`${pd.total} pedido(s) pendente(s) há mais de 24h — R$${soma.toFixed(2)}`,link:'pedidos'});
+    }
+  }catch{}
+  const noPdf=(d.users||[]).filter(u=>u.hasAuto&&u.hasPdf===false);
+  if(noPdf.length){
+    items.push({level:'atencao',icon:'📎',msg:`${noPdf.length} usuário(s) com automático ativo mas sem PDF — envios podem falhar`,link:'workers'});
+  }
+  // VIPs vencendo ≤7 dias (absorve o antigo checkVipExpiryAlert, que usava
+  // esse mesmo prazo mas injetava num banner separado)
+  const vipExp=(d.users||[]).filter(u=>{
+    if(!u.vip||u.plan==='free') return false;
+    const exp=Math.max(u.vipManual||0,u.vipAuto||0);
+    return exp>Date.now()&&exp<Date.now()+7*86400000;
+  });
+  if(vipExp.length){
+    items.push({level:'atencao',icon:'👑',msg:`${vipExp.length} plano(s) VIP vencendo em ≤7 dias`,link:'vencimentos'});
+  }
+
+  items.sort((a,b)=>(a.level==='critico'?0:1)-(b.level==='critico'?0:1));
+  const critCount=items.filter(i=>i.level==='critico').length;
+
+  if(!items.length){
+    list.innerHTML = `<div style="background:var(--greeng);border:1px solid var(--greenb);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--green);font-weight:700"><i class="ti ti-check"></i> Tudo operacional — nenhum ponto de atenção agora.</div>`;
+    if(sub) sub.textContent='tudo certo';
+  } else {
+    if(sub) sub.textContent = critCount ? `${critCount} crítico(s) · ${items.length-critCount} de atenção` : `${items.length} de atenção`;
+    list.innerHTML = items.map(it=>{
+      const bg = it.level==='critico'?'rgba(239,68,68,.1)':'rgba(245,158,11,.1)';
+      const border = it.level==='critico'?'rgba(239,68,68,.3)':'rgba(245,158,11,.3)';
+      const color = it.level==='critico'?'var(--red)':'var(--amber)';
+      const linkBtn = it.link?`<button onclick="showView('${it.link}')" style="background:none;border:none;cursor:pointer;color:${color};font-size:11px;font-weight:700;padding:0;font-family:inherit;text-decoration:underline;white-space:nowrap">Ver →</button>`:'';
+      return `<div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:9px 13px;display:flex;align-items:center;gap:9px;font-size:12.5px">
+        <span style="font-size:15px;flex-shrink:0">${it.icon}</span>
+        <span style="flex:1;color:var(--text)">${esc(it.msg)}</span>
+        ${linkBtn}
+      </div>`;
+    }).join('');
+  }
+
+  const alertsEl=document.getElementById('sb-alerts');
+  if(alertsEl){
+    alertsEl.style.display = critCount>0 ? '' : 'none';
+    alertsEl.textContent = critCount;
+  }
+}
+
+// Workers Ativos → "Automáticos" na Visão Geral: antes mostrava os 10
+// primeiros usuários (misturando quem tava OK com quem tava travado),
+// só duplicando em miniatura a aba Automáticos inteira. Agora só mostra
+// quem precisa de olhar (travado/erro/lento) — quem tá OK não precisa
+// ocupar espaço na tela principal; a lista completa é "Ver todos →".
 function renderDashWorkers(){
   const el=document.getElementById('dash-workers-table');
   const lbl=document.getElementById('workers-count-lbl');
   if(!el||!liveData) return;
-  const workers=(liveData.users||[]).filter(u=>u.hasAuto||u.jobStalled);
-  if(lbl) lbl.textContent=`${workers.length} ativo(s)`;
-  if(!workers.length){el.innerHTML='<div class="empty-state"><i class="ti ti-robot"></i>Nenhum automático rodando</div>';return;}
-  el.innerHTML=buildWorkersTable(workers.slice(0,10));
+  const all=(liveData.users||[]).filter(u=>u.hasAuto||u.jobStalled);
+  const PROBLEM_STATUS=['stalled','stuck_sending','no_token','no_pdf','never_sent','token_retry','slow','rate_limit'];
+  const problems=all.filter(u=>PROBLEM_STATUS.includes((u.diag&&u.diag.status)||'ok'));
+
+  if(!all.length){
+    if(lbl) lbl.textContent='nenhum automático ativo';
+    el.innerHTML='<div class="empty-state"><i class="ti ti-robot"></i>Nenhum automático rodando agora</div>';
+    return;
+  }
+  if(lbl) lbl.textContent = problems.length ? `${problems.length} de ${all.length} com problema` : `${all.length} rodando`;
+  if(!problems.length){
+    el.innerHTML=`<div class="empty-state" style="color:var(--green)"><i class="ti ti-check"></i>${all.length} automático(s) rodando sem problemas</div>`;
+    return;
+  }
+  el.innerHTML=buildWorkersTable(problems.slice(0,6));
 }
 
 function renderDashEvents(){
@@ -4106,7 +4196,16 @@ function buildWorkersTable(workers){
 function renderWorkersTable(){
   const el=document.getElementById('workers-table-body');
   const lbl=document.getElementById('workers-detail-lbl');
-  if(!el||!liveData) return;
+  if(!el) return;
+  if(!liveData){
+    // FIX: antes, sem liveData ainda carregado, a função só dava return e
+    // deixava o placeholder estático "Nenhum worker encontrado" — parecia
+    // que não tinha ninguém rodando quando na verdade só não tinha chegado
+    // o dado ainda. Agora mostra "carregando" de verdade e busca os dados.
+    el.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>';
+    if(typeof refreshAll==='function') refreshAll();
+    return;
+  }
   const q=(document.getElementById('w-search')?.value||'').toLowerCase();
   const sf=document.getElementById('w-filter-status')?.value||'';
   let workers=(liveData.users||[]).filter(u=>u.hasAuto||u.autoStatus);
@@ -4116,9 +4215,57 @@ function renderWorkersTable(){
   if(sf==='paused') workers=workers.filter(u=>!u.hasAuto&&u.autoStatus);
   if(lbl) lbl.textContent=`${workers.length} worker(s) encontrado(s)`;
   if(!workers.length){el.innerHTML='<div class="empty-state"><i class="ti ti-robot"></i>Nenhum worker encontrado</div>';return;}
-  el.innerHTML=buildWorkersTable(workers);
+  el.innerHTML=buildWorkersListSimple(workers);
 }
 function filterWorkers(){renderWorkersTable();}
+
+// ══════════════════════════════════════════════════════════
+//  LISTA SIMPLES DE AUTOMÁTICOS (2026-07-08 reestruturação)
+//  Antes essa página usava o mesmo card denso do Dashboard (status,
+//  contador de hoje, % de fila, falhas, último envio, linha de
+//  diagnóstico, 3 botões pequenos...) pra CADA usuário — informação
+//  demais pra uma lista de "quem tá rodando". Agora é só: avatar
+//  grande + nome + status, um embaixo do outro, botão grande. Clicar
+//  em qualquer parte abre o perfil já na aba "Automático" (que agora
+//  também tem os logs do automático nela — antes estavam escondidos
+//  dentro da aba "Histórico", que é sobre edições administrativas,
+//  não sobre envios).
+// ══════════════════════════════════════════════════════════
+function buildWorkersListSimple(workers){
+  const STATUS_SIMPLE={
+    ok:          {color:'var(--green)', bg:'var(--greeng)', icon:'✅', label:'Rodando'},
+    starting:    {color:'var(--blue)',  bg:'var(--blueg)',  icon:'🚀', label:'Iniciando'},
+    waiting_limit:{color:'var(--blue)', bg:'var(--blueg)',  icon:'📊', label:'Limite diário'},
+    waiting_hour:{color:'var(--blue)',  bg:'var(--blueg)',  icon:'🕐', label:'Fora do horário'},
+    rate_limit:  {color:'var(--amber)', bg:'var(--amberg)', icon:'⏳', label:'Rate limit'},
+    token_retry: {color:'var(--amber)', bg:'var(--amberg)', icon:'🔑', label:'Renovando token'},
+    stalled:     {color:'var(--red)',   bg:'var(--redg)',   icon:'🔴', label:'Travado'},
+    stuck_sending:{color:'var(--red)',  bg:'var(--redg)',   icon:'⚠️', label:'Preso'},
+    no_token:    {color:'var(--red)',   bg:'var(--redg)',   icon:'🔐', label:'Sem token'},
+    no_pdf:      {color:'var(--red)',   bg:'var(--redg)',   icon:'📎', label:'Sem PDF'},
+    never_sent:  {color:'var(--red)',   bg:'var(--redg)',   icon:'❓', label:'Nunca enviou'},
+    slow:        {color:'var(--amber)', bg:'var(--amberg)', icon:'🐌', label:'Lento'},
+    finished:    {color:'var(--t3)',    bg:'var(--glass2)', icon:'✔',  label:'Finalizado'},
+  };
+  const rows=workers.map(u=>{
+    const diag=u.diag||{status:'ok'};
+    const st=STATUS_SIMPLE[diag.status]||STATUS_SIMPLE.ok;
+    const isProb=['stalled','stuck_sending','no_token','no_pdf','never_sent','token_retry'].includes(diag.status);
+    return `<div onclick="openUser('${esc(u.email)}','auto')" style="cursor:pointer;display:flex;align-items:center;gap:14px;background:var(--glass);border:1.5px solid ${isProb?'rgba(239,68,68,.3)':'var(--border2)'};border-radius:14px;padding:16px 18px;transition:background .12s" onmouseover="this.style.background='var(--glass2)'" onmouseout="this.style.background='var(--glass)'">
+      ${u.picture?`<img alt="" src="${esc(u.picture)}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0">`:avLetter(u.name||u.email,44)}
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:15px;font-weight:800;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name||u.email.split('@')[0])}</span>
+          ${u.isOnline?'<span style="width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0" title="Online"></span>':''}
+        </div>
+        <div class="mono" style="color:var(--t3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.email)}</div>
+      </div>
+      <span style="flex-shrink:0;display:inline-flex;align-items:center;gap:4px;background:${st.bg};border:1px solid ${st.color}33;border-radius:20px;padding:6px 13px;font-size:12px;font-weight:800;color:${st.color};white-space:nowrap">${st.icon} ${st.label}</span>
+      <i class="ti ti-chevron-right" style="color:var(--t3);font-size:20px;flex-shrink:0"></i>
+    </div>`;
+  }).join('');
+  return `<div style="display:flex;flex-direction:column;gap:10px;padding:10px">${rows}</div>`;
+}
 
 // ══════════════════════════════════════════════════════════
 //  BULK STATUS — Diagnóstico Completo dos Automáticos
@@ -4271,7 +4418,7 @@ function renderBulkStatus(){
             ${w.phase==='stalled'||w.phase==='dead_timer'?`<button onclick="forceRestart('${esc(w.email)}')" style="display:inline-flex;align-items:center;gap:5px;background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;color:var(--green);cursor:pointer;font-family:inherit">
               <i class="ti ti-refresh"></i> Reiniciar
             </button>`:''}
-            ${w.phase==='waiting_limit'?`<button onclick="adminResetDaily()" style="display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;color:var(--amber);cursor:pointer;font-family:inherit">
+            ${w.phase==='waiting_limit'?`<button onclick="adminResetDailyUser('${esc(w.email)}')" style="display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;color:var(--amber);cursor:pointer;font-family:inherit">
               <i class="ti ti-calendar-stats"></i> Reset Diário
             </button>`:''}
             ${w.needsUser?`<span style="display:inline-flex;align-items:center;gap:5px;background:var(--redg);border:1px solid var(--redb);border-radius:7px;padding:5px 11px;font-size:11px;font-weight:700;color:var(--red)">
@@ -4570,7 +4717,7 @@ async function loadJourneyFeed(){
 // ══════════════════════════════════════════════════════════
 //  USER DETAIL MODAL — COMPLETO
 // ══════════════════════════════════════════════════════════
-async function openUser(email){
+async function openUser(email,initialTab){
   currentModalEmail=email;
   document.getElementById('user-modal').style.display='flex';
   document.getElementById('modal-name').textContent='…';
@@ -4580,8 +4727,8 @@ async function openUser(email){
   const _cccE=document.getElementById('ccc-email');if(_cccE)_cccE.textContent=email;
   const _cccM=document.getElementById('ccc-meta');if(_cccM)_cccM.textContent='Carregando...';
   const _cccB=document.getElementById('ccc-badges');if(_cccB)_cccB.innerHTML='';
-  // Ativar aba Visão Geral do CCC
-  try{cccTab('overview');}catch(e){}
+  // Ativa a aba pedida (ex: 'auto' quando vem da lista de Automáticos) ou Visão Geral por padrão
+  try{cccTab(initialTab||'overview');}catch(e){}
   // Reset tabs legado
   ['overview','auto','pdfs','profiles','journey','logs','history','enviados','health','edit','compras'].forEach(t=>{
     const el=document.getElementById('modal-tab-'+t);
@@ -6565,6 +6712,58 @@ async function changeEditorPassword(){
 }
 
 // ══════════════════════════════════════════════════════════
+//  BACKUPS (2026-07-08) — UI aqui, lógica já existia e já
+//  funcionava em /api/admin/v2/backup/* (mod-admin-v2.js).
+//  Só estava inacessível pq vivia numa página que ninguém abre.
+// ══════════════════════════════════════════════════════════
+async function bkCarregarLista(){
+  const el=document.getElementById('bk-lista');
+  if(!el) return;
+  el.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>';
+  try{
+    const r=await fetch('/api/admin/v2/backup/list',{credentials:'include'});
+    const d=await r.json();
+    if(!d.ok){ el.innerHTML=`<div class="empty-state" style="color:var(--red)">Erro: ${esc(d.error||'?')}</div>`; return; }
+    const bks=d.backups||[];
+    if(!bks.length){ el.innerHTML='<div class="empty-state"><i class="ti ti-database-off"></i>Nenhum backup ainda — o automático roda às 03h, ou clique "Criar backup agora".</div>'; return; }
+    el.innerHTML=`<div style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto">${bks.map(b=>`
+      <div style="display:flex;align-items:center;gap:10px;background:var(--glass2);border:1px solid var(--border2);border-radius:9px;padding:9px 12px">
+        <div style="flex:1;min-width:0">
+          <div class="mono" style="font-size:12px;font-weight:700;color:#fff">${esc(b.name)}</div>
+          <div style="font-size:10px;color:var(--t3)">${b.files} arquivo(s)</div>
+        </div>
+        <button class="btn btn-xs btn-ghost" onclick="bkRestaurar('${esc(b.name)}')"><i class="ti ti-history"></i> Restaurar</button>
+      </div>`).join('')}</div>`;
+  }catch(e){ el.innerHTML=`<div class="empty-state" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
+}
+async function bkCriar(){
+  const btn=document.getElementById('bk-criar-btn');
+  const adminName=document.getElementById('admin-email')?.textContent||prompt('Seu nome (fica no registro deste backup):')||'';
+  if(!adminName) return;
+  if(btn){ btn.disabled=true; btn.innerHTML='<i class="ti ti-loader"></i> Criando...'; }
+  try{
+    const r=await fetch('/api/admin/v2/backup/create',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminName})});
+    const d=await r.json();
+    if(d.ok){ toast(`✅ Backup criado: ${d.files} arquivo(s)`,'ok'); bkCarregarLista(); }
+    else toast('❌ '+(d.error||'Erro ao criar backup'),'r');
+  }catch(e){ toast('❌ Erro: '+e.message,'r'); }
+  finally{ if(btn){ btn.disabled=false; btn.innerHTML='<i class="ti ti-device-floppy"></i> Criar backup agora'; } }
+}
+async function bkRestaurar(name){
+  if(!confirm(`⚠️ RESTAURAR backup de ${name}?\n\nIsso vai SOBRESCREVER os dados atuais (usuários, pedidos, financeiro — tudo) com o que estava salvo nesse dia. Um snapshot do estado ATUAL é guardado automaticamente antes, por segurança.\n\nDepois de restaurar, o servidor precisa ser REINICIADO pra carregar os dados restaurados.\n\nContinuar?`)) return;
+  const digitado=prompt('Pra confirmar, digite exatamente: RESTAURAR');
+  if(digitado!=='RESTAURAR'){ toast('Cancelado — não digitou "RESTAURAR" exatamente.','r'); return; }
+  const adminName=document.getElementById('admin-email')?.textContent||prompt('Seu nome (fica no registro):')||'';
+  if(!adminName) return;
+  try{
+    const r=await fetch('/api/admin/v2/backup/restore',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,adminName,confirm:'RESTAURAR'})});
+    const d=await r.json();
+    if(d.ok){ alert(`✅ ${d.restored} arquivo(s) restaurado(s).\n\n${d.aviso||'Reinicie o servidor para os dados restaurados entrarem em vigor.'}`); toast('✅ Restaurado — reinicie o servidor','ok'); }
+    else toast('❌ '+(d.error||'Erro ao restaurar'),'r');
+  }catch(e){ toast('❌ Erro: '+e.message,'r'); }
+}
+
+// ══════════════════════════════════════════════════════════
 //  UTILITIES
 // ══════════════════════════════════════════════════════════
 function setText(id,v){const el=document.getElementById(id);if(el)el.textContent=v;}
@@ -6583,11 +6782,12 @@ function fmtStatus(s){
   return map[s]||s||'–';
 }
 
-function avLetter(name){
+function avLetter(name,size){
+  size=size||26;
   const l=(name||'?')[0].toUpperCase();
   const colors=['#2563eb','#7c3aed','#059669','#dc2626','#d97706','#0891b2','#db2777'];
   const c=colors[l.charCodeAt(0)%colors.length];
-  return`<div style="width:26px;height:26px;border-radius:50%;background:${c};color:#fff;font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${l}</div>`;
+  return`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${c};color:#fff;font-weight:800;font-size:${Math.round(size*0.42)}px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${l}</div>`;
 }
 
 function toast(msg,type='ok'){
@@ -7356,20 +7556,18 @@ function checkVipExpiryAlert(){
     const days=Math.ceil((nextExp-now)/86400000);
     return days>=0&&days<=7;
   });
-  // Update sb-venc badge
+  // Update sb-venc badge (badge da aba "Vencimentos VIP" na sidebar)
   const sbVenc=document.getElementById('sb-venc');
   if(sbVenc){
     if(expiring.length>0){sbVenc.style.display='';sbVenc.textContent=expiring.length;}
     else sbVenc.style.display='none';
   }
-  // Add to alert banners if not already there
-  const banners=document.getElementById('alert-banners');
-  if(banners&&expiring.length>0&&!banners.querySelector('.vip-expiry-alert')){
-    const div=document.createElement('div');
-    div.className='alert-banner ab-warn vip-expiry-alert';
-    div.innerHTML=`<i class="ti ti-diamond"></i><strong>${expiring.length} VIP(s) vencendo em ≤7 dias</strong> — <span style="cursor:pointer;text-decoration:underline" onclick="showView('vencimentos');loadVencimentos()">Ver lista de vencimentos →</span>`;
-    banners.insertAdjacentElement('afterbegin',div);
-  }
+  // NOTA (2026-07-08): antes essa função também injetava um banner de
+  // "VIP vencendo" direto no DOM (#alert-banners) — um 4º sistema de alerta
+  // rodando em paralelo ao cockpit e ao admin-alert-banner, cada um com um
+  // prazo diferente (7 dias aqui, 3 dias no outro). Isso já está unificado
+  // em renderPriorities() na Visão Geral (mesmo prazo de 7 dias). Removido
+  // daqui pra não duplicar.
 }
 
 // ── MELHORIA 7: Barra de progresso de refresh no topbar ──────
@@ -7830,8 +8028,19 @@ async function finEditarRegistro(id,tipo){
       <div><label style="font-size:11px;color:var(--t3);font-weight:700">${isPag?'Nota':'Descrição'}</label>
         <input id="fe-desc" class="form-inp" value="${(item.nota||item.descricao||'').replace(/"/g,'&quot;')}"></div>
       ${isPag
-        ?`<div><label style="font-size:11px;color:var(--t3);font-weight:700">💳 Quem RECEBEU este pagamento</label>
-            <select id="fe-recebido" class="form-inp"><option value="andrio"${(item.recebidoPor||'')!=='diego'?' selected':''}>Andrio — PixPay</option><option value="diego"${item.recebidoPor==='diego'?' selected':''}>Diego — InfinityPay</option></select></div>`
+        ?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div><label style="font-size:11px;color:var(--t3);font-weight:700">Plano</label>
+              <select id="fe-plano" class="form-inp" onchange="fePlanoMudou()">
+                <option value=""${!item.plano?' selected':''}>— avulso / outro —</option>
+                <option value="vip"${item.plano==='vip'?' selected':''}>⭐ VIP Manual — R$${PLAN_PRICES.vip.month}</option>
+                <option value="vipro"${item.plano==='vipro'?' selected':''}>🤖 VIPro — R$${PLAN_PRICES.vipro.month}</option>
+                <option value="doublepro"${item.plano==='doublepro'?' selected':''}>💎 DoublePro — R$${PLAN_PRICES.doublepro.month}</option>
+              </select></div>
+            <div><label style="font-size:11px;color:var(--t3);font-weight:700">💳 Quem RECEBEU este pagamento</label>
+              <select id="fe-recebido" class="form-inp"><option value="andrio"${(item.recebidoPor||'')!=='diego'?' selected':''}>Andrio — PixPay</option><option value="diego"${item.recebidoPor==='diego'?' selected':''}>Diego — InfinityPay</option></select></div>
+          </div>
+          <div style="font-size:10px;color:var(--t3);margin-top:-4px">Trocar o plano sugere o valor novo no campo acima — mas ele continua editável (ex.: deu desconto no upgrade). Serve pra registrar upgrade (ex.: pagou R$100 de Manual e trocou pra VIPro R$150).</div>
+          <div style="font-size:10px;color:var(--amber);margin-top:-4px"><i class="ti ti-alert-triangle"></i> Isso corrige só o registro financeiro (valor/plano recebido). Se o upgrade também muda os DIAS de VIP que a pessoa tem direito, ajuste em <span style="cursor:pointer;text-decoration:underline" onclick="showView('users')">Usuários → perfil → Plano &amp; VIP</span> também.</div>`
         :`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div><label style="font-size:11px;color:var(--t3);font-weight:700">Categoria</label><input id="fe-cat" class="form-inp" value="${(item.categoria||'geral').replace(/"/g,'&quot;')}"></div>
             <div><label style="font-size:11px;color:var(--t3);font-weight:700">Quem pagou</label><select id="fe-pagopor" class="form-inp"><option value="andrio"${item.pagoPor==='andrio'?' selected':''}>Andrio</option><option value="diego"${item.pagoPor==='diego'?' selected':''}>Diego</option><option value="empresa"${(item.pagoPor||'empresa')==='empresa'?' selected':''}>Empresa (50/50)</option></select></div>
@@ -7853,6 +8062,13 @@ function feCalcUSD(){
   if(m==='USD'){const u=parseFloat(document.getElementById('fe-valorusd').value)||0,c=parseFloat(document.getElementById('fe-cambio').value)||0;
     if(u>0&&c>0)document.getElementById('fe-valor').value=(u*c).toFixed(2);}
 }
+function fePlanoMudou(){
+  const sel=document.getElementById('fe-plano');
+  const val=document.getElementById('fe-valor');
+  if(!sel||!val||!sel.value) return;
+  const p=PLAN_PRICES[sel.value];
+  if(p) val.value=p.month.toFixed(2);
+}
 async function feSalvar(id,tipo){
   const g=x=>document.getElementById(x);
   const motivo=(g('fe-motivo').value||'').trim();
@@ -7862,7 +8078,7 @@ async function feSalvar(id,tipo){
   const changes={valor:parseFloat(g('fe-valor').value)||0,moeda:g('fe-moeda').value};
   if(changes.moeda==='USD'){changes.valorUSD=parseFloat(g('fe-valorusd').value)||0;changes.cambio=parseFloat(g('fe-cambio').value)||5.17;}
   const dt=g('fe-data').value;if(dt){const iso=new Date(dt).toISOString();if(tipo==='pagamento')changes.dataPagamento=iso;else changes.dataGasto=iso;}
-  if(tipo==='pagamento'){changes.nota=g('fe-desc').value;changes.recebidoPor=g('fe-recebido').value;}
+  if(tipo==='pagamento'){changes.nota=g('fe-desc').value;changes.recebidoPor=g('fe-recebido').value;changes.plano=g('fe-plano')?.value||'';}
   else{changes.descricao=g('fe-desc').value;changes.categoria=g('fe-cat').value;changes.pagoPor=g('fe-pagopor').value;}
   const btn=g('fe-save');btn.disabled=true;btn.textContent='Salvando...';
   try{
@@ -7880,6 +8096,7 @@ async function feSalvar(id,tipo){
     toast('✅ Editado — histórico salvo','ok');
     document.querySelectorAll('[style*="z-index: 10000"],[style*="z-index:10000"]').forEach(e=>e.remove());
     if(typeof loadFinanceiro==='function')loadFinanceiro();
+    if(currentView==='events' && typeof renderPagamentosFeed==='function') renderPagamentosFeed();
     // 🤖 IA revisa a edição na hora e conversa com o admin
     finAiReview({tipo,antes,depois:d.registro||changes,motivo});
   }catch(e){toast('❌ '+e.message,'r');btn.disabled=false;btn.textContent='💾 Salvar edição';}
@@ -7923,25 +8140,31 @@ async function finAiEnviar(){
   await finAiChamar();
 }
 async function finVerHistorico(){
+  await finVerHistoricoFiltrado(null);
+}
+// filtroId: se informado, mostra só as alterações desse registro (usado pela
+// aba Pagamentos — "quem editou ESSE pagamento específico"). null = tudo.
+async function finVerHistoricoFiltrado(filtroId){
   const ov=document.createElement('div');
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
   ov.innerHTML=`<div style="background:#0d1629;border:1px solid var(--border);border-radius:16px;max-width:700px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
-    <div style="padding:13px 17px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px"><i class="ti ti-history" style="color:#a5b4fc"></i><div style="font-weight:800;color:#fff;flex:1;font-size:14px">Histórico de alterações do financeiro</div><button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--t3);font-size:20px;cursor:pointer">×</button></div>
+    <div style="padding:13px 17px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px"><i class="ti ti-history" style="color:#a5b4fc"></i><div style="font-weight:800;color:#fff;flex:1;font-size:14px">${filtroId?'Histórico deste pagamento':'Histórico de alterações do financeiro'}</div><button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--t3);font-size:20px;cursor:pointer">×</button></div>
     <div id="fin-hist-body" style="padding:14px;overflow:auto;font-size:12px;color:var(--t2)">⏳ Carregando...</div></div>`;
   document.body.appendChild(ov);
   try{
     const r=await fetch('/api/admin/financeiro',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'get_alteracoes'})});
     const d=await r.json();
     const el=ov.querySelector('#fin-hist-body');
-    const alts=(d&&d.alteracoes)||[];
-    if(!alts.length){ el.textContent='Nenhuma alteração registrada ainda.'; return; }
+    let alts=(d&&d.alteracoes)||[];
+    if(filtroId) alts=alts.filter(a=>(a.antes&&a.antes.id===filtroId)||(a.depois&&a.depois.id===filtroId));
+    if(!alts.length){ el.textContent=filtroId?'Nenhuma edição neste pagamento ainda — valor original, nunca alterado.':'Nenhuma alteração registrada ainda.'; return; }
     el.innerHTML=alts.map(a=>{
       const f=v=>'R$ '+((v&&v.valor)||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
       const quando=new Date(a.em).toLocaleString('pt-BR');
       const oque=a.tipo.replace('_',' ');
       return `<div style="border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:9px 11px;margin-bottom:7px">
         <div style="display:flex;justify-content:space-between"><strong style="color:#fff">${oque}</strong><span style="color:var(--t3)">${quando}</span></div>
-        <div style="color:var(--t3);margin-top:2px">Por: <strong style="color:#a5b4fc">${esc(a.por||'?')}</strong> · Motivo: ${esc(a.motivo||'—')}</div>
+        <div style="color:var(--t3);margin-top:2px">Por: <strong style="color:#a5b4fc">${esc(a.por||'?')}</strong>${a.porEmail?` <span class="mono" style="color:var(--t4);font-size:10px">(${esc(a.porEmail)})</span>`:''} · Motivo: ${esc(a.motivo||'—')}</div>
         ${a.antes?`<div style="margin-top:3px">Antes: ${f(a.antes)} ${esc((a.antes.nota||a.antes.descricao||a.antes.email||'').slice(0,40))}</div>`:''}
         ${a.depois?`<div>Depois: ${f(a.depois)} ${esc((a.depois.nota||a.depois.descricao||'').slice(0,40))}</div>`:''}
       </div>`;}).join('');
@@ -8945,7 +9168,7 @@ async function loadIncidentes(){
 }
 
 function toggleIncTab(tab){
-  ['incidentes','missoes','regras','saude'].forEach(t=>{
+  ['incidentes','missoes','regras','saude','logs'].forEach(t=>{
     const el=document.getElementById('inc-tab-'+t);
     if(el) el.style.display=t===tab?'':'none';
   });
@@ -8954,6 +9177,7 @@ function toggleIncTab(tab){
   if(target&&target.style.display==='none'){
     target.style.display='';
   }
+  if(tab==='logs' && typeof renderEventsView==='function') renderEventsView();
 }
 
 const INC_TYPE_LABELS={
@@ -9734,7 +9958,155 @@ async function verComprovante(id){
     const d=await r.json();
     if(!d.ok||!d.pedido?.comprovante)return toast('Sem comprovante','r');
     const w=window.open('','_blank');
-    w.document.write(`<html><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img alt="" src="data:${d.pedido.comprovanteType||'image/jpeg'};base64,${d.pedido.comprovante}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`);
+    const mime=d.pedido.comprovanteType||'image/jpeg';
+    const src=`data:${mime};base64,${d.pedido.comprovante}`;
+    w.document.write(`<html><body style="margin:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh">
+      <img alt="" src="${src}" style="max-width:100%;max-height:92vh;object-fit:contain">
+      <a href="${src}" download="comprovante-${id}" style="margin-top:10px;font-family:sans-serif;font-size:13px;font-weight:700;color:#60a5fa;text-decoration:none;background:rgba(255,255,255,.08);padding:8px 16px;border-radius:8px">⬇️ Baixar comprovante</a>
+    </body></html>`);
+  }catch(e){toast('Erro: '+e.message,'r');}
+}
+
+// ══════════════════════════════════════════════════════════
+//  CONFIRMAÇÃO DE PAGAMENTOS (aba "Pagamentos", 2026-07-08)
+//  Livro-caixa: todo pagamento confirmado (pago/ativo), um por um, mais
+//  recente primeiro. Usa a MESMA fonte de dados de Pedidos de Plano
+//  (/api/pedidos) — sem endpoint novo, sem duplicar lógica de negócio.
+// ══════════════════════════════════════════════════════════
+let _pgcTodos=[];
+
+async function loadPagamentosFeed(){
+  const listEl=document.getElementById('pgc-list');
+  if(listEl) listEl.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div>';
+  try{
+    // Garante que o livro-caixa (financeiro) já foi lido do servidor, senão
+    // não dá pra casar cada pedido com seu lançamento pra permitir edição.
+    if(!_finLoaded) await finLoadFromServer();
+    const r=await fetch('/api/pedidos',{credentials:'include'});
+    const d=await r.json();
+    const dias=parseInt(document.getElementById('pgc-period')?.value||'30',10);
+    const cutoff=dias>0?Date.now()-dias*86400000:0;
+    const confirmados=(d.pedidos||[]).filter(pd=>{
+      if(pd.status!=='pago'&&pd.status!=='ativo') return false;
+      const dt=pd.ativadoEm||pd.pagoEm||pd.createdAt||0;
+      return dt>=cutoff;
+    });
+    _pgcTodos=confirmados.sort((a,b)=>(b.ativadoEm||b.pagoEm||b.createdAt||0)-(a.ativadoEm||a.pagoEm||a.createdAt||0));
+
+    const total=_pgcTodos.reduce((s,p)=>s+(p.valorTotal||0),0);
+    const hoje=new Date().toDateString();
+    const hojeCount=_pgcTodos.filter(p=>new Date(p.ativadoEm||p.pagoEm||p.createdAt||0).toDateString()===hoje).length;
+    setText('pgc-stat-total','R$ '+total.toFixed(2));
+    setText('pgc-stat-count',_pgcTodos.length);
+    setText('pgc-stat-hoje',hojeCount);
+    const sub=document.getElementById('pgc-sub');
+    if(sub) sub.textContent=`${_pgcTodos.length} pagamento(s) confirmado(s) — R$ ${total.toFixed(2)} no período`;
+
+    const evEl=document.getElementById('sb-events-cnt');
+    if(evEl){ evEl.style.display=hojeCount>0?'':'none'; evEl.textContent=hojeCount; }
+
+    renderPagamentosFeed();
+  }catch(e){
+    if(listEl) listEl.innerHTML=`<div class="empty-state" style="color:var(--red)"><i class="ti ti-alert-circle"></i>Erro: ${esc(e.message)}</div>`;
+  }
+}
+
+function renderPagamentosFeed(){
+  const el=document.getElementById('pgc-list');
+  if(!el) return;
+  const q=(document.getElementById('pgc-search')?.value||'').toLowerCase();
+  let lista=_pgcTodos;
+  if(q) lista=lista.filter(pd=>(pd.userName||'').toLowerCase().includes(q)||(pd.userEmail||'').toLowerCase().includes(q));
+  if(!lista.length){
+    el.innerHTML='<div class="empty-state"><i class="ti ti-receipt-off"></i>Nenhum pagamento confirmado nesse período/busca</div>';
+    return;
+  }
+  el.innerHTML=lista.map(buildPagamentoRow).join('');
+}
+
+// Card grande, um embaixo do outro — mínima informação à vista, botões
+// pra tudo que é específico (mesma lógica pedida pra Automáticos).
+// EDIÇÃO DE VALOR (2026-07-08): reaproveita o sistema de edição do
+// livro-caixa que JÁ EXISTE (finEditarRegistro/feSalvar) — mesma trilha
+// auditada com motivo obrigatório, "por" (Andrio/Diego) e "porEmail" (email
+// real da sessão, não forjável), já gravados pelo servidor. Não criei nada
+// novo pra isso, só casei cada pedido com seu lançamento (pedidoId) e coloquei
+// um botão aqui. O total em VIP & Planos → Financeiro é sempre calculado ao
+// vivo a partir desses mesmos lançamentos, então uma edição aqui já soma
+// certo lá — não precisa de nenhum passo extra.
+function buildPagamentoRow(pd){
+  const planoOriginal=PLAN_PRICES[pd.plano]||{name:pd.plano||'?',desc:''};
+  const finEntry=(finGetData().pagamentos||[]).find(x=>x.pedidoId===pd.id);
+  const planoAtualKey=finEntry&&finEntry.plano!==undefined&&finEntry.plano!==''?finEntry.plano:pd.plano;
+  const planoAtual=PLAN_PRICES[planoAtualKey]||{name:planoAtualKey||'?',desc:''};
+  const planoMudou=finEntry&&finEntry.plano&&finEntry.plano!==pd.plano;
+  const dt=pd.ativadoEm||pd.pagoEm||pd.createdAt;
+  const dtStr=dt?new Date(dt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):'–';
+  const st=PED_STATUS_LABELS[pd.status]||{label:pd.status,cls:'b-gray'};
+  const temComp=pd.comprovante===true||typeof pd.comprovante==='string';
+  const editBtn=finEntry
+    ?`<button class="btn btn-xs btn-ghost" onclick="finEditarRegistro('${finEntry.id}','pagamento')"><i class="ti ti-pencil"></i> Editar valor</button>
+       <button class="btn btn-xs btn-ghost" onclick="finVerHistoricoFiltrado('${finEntry.id}')"><i class="ti ti-history"></i> Histórico${finEntry.editadoPor?' •':''}</button>`
+    :`<span style="font-size:9.5px;color:var(--t3);white-space:nowrap;max-width:110px;line-height:1.3" title="Este pedido não tem lançamento no livro-caixa (provavelmente é de antes do sistema automático). Para editar, lance manualmente em VIP & Planos → Financeiro."><i class="ti ti-alert-triangle"></i> Sem lançamento no livro-caixa</span>`;
+  const editadoTag=finEntry&&finEntry.editadoPor?`<div style="font-size:9.5px;color:var(--amber);margin-top:2px"><i class="ti ti-pencil"></i> Editado por ${esc(finEntry.editadoPor)}${planoMudou?` — upgrade de ${esc(planoOriginal.name)} p/ ${esc(planoAtual.name)}`:''}</div>`:'';
+  return `<div style="display:flex;align-items:center;gap:14px;background:var(--glass);border:1.5px solid var(--border2);border-radius:14px;padding:16px 18px">
+    <div onclick="openUser('${esc(pd.userEmail||'')}')" style="cursor:pointer;flex-shrink:0">${avLetter(pd.userName||pd.userEmail||'?',44)}</div>
+    <div onclick="openUser('${esc(pd.userEmail||'')}')" style="cursor:pointer;flex:1;min-width:0">
+      <div style="font-size:15px;font-weight:800;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(pd.userName||pd.userEmail||'–')}</div>
+      <div class="mono" style="color:var(--t3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(pd.userEmail||'')}</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:3px">${esc(planoAtual.name)} · ${dtStr}</div>
+      ${editadoTag}
+    </div>
+    <div style="flex-shrink:0;text-align:right">
+      <div style="font-size:16px;font-weight:900;color:var(--green)">R$ ${(finEntry?finEntry.valor:pd.valorTotal||0).toFixed(2)}</div>
+      <span class="badge ${st.cls}" style="margin-top:3px">${st.label}</span>
+    </div>
+    <div onclick="event.stopPropagation()" style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end">
+      ${temComp?`<button class="btn btn-xs btn-ghost" onclick="verComprovante('${pd.id}')"><i class="ti ti-photo"></i> Comprovante</button>`:`<span style="font-size:10px;color:var(--t3);white-space:nowrap"><i class="ti ti-photo-off"></i> Sem comprovante</span>`}
+      <button class="btn btn-xs btn-ghost" onclick="baixarPedidoCompleto('${pd.id}')"><i class="ti ti-download"></i> Baixar tudo</button>
+      ${editBtn}
+    </div>
+  </div>`;
+}
+
+// "Baixar tudo" — recibo completo em texto (tudo sobre a compra: quem,
+// quando, quanto, plano, quem ativou, nota) pra guardar/enviar/conferir.
+async function baixarPedidoCompleto(id){
+  try{
+    const r=await fetch('/api/pedido/'+id,{credentials:'include'});
+    const d=await r.json();
+    if(!d.ok||!d.pedido) return toast('Pedido não encontrado','r');
+    const pd=d.pedido;
+    const plano=PLAN_PRICES[pd.plano]||{name:pd.plano||'?',desc:''};
+    const linhas=[
+      'H2BAPPLY — RECIBO / CONFIRMAÇÃO DE PAGAMENTO',
+      '='.repeat(48),
+      `ID do pedido: ${pd.id}`,
+      `Cliente: ${pd.userName||'–'}`,
+      `Email: ${pd.userEmail||'–'}`,
+      `WhatsApp: ${pd.userWhatsapp||'–'}`,
+      `Cidade/Estado: ${[pd.userCity,pd.userState].filter(Boolean).join(', ')||'–'}`,
+      '-'.repeat(48),
+      `Plano: ${plano.name} (${plano.desc||''})`,
+      `Período: ${pd.dias||'–'} dia(s)`,
+      `Valor total: R$ ${(pd.valorTotal||0).toFixed(2)}`,
+      pd.desconto>0?`Desconto aplicado: ${pd.desconto}%`:null,
+      `Status: ${(PED_STATUS_LABELS[pd.status]||{}).label||pd.status}`,
+      `Criado em: ${pd.createdAt?new Date(pd.createdAt).toLocaleString('pt-BR'):'–'}`,
+      pd.pagoEm?`Marcado como pago em: ${new Date(pd.pagoEm).toLocaleString('pt-BR')}`:null,
+      pd.ativadoEm?`Plano ativado em: ${new Date(pd.ativadoEm).toLocaleString('pt-BR')} por ${pd.ativadoPor||'–'}`:null,
+      `Comprovante anexado: ${(pd.comprovante===true||typeof pd.comprovante==='string')?'Sim':'Não'}`,
+      pd.nota?`Nota do cliente: ${pd.nota}`:null,
+      pd.notaAdmin?`Nota interna: ${pd.notaAdmin}`:null,
+      '='.repeat(48),
+      `Gerado em ${new Date().toLocaleString('pt-BR')} pelo painel admin H2BApply`,
+    ].filter(Boolean).join('\n');
+    const blob=new Blob([linhas],{type:'text/plain;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`recibo-${(pd.userName||pd.userEmail||pd.id).replace(/[^a-z0-9]+/gi,'-')}-${pd.id.slice(-6)}.txt`;
+    a.click();
+    toast('✅ Recibo baixado','g');
   }catch(e){toast('Erro: '+e.message,'r');}
 }
 
@@ -9835,15 +10207,7 @@ function _updateModalAuthBtn(){
   authBtn.style.display=(job&&(job.autoStatus==='paused_auth_error'||job.status==='paused_auth_error'))?'':'none';
 }
 
-async function adminResetDailyUser(email){
-  if(!email)return;
-  if(!confirm('Resetar envios diários de '+email+'?'))return;
-  try{
-    const r=await fetch('/api/admin/reset-daily',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-    const d=await r.json();
-    if(d.ok)toast('✅ Reset diário feito','g');else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
+// adminResetDailyUser já definida antes (era duplicada em 2 lugares — removida a cópia)
 
 async function adminClearSentUser(email){
   if(!email)return;
@@ -12248,7 +12612,11 @@ async function rcAjustarValor(pedidoId, email, valorAtual, valorEsperado2){
     const r=await fetch('/api/admin/pedido-set-valor',{method:'POST',credentials:'include',
       headers:{'Content-Type':'application/json'},body:JSON.stringify({pedidoId,valor:v})});
     const d=await r.json();
-    if(d.ok){ toast(`✅ Valor corrigido: R$${v.toFixed(2)}`,'g'); setTimeout(()=>rcStart(),800); }
+    if(d.ok){
+      if(d.finSyncOk===false) toast(`⚠️ Valor do pedido corrigido (R$${v.toFixed(2)}), mas NÃO sincronizou com o financeiro — confira em VIP & Planos → Financeiro`,'r');
+      else toast(`✅ Valor corrigido: R$${v.toFixed(2)}`,'g');
+      setTimeout(()=>rcStart(),800);
+    }
     else toast('Erro: '+(d.error||'?'),'r');
   }catch(e){ toast('Erro: '+e.message,'r'); }
 }
@@ -12801,52 +13169,13 @@ async function iaAdminSend(){
 }
 // ── FIM IA ADMIN ─────────────────────────────────────────────────────────
 
-// ── COCKPIT DASHBOARD ─────────────────────────────────────────────────────
-let _cockpitLoading = false;
-async function loadCockpit(){
-  if(_cockpitLoading) return;
-  _cockpitLoading = true;
-  try{
-    const r = await fetch('/api/admin/cockpit',{credentials:'include'});
-    const d = await r.json();
-    if(!d.ok){_cockpitLoading=false;return;}
-    
-    const panel = document.getElementById('cockpit-panel');
-    if(panel) panel.style.display = '';
-    
-    const mkItem = (item,cls) => {
-      const bg = cls==='critico'?'rgba(239,68,68,.1)':cls==='atencao'?'rgba(245,158,11,.1)':'rgba(99,102,241,.08)';
-      const border = cls==='critico'?'rgba(239,68,68,.3)':cls==='atencao'?'rgba(245,158,11,.3)':'rgba(99,102,241,.2)';
-      const linkBtn = item.link ? `<button onclick="showView('${item.link}')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:11px;padding:0;font-family:inherit;text-decoration:underline">Ver →</button>` : '';
-      return `<div style="background:${bg};border:1px solid ${border};border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;font-size:12px">
-        <span style="font-size:14px">${item.icone}</span>
-        <span style="flex:1;color:var(--text)">${esc(item.msg)}</span>
-        ${linkBtn}
-      </div>`;
-    };
-    
-    const elC = document.getElementById('cockpit-critico');
-    const elA = document.getElementById('cockpit-atencao');
-    const elI = document.getElementById('cockpit-info');
-    
-    if(elC) elC.innerHTML = d.prioridades.critico.length
-      ? d.prioridades.critico.map(i=>mkItem(i,'critico')).join('')
-      : '';
-    if(elA) elA.innerHTML = d.prioridades.atencao.length
-      ? d.prioridades.atencao.slice(0,5).map(i=>mkItem(i,'atencao')).join('')
-      : '';
-    if(elI) elI.innerHTML = d.prioridades.info.map(i=>mkItem(i,'info')).join('');
-    
-    // Atualizar badge geral
-    const total = d.prioridades.critico.length + d.prioridades.atencao.length;
-    const alertsEl = document.getElementById('sb-alerts');
-    if(alertsEl){
-      alertsEl.style.display = total>0?'':'none';
-      alertsEl.textContent = total||'0';
-    }
-  }catch(e){console.error('[cockpit]',e);}
-  finally{_cockpitLoading=false;}
-}
+// ── COCKPIT DASHBOARD (REMOVIDO 2026-07-08) ────────────────────────────────
+// A antiga loadCockpit() chamava fetch('/api/admin/cockpit'), rota que nunca
+// existiu em server.js — o painel "Prioridades" original NUNCA funcionou (o
+// fetch falhava, o catch engolia o erro, e o painel ficava com display:none
+// pra sempre). Substituído por renderPriorities(), que monta as mesmas
+// prioridades 100% a partir de dados que já existem e já funcionam
+// (liveData + /api/admin/pedidos-criticos, endpoint real). Ver updateDashboard().
 
 // ── AUTOCORREÇÃO DE JOBS ───────────────────────────────────────────────────
 async function autoHeal(email, action, desc){
@@ -12906,8 +13235,7 @@ function clearEventsCache(){
   toast('Cache de eventos limpo','g');
 }
 
-// Sobrescrever filterEvents para usar a nova versão
-function filterEvents(){renderEventsView();}
+// (filterEvents já definida antes — era duplicada aqui, removida a cópia)
 // ─────────────────────────────────────────────────────────────────────────
 </script>
 
@@ -13354,6 +13682,10 @@ function filterEvents(){renderEventsView();}
       <!-- PAINEL: Automático -->
       <div class="ccc-pane" id="ccc-pane-auto">
         <div id="modal-tab-auto"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+        <div style="margin-top:20px">
+          <div class="ccc-section-title"><i class="ti ti-list"></i> Logs do Automático</div>
+          <div id="modal-tab-logs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
+        </div>
       </div>
 
       <!-- PAINEL: Enviados -->
@@ -13375,10 +13707,6 @@ function filterEvents(){renderEventsView();}
       <div class="ccc-pane" id="ccc-pane-historico">
         <div class="ccc-section-title"><i class="ti ti-history"></i> Histórico de Alterações Administrativas</div>
         <div id="ccc-edit-history-list"><div class="empty-state">Nenhuma edição registrada.</div></div>
-        <div style="margin-top:20px">
-          <div class="ccc-section-title"><i class="ti ti-list"></i> Logs do Automático</div>
-          <div id="modal-tab-logs"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
-        </div>
         <div style="margin-top:20px">
           <div class="ccc-section-title"><i class="ti ti-history"></i> Histórico de Envios</div>
           <div id="modal-tab-history"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>

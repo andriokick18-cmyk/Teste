@@ -1247,7 +1247,7 @@ function persist(file, data) {
   // Fase 4: SQLite atômico (WAL) + espelho JSON (STORAGE_MIRROR=off desliga o espelho)
   // V955: users.json passa pelo cifrador de campos sensíveis (cópia — runtime intocado)
   if (file === USERS_FILE) data = _encUsersForDisk(data);
-  storagePersist(file, data);
+  return storagePersist(file, data); // true/false — ver storage.js
 }
 function persistSent() {
   const out={};for(const[k,v]of Object.entries(DB_SENT))out[k]=[...v];persist(SENT_FILE,out);
@@ -1587,6 +1587,58 @@ function exportLogsCSV(userEmail) {
 
 // Backup
 setInterval(()=>{ try{persist(path.join(DATA_DIR,"backup.json"),{ts:new Date().toISOString(),users:DB_USERS,total:Object.keys(DB_USERS).length});persistLogs();}catch{} },10*60*1000);
+
+// ── BACKUP COMPLETO AUTOMÁTICO (2026-07-08, a pedido do Andrio) ────────────
+// O backup.json acima é só uma rede de segurança de usuários, sobrescrita a
+// cada 10min — não cobre financeiro/pedidos e não guarda histórico (não dá
+// pra "voltar no tempo"). Já existia um sistema de backup completo (copia
+// TODOS os .json em pastas com data + restauração), só que vivia dentro do
+// painel /admin-v2 — uma URL separada que não é a que o Andrio usa no dia a
+// dia (/admin). Ou seja: existia, mas não "enraizado" — dependia de alguém
+// visitar uma página que ninguém visita. Agora roda sozinho, todo dia, sem
+// precisar de ninguém clicar em nada, e fica visível/restaurável também no
+// painel principal (ver aba Configurações em admin.html).
+const BACKUP_DIR = path.join(DATA_DIR, "backups");
+const BACKUP_RETENCAO = 20; // guarda os últimos 20 backups completos (~20 dias)
+function criarBackupCompleto(){
+  try{
+    if(!fs.existsSync(DATA_DIR)) return {ok:false,error:"DATA_DIR inexistente"};
+    fs.mkdirSync(BACKUP_DIR,{recursive:true});
+    const stamp=new Date(Date.now()-3*3600_000).toISOString().replace(/[:T]/g,"-").slice(0,19); // nome já em horário BRT
+    const dir=path.join(BACKUP_DIR, stamp);
+    fs.mkdirSync(dir,{recursive:true});
+    let n=0;
+    for(const f of fs.readdirSync(DATA_DIR)){
+      if(!f.endsWith(".json")) continue;
+      try{ fs.copyFileSync(path.join(DATA_DIR,f), path.join(dir,f)); n++; }
+      catch(e){ console.warn("[backup] falhou copiar",f,e.message); }
+    }
+    // Poda: mantém só os BACKUP_RETENCAO mais recentes, apaga o resto
+    try{
+      const todos=fs.readdirSync(BACKUP_DIR).filter(d=>/^\d{4}-/.test(d)).sort();
+      const excedente=todos.length-BACKUP_RETENCAO;
+      if(excedente>0) for(const velho of todos.slice(0,excedente)){
+        try{ fs.rmSync(path.join(BACKUP_DIR,velho),{recursive:true,force:true}); }catch(e){}
+      }
+    }catch(e){}
+    console.log(`[backup] ✅ backup completo: ${stamp} (${n} arquivo(s))`);
+    return {ok:true,name:stamp,files:n};
+  }catch(e){ console.error("[backup] FALHA ao criar backup completo:",e.message); return {ok:false,error:e.message}; }
+}
+(function agendarBackupDiario(){
+  // 1x por dia, ~03:00 BRT (06:00 UTC) — horário de menor uso.
+  const now=new Date();
+  const proxima=new Date(now);
+  proxima.setUTCHours(6,5,0,0);
+  if(proxima<=now) proxima.setUTCDate(proxima.getUTCDate()+1);
+  setTimeout(function tickDiario(){
+    criarBackupCompleto();
+    setInterval(criarBackupCompleto, 24*3600_000);
+  }, proxima-now);
+  // Backup também logo no boot (rede de segurança se o servidor ficar dias
+  // sem passar pelas 3h — ex.: redeploys frequentes).
+  setTimeout(criarBackupCompleto, 2*60_000);
+})();
 
 // FIX-BUG15 v2: limpeza inteligente de DB_SENT por data de envio
 // Remove apenas emails enviados há mais de 6 meses, preservando os recentes.
@@ -5506,14 +5558,23 @@ ul li{margin-bottom:6px}
     pd.valorCorrigidoPor=s.user_email;
     pd.valorCorrigidoEm=Date.now();
     pd.valorOriginal=pd.valorOriginal||vAntes;
-    persistPedidos();
-    // Atualizar também no financeiro se existir
+    if(!persistPedidos()){
+      // Desfaz — não pode "parecer" corrigido se não gravou no disco.
+      pd.valorTotal=vAntes; delete pd.valorCorrigidoPor; delete pd.valorCorrigidoEm;
+      return json(res,500,{error:"⚠️ Não consegui gravar no disco — o valor NÃO foi corrigido. Tente de novo."});
+    }
+    // Atualizar também no financeiro se existir (mesmo pedido, mesmo dinheiro)
+    let finSyncOk=true;
     try{
       const finP=DB_FINANCEIRO.pagamentos.find(x=>x.pedidoId===pedidoId);
-      if(finP){finP.valor=pd.valorTotal;finP.notaCorrecao=`Valor corrigido de R$${vAntes} para R$${pd.valorTotal} por ${s.user_email}`;persistFinanceiro();}
-    }catch{}
+      if(finP){
+        const finAntes=finP.valor;
+        finP.valor=pd.valorTotal;finP.notaCorrecao=`Valor corrigido de R$${vAntes} para R$${pd.valorTotal} por ${s.user_email}`;
+        if(!persistFinanceiro()){ finP.valor=finAntes; finSyncOk=false; console.error(`[pedido-set-valor] pedido ${pedidoId} salvo, mas SINCRONIZAÇÃO com financeiro falhou — valores podem divergir até nova tentativa.`); }
+      }
+    }catch(e){ finSyncOk=false; console.error('[pedido-set-valor] erro ao sincronizar financeiro:',e.message); }
     console.log(`[pedido] valor corrigido: ${pedidoId} R$${vAntes}→R$${pd.valorTotal} por ${s.user_email}`);
-    return json(res,200,{ok:true,valorAntes:vAntes,valorNovo:pd.valorTotal});
+    return json(res,200,{ok:true,valorAntes:vAntes,valorNovo:pd.valorTotal,finSyncOk});
   }
 
   // ════ BOT DE ENRIQUECIMENTO DE PLANILHAS ════════════════════
@@ -7443,6 +7504,16 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
           tipo, por:_quemAdd, porEmail:s.user_email, em:Date.now(),
           motivo:String(motivo||'').slice(0,300), antes:null, depois:limpo});
       };
+      // GARANTIA DE VERDADE (2026-07-08): se persistFinanceiro() falhar (disco
+      // cheio, sem permissão etc.), desfaz a mutação em memória (senão a tela
+      // mostraria "salvo" com o dado só vivendo até o próximo restart) e avisa
+      // com erro real em vez de ok:true. rollback() deve devolver o array/objeto
+      // ao estado de antes da mutação, incluindo remover o log de alteracoes.
+      const _persistFinOuFalha=(rollback)=>{
+        if(persistFinanceiro()) return null; // gravou de verdade — segue o jogo
+        try{ rollback&&rollback(); }catch(e){ console.error('[financeiro] rollback falhou:',e.message); }
+        return json(res,500,{error:"⚠️ Não consegui gravar no disco — a alteração NÃO foi salva. Tente de novo; se persistir, avise o Andrio (pode ser disco cheio ou sem permissão no servidor)."});
+      };
       if(d.action==='add_pagamento' && d.pagamento){
         // Adicionar um pagamento individual (mesmo padrão de proveniência do gasto)
         const pg=d.pagamento;
@@ -7480,7 +7551,11 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         DB_FINANCEIRO.pagamentos=DB_FINANCEIRO.pagamentos||[];
         DB_FINANCEIRO.pagamentos.unshift(pg);
         _logAdd('add_pagamento',pg,(pg.tipo==='avulsa'?'Entrada avulsa: ':'Entrada de cliente: ')+'R$'+pg.valor.toFixed(2)+' · recebido por '+pg.recebidoPor+(pg.nota?' · '+String(pg.nota).slice(0,80):''));
-        persistFinanceiro();
+        const _errAP=_persistFinOuFalha(()=>{
+          DB_FINANCEIRO.pagamentos=DB_FINANCEIRO.pagamentos.filter(x=>x.id!==pg.id);
+          DB_FINANCEIRO.alteracoes.pop();
+        });
+        if(_errAP) return _errAP;
         return json(res,200,{ok:true,id:pg.id,temComprovante:pg.temComprovante});
       }
       if(d.action==='add_gasto' && d.gasto){
@@ -7513,7 +7588,11 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         DB_FINANCEIRO.gastos=DB_FINANCEIRO.gastos||[];
         DB_FINANCEIRO.gastos.unshift(gs);
         _logAdd('add_gasto',gs,'Gasto: R$'+gs.valor.toFixed(2)+' · pago por '+gs.pagoPor+' · '+gs.categoria+(gs.descricao?' · '+String(gs.descricao).slice(0,80):''));
-        persistFinanceiro();
+        const _errAG=_persistFinOuFalha(()=>{
+          DB_FINANCEIRO.gastos=DB_FINANCEIRO.gastos.filter(x=>x.id!==gs.id);
+          DB_FINANCEIRO.alteracoes.pop();
+        });
+        if(_errAG) return _errAG;
         return json(res,200,{ok:true,id:gs.id,temComprovante:gs.temComprovante});
       }
       // ── Trilha de auditoria: NADA é apagado/editado sem histórico ──
@@ -7550,7 +7629,11 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         DB_FINANCEIRO.repasses=DB_FINANCEIRO.repasses||[];
         DB_FINANCEIRO.repasses.unshift(novo);
         _logAlt('add_repasse',null,novo,'Repasse registrado: '+de+' → '+para+' R$'+valor.toFixed(2));
-        persistFinanceiro();
+        const _errAR=_persistFinOuFalha(()=>{
+          DB_FINANCEIRO.repasses=DB_FINANCEIRO.repasses.filter(x=>x.id!==novo.id);
+          DB_FINANCEIRO.alteracoes.pop();
+        });
+        if(_errAR) return _errAR;
         console.log(`[fin] repasse ${de}→${para} R$${valor.toFixed(2)} por ${s.user_email}`);
         return json(res,200,{ok:true,id:novo.id});
       }
@@ -7560,7 +7643,11 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         if(!alvo) return json(res,404,{error:"Repasse não encontrado."});
         DB_FINANCEIRO.repasses=(DB_FINANCEIRO.repasses||[]).filter(x=>x.id!==d.id);
         _logAlt('excluir_repasse',alvo,null,d.motivo);
-        persistFinanceiro();
+        const _errDR=_persistFinOuFalha(()=>{
+          DB_FINANCEIRO.repasses.unshift(alvo);
+          DB_FINANCEIRO.alteracoes.pop();
+        });
+        if(_errDR) return _errDR;
         return json(res,200,{ok:true});
       }
       if(d.action==='delete_pagamento' && d.id){
@@ -7569,7 +7656,11 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         if(!alvo) return json(res,404,{error:"Pagamento não encontrado."});
         DB_FINANCEIRO.pagamentos=(DB_FINANCEIRO.pagamentos||[]).filter(x=>x.id!==d.id);
         _logAlt('excluir_pagamento',alvo,null,d.motivo);
-        persistFinanceiro();
+        const _errDP=_persistFinOuFalha(()=>{
+          DB_FINANCEIRO.pagamentos.unshift(alvo);
+          DB_FINANCEIRO.alteracoes.pop();
+        });
+        if(_errDP) return _errDP;
         return json(res,200,{ok:true});
       }
       if(d.action==='delete_gasto' && d.id){
@@ -7578,7 +7669,11 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         if(!alvo) return json(res,404,{error:"Gasto não encontrado."});
         DB_FINANCEIRO.gastos=(DB_FINANCEIRO.gastos||[]).filter(x=>x.id!==d.id);
         _logAlt('excluir_gasto',alvo,null,d.motivo);
-        persistFinanceiro();
+        const _errDG=_persistFinOuFalha(()=>{
+          DB_FINANCEIRO.gastos.unshift(alvo);
+          DB_FINANCEIRO.alteracoes.pop();
+        });
+        if(_errDG) return _errDG;
         return json(res,200,{ok:true});
       }
       // ── Editar pagamento/gasto (valor, data, nota) com histórico ──
@@ -7597,7 +7692,14 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         }
         alvo.editadoEm=Date.now(); alvo.editadoPor=_quem;
         _logAlt(d.action,antes,{...alvo},d.motivo);
-        persistFinanceiro();
+        const _errED=_persistFinOuFalha(()=>{
+          // Restaura TODOS os campos ao estado anterior (remove os que a edição
+          // adicionou e não existiam antes, restaura os que existiam).
+          Object.keys(alvo).forEach(k=>delete alvo[k]);
+          Object.assign(alvo,antes);
+          DB_FINANCEIRO.alteracoes.pop();
+        });
+        if(_errED) return _errED;
         return json(res,200,{ok:true,registro:(()=>{const{comprovante,img,...r}=alvo;return r;})()});
       }
       // ── Anexar/trocar comprovante em registro existente ──
@@ -12635,7 +12737,17 @@ function calcAdminRanking(period) {
 //  SISTEMA DE PEDIDOS DE PLANO
 //  Usuário solicita → admin revisa e ativa
 // ════════════════════════════════════════════════════════════
-function persistPedidos() { try{const tmp=PEDIDOS_FILE+".tmp";require("fs").writeFileSync(tmp,JSON.stringify(DB_PEDIDOS,null,2));require("fs").renameSync(tmp,PEDIDOS_FILE);}catch(e){console.warn("[pedidos]",e.message);} }
+// FIX (2026-07-08, a pedido do Andrio — "você garante que toda edição fica
+// salva?"): antes essas duas funções tinham escrita própria, simples, SEM
+// retry e SEM SQLite — mais fraca que o resto do sistema (users.json já
+// usava o motor persist()/storagePersist() com SQLite+WAL e 3 tentativas).
+// Exatamente os arquivos de DINHEIRO (pedidos e financeiro) estavam na
+// via mais fraca. Agora passam pelo mesmo persist() robusto de tudo mais,
+// e retornam true/false pra quem chama poder checar de verdade.
+function persistPedidos(){
+  try{ return !!persist(PEDIDOS_FILE, DB_PEDIDOS); }
+  catch(e){ console.warn("[pedidos]",e.message); return false; }
+}
 // Grava o resultado do pré-check do comprovante no pedido (por id), sem corrida.
 function setPedidoPreCheck(pedidoId, pc){
   try{
@@ -12645,14 +12757,11 @@ function setPedidoPreCheck(pedidoId, pc){
     persistPedidos();
   }catch(e){ console.warn("[precheck] setPedidoPreCheck:",e.message); }
 }
-function persistFinanceiro() {
-  try{
-    // Salva sem imagens base64 inline para não explodir o arquivo
-    // As imagens ficam como referência de pedido (já persistidas nos pedidos)
-    const tmp=FINANCEIRO_FILE+".tmp";
-    require("fs").writeFileSync(tmp,JSON.stringify(DB_FINANCEIRO,null,2));
-    require("fs").renameSync(tmp,FINANCEIRO_FILE);
-  }catch(e){console.warn("[financeiro]",e.message);}
+function persistFinanceiro(){
+  // Salva sem imagens base64 inline para não explodir o arquivo — as
+  // imagens ficam como referência de pedido (já persistidas nos pedidos).
+  try{ return !!persist(FINANCEIRO_FILE, DB_FINANCEIRO); }
+  catch(e){ console.warn("[financeiro]",e.message); return false; }
 }
 
 // ── BOOT ─────────────────────────────────────────────────
