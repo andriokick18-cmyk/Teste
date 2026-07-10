@@ -443,9 +443,9 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .sb-badge-g{background:var(--green);color:#fff}
 .sb-badge-r{background:var(--red);color:#fff}
 /* AUTO button — GIGANTE (3x) e com cor própria (laranja/rosa) pra se destacar de tudo */
-.sb-auto-btn{background:linear-gradient(135deg,#f97316,#db2777)!important;border:none!important;color:#fff!important;font-weight:900;margin:10px 4px 12px;width:calc(100% - 8px);border-radius:18px;padding:20px 16px;gap:14px;box-shadow:0 12px 30px rgba(219,39,119,.4);animation:sbAutoGlow 2.6s ease-in-out infinite}
+.sb-auto-btn{background:linear-gradient(135deg,#7c3aed,#4f46e5)!important;border:none!important;color:#fff!important;font-weight:900;margin:10px 4px 12px;width:calc(100% - 8px);border-radius:18px;padding:20px 16px;gap:14px;box-shadow:0 12px 30px rgba(99,102,241,.4);animation:sbAutoGlow 2.6s ease-in-out infinite}
 .sb-auto-btn i{font-size:32px!important;color:#fff!important}
-.sb-auto-btn:hover{transform:translateY(-2px) scale(1.01);box-shadow:0 16px 38px rgba(219,39,119,.55)}
+.sb-auto-btn:hover{transform:translateY(-2px) scale(1.01);box-shadow:0 16px 38px rgba(99,102,241,.55)}
 .sb-auto-btn.is-active{background:linear-gradient(135deg,#16a34a,#0d9488)!important;box-shadow:0 12px 30px rgba(13,148,136,.45);animation:none}
 @keyframes sbAutoGlow{0%,100%{box-shadow:0 12px 30px rgba(219,39,119,.4)}50%{box-shadow:0 16px 40px rgba(249,115,22,.55)}}
 .sb-profile{margin:5px 3px;padding:10px 11px;border:1.5px solid var(--border);border-radius:var(--r);background:var(--sf2)}
@@ -1083,7 +1083,7 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .sb-item.active i{color:#fff!important}
 .sb-lbl{color:#a5a8cc!important}
 .sb-profile{background:var(--sf2)!important;border-color:var(--border)!important;color:var(--text)!important}
-.sb-auto-btn{background:linear-gradient(135deg,#f97316,#db2777)!important;color:#fff!important}
+.sb-auto-btn{background:linear-gradient(135deg,#7c3aed,#4f46e5)!important;color:#fff!important}
 .sb-auto-btn.is-active{background:linear-gradient(135deg,#16a34a,#0d9488)!important;color:#fff!important}
 .sb-item-plans{background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.08))!important;border:1.5px solid rgba(99,102,241,.3)!important;color:#4f46e5!important}
 
@@ -2584,11 +2584,14 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
 <div id="app" style="display:none">
   <div class="app-hdr" id="app-hdr">
-    <!-- Avatar — abre o menu lateral (agora à ESQUERDA, como pedido) -->
-    <div class="av-btn" id="hdr-av" onclick="openDrawer()" title="Meu perfil e menu" style="cursor:pointer;position:relative">
-      ?
-      <span id="hdr-av-dot" style="display:none;position:absolute;bottom:0;right:0;width:10px;height:10px;background:#4ade80;border:2px solid var(--surface);border-radius:50%"></span>
-    </div>
+    <!-- Botão do MENU (grande, à esquerda, chamativo — pedido do dono) -->
+    <button id="hdr-menu-btn" onclick="openDrawer()" title="Menu e perfil" aria-label="Abrir menu" style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border:none;border-radius:24px;padding:5px 6px 5px 12px;cursor:pointer;flex-shrink:0;box-shadow:0 3px 12px rgba(99,102,241,.45);font-family:inherit">
+      <i class="ti ti-menu-2" style="font-size:20px;color:#fff"></i>
+      <div class="av-btn" id="hdr-av" style="position:relative;width:34px;height:34px;border-width:2px">
+        ?
+        <span id="hdr-av-dot" style="display:none;position:absolute;bottom:0;right:0;width:10px;height:10px;background:#4ade80;border:2px solid var(--surface);border-radius:50%"></span>
+      </div>
+    </button>
     <!-- Logo -->
     <div style="display:flex;align-items:center;gap:7px;flex:1">
       <div class="app-logo-icon"><img src="/icon-192.png?v=3" alt="H2BApply"></div>
@@ -2713,18 +2716,14 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             </div>
           </div>
 
-          <!-- ══ CTA GIGANTE — AUTOMÁTICO + ENVIO MANUAL (destaque máximo, sempre visível) ══ -->
+          <!-- ══ CTA — ENVIO MANUAL ══
+               (2026-07-09: o botão laranja gigante "Envio Automático" que ficava
+               aqui era um DUPLICADO exato do card de Automático do topo — mesmo
+               clique, mesma função, um em cima do outro, cada um de uma cor.
+               Removido; o card do topo já mostra o status ao vivo. O botão de
+               Manual ficou, agora na paleta da marca em vez de ciano.) -->
           <div style="padding:16px 14px 0;display:flex;flex-direction:column;gap:12px">
-            <button onclick="openAutoModal()" id="home-cta-auto" style="display:flex;align-items:center;gap:14px;width:100%;background:linear-gradient(135deg,#f97316,#db2777);border:none;border-radius:20px;padding:18px;cursor:pointer;font-family:inherit;box-shadow:0 14px 32px rgba(219,39,119,.38);text-align:left;transition:transform .15s,box-shadow .15s" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 18px 40px rgba(219,39,119,.5)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 14px 32px rgba(219,39,119,.38)'">
-              <div style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0" id="home-cta-auto-icon">🤖</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:17px;font-weight:900;color:#fff" id="home-cta-auto-title">Envio Automático</div>
-                <div style="font-size:12px;color:rgba(255,255,255,.88);margin-top:2px" id="home-cta-auto-sub">Toque e deixe o sistema enviar por você</div>
-              </div>
-              <i class="ti ti-chevron-right" style="font-size:22px;color:#fff;flex-shrink:0"></i>
-            </button>
-
-            <button onclick="sv('jobs')" style="display:flex;align-items:center;gap:14px;width:100%;background:linear-gradient(135deg,#0891b2,#2563eb);border:none;border-radius:20px;padding:18px;cursor:pointer;font-family:inherit;box-shadow:0 14px 32px rgba(37,99,235,.32);text-align:left;transition:transform .15s,box-shadow .15s" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 18px 40px rgba(37,99,235,.42)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 14px 32px rgba(37,99,235,.32)'">
+            <button onclick="sv('jobs')" style="display:flex;align-items:center;gap:14px;width:100%;background:linear-gradient(135deg,#4f46e5,#2563eb);border:none;border-radius:20px;padding:18px;cursor:pointer;font-family:inherit;box-shadow:0 14px 32px rgba(79,70,229,.32);text-align:left;transition:transform .15s,box-shadow .15s" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 18px 40px rgba(79,70,229,.42)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 14px 32px rgba(79,70,229,.32)'">
               <div style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">📤</div>
               <div style="flex:1;min-width:0">
                 <div style="font-size:17px;font-weight:900;color:#fff">Envio Manual</div>
@@ -2909,6 +2908,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <button class="fbtn"    id="so-asc"  onclick="setSort('asc')">Antigas</button>
           </div>
         </div>
+        <div id="jobs-filter-chips" style="display:none;flex-wrap:wrap;gap:5px;padding:6px 14px 0"></div>
         <div class="jobs-view">
           <div class="jlist-panel" id="jlist-panel">
             <div class="jlist-hdr">
@@ -3634,7 +3634,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <!-- Prioridade do sistema -->
             <div style="background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--t2);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <i class="ti ti-info-circle" style="color:var(--blue);font-size:14px;flex-shrink:0"></i>
-              <span><strong>Prioridade automática:</strong> Perfil de Categoria → Perfil Geral (fallback)</span>
+              <span><strong>Currículo usado:</strong> o perfil que você escolher no Passo 3 do assistente</span>
             </div>
 
             <!-- Lista de perfis -->
@@ -3895,86 +3895,48 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               </div>
             </div>
 
-            <!-- Step 2: Filters -->
+
+
+            <!-- Step 2: Filters — MESMO modal de filtros do Envio Manual -->
             <div class="wizard-step locked" id="ws-2">
               <div class="wizard-step-hdr">
                 <div class="wizard-step-n" id="ws-n-2">2</div>
-                <div><div class="wizard-step-title">Filtros (opcional)</div><div class="wizard-step-sub">Refine as vagas por tipo e estado</div></div>
+                <div><div class="wizard-step-title">Filtros (opcional)</div><div class="wizard-step-sub">Os mesmos filtros do Envio Manual — cargo, local, salário, grupo e mais</div></div>
               </div>
               <div class="field">
-                <label>Tipo de serviço (detectado automaticamente)</label>
+                <label>Categoria rápida (detectada automaticamente)</label>
                 <div class="cat-chips-row" id="auto-cat-chips">
                   <button class="cat-chip-sel sel" data-cat="all" onclick="selectCat('all')">Todos</button>
                 </div>
               </div>
-              <!-- Aviso de categoria ativa -->
               <div id="af-cat-warning" style="display:none;background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.4);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#d97706;align-items:center;gap:6px">
                 <i class="ti ti-filter" style="font-size:14px;flex-shrink:0"></i>
                 <span>⚠️ Filtro de categoria ativo: <strong id="af-cat-warning-label"></strong> — isso limita as vagas! Para ver todas, clique em "Todos" acima.</span>
               </div>
-              <div class="field-row">
-                <div class="field"><label>Estado (opcional)</label>
-                  <select class="input" id="af-state" onchange="updateFilterCount()">
-                    <option value="">Todos os estados</option>
-                    <option>ALABAMA</option><option>ALASKA</option><option>ARIZONA</option><option>ARKANSAS</option>
-                    <option>CALIFORNIA</option><option>COLORADO</option><option>CONNECTICUT</option><option>DELAWARE</option>
-                    <option>FLORIDA</option><option>GEORGIA</option><option>HAWAII</option><option>IDAHO</option>
-                    <option>ILLINOIS</option><option>INDIANA</option><option>IOWA</option><option>KANSAS</option>
-                    <option>KENTUCKY</option><option>LOUISIANA</option><option>MAINE</option><option>MARYLAND</option>
-                    <option>MASSACHUSETTS</option><option>MICHIGAN</option><option>MINNESOTA</option><option>MISSISSIPPI</option>
-                    <option>MISSOURI</option><option>MONTANA</option><option>NEBRASKA</option><option>NEVADA</option>
-                    <option>NEW HAMPSHIRE</option><option>NEW JERSEY</option><option>NEW MEXICO</option><option>NEW YORK</option>
-                    <option>NORTH CAROLINA</option><option>NORTH DAKOTA</option><option>OHIO</option><option>OKLAHOMA</option>
-                    <option>OREGON</option><option>PENNSYLVANIA</option><option>RHODE ISLAND</option><option>SOUTH CAROLINA</option>
-                    <option>SOUTH DAKOTA</option><option>TENNESSEE</option><option>TEXAS</option><option>UTAH</option>
-                    <option>VERMONT</option><option>VIRGINIA</option><option>WASHINGTON</option><option>WEST VIRGINIA</option>
-                    <option>WISCONSIN</option><option>WYOMING</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label>Somente vagas com e-mail</label>
-                  <select class="input" id="af-has-email" onchange="updateFilterCount()">
-                    <option value="">Todas</option>
-                    <option value="yes">Só com e-mail</option>
-                  </select>
-                </div>
+              <button class="btn btn-secondary w100" onclick="openMasterFilters('auto')" style="justify-content:center;gap:8px;font-weight:800;color:#7c3aed;border:1.5px solid rgba(124,58,237,.4);background:rgba(124,58,237,.08)">
+                <i class="ti ti-adjustments-horizontal"></i> 🔍 Filtros avançados
+                <span id="auto-filters-badge" style="display:none;background:#7c3aed;color:#fff;border-radius:10px;padding:0 7px;font-size:10px;font-weight:800"></span>
+              </button>
+              <div id="auto-filter-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px"></div>
+              <div id="af-filter-count" style="display:none;font-size:12px;font-weight:700;color:var(--green);background:var(--greenl);border:1px solid var(--greenb);border-radius:8px;padding:7px 12px;margin-top:8px"></div>
+              <!-- Estado dos filtros do automático (lido por startAuto) — preenchido pelo modal -->
+              <div style="display:none" aria-hidden="true">
+                <input type="hidden" id="af-state" value="">
+                <input type="hidden" id="af-city" value="">
+                <input type="hidden" id="af-min-wage" value="">
+                <input type="hidden" id="af-min-workers" value="">
+                <input type="hidden" id="af-has-email" value="">
+                <input type="hidden" id="af-kw" value="">
               </div>
-              <!-- Filtro de salário mínimo com contador dinâmico -->
-              <div style="background:var(--sf2);border:1.5px solid var(--border2);border-radius:var(--r);padding:12px 14px;margin-top:4px">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                  <label style="font-size:12px;font-weight:700;color:var(--t2);margin:0">💰 Salário mínimo por hora (USD)</label>
-                  <div id="af-wage-count-badge" style="display:none;background:var(--greenl);border:1px solid var(--greenb);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--green)">– vagas acima</div>
-                </div>
-                <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
-                  <button onclick="setQuickWage(0)" class="fbtn" id="wq-0" style="background:var(--sf2)">Qualquer</button>
-                  <button onclick="setQuickWage(15)" class="fbtn" id="wq-15">+$15/h</button>
-                  <button onclick="setQuickWage(18)" class="fbtn" id="wq-18">+$18/h</button>
-                  <button onclick="setQuickWage(20)" class="fbtn" id="wq-20">+$20/h</button>
-                  <button onclick="setQuickWage(25)" class="fbtn" id="wq-25">+$25/h</button>
-                </div>
-                <div style="display:flex;align-items:center;gap:10px">
-                  <input class="input" id="af-min-wage" type="number" min="0" max="100" placeholder="ex: 15.00" inputmode="decimal" step="0.5" style="flex:1;max-width:120px" oninput="updateFilterCount()">
-                  <div style="flex:1">
-                    <input type="range" id="af-wage-slider" min="0" max="50" step="0.5" value="0" style="width:100%;accent-color:var(--green)" oninput="syncWageSlider(this.value);document.getElementById('af-slider-val').textContent='$'+parseFloat(this.value).toFixed(0)+'/h'">
-                    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--t4);margin-top:1px"><span>$0</span><span id="af-slider-val" style="color:var(--green);font-weight:700;font-size:11px">$0/h</span><span>$50+</span></div>
-                  </div>
-                </div>
-                <div id="af-wage-feedback" style="margin-top:8px;font-size:11px;color:var(--t2);line-height:1.5;display:none">
-                  Das <strong id="af-total-count">–</strong> vagas selecionadas, <strong id="af-wage-count" style="color:var(--green)">–</strong> têm salário acima de <strong id="af-wage-threshold">–</strong>/h
-                </div>
+            </div>
+
+            <!-- Step 3: Escolha do currículo (perfil) — REESTRUTURADO -->
+            <div class="wizard-step locked" id="ws-25">
+              <div class="wizard-step-hdr">
+                <div class="wizard-step-n" id="ws-n-25">3</div>
+                <div><div class="wizard-step-title">Qual currículo usar?</div><div class="wizard-step-sub">Os e-mails sairão com o currículo e os textos deste perfil</div></div>
               </div>
-              <!-- Filtro por número mínimo de vagas -->
-              <div style="display:flex;gap:10px;align-items:center;margin-top:10px">
-                <div class="field" style="flex:1">
-                  <label style="font-size:12px;color:var(--t2)">👥 Mín. vagas na empresa</label>
-                  <input class="input" id="af-min-workers" type="number" min="0" max="500" placeholder="ex: 5" inputmode="numeric" style="width:100%" oninput="updateFilterCount()">
-                </div>
-                <div class="field" style="flex:1">
-                  <label style="font-size:12px;color:var(--t2)">🏙️ Cidade (opcional)</label>
-                  <input class="input" id="af-city" type="text" placeholder="ex: Boston" style="width:100%" oninput="updateFilterCount()">
-                </div>
-              </div>
-              <input type="hidden" id="af-kw" value="">
+              <div id="auto-profile-cards" style="display:flex;flex-direction:column;gap:6px"></div>
             </div>
 
             <!-- Seleção de e-mails de envio (rodízio 1 a 1 entre os escolhidos) -->
@@ -3987,7 +3949,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <!-- Start button — mega CTA destacado -->
             <div style="background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(37,99,235,.06));border:2px solid rgba(124,58,237,.2);border-radius:var(--rl);padding:16px;margin-bottom:4px">
               <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;text-align:center">🚀 Tudo pronto? Inicie agora!</div>
-              <div style="font-size:11px;color:var(--t2);text-align:center;margin-bottom:12px;line-height:1.5">O sistema usará automaticamente o perfil certo para cada vaga. Perfis de categoria têm prioridade, depois o perfil geral.</div>
+              <div style="font-size:11px;color:var(--t2);text-align:center;margin-bottom:12px;line-height:1.5">Os e-mails sairão com o currículo e os textos do perfil escolhido no Passo 3 — assuntos e corpos alternam automaticamente contra spam.</div>
               <button class="auto-start-mega" id="auto-start-btn" onclick="openPreflightModal()">
                 <i class="ti ti-rocket" style="font-size:22px"></i>
                 <span>🤖 Começar Envio Automático</span>
@@ -4037,15 +3999,15 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
             <!-- Explicação de como os perfis serão usados -->
             <div id="pf-profiles-info" style="background:var(--bluel);border:1.5px solid var(--blueb);border-radius:var(--r);padding:11px 13px;margin-bottom:10px;font-size:12px;color:#1e3a8a">
-              <div style="font-weight:700;margin-bottom:5px">🎯 Como seus perfis serão usados:</div>
+              <div style="font-weight:700;margin-bottom:5px">🎯 Perfil escolhido para este envio:</div>
               <div style="background:linear-gradient(135deg,#eff6ff,#f0f9ff);border:1.5px solid #bfdbfe;border-radius:14px;padding:16px;margin-bottom:14px">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
     <i class="ti ti-school" style="font-size:20px;color:#1e40af"></i>
     <div style="font-size:14px;font-weight:800;color:#1e40af">Como configurar seu Perfil de Currículo</div>
   </div>
   <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.6">
-    <div style="background:#fff;border-radius:10px;padding:11px;border:1px solid #bfdbfe"><span style="font-weight:800;color:#1e40af">① Nome do Perfil</span><br><span style="color:#374151">Dê um nome para identificar. Ex: <strong>"Landscape"</strong> ou <strong>"Geral"</strong>. O perfil Geral é usado como padrão para todas as vagas sem perfil específico.</span></div>
-    <div style="background:#fff;border-radius:10px;padding:11px;border:1px solid #bfdbfe"><span style="font-weight:800;color:#1e40af">② Categorias</span><br><span style="color:#374151">Selecione os tipos de vaga para este perfil. Deixe vazio para usar como perfil padrão.</span></div>
+    <div style="background:#fff;border-radius:10px;padding:11px;border:1px solid #bfdbfe"><span style="font-weight:800;color:#1e40af">① Nome do Perfil</span><br><span style="color:#374151">Dê um nome para identificar. Ex: <strong>"Meu currículo principal"</strong>. Você escolhe qual perfil usar na hora de cada envio.</span></div>
+    <div style="background:#fff;border-radius:10px;padding:11px;border:1px solid #bfdbfe"><span style="font-weight:800;color:#1e40af">② Categorias</span><br><span style="color:#374151">Avançado e opcional — só se quiser que o sistema prefira este perfil para certos tipos de vaga. Pode (e deve) deixar vazio.</span></div>
     <div style="background:#fef2f2;border-radius:10px;padding:11px;border:1px solid #fca5a5"><span style="font-weight:800;color:#ef4444">③ Currículo PDF — OBRIGATÓRIO</span><br><span style="color:#374151">Faça upload do currículo em PDF. Será anexado em todos os e-mails. <strong>Sem currículo o perfil não pode ser salvo.</strong></span></div>
     <div style="background:#fff;border-radius:10px;padding:11px;border:1px solid #bfdbfe"><span style="font-weight:800;color:#7c3aed">④ Cover Letter — opcional</span><br><span style="color:#374151">Carta de apresentação em PDF. Não obrigatória, mas aumenta as chances de resposta.</span></div>
     <div style="background:#fff;border-radius:10px;padding:11px;border:1px solid #bfdbfe"><span style="font-weight:800;color:#059669">⑤ Assuntos e Corpo do E-mail</span><br><span style="color:#374151">Adicione mínimo <strong>3 variações</strong> de cada. Use: <strong>{nome}</strong>, <strong>{vaga}</strong>, <strong>{empresa}</strong>. O sistema rotaciona para evitar spam.</span></div>
@@ -5104,10 +5066,22 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         </div>
       </div>
 
+      <!-- 💎 GRUPO & STATUS DOL — exclusivo Double Pro (gate também no servidor) -->
+      <div class="mf-sec" id="mf-dp-section">
+        <div class="mf-sec-title">💎 Grupo de Randomização <span class="mf-dp-badge">DOUBLE PRO</span></div>
+        <div id="mf-grupos-row" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <div class="mf-sec-title" style="margin-top:12px">📶 Status DOL <span class="mf-dp-badge">DOUBLE PRO</span></div>
+        <select class="mf-select" id="mf-dol-status" onchange="mfOnChange()"><option value="">Todos os status</option></select>
+        <div id="mf-dp-lock" style="display:none;background:linear-gradient(135deg,rgba(245,158,11,.08),rgba(217,119,6,.05));border:1.5px solid rgba(245,158,11,.35);border-radius:10px;padding:10px 13px;font-size:12px;color:#92400e;line-height:1.5">
+          🔒 Filtrar por <strong>Grupo de Randomização</strong> e <strong>Status DOL</strong> é exclusivo do plano <strong>💎 Double Pro</strong>.
+          <span onclick="closeMasterFilters();sv('plans')" style="color:var(--blue);cursor:pointer;font-weight:800;text-decoration:underline">Fazer upgrade →</span>
+        </div>
+      </div>
+
       <!-- LOCALIZAÇÃO -->
       <div class="mf-sec">
         <div class="mf-sec-title">📍 Localização</div>
-        <select class="mf-select" id="f-state" onchange="applyF()" style="margin-bottom:8px">
+        <select class="mf-select" id="f-state" onchange="mfOnChange()" style="margin-bottom:8px">
           <option value="">Todos estados</option>
           <option>ALABAMA</option><option>ALASKA</option><option>ARIZONA</option><option>ARKANSAS</option>
           <option>CALIFORNIA</option><option>COLORADO</option><option>CONNECTICUT</option><option>DELAWARE</option>
@@ -5123,7 +5097,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <option>VERMONT</option><option>VIRGINIA</option><option>WASHINGTON</option><option>WEST VIRGINIA</option>
           <option>WISCONSIN</option><option>WYOMING</option>
         </select>
-        <input class="mf-input" id="f-city" type="text" placeholder="Cidade (opcional)" oninput="applyF()">
+        <input class="mf-input" id="f-city" type="text" placeholder="Cidade (opcional)" oninput="mfOnChange()">
       </div>
 
       <!-- SALÁRIO E VAGAS -->
@@ -5131,7 +5105,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <div class="mf-row2">
           <div>
             <div class="mf-sec-title">💰 Salário mínimo</div>
-            <select class="mf-select" id="f-wage" onchange="applyF()">
+            <select class="mf-select" id="f-wage" onchange="mfOnChange()">
               <option value="">Qualquer</option>
               <option value="10">$10+/h</option><option value="14">$14+/h</option>
               <option value="16">$16+/h</option><option value="18">$18+/h</option><option value="20">$20+/h</option>
@@ -5140,7 +5114,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           </div>
           <div>
             <div class="mf-sec-title">👥 Qtd. vagas mín.</div>
-            <select class="mf-select" id="f-workers" onchange="applyF()">
+            <select class="mf-select" id="f-workers" onchange="mfOnChange()">
               <option value="">Qualquer</option>
               <option value="2">2+</option><option value="5">5+</option>
               <option value="10">10+</option><option value="20">20+</option>
@@ -5172,7 +5146,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
     <!-- Explicação rápida -->
     <div style="background:rgba(99,102,241,.07);border-bottom:1px solid var(--border);padding:10px 18px;font-size:12px;color:var(--t2);line-height:1.5">
       <i class="ti ti-info-circle" style="color:var(--blue);margin-right:4px"></i>
-      O programa escolherá automaticamente o perfil correto conforme a vaga selecionada. Perfil específico tem prioridade → depois categoria → depois geral.
+      Um perfil reúne seu <strong>currículo (PDF)</strong> + os assuntos e corpos do e-mail. Na hora de enviar — manual ou automático — você escolhe qual perfil usar. Simples assim.
     </div>
 
     <div class="mbody" style="padding:0">
@@ -5233,19 +5207,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <input class="input" id="pe-desc" placeholder="Ex: Perfil para vagas de paisagismo no verão">
         </div>
 
-        <div class="field">
-          <label>Tipo do perfil</label>
-          <div style="display:flex;gap:7px;flex-wrap:wrap">
-<!-- type specific removed -->
-            <label id="pe-type-category-lbl" style="display:flex;align-items:center;gap:6px;padding:8px 12px;border:2px solid var(--border2);border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;background:var(--sf2);transition:all .15s">
-              <input type="radio" name="pe-type" value="category" id="pe-type-category" style="accent-color:var(--blue)" onchange="peOnTypeChange()"> 📂 Por Categoria
-            </label>
-            <label id="pe-type-general-lbl" style="display:flex;align-items:center;gap:6px;padding:8px 12px;border:2px solid var(--border2);border-radius:10px;cursor:pointer;font-size:12px;font-weight:600;background:var(--sf2);transition:all .15s">
-              <input type="radio" name="pe-type" value="general" id="pe-type-general" style="accent-color:var(--purple)" onchange="peOnTypeChange()"> 🌐 Geral (Fallback)
-            </label>
-          </div>
-          <div id="pe-type-hint" style="margin-top:7px;font-size:11px;color:var(--t2);line-height:1.5;padding:7px 10px;background:var(--sf2);border-radius:8px;border-left:3px solid var(--blue)"></div>
-        </div>
+        
 
         <div style="display:flex;gap:14px;margin-top:4px">
           <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer">
@@ -5267,48 +5229,11 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         </div>
       </div>
 
-      <!-- ══ SEÇÃO: COMPATIBILIDADE ══ -->
-      <div style="padding:16px 18px 12px;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">② Compatibilidade</div>
 
-        <div class="field">
-          <label>Planilhas compatíveis <span style="color:var(--t3);font-weight:400">(vazio = todas)</span></label>
-          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:4px">
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="jan2026" style="accent-color:var(--blue)"> ☀️ Jan/2026</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="jul2025" style="accent-color:var(--blue)"> ❄️ Jul/2025</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="dol" style="accent-color:var(--blue)"> 🔍 DOL Live</label>
-          </div>
-        </div>
-
-        <div class="field" id="pe-cats-section">
-          <label>Categorias de vaga <span style="color:var(--t3);font-weight:400">(vazio = todas)</span></label>
-          <div style="font-size:11px;color:var(--t3);margin-bottom:7px">Selecione as categorias para as quais este perfil será usado automaticamente</div>
-          <div id="pe-cats-grid" style="display:flex;flex-wrap:wrap;gap:6px">
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="landscape" style="accent-color:var(--blue)"> 🌿 Landscape</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="construction" style="accent-color:var(--blue)"> 🏗️ Construction</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="housekeeper" style="accent-color:var(--blue)"> 🏨 Housekeeper</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="seafood" style="accent-color:var(--blue)"> 🦞 Seafood</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="farm" style="accent-color:var(--blue)"> 🌾 Farm</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="golf" style="accent-color:var(--blue)"> ⛳ Golf</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="amusement" style="accent-color:var(--blue)"> 🎡 Amusement</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="restaurant" style="accent-color:var(--blue)"> 🍽️ Restaurant</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="cleaning" style="accent-color:var(--blue)"> 🧹 Cleaning</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="lifeguard" style="accent-color:var(--blue)"> 🏊 Lifeguard</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="forest" style="accent-color:var(--blue)"> 🌲 Forest</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="warehouse" style="accent-color:var(--blue)"> 📦 Warehouse</label>
-            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="other" style="accent-color:var(--blue)"> 📋 Outros</label>
-          </div>
-        </div>
-
-        <!-- Contador de vagas compatíveis -->
-        <div id="pe-compat-count" style="display:none;font-size:12px;font-weight:600;color:var(--green);background:var(--greenl);border:1px solid var(--greenb);border-radius:8px;padding:7px 12px;margin-top:4px">
-          <i class="ti ti-check"></i> <span id="pe-compat-num">0</span> vagas compatíveis encontradas
-        </div>
-      </div>
 
       <!-- ══ SEÇÃO: CURRÍCULO ══ -->
       <div style="padding:16px 18px 12px;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">③ Currículo &amp; Cover Letter (PDF)</div>
+        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">② Currículo &amp; Cover Letter (PDF)</div>
 
         <!-- ── CURRÍCULO ── -->
         <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:8px">📄 Currículo (Resume)</div>
@@ -5403,7 +5328,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
       <!-- ══ SEÇÃO: ASSUNTOS ══ -->
       <div style="padding:16px 18px 12px;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">④ Assuntos do E-mail</div>
+        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">③ Assuntos do E-mail</div>
         <div style="font-size:11px;color:var(--t3);margin-bottom:8px">Sistema rotaciona automaticamente. <strong style="color:var(--red)">Mínimo 3</strong> para evitar bloqueio por spam.</div>
 
         <!-- Variáveis rápidas -->
@@ -5448,7 +5373,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
       <!-- ══ SEÇÃO: MENSAGENS ══ -->
       <div style="padding:16px 18px 12px;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">⑤ Corpos de E-mail</div>
+        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">④ Corpos de E-mail</div>
         <div style="font-size:11px;color:var(--t3);margin-bottom:8px">Versões diferentes que o sistema alterna. <strong style="color:var(--red)">Mínimo 3</strong> para evitar spam.</div>
 
         <!-- Variáveis -->
@@ -5493,19 +5418,54 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       </div>
 
       <!-- ══ SEÇÃO: CONFIGURAÇÕES ══ -->
-      <div style="padding:16px 18px 12px;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">⑥ Configuração</div>
-        <!-- Apenas o fallback é configurável — o restante é sempre ativo para evitar spam -->
-        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:12px 13px;background:linear-gradient(135deg,var(--purplel),rgba(139,92,246,.05));border:1.5px solid var(--purpleb);border-radius:10px;margin-bottom:10px">
-          <input type="checkbox" id="pe-use-fallback" style="accent-color:var(--purple);margin-top:2px;width:16px;height:16px;flex-shrink:0">
-          <div>
-            <div style="font-size:13px;font-weight:700;color:var(--text)">🌐 Usar como perfil fallback (para vagas não identificadas)</div>
-            <div style="font-size:12px;color:var(--t2);margin-top:4px;line-height:1.5">
-              Quando ativado, este perfil é usado em <strong>qualquer vaga que não tenha um perfil específico</strong> associado.<br>
-              <span style="color:var(--t3);font-size:11px">Exemplo: você tem um perfil "Landscape" que vai para vagas de jardim e semelhantes. Para todo o resto sem perfil (hotel, construção, etc.), este perfil fallback cobre.</span>
-            </div>
+      <!-- ══ SEÇÃO: AVANÇADO (opcional) — categorias/planilhas colapsadas ══ -->
+      <div style="padding:12px 18px;border-bottom:1px solid var(--border)">
+        <details id="pe-advanced">
+          <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:var(--t2);text-transform:uppercase;letter-spacing:.06em;padding:4px 0">
+            <i class="ti ti-settings" style="font-size:15px;color:var(--t3)"></i> ⚙️ Avançado (opcional)
+            <span style="font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--t3);background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:1px 8px">categorias · planilhas</span>
+            <i class="ti ti-chevron-down" style="margin-left:auto;color:var(--t3)"></i>
+          </summary>
+          <div style="font-size:11px;color:var(--t3);line-height:1.5;margin:8px 0 12px">Só mexa aqui se quiser que o sistema <strong>prefira</strong> este perfil para certos tipos de vaga ou planilhas. Deixando tudo em branco, o perfil é normal e serve para qualquer vaga — recomendado para a maioria das pessoas.</div>
+        <div class="field">
+          <label>Planilhas compatíveis <span style="color:var(--t3);font-weight:400">(vazio = todas)</span></label>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:4px">
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="jan2026" style="accent-color:var(--blue)"> ☀️ Jan/2026</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="jul2025" style="accent-color:var(--blue)"> ❄️ Jul/2025</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-sheet" value="dol" style="accent-color:var(--blue)"> 🔍 DOL Live</label>
           </div>
-        </label>
+        </div>
+
+        <div class="field" id="pe-cats-section">
+          <label>Categorias de vaga <span style="color:var(--t3);font-weight:400">(vazio = todas)</span></label>
+          <div style="font-size:11px;color:var(--t3);margin-bottom:7px">Selecione as categorias para as quais este perfil será usado automaticamente</div>
+          <div id="pe-cats-grid" style="display:flex;flex-wrap:wrap;gap:6px">
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="landscape" style="accent-color:var(--blue)"> 🌿 Landscape</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="construction" style="accent-color:var(--blue)"> 🏗️ Construction</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="housekeeper" style="accent-color:var(--blue)"> 🏨 Housekeeper</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="seafood" style="accent-color:var(--blue)"> 🦞 Seafood</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="farm" style="accent-color:var(--blue)"> 🌾 Farm</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="golf" style="accent-color:var(--blue)"> ⛳ Golf</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="amusement" style="accent-color:var(--blue)"> 🎡 Amusement</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="restaurant" style="accent-color:var(--blue)"> 🍽️ Restaurant</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="cleaning" style="accent-color:var(--blue)"> 🧹 Cleaning</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="lifeguard" style="accent-color:var(--blue)"> 🏊 Lifeguard</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="forest" style="accent-color:var(--blue)"> 🌲 Forest</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="warehouse" style="accent-color:var(--blue)"> 📦 Warehouse</label>
+            <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:5px 11px"><input type="checkbox" name="pe-cat" value="other" style="accent-color:var(--blue)"> 📋 Outros</label>
+          </div>
+        </div>
+
+        <!-- Contador de vagas compatíveis -->
+        <div id="pe-compat-count" style="display:none;font-size:12px;font-weight:600;color:var(--green);background:var(--greenl);border:1px solid var(--greenb);border-radius:8px;padding:7px 12px;margin-top:4px">
+          <i class="ti ti-check"></i> <span id="pe-compat-num">0</span> vagas compatíveis encontradas
+        </div>
+      </div>
+        </details>
+      </div>
+      <div style="padding:16px 18px 12px;border-bottom:1px solid var(--border)">
+        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">⑤ Configuração</div>
+
         <!-- Info: comportamentos sempre ativos -->
         <div style="background:var(--sf2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:8px">
           <i class="ti ti-shield-check" style="font-size:15px;color:var(--green);flex-shrink:0;margin-top:1px"></i>
@@ -5519,24 +5479,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <input type="hidden" id="pe-delay-random" checked>
       </div>
 
-      <!-- ══ SEÇÃO: PRIORIDADE ══ -->
-      <div style="padding:16px 18px 12px;border-bottom:1px solid var(--border)">
-        <div style="font-size:12px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">⑦ Ordem de Prioridade (como o sistema escolhe)</div>
-        <div style="display:flex;flex-direction:column;gap:6px">
-          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:linear-gradient(135deg,rgba(59,130,246,.08),rgba(59,130,246,.04));border:1px solid var(--blueb);border-radius:8px;font-size:12px">
-            <div style="width:22px;height:22px;background:var(--blue);border-radius:50%;color:#fff;font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
-            <div><strong>🎯 Perfil Específico</strong> — vinculado à vaga exata</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(16,185,129,.07);border:1px solid var(--greenb);border-radius:8px;font-size:12px">
-            <div style="width:22px;height:22px;background:var(--green);border-radius:50%;color:#fff;font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
-            <div><strong>📂 Perfil por Categoria</strong> — landscape, restaurant, etc.</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--purplel);border:1px solid var(--purpleb);border-radius:8px;font-size:12px">
-            <div style="width:22px;height:22px;background:var(--purple);border-radius:50%;color:#fff;font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
-            <div><strong>🌐 Perfil Geral</strong> — fallback para todas as vagas sem perfil</div>
-          </div>
-        </div>
-      </div>
+
 
       <!-- Botões de ação -->
       <div style="padding:14px 18px;display:flex;gap:8px;flex-wrap:wrap">
@@ -5857,8 +5800,13 @@ let tab="seasonal";
 let sJobs=[],sTotal=0,sSkip=0,sDone=false,sLoading=false;
 let sCache={};
 let fQ="",fState="",fType="all",fStat="all",fSort="random",fWage=0,fWorkers=0,fCat="all";
-let fGrupos=[]; // Filtro por Grupo (randomização H-2B) — exclusivo Double Pro
-let fEtaStatus=""; // Filtro por Status DOL (Monitor ETA) — exclusivo Double Pro
+let fGrupos=[]; // Filtro por Grupo (randomização H-2B) — exclusivo Double Pro (MANUAL)
+let fEtaStatus=""; // Filtro por Status DOL — exclusivo Double Pro (MANUAL)
+// ── Estado dos filtros do AUTOMÁTICO (mesmo modelo do manual) ──
+let afTitles=[];      // cargos exatos escolhidos no wizard
+let afGrupos=[];      // grupos A–H (Double Pro)
+let afEtaStatus="";   // status DOL (Double Pro)
+let autoSelectedProfileId=null; // perfil/currículo escolhido no Passo 3
 let curView="jobs",histTab="all";
 let autoInterval=null;
 let _autoCountdown=null;
@@ -5903,6 +5851,11 @@ addEventListener("DOMContentLoaded",async()=>{
       el.textContent="⚠️ "+err;
       setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:"center"}),300);
     }
+    // FIX (2026-07-09): #login-err só existe na tela de LOGIN. Usuário logado
+    // (ex.: erro ao conectar Gmail Extra) voltava do Google e não via NADA —
+    // parecia que o botão simplesmente não funcionava. Guarda a mensagem pra
+    // mostrar como alerta dentro do app assim que ele carregar.
+    window._pendingErrMsg=err;
     history.replaceState({},"","/");
   }
   if(ps.get("ok"))history.replaceState({},"","/");
@@ -5940,6 +5893,18 @@ async function checkStatus(){
       if(_senderAdded){sessionStorage.removeItem("senderAdded");setTimeout(()=>{sv("profile");switchProfileTab("admin");toast("Gmail "+_senderAdded+" conectado ✓","g");},400);}
       const _senderReauthed=sessionStorage.getItem("senderReauthed");
       if(_senderReauthed){sessionStorage.removeItem("senderReauthed");setTimeout(()=>{sv("profile");switchProfileTab("admin");toast("Gmail "+_senderReauthed+" reconectado e reativado ✓","g");},400);}
+      // Erro que voltou por ?err= com o usuário LOGADO (ex.: falha ao conectar
+      // Gmail Extra) — mostra com destaque e leva pra tela certa. Antes o erro
+      // ia parar num elemento da tela de login que o logado nunca vê.
+      if(window._pendingErrMsg){
+        const _pe=window._pendingErrMsg; window._pendingErrMsg=null;
+        const _isSender=/gmail|email|sender|limite de \d+ e?-?mails/i.test(_pe);
+        setTimeout(()=>{
+          if(_isSender){sv("profile");}
+          toast("⚠️ "+_pe,"r",9000);
+          try{alert("⚠️ "+_pe);}catch(e){}
+        },600);
+      }
       // Apply language AFTER showApp so all elements exist
       setTimeout(applyLang, 100);
       // Dispara setup automático de push após login (com delay para app carregar)
@@ -6388,8 +6353,8 @@ function dismissAdminMsg(){g("#admin-msg-bar")?.classList.add("gone");}
 // ═══════════════════════════════════════════
 //  HEADER / SIDEBAR
 // ═══════════════════════════════════════════
-function getPlanLabel(p){return{free:"Free",vip:"⭐ VIP",pro:"🤖 Pro",vipro:"⭐🤖 VIPro"}[p]||"Free";}
-function getPlanClass(p){return{free:"tgr",vip:"tb",pro:"tp",vipro:"tb"}[p]||"tgr";}
+function getPlanLabel(p){return{free:"Free",vip:"⭐ VIP",pro:"🤖 Pro",vipro:"⭐🤖 VIPro",doublepro:"💎 DoublePro"}[p]||"Free";}
+function getPlanClass(p){return{free:"tgr",vip:"tb",pro:"tp",vipro:"tb",doublepro:"tb"}[p]||"tgr";}
 
 // ── Dias restantes a partir de um timestamp ──────
 function daysLeft(ts){if(!ts)return-1;const d=Math.ceil((ts-Date.now())/86400000);return Math.max(0,d);}
@@ -6484,7 +6449,7 @@ function updateLimChip(){
   else if(U.manualRemaining===0){c.className="lchip lc-x";c.innerHTML="🔒 Limite atingido";}
   else if(U.manualRemaining<=3){c.className="lchip lc-w";c.innerHTML=`⚠️ ${U.manualRemaining} restantes`;}
   else{
-    const planLabel={free:"Free",vip:"⭐VIP",pro:"🤖Pro",vipro:"⭐Pro"}[U.plan]||"Free";
+    const planLabel={free:"Free",vip:"⭐VIP",pro:"🤖Pro",vipro:"⭐Pro",doublepro:"💎DoublePro"}[U.plan]||"Free";
     c.className="lchip lc-ok";c.innerHTML=`${planLabel} · ${U.manualRemaining} envios`;
   }
 }
@@ -6628,7 +6593,7 @@ async function loadRanking(force=false){
 
 function planBadgeHtml(p){
   const plan=(p||"free").toLowerCase();
-  const lbl=plan==="vipro"?"VIPRO":plan==="pro"?"PRO":plan==="vip"?"VIP":plan==="adm"?"ADM":"FREE";
+  const lbl=plan==="doublepro"?"DOUBLEPRO":plan==="vipro"?"VIPRO":plan==="pro"?"PRO":plan==="vip"?"VIP":plan==="adm"?"ADM":"FREE";
   return `<span class="badge badge-${plan}">${lbl}</span>`;
 }
 
@@ -6897,21 +6862,84 @@ function selectTabCat(cat){
 let fTitles=[]; // títulos exatos selecionados (lowercase) + opcionalmente "__outros__"
 let _titlesTax=null; // cache da taxonomia já buscada (por sheet)
 
-async function openMasterFilters(){
+
+// ── Contexto do modal: "jobs" (Envio Manual) ou "auto" (wizard do Automático) ──
+// MESMO modal, MESMO pensamento: os controles físicos são compartilhados e o
+// estado de cada contexto é trocado ao abrir/fechar (snapshot por contexto).
+let _mfCtx="jobs";
+let _mfGrupos=[];        // grupos marcados AGORA no modal (do ctx ativo)
+const _mfCtxState={jobs:null,auto:null};
+let _mfFacets={};        // cache de facetas (status/grupos reais) por planilha
+function _mfIsDP(){return !!(U.isAdmin||U.plan==="doublepro");}
+function _mfCapture(){return{state:g("#f-state")?.value||"",city:g("#f-city")?.value||"",wage:g("#f-wage")?.value||"",workers:g("#f-workers")?.value||"",titles:[...fTitles],grupos:[..._mfGrupos],dolStatus:g("#mf-dol-status")?.value||""};}
+function _mfLoad(st){st=st||{};const fs2=g("#f-state");if(fs2)fs2.value=st.state||"";const fc=g("#f-city");if(fc)fc.value=st.city||"";const fw=g("#f-wage");if(fw)fw.value=st.wage||"";const fk=g("#f-workers");if(fk)fk.value=st.workers||"";fTitles=[...(st.titles||[])];_mfGrupos=[...(st.grupos||[])];const ds=g("#mf-dol-status");if(ds)ds.value=st.dolStatus||"";_mfRenderGrupos();}
+function mfOnChange(){_masterFiltersSyncBadge();if(_mfCtx==="jobs")applyF();}
+
+const _MF_GRUPO_COLORS={A:"#10b981",B:"#f59e0b",C:"#3b82f6",D:"#ef4444",E:"#8b5cf6",F:"#06b6d4",G:"#ec4899",H:"#6b7280"};
+function _mfRenderGrupos(){
+  const row=g("#mf-grupos-row");if(!row)return;
+  const facets=_mfFacets[_mfCurrentSheet()]||{grupos:[]};
+  const counts={};(facets.grupos||[]).forEach(x=>{counts[x.g]=x.count;});
+  row.innerHTML=["A","B","C","D","E","F","G","H"].map(gk=>{
+    const sel=_mfGrupos.includes(gk);const c=_MF_GRUPO_COLORS[gk]||"#6b7280";const cnt=counts[gk];
+    return `<button onclick="mfToggleGrupo('${gk}')" style="padding:6px 12px;border-radius:20px;border:2px solid ${sel?c:"var(--border2)"};background:${sel?c+"22":"var(--sf2)"};color:${sel?c:"var(--t2)"};font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">${gk}${cnt?` <span style="opacity:.65;font-size:10px;font-weight:700">${cnt.toLocaleString()}</span>`:""}</button>`;
+  }).join("");
+}
+function mfToggleGrupo(gk){
+  const i=_mfGrupos.indexOf(gk);if(i>=0)_mfGrupos.splice(i,1);else _mfGrupos.push(gk);
+  _mfRenderGrupos();mfOnChange();
+  // No manual, grupo aplica ao vivo como os demais
+  if(_mfCtx==="jobs"){fGrupos=[..._mfGrupos];sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);renderJobsFilterChips();}
+}
+function _mfCurrentSheet(){return _mfCtx==="auto"?(window.autoSelectedSrc||""):tab;}
+async function _mfLoadFacets(sheetKey){
+  if(!sheetKey||_mfFacets[sheetKey])return;
+  try{const r=await fetch(`/api/sheet-facets?sheet=${sheetKey}`,{credentials:"include"});const d=await r.json();if(d.ok)_mfFacets[sheetKey]=d;}catch{}
+}
+function _mfFillStatusSelect(sheetKey){
+  const sel=g("#mf-dol-status");if(!sel)return;
+  const cur=sel.value;const facets=_mfFacets[sheetKey]||{statuses:[]};
+  sel.innerHTML='<option value="">Todos os status</option>'+(facets.statuses||[]).map(s=>`<option value="${esc(s.v)}">${esc(s.v)} (${s.count.toLocaleString()})</option>`).join("");
+  sel.value=cur||"";if(sel.value!==(cur||""))sel.value="";
+}
+
+async function openMasterFilters(ctx){
+  ctx=ctx==="auto"?"auto":"jobs";
+  if(ctx==="auto"&&!window.autoSelectedSrc){toast("Escolha a fonte das vagas primeiro (Passo 1)","r");return;}
   const ov=g("#master-filters-overlay");if(!ov)return;
+  // Troca de contexto: guarda o estado do ctx atual e carrega o do novo
+  if(ctx!==_mfCtx){_mfCtxState[_mfCtx]=_mfCapture();_mfCtx=ctx;
+    if(ctx==="auto"&&!_mfCtxState.auto){_mfCtxState.auto={state:g("#af-state")?.value||"",city:g("#af-city")?.value||"",wage:g("#af-min-wage")?.value||"",workers:g("#af-min-workers")?.value||"",titles:[...afTitles],grupos:[...afGrupos],dolStatus:afEtaStatus};}
+    _mfLoad(_mfCtxState[ctx]);
+  } else if(ctx==="auto"){
+    _mfLoad(_mfCtxState.auto||{titles:[...afTitles],grupos:[...afGrupos],dolStatus:afEtaStatus,state:g("#af-state")?.value||"",city:g("#af-city")?.value||"",wage:g("#af-min-wage")?.value||"",workers:g("#af-min-workers")?.value||""});
+  }
   ov.classList.remove("gone");
-  const isSheet=tab!=="seasonal";
+  const sheetKey=_mfCurrentSheet();
+  const isSheet=ctx==="auto"?true:(tab!=="seasonal");
   const cityWrap=g("#f-city");if(cityWrap)cityWrap.style.display=isSheet?"":"none";
   const tSec=g("#mf-type-section");if(tSec)tSec.style.display=isSheet?"none":"";
+  // Categoria rápida: no automático ela já vive no wizard — esconde aqui
+  const catSec=g("#mf-cat-section");if(catSec)catSec.style.display=ctx==="auto"?"none":"";
+  // 💎 Seção Double Pro: só faz sentido em planilha; bloqueada p/ não-DP
+  const dpSec=g("#mf-dp-section");
+  if(dpSec){
+    dpSec.style.display=isSheet?"":"none";
+    const isDP=_mfIsDP();
+    const lock=g("#mf-dp-lock");if(lock)lock.style.display=isDP?"none":"block";
+    const grRow=g("#mf-grupos-row");if(grRow)grRow.style.display=isDP?"flex":"none";
+    const dsSel=g("#mf-dol-status");if(dsSel)dsSel.style.display=isDP?"":"none";
+    if(isSheet&&isDP){_mfLoadFacets(sheetKey).then(()=>{_mfFillStatusSelect(sheetKey);_mfRenderGrupos();});}
+  }
   const titlesSec=g("#mf-titles-section");if(titlesSec)titlesSec.style.display=isSheet?"":"none";
   if(isSheet){
     const searchEl=g("#titles-filter-search");if(searchEl)searchEl.value="";
-    if(!_titlesTax||_titlesTax._sheet!==tab){
+    if(!_titlesTax||_titlesTax._sheet!==sheetKey){
       g("#titles-filter-list").innerHTML='<div style="text-align:center;padding:20px;color:var(--t3)"><span class="spin"></span></div>';
       try{
-        const r=await fetch(`/api/sheet-titles?sheet=${tab}`,{credentials:"include"});
+        const r=await fetch(`/api/sheet-titles?sheet=${sheetKey}`,{credentials:"include"});
         const d=await r.json();
-        _titlesTax={_sheet:tab,titulos:d.titulos||[],outros:d.outros||{count:0,titulos:[]}};
+        _titlesTax={_sheet:sheetKey,titulos:d.titulos||[],outros:d.outros||{count:0,titulos:[]}};
       }catch(e){
         g("#titles-filter-list").innerHTML='<div style="text-align:center;padding:20px;color:var(--red)">Erro ao carregar cargos. Tente de novo.</div>';
       }
@@ -6972,8 +7000,8 @@ function _countActiveFilters(){
   if((g("#f-city")?.value||"").trim())n++;
   if(parseFloat(g("#f-wage")?.value||0))n++;
   if(parseInt(g("#f-workers")?.value||0))n++;
-  if(fGrupos&&fGrupos.length)n++;
-  if(fEtaStatus)n++;
+  if(_mfCtx==="jobs"){if(fGrupos&&fGrupos.length)n++;if(fEtaStatus)n++;}
+  else{if(_mfGrupos.length)n++;if((g("#mf-dol-status")?.value||""))n++;}
   if(typeof fType!=="undefined"&&fType!=="all")n++;
   if(typeof fStat!=="undefined"&&fStat!=="all")n++;
   return n;
@@ -6988,25 +7016,181 @@ function _masterFiltersSyncBadge(){
 }
 
 function applyMasterFilters(){
+  if(_mfCtx==="auto"){
+    // Captura o estado do modal e grava no estado do AUTOMÁTICO
+    const st=_mfCapture();
+    _mfCtxState.auto=st;
+    afTitles=[...st.titles];afGrupos=[...st.grupos];afEtaStatus=st.dolStatus||"";
+    const set=(id,v)=>{const el=g(id);if(el)el.value=v;};
+    set("#af-state",st.state);set("#af-city",st.city);
+    set("#af-min-wage",st.wage);set("#af-min-workers",st.workers);
+    closeMasterFilters(); // devolve os controles ao estado do manual
+    renderAutoFilterChips();_syncAutoFiltersBadge();refreshAutoFilterCount();
+    return;
+  }
+  // MANUAL (comportamento original + grupos/status)
+  fGrupos=[..._mfGrupos];fEtaStatus=g("#mf-dol-status")?.value||"";
   closeMasterFilters();
   if(fTitles.length){ fCat="all"; document.querySelectorAll("#cat-chips-jobs .cat-chip").forEach(b=>b.classList.toggle("on",b.dataset.cat==="all")); }
-  _masterFiltersSyncBadge();
+  _masterFiltersSyncBadge();renderJobsFilterChips();
   if(tab==="seasonal"){ loadJobs(true); }
   else { sSkip=0;sDone=false;sJobs=[]; loadSheetMeta(true); }
 }
 
 function clearAllFilters(){
-  fTitles=[]; fCat="all"; fGrupos=[]; fEtaStatus="";
+  fTitles=[];_mfGrupos=[];
   const fs=g("#f-state");if(fs)fs.value="";
   const fc=g("#f-city");if(fc)fc.value="";
   const fw=g("#f-wage");if(fw)fw.value="";
   const fwk=g("#f-workers");if(fwk)fwk.value="";
-  document.querySelectorAll("#cat-chips-jobs .cat-chip").forEach(b=>b.classList.toggle("on",b.dataset.cat==="all"));
-  renderTitlesFilterList();
-  _masterFiltersSyncBadge();
+  const ds=g("#mf-dol-status");if(ds)ds.value="";
+  if(_mfCtx==="jobs"){
+    fCat="all";fGrupos=[];fEtaStatus="";
+    document.querySelectorAll("#cat-chips-jobs .cat-chip").forEach(b=>b.classList.toggle("on",b.dataset.cat==="all"));
+  }
+  _mfRenderGrupos();renderTitlesFilterList();_masterFiltersSyncBadge();
 }
 
-function closeMasterFilters(){ g("#master-filters-overlay")?.classList.add("gone"); }
+function closeMasterFilters(){
+  g("#master-filters-overlay")?.classList.add("gone");
+  if(_mfCtx==="auto"){_mfCtx="jobs";_mfLoad(_mfCtxState.jobs||{});}
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CHIPS DE FILTROS ATIVOS — manual e automático (mesmo modelo)
+// ═══════════════════════════════════════════════════════════════
+function _chip(label,onclick,color){
+  color=color||"var(--purple)";
+  return `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--sf2);border:1.5px solid ${color}44;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;color:${color}">${label}<button onclick="${onclick}" style="background:none;border:none;cursor:pointer;color:${color};padding:0;line-height:1;font-size:13px;font-weight:800;margin-left:2px">×</button></span>`;
+}
+
+function renderJobsFilterChips(){
+  const box=g("#jobs-filter-chips");if(!box)return;
+  const chips=[];
+  if(fTitles.length)chips.push(_chip(`🏷️ ${fTitles.length} cargo(s)`,"mfClearJobsDim('titles')"));
+  if(fCat&&fCat!=="all")chips.push(_chip(`📂 ${esc(fCat)}`,"mfClearJobsDim('cat')"));
+  const st=g("#f-state")?.value||"";if(st)chips.push(_chip(`📍 ${esc(st)}`,"mfClearJobsDim('state')","var(--blue)"));
+  const ci=(g("#f-city")?.value||"").trim();if(ci)chips.push(_chip(`🏙️ ${esc(ci)}`,"mfClearJobsDim('city')","var(--blue)"));
+  const wg=parseFloat(g("#f-wage")?.value||0);if(wg)chips.push(_chip(`💰 $${wg}+/h`,"mfClearJobsDim('wage')","var(--green)"));
+  const wk=parseInt(g("#f-workers")?.value||0);if(wk)chips.push(_chip(`👥 ${wk}+ vagas`,"mfClearJobsDim('workers')","var(--green)"));
+  if(fGrupos.length)chips.push(_chip(`💎 Grupo ${fGrupos.join(",")}`,"mfClearJobsDim('grupos')","#d97706"));
+  if(fEtaStatus)chips.push(_chip(`📶 ${esc(fEtaStatus.slice(0,22))}`,"mfClearJobsDim('status')","#d97706"));
+  if(!chips.length){box.style.display="none";box.innerHTML="";return;}
+  box.style.display="flex";
+  box.innerHTML=chips.join("")+`<button onclick="mfClearJobsDim('all')" style="background:none;border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--t3);cursor:pointer;font-family:inherit">Limpar tudo</button>`;
+}
+function mfClearJobsDim(dim){
+  if(dim==="titles"||dim==="all")fTitles=[];
+  if(dim==="cat"||dim==="all"){fCat="all";document.querySelectorAll("#cat-chips-jobs .cat-chip").forEach(b=>b.classList.toggle("on",b.dataset.cat==="all"));}
+  if(dim==="state"||dim==="all"){const el=g("#f-state");if(el)el.value="";}
+  if(dim==="city"||dim==="all"){const el=g("#f-city");if(el)el.value="";}
+  if(dim==="wage"||dim==="all"){const el=g("#f-wage");if(el)el.value="";}
+  if(dim==="workers"||dim==="all"){const el=g("#f-workers");if(el)el.value="";}
+  if(dim==="grupos"||dim==="all"){fGrupos=[];if(_mfCtx==="jobs")_mfGrupos=[];}
+  if(dim==="status"||dim==="all"){fEtaStatus="";const ds=g("#mf-dol-status");if(ds&&_mfCtx==="jobs")ds.value="";}
+  _mfRenderGrupos();renderTitlesFilterList?.();
+  applyF();renderJobsFilterChips();
+}
+
+function renderAutoFilterChips(){
+  const box=g("#auto-filter-chips");if(!box)return;
+  const chips=[];
+  if(afTitles.length)chips.push(_chip(`🏷️ ${afTitles.length} cargo(s)`,"mfClearAutoDim('titles')"));
+  const st=g("#af-state")?.value||"";if(st)chips.push(_chip(`📍 ${esc(st)}`,"mfClearAutoDim('state')","var(--blue)"));
+  const ci=(g("#af-city")?.value||"").trim();if(ci)chips.push(_chip(`🏙️ ${esc(ci)}`,"mfClearAutoDim('city')","var(--blue)"));
+  const wg=parseFloat(g("#af-min-wage")?.value||0);if(wg)chips.push(_chip(`💰 $${wg}+/h`,"mfClearAutoDim('wage')","var(--green)"));
+  const wk=parseInt(g("#af-min-workers")?.value||0);if(wk)chips.push(_chip(`👥 ${wk}+ vagas`,"mfClearAutoDim('workers')","var(--green)"));
+  if(afGrupos.length)chips.push(_chip(`💎 Grupo ${afGrupos.join(",")}`,"mfClearAutoDim('grupos')","#d97706"));
+  if(afEtaStatus)chips.push(_chip(`📶 ${esc(afEtaStatus.slice(0,22))}`,"mfClearAutoDim('status')","#d97706"));
+  if(!chips.length){box.innerHTML="";return;}
+  box.innerHTML=chips.join("")+`<button onclick="mfClearAutoDim('all')" style="background:none;border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--t3);cursor:pointer;font-family:inherit">Limpar tudo</button>`;
+}
+function mfClearAutoDim(dim){
+  const set=(id,v)=>{const el=g(id);if(el)el.value=v;};
+  if(dim==="titles"||dim==="all")afTitles=[];
+  if(dim==="state"||dim==="all")set("#af-state","");
+  if(dim==="city"||dim==="all")set("#af-city","");
+  if(dim==="wage"||dim==="all")set("#af-min-wage","");
+  if(dim==="workers"||dim==="all")set("#af-min-workers","");
+  if(dim==="grupos"||dim==="all")afGrupos=[];
+  if(dim==="status"||dim==="all")afEtaStatus="";
+  _mfCtxState.auto=null; // snapshot invalidado — será remontado do estado real
+  renderAutoFilterChips();_syncAutoFiltersBadge();refreshAutoFilterCount();
+}
+function _syncAutoFiltersBadge(){
+  let c=0;
+  if(afTitles.length)c++;
+  if((g("#af-state")?.value||""))c++;
+  if((g("#af-city")?.value||"").trim())c++;
+  if(parseFloat(g("#af-min-wage")?.value||0))c++;
+  if(parseInt(g("#af-min-workers")?.value||0))c++;
+  if(afGrupos.length)c++;
+  if(afEtaStatus)c++;
+  const b=g("#auto-filters-badge");
+  if(b){if(c){b.style.display="";b.textContent=String(c);}else b.style.display="none";}
+}
+
+// Contagem ao vivo: quantas vagas sobram com TODOS os filtros do automático
+let _afCountSeq=0;
+async function refreshAutoFilterCount(){
+  const box=g("#af-filter-count");if(!box)return;
+  if(!window.autoSelectedSrc){box.style.display="none";return;}
+  const seq=++_afCountSeq;
+  const p=new URLSearchParams({sheet:autoSelectedSrc,skip:0,top:1});
+  const st=g("#af-state")?.value||"";const ci=(g("#af-city")?.value||"").trim();
+  const wg=parseFloat(g("#af-min-wage")?.value||"0")||0;const wk=parseInt(g("#af-min-workers")?.value||"0")||0;
+  if(st)p.append("state",st);if(ci)p.append("city",ci);
+  if(wg>0)p.append("minWage",String(wg));if(wk>0)p.append("minWorkers",String(wk));
+  if(autoSelectedCats&&autoSelectedCats.length)p.append("category",autoSelectedCats.join(","));
+  if(afTitles.length)p.append("titles",afTitles.join(","));
+  if(afGrupos.length)p.append("grupos",afGrupos.join(","));
+  if(afEtaStatus)p.append("dolStatus",afEtaStatus);
+  box.style.display="block";box.innerHTML='<span class="spin spin-sm"></span> Contando vagas...';
+  try{
+    const r=await fetch("/api/sheet-meta?"+p,{credentials:"include"});const d=await r.json();
+    if(seq!==_afCountSeq)return; // resposta antiga — descarta
+    const t=d.total||0;
+    box.innerHTML=t>0?`✅ <strong>${t.toLocaleString()}</strong> vaga(s) encontradas com esses filtros`:`⚠️ <span style="color:var(--amber)">Nenhuma vaga com esses filtros — afrouxe algum critério.</span>`;
+  }catch{if(seq===_afCountSeq)box.style.display="none";}
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PASSO 3 DO WIZARD — escolha do currículo (perfil)
+// ═══════════════════════════════════════════════════════════════
+function renderAutoProfileCards(){
+  const el=g("#auto-profile-cards");if(!el)return;
+  const profiles=(UPROFILES.length?UPROFILES:U.profiles||[]).filter(p=>p.active!==false&&p.allowAuto!==false);
+  if(!profiles.length){
+    el.innerHTML=`<div style="font-size:12px;color:var(--t3);padding:8px 0">Nenhum perfil disponível para o automático. <span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(openProfileEditor,200)},100)">Criar perfil →</span></div>`;
+    autoSelectedProfileId=null;return;
+  }
+  const last=localStorage.getItem("h2b_lastAutoProfile");
+  if(!autoSelectedProfileId||!profiles.some(p=>p.id===autoSelectedProfileId)){
+    autoSelectedProfileId=(profiles.find(p=>p.id===last)||profiles.find(p=>p.isFavorite)||profiles[0]).id;
+  }
+  el.innerHTML=profiles.map(p=>{
+    const sel=p.id===autoSelectedProfileId;
+    const nSubj=(p.subjects||[p.subject]).filter(Boolean).length;
+    const nBody=(p.emailBodies||[p.body]).filter(Boolean).length;
+    const hasPdf=!!(p.pdfName||p.resumeIdx!=null);
+    const pdf=p.pdfName?esc(p.pdfName):(p.resumeIdx!=null?"currículo vinculado":`<span style="color:var(--red)">sem currículo!</span>`);
+    return `<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:2px solid ${sel?"var(--purple)":"var(--border2)"};border-radius:10px;cursor:pointer;background:${sel?"var(--purplel)":"var(--sf2)"};transition:all .15s" onclick="selectAutoProfile('${p.id}')">
+      <input type="radio" name="auto-prf" value="${p.id}" ${sel?"checked":""} style="accent-color:var(--purple);pointer-events:none">
+      <span style="font-size:20px">${p.icon||"🎯"}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}${p.isFavorite?" ⭐":""}</div>
+        <div style="font-size:10.5px;color:var(--t3);margin-top:1px">📄 ${pdf} · ${nSubj} assunto(s) · ${nBody} corpo(s)${!hasPdf?"":""}</div>
+      </div>
+      ${sel?'<i class="ti ti-circle-check-filled" style="color:var(--purple);font-size:18px"></i>':""}
+    </label>`;
+  }).join("");
+}
+function selectAutoProfile(id){
+  autoSelectedProfileId=id;
+  try{localStorage.setItem("h2b_lastAutoProfile",id);}catch{}
+  renderAutoProfileCards();
+}
+
 
 async function loadTabCounts(){
   for(const sh of["jan2026","jul2025","h2a-jun2026"]){
@@ -7020,7 +7204,7 @@ async function loadTabCounts(){
 // ═══════════════════════════════════════════
 let stmr;
 function onSearch(){clearTimeout(stmr);stmr=setTimeout(()=>{const q=g("#q").value.trim();if(q!==fQ){fQ=q;if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}},350);}
-function applyF(){fState=g("#f-state")?.value||"";fWage=parseFloat(g("#f-wage")?.value||0);fWorkers=parseInt(g("#f-workers")?.value||0);_masterFiltersSyncBadge();if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];g("#jlist").innerHTML="";loadSheetMeta(true);}}
+function applyF(){fState=g("#f-state")?.value||"";fWage=parseFloat(g("#f-wage")?.value||0);fWorkers=parseInt(g("#f-workers")?.value||0);_masterFiltersSyncBadge();renderJobsFilterChips();if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];g("#jlist").innerHTML="";loadSheetMeta(true);}}
 function setType(t){fType=t;["all","agri","nonag"].forEach(k=>g("#ft-"+k)?.classList.remove("on"));const m={all:"ft-all",agricultural:"ft-agri","non-agricultural":"ft-nonag"};g("#"+m[t])?.classList.add("on");_masterFiltersSyncBadge();if(tab==="seasonal")loadJobs(true);}
 function setStat(s){fStat=s;g("#fs-all")?.classList.toggle("on",s==="all");g("#fs-active")?.classList.toggle("on",s==="active");_masterFiltersSyncBadge();if(tab==="seasonal")loadJobs(true);}
 function setSort(s){fSort=s;g("#so-rand")?.classList.toggle("on",s==="random");g("#so-desc")?.classList.toggle("on",s==="desc");g("#so-asc")?.classList.toggle("on",s==="asc");if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}
@@ -7057,6 +7241,8 @@ async function loadSheetMeta(reset=false){
     // FIX WAGE: mandar filtro de salário e vagas pro servidor (não filtrar no frontend por lote)
     if(fWage>0)p.append("minWage",String(fWage));if(fWorkers>0)p.append("minWorkers",String(fWorkers));
     if(fCity)p.append("city",fCity);
+    if(fGrupos.length)p.append("grupos",fGrupos.join(","));
+    if(fEtaStatus)p.append("dolStatus",fEtaStatus);
     const r=await fetch("/api/sheet-meta?"+p,{credentials:"include"});const d=await r.json();
     if(reset)g("#jlist").innerHTML="";
     if(!d.jobs?.length){sDone=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">${sJobs.length?"Sem mais vagas.":"Nenhuma vaga encontrada."}</div>`;}
@@ -7427,20 +7613,24 @@ function buildModalProfileSlots(j){
   }
   // Auto-seleciona o perfil mais adequado
   const jcat=(j.category||"other").toLowerCase();
-  const auto=profiles.find(p=>p.categories&&p.categories.includes(jcat))
-           ||profiles.find(p=>p.isGeneral||p.type==="general")
-           ||profiles[0];
+  // REESTRUTURADO: só perfis liberados p/ manual; categoria (avançado) → favorito → normal → 1º
+  const _mPool=profiles.filter(p=>p.allowManual!==false);
+  const _mSrc=_mPool.length?_mPool:profiles;
+  const auto=_mSrc.find(p=>(p.categories||[]).includes(jcat))
+           ||_mSrc.find(p=>p.isFavorite)
+           ||_mSrc.find(p=>p.isGeneral||!(p.categories||[]).length)
+           ||_mSrc[0];
   window._modalSelProfileId=auto?.id||null;
   el.innerHTML=profiles.map(p=>{
     const sel=p.id===(auto&&auto.id);
-    const badge=p.isGeneral||p.type==="general"?"🌐":"📂";
+    const badge=p.icon||"📄";
     const cats=(p.categories||[]).slice(0,2).join(", ")||"Todas as vagas";
     const nSubj=(p.subjects||[p.subject]).filter(Boolean).length;
     return`<label class="cv-slot${sel?" sel":""}" style="margin-bottom:5px;cursor:pointer;padding:10px 12px" onclick="applyModalProfileById('${p.id}',true)">
       <input type="radio" name="m-prf" value="${p.id}" ${sel?"checked":""} style="accent-color:var(--blue)">
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${badge} ${esc(p.name)}</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:1px">${esc(cats)} · ${nSubj} assunto(s)</div>
+        <div style="font-size:10px;color:var(--t3);margin-top:1px">${p.pdfName?"📄 "+esc(p.pdfName)+" · ":""}${esc(cats)} · ${nSubj} assunto(s)</div>
       </div>
     </label>`;
   }).join("");
@@ -8363,29 +8553,10 @@ async function readProfileCoverFile(f){
   rd.readAsDataURL(f);
 }
 
-// ── Lógica tipo de perfil ──
-function peOnTypeChange(){
-  const val=document.querySelector('input[name="pe-type"]:checked')?.value||"category";
-  const hints={
-    specific:"🎯 <strong>Perfil vinculado a uma vaga exata.</strong> Use quando quiser controlar manualmente qual perfil vai em qual vaga. A pessoa precisa selecionar este perfil ao enviar — o sistema não escolhe automaticamente por categoria. Ideal para vagas muito específicas.",
-    category:"📂 <strong>Perfil por Categoria</strong> — landscape, restaurant, construction, etc. O sistema escolhe automaticamente este perfil para vagas da(s) categoria(s) marcada(s) abaixo. Quem não sabe o nome da vaga pode deixar em branco que ele encaixa nas categorias compatíveis.",
-    general:"🌐 <strong>Perfil Geral (Fallback)</strong> — usado como último recurso para qualquer vaga que não tenha perfil específico ou de categoria. Recomendamos ter sempre 1 perfil geral ativo. Deixe as categorias em branco — ele cobre tudo."
-  };
-  const el=g("#pe-type-hint");if(el)el.innerHTML=hints[val]||"";
-  const cats=g("#pe-cats-section");
-  if(cats)cats.style.display=val==="general"?"none":"block";
-  // Marca isGeneral e isCategory automaticamente
-  const genCb=g("#pe-use-fallback");
-  if(genCb)genCb.checked=(val==="general");
-  // Estiliza os labels de tipo
-  ["category","general"].forEach(t=>{
-    const lbl=g(`#pe-type-${t}-lbl`);if(!lbl)return;
-    const sel=val===t;
-    lbl.style.borderColor=sel?"var(--blue)":"var(--border2)";
-    lbl.style.background=sel?"var(--bluel)":"var(--sf2)";
-    lbl.style.color=sel?"var(--blue)":"inherit";
-  });
-}
+
+
+// Tipos de perfil foram REMOVIDOS — todo perfil é normal. Stub mantido por segurança.
+function peOnTypeChange(){}
 
 // ── Subjects helpers ──
 function peRenderSubjects(){
@@ -8481,26 +8652,21 @@ function peAddBodyModel(type){
 function renderProfiles(){
   const list=g("#profile-list");if(!list)return;
   if(!UPROFILES.length){
-    list.innerHTML=`<div class="empty-state"><i class="ti ti-user-circle"></i><p>Nenhum perfil criado ainda</p><small>Clique em "Criar Novo Perfil" acima para começar. Recomendamos ter pelo menos 1 perfil Geral e perfis específicos por categoria.</small></div>`;
+    list.innerHTML=`<div class="empty-state"><i class="ti ti-user-circle"></i><p>Nenhum perfil criado ainda</p><small>Clique em "Criar Novo Perfil" acima para começar. Um perfil = seu currículo (PDF) + os textos do e-mail.</small></div>`;
     return;
   }
-  const typeLabel={specific:"🎯 Específico",category:"📂 Por Categoria",general:"🌐 Geral (Fallback)"};
-  const typeBg={specific:"var(--bluel)",category:"var(--greenl)",general:"var(--purplel)"};
-  const typeColor={specific:"var(--blue)",category:"var(--green)",general:"var(--purple)"};
   list.innerHTML=UPROFILES.map(p=>{
     const active=p.active!==false;
-    const ptype=p.type||(p.isGeneral?"general":((p.categories||[]).length?"category":"specific"));
     const cats=(p.categories||[]).join(", ")||"–";
     const subjects=p.subjects||[];
     const bodies=p.emailBodies||[];
     const hasPdf=!!(p.pdfName||p.resumeIdx!=null);
     return`<div class="profile-card" style="opacity:${active?1:.55};border:1.5px solid ${active?"var(--border)":"var(--border2)"}">
       <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px">
-        <div style="width:38px;height:38px;border-radius:10px;background:${typeBg[ptype]||"var(--sf2)"};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${p.icon||(ptype==="general"?"🌐":ptype==="category"?"📂":"🎯")}</div>
+        <div style="width:38px;height:38px;border-radius:10px;background:var(--sf2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${p.icon||"🎯"}</div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             <span style="font-size:14px;font-weight:800">${esc(p.name)}</span>
-            <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:${typeBg[ptype]};color:${typeColor[ptype]}">${typeLabel[ptype]||ptype}</span>
             ${p.isFavorite?'<span style="font-size:13px">⭐</span>':""}
             <span style="background:${active?"var(--greenl)":"var(--sf3)"};color:${active?"var(--green)":"var(--t3)"};border:1px solid ${active?"var(--greenb)":"var(--border)"};border-radius:10px;font-size:10px;font-weight:700;padding:1px 7px">${active?"● Ativo":"○ Inativo"}</span>
           </div>
@@ -8547,14 +8713,8 @@ function openProfileEditor(id){
   const autoCb=g("#pe-allow-auto");if(autoCb)autoCb.checked=p?.allowAuto!==false;
   const rotSubj=g("#pe-rotate-subj");if(rotSubj)rotSubj.checked=p?.rotateSubjects!==false;
   const rotBody=g("#pe-rotate-body");if(rotBody)rotBody.checked=p?.rotateBodies!==false;
-  const fallback=g("#pe-use-fallback");if(fallback)fallback.checked=!!p?.isGeneral;
   const delay=g("#pe-delay-random");if(delay)delay.checked=p?.randomDelay!==false;
 
-  // Tipo de perfil
-  const ptype=p?.type||(p?.isGeneral?"general":((p?.categories||[]).length?"category":"category"));
-  const typeEl=document.querySelector(`input[name="pe-type"][value="${ptype}"]`);
-  if(typeEl){typeEl.checked=true;}else{const def=document.querySelector('input[name="pe-type"][value="category"]');if(def)def.checked=true;}
-  peOnTypeChange();
 
   // Subjects
   peSubjects=p?.subjects?.length?[...p.subjects]:(p?.subject?[p.subject]:[]);
@@ -8734,8 +8894,6 @@ async function saveProfileFromEditor(){
   const name=g("#pe-name")?.value?.trim();
   if(!name){toast("Nome obrigatório","r");return;}
 
-  const ptype=document.querySelector('input[name="pe-type"]:checked')?.value||"specific";
-
   // Coleta subjects do DOM
   const subjInputs=g("#pe-subjects-list")?.querySelectorAll("input")||[];
   peSubjects=[...subjInputs].map(i=>i.value.trim()).filter(Boolean);
@@ -8785,10 +8943,10 @@ async function saveProfileFromEditor(){
     name,
     desc:g("#pe-desc")?.value?.trim()||"",
     icon:g("#pe-icon")?.value||_peIcon||"🎯",
-    type:ptype,
+    type:"normal",
     active:g("#pe-active")?.checked!==false,
     isFavorite:!!g("#pe-favorite")?.checked,
-    isGeneral:ptype==="general"||!!g("#pe-use-fallback")?.checked,
+    isGeneral:categories.length===0, // sem categorias = perfil normal, serve para tudo
     allowManual:g("#pe-allow-manual")?.checked!==false,
     allowAuto:g("#pe-allow-auto")?.checked!==false,
     rotateSubjects:true,
@@ -9440,7 +9598,7 @@ async function _renderAutoProfilesPanel(){
     return;
   }
 
-  const hasGeneral=profiles.some(p=>p.isGeneral||p.type==="general");
+  const hasGeneral=true; // conceito de perfil geral removido — todo perfil serve para qualquer vaga
   const names=profiles.slice(0,3).map(p=>p.name).join(", ")+(profiles.length>3?` +${profiles.length-3}`:"");
 
   panel.innerHTML=`
@@ -9460,7 +9618,7 @@ async function _renderAutoProfilesPanel(){
       <div id="auto-panel-detail" style="display:${_autoPanelExpanded?"block":"none"};border-top:1px solid var(--border);padding:10px 12px">
         ${profiles.map(p=>{
           const ok=(p.subjects?.length>0||p.subject)&&(p.emailBodies?.length>0||p.body);
-          const icon=p.isGeneral||p.type==="general"?"🌐":((p.categories||[]).length?"📂":"🌐");
+          const icon=p.icon||"🎯";
           const cats=(p.categories||[]).slice(0,2).join(", ")||"Todas";
           return`<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px">
             <span>${icon}</span>
@@ -9468,7 +9626,6 @@ async function _renderAutoProfilesPanel(){
             <i class="ti ${ok?"ti-check":"ti-alert-triangle"}" style="color:${ok?"var(--green)":"var(--amber)"};font-size:13px"></i>
           </div>`;
         }).join("")}
-        ${!hasGeneral?`<div style="margin-top:8px;font-size:11px;color:var(--amber);display:flex;align-items:center;gap:5px"><i class="ti ti-alert-triangle"></i> Sem perfil Geral — crie um para vagas sem categoria. <span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="closeAutoModal();sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(openProfileEditor,200)},100)">Criar →</span></div>`:""}
         <button class="btn btn-secondary btn-sm w100" style="margin-top:8px" onclick="closeAutoModal();sv('profile');setTimeout(()=>{switchProfileTab('profiles');setTimeout(openProfileEditor,200)},100)"><i class="ti ti-plus"></i> Adicionar Perfil</button>
       </div>
     </div>`;
@@ -9565,6 +9722,9 @@ async function loadDynamicSheets(){
 
 function selectSource(src){
   autoSelectedSrc=src;autoSelectedCat="all";autoSelectedCats=[];
+  // Cargos são por planilha — troca de fonte limpa o filtro de cargos e o snapshot do modal
+  afTitles=[];_mfCtxState.auto=null;
+  renderAutoFilterChips();_syncAutoFiltersBadge();refreshAutoFilterCount();
   document.querySelectorAll(".source-btn").forEach(b=>b.classList.toggle("sel",b.dataset.src===src));
   // Unlock step 2
   unlockWizardStep(2);
@@ -9616,7 +9776,7 @@ async function renderWizardCats(src){
   el.innerHTML=html;
   // Reapply selection
   document.querySelectorAll("#auto-cat-chips .cat-chip-sel").forEach(b=>b.classList.toggle("sel",b.dataset.cat===autoSelectedCat));
-  unlockWizardStep(3);unlockWizardStep(4);
+  unlockWizardStep(25);renderAutoProfileCards();
 }
 
 function selectCat(cat){
@@ -9641,7 +9801,7 @@ function selectCat(cat){
   });
   // Mostra lista acumulativa
   renderCatSelectedList();
-  updateFilterCount();
+  updateFilterCount();refreshAutoFilterCount();
   // Aviso de categoria ativa
   const warn=g("#af-cat-warning");const warnLbl=g("#af-cat-warning-label");
   if(warn&&warnLbl){
@@ -9793,21 +9953,26 @@ function openPreflightModal(){
   if(g("#pf-sh"))g("#pf-sh").value=sh;
   if(g("#pf-eh"))g("#pf-eh").value=eh;
 
-  // Preenche painel de perfis no modal
+
+  // REESTRUTURADO: mostra o perfil/currículo ESCOLHIDO no Passo 3
   const profilesList=g("#pf-profiles-list");
   if(profilesList){
-    if(!activeProfiles.length){
-      profilesList.innerHTML=`<div style="color:var(--red);font-weight:700;font-size:12px">⚠️ Nenhum perfil ativo! Crie perfis na aba Perfis.</div>`;
+    const selP=activeProfiles.find(p=>p.id===autoSelectedProfileId)||activeProfiles.find(p=>p.isFavorite)||activeProfiles[0];
+    if(!selP){
+      profilesList.innerHTML=`<div style="color:var(--red);font-weight:700;font-size:12px">⚠️ Nenhum perfil ativo! Crie um perfil na aba Perfis.</div>`;
     }else{
-      const specific=activeProfiles.filter(p=>p.type==="specific"||(!p.isGeneral&&!(p.categories||[]).length));
-      const category=activeProfiles.filter(p=>p.type==="category"||(!(p.isGeneral)&&(p.categories||[]).length>0));
-      const general=activeProfiles.filter(p=>p.isGeneral||p.type==="general");
-      const lines=[];
-      if(specific.length)lines.push(`<div style="display:flex;align-items:center;gap:6px;font-size:12px"><span style="background:var(--bluel);color:var(--blue);border:1px solid var(--blueb);border-radius:10px;padding:1px 7px;font-weight:700">🎯 Específicos</span><span>${specific.map(p=>esc(p.name)).join(", ")}</span></div>`);
-      if(category.length)lines.push(`<div style="display:flex;align-items:center;gap:6px;font-size:12px"><span style="background:var(--greenl);color:var(--green);border:1px solid var(--greenb);border-radius:10px;padding:1px 7px;font-weight:700">📂 Categorias</span><span>${category.map(p=>esc(p.name)+" ("+((p.categories||[]).join(", ")||"todas")+")").join(" · ")}</span></div>`);
-      if(general.length)lines.push(`<div style="display:flex;align-items:center;gap:6px;font-size:12px"><span style="background:var(--purplel);color:var(--purple);border:1px solid var(--purpleb);border-radius:10px;padding:1px 7px;font-weight:700">🌐 Geral</span><span>${esc(general[0].name)} (fallback)</span></div>`);
-      if(!general.length)lines.push(`<div style="font-size:11px;color:var(--amber);font-weight:600">⚠️ Sem perfil geral — vagas sem categoria ficam sem perfil personalizado.</div>`);
-      profilesList.innerHTML=lines.join("");
+      autoSelectedProfileId=selP.id;
+      const nSubj=(selP.subjects||[selP.subject]).filter(Boolean).length;
+      const nBody=(selP.emailBodies||[selP.body]).filter(Boolean).length;
+      const pdf=selP.pdfName?esc(selP.pdfName):(selP.resumeIdx!=null?"currículo vinculado":`<span style="color:var(--red)">⚠️ sem currículo</span>`);
+      profilesList.innerHTML=`<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 12px">
+        <span style="font-size:22px">${selP.icon||"🎯"}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:800;color:#1e3a8a">${esc(selP.name)}${selP.isFavorite?" ⭐":""}</div>
+          <div style="font-size:11px;color:#374151;margin-top:1px">📄 ${pdf} · ${nSubj} assunto(s) · ${nBody} corpo(s)</div>
+        </div>
+        <button onclick="closePreflight()" style="background:none;border:1px solid #bfdbfe;border-radius:8px;color:#1e40af;font-size:10px;font-weight:700;padding:4px 8px;cursor:pointer;font-family:inherit">Trocar</button>
+      </div>`;
     }
   }
 
@@ -9919,6 +10084,10 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
       const minWorkersFilter=parseInt(g("#af-min-workers")?.value||"0")||0;
       if(cityFilter)p.append("city",cityFilter);
       if(minWorkersFilter>0)p.append("minWorkers",String(minWorkersFilter));
+      // Filtros do modal único — iguais ao Envio Manual
+      if(afTitles.length)p.append("titles",afTitles.join(","));
+      if(afGrupos.length)p.append("grupos",afGrupos.join(","));
+      if(afEtaStatus)p.append("dolStatus",afEtaStatus);
       const r=await fetch("/api/sheet-meta?"+p,{credentials:"include"});
       const d=await r.json();
       if(!d.jobs?.length)break;
@@ -9951,10 +10120,14 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
     //             activeResIdx (currículo "padrão") →
     //             resumeIdx do primeiro perfil ativo →
     //             primeiro PDF em DOCS
-    let _resumeIdx = (autoResIdx !== null && autoResIdx !== undefined) ? autoResIdx
+    // REESTRUTURADO: o perfil escolhido no Passo 3 tem prioridade máxima
+    const _selAutoProfile=activeProfiles.find(p=>p.id===autoSelectedProfileId)||null;
+    let _resumeIdx = (_selAutoProfile&&_selAutoProfile.resumeIdx!=null) ? _selAutoProfile.resumeIdx
+                   : (autoResIdx !== null && autoResIdx !== undefined) ? autoResIdx
                    : (activeResIdx !== null && activeResIdx !== undefined) ? activeResIdx
                    : null;
-    let _coverIdx  = (autoCovIdx !== null && autoCovIdx !== undefined) ? autoCovIdx
+    let _coverIdx  = (_selAutoProfile&&_selAutoProfile.coverIdx!=null) ? _selAutoProfile.coverIdx
+                   : (autoCovIdx !== null && autoCovIdx !== undefined) ? autoCovIdx
                    : (activeCovIdx !== null && activeCovIdx !== undefined) ? activeCovIdx
                    : null;
     // Fallback: pega resumeIdx de algum perfil ativo
@@ -9986,7 +10159,8 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
         endH,
         mode:_mode,
         senders:getSelectedAutoSenders(),
-        filters:{state,keyword,limit,category:autoSelectedCat,minWage,hasEmail}
+        profileId:autoSelectedProfileId||null,
+        filters:{state,keyword,limit,category:autoSelectedCat,minWage,hasEmail,titles:afTitles,grupos:afGrupos,dolStatus:afEtaStatus}
       })
     });
     const data=await resp.json();
@@ -10273,7 +10447,7 @@ async function loadPublicStats(){
         const ini=(e.name?.[0]||"?").toUpperCase();
         const grad=pos===1?"var(--rank1)":pos===2?"var(--rank2)":"var(--rank3)";
         const plan=(e.plan||"free").toLowerCase();
-        const lbl=plan==="vipro"?"VIPRO":plan==="pro"?"PRO":plan==="vip"?"VIP":plan==="adm"?"ADM":"FREE";
+        const lbl=plan==="doublepro"?"DOUBLEPRO":plan==="vipro"?"VIPRO":plan==="pro"?"PRO":plan==="vip"?"VIP":plan==="adm"?"ADM":"FREE";
         return`<div class="ln-rank-pod">
           <div class="ln-rank-av" style="background:${grad}">${ini}</div>
           <div class="ln-rank-pos">#${pos}</div>
@@ -10298,7 +10472,7 @@ async function loadPublicStats(){
               <span style="font-size:11px;color:var(--t3);width:16px;text-align:center">${i+4}</span>
               <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#334155,#1e293b);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${ini}</div>
               <span style="flex:1;font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.name||"Usuário")}</span>
-              <span class="badge badge-${plan}" style="font-size:9px;padding:1px 5px">${plan==="vipro"?"VIPRO":plan==="pro"?"PRO":plan==="vip"?"VIP":"FREE"}</span>
+              <span class="badge badge-${plan}" style="font-size:9px;padding:1px 5px">${plan==="doublepro"?"DOUBLEPRO":plan==="vipro"?"VIPRO":plan==="pro"?"PRO":plan==="vip"?"VIP":"FREE"}</span>
               <span style="font-size:11px;color:var(--t2);font-weight:600">${(e.score||0).toLocaleString("pt-BR")}</span>
             </div>`;
           }).join("")}
@@ -11905,7 +12079,7 @@ function renderHome(){
     planRow.innerHTML=badges;
   }
   // Label plano em conta
-  const pl=g("#home-plan-label");if(pl)pl.textContent={free:"Plano Free",vip:"⭐ VIP Manual",pro:"🤖 Pro Automático",vipro:"⭐🤖 VIPro"}[U.plan]||"Plano Free";
+  const pl=g("#home-plan-label");if(pl)pl.textContent={free:"Plano Free",vip:"⭐ VIP Manual",pro:"🤖 Pro Automático",vipro:"⭐🤖 VIPro",doublepro:"💎 DoublePro"}[U.plan]||"Plano Free";
   // Stats do dia
   const sm=g("#home-stat-manual");
   if(sm)sm.textContent=U.isAdmin?`${U.todaySentManual} ∞`:`${U.todaySentManual}/${U.manualLimit}`;
@@ -13966,14 +14140,7 @@ console.debug('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas')
         <div style="font-weight:700;color:var(--blue);margin-bottom:3px"><i class="ti ti-wand"></i> Variáveis automáticas</div>
         O sistema substitui sozinho: <code style="background:var(--sf3);padding:1px 4px;border-radius:4px">{nome}</code> <code style="background:var(--sf3);padding:1px 4px;border-radius:4px">{vaga}</code> <code style="background:var(--sf3);padding:1px 4px;border-radius:4px">{empresa}</code> <code style="background:var(--sf3);padding:1px 4px;border-radius:4px">{pais}</code> <code style="background:var(--sf3);padding:1px 4px;border-radius:4px">{telefone}</code>. É só deixar no texto.
       </div>
-      <div class="field" style="margin-bottom:10px"><label>Nome do perfil</label><input class="input" id="ob-prf-name" type="text" placeholder="Ex: Perfil Geral, Landscape..."></div>
-      <div class="field" style="margin-bottom:10px">
-        <label>Tipo</label>
-        <select class="input" id="ob-prf-type">
-          <option value="general">🌐 Geral — para qualquer vaga</option>
-          <option value="category">📂 Por Categoria</option>
-        </select>
-      </div>
+      <div class="field" style="margin-bottom:10px"><label>Nome do perfil</label><input class="input" id="ob-prf-name" type="text" placeholder="Ex: Meu currículo principal"></div>
       <div class="field" style="margin-bottom:14px"><label>Assunto do email</label><input class="input" id="ob-prf-subj" type="text" value="Application for {vaga} – {nome}"></div>
       <div class="field" style="margin-bottom:14px"><label>Corpo do email</label><textarea class="input" id="ob-prf-body" style="min-height:90px;font-size:12px">Dear Hiring Manager,
 
@@ -14925,12 +15092,11 @@ async function obUploadCv(input){
 }
 
 async function obCreateProfile(){
-  const name=(g("#ob-prf-name")?.value||"").trim()||"Perfil Geral";
-  const type=g("#ob-prf-type")?.value||"general";
+  const name=(g("#ob-prf-name")?.value||"").trim()||"Meu Currículo";
   const subj=(g("#ob-prf-subj")?.value||"").trim();
   const body=(g("#ob-prf-body")?.value||"").trim();
   if(!subj||!body){toast("Preencha assunto e corpo","r");return;}
-  const prf={name,type,isGeneral:type==="general",active:true,subjects:[subj],emailBodies:[body],categories:[]};
+  const prf={name,type:"normal",isGeneral:true,active:true,subjects:[subj],emailBodies:[body],categories:[]};
   try{
     const r=await fetch("/api/profiles/save",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(prf)});
     const d=await r.json();
@@ -16049,7 +16215,7 @@ const LANG_DICT = {
     "plans_rewards":"Planos & Recompensas","comp_ranking":"Ranking Competitivo","ranking_sub":"Veja sua posição e concorra",
     "sent_apps":"Candidaturas Enviadas","your_pos":"sua posição","you":"Você","me":"Eu","profiles":"Perfis",
     // Plans
-    "plan_free":"Plano Free","plan_vip":"Plano VIP","plan_pro":"Plano Pro","plan_vipro":"Plano VIPro",
+    "plan_free":"Plano Free","plan_vip":"Plano VIP","plan_pro":"Plano Pro","plan_vipro":"Plano VIPro","plan_doublepro":"Plano DoublePro",
     "choose_plan":"Escolha seu Plano","pay_pix":"Pague via Pix — ativo em até 24h","pay_pix_title":"Pagar via Pix",
     "copy_pix":"Copiar Pix","hire_whatsapp":"Contratar pelo WhatsApp",
     "pix_step1":"Pague o plano via Pix",
@@ -16748,7 +16914,7 @@ function _sTextNodeSub(sel,pt,en,es,txt){document.querySelectorAll(sel).forEach(
 function _sInnerHTML(id,html){const el=document.getElementById(id);if(el&&html)el.innerHTML=html;}
 function _sText(id,tag,idx,txt){const el=document.getElementById(id);if(!el)return;const items=el.querySelectorAll(tag);if(items[idx])items[idx].textContent=txt;}
 function _sPipeCol(id,txt){const el=document.getElementById(id);if(!el)return;const hdr=el.querySelector('.pipeline-col-hdr');if(hdr){const cnt=hdr.querySelector('.pipeline-cnt');hdr.textContent=txt+' ';if(cnt)hdr.appendChild(cnt);}}
-function _getPlanLabel(){if(!window.U)return t('plan_free');const p=window.U.plan||'free';return{free:t('plan_free'),vip:t('plan_vip'),pro:t('plan_pro'),vipro:t('plan_vipro')}[p]||t('plan_free');}
+function _getPlanLabel(){if(!window.U)return t('plan_free');const p=window.U.plan||'free';return{free:t('plan_free'),vip:t('plan_vip'),pro:t('plan_pro'),vipro:t('plan_vipro'),doublepro:'💎 DoublePro'}[p]||t('plan_free');}
 
 function toggleLangMenu(forceClose=false){
   const m=document.getElementById('lang-menu');
@@ -17086,21 +17252,10 @@ console.debug("[v19] Language system (PT/EN/ES) loaded");
     }
   }
 
-  // Também adiciona botão de Sugestões ao drawer
-  const _origDrawer = window.renderDrawer;
-  window.renderDrawer = function(){
-    if(_origDrawer) _origDrawer();
-    const drawer = document.getElementById("drawer");
-    if(!drawer) return;
-    if(drawer.querySelector("[data-sug-btn]")) return; // já adicionado
-    const btn = document.createElement("button");
-    btn.className = "d-item";
-    btn.dataset.sugBtn = "1";
-    btn.innerHTML = '<i class="ti ti-bulb" style="font-size:17px;color:#7c3aed"></i>Sugestões para os Devs';
-    btn.onclick = ()=>{ closeDrawer && closeDrawer(); sv("sugestoes"); };
-    const logoutDiv = drawer.querySelector("button[onclick*='doLogout']")?.closest("div");
-    if(logoutDiv) logoutDiv.parentNode.insertBefore(btn, logoutDiv);
-  };
+  // NOTA (2026-07-09): este bloco injetava um SEGUNDO botão "Sugestões para os
+  // Devs" no drawer (sem ícone/estilo, solto entre Painel Admin e Sair). O
+  // drawer estático já tem o item estilizado na lista principal — a injeção
+  // duplicada foi removida.
 
   console.debug("[v20] Sugestões para Devs carregado");
 })();

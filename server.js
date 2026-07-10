@@ -2729,71 +2729,39 @@ function scheduleAuto(email) {
   doAutoSend(email);
 }
 
-// ── Seleção automática de perfil por prioridade ───────────
-// Prioridade: 1. perfil específico da vaga (por título/categoria)
-//             2. perfil da categoria da vaga
-//             3. perfil geral (isGeneral=true)
-// Retorna o perfil selecionado ou null
-function selectProfile(profiles, target, sheet) {
+// ── Seleção de perfil — REESTRUTURADO (perfil normal único) ────────────────
+// Prioridade: 1. perfil ESCOLHIDO pelo usuário no wizard (job.profileId) — sempre vence
+//             2. (avançado) perfil que declarou a categoria da vaga
+//             3. perfil normal (sem categorias) — serve para qualquer vaga (favorito 1º)
+//             4. qualquer perfil ativo
+// Removidas as heurísticas por nome ("h2a", "farm"...) e o conceito de "tipo":
+// o sistema NUNCA adivinha mais — quem manda é a escolha explícita do usuário.
+function selectProfile(profiles, target, sheet, preferredId) {
   if (!profiles || !profiles.length) return null;
   const active = profiles.filter(pr => pr.active !== false);
   if (!active.length) return null;
+  // No automático só entram perfis com allowAuto ligado; se ninguém tiver, usa todos os ativos
+  const autoOk = active.filter(pr => pr.allowAuto !== false);
+  const pool = autoOk.length ? autoOk : active;
 
-  const jobTitle   = (target.title    || "").toLowerCase();
-  const jobCat     = (target.category || "other").toLowerCase();
-  const jobSheet   = sheet || "";
-  const jobVisa    = (target.visa || "").toUpperCase(); // "H-2A" ou "H-2B"
-  const isH2A      = jobVisa === "H-2A" || (target.jobType === "agricultural");
-
-  // 1. Perfil específico para H-2A (se vaga for H-2A)
-  if (isH2A) {
-    const h2aProfiles = active.filter(pr => {
-      if (pr.isGeneral) return false;
-      const prName = (pr.name || "").toLowerCase();
-      // Perfil explicitamente para H-2A
-      if (prName.includes("h2a") || prName.includes("h-2a") || prName.includes("farm") || prName.includes("agricult")) return true;
-      if (pr.categories && (pr.categories.includes("farm") || pr.categories.includes("h2a") || pr.categories.includes("agricultural"))) return true;
-      return false;
-    });
-    if (h2aProfiles.length) {
-      const withSheet = h2aProfiles.filter(pr => pr.sheets && pr.sheets.includes(jobSheet));
-      return withSheet.length ? withSheet[0] : h2aProfiles[0];
-    }
+  // 1. Escolha explícita do usuário (wizard do automático)
+  if (preferredId) {
+    const chosen = pool.find(pr => pr.id === preferredId) || active.find(pr => pr.id === preferredId);
+    if (chosen) return chosen;
   }
 
-  // 2. Perfil específico: match por categoria ou título da vaga
-  const specific = active.filter(pr => {
-    if (pr.isGeneral) return false;
-    const prName = (pr.name || "").toLowerCase();
-    // Match por categoria configurada no perfil
-    if (pr.categories && pr.categories.length) {
-      if (pr.categories.includes(jobCat)) return true;
-    }
-    // Match por nome do perfil ~ categoria ou título
-    if (jobCat && prName.includes(jobCat)) return true;
-    if (jobTitle && jobTitle.split(/\s+/).some(w => w.length > 3 && prName.includes(w))) return true;
-    return false;
-  });
+  const jobCat = (target.category || "other").toLowerCase();
 
-  // Entre os específicos, prefere o que também tem a planilha correta
-  if (specific.length) {
-    const withSheet = specific.filter(pr => pr.sheets && pr.sheets.length && pr.sheets.includes(jobSheet));
-    return withSheet.length ? withSheet[0] : specific[0];
-  }
+  // 2. (Avançado, opcional) perfil que declarou a categoria da vaga
+  const byCat = pool.filter(pr => Array.isArray(pr.categories) && pr.categories.length && pr.categories.includes(jobCat));
+  if (byCat.length) return byCat.find(pr => pr.isFavorite) || byCat[0];
 
-  // 3. Perfil da categoria: tem essa categoria na lista mas sem match de título
-  const byCat = active.filter(pr => {
-    if (pr.isGeneral) return false;
-    return pr.categories && pr.categories.includes(jobCat);
-  });
-  if (byCat.length) return byCat[0];
+  // 3. Perfil normal — sem categorias (compat: isGeneral legado conta como normal)
+  const normal = pool.filter(pr => pr.isGeneral || !(pr.categories || []).length);
+  if (normal.length) return normal.find(pr => pr.isFavorite) || normal[0];
 
-  // 4. Perfil geral
-  const general = active.filter(pr => pr.isGeneral);
-  if (general.length) return general[0];
-
-  // Fallback: qualquer perfil ativo
-  return active[0];
+  // 4. Fallback
+  return pool[0];
 }
 
 // ── Rotação de assunto sem repetição consecutiva ──────────
@@ -3048,7 +3016,7 @@ async function _doAutoSendInner(email) {
 
     // Seleção de perfil — sempre calculada do zero
     const profiles       = Array.isArray(p.profiles) ? p.profiles : [];
-    const selectedProfile = selectProfile(profiles, target, job.source || "");
+    const selectedProfile = selectProfile(profiles, target, job.source || "", job.profileId || null);
     const rotState       = job.rotState || { lastSubjIdx:-1, lastBodyIdx:-1 };
 
     // Índices de currículo: perfil tem prioridade sobre job, job sobre fallback automático
@@ -6438,6 +6406,27 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
     if(filterJobStatus==="inactive") preFiltered=preFiltered.filter(r=>{const st=(r.st||"").toUpperCase();return st.includes("WITHDRAWN")||st.includes("DENIED")||st.includes("EXPIRED");});
     if(filterCompany) preFiltered=preFiltered.filter(r=>(r.n||"").toLowerCase().includes(filterCompany));
     if(filterCity) preFiltered=preFiltered.filter(r=>(r.ci||"").toLowerCase().includes(filterCity));
+    // ── 💎 FILTROS DOUBLE PRO: Grupo de Randomização (A–H) e Status DOL ──
+    // Gate no SERVIDOR: quem não é DoublePro/admin tem os parâmetros ignorados
+    // (o front nunca decide plano). Grupo vem da coluna oficial r.g com fallback
+    // no mapa oficial DB_GRUPOS_J26 (nunca inferido por data — regra da casa).
+    const filterGrupos=(u.searchParams.get("grupos")||"").toUpperCase().replace(/[^A-H,]/g,"").trim();
+    const filterDolStatus=(u.searchParams.get("dolStatus")||"").trim().toLowerCase().slice(0,60);
+    if(filterGrupos||filterDolStatus){
+      const _sDp=getSess(req);const _uDp=_sDp?.user_email?getUser(_sDp.user_email):null;
+      const _isDP=!!(_uDp&&(_uDp.isAdmin||getPlan(_uDp)==="doublepro"));
+      if(_isDP){
+        if(filterGrupos){
+          const _gset=new Set(filterGrupos.split(",").filter(Boolean));
+          if(_gset.size)preFiltered=preFiltered.filter(r=>{
+            const cn=String(r.c||"").toUpperCase();
+            const g0=(r.g&&/^[A-H]$/.test(r.g))?r.g:(DB_GRUPOS_J26.mapa[cn]?.grupo||"");
+            return g0&&_gset.has(g0);
+          });
+        }
+        if(filterDolStatus)preFiltered=preFiltered.filter(r=>String(r.st||"").toLowerCase().includes(filterDolStatus));
+      }
+    }
     // ── FILTRO POR CARGO EXATO (taxonomia real por título da vaga) ──
     // titles=Cook,Line Cook,__outros__ — vem do modal grande de filtros (todo
     // título de fato existente na planilha, não mais só as ~11 categorias fixas).
@@ -6487,6 +6476,7 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         zip:r.zip||"", addr:r.addr||"",
         start:r.d||"–", end:r.de||"–",
         status:r.st||"–", category:cat, visa, active,
+        grupo:(r.g&&/^[A-H]$/.test(r.g))?r.g:null,
         title:occupation, occupation,
         wage:r.w?`$${r.w}/${r.wunit||"h"}`:null,
         wageRaw:r.w||null, wageMax:r.wmax||null,
@@ -6504,6 +6494,25 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         fromSheet:true
       };
     }),total,remainingTotal:baseArr.length,skip,sheet});
+  }
+
+  // ── Facetas reais da planilha (Status DOL distintos + Grupos A–H com contagem) ──
+  // Alimenta o modal único de Filtros (manual E automático). Contagens são
+  // públicas; o USO dos filtros é gateado no /api/sheet-meta (Double Pro).
+  if(pathname==="/api/sheet-facets"){
+    const sheet=u.searchParams.get("sheet")||"";const arr=getSheet(sheet);
+    const stMap=new Map(),grMap=new Map();
+    for(const r of arr){
+      const st=String(r.st||"").trim();
+      if(st)stMap.set(st,(stMap.get(st)||0)+1);
+      const cn=String(r.c||"").toUpperCase();
+      const g0=(r.g&&/^[A-H]$/.test(r.g))?r.g:(DB_GRUPOS_J26.mapa[cn]?.grupo||"");
+      if(g0)grMap.set(g0,(grMap.get(g0)||0)+1);
+    }
+    return json(res,200,{ok:true,
+      statuses:[...stMap.entries()].map(([v,count])=>({v,count})).sort((a,b)=>b.count-a.count).slice(0,30),
+      grupos:[...grMap.entries()].map(([g,count])=>({g,count})).sort((a,b)=>a.g.localeCompare(b.g))
+    });
   }
 
   // Categorias dinâmicas de uma planilha
@@ -9048,7 +9057,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     // fixas + todas as chaves publicadas em SHEET_EXTRAS no momento do save.
     const KNOWN_SHEETS=["jan2026","jul2025","h2a-jun2026","dol",...Object.keys(SHEET_EXTRAS)];
     const sheets=Array.isArray(d.sheets)?d.sheets.filter(s=>KNOWN_SHEETS.includes(s)):[];
-    const prf={id:d.id||crypto.randomUUID(),name:String(d.name).slice(0,80),desc:String(d.desc||"").slice(0,200),active:d.active!==false,isGeneral:!!d.isGeneral,subjects,emailBodies,subject:subjects[0]||String(d.subject||"").slice(0,200),body:emailBodies[0]||String(d.body||"").slice(0,5000),categories,sheets,resumeIdx:d.resumeIdx??null,pdfName:d.pdfName?String(d.pdfName).slice(0,200):undefined,pdfSize:d.pdfSize||0,coverIdx:d.coverIdx??null,state:String(d.state||"").slice(0,40),updatedAt:new Date().toISOString(),createdAt:d.createdAt||new Date().toISOString()};if(idx>=0)prfs[idx]=prf;else{if(prfs.length>=20)return json(res,429,{error:"Limite de 20 perfis atingido"});prfs.unshift(prf);}setUser(s.user_email,{profiles:prfs});return json(res,200,{ok:true,profile:prf});}catch(e){return json(res,500,{error:e.message});}}
+    const prf={id:d.id||crypto.randomUUID(),name:String(d.name).slice(0,80),desc:String(d.desc||"").slice(0,200),active:d.active!==false,type:"normal",icon:String(d.icon||"🎯").slice(0,8),isFavorite:!!d.isFavorite,allowManual:d.allowManual!==false,allowAuto:d.allowAuto!==false,coverName:d.coverName?String(d.coverName).slice(0,200):undefined,coverSize:d.coverSize||0,isGeneral:!!d.isGeneral,subjects,emailBodies,subject:subjects[0]||String(d.subject||"").slice(0,200),body:emailBodies[0]||String(d.body||"").slice(0,5000),categories,sheets,resumeIdx:d.resumeIdx??null,pdfName:d.pdfName?String(d.pdfName).slice(0,200):undefined,pdfSize:d.pdfSize||0,coverIdx:d.coverIdx??null,state:String(d.state||"").slice(0,40),updatedAt:new Date().toISOString(),createdAt:d.createdAt||new Date().toISOString()};if(idx>=0)prfs[idx]=prf;else{if(prfs.length>=20)return json(res,429,{error:"Limite de 20 perfis atingido"});prfs.unshift(prf);}setUser(s.user_email,{profiles:prfs});return json(res,200,{ok:true,profile:prf});}catch(e){return json(res,500,{error:e.message});}}
   if(pathname==="/api/profiles/delete"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});try{const d=JSON.parse(await readBody(req));if(!d.id)return json(res,400,{error:"id obrigatório"});const p=getUser(s.user_email)||{};setUser(s.user_email,{profiles:(p.profiles||[]).filter(pr=>pr.id!==d.id)});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
 
   if(pathname==="/api/debug/export"){const s=getSess(req);if(!s?.user_email||(getUser(s.user_email)||{}).isAdmin!==true)return json(res,403,{error:"Acesso negado."});return json(res,200,{ts:new Date().toISOString(),users:DB_USERS,totalUsers:Object.keys(DB_USERS).length,dataDir:DATA_DIR,disk:fs.existsSync("/data")});}
@@ -9070,6 +9079,20 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       const d=JSON.parse(await readBody(req));
       // ── Validação: perfil válido ──────────────────────────
       const profiles=(p.profiles||[]).filter(pr=>pr.active!==false);
+      // ── REESTRUTURADO: perfil escolhido explicitamente no wizard ─────────
+      // Se o usuário escolheu um perfil, o currículo/cover DELE mandam no job.
+      let jobProfileId=null;
+      if(d.profileId){
+        const chosen=profiles.find(pr=>pr.id===d.profileId);
+        if(chosen){
+          jobProfileId=chosen.id;
+          if(chosen.resumeIdx!=null)d.resumeIdx=chosen.resumeIdx;
+          if(chosen.coverIdx!=null)d.coverIdx=chosen.coverIdx;
+          console.log(`[auto/start] perfil escolhido pelo usuário: "${chosen.name}" (res=${chosen.resumeIdx} cover=${chosen.coverIdx})`);
+        } else {
+          console.warn(`[auto/start] profileId=${d.profileId} não encontrado/inativo — seguirá com seleção padrão`);
+        }
+      }
       const hasResumeIdx=d.resumeIdx!=null||(profiles.length>0&&profiles.some(pr=>pr.resumeIdx!=null));
       // Verifica se existe pelo menos um assunto configurado (em algum perfil ativo ou no bodyTemplate)
       const hasSubject=profiles.some(pr=>(pr.subjects&&pr.subjects.length>0)||pr.subject)||d.bodyTemplate||(Array.isArray(d.subjects)&&d.subjects.length>0);
@@ -9271,7 +9294,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
         if (!jobSenders.length) jobSenders = null;
       }
       // mode removido — sempre 24/7
-const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,filteredCount:queue.length,resumeIdx:jobResumeIdx,coverIdx:jobCoverIdx,bodyTemplate:d.bodyTemplate||p.settings?.body||"",subjects:Array.isArray(d.subjects)&&d.subjects.length?d.subjects:null,emailBodies:Array.isArray(d.emailBodies)&&d.emailBodies.length?d.emailBodies:null,status:"starting",lastSentAt:null,finishedAt:null,source:d.source||"manual",category:d.category||"all",filters:d.filters||{},queueFingerprint,rotState:{lastSubjIdx:-1,lastBodyIdx:-1},senders:jobSenders,lockedAutoLimit:isAdminVip(p)?9999:getAutoLimit(p)};
+const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,filteredCount:queue.length,profileId:jobProfileId,resumeIdx:jobResumeIdx,coverIdx:jobCoverIdx,bodyTemplate:d.bodyTemplate||p.settings?.body||"",subjects:Array.isArray(d.subjects)&&d.subjects.length?d.subjects:null,emailBodies:Array.isArray(d.emailBodies)&&d.emailBodies.length?d.emailBodies:null,status:"starting",lastSentAt:null,finishedAt:null,source:d.source||"manual",category:d.category||"all",filters:d.filters||{},queueFingerprint,rotState:{lastSubjIdx:-1,lastBodyIdx:-1},senders:jobSenders,lockedAutoLimit:isAdminVip(p)?9999:getAutoLimit(p)};
       setAutoJob(s.user_email,job);
       autoStats.set(s.user_email,{sent:0,failed:0,skipped:0,startedAt:Date.now()});
       addLog(s.user_email,{status:"sistema",jobTitle:`Envio automático iniciado: ${queue.length} vagas${skippedAlreadySent>0?` (${skippedAlreadySent} já enviadas foram puladas)`:""}`,company:`Fonte: ${d.source||"manual"} | Categoria: ${d.category||"all"}`,source:d.source||"manual",category:d.category||"all"});

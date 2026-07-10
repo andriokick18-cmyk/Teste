@@ -1819,12 +1819,12 @@ const RobotV2 = (function(){
       addIssue('critical','Perfil H2B','Falha ao criar perfil',p1.data?.error||'Verificar /api/profiles/save');
     }
 
-    // 3. Criar perfil H2B GERAL (fallback)
+    // 3. Criar perfil H2B NORMAL (sem categorias — serve para qualquer vaga)
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Criando perfil H2B Geral...');
+    _setProgress((_doneTests/_totalTests)*100,'Criando perfil H2B Normal...');
     const p2=await post('/api/profiles/save',{
-      name:'[ROBOT] H2B Geral QA',
-      type:'general',
+      name:'[ROBOT] H2B Normal QA',
+      type:'normal',
       categories:[],
       subjects: TEST_SUBJECTS,
       emailBodies: TEST_BODIES.map(b=>fill(b,{ts:nowStr()})),
@@ -1840,10 +1840,10 @@ const RobotV2 = (function(){
     });
     if(p2.ok && p2.data?.profile?.id){
       _createdProfileIds.push(p2.data.profile.id);
-      log('ok',`[Perfil] Perfil H2B Geral criado — ID: ${p2.data.profile.id}`);
+      log('ok',`[Perfil] Perfil H2B Normal criado — ID: ${p2.data.profile.id}`);
     } else {
-      log('err',`[Perfil] Falha ao criar perfil Geral`,p2.data?.error);
-      addIssue('medium','Perfil Geral','Falha ao criar perfil geral',p2.data?.error);
+      log('err',`[Perfil] Falha ao criar perfil Normal`,p2.data?.error);
+      addIssue('medium','Perfil Normal','Falha ao criar perfil normal',p2.data?.error);
     }
 
     // 4. Criar perfil H2A
@@ -5675,7 +5675,7 @@ function renderModalProfiles(d,u){
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <span style="font-weight:700;font-size:13px;color:var(--text)">${esc(pr.name)}</span>
         ${pr.active!==false?'<span class="badge b-green">Ativo</span>':'<span class="badge b-gray">Inativo</span>'}
-        ${pr.isGeneral?'<span class="badge b-blue">Geral (fallback)</span>':''}
+        ${(pr.categories||[]).length?'<span class="badge b-blue">📂 '+esc((pr.categories||[]).join(', '))+'</span>':'<span class="badge b-gray">Normal</span>'}
         ${!pdfOk?'<span class="badge b-red">⚠️ PDF não vinculado!</span>':''}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px">
