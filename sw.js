@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v15"; // v15: lembrar e-mail + atalho admin multi-servidor (KB-077)
+const CACHE_NAME = "h2bapply-v16"; // v16: logo novo (globo+avião) em todos os ícones/PWA (KB-078)
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

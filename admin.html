@@ -37,7 +37,8 @@ a{color:inherit;text-decoration:none}
 .topbar{height:52px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 20px;flex-shrink:0}
 .content{flex:1;overflow-y:auto;padding:20px;background:var(--bg)}
 .sb-logo{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
-.sb-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.sb-logo-icon{width:32px;height:32px;background:#0a1226;border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
+.sb-logo-icon img{width:100%;height:100%;object-fit:cover;display:block}
 .sb-logo-text{font-family:'Sora',sans-serif;font-size:15px;font-weight:800;color:#fff}
 .sb-logo-sub{font-size:9px;color:var(--t3);font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-top:1px}
 .sb-nav{padding:8px;flex:1}
@@ -252,7 +253,7 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
   <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="sb-logo">
-      <div class="sb-logo-icon"><i class="ti ti-shield" style="color:#fff;font-size:16px"></i></div>
+      <div class="sb-logo-icon"><img src="/icon-192.png?v=3" alt="H2BApply"></div>
       <div>
         <div class="sb-logo-text">H2BApply</div>
         <div class="sb-logo-sub">Admin Console v15</div>

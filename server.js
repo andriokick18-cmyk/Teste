@@ -1308,6 +1308,15 @@ const markSent = (u, d) => {
   DB_SENT[u].add(nd);
   persistSentDebounced();
 };
+
+// Set completo do que o usuário JÁ enviou (DB_SENT + fallback do histórico),
+// construído UMA vez por chamada — para checar milhares de vagas sem custo
+// (hasSent() sozinho reescanearia o histórico inteiro a cada vaga).
+const buildUserSentSet = (u) => {
+  const set = new Set(DB_SENT[u] ? [...DB_SENT[u]] : []);
+  for (const h of (DB_HIST[u] || [])) { const n = _normEmail(h.to); if (n) set.add(n); }
+  return set;
+};
 const getNote    = (u,j) => DB_NOTES[u]?.[j]||"";
 const setNote    = (u,j,t) => { if(!DB_NOTES[u])DB_NOTES[u]={}; DB_NOTES[u][j]=t; persist(NOTES_FILE,DB_NOTES); };
 const getAlerts  = u => DB_ALERTS[u]||[];
@@ -6320,10 +6329,25 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
   // ── /api/sheets-list — planilhas disponíveis para o usuário (fixas + extras publicadas) ──
   if(pathname==="/api/sheets-list"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
+    // DISPONIBILIDADE POR USUÁRIO (2026-07-09): antes cada fonte mostrava só o
+    // total bruto da planilha ("2.625 vagas") mesmo que o usuário já tivesse
+    // enviado pra metade delas — dava a impressão de que nada era descontado.
+    // Agora cada planilha informa também quantas ainda estão DISPONÍVEIS pra
+    // ESTE usuário (têm e-mail e ele nunca enviou pra aquele empregador) e
+    // quantas ele já enviou. Regra de contagem = a MESMA regra anti-duplicata
+    // do motor de envio (por e-mail do empregador), então o número que o
+    // usuário vê é o número que de fato vai pra fila.
+    const _sentSet = buildUserSentSet(s.user_email);
+    const _avail = (rows) => {
+      let withEmail=0, sent=0;
+      for(const r of rows){ const e=_normEmail(r.e); if(!e||!e.includes("@"))continue; withEmail++; if(_sentSet.has(e))sent++; }
+      return {withEmail, sent, available: withEmail-sent};
+    };
+    const _mk=(key,name,visa,emoji)=>{const rows=getSheet(key)||[];return {key,name,visa,count:rows.length,builtin:true,emoji,..._avail(rows)};};
     const out=[
-      {key:"jan2026",name:"Jan 2026",visa:"H-2B",count:(getSheet("jan2026")||[]).length,builtin:true,emoji:"☀️"},
-      {key:"jul2025",name:"Jul 2025",visa:"H-2B",count:(getSheet("jul2025")||[]).length,builtin:true,emoji:"❄️"},
-      {key:"h2a-jun2026",name:"H-2A Agricultura",visa:"H-2A",count:(getSheet("h2a-jun2026")||[]).length,builtin:true,emoji:"🌾"},
+      _mk("jan2026","Jan 2026","H-2B","☀️"),
+      _mk("jul2025","Jul 2025","H-2B","❄️"),
+      _mk("h2a-jun2026","H-2A Agricultura","H-2A","🌾"),
     ];
     for(const [k,meta] of Object.entries(DB_SHEETS_META)){
       if(k==="jan2026"||k==="jul2025") continue;
@@ -6331,9 +6355,30 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
       const arr=SHEET_EXTRAS[k]||[];
       if(!arr.length) continue;
       const visa=(meta.visaType||arr[0]?.visa||"H-2B").toUpperCase().includes("H-2A")?"H-2A":"H-2B";
-      out.push({key:k,name:meta.name||k,visa,count:arr.length,builtin:false,emoji:meta.emoji||(visa==="H-2A"?"🌾":"📋"),historico:meta.historico===true});
+      out.push({key:k,name:meta.name||k,visa,count:arr.length,builtin:false,emoji:meta.emoji||(visa==="H-2A"?"🌾":"📋"),historico:meta.historico===true,..._avail(arr)});
     }
     return json(res,200,{ok:true,sheets:out});
+  }
+
+  // ── /api/my-availability?sheet=X ─────────────────────────
+  // Disponibilidade da planilha PARA ESTE USUÁRIO, por categoria — alimenta
+  // os chips do wizard do automático (antes mostravam totais globais).
+  if(pathname==="/api/my-availability"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const sheet=(u.searchParams.get("sheet")||"").trim();
+    const rows=getSheet(sheet)||[];
+    const _sentSet=buildUserSentSet(s.user_email);
+    let withEmail=0, sent=0;
+    const byCategory={};
+    for(const r of rows){
+      const e=_normEmail(r.e);
+      if(!e||!e.includes("@")) continue;
+      withEmail++;
+      if(_sentSet.has(e)){ sent++; continue; }
+      const cat=r.k||"other";
+      byCategory[cat]=(byCategory[cat]||0)+1;
+    }
+    return json(res,200,{ok:true,sheet,total:rows.length,withEmail,sent,available:withEmail-sent,byCategory});
   }
 
   // ── /api/jobs ─────────────────────────────────────────
@@ -8446,6 +8491,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
   if(/^\/api\/cv\/\d+$/.test(pathname)&&req.method==="DELETE"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const idx=parseInt(pathname.split("/").pop(),10);const p=getUser(s.user_email);if(!p?.cvs?.find(c=>c.idx===idx))return json(res,403,{error:"CV não encontrado."});deleteCv(s.user_email,idx);const _cleanProfiles=(p.profiles||[]).map(pr=>{const np={...pr};if(np.resumeIdx===idx){delete np.resumeIdx;delete np.pdfName;delete np.pdfSize;}if(np.coverIdx===idx){delete np.coverIdx;}return np;});setUser(s.user_email,{cvs:(p.cvs||[]).filter(c=>c.idx!==idx),profiles:_cleanProfiles});return json(res,200,{ok:true});}
 
   if(pathname==="/api/send"&&req.method==="POST"){
+    const _sendT0=Date.now(); // DIAGNÓSTICO (2026-07-09): mede onde o tempo vai num envio manual — relato de "180 envios em 3h" sem causa óbvia no código; até achar a causa definitiva, loga se demorar muito, pra próxima vez ter dado real em vez de suposição.
     const s=getSess(req);if(!s?.access_token)return json(res,401,{error:"Sessão expirada."});
     const p=getUser(s.user_email)||{};
     let dedupKey = null; // declarado fora do try para que o catch possa acessar
@@ -8550,6 +8596,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
         r=await gmailSendWithThread(sid,{to:toEmail,subject:d.subject,text:d.message,fromName:d.fromName||p.name||s.user_name||"H2BApply",attachments,threadHeaders,threadId:isReply?(d.threadId||null):null});
       }
 
+      const _tGmailMs = Date.now() - _sendT0;
       const now=new Date();
       if(!isReply){
         // Só registra no histórico candidaturas originais
@@ -8602,6 +8649,8 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
         const newSent=sent+1;const newLim=getManualLimit(p);
         _manualSendInFlight.delete(dedupKey);
         invalidateUserStatsCache(s.user_email);
+        const _tTotalMs = Date.now() - _sendT0;
+        if (_tTotalMs > 5000) console.warn(`[send-timing] ⚠️ LENTO: ${s.user_email} → ${toEmail} | gmail=${_tGmailMs}ms | resto=${_tTotalMs-_tGmailMs}ms | total=${_tTotalMs}ms`);
         return json(res,200,{ok:true,messageId:r.id,appId,threadId:r.threadId||null,todaySent:newSent,dailyLimit:newLim,remaining:Math.max(0,newLim-newSent),countedAsManual:true,caseNum:d.caseNum||"",sheetSource:d.sheetSource||""});
       }else{
         // Resposta: não conta, só confirma sucesso
@@ -9101,11 +9150,20 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
         });
       }
       let queue=[];
+      // ENRAIZAMENTO (2026-07-09): vagas já enviadas agora são cortadas AQUI,
+      // na montagem da fila — não mais uma a uma na hora do envio. Antes a fila
+      // nascia com TODAS as vagas (inclusive 2.000+ já enviadas), o tamanho da
+      // fila mentia, o % de progresso mentia, e o motor perdia ciclos pulando
+      // duplicata por duplicata. O skip do motor continua existindo como 2ª
+      // camada de segurança (corrida entre manual e auto), mas o grosso sai já.
+      const _sentSetStart = buildUserSentSet(s.user_email);
+      let skippedAlreadySent = 0;
       // MODO 1: Frontend já enviou fila com emails (fluxo antigo, agora preserva todos os campos extras)
       if(d.queue&&d.queue.length){
         // v15-SEC: normaliza emails, valida com regex robusta, remove self-sends
         queue=d.queue.map(item=>{ const _p=parseEmail(item.to||''); return _p.ok ? {...item, to: _p.email} : null; })
           .filter(item => item && isValidEmail(item.to) && item.to !== s.user_email.toLowerCase())
+          .filter(item => { if(_sentSetStart.has(_normEmail(item.to))){ skippedAlreadySent++; return false; } return true; })
           .map(item=>({
           id: item.id || item.caseNum || "",
           to: item.to,
@@ -9144,6 +9202,7 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
           if(!emailRaw){ noEmailCount++; continue; }
           const _p = parseEmail(emailRaw);
           if(!_p.ok || _p.email === s.user_email.toLowerCase()) continue;
+          if(_sentSetStart.has(_normEmail(_p.email))){ skippedAlreadySent++; continue; } // já enviou pra esse empregador
           const row = sheetByCase.get(String(cn).toUpperCase());
           // Título real: usa o título da planilha (campo t) em vez de occupation genérico
           const realTitle = meta.title || row?.t || meta.company || cn;
@@ -9165,9 +9224,12 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
             sheetOrigin: row?._sheet || "local",  // rastrear de qual planilha veio
           });
         }
-        console.log(`[auto] ✅ ${queue.length} vagas com email de ${d.cases.length} cases (${noEmailCount} sem email ignoradas)`);
+        console.log(`[auto] ✅ ${queue.length} vagas com email de ${d.cases.length} cases (${noEmailCount} sem email, ${skippedAlreadySent} já enviadas — cortadas da fila)`);
       }
-      if(!queue.length)return json(res,400,{error:"Nenhuma vaga com e-mail encontrada. As planilhas JAN2026 e JUL2025 já têm e-mails embutidos. Verifique se os arquivos foram carregados corretamente.",noEmail:true});
+      if(!queue.length){
+        if(skippedAlreadySent>0) return json(res,400,{error:`Todas as ${skippedAlreadySent} vagas dessa seleção já foram enviadas por você antes. Escolha outra fonte, categoria ou filtro para encontrar vagas novas.`,allAlreadySent:true,skippedAlreadySent});
+        return json(res,400,{error:"Nenhuma vaga com e-mail encontrada. As planilhas JAN2026 e JUL2025 já têm e-mails embutidos. Verifique se os arquivos foram carregados corretamente.",noEmail:true});
+      }
       // BUG-015 CORRIGIDO: proteção contra fila duplicada só bloqueia se o job anterior terminou
       // nos últimos 60s (era 5min) E não foi parado/cancelado manualmente pelo usuário.
       const queueFingerprint=crypto.createHash("md5").update(queue.map(i=>i.to).sort().join(",")).digest("hex");
@@ -9212,11 +9274,11 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
 const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,filteredCount:queue.length,resumeIdx:jobResumeIdx,coverIdx:jobCoverIdx,bodyTemplate:d.bodyTemplate||p.settings?.body||"",subjects:Array.isArray(d.subjects)&&d.subjects.length?d.subjects:null,emailBodies:Array.isArray(d.emailBodies)&&d.emailBodies.length?d.emailBodies:null,status:"starting",lastSentAt:null,finishedAt:null,source:d.source||"manual",category:d.category||"all",filters:d.filters||{},queueFingerprint,rotState:{lastSubjIdx:-1,lastBodyIdx:-1},senders:jobSenders,lockedAutoLimit:isAdminVip(p)?9999:getAutoLimit(p)};
       setAutoJob(s.user_email,job);
       autoStats.set(s.user_email,{sent:0,failed:0,skipped:0,startedAt:Date.now()});
-      addLog(s.user_email,{status:"sistema",jobTitle:`Envio automático iniciado: ${queue.length} vagas`,company:`Fonte: ${d.source||"manual"} | Categoria: ${d.category||"all"}`,source:d.source||"manual",category:d.category||"all"});
-      trackJourney(s.user_email,'auto_start',{detail:`Auto: ${queue.length} vagas | ${d.source||"manual"}`,meta:{queueSize:queue.length}});
+      addLog(s.user_email,{status:"sistema",jobTitle:`Envio automático iniciado: ${queue.length} vagas${skippedAlreadySent>0?` (${skippedAlreadySent} já enviadas foram puladas)`:""}`,company:`Fonte: ${d.source||"manual"} | Categoria: ${d.category||"all"}`,source:d.source||"manual",category:d.category||"all"});
+      trackJourney(s.user_email,'auto_start',{detail:`Auto: ${queue.length} vagas | ${d.source||"manual"}`,meta:{queueSize:queue.length,skippedAlreadySent}});
       // Inicia imediatamente
       setTimeout(()=>scheduleAuto(s.user_email),100);
-      return json(res,200,{ok:true,queueSize:queue.length});
+      return json(res,200,{ok:true,queueSize:queue.length,skippedAlreadySent});
     }catch(e){return json(res,500,{error:e.message});}
   }
   if(pathname==="/api/auto/pause"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const j=getAutoJob(s.user_email);if(!j)return json(res,404,{error:"Nenhum job."});if(autoTimers.has(s.user_email)){clearTimeout(autoTimers.get(s.user_email));autoTimers.delete(s.user_email);}setAutoJob(s.user_email,{...j,active:false,status:"paused"});addLog(s.user_email,{status:"pausado",jobTitle:"Envio pausado pelo usuário",company:""});return json(res,200,{ok:true});}

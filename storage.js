@@ -95,25 +95,31 @@ function storageLoad(file, def){
 // JSON), false se as duas formas falharam — pra quem chama poder avisar o
 // usuário em vez de responder "salvo" com a escrita tendo falhado de verdade.
 function storagePersist(file, data){
+  const _t0 = Date.now(); // DIAGNÓSTICO (2026-07-09): ver comentário em /api/send no server.js
   const payload = JSON.stringify(data);
   let sqliteOk = false;
   if (_db) {
     try { _stmtSet.run(collectionOf(file), payload, new Date().toISOString()); sqliteOk = true; }
     catch(e){ console.warn(`[storage] persist(${collectionOf(file)}) falhou no SQLite:`, e.message); }
   }
+  const _finish = (ok) => {
+    const _ms = Date.now() - _t0;
+    if (_ms > 800) console.warn(`[storage-timing] ⚠️ persist(${collectionOf(file)}) demorou ${_ms}ms (${(payload.length/1024).toFixed(0)}KB, sqlite=${sqliteOk})`);
+    return ok;
+  };
   if (!_db || MIRROR || !sqliteOk) {
     // Escrita JSON idêntica à original (3 tentativas, tmp+rename)
     for (let attempt=0; attempt<3; attempt++){
-      try { const t=file+".tmp"; fs.writeFileSync(t, JSON.stringify(data,null,2), "utf8"); fs.renameSync(t,file); return true; }
+      try { const t=file+".tmp"; fs.writeFileSync(t, JSON.stringify(data,null,2), "utf8"); fs.renameSync(t,file); return _finish(true); }
       catch(e){
         if (attempt===2){
-          try { fs.writeFileSync(file, JSON.stringify(data,null,2)); return true; }
-          catch(e2){ if(!sqliteOk){ console.error("[storage] FALHA total persist:", e2.message); return false; } }
+          try { fs.writeFileSync(file, JSON.stringify(data,null,2)); return _finish(true); }
+          catch(e2){ if(!sqliteOk){ console.error("[storage] FALHA total persist:", e2.message); return _finish(false); } }
         }
       }
     }
   }
-  return sqliteOk;
+  return _finish(sqliteOk);
 }
 
 // ── Diagnóstico para o painel admin ─────────────────────────────────────────
