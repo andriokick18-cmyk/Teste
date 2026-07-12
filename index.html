@@ -854,6 +854,25 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .suc-icon{font-size:52px;margin-bottom:10px;animation:bounce .5s ease}
 @keyframes bounce{0%{transform:scale(.3)}60%{transform:scale(1.1)}100%{transform:scale(1)}}
 
+/* ══ RATE-LIMIT WARNING + FALAFINA MODALS (V-ratelimit) ══ */
+.h2b-ov{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:400;padding:20px;backdrop-filter:blur(6px)}
+.h2b-ov.show{display:flex}
+.h2b-ov-box{background:var(--surface);border-radius:var(--rxl);padding:26px 22px;max-width:380px;width:100%;text-align:center;box-shadow:var(--shadowl);animation:fadeScale .25s ease}
+.h2b-ov-icon{font-size:46px;margin-bottom:8px}
+.h2b-ov-title{font-size:18px;font-weight:800;color:var(--t1);margin-bottom:8px;line-height:1.25}
+.h2b-ov-txt{font-size:13.5px;color:var(--t2);line-height:1.5;margin-bottom:18px}
+.h2b-btn-red{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border:none;border-radius:var(--r);padding:12px 16px;font-size:13.5px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 3px 10px rgba(239,68,68,.3);margin-bottom:10px}
+.h2b-btn-red:hover{background:linear-gradient(135deg,#dc2626,#b91c1c)}
+.h2b-btn-green{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:var(--r);padding:12px 16px;font-size:13.5px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 3px 10px rgba(16,185,129,.3)}
+.h2b-btn-green:hover{background:linear-gradient(135deg,#059669,#047857)}
+.sb-falafina-btn{display:flex;align-items:center;gap:10px;width:100%;background:linear-gradient(135deg,#059669,#10b981);border:none;border-radius:var(--r);padding:12px 14px;cursor:pointer;font-family:inherit;color:#fff;box-shadow:0 3px 12px rgba(16,185,129,.35);margin-bottom:2px}
+.sb-falafina-btn:hover{background:linear-gradient(135deg,#047857,#059669)}
+.sb-falafina-emoji{font-size:24px;line-height:1;flex-shrink:0}
+.sb-falafina-txt{flex:1;text-align:left}
+.sb-falafina-title{font-size:14.5px;font-weight:900;line-height:1.15}
+.sb-falafina-sub{font-size:10px;font-weight:700;opacity:.92}
+.d-item-falafina{background:linear-gradient(135deg,rgba(16,185,129,.14),rgba(5,150,105,.08))!important;border:1.5px solid rgba(16,185,129,.3)!important}
+
 /* ══ DRAWER ══ */
 .drawer-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:150;display:none}
 .drawer-ov.show{display:block}
@@ -2648,6 +2667,18 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <!-- PLANOS — destaque -->
       <div class="sb-sec">
         <button class="sb-item" id="si-plans" onclick="sv('plans')" style="background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(124,58,237,.08));border:1.5px solid rgba(99,102,241,.3);border-radius:var(--r);font-weight:800;color:#4f46e5"><i class="ti ti-diamond" style="font-size:16px;color:#4f46e5"></i>Planos & Upgrade</button>
+      </div>
+
+      <!-- FALAFINA — treino de inglês p/ entrevistas H2B/H2A (destaque gigante) -->
+      <div class="sb-sec">
+        <button class="sb-falafina-btn" id="si-falafina" onclick="openFalaFinaIntro()">
+          <span class="sb-falafina-emoji">🦜</span>
+          <span class="sb-falafina-txt">
+            <div class="sb-falafina-title">Treine Inglês</div>
+            <div class="sb-falafina-sub">FalaFina · entrevistas H-2B/H-2A</div>
+          </span>
+          <i class="ti ti-chevron-right" style="opacity:.85"></i>
+        </button>
       </div>
 
       <!-- MAIS — tudo agrupado num único item "Ver mais" -->
@@ -5561,8 +5592,41 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
     <div style="font-size:20px;font-weight:800;margin-bottom:6px">Enviado!</div>
     <div style="font-size:13px;color:var(--t2);margin-bottom:4px" id="suc-sub"></div>
     <div style="font-size:12px;color:var(--t3);margin-bottom:20px" id="suc-rem"></div>
-    <button class="btn btn-primary w100" onclick="g('#success-overlay').style.display='none';closeModal();closeMobDetail();"><i class="ti ti-check"></i> Ótimo!</button>
-    <button class="btn btn-secondary w100" style="margin-top:8px" onclick="g('#success-overlay').style.display='none';closeModal();closeMobDetail();sv('hist')"><i class="ti ti-history"></i> Ver candidaturas</button>
+    <button class="btn btn-primary w100" onclick="closeSuccessOverlay(false)"><i class="ti ti-check"></i> Ótimo!</button>
+    <button class="btn btn-secondary w100" style="margin-top:8px" onclick="closeSuccessOverlay(true)"><i class="ti ti-history"></i> Ver candidaturas</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: Aviso de envio muito rápido (risco de spam/bloqueio Gmail) ══ -->
+<div class="h2b-ov" id="rl-warn-ov">
+  <div class="h2b-ov-box">
+    <div class="h2b-ov-icon">⚠️</div>
+    <div class="h2b-ov-title">Você está enviando rápido demais</div>
+    <div class="h2b-ov-txt">Detectamos <b id="rl-warn-count">50</b> envios manuais em menos de 10 minutos. Enviar e-mails em alta velocidade pode fazer o Gmail bloquear temporariamente sua conta de envio ou marcar suas mensagens como <b>spam</b>.</div>
+    <button class="h2b-btn-red" onclick="rlContinueAnyway()"><i class="ti ti-alert-triangle"></i> Entendo o risco, vou continuar</button>
+    <button class="h2b-btn-green" onclick="rlChooseWait()"><i class="ti ti-clock-pause"></i> Vou esperar alguns minutos para enviar novamente</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: Sugestão de treino de inglês (FalaFina) enquanto espera ══ -->
+<div class="h2b-ov" id="rl-falafina-ov">
+  <div class="h2b-ov-box">
+    <div class="h2b-ov-icon">🦜</div>
+    <div class="h2b-ov-title">Não perca tempo à toa!</div>
+    <div class="h2b-ov-txt">Enquanto o tempo de segurança passa e seus envios voltam ao normal, aproveite para treinar seu inglês com entrevistas focadas em vagas H-2B e H-2A no <b>FalaFina</b>. Você escolhe qual vaga quer treinar e pratica exatamente o inglês que vai precisar no trabalho.</div>
+    <button class="h2b-btn-green" onclick="rlGoToFalaFina()"><i class="ti ti-external-link"></i> Treinar inglês no FalaFina</button>
+    <button class="btn btn-secondary w100" style="margin-top:10px" onclick="g('#rl-falafina-ov').classList.remove('show')">Fechar</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: Redirecionamento para o FalaFina (botão da barra lateral) ══ -->
+<div class="h2b-ov" id="falafina-intro-ov">
+  <div class="h2b-ov-box">
+    <div class="h2b-ov-icon">🦜</div>
+    <div class="h2b-ov-title">Você está saindo do H2BApply</div>
+    <div class="h2b-ov-txt">O <b>FalaFina</b> é um app de treino de inglês criado pela mesma equipe do H2BApply, feito para quem está indo trabalhar nos EUA com visto H-2B ou H-2A. Lá você escolhe a vaga que quer treinar, pratica entrevistas de emprego em inglês e aprende o vocabulário do dia a dia de trabalho — tudo pensado pra sua realidade. Você será redirecionado para outro site (falafina.onrender.com), dos mesmos criadores do H2BApply.</div>
+    <button class="h2b-btn-green" onclick="falafinaGoFromIntro()"><i class="ti ti-external-link"></i> Continuar para o FalaFina</button>
+    <button class="btn btn-secondary w100" style="margin-top:10px" onclick="g('#falafina-intro-ov').classList.remove('show')">Voltar para o H2B</button>
   </div>
 </div>
 
@@ -5627,6 +5691,11 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
     <div style="height:1px;background:var(--border);margin:0 12px"></div>
     <!-- Lista principal -->
     <div style="padding:8px">
+      <button class="d-item d-item-falafina" onclick="closeDrawer();openFalaFinaIntro()" style="border-radius:12px;margin-bottom:4px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,.18);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px">🦜</div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:800;color:#059669">Treine Inglês · FalaFina</div><div style="font-size:11px;color:var(--t3);font-weight:400">Entrevistas H-2B/H-2A em inglês</div></div>
+        <i class="ti ti-chevron-right" style="color:var(--t3);font-size:16px"></i>
+      </button>
       <a class="d-item" href="/guia" target="_blank" rel="noopener noreferrer" style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.25);color:#059669;font-weight:800;text-decoration:none;border-radius:12px;margin-bottom:4px">
         <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-book-2" style="color:#059669;font-size:18px"></i></div>
         <div style="flex:1"><div style="font-size:13px;font-weight:800;color:#059669">Guia H-2B & H-2A</div><div style="font-size:11px;color:var(--t3);font-weight:400">Aprenda como funciona o visto</div></div>
@@ -7729,6 +7798,7 @@ async function doSend(){
       return;
     }
     U.todaySentManual=d.todaySent||U.todaySentManual+1;U.manualRemaining=typeof d.remaining==="number"?d.remaining:Math.max(0,(U.manualLimit||20)-U.todaySentManual);U.manualLimit=d.dailyLimit||U.manualLimit;
+    rlRecordSend(); // registra o horário do envio p/ detecção de envio muito rápido
     closeModal();
     if(j?.id){
       APPLIED.add(j.id);
@@ -7750,6 +7820,62 @@ async function doSend(){
     window._sheetAvail={}; // enviou mais uma — disponibilidade do wizard mudou
     if(curView==="home")renderHome(); // FIX: atualiza stats da home após envio
   }catch(e){g("#m-sending").style.display="none";g("#m-send").disabled=false;warn(e.message);}
+}
+
+function closeSuccessOverlay(goHist){
+  g("#success-overlay").style.display="none";closeModal();closeMobDetail();
+  if(goHist)sv("hist");
+  rlMaybeWarn(); // checa ritmo de envio DEPOIS de fechar a tela de sucesso
+}
+
+// ═══════════════════════════════════════════
+//  ENVIO RÁPIDO DEMAIS — aviso anti-spam/bloqueio Gmail (V-ratelimit)
+//  Regra: 50 envios manuais em menos de 10 minutos dispara o aviso.
+// ═══════════════════════════════════════════
+const RL_MAX_SENDS=50, RL_WINDOW_MS=10*60*1000, RL_SNOOZE_MS=10*60*1000;
+function _rlKey(){return "h2b_rl_times_"+(U?.email||"anon");}
+function _rlSnoozeKey(){return "h2b_rl_snooze_"+(U?.email||"anon");}
+function rlGetTimes(){
+  try{const raw=localStorage.getItem(_rlKey());const arr=raw?JSON.parse(raw):[];
+    const cutoff=Date.now()-RL_WINDOW_MS;
+    return arr.filter(t=>t>cutoff);
+  }catch(e){return [];}
+}
+function rlRecordSend(){
+  const times=rlGetTimes();times.push(Date.now());
+  try{localStorage.setItem(_rlKey(),JSON.stringify(times));}catch(e){}
+}
+function rlMaybeWarn(){
+  const times=rlGetTimes();
+  if(times.length<RL_MAX_SENDS)return;
+  let snoozeUntil=0;
+  try{snoozeUntil=parseInt(localStorage.getItem(_rlSnoozeKey())||"0",10);}catch(e){}
+  if(Date.now()<snoozeUntil)return; // já avisado recentemente, não repete a cada envio
+  g("#rl-warn-count").textContent=times.length;
+  g("#rl-warn-ov").classList.add("show");
+}
+function rlContinueAnyway(){
+  // Usuário assume o risco — não avisa de novo por 10 min, deixa enviar normal
+  try{localStorage.setItem(_rlSnoozeKey(),String(Date.now()+RL_SNOOZE_MS));}catch(e){}
+  g("#rl-warn-ov").classList.remove("show");
+}
+function rlChooseWait(){
+  g("#rl-warn-ov").classList.remove("show");
+  try{localStorage.setItem(_rlSnoozeKey(),String(Date.now()+RL_SNOOZE_MS));}catch(e){}
+  g("#rl-falafina-ov").classList.add("show");
+}
+function rlGoToFalaFina(){
+  window.open("https://falafina.onrender.com","_blank","noopener,noreferrer");
+  g("#rl-falafina-ov").classList.remove("show");
+}
+
+// ═══════════════════════════════════════════
+//  FALAFINA — botão de destaque na barra lateral/menu
+// ═══════════════════════════════════════════
+function openFalaFinaIntro(){ g("#falafina-intro-ov").classList.add("show"); }
+function falafinaGoFromIntro(){
+  window.open("https://falafina.onrender.com","_blank","noopener,noreferrer");
+  g("#falafina-intro-ov").classList.remove("show");
 }
 
 async function aiCover(){const j=curJob;if(!j)return;const btn=g("#ai-btn");btn.disabled=true;btn.innerHTML='<span class="spin spin-sm"></span>';try{const r=await fetch("/api/generate-cover",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({job:j.title,company:j.company,city:j.city,state:j.state,wage:j.wage})});const d=await r.json();if(d.letter){g("#m-body").value=d.letter;toast("Cover Letter gerada ✓","g");}else throw new Error(d.error);}catch(e){toast("Erro: "+e.message,"r");}btn.disabled=false;btn.innerHTML='<i class="ti ti-robot"></i> IA gera';}
@@ -7820,7 +7946,7 @@ async function safeCvUpload(b64, name, cvType){
     body: JSON.stringify({base64: b64, name, cvType})
   });
   let d;
-  try { d = await r.json(); } catch(e) { throw new Error('Erro de comunicação com o servidor. Verifique sua internet.'); }
+  try { d = await r.json(); } catch(e) { if(r.status===401)throw new Error('Sessão expirada — faça login novamente.'); throw new Error('⚠️ O servidor está reiniciando (atualização). Aguarde ~30 segundos e tente novamente — nada foi perdido.'); }
   await checkUploadResponse(r, d);
   return d;
 }
@@ -7830,7 +7956,7 @@ async function uploadDoc(input,cvType){
   if(file.size>10*1024*1024){toast("PDF maior que 10MB!","r");return;}
   if(!file.name.toLowerCase().endsWith(".pdf")){toast("Apenas PDFs!","r");return;}
   const prog=g("#doc-prog");if(prog)prog.style.display="flex";
-  try{const b64=await toB64(file);const r=await fetch("/api/cv/upload",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({base64:b64,name:file.name,cvType})});const d=await r.json();if(!d.ok)throw new Error(d.error);DOCS.push(d.cv);if(cvType==="resume"&&!activeResIdx)activeResIdx=d.cv.idx;if(cvType==="cover"&&!activeCovIdx)activeCovIdx=d.cv.idx;updDocBadge();renderDocs();toast(`${cvType==="cover"?"Cover Letter":"Resume"} salvo ✓`,"g");input.value="";}
+  try{const b64=await toB64(file);const r=await fetch("/api/cv/upload",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({base64:b64,name:file.name,cvType})});const d=await jsonSafe(r);if(!d.ok)throw new Error(d.error);DOCS.push(d.cv);if(cvType==="resume"&&!activeResIdx)activeResIdx=d.cv.idx;if(cvType==="cover"&&!activeCovIdx)activeCovIdx=d.cv.idx;updDocBadge();renderDocs();toast(`${cvType==="cover"?"Cover Letter":"Resume"} salvo ✓`,"g");input.value="";}
   catch(e){toast("Erro: "+e.message,"r");}
   if(prog)prog.style.display="none";
 }
@@ -8558,6 +8684,18 @@ async function readProfileCoverFile(f){
 // Tipos de perfil foram REMOVIDOS — todo perfil é normal. Stub mantido por segurança.
 function peOnTypeChange(){}
 
+// U4 (11/07): quando o servidor está reiniciando (deploy do Render), a resposta
+// vem como página HTML (502) e o JSON.parse explodia na cara do usuário com
+// "Unexpected token '<', <!DOCTYPE... is not valid JSON". Agora: mensagem clara.
+async function jsonSafe(r){
+  const txt=await r.text();
+  try{return JSON.parse(txt);}
+  catch{
+    if(r.status===401)throw new Error("Sessão expirada — faça login novamente.");
+    throw new Error("⚠️ O servidor está reiniciando (atualização em andamento). Aguarde ~30 segundos e tente novamente — nada foi perdido.");
+  }
+}
+
 // ── Subjects helpers ──
 function peRenderSubjects(){
   const list=g("#pe-subjects-list"),empty=g("#pe-subjects-empty"),lbl=g("#pe-subj-count-lbl");
@@ -8964,7 +9102,7 @@ async function saveProfileFromEditor(){
     try{
       const r=await fetch("/api/cv/upload",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({base64:profilePdfBase64,name:profilePdfName,cvType:"resume"})});
-      const d=await r.json();
+      const d=await jsonSafe(r);
       if(d.ok){prf.resumeIdx=d.cv.idx;prf.pdfName=d.cv.name;prf.pdfSize=d.cv.size;}
       else throw new Error(d.error);
     }catch(e){toast("Erro upload PDF: "+e.message,"r");return;}
@@ -8978,7 +9116,7 @@ async function saveProfileFromEditor(){
     try{
       const r=await fetch("/api/cv/upload",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({base64:profileCoverBase64,name:profileCoverName,cvType:"cover"})});
-      const d=await r.json();
+      const d=await jsonSafe(r);
       if(d.ok){prf.coverIdx=d.cv.idx;prf.coverName=d.cv.name;prf.coverSize=d.cv.size;}
       else throw new Error(d.error);
     }catch(e){toast("Erro upload Cover Letter: "+e.message,"r");return;}
@@ -8990,7 +9128,7 @@ async function saveProfileFromEditor(){
   const saveBtn=g("#pe-save-btn");if(saveBtn){saveBtn.disabled=true;saveBtn.innerHTML='<span class="spin spin-sm"></span> Salvando...';}
   try{
     const r=await fetch("/api/profiles/save",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(prf)});
-    const d=await r.json();if(!d.ok)throw new Error(d.error);
+    const d=await jsonSafe(r);if(!d.ok)throw new Error(d.error);
     const idx=UPROFILES.findIndex(x=>x.id===d.profile.id);
     if(idx>=0)UPROFILES[idx]=d.profile;else UPROFILES.unshift(d.profile);
     U.profiles=UPROFILES;
@@ -9024,7 +9162,7 @@ async function duplicateProfile(id){
   const clone={...p,id:undefined,name:p.name+" (cópia)",createdAt:undefined};
   try{
     const r=await fetch("/api/profiles/save",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(clone)});
-    const d=await r.json();if(!d.ok)throw new Error(d.error);
+    const d=await jsonSafe(r);if(!d.ok)throw new Error(d.error);
     UPROFILES.unshift(d.profile);U.profiles=UPROFILES;
     renderProfiles();toast("Perfil duplicado ✓","g");
   }catch(e){toast("Erro: "+e.message,"r");}
@@ -9035,7 +9173,7 @@ async function toggleProfileStatus(id){
   const updated={...p,active:p.active===false};
   try{
     const r=await fetch("/api/profiles/save",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(updated)});
-    const d=await r.json();if(!d.ok)throw new Error(d.error);
+    const d=await jsonSafe(r);if(!d.ok)throw new Error(d.error);
     const idx=UPROFILES.findIndex(x=>x.id===d.profile.id);
     if(idx>=0)UPROFILES[idx]=d.profile;U.profiles=UPROFILES;
     renderProfiles();toast(d.profile.active?"Perfil ativado ✓":"Perfil desativado","g");
@@ -14766,7 +14904,7 @@ async function uploadCvFromDocs(input, cvType){
     const r=await fetch("/api/cv/upload",{method:"POST",credentials:"include",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({base64:b64,name:file.name,cvType})});
-    const d=await r.json();
+    const d=await jsonSafe(r);
     if(d.ok){
       // Adiciona ao DOCS global (deduplica por idx)
       DOCS=DOCS.filter(c=>c.idx!==d.cv.idx);
@@ -15075,7 +15213,7 @@ async function obUploadCv(input){
   const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(",")[1]);r.onerror=rej;r.readAsDataURL(file);});
   try{
     const r=await fetch("/api/cv/upload",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({base64:b64,name:file.name,cvType:"resume"})});
-    const d=await r.json();
+    const d=await jsonSafe(r);
     if(d.ok){
       DOCS=DOCS.filter(c=>c.idx!==d.cv.idx);DOCS.push(d.cv);
       if(activeResIdx===null)activeResIdx=d.cv.idx;
@@ -15099,7 +15237,7 @@ async function obCreateProfile(){
   const prf={name,type:"normal",isGeneral:true,active:true,subjects:[subj],emailBodies:[body],categories:[]};
   try{
     const r=await fetch("/api/profiles/save",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(prf)});
-    const d=await r.json();
+    const d=await jsonSafe(r);
     if(d.ok){
       UPROFILES.unshift(d.profile);U.profiles=UPROFILES;
       _updateProfileTabCount?.();

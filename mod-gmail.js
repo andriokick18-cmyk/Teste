@@ -9,7 +9,14 @@
 const https = require("https");
 const crypto = require("crypto");
 
-function httpsReq(opts,body){return new Promise((res,rej)=>{const p=body?(typeof body==="string"?body:JSON.stringify(body)):null;const r=https.request(opts,resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{const raw=Buffer.concat(ch).toString();try{res({status:resp.statusCode,body:JSON.parse(raw)});}catch{res({status:resp.statusCode,body:raw});}});});r.on("error",rej);r.setTimeout(15000,()=>{r.destroy();rej(new Error("Timeout"));});if(p)r.write(p);r.end();});}
+// PERF FIX (V-perf): antes cada chamada a gmail.googleapis.com / oauth2.googleapis.com
+// abria uma conexão TCP+TLS NOVA do zero (handshake completo a cada envio manual).
+// Um Agent com keep-alive reaproveita o socket já autenticado entre requisições,
+// cortando 1 round-trip de handshake por envio — ajuda diretamente na lentidão
+// relatada no Envio Manual (30s por clique).
+const _keepAliveAgent = new https.Agent({ keepAlive: true, keepAliveMsecs: 30000, maxSockets: 50, maxFreeSockets: 10 });
+
+function httpsReq(opts,body){return new Promise((res,rej)=>{const p=body?(typeof body==="string"?body:JSON.stringify(body)):null;const finalOpts=opts.agent?opts:{...opts,agent:_keepAliveAgent};const r=https.request(finalOpts,resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{const raw=Buffer.concat(ch).toString();try{res({status:resp.statusCode,body:JSON.parse(raw)});}catch{res({status:resp.statusCode,body:raw});}});});r.on("error",rej);r.setTimeout(15000,()=>{r.destroy();rej(new Error("Timeout"));});if(p)r.write(p);r.end();});}
 
 function normalizeEmail(raw) {
   if (!raw) return "";

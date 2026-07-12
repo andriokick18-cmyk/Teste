@@ -1247,7 +1247,20 @@ function persist(file, data) {
   // Fase 4: SQLite atômico (WAL) + espelho JSON (STORAGE_MIRROR=off desliga o espelho)
   // V955: users.json passa pelo cifrador de campos sensíveis (cópia — runtime intocado)
   if (file === USERS_FILE) data = _encUsersForDisk(data);
-  return storagePersist(file, data); // true/false — ver storage.js
+  const okP = storagePersist(file, data); // true/false — ver storage.js
+  // 11/07: ENOSPC em produção derrubou a gravação de TOKENS (usuários "perdendo
+  // token sozinhos"). Se a escrita falhar, tenta liberar espaço e regrava 1x —
+  // priorizando que dados críticos (users.json com refresh_token) sobrevivam.
+  if (!okP) {
+    try {
+      if (typeof emergencyDiskCleanup === "function" && emergencyDiskCleanup("persist falhou: " + path.basename(file))) {
+        const retry = storagePersist(file, data);
+        if (retry) console.log("[disk] ✅ regravação após faxina: " + path.basename(file));
+        return retry;
+      }
+    } catch(e) { console.error("[disk] retry pós-faxina falhou:", e.message); }
+  }
+  return okP;
 }
 function persistSent() {
   const out={};for(const[k,v]of Object.entries(DB_SENT))out[k]=[...v];persist(SENT_FILE,out);
@@ -1545,7 +1558,7 @@ function addLog(userEmail, entry) {
     ...entry,
   };
   DB_LOGS[userEmail].unshift(record);
-  if (DB_LOGS[userEmail].length > 2000) DB_LOGS[userEmail] = DB_LOGS[userEmail].slice(0, 2000);
+  if (DB_LOGS[userEmail].length > 500) DB_LOGS[userEmail] = DB_LOGS[userEmail].slice(0, 500); // 11/07: era 2000 — auto_logs.json chegou a 19MB e cada persist bloqueava 1,2s
   const critical = ["enviado","falhou","pausado","cancelado","erro_anexo"].includes(record.status);
   if (critical) persistLogsImmediate();
   else if (DB_LOGS[userEmail].length % 20 === 0) persistLogs();
@@ -1608,17 +1621,36 @@ setInterval(()=>{ try{persist(path.join(DATA_DIR,"backup.json"),{ts:new Date().t
 // precisar de ninguém clicar em nada, e fica visível/restaurável também no
 // painel principal (ver aba Configurações em admin.html).
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
-const BACKUP_RETENCAO = 20; // guarda os últimos 20 backups completos (~20 dias)
+const BACKUP_RETENCAO = 3; // 11/07: era 20 — com history/auto_jobs/logs de 30MB+ cada, 20 dias de cópias ENCHERAM o disco do Render (ENOSPC real em produção). 3 dias cobre recuperação sem afogar o disco.
+// Arquivos que NÃO entram no backup: efêmeros/regeneráveis ou redundantes.
+const BACKUP_EXCLUIR = new Set(["auto_logs.json","backup.json","bot_logs.json"]);
+function _diskFreeMB(){
+  try{ const st=fs.statfsSync(DATA_DIR); return Math.round(st.bavail*st.bsize/1048576); }
+  catch{ return null; } // statfs indisponível → não bloqueia
+}
 function criarBackupCompleto(){
   try{
     if(!fs.existsSync(DATA_DIR)) return {ok:false,error:"DATA_DIR inexistente"};
     fs.mkdirSync(BACKUP_DIR,{recursive:true});
+    // 11/07: poda ANTES de copiar (antes só podava depois — num disco já cheio,
+    // a cópia falhava antes de a poda ter chance de rodar) + guarda de espaço.
+    try{
+      const _antigos=fs.readdirSync(BACKUP_DIR).filter(d=>/^\d{4}-/.test(d)).sort();
+      const _exc=_antigos.length-(BACKUP_RETENCAO-1);
+      if(_exc>0) for(const v of _antigos.slice(0,_exc)){ try{ fs.rmSync(path.join(BACKUP_DIR,v),{recursive:true,force:true}); }catch{} }
+    }catch{}
+    const _freeMB=_diskFreeMB();
+    if(_freeMB!==null&&_freeMB<150){
+      console.warn(`[backup] ⛔ pulado — só ${_freeMB}MB livres no disco (mínimo 150MB). Espaço vale mais que backup agora.`);
+      return {ok:false,error:"disco quase cheio ("+_freeMB+"MB livres) — backup pulado"};
+    }
     const stamp=new Date(Date.now()-3*3600_000).toISOString().replace(/[:T]/g,"-").slice(0,19); // nome já em horário BRT
     const dir=path.join(BACKUP_DIR, stamp);
     fs.mkdirSync(dir,{recursive:true});
     let n=0;
     for(const f of fs.readdirSync(DATA_DIR)){
       if(!f.endsWith(".json")) continue;
+      if(BACKUP_EXCLUIR.has(f)) continue; // 11/07: logs efêmeros não merecem 3 cópias
       try{ fs.copyFileSync(path.join(DATA_DIR,f), path.join(dir,f)); n++; }
       catch(e){ console.warn("[backup] falhou copiar",f,e.message); }
     }
@@ -1634,6 +1666,49 @@ function criarBackupCompleto(){
     return {ok:true,name:stamp,files:n};
   }catch(e){ console.error("[backup] FALHA ao criar backup completo:",e.message); return {ok:false,error:e.message}; }
 }
+// ── FAXINA DE DISCO (11/07) — roda no boot e quando persist falha (ENOSPC) ──
+let _lastDiskCleanup=0;
+function emergencyDiskCleanup(motivo){
+  if(Date.now()-_lastDiskCleanup<10*60_000) return false; // no máx 1x/10min
+  _lastDiskCleanup=Date.now();
+  let liberado=0;
+  try{
+    // 1. Backups: mantém só o MAIS RECENTE em emergência
+    if(fs.existsSync(BACKUP_DIR)){
+      const dirs=fs.readdirSync(BACKUP_DIR).filter(d=>/^\d{4}-/.test(d)).sort();
+      for(const v of dirs.slice(0,Math.max(0,dirs.length-1))){
+        try{ fs.rmSync(path.join(BACKUP_DIR,v),{recursive:true,force:true}); liberado++; }catch{}
+      }
+    }
+    // 2. Logs: corta todos os usuários para 200 entradas
+    let cortados=0;
+    for(const em of Object.keys(DB_LOGS)){
+      if((DB_LOGS[em]||[]).length>200){ DB_LOGS[em]=DB_LOGS[em].slice(0,200); cortados++; }
+    }
+    // 3. auto_jobs: remove jobs FINALIZADOS há mais de 14 dias (fila já vazia; só ocupam espaço)
+    let jobsRemovidos=0;
+    for(const [em,job] of Object.entries(DB_AUTO)){
+      if(job&&!job.active&&job.status==="finished"&&job.finishedAt&&Date.now()-job.finishedAt>14*86400_000){
+        delete DB_AUTO[em]; jobsRemovidos++;
+      }
+    }
+    if(jobsRemovidos)persist(AUTO_FILE,DB_AUTO);
+    if(cortados)persistLogsImmediate();
+    console.warn(`[disk] 🧹 Faxina de emergência (${motivo}): ${liberado} backup(s) antigos removidos, logs de ${cortados} usuário(s) cortados, ${jobsRemovidos} job(s) finalizados antigos removidos. Livre agora: ${_diskFreeMB()??"?"}MB`);
+    return true;
+  }catch(e){ console.error("[disk] faxina falhou:",e.message); return false; }
+}
+// Boot: compacta logs no ato (o cap novo de 500 só vale pra entradas novas)
+setTimeout(()=>{
+  try{
+    let c=0;for(const em of Object.keys(DB_LOGS)){if((DB_LOGS[em]||[]).length>500){DB_LOGS[em]=DB_LOGS[em].slice(0,500);c++;}}
+    if(c){persistLogsImmediate();console.log(`[disk] logs compactados no boot: ${c} usuário(s) acima de 500 entradas`);}
+    const free=_diskFreeMB();
+    if(free!==null)console.log(`[disk] espaço livre no volume: ${free}MB`);
+    if(free!==null&&free<300)emergencyDiskCleanup("boot com <300MB livres");
+  }catch(e){console.warn("[disk] compactação de boot:",e.message);}
+},90_000);
+
 (function agendarBackupDiario(){
   // 1x por dia, ~03:00 BRT (06:00 UTC) — horário de menor uso.
   const now=new Date();
@@ -1648,6 +1723,80 @@ function criarBackupCompleto(){
   // sem passar pelas 3h — ex.: redeploys frequentes).
   setTimeout(criarBackupCompleto, 2*60_000);
 })();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔄 RECONCILIAÇÃO PLANOS × PEDIDOS PAGOS (11/07 — incidente do disco cheio)
+// O ENOSPC engoliu ativações de plano (caso Wagner: R$600 pagos, conta FREE).
+// Esta rotina reconstrói, pedido pago por pedido pago, a expiração que cada
+// usuário DEVERIA ter (renovações encadeadas: cada pedido soma a partir do
+// max(expiração corrente, data do pedido)) e DEVOLVE o que faltar.
+// REGRAS DE SEGURANÇA:
+//   • Só ADICIONA dias/plano — nunca reduz nada de ninguém (Math.max em tudo).
+//   • Só considera pedidos com status pago/ativo (trial/código ficam de fora).
+//   • Nunca rebaixa plano: se o atual ativo é "maior" (doublepro > vipro > vip),
+//     mantém o atual e só estende as datas.
+//   • Idempotente: rodar 10x dá o mesmo resultado — seguro no boot de todo deploy.
+const _PLAN_RANK={vip:1,pro:2,vipro:2,doublepro:3};
+function reconciliarPlanosComPedidos(apply){
+  const _t=v=>{if(!v)return 0;const x=typeof v==="number"?v:Date.parse(v);return isNaN(x)?0:x;};
+  const byUser={};
+  for(const ped of Object.values(DB_PEDIDOS||{})){
+    if(!ped||!ped.userEmail)continue;
+    const st=String(ped.status||"").toLowerCase();
+    if(st!=="pago"&&st!=="ativo")continue;
+    const e=String(ped.userEmail).toLowerCase();
+    (byUser[e]=byUser[e]||[]).push(ped);
+  }
+  const relatorio=[];
+  for(const [email,peds] of Object.entries(byUser)){
+    const u=getUser(email);if(!u)continue;
+    peds.sort((a,b)=>(_t(a.ativadoEm)||_t(a.pagoEm)||_t(a.criadoEm))-(_t(b.ativadoEm)||_t(b.pagoEm)||_t(b.criadoEm)));
+    let expManual=0,expAuto=0,planoPed=null;
+    for(const pd of peds){
+      const t=_t(pd.ativadoEm)||_t(pd.pagoEm)||_t(pd.criadoEm);if(!t)continue;
+      const dias=Number(pd.diasTotal)||((Number(pd.diasBase)||30)+(Number(pd.diasBonus)||0));
+      const pk=String(pd.planoKey||pd.plano||"vipro").toLowerCase();
+      expManual=Math.max(expManual,t)+dias*86400_000;
+      if(pk!=="vip")expAuto=Math.max(expAuto,t)+dias*86400_000;
+      if(!planoPed||(_PLAN_RANK[pk]||0)>=(_PLAN_RANK[planoPed]||0))planoPed=pk;
+    }
+    const curM=u.vip?.manualExpires||0,curA=u.vip?.autoExpires||0;
+    const TOL=60_000;
+    const needM=expManual>curM+TOL,needA=expAuto>curA+TOL;
+    const deviaEstarAtivo=expManual>Date.now();
+    const planAtualRank=isVipActive(u)?(_PLAN_RANK[String(u.plan||"").toLowerCase()]||0):0;
+    const planFinal=deviaEstarAtivo&&(_PLAN_RANK[planoPed]||0)>planAtualRank?planoPed:(u.plan||"free");
+    const planWrong=deviaEstarAtivo&&planFinal!==(u.plan||"free");
+    if(!(needM||needA||planWrong))continue;
+    const novoM=Math.max(curM,expManual),novoA=Math.max(curA,expAuto);
+    const item={email,name:u.name||"",plano:planoPed,pedidos:peds.length,
+      antes:{plan:u.plan||"free",manualExpires:curM,autoExpires:curA},
+      depois:{plan:planFinal,manualExpires:novoM,autoExpires:novoA},
+      diasManualDevolvidos:needM?Math.max(0,Math.ceil((novoM-Math.max(curM,Date.now()))/86400_000)):0,
+      diasAutoDevolvidos:needA?Math.max(0,Math.ceil((novoA-Math.max(curA,Date.now()))/86400_000)):0};
+    relatorio.push(item);
+    if(apply){
+      setUser(email,{plan:planFinal,
+        vip:{...(u.vip||{}),active:deviaEstarAtivo||isVipActive(u),plan:deviaEstarAtivo?planoPed:(u.vip?.plan||planoPed),
+             manualExpires:novoM,autoExpires:novoA,
+             source:u.vip?.source||"payment",reconciledAt:Date.now(),reconciledBy:"reconciliacao_pedidos"}});
+      try{trackJourney(email,"plan_reconciled",{detail:`${planoPed} — dias restaurados pelos ${peds.length} pedido(s) pago(s)`,meta:{manualAte:new Date(novoM).toISOString().slice(0,10),autoAte:novoA?new Date(novoA).toISOString().slice(0,10):null}});}catch{}
+      try{addLog(email,{status:"sistema",jobTitle:"✅ Seus dias de plano foram verificados e restaurados",company:"Conferimos seus pagamentos e devolvemos todos os dias que faltavam. Obrigado pela paciência!"});}catch{}
+    }
+  }
+  if(apply&&relatorio.length){
+    const saved=persist(USERS_FILE,DB_USERS);
+    console.log(`[reconciliar] 🔄 ${relatorio.length} usuário(s) corrigidos · gravado no disco: ${saved?"SIM":"⚠️ NÃO — faxina vai tentar de novo"}`);
+    try{pushGlobalEvent("plan_reconciled","sistema",`🔄 Reconciliação: ${relatorio.length} pagante(s) tiveram os dias de plano restaurados`,"info");}catch{}
+  }
+  return relatorio;
+}
+// Roda sozinho em TODO boot (idempotente): se um restart engoliu plano, o
+// próximo boot devolve — sem depender de ninguém perceber e reclamar.
+setTimeout(()=>{try{
+  const r=reconciliarPlanosComPedidos(true);
+  console.log(`[reconciliar] boot: ${r.length} correção(ões)${r.length?" → "+r.map(x=>x.email).join(", "):""}`);
+}catch(e){console.error("[reconciliar] falha no boot:",e.message);}},120_000);
 
 // FIX-BUG15 v2: limpeza inteligente de DB_SENT por data de envio
 // Remove apenas emails enviados há mais de 6 meses, preservando os recentes.
@@ -2969,6 +3118,11 @@ async function _doAutoSendInner(email) {
         // Só pausa definitivamente se o usuário revogou o acesso no Google
         // Para erros de rede/timeout, mantém ativo e tenta de novo no próximo ciclo
         if (isRevoked) {
+          // U1 (11/07): marca o refresh_token como MORTO. Sem isso, o próximo login
+          // usava prompt=select_account (porque "tem" refresh_token — só que morto),
+          // o Google NÃO mandava um novo, e o usuário relogava infinitamente sem
+          // resolver — exatamente o relato "desfiz o login, entrei, continua igual".
+          setUser(email, { rtInvalid:true, rtInvalidAt:Date.now() });
           setAutoJob(email, { ...getAutoJob(email), active:false, status:"paused_token_revoked" });
           autoTimers.delete(email);
           addLog(email, { status:"pausado", company:"Sistema", to:"", jobTitle:"🔐 Acesso Google revogado — faça login novamente", error: msg });
@@ -6617,7 +6771,10 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
   const _hintUser=_loginHint?getUser(_loginHint):null;
   const _hasRt=!!(_hintUser?.refresh_token);
   const _hasNewScopes=(_hintUser?.scopeVersion||0)>=2;
-  const _promptVal=(_hasRt&&_hasNewScopes)?"select_account":"consent select_account";
+  // U1 (11/07): token marcado como morto (invalid_grant) NÃO conta como "tem token" —
+  // força consent para o Google emitir um refresh_token NOVO neste login.
+  const _rtUsable=_hasRt&&!_hintUser?.rtInvalid;
+  const _promptVal=(_rtUsable&&_hasNewScopes)?"select_account":"consent select_account";
   const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI,response_type:"code",scope:"openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify",access_type:"offline",prompt:_promptVal,state:st});res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();}
 
   if(pathname==="/oauth/callback"){
@@ -6691,6 +6848,7 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
       // Em re-logins, tk.refresh_token vem undefined — usa o do banco.
       if(tk.refresh_token){
         tokenData.refresh_token=tk.refresh_token;
+        tokenData.rtInvalid=false;tokenData.rtInvalidAt=null; // U1: token novo e saudável
       } else {
         const _existingUser = getUser(ui.email);
         if(_existingUser?.refresh_token) tokenData.refresh_token = _existingUser.refresh_token;
@@ -6792,9 +6950,12 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
           const _hasRt   = !!_freshUser.refresh_token;
           const _autoVip = isAutoVipActive(_freshUser);
           const _job     = getAutoJob(ui.email);
+          // U2 (11/07): paused_token_revoked estava FORA desta lista — o banner mandava
+          // relogar, o usuário relogava, e o job continuava parado para sempre.
           const _authPaused = _job && !_job.active &&
-            ["paused_auth_error","paused_oauth_expired","paused_no_session"].includes(_job.status);
-          if (_authPaused && _hasRt && _autoVip && (_job.queue?.length || 0) > 0) {
+            ["paused_auth_error","paused_oauth_expired","paused_no_session","paused_token_revoked"].includes(_job.status);
+          const _rtHealthy = _hasRt && !_freshUser.rtInvalid; // só retoma com token saudável
+          if (_authPaused && _rtHealthy && _autoVip && (_job.queue?.length || 0) > 0) {
             if (autoTimers.has(ui.email)) { clearTimeout(autoTimers.get(ui.email)); autoTimers.delete(ui.email); }
             setAutoJob(ui.email, { ...getAutoJob(ui.email), active:true, status:"resuming", resumedAt:Date.now() });
             addLog(ui.email, { status:"sistema", jobTitle:"🔓 Acesso renovado — envio automático retomado", company:"Login refeito com sucesso. O robô voltou a enviar suas candidaturas.", error:"" });
@@ -7809,6 +7970,16 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
     }catch(e){return json(res,500,{error:e.message});}
   }
   // ── Admin: definir plano ──────────────────────────────────
+  // 🔄 Reconciliação manual (admin): confere TODOS os pagantes e devolve dias
+  if(pathname==="/api/admin/reconciliar-planos"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{
+      const d=JSON.parse(await readBody(req).catch(()=>"{}")||"{}");
+      const relatorio=reconciliarPlanosComPedidos(d.apply!==false);
+      return json(res,200,{ok:true,aplicado:d.apply!==false,corrigidos:relatorio.length,relatorio});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
   if(pathname==="/api/admin/set-plan"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
@@ -7820,7 +7991,16 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
       const tgt=getUser(email);if(!tgt)return json(res,404,{error:"Usuário não encontrado"});
       if(plan!=='free'){addManualVipDays(email,30);if(['vipro','doublepro','pro'].includes(plan))addAutoVipDays(email,30);}
       setUser(email,{plan,vip:{...(tgt.vip||{}),active:plan!=='free',plan,source:'admin',activatedBy:s.user_email}});
-      return json(res,200,{ok:true});
+      // 11/07 (caso Cleiton): plano foi ativado 3x e sumia após cada restart porque
+      // o persist falhava em silêncio com o disco cheio. Agora VERIFICA a gravação
+      // e grita para o admin — nunca mais falha silenciosa em dado de dinheiro.
+      const _saved=persist(USERS_FILE,DB_USERS);
+      if(!_saved){
+        console.error(`[set-plan] 🚨 PLANO DE ${email} NÃO FOI GRAVADO NO DISCO!`);
+        try{pushGlobalEvent('persist_fail',email,'🚨 Plano ativado mas NÃO gravado no disco — será perdido no restart! Libere espaço.','error');}catch{}
+        return json(res,200,{ok:true,persisted:false,warning:'⚠️ ATENÇÃO: o plano foi ativado NA MEMÓRIA mas NÃO FOI GRAVADO NO DISCO (disco cheio?). Ele será PERDIDO no próximo restart. Libere espaço no Render e ative novamente!'});
+      }
+      return json(res,200,{ok:true,persisted:true});
     }catch(e){return json(res,500,{error:e.message});}
   }
   // ── Admin: push para usuário ──────────────────────────────
@@ -8346,6 +8526,15 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
           company:`Ativado por ${pd._ativadoEditor||"Admin"} (${s.user_email})`
         });
         trackJourney(pd.userEmail,"plan_activated",{detail:`${planoKey} ${diasTotal}d`,meta:{editor:pd._ativadoEditor,bonus:diasBonus}});
+        // 11/07 (caso Cleiton): verificação de gravação do plano — falha silenciosa nunca mais
+        let _persistWarn=null;
+        {const _savedPlan=persist(USERS_FILE,DB_USERS);
+         if(!_savedPlan){
+           console.error(`[pagamento] 🚨 PLANO DE ${pd.userEmail} ATIVADO MAS NÃO GRAVADO NO DISCO!`);
+           try{pushGlobalEvent('persist_fail',pd.userEmail,'🚨 Pagamento confirmado mas plano NÃO gravado no disco — será perdido no restart! Libere espaço AGORA.','error');}catch{}
+           addLog(pd.userEmail,{status:'sistema',jobTitle:'⚠️ Plano ativado — aguardando regravação no disco',company:'O sistema detectou disco cheio e vai regravar automaticamente.'});
+           _persistWarn='⚠️ ATENÇÃO: pagamento confirmado mas o plano NÃO FOI GRAVADO NO DISCO (disco cheio?). Será perdido no restart — libere espaço no Render e reative!';
+         }}
 
         // (Bônus de indicação por compra removido — 2026-07-03, KB-059)
 
@@ -8375,7 +8564,7 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
 
         pd.ativadoEm=pd.ativadoEm||Date.now(); // garantir que está setado
         DB_PEDIDOS[idx]=pd;persistPedidos();
-        return json(res,200,{ok:true,pedido:pd,diasBase,diasBonus,diasTotal,planoKey,
+        return json(res,200,{ok:true,persistWarning:_persistWarn,pedido:pd,diasBase,diasBonus,diasTotal,planoKey,
           manualExpiresDate:new Date(manualExpires).toLocaleDateString("pt-BR"),
           autoExpiresDate:autoExpires>now?new Date(autoExpires).toLocaleDateString("pt-BR"):null,
           ativadoPor:pd._ativadoEditor||"Admin"
@@ -8494,7 +8683,7 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
   if(pathname==="/api/cv/upload"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Sessão expirada. Faça login novamente.",sessionExpired:true,code:"SESSION_EXPIRED"});if(rateLimit(s.user_email+"_cv",10,3600_000))return json(res,429,{error:"Muitos uploads. Tente novamente em 1 hora."});try{const d=JSON.parse(await readBody(req));if(!d.base64||!d.name)return json(res,400,{error:"base64 e name obrigatórios."});// Tamanho: base64 representa ~75% dos bytes reais
 const estimatedBytes=Math.round(d.base64.length*0.75);if(d.base64.length>14_000_000)return json(res,400,{error:"Arquivo maior que 10MB."});if(estimatedBytes<1000)return json(res,400,{error:"Arquivo muito pequeno ou corrompido."});// Valida magic bytes %PDF (mais robusto: verifica os 4 primeiros bytes do binário real)
 const pdfBuf=Buffer.from(d.base64.slice(0,8),"base64");if(pdfBuf.length<4||pdfBuf[0]!==0x25||pdfBuf[1]!==0x50||pdfBuf[2]!==0x44||pdfBuf[3]!==0x46)return json(res,400,{error:"Arquivo inválido: não é um PDF. Envie um arquivo .pdf válido."});// Nome seguro
-const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)return json(res,400,{error:"Nome do arquivo inválido."});const p=getUser(s.user_email)||{};const cvs=p.cvs||[];const cvType=d.cvType||"resume";const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filter(c=>(c.cvType||"resume")===cvType);if(sameType.length>=typeLimit)return json(res,429,{error:`Limite de ${typeLimit} ${cvType==="cover"?"cover letters":"currículos"} atingido. Exclua um antes de enviar outro.`,limitReached:true,cvType,limit:typeLimit});const idx=Date.now();const meta={idx,name:safeName,size:estimatedBytes,date:new Date().toISOString(),cvType,b64:d.base64};cvs.push(meta);saveCv(s.user_email,idx,d.base64);setUser(s.user_email,{cvs});trackJourney(s.user_email,'pdf_upload',{detail:`PDF: ${safeName} ~${Math.round(estimatedBytes/1024)}KB`,meta:{name:safeName,idx,cvType}});
+const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)return json(res,400,{error:"Nome do arquivo inválido."});const p=getUser(s.user_email)||{};const cvs=p.cvs||[];const cvType=d.cvType||"resume";const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filter(c=>(c.cvType||"resume")===cvType);if(sameType.length>=typeLimit)return json(res,429,{error:`Limite de ${typeLimit} ${cvType==="cover"?"cover letters":"currículos"} atingido. Para liberar espaço: abra o editor de perfil → seção Currículo → clique no ícone 🗑️ ao lado de um PDF antigo.`,limitReached:true,cvType,limit:typeLimit});const idx=Date.now();const meta={idx,name:safeName,size:estimatedBytes,date:new Date().toISOString(),cvType,b64:d.base64};cvs.push(meta);saveCv(s.user_email,idx,d.base64);setUser(s.user_email,{cvs});trackJourney(s.user_email,'pdf_upload',{detail:`PDF: ${safeName} ~${Math.round(estimatedBytes/1024)}KB`,meta:{name:safeName,idx,cvType}});
       return json(res,200,{ok:true,cv:{idx:meta.idx,name:meta.name,size:meta.size,date:meta.date,cvType:meta.cvType}});}catch(e){return json(res,500,{error:e.message});}}
   if(/^\/api\/cv\/\d+$/.test(pathname)&&req.method==="GET"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const idx=parseInt(pathname.split("/").pop(),10);const p=getUser(s.user_email);if(!p?.cvs?.find(c=>c.idx===idx))return json(res,403,{error:"CV não encontrado."});const b64=loadCv(s.user_email,idx);if(!b64)return json(res,404,{error:"Arquivo não encontrado."});return json(res,200,{base64:b64,idx});}
   if(/^\/api\/cv\/\d+$/.test(pathname)&&req.method==="DELETE"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const idx=parseInt(pathname.split("/").pop(),10);const p=getUser(s.user_email);if(!p?.cvs?.find(c=>c.idx===idx))return json(res,403,{error:"CV não encontrado."});deleteCv(s.user_email,idx);const _cleanProfiles=(p.profiles||[]).map(pr=>{const np={...pr};if(np.resumeIdx===idx){delete np.resumeIdx;delete np.pdfName;delete np.pdfSize;}if(np.coverIdx===idx){delete np.coverIdx;}return np;});setUser(s.user_email,{cvs:(p.cvs||[]).filter(c=>c.idx!==idx),profiles:_cleanProfiles});return json(res,200,{ok:true});}

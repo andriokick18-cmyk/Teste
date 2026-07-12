@@ -152,10 +152,14 @@ const state = {
   histLog: [],             // {ts,msg,type} — janela do BACKFILL HISTÓRICO (FY23–FY26)
 };
 
+let _unifiedBotLog = null; // setado por server.js via setBotLogFn() — opcional, não quebra se ausente
+function setBotLogFn(fn){ _unifiedBotLog = fn; }
+
 function log(msg, type = "info") {
   state.log.unshift({ ts: Date.now(), msg: String(msg).slice(0, 500), type });
   if (state.log.length > 250) state.log.length = 250;
   console.log(`[dol-monitor] ${msg}`);
+  if(typeof _unifiedBotLog==="function"){ try{ _unifiedBotLog('dol-monitor','Monitor DOL (Anúncios)',msg,type); }catch{} }
 }
 
 // Janela separada do teste — reiniciada a cada novo "Rodar teste completo"
@@ -882,4 +886,4 @@ function startDolMonitor(ctx) {
   log("🤖 Robô Monitor de Anúncios DOL iniciado — checando a cada 5 minutos", "ok");
 }
 
-module.exports = { createDolMonitorRouter, startDolMonitor };
+module.exports = { createDolMonitorRouter, startDolMonitor, getDolMonitorLog: () => state.log, setBotLogFn };

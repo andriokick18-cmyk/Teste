@@ -1073,6 +1073,12 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             <div style="width:44px;height:44px;background:var(--greeng);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🛒</div>
             <div style="flex:1;min-width:0">
               <div style="font-weight:800;font-size:15px;color:var(--green);margin-bottom:3px">Ativação de plano agora é só pelos Pedidos</div>
+              <div style="margin:8px 0">
+                <button class="btn" onclick="adminReconciliarPlanos()" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-weight:800;border:none">
+                  <i class="ti ti-refresh"></i> 🔄 Reconciliar planos — devolver dias a quem pagou
+                </button>
+                <span style="font-size:11px;color:rgba(255,255,255,.5);margin-left:8px">Confere todos os pedidos pagos × dias reais. Só adiciona, nunca remove. Também roda sozinho a cada boot.</span>
+              </div>
               <div style="font-size:12px;color:var(--t2);line-height:1.5">
                 Todo plano é ativado na aba <strong>Pedidos de Plano</strong>, onde o usuário envia o comprovante de pagamento.
                 Isso garante que cada ativação tenha comprovante anexado e entre automaticamente na contabilidade.
@@ -10237,10 +10243,23 @@ async function adminSetPlan(email,plan){
   try{
     const r=await fetch('/api/admin/set-plan',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,plan})});
     const d=await r.json();
-    if(d.ok){toast('✅ Plano '+plan+' ativado','g');setTimeout(()=>refreshModal(),800);}else toast('Erro: '+(d.error||'?'),'r');
+    if(d.ok){if(d.persisted===false){alert(d.warning||'⚠️ Plano ativado mas NÃO gravado no disco — será perdido no restart! Libere espaço no Render.');toast('⚠️ ATIVADO MAS NÃO GRAVADO NO DISCO!','r');}else{toast('✅ Plano '+plan+' ativado e gravado','g');}setTimeout(()=>refreshModal(),800);}else toast('Erro: '+(d.error||'?'),'r');
   }catch(e){toast('Erro: '+e.message,'r');}
 }
 
+async function adminReconciliarPlanos(){
+  if(!confirm('Conferir TODOS os pedidos pagos e devolver dias que faltam?\n(Só adiciona dias — nunca remove nada de ninguém.)'))return;
+  try{
+    toast('🔄 Reconciliando planos...','b');
+    const r=await fetch('/api/admin/reconciliar-planos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({apply:true})});
+    const d=await r.json();
+    if(!d.ok){toast('Erro: '+(d.error||'?'),'r');return;}
+    if(!d.corrigidos){alert('✅ Tudo certo! Nenhum pagante com dias faltando.');toast('✅ Nenhuma divergência','g');return;}
+    const linhas=d.relatorio.map(x=>'• '+x.email+' — '+x.antes.plan+' → '+x.depois.plan+' · +'+x.diasManualDevolvidos+'d manual · +'+x.diasAutoDevolvidos+'d auto ('+x.pedidos+' pedido(s))').join('\n');
+    alert('🔄 '+d.corrigidos+' pagante(s) corrigido(s):\n\n'+linhas+'\n\nCada um recebeu log na conta e evento na Jornada.');
+    toast('✅ '+d.corrigidos+' plano(s) restaurado(s)','g');
+  }catch(e){toast('Erro: '+e.message,'r');}
+}
 async function adminRevokeVip(email){
   if(!email)return;
   if(!confirm('Revogar VIP de '+email+'? O plano voltará para Free.'))return;
@@ -14095,6 +14114,7 @@ async function maprovConfirmarAtivacao(){
           </div>
           <div style="font-size:10px;color:rgba(52,211,153,.6);text-align:center">🤖 Gemini auditando em background — resultado aparecerá no CCC do cliente</div>`;
       }
+      if(d.persistWarning)alert(d.persistWarning);
       toast('✅ Plano ativado! '+d.diasTotal+'d para '+esc(d.planoKey||''),'g');
       loadPedidos();
       if(btn){btn.disabled=false;btn.textContent='✅ Ativado com sucesso!';}

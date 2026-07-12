@@ -10,8 +10,8 @@
 const MAX_SENDER_EMAILS_FREE   = 1; // free: apenas o email principal (0 extras)
 const MAX_SENDER_EMAILS_VIP    = 2; // pagantes: email principal + 1 extra = 2 total
 const MAX_SENDER_EMAILS_ADMIN  = 6; // admins: email principal + 5 extras = 6 total
-const MAX_RESUMES              = 3;
-const MAX_COVERS               = 3;
+const MAX_RESUMES              = 10; // 11/07: modelo novo = 1 currículo por perfil (até 20 perfis); 3 travava usuário real com 2 perfis + uploads órfãos de tentativas falhas
+const MAX_COVERS               = 10;
 
 // ── Admins ──────────────────────────────────────────────────────────────
 const ADMIN_EMAIL   = (process.env.ADMIN_EMAIL || "andrio.kick18@gmail.com").trim().toLowerCase();

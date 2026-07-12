@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v17"; // v17: perfil normal único + filtros unificados manual/auto + filtros DoublePro (Grupo/Status)
+const CACHE_NAME = "h2bapply-v18b"; // v18b (11/07): + fix disco cheio (ENOSPC) — backups 20d→3d sem logs, faxina automática, auto-recuperação de gravação
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
