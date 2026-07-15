@@ -44,7 +44,16 @@ async function healthSentinelRun(){
     const exp = Math.max(u.vip?.manualExpires||0, u.vip?.autoExpires||0);
     const diasRestantes = exp>now ? Math.ceil((exp-now)/86400000) : 0;
     const job = ctx.getAutoJob(email);
-    const jobParado = !job || !job.active ||
+    // v18-FIX: antes "!job.active" sozinho já bastava pra disparar "robô
+    // quebrado, faça login de novo" — inclusive quando a PRÓPRIA pessoa pausou
+    // deliberadamente (/api/auto/pause → active:false,status:"paused") ou o
+    // admin parou manualmente (status:"parado_admin"). O regex de status
+    // genuinamente quebrado abaixo nunca chegava a ser o critério decisivo,
+    // porque "!job.active" já cobria (e disparava falso-positivo para) TODOS
+    // os casos de pausa, inclusive as intencionais. Agora só conta como
+    // desync real quando não há job nenhum ou o status é um dos que realmente
+    // significam "quebrado" (não uma pausa escolhida por alguém).
+    const jobParado = !job ||
       /^(inativo|finished|paused_auth_error|paused_token_revoked|paused_no_refresh_token)$/.test(job.status||"");
     const tokenOk = !!(u.cached_access_token && u.cached_token_expiry && now < u.cached_token_expiry);
     const diasInativo = Math.round((now-(u.lastSeenAt||0))/86400000);
@@ -55,6 +64,10 @@ async function healthSentinelRun(){
         status: job?.status||"sem_job", tokenOk, diasRestantes, diasInativo });
       // Notifica no máx. 1x/22h (cooldown já embutido no sendNotifEmail)
       try{ await ctx.sendNotifEmail(email, "vip_desync"); notified.push({email,tipo:"vip_desync"}); }catch(e){}
+      // v18-FIX: fallback por push — sendNotifEmail está bloqueado pelo
+      // kill-switch de e-mail do dono; push é um canal separado, não contorna
+      // a decisão dele, só evita que o pagante fique 100% sem aviso.
+      if(ctx.pushToUser)ctx.pushToUser(email,{type:"vip_desync",title:"🤖 Seu robô está parado",body:"Seu plano está ativo mas o envio automático parou. Abra o H2BApply pra reativar.",icon:"/icon-192.png"}).catch(()=>{});
       await new Promise(r=>setTimeout(r,1500));
     }
 
@@ -63,6 +76,7 @@ async function healthSentinelRun(){
       S.vipExpiring.push({ email, nome:u.name||"", plano:u.vip?.plan||"vip",
         expiraEm:new Date(exp).toISOString().slice(0,10), diasRestantes });
       try{ await ctx.sendNotifEmail(email, "vip_expiring"); notified.push({email,tipo:"vip_expiring"}); }catch(e){}
+      if(ctx.pushToUser)ctx.pushToUser(email,{type:"vip_expiring",title:"⏳ Seu plano expira em breve",body:"Renove pra não perder o envio automático.",icon:"/icon-192.png"}).catch(()=>{});
       await new Promise(r=>setTimeout(r,1500));
     }
 
@@ -74,6 +88,7 @@ async function healthSentinelRun(){
       (S.vipsSemPerfil=S.vipsSemPerfil||[]).push({ email, nome:u.name||"", plano:u.vip?.plan||"vip" });
       if(diasInativo <= 15){ // só usuários recentes — não incomoda quem abandonou
         try{ await ctx.sendNotifEmail(email, "no_profile"); notified.push({email,tipo:"no_profile"}); }catch(e){}
+        if(ctx.pushToUser)ctx.pushToUser(email,{type:"no_profile",title:"🚗 Seu robô está sem motorista",body:"Falta criar seu Perfil de Currículo pra ele começar a enviar candidaturas.",icon:"/icon-192.png"}).catch(()=>{});
         await new Promise(r=>setTimeout(r,1500));
       }
     }

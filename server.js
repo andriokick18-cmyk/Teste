@@ -67,6 +67,27 @@ function sendAsset(req, res, file, ctype, cacheControl){
   res.writeHead(200, h);
   return res.end(body);
 }
+// v18-PERF: as páginas dinâmicas de SEO programático (/vagas-h2b/:estado e
+// /vagas-h2b/categoria/:categoria) geram HTML novo por requisição (dados
+// mudam a cada boot), então não dá pra usar o cache de getStaticAsset (que é
+// por arquivo+mtime) — mas ainda merecem br/gzip: são ~25-35KB de HTML puro,
+// e comprimir na hora custa poucos ms e economiza ~75% de banda no 4G do
+// usuário, igual já é feito pros arquivos estáticos. Sem ETag aqui de
+// propósito (conteúdo é barato de gerar de novo; Cache-Control já cobre).
+function sendHtmlCompressed(req, res, html, cacheControl){
+  const raw = Buffer.from(html, "utf8");
+  const ae = String(req.headers["accept-encoding"] || "");
+  const h = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": cacheControl || "public, max-age=1800", Vary: "Accept-Encoding" };
+  let body = raw, enc = null;
+  try {
+    if (/\bbr\b/.test(ae)) { body = zlib.brotliCompressSync(raw, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length } }); enc = "br"; }
+    else if (/\bgzip\b/.test(ae)) { body = zlib.gzipSync(raw, { level: 6 }); enc = "gzip"; }
+  } catch(e) { body = raw; enc = null; } // qualquer erro de compressão → cai pro HTML cru, nunca quebra a resposta
+  if (enc) h["Content-Encoding"] = enc;
+  h["Content-Length"] = body.length;
+  res.writeHead(200, h);
+  return res.end(body);
+}
 // ══════════════════════════════════════════════════════════════════════════
 
 // ── Config ────────────────────────────────────────────────
@@ -244,6 +265,7 @@ const APPIDX_FILE = path.join(DATA_DIR, "app_index.json");   // NEW v13: índice
 const ADMIN_SETTINGS_FILE = path.join(DATA_DIR, "admin_settings.json"); // Admin global settings
 const NOTIF_FILE     = path.join(DATA_DIR, "notifications.json");  // Global notifications from ADM
 const SUGGESTIONS_FILE = path.join(DATA_DIR, "suggestions.json");   // User suggestions to devs
+const REVIEWS_FILE     = path.join(DATA_DIR, "reviews.json");        // Avaliações reais de usuários p/ landing page (moderadas por admin)
 const PEDIDOS_FILE     = path.join(DATA_DIR, "pedidos.json");         // Pedidos de plano dos usuários
 const FINANCEIRO_FILE  = path.join(DATA_DIR, "financeiro.json");      // Dados financeiros (entradas + gastos)
 const BLOCKED_FILE     = path.join(DATA_DIR, "blocked_emails.json");  // Emails banidos permanentemente
@@ -286,7 +308,15 @@ let DB_CODES  = {};   // NEW: promo codes { code → { manualDays, autoDays, cre
 let DB_PUSH   = {};   // NEW: push subscriptions { userEmail → PushSubscription[] }
 // NEW v13: índice de candidaturas — { userEmail → { byThread:{tid:appId}, byMsgId:{mid:appId}, byTo:{email:[appId,...]} } }
 let DB_APP_INDEX = {};
-let DB_ADMIN_SETTINGS = { emailNotificationsEnabled: false, newUserTrialEnabled: true, newUserTrialDays: 1, newUserTrialAutoDays: 0, newUserTrialPlan: "vip", editorPasswords: { andrew: "84800-54", diego: "Diego2026" },
+let DB_ADMIN_SETTINGS = { emailNotificationsEnabled: false, newUserTrialEnabled: true, newUserTrialDays: 1, newUserTrialAutoDays: 0, newUserTrialPlan: "vip",
+  // v18-SEC: começa VAZIO de propósito. Antes vinha pré-preenchido com os
+  // fallbacks hardcoded ("84800-54"/"Diego2026"), o que fazia `dp.andrew||env||fallback`
+  // em getEditorPasswords() SEMPRE cair no valor já presente aqui — a prioridade
+  // documentada "painel > env > fallback" nunca conseguia chegar no env var,
+  // porque este objeto nunca estava vazio pra começo de conversa. Deixando vazio,
+  // getEditorPasswords() agora respeita de verdade EDITOR_PWD_ANDREW/EDITOR_PWD_DIEGO
+  // quando definidas, só caindo no fallback de código se nada mais foi configurado.
+  editorPasswords: {},
   // MULTI-SERVIDOR: lista de servidores exibida no seletor da landing.
   // status "lotado" = fechado p/ contas novas (só login); "aberto" = cadastro liberado.
   // maxExibido é o teto MOSTRADO na barra (pode ser menor que o real p/ marcar lotação).
@@ -325,8 +355,18 @@ function matchEditorPassword(candidate){
 // Notifications: { notifications: [{id, title, body, createdAt, createdBy, readBy:[email,...]}] }
 let DB_NOTIF = { notifications: [] };
 let DB_SUGGESTIONS = []; // Array de sugestões dos usuários
+let DB_REVIEWS = []; // Array de avaliações reais de usuários {id,text,rating,displayName,location,email,plan,status,createdAt}
 let DB_PEDIDOS     = []; // Array de pedidos de plano
 let DB_FINANCEIRO  = {pagamentos:[],gastos:[]};  // Dados financeiros persistentes
+// ── Tabela oficial de preços (plano→dias→R$) ──────────────────────────────
+// v18-FIX: hoisted pra fora do pré-check de comprovante (onde vivia sozinha)
+// pra poder ser reaproveitada também na ATIVAÇÃO do pedido — antes, os "dias"
+// creditados vinham direto de pd.dias (valor que o CLIENTE mandou na criação
+// do pedido, só limitado a um intervalo [1,3650]), nunca conferido contra
+// esta tabela. Um cliente podia mandar {plano:"vip",dias:3650} e, se o editor
+// aprovasse sem reparar no alerta do Gemini, o sistema creditava 10 anos de
+// VIP. Preços em R$ — mudar aqui exige avisar o Andrio antes (dinheiro real).
+const PLANO_PRECO_TAB={vip:{30:100,60:190,90:270,365:960},vipro:{30:150,60:285,90:405,365:1440},doublepro:{30:250,60:475,90:675,365:2400}};
 // ── MONITOR ETA ──────────────────────────────────────────────────────────
 // Registro permanente de TODAS as vagas por ETA Case Number: status, grupo,
 // histórico completo, agenda de consultas. Alimentado pelas planilhas +
@@ -622,6 +662,7 @@ function boot() {
   };
   DB_USERS  = mig(USERS_FILE,  path.join(DATA_DIR, "h2b_users.json"),   {});
   _decUsersFromDisk(DB_USERS); // V955: decifra tokens gravados com DATA_ENC_KEY
+  _migrateUsersToSingleProfile(DB_USERS); // KB-SEO-03 (2026-07): consolida perfis múltiplos → 1 por usuário
   DB_HIST   = mig(HIST_FILE,   path.join(DATA_DIR, "h2b_history.json"), {});
   DB_AUTO   = load(AUTO_FILE, {});
   DB_NOTES  = load(NOTES_FILE, {});
@@ -635,9 +676,27 @@ function boot() {
   DB_RANK_BADGES = load(RANK_BADGES_FILE, {});
   const savedAdminSettings = load(ADMIN_SETTINGS_FILE, null);
   if(savedAdminSettings) Object.assign(DB_ADMIN_SETTINGS, savedAdminSettings);
+  // v18-SEC: aviso de boot — as senhas de editor (Andrew/Diego) que aprovam
+  // pagamentos reais (pedido de plano) têm um fallback hardcoded no código-fonte
+  // ("84800-54"/"Diego2026", ver getEditorPasswords()). Esse fallback só é usado
+  // se NENHUMA env var (EDITOR_PWD_ANDREW/EDITOR_PWD_DIEGO) nem senha trocada
+  // pelo painel estiver definida. Como este código já foi compartilhado/exportado
+  // várias vezes, esses valores-padrão devem ser tratados como PÚBLICOS — o aviso
+  // abaixo avisa toda vez que o servidor sobe ainda usando o padrão de fábrica.
+  {
+    const _pwds=getEditorPasswords();
+    const _usingDefault=[];
+    if(_pwds.andrew==="84800-54")_usingDefault.push("andrew");
+    if(_pwds.diego==="Diego2026")_usingDefault.push("diego");
+    if(_usingDefault.length){
+      console.warn(`⚠️⚠️⚠️ [aprovação-pagamento] Senha(s) de editor ainda no padrão de fábrica do código-fonte: ${_usingDefault.join(", ")}. Troque em Admin → Configurações → Senhas de Editor, ou defina EDITOR_PWD_ANDREW/EDITOR_PWD_DIEGO no Render — esses valores já circularam no código e não devem mais ser considerados secretos! ⚠️⚠️⚠️`);
+    }
+  }
   DB_NOTIF    = load(NOTIF_FILE,    { notifications: [] });
   DB_SUGGESTIONS = load(SUGGESTIONS_FILE, []);
   if(!Array.isArray(DB_SUGGESTIONS)) DB_SUGGESTIONS = [];
+  DB_REVIEWS = load(REVIEWS_FILE, []);
+  if(!Array.isArray(DB_REVIEWS)) DB_REVIEWS = [];
   DB_PEDIDOS = load(PEDIDOS_FILE, []);
   if(!Array.isArray(DB_PEDIDOS)) DB_PEDIDOS = [];
   DB_FINANCEIRO = load(FINANCEIRO_FILE, {pagamentos:[],gastos:[],repasses:[]});
@@ -1287,6 +1346,56 @@ const setUser    = (e,d) => {
   }
 };
 const delUser    = e => { delete DB_USERS[e]; persist(USERS_FILE,DB_USERS); };
+
+// ── KB-SEO-03 (2026-07, pedido do dono): PERFIL ÚNICO por usuário ───────────
+// Antes cada usuário podia ter até 20 "perfis de currículo" (um por tipo de
+// vaga). Passamos a permitir só 1 por usuário, com informações gerais que
+// valem pra qualquer vaga. Rodada ÚNICA no boot: consolida quem já tinha mais
+// de 1 perfil, escolhendo o "melhor" (favorito > mais completo > mais recente)
+// como sobrevivente e juntando os assuntos/corpos únicos dos outros nele —
+// nenhum texto que o usuário escreveu se perde, só deixa de estar espalhado
+// em vários perfis. Idempotente: usuário com 0 ou 1 perfil não é tocado.
+function _mergeProfilesToOne(profiles){
+  if(!Array.isArray(profiles)||profiles.length<=1)return profiles;
+  const scored=profiles.map(p=>({p,score:(p.isFavorite?1000:0)+(p.subjects?.length||0)+(p.emailBodies?.length||0)}));
+  scored.sort((a,b)=>b.score-a.score||new Date(b.p.updatedAt||0)-new Date(a.p.updatedAt||0));
+  const survivor={...scored[0].p};
+  const subjSet=new Set((survivor.subjects||[]).map(s=>String(s).trim()).filter(Boolean));
+  const bodyList=[...(survivor.emailBodies||[])].map(b=>String(b).trim()).filter(Boolean);
+  const bodySeen=new Set(bodyList);
+  for(const{p:other}of scored.slice(1)){
+    (other.subjects||[]).forEach(s=>{const t=String(s).trim();if(t)subjSet.add(t);});
+    (other.emailBodies||[]).forEach(b=>{const t=String(b).trim();if(t&&!bodySeen.has(t)){bodyList.push(t);bodySeen.add(t);}});
+  }
+  survivor.subjects=[...subjSet].slice(0,10);
+  survivor.emailBodies=bodyList;
+  survivor.subject=survivor.subjects[0]||survivor.subject||"";
+  survivor.body=survivor.emailBodies[0]||survivor.body||"";
+  survivor.isGeneral=true;survivor.categories=[];survivor.active=true;survivor.isFavorite=true;
+  survivor.allowManual=true;survivor.allowAuto=true;
+  survivor.name=survivor.name||"Meu Perfil";
+  survivor.updatedAt=new Date().toISOString();
+  return [survivor];
+}
+function _migrateUsersToSingleProfile(users){
+  let touched=0,mergedSubjTotal=0,mergedBodyTotal=0;
+  for(const email of Object.keys(users)){
+    const u=users[email];
+    if(!u||!Array.isArray(u.profiles)||u.profiles.length<=1)continue;
+    const before=u.profiles.length;
+    const beforeSubj=u.profiles.reduce((n,p)=>n+(p.subjects?.length||0),0);
+    const beforeBody=u.profiles.reduce((n,p)=>n+(p.emailBodies?.length||0),0);
+    u.profiles=_mergeProfilesToOne(u.profiles);
+    touched++;
+    mergedSubjTotal+=beforeSubj-(u.profiles[0]?.subjects?.length||0);
+    mergedBodyTotal+=beforeBody-(u.profiles[0]?.emailBodies?.length||0);
+    console.log(`[perfil-único] 🔀 ${email}: ${before} perfis → 1 (assuntos ${beforeSubj}→${u.profiles[0]?.subjects?.length||0}, corpos ${beforeBody}→${u.profiles[0]?.emailBodies?.length||0})`);
+  }
+  if(touched>0){
+    persist(USERS_FILE,users);
+    console.log(`[perfil-único] ✅ Migração concluída: ${touched} usuário(s) consolidado(s) pra 1 perfil só.`);
+  }
+}
 const getHist    = e => DB_HIST[e]||[];
 const addHist    = (e,entry) => { if(!DB_HIST[e])DB_HIST[e]=[]; DB_HIST[e].unshift(entry); if(DB_HIST[e].length>10000)DB_HIST[e]=DB_HIST[e].slice(0,10000); invalidateUserStatsCache(e); persistDebounced(HIST_FILE,DB_HIST,1500); }; // FIX-BUG8
 const delHist    = e => { delete DB_HIST[e]; persist(HIST_FILE,DB_HIST); };
@@ -1398,6 +1507,14 @@ function isValidEmail(email) {
  * Normaliza E valida.
  * Retorna { ok: true, email } ou { ok: false, reason }.
  */
+// v18-FIX: conjunto de TODOS os e-mails do próprio usuário (principal + Gmails
+// extras conectados) — usado pelas guardas de auto-envio (self-send). Antes
+// só o principal era checado, então quem tem um 2º Gmail (recurso pago) podia
+// acidentalmente "aplicar" pro próprio Gmail extra e perder 1 vaga do limite diário.
+function _ownEmailsOf(ownerEmail){
+  const u=getUser(ownerEmail)||{};
+  return new Set([String(ownerEmail||"").toLowerCase(), ...((u.senderEmails||[]).map(x=>String(x.email||"").toLowerCase()).filter(Boolean))]);
+}
 function parseEmail(raw) {
   const email = normalizeEmail(raw);
   if (!email) return { ok: false, reason: "e-mail vazio" };
@@ -2291,6 +2408,23 @@ const CATEGORY_LABELS = {
   other:        { label:"📋 Outros",                  en:"Other" },
 };
 
+// ── Normalização de estado (KB-SEO-02): h2a_jobs.json usa sigla de 2 letras
+// ("TX"), enquanto jul2025_compact.json e h2a_jun2026_compact.json usam nome
+// por extenso ("TEXAS") — sem normalizar, agregados por estado (ex.: página
+// de salários, páginas por estado) contavam "TX" e "TEXAS" como lugares
+// diferentes, subcontando quase todo estado. Esta função sempre devolve o
+// NOME POR EXTENSO em maiúsculas, e o slug (para URL) em minúsculas sem acento.
+const STATE_ABBR_TO_NAME = {AL:"ALABAMA",AK:"ALASKA",AZ:"ARIZONA",AR:"ARKANSAS",CA:"CALIFORNIA",CO:"COLORADO",CT:"CONNECTICUT",DE:"DELAWARE",FL:"FLORIDA",GA:"GEORGIA",HI:"HAWAII",ID:"IDAHO",IL:"ILLINOIS",IN:"INDIANA",IA:"IOWA",KS:"KANSAS",KY:"KENTUCKY",LA:"LOUISIANA",ME:"MAINE",MD:"MARYLAND",MA:"MASSACHUSETTS",MI:"MICHIGAN",MN:"MINNESOTA",MS:"MISSISSIPPI",MO:"MISSOURI",MT:"MONTANA",NE:"NEBRASKA",NV:"NEVADA",NH:"NEW HAMPSHIRE",NJ:"NEW JERSEY",NM:"NEW MEXICO",NY:"NEW YORK",NC:"NORTH CAROLINA",ND:"NORTH DAKOTA",OH:"OHIO",OK:"OKLAHOMA",OR:"OREGON",PA:"PENNSYLVANIA",RI:"RHODE ISLAND",SC:"SOUTH CAROLINA",SD:"SOUTH DAKOTA",TN:"TENNESSEE",TX:"TEXAS",UT:"UTAH",VT:"VERMONT",VA:"VIRGINIA",WA:"WASHINGTON",WV:"WEST VIRGINIA",WI:"WISCONSIN",WY:"WYOMING",DC:"DISTRICT OF COLUMBIA",PR:"PUERTO RICO"};
+function normalizeStateName(raw){
+  const s=String(raw||"").trim().toUpperCase();
+  if(!s)return"";
+  if(STATE_ABBR_TO_NAME[s])return STATE_ABBR_TO_NAME[s]; // sigla de 2 letras
+  return s; // já é nome por extenso
+}
+function stateSlug(name){
+  return String(name||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z]+/g,"-").replace(/^-+|-+$/g,"");
+}
+
 // 🔒 Auto-cura de integridade (KB-076): toda vez que uma planilha é lida do
 // disco, confere se tem case number duplicado. Se tiver (arquivo antigo,
 // gerado antes desta correção — ex.: h2a_jun2026_compact.json tinha 36
@@ -2514,6 +2648,385 @@ function getSheet(n) { return n==="jan2026"?SHEET_JAN:n==="jul2025"?SHEET_JUL:(n
 function getAllSheets() {
   // Retorna TODAS as planilhas combinadas (jan + jul + extras)
   return [...SHEET_JAN,...SHEET_JUL,...SHEET_H2A,...Object.values(SHEET_EXTRAS).flat()];
+}
+
+// ── computeWageStats (SEO): agrega salário/hora REAL a partir das planilhas
+// já carregadas em memória — usado por /api/public-wage-stats (página geral)
+// e pelas páginas dinâmicas /vagas-h2b/:estado (SEO programático por estado).
+// Nunca inventa número; só agrega o que já está nos dados do próprio sistema.
+function computeWageStats(){
+  // Corte de US$100/h: remove ~46 vagas de "range livestock/sheepherder" e
+  // cargos de temporada (ex.: Alpine Ski Coach) que vêm com wunit="h" mas
+  // "w" é na verdade um salário MENSAL (regra federal especial de pastoreio
+  // a céu aberto) — mistagged na planilha de origem, não erro nosso. Nenhuma
+  // vaga H-2B/H-2A legítima paga acima disso por hora.
+  const rows=getAllSheets().filter(r=>r&&r.wunit==="h"&&r.w&&parseFloat(r.w)>0&&parseFloat(r.w)<=100);
+  const wageOf=r=>parseFloat(r.w);
+  const overall=(()=>{
+    if(!rows.length)return{count:0,avg:0,min:0,max:0};
+    const ws=rows.map(wageOf);
+    return{count:rows.length,avg:+(ws.reduce((a,b)=>a+b,0)/ws.length).toFixed(2),min:+Math.min(...ws).toFixed(2),max:+Math.max(...ws).toFixed(2)};
+  })();
+  const groupBy=(keyFn,labelFn)=>{
+    const map=new Map();
+    for(const r of rows){
+      const k=keyFn(r);if(!k)continue;
+      if(!map.has(k))map.set(k,{sum:0,count:0,min:Infinity,max:-Infinity});
+      const g=map.get(k);const w=wageOf(r);g.sum+=w;g.count++;g.min=Math.min(g.min,w);g.max=Math.max(g.max,w);
+    }
+    return[...map.entries()]
+      .map(([k,g])=>({key:k,label:labelFn(k),count:g.count,avgWage:+(g.sum/g.count).toFixed(2),minWage:+g.min.toFixed(2),maxWage:+g.max.toFixed(2)}))
+      .sort((a,b)=>b.count-a.count);
+  };
+  const byCategoryAll=groupBy(r=>r.k||"other",k=>CATEGORY_LABELS[k]?.label||k);
+  const byStateAll=groupBy(r=>normalizeStateName(r.s),k=>k).map(s=>({...s,slug:stateSlug(s.key)}));
+  // Top categorias DENTRO de cada estado (conteúdo único por página de estado)
+  const catByState=new Map();
+  for(const r of rows){
+    const st=normalizeStateName(r.s);if(!st)continue;
+    if(!catByState.has(st))catByState.set(st,new Map());
+    const cm=catByState.get(st);
+    const k=r.k||"other";
+    if(!cm.has(k))cm.set(k,{sum:0,count:0});
+    const g=cm.get(k);g.sum+=wageOf(r);g.count++;
+  }
+  const topCategoriesByState=new Map();
+  for(const[st,cm]of catByState.entries()){
+    topCategoriesByState.set(st,[...cm.entries()]
+      .map(([k,g])=>({key:k,label:CATEGORY_LABELS[k]?.label||k,count:g.count,avgWage:+(g.sum/g.count).toFixed(2)}))
+      .sort((a,b)=>b.count-a.count).slice(0,6));
+  }
+  // v18-SEO: espelho de topCategoriesByState, mas invertido — top ESTADOS
+  // dentro de cada CATEGORIA. Alimenta as páginas /vagas-h2b/categoria/:cat
+  // (SEO programático por categoria, mesma ideia das páginas por estado).
+  const stateByCat=new Map();
+  for(const r of rows){
+    const st=normalizeStateName(r.s);if(!st)continue;
+    const k=r.k||"other";
+    if(!stateByCat.has(k))stateByCat.set(k,new Map());
+    const sm=stateByCat.get(k);
+    if(!sm.has(st))sm.set(st,{sum:0,count:0});
+    const g=sm.get(st);g.sum+=wageOf(r);g.count++;
+  }
+  const topStatesByCategory=new Map();
+  for(const[k,sm]of stateByCat.entries()){
+    topStatesByCategory.set(k,[...sm.entries()]
+      .map(([st,g])=>({key:st,label:st,slug:stateSlug(st),count:g.count,avgWage:+(g.sum/g.count).toFixed(2)}))
+      .sort((a,b)=>b.count-a.count).slice(0,8));
+  }
+  return{overall,byCategoryAll,byStateAll,topCategoriesByState,topStatesByCategory};
+}
+
+// ── Página dinâmica SEO programático: /vagas-h2b/:estado ────────────────────
+// Uma página por estado (só para estados com volume real de vagas — evita
+// "thin content"), gerada no servidor com números reais e únicos por estado
+// (contagem, salário médio/mín/máx, top categorias daquele estado). Reaproveita
+// o mesmo sistema visual das outras páginas SEO (h2bapply-funciona.html etc).
+const MIN_JOBS_FOR_STATE_PAGE=20; // abaixo disso, conteúdo fraco demais pra indexar bem
+function renderStatePage(entry,topCats,overallCount){
+  const {key:stateName,count,avgWage,minWage,maxWage}=entry;
+  const titleCase=stateName.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+  const fmtN=n=>Number(n).toLocaleString("pt-BR");
+  const fmtUsd=n=>"US$ "+Number(n).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+  // v18-SEO: link cruzado pra página da categoria (linkagem interna — ajuda o
+  // Google a descobrir as páginas novas de /vagas-h2b/categoria/:cat e passa
+  // "link juice" entre as duas famílias de página programática).
+  const catRows=topCats.map(c=>`<tr><td class="lbl"><a href="/vagas-h2b/categoria/${c.key}">${c.label}</a></td><td class="cnt">${fmtN(c.count)}</td><td class="wg">${fmtUsd(c.avgWage)}/h</td></tr>`).join("");
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a56db">
+<title>Vagas H-2B e H-2A em ${titleCase}: ${fmtN(count)} Vagas, Salário Médio ${fmtUsd(avgWage)}/h</title>
+<meta name="description" content="${fmtN(count)} vagas H-2B/H-2A certificadas pelo DOL em ${titleCase}, com salário médio de ${fmtUsd(avgWage)}/hora (variando ${fmtUsd(minWage)} a ${fmtUsd(maxWage)}). Dados reais, calculados ao vivo.">
+<meta name="author" content="H2BApply">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://h2bapply.com/vagas-h2b/${entry.slug}">
+<meta property="og:title" content="Vagas H-2B e H-2A em ${titleCase}: ${fmtN(count)} Vagas, Salário Médio ${fmtUsd(avgWage)}/h">
+<meta property="og:description" content="${fmtN(count)} vagas H-2B/H-2A certificadas pelo DOL em ${titleCase}, salário médio ${fmtUsd(avgWage)}/hora.">
+<meta property="og:url" content="https://h2bapply.com/vagas-h2b/${entry.slug}">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://h2bapply.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Vagas H-2B e H-2A em ${titleCase}: ${fmtN(count)} Vagas, Salário Médio ${fmtUsd(avgWage)}/h">
+<meta name="twitter:description" content="${fmtN(count)} vagas H-2B/H-2A certificadas pelo DOL em ${titleCase}, salário médio ${fmtUsd(avgWage)}/hora.">
+<meta name="twitter:image" content="https://h2bapply.com/og-image.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'" onerror="this.onerror=null;this.href='https://unpkg.com/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css';this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css"></noscript>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}body{font-family:'DM Sans',system-ui,sans-serif;background:#f0f4ff;color:#1e1b4b;font-size:15px;line-height:1.6}
+a{color:inherit;text-decoration:none}
+:root{--surface:#fff;--sf2:#f5f7ff;--sf4:#e0e7ff;--border:rgba(99,102,241,.12);--t2:#4c4f82;--t3:#7c7fb5;--t4:#a5a8cc;--blue:#3b82f6;--bluel:rgba(59,130,246,.14);--blueb:rgba(59,130,246,.32);--green:#10b981;--greenl:rgba(16,185,129,.13);--navy:#0f172a;--r:10px;--rl:14px;--rxl:20px}
+.top-bar{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:58px;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+.logo-row{display:flex;align-items:center;gap:10px;font-family:'Sora',sans-serif;font-weight:800;font-size:17px;color:var(--navy)}
+.logo-row img{width:36px;height:36px;border-radius:10px}
+.btn-login{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#3b82f6,#7c3aed);color:#fff;font-weight:700;font-size:13px;padding:9px 18px;border-radius:10px;border:none;box-shadow:0 4px 15px rgba(59,130,246,.3)}
+.hero{background:linear-gradient(160deg,#052e1c,#065f46,#0d7a4f,#10b981);color:#fff;padding:48px 20px 36px;text-align:center}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;margin-bottom:18px}
+.hero h1{font-family:'Sora',sans-serif;font-size:clamp(22px,4.8vw,34px);font-weight:800;line-height:1.26;margin-bottom:12px;max-width:680px;margin-left:auto;margin-right:auto}
+.hero-sub{font-size:14.5px;opacity:.9;max-width:540px;margin:0 auto 22px;line-height:1.7}
+.btn-hero{display:inline-flex;align-items:center;gap:8px;padding:13px 24px;border-radius:12px;font-weight:700;font-size:14px;background:#fff;color:#065f46;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;max-width:820px;margin:0 auto;padding:28px 20px 4px}
+.stat-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 14px;text-align:center;box-shadow:0 2px 10px rgba(99,102,241,.06)}
+.stat-n{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:var(--green)}
+.stat-lbl{font-size:11.5px;font-weight:600;color:var(--t3);margin-top:3px}
+.content{max-width:820px;margin:0 auto;padding:24px 20px 56px}
+.section{margin:36px 0 0}
+.section-head{margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--sf4)}
+.section-head h2{font-family:'Sora',sans-serif;font-size:19px;font-weight:800;color:var(--navy)}
+.section-head p{font-size:12px;color:var(--t3);margin-top:2px}
+.card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:18px 20px;box-shadow:0 2px 10px rgba(99,102,241,.04)}
+.card p{font-size:13.5px;color:var(--t2);line-height:1.75;margin-bottom:10px}
+.card p:last-child{margin-bottom:0}
+.wage-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.wage-table th{text-align:left;font-size:10.5px;text-transform:uppercase;color:var(--t3);font-weight:700;padding:8px 8px;border-bottom:2px solid var(--sf4)}
+.wage-table td{padding:9px 8px;border-bottom:1px solid var(--border);color:var(--t2)}
+.wage-table tr:last-child td{border-bottom:none}
+.wage-table .wg{font-weight:800;color:var(--green);font-family:'Sora',sans-serif}
+.wage-table .lbl{font-weight:700;color:var(--navy)}
+.wage-table .lbl a{color:var(--navy)}
+.wage-table .lbl a:hover{color:var(--green);text-decoration:underline}
+.wage-table .cnt{color:var(--t3);font-size:12px}
+.warn-box{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--r);margin:12px 0;font-size:12.5px;line-height:1.65;background:var(--bluel);border:1.5px solid var(--blueb);color:#1e40af}
+.cta-section{background:linear-gradient(160deg,#0a0520,#1e1b4b,#4c1d95,#7c3aed);color:#fff;border-radius:var(--rxl);padding:34px 24px;text-align:center;margin:40px 0 28px}
+.cta-section h3{font-family:'Sora',sans-serif;font-size:20px;font-weight:800;margin-bottom:8px}
+.cta-section p{font-size:13.5px;opacity:.82;margin-bottom:20px;max-width:440px;margin-left:auto;margin-right:auto}
+.cta-btn-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn-cta-white{display:inline-flex;align-items:center;gap:8px;background:#fff;color:#1e1b4b;font-weight:700;font-size:13.5px;padding:12px 22px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.btn-cta-outline{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);color:#fff;font-weight:700;font-size:13.5px;padding:12px 22px;border-radius:12px;border:1.5px solid rgba(255,255,255,.35)}
+footer{background:#fff;border-top:1px solid var(--border);text-align:center;padding:22px 20px;font-size:12px;color:var(--t3)}
+footer a{color:var(--blue);font-weight:600}
+</style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+</head>
+<body>
+<header class="top-bar">
+  <a href="/" class="logo-row"><img src="/apple-touch-icon.png" alt="H2BApply logo"><span>H2BApply</span></a>
+  <a href="/oauth/google" class="btn-login" onclick="gtag('event','sign_up_intent',{method:'google',source:'vagas-h2b-${entry.slug}-nav'})"><i class="ti ti-rocket"></i> Começar grátis</a>
+</header>
+<section class="hero">
+  <div class="hero-badge"><i class="ti ti-map-pin"></i> Vagas em ${titleCase}</div>
+  <h1>Vagas H-2B e H-2A em ${titleCase}: quantas tem e quanto pagam</h1>
+  <p class="hero-sub">${fmtN(count)} vagas certificadas pelo Departamento do Trabalho dos EUA (DOL) em ${titleCase}, com salário médio de ${fmtUsd(avgWage)} por hora. Números calculados ao vivo, direto da base de dados do H2BApply.</p>
+  <a href="/oauth/google" class="btn-hero" onclick="gtag('event','sign_up_intent',{method:'google',source:'vagas-h2b-${entry.slug}-hero'})"><i class="ti ti-rocket"></i> Ver essas vagas grátis</a>
+</section>
+<div class="stats-row">
+  <div class="stat-card"><div class="stat-n">${fmtN(count)}</div><div class="stat-lbl">Vagas em ${titleCase}</div></div>
+  <div class="stat-card"><div class="stat-n">${fmtUsd(avgWage)}</div><div class="stat-lbl">Salário médio/hora</div></div>
+  <div class="stat-card"><div class="stat-n">${fmtUsd(minWage)}–${fmtUsd(maxWage)}</div><div class="stat-lbl">Faixa de salário/hora</div></div>
+</div>
+<main class="content">
+  <section class="section" id="categorias">
+    <div class="section-head"><h2>Principais áreas de trabalho em ${titleCase}</h2><p>Categorias com mais vagas abertas no estado, e o salário médio de cada uma</p></div>
+    <div class="card">
+      <table class="wage-table"><thead><tr><th>Área</th><th>Vagas</th><th>Média/hora</th></tr></thead><tbody>${catRows}</tbody></table>
+    </div>
+    <div class="warn-box"><i class="ti ti-info-circle"></i><div>O salário exibido é a média entre as vagas certificadas em ${titleCase} — o valor exato de cada vaga é definido pelo DOL antes da contratação e pode variar por função e empregador específico.</div></div>
+  </section>
+  <section class="section" id="sobre">
+    <div class="section-head"><h2>Como se candidatar às vagas de ${titleCase}</h2><p>Nenhuma vaga é vendida — a candidatura é direta ao empregador</p></div>
+    <div class="card">
+      <p>As vagas H-2B e H-2A em ${titleCase} vêm de planilhas públicas do Departamento do Trabalho dos EUA, o mesmo órgão que certifica o salário mínimo obrigatório de cada uma. O H2BApply organiza esses dados e automatiza o envio da sua candidatura para os empregadores certificados — sem cobrar taxa de recrutamento, o que é proibido pelas próprias regras do programa.</p>
+      <p>Quer ver as vagas específicas de ${titleCase} disponíveis agora? Crie uma conta gratuita — leva menos de 1 minuto com login pelo Google.</p>
+    </div>
+  </section>
+  <div class="cta-section">
+    <h3>Buscar vagas em ${titleCase} agora 🇺🇸</h3>
+    <p>Conta grátis, sem cartão de crédito. Você entra com o Google e já pode filtrar vagas por estado, categoria e salário.</p>
+    <div class="cta-btn-row">
+      <a href="/oauth/google" class="btn-cta-white" onclick="gtag('event','sign_up_intent',{method:'google',source:'vagas-h2b-${entry.slug}-cta'})"><i class="ti ti-rocket"></i> Criar conta grátis</a>
+      <a href="/quanto-ganha-h2b" class="btn-cta-outline"><i class="ti ti-chart-bar"></i> Ver salários por estado</a>
+    </div>
+  </div>
+</main>
+<footer>
+  <div style="margin-bottom:8px"><a href="/">H2BApply</a> · <a href="/guia">Guia H-2B/H-2A</a> · <a href="/h2b-e-golpe">H2B é Golpe?</a> · <a href="/quanto-ganha-h2b">Quanto Ganha?</a> · <a href="/privacidade">Privacidade</a> · <a href="/termos">Termos</a></div>
+  <div>Dados calculados a partir de planilhas públicas do Departamento do Trabalho dos EUA. Conteúdo educativo, não é aconselhamento jurídico.</div>
+</footer>
+<!-- v18-SEO: BreadcrumbList — rich result de trilha de navegação no Google.
+     Não usamos JobPosting aqui de propósito: esta página mostra ESTATÍSTICAS
+     agregadas (contagem/salário médio de várias vagas de vários empregadores),
+     não uma vaga específica — JobPosting exige campos de uma vaga individual
+     (hiringOrganization, datePosted, validThrough) que não existem nesse nível
+     de agregação, e usá-lo errado gera erro no Search Console. -->
+<script type="application/ld+json">
+${JSON.stringify({
+  "@context":"https://schema.org",
+  "@type":"BreadcrumbList",
+  "itemListElement":[
+    {"@type":"ListItem","position":1,"name":"H2BApply","item":"https://h2bapply.com/"},
+    {"@type":"ListItem","position":2,"name":"Salários por Estado","item":"https://h2bapply.com/quanto-ganha-h2b"},
+    {"@type":"ListItem","position":3,"name":`Vagas H-2B/H-2A em ${titleCase}`,"item":`https://h2bapply.com/vagas-h2b/${entry.slug}`}
+  ]
+})}
+</script>
+</body>
+</html>`;
+}
+
+// ── Página dinâmica SEO programático: /vagas-h2b/categoria/:categoria ───────
+// Espelha renderStatePage, mas por CATEGORIA de vaga (landscape, construction,
+// farm etc.) em vez de por estado — mesmo padrão de "SEO programático" já
+// validado nas páginas de estado, reaproveitando dados que computeWageStats()
+// já calcula (topStatesByCategory). Cada página lista os estados com mais
+// vagas daquela categoria e o salário médio em cada um.
+const MIN_JOBS_FOR_CATEGORY_PAGE=20; // mesmo corte das páginas de estado — evita "thin content"
+function renderCategoryPage(entry,topStates,overallCount){
+  const {key:catKey,count,avgWage,minWage,maxWage}=entry;
+  const fullLabel=CATEGORY_LABELS[catKey]?.label||catKey;
+  const labelParts=fullLabel.split(" ");
+  const catEmoji=labelParts.length>1?labelParts[0]:"📋";
+  const catName=(labelParts.length>1?labelParts.slice(1).join(" "):fullLabel).trim();
+  const fmtN=n=>Number(n).toLocaleString("pt-BR");
+  const fmtUsd=n=>"US$ "+Number(n).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const stateRows=topStates.map(s=>{
+    const stTitle=s.key.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+    return `<tr><td class="lbl"><a href="/vagas-h2b/${s.slug}">${stTitle}</a></td><td class="cnt">${fmtN(s.count)}</td><td class="wg">${fmtUsd(s.avgWage)}/h</td></tr>`;
+  }).join("");
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a56db">
+<title>Vagas H-2B e H-2A de ${catName}: ${fmtN(count)} Vagas, Salário Médio ${fmtUsd(avgWage)}/h</title>
+<meta name="description" content="${fmtN(count)} vagas H-2B/H-2A certificadas pelo DOL na área de ${catName}, com salário médio de ${fmtUsd(avgWage)}/hora (variando ${fmtUsd(minWage)} a ${fmtUsd(maxWage)}). Dados reais, calculados ao vivo.">
+<meta name="author" content="H2BApply">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://h2bapply.com/vagas-h2b/categoria/${catKey}">
+<meta property="og:title" content="Vagas H-2B e H-2A de ${catName}: ${fmtN(count)} Vagas, Salário Médio ${fmtUsd(avgWage)}/h">
+<meta property="og:description" content="${fmtN(count)} vagas H-2B/H-2A certificadas pelo DOL na área de ${catName}, salário médio ${fmtUsd(avgWage)}/hora.">
+<meta property="og:url" content="https://h2bapply.com/vagas-h2b/categoria/${catKey}">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://h2bapply.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Vagas H-2B e H-2A de ${catName}: ${fmtN(count)} Vagas, Salário Médio ${fmtUsd(avgWage)}/h">
+<meta name="twitter:description" content="${fmtN(count)} vagas H-2B/H-2A certificadas pelo DOL na área de ${catName}, salário médio ${fmtUsd(avgWage)}/hora.">
+<meta name="twitter:image" content="https://h2bapply.com/og-image.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'" onerror="this.onerror=null;this.href='https://unpkg.com/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css';this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css"></noscript>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}body{font-family:'DM Sans',system-ui,sans-serif;background:#f0f4ff;color:#1e1b4b;font-size:15px;line-height:1.6}
+a{color:inherit;text-decoration:none}
+:root{--surface:#fff;--sf2:#f5f7ff;--sf4:#e0e7ff;--border:rgba(99,102,241,.12);--t2:#4c4f82;--t3:#7c7fb5;--t4:#a5a8cc;--blue:#3b82f6;--bluel:rgba(59,130,246,.14);--blueb:rgba(59,130,246,.32);--green:#10b981;--greenl:rgba(16,185,129,.13);--navy:#0f172a;--r:10px;--rl:14px;--rxl:20px}
+.top-bar{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:58px;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+.logo-row{display:flex;align-items:center;gap:10px;font-family:'Sora',sans-serif;font-weight:800;font-size:17px;color:var(--navy)}
+.logo-row img{width:36px;height:36px;border-radius:10px}
+.btn-login{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#3b82f6,#7c3aed);color:#fff;font-weight:700;font-size:13px;padding:9px 18px;border-radius:10px;border:none;box-shadow:0 4px 15px rgba(59,130,246,.3)}
+.hero{background:linear-gradient(160deg,#1e1b4b,#4c1d95,#6d28d9,#7c3aed);color:#fff;padding:48px 20px 36px;text-align:center}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;margin-bottom:18px}
+.hero h1{font-family:'Sora',sans-serif;font-size:clamp(22px,4.8vw,34px);font-weight:800;line-height:1.26;margin-bottom:12px;max-width:680px;margin-left:auto;margin-right:auto}
+.hero-sub{font-size:14.5px;opacity:.9;max-width:540px;margin:0 auto 22px;line-height:1.7}
+.btn-hero{display:inline-flex;align-items:center;gap:8px;padding:13px 24px;border-radius:12px;font-weight:700;font-size:14px;background:#fff;color:#4c1d95;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;max-width:820px;margin:0 auto;padding:28px 20px 4px}
+.stat-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:16px 14px;text-align:center;box-shadow:0 2px 10px rgba(99,102,241,.06)}
+.stat-n{font-family:'Sora',sans-serif;font-size:22px;font-weight:800;color:#7c3aed}
+.stat-lbl{font-size:11.5px;font-weight:600;color:var(--t3);margin-top:3px}
+.content{max-width:820px;margin:0 auto;padding:24px 20px 56px}
+.section{margin:36px 0 0}
+.section-head{margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid var(--sf4)}
+.section-head h2{font-family:'Sora',sans-serif;font-size:19px;font-weight:800;color:var(--navy)}
+.section-head p{font-size:12px;color:var(--t3);margin-top:2px}
+.card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:18px 20px;box-shadow:0 2px 10px rgba(99,102,241,.04)}
+.card p{font-size:13.5px;color:var(--t2);line-height:1.75;margin-bottom:10px}
+.card p:last-child{margin-bottom:0}
+.wage-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.wage-table th{text-align:left;font-size:10.5px;text-transform:uppercase;color:var(--t3);font-weight:700;padding:8px 8px;border-bottom:2px solid var(--sf4)}
+.wage-table td{padding:9px 8px;border-bottom:1px solid var(--border);color:var(--t2)}
+.wage-table tr:last-child td{border-bottom:none}
+.wage-table .wg{font-weight:800;color:#7c3aed;font-family:'Sora',sans-serif}
+.wage-table .lbl{font-weight:700;color:var(--navy)}
+.wage-table .lbl a{color:var(--navy)}
+.wage-table .lbl a:hover{color:#7c3aed;text-decoration:underline}
+.wage-table .cnt{color:var(--t3);font-size:12px}
+.warn-box{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--r);margin:12px 0;font-size:12.5px;line-height:1.65;background:var(--bluel);border:1.5px solid var(--blueb);color:#1e40af}
+.cta-section{background:linear-gradient(160deg,#0a0520,#1e1b4b,#4c1d95,#7c3aed);color:#fff;border-radius:var(--rxl);padding:34px 24px;text-align:center;margin:40px 0 28px}
+.cta-section h3{font-family:'Sora',sans-serif;font-size:20px;font-weight:800;margin-bottom:8px}
+.cta-section p{font-size:13.5px;opacity:.82;margin-bottom:20px;max-width:440px;margin-left:auto;margin-right:auto}
+.cta-btn-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn-cta-white{display:inline-flex;align-items:center;gap:8px;background:#fff;color:#1e1b4b;font-weight:700;font-size:13.5px;padding:12px 22px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.btn-cta-outline{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);color:#fff;font-weight:700;font-size:13.5px;padding:12px 22px;border-radius:12px;border:1.5px solid rgba(255,255,255,.35)}
+footer{background:#fff;border-top:1px solid var(--border);text-align:center;padding:22px 20px;font-size:12px;color:var(--t3)}
+footer a{color:var(--blue);font-weight:600}
+</style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+</head>
+<body>
+<header class="top-bar">
+  <a href="/" class="logo-row"><img src="/apple-touch-icon.png" alt="H2BApply logo"><span>H2BApply</span></a>
+  <a href="/oauth/google" class="btn-login" onclick="gtag('event','sign_up_intent',{method:'google',source:'vagas-h2b-cat-${catKey}-nav'})"><i class="ti ti-rocket"></i> Começar grátis</a>
+</header>
+<section class="hero">
+  <div class="hero-badge">${catEmoji} Vagas de ${catName}</div>
+  <h1>Vagas H-2B e H-2A de ${catName} nos EUA: quantas tem e quanto pagam</h1>
+  <p class="hero-sub">${fmtN(count)} vagas certificadas pelo Departamento do Trabalho dos EUA (DOL) na área de ${catName}, com salário médio de ${fmtUsd(avgWage)} por hora. Números calculados ao vivo, direto da base de dados do H2BApply.</p>
+  <a href="/oauth/google" class="btn-hero" onclick="gtag('event','sign_up_intent',{method:'google',source:'vagas-h2b-cat-${catKey}-hero'})"><i class="ti ti-rocket"></i> Ver essas vagas grátis</a>
+</section>
+<div class="stats-row">
+  <div class="stat-card"><div class="stat-n">${fmtN(count)}</div><div class="stat-lbl">Vagas de ${catName}</div></div>
+  <div class="stat-card"><div class="stat-n">${fmtUsd(avgWage)}</div><div class="stat-lbl">Salário médio/hora</div></div>
+  <div class="stat-card"><div class="stat-n">${fmtUsd(minWage)}–${fmtUsd(maxWage)}</div><div class="stat-lbl">Faixa de salário/hora</div></div>
+</div>
+<main class="content">
+  <section class="section" id="estados">
+    <div class="section-head"><h2>Onde tem mais vagas de ${catName}</h2><p>Estados com mais vagas abertas nessa área, e o salário médio de cada um</p></div>
+    <div class="card">
+      <table class="wage-table"><thead><tr><th>Estado</th><th>Vagas</th><th>Média/hora</th></tr></thead><tbody>${stateRows}</tbody></table>
+    </div>
+    <div class="warn-box"><i class="ti ti-info-circle"></i><div>O salário exibido é a média entre as vagas certificadas de ${catName} — o valor exato de cada vaga é definido pelo DOL antes da contratação e pode variar por função e empregador específico.</div></div>
+  </section>
+  <section class="section" id="sobre">
+    <div class="section-head"><h2>Como se candidatar às vagas de ${catName}</h2><p>Nenhuma vaga é vendida — a candidatura é direta ao empregador</p></div>
+    <div class="card">
+      <p>As vagas H-2B e H-2A de ${catName} vêm de planilhas públicas do Departamento do Trabalho dos EUA, o mesmo órgão que certifica o salário mínimo obrigatório de cada uma. O H2BApply organiza esses dados e automatiza o envio da sua candidatura para os empregadores certificados — sem cobrar taxa de recrutamento, o que é proibido pelas próprias regras do programa.</p>
+      <p>Quer ver as vagas específicas de ${catName} disponíveis agora? Crie uma conta gratuita — leva menos de 1 minuto com login pelo Google.</p>
+    </div>
+  </section>
+  <div class="cta-section">
+    <h3>Buscar vagas de ${catName} agora 🇺🇸</h3>
+    <p>Conta grátis, sem cartão de crédito. Você entra com o Google e já pode filtrar vagas por estado, categoria e salário.</p>
+    <div class="cta-btn-row">
+      <a href="/oauth/google" class="btn-cta-white" onclick="gtag('event','sign_up_intent',{method:'google',source:'vagas-h2b-cat-${catKey}-cta'})"><i class="ti ti-rocket"></i> Criar conta grátis</a>
+      <a href="/quanto-ganha-h2b" class="btn-cta-outline"><i class="ti ti-chart-bar"></i> Ver salários por estado</a>
+    </div>
+  </div>
+</main>
+<footer>
+  <div style="margin-bottom:8px"><a href="/">H2BApply</a> · <a href="/guia">Guia H-2B/H-2A</a> · <a href="/h2b-e-golpe">H2B é Golpe?</a> · <a href="/quanto-ganha-h2b">Quanto Ganha?</a> · <a href="/privacidade">Privacidade</a> · <a href="/termos">Termos</a></div>
+  <div>Dados calculados a partir de planilhas públicas do Departamento do Trabalho dos EUA. Conteúdo educativo, não é aconselhamento jurídico.</div>
+</footer>
+<script type="application/ld+json">
+${JSON.stringify({
+  "@context":"https://schema.org",
+  "@type":"BreadcrumbList",
+  "itemListElement":[
+    {"@type":"ListItem","position":1,"name":"H2BApply","item":"https://h2bapply.com/"},
+    {"@type":"ListItem","position":2,"name":"Salários por Estado","item":"https://h2bapply.com/quanto-ganha-h2b"},
+    {"@type":"ListItem","position":3,"name":`Vagas de ${catName}`,"item":`https://h2bapply.com/vagas-h2b/categoria/${catKey}`}
+  ]
+})}
+</script>
+</body>
+</html>`;
 }
 
 function getSheetCategories(sheetName) {
@@ -2825,6 +3338,8 @@ function scheduleAuto(email) {
     addLog(email,{status:"sistema",jobTitle:"✅ Fila finalizada",company:`Total: ${job.originalCount||0} vagas processadas.`});
     console.log(`[auto] ${email} fila zerada no scheduleAuto — marcado como finished`);
     sendNotifEmail(email,"finished").catch(()=>{});
+    // v18-FIX: push como fallback — canal separado do kill-switch de e-mail do dono
+    pushToUser(email,{type:"finished",title:"🔄 Fila do robô zerou!",body:"Todas as candidaturas foram enviadas. Recarregue com mais categorias/planilhas.",icon:"/icon-192.png"}).catch(()=>{});
     return;
   }
 
@@ -2962,6 +3477,25 @@ function invalidateUserStatsCache(email) {
 // Impede envio duplicado por duplo-clique / refresh
 const _manualSendInFlight = new Map(); // email+to → promessa em andamento
 
+// v18-FIX: reserva de vagas do limite diário MANUAL — corrige corrida TOCTOU.
+// Antes, o limite diário era checado lendo o histórico (countManualToday) ANTES
+// do await pro Gmail (que pode levar vários segundos, o próprio código já loga
+// quando passa de 5s). Duas requisições concorrentes pro MESMO usuário — abas
+// diferentes, duplo device, ou só cliques rápidos em vagas diferentes — liam a
+// MESMA contagem "antiga" e as DUAS passavam no limite, permitindo estourar bem
+// além do limite do plano numa janela curta (hipótese confirmada como causa mais
+// provável do relato "180 envios em 3h" registrado no diagnóstico acima).
+// Este contador reserva a vaga SINCRONAMENTE (antes de qualquer await) assim que
+// a checagem passa, e só libera quando o envio termina (sucesso ou erro) — a
+// segunda requisição concorrente já vê a reserva e é bloqueada corretamente.
+// v18-FIX: trava de idempotência pro crédito manual de VIP no painel admin
+// (/api/admin/vip/activate) — impede duplo-clique/retry somando dias 2x.
+const _adminVipActivateLock = new Map(); // "adminEmail|targetEmail" → timestamp
+
+const _manualSendReserved = new Map(); // email → nº de envios reservados (em voo)
+function _reserveManualSlot(email){ _manualSendReserved.set(email,(_manualSendReserved.get(email)||0)+1); }
+function _releaseManualSlot(email){ const n=(_manualSendReserved.get(email)||0)-1; if(n<=0)_manualSendReserved.delete(email); else _manualSendReserved.set(email,n); }
+
 // ── PERFORMANCE: debounce de persist para evitar escrita excessiva no disco ──
 const _persistDebounceTimers = new Map();
 function persistDebounced(file, data, delayMs = 2000) {
@@ -3000,6 +3534,41 @@ async function doAutoSend(email) {
   }
 }
 
+// ── Traduz erros técnicos do Gmail em mensagens claras para o usuário leigo ──
+// v18-FIX: hoisted pra fora de _doAutoSendInner (onde vivia só pro envio
+// AUTOMÁTICO) pra virar compartilhada — o envio MANUAL (/api/send) devolvia
+// a mensagem CRUA do Google direto pro usuário (ex: "User-rate limit
+// exceeded. Retry after 2026-07-15T12:31:47.032Z"), que ninguém leigo entende
+// e parece "bug misterioso" — na real quase sempre é um limite do Google
+// (Gmail deixa mandar só um tanto de e-mail por vez), não um problema no
+// H2BApply. `toEmailCtx` é opcional (só usado na mensagem de "e-mail
+// inválido"; o auto-engine passa target.to, o manual passa o destinatário
+// que a pessoa mesma escolheu).
+function translateGmailErrorMsg(msg, toEmailCtx) {
+  msg = String(msg||"");
+  if (msg.includes("rateLimitExceeded") || msg.includes("userRateLimitExceeded") || msg.includes("User-rate limit"))
+    return { type:"rate_limit", friendly:"⏳ Motivo: o próprio Google limita quantos e-mails uma conta Gmail pode mandar em pouco tempo — é uma proteção automática contra spam que existe pra QUALQUER conta Gmail (pessoal ou não), não é algo específico do H2BApply nem sinal de que sua conta tem algum defeito. Isso acontece quando muitos e-mails saem em sequência rápida, seja mandando manualmente ou pelo robô automático. Não é permanente: o Google libera de novo sozinho depois de alguns minutos. O que fazer: espere um pouco (geralmente 5 a 30 minutos) antes de tentar mandar de novo. No envio automático o sistema já sabe disso e espera + tenta de novo sozinho, sem precisar fazer nada." };
+  if (msg.includes("invalid_grant") || msg.includes("Token has been expired or revoked"))
+    return { type:"auth", friendly:"🔐 Motivo: o H2BApply usa uma autorização que o Google dá quando você faz login com o Google — como uma chave de acesso pra poder mandar e-mail em seu nome. Essa chave expirou ou parou de valer, o que costuma acontecer se você trocou a senha do Google, revogou o acesso do H2BApply nas configurações da sua Conta Google, ou ficou muito tempo sem usar o app. O que fazer: faça login de novo no H2BApply (o mesmo botão de entrar com o Google) pra gerar uma chave nova." };
+  if (msg.includes("insufficientPermissions") || msg.includes("Request had insufficient"))
+    return { type:"permission", friendly:"🔐 Motivo: quando você faz login com o Google, ele pede sua permissão pra deixar o H2BApply mandar e-mail em seu nome. Se essa permissão não foi concedida por completo (por exemplo, desmarcando alguma opção na tela do Google durante o login), o envio não funciona. O que fazer: saia da conta no H2BApply e faça login de novo, aceitando TODAS as permissões que a tela do Google pedir." };
+  if (msg.includes("suspended") || msg.includes("Account has been suspended") || msg.includes("Suspended"))
+    return { type:"suspended", friendly:"⛔ Motivo: o próprio Google suspendeu temporariamente essa conta Gmail — geralmente por segurança (por exemplo, login de um lugar não reconhecido, ou o Google desconfiando de atividade automatizada). Isso é uma decisão do Google, o H2BApply não tem controle sobre isso. O que fazer: acesse gmail.com direto pelo navegador com essa conta e veja se aparece algum aviso, pedido de verificação ou confirmação de segurança — resolvendo isso lá, volta a funcionar." };
+  if (msg.includes("sendDisabled") || msg.includes("Mail sending is disabled"))
+    return { type:"send_disabled", friendly:"⛔ Motivo: o envio de e-mails está desativado nessa conta Google especificamente (pode ser uma configuração da própria conta, ou — se for um Gmail de empresa/Workspace — uma restrição colocada pelo administrador daquela conta). O H2BApply não consegue mandar nada até isso ser reativado do lado do Google. O que fazer: verifique as configurações de envio dessa conta em mail.google.com, ou fale com quem administra essa conta se for uma conta de trabalho." };
+  if (msg.includes("StorageQuotaExceeded") || msg.includes("quota"))
+    return { type:"quota", friendly:"📦 Motivo: toda conta Google tem um espaço de armazenamento (normalmente 15GB grátis) que é COMPARTILHADO entre Gmail, Google Drive e Google Fotos. Quando esse espaço enche, o Gmail não consegue nem enviar e-mail novo, porque tecnicamente não tem 'lugar' pra guardar a cópia do que foi enviado. O que fazer: entre em drive.google.com, apague arquivos/fotos/e-mails antigos que não precisa mais (ou esvazie a Lixeira do Gmail), ou compre mais espaço no Google One." };
+  if (msg.includes("Invalid") && msg.includes("To"))
+    return { type:"invalid_email", friendly:`📧 Motivo: o endereço de e-mail do empregador cadastrado nesta vaga${toEmailCtx?` ("${toEmailCtx}")`:""} está com um formato inválido — provavelmente um erro na fonte oficial de onde a vaga veio (dados do governo dos EUA), não algo que dá pra corrigir no H2BApply. Essa vaga específica não pôde ser enviada. O que fazer: pule essa vaga e tente outra — as outras não têm esse problema.` };
+  if (msg.includes("554") || msg.includes("550") || msg.includes("rejected"))
+    return { type:"rejected", friendly:"📧 Motivo: quem recusou o e-mail foi o servidor do PRÓPRIO EMPREGADOR (não o Gmail nem o H2BApply) — geralmente porque aquele endereço de e-mail não existe mais, a caixa está cheia, ou o servidor dele bloqueia mensagens de remetentes desconhecidos. Não é um problema na sua conta. O que fazer: essa vaga foi pulada automaticamente — continue com as próximas candidaturas normalmente." };
+  if (msg.includes("timeout") || msg.includes("ETIMEDOUT") || msg.includes("ECONNRESET"))
+    return { type:"network", friendly:"🌐 Motivo: a conexão entre o servidor do H2BApply e os servidores do Google demorou demais ou caiu no meio do caminho — uma instabilidade momentânea de rede, não um problema na sua conta Gmail. O que fazer: tente enviar de novo em alguns segundos; geralmente resolve sozinho." };
+  if (msg.includes("500") || msg.includes("503") || msg.includes("Service Unavailable"))
+    return { type:"server_error", friendly:"⚠️ Motivo: os próprios servidores do Google tiveram uma falha temporária (acontece de vez em quando com qualquer serviço do Google, não é algo do H2BApply nem da sua conta). O que fazer: espere um pouco e tente de novo — normalmente volta ao normal em minutos." };
+  return { type:"unknown", friendly:`❌ Não foi possível enviar: ${msg.slice(0, 200)}` };
+}
+
 async function _doAutoSendInner(email) {
   // Sempre relê o job do banco — nunca usa objeto em cache
   const job = getAutoJob(email);
@@ -3019,7 +3588,9 @@ async function _doAutoSendInner(email) {
         addLog(email, { status:"pulado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:`E-mail inválido (${_ce.reason}): "${candidate.to}"` });
         queue.shift(); continue;
       }
-      if (_ce.email === email.toLowerCase()) {
+      // v18-FIX: guarda de auto-envio agora também cobre os Gmails EXTRAS do
+      // próprio usuário (mesmo ajuste feito no envio manual), não só o principal.
+      if (_ownEmailsOf(email).has(_ce.email)) {
         addLog(email, { status:"pulado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:"Destinatário é o próprio usuário — auto-envio bloqueado" });
         queue.shift(); continue;
       }
@@ -3044,6 +3615,8 @@ async function _doAutoSendInner(email) {
     addLog(email, { status:"sistema", jobTitle:"✅ Fila finalizada", company:`Total: ${job.originalCount||0} vagas processadas. Todas enviadas!` });
     console.log(`[auto] ${email} finalizado — todas as vagas enviadas`);
     sendNotifEmail(email, "finished").catch(e => console.warn("[notif/finished]", e.message));
+    // v18-FIX: push como fallback — canal separado do kill-switch de e-mail do dono
+    pushToUser(email,{type:"finished",title:"🔄 Fila do robô zerou!",body:"Todas as candidaturas foram enviadas. Recarregue com mais categorias/planilhas.",icon:"/icon-192.png"}).catch(()=>{});
     return;
   }
 
@@ -3323,7 +3896,7 @@ async function _doAutoSendInner(email) {
       addLog(email, { ...logEntry, status:"pulado", error:`E-mail inválido na fila (${_finalEmail.reason}): "${target.to}"` });
       break;
     }
-    if (_finalEmail.email === email.toLowerCase()) {
+    if (_ownEmailsOf(email).has(_finalEmail.email)) {
       addLog(email, { ...logEntry, status:"pulado", error:"Destinatário é o próprio usuário — auto-envio bloqueado (verificação final)" });
       break;
     }
@@ -3435,32 +4008,11 @@ async function _doAutoSendInner(email) {
     } catch(e) {
       const errMsg = String(e.message);
 
-      // ── Traduz erros técnicos do Gmail em mensagens claras para o usuário ──
-      function translateGmailError(msg) {
-        if (msg.includes("rateLimitExceeded") || msg.includes("userRateLimitExceeded") || msg.includes("User-rate limit"))
-          return { type:"rate_limit", friendly:"⏳ Gmail bloqueou temporariamente os envios (limite de taxa). O sistema vai aguardar e tentar novamente automaticamente." };
-        if (msg.includes("invalid_grant") || msg.includes("Token has been expired or revoked"))
-          return { type:"auth", friendly:"🔐 Sua sessão Google expirou ou o acesso foi revogado. Faça login novamente no H2BApply para o automático continuar." };
-        if (msg.includes("insufficientPermissions") || msg.includes("Request had insufficient"))
-          return { type:"permission", friendly:"🔐 Permissão insuficiente no Gmail. Faça logout e login novamente, aceitando todas as permissões solicitadas." };
-        if (msg.includes("suspended") || msg.includes("Account has been suspended") || msg.includes("Suspended"))
-          return { type:"suspended", friendly:"⛔ Sua conta Google foi suspensa temporariamente. Acesse gmail.com para verificar se há algum alerta de segurança." };
-        if (msg.includes("sendDisabled") || msg.includes("Mail sending is disabled"))
-          return { type:"send_disabled", friendly:"⛔ O envio de e-mails está desativado nesta conta Google. Verifique o painel do Gmail." };
-        if (msg.includes("StorageQuotaExceeded") || msg.includes("quota"))
-          return { type:"quota", friendly:"📦 Sua conta Gmail atingiu o limite de armazenamento. Libere espaço no Google Drive/Gmail para continuar." };
-        if (msg.includes("Invalid") && msg.includes("To"))
-          return { type:"invalid_email", friendly:`📧 E-mail do empregador inválido: "${logEntry.to}". Esta vaga foi pulada automaticamente.` };
-        if (msg.includes("554") || msg.includes("550") || msg.includes("rejected"))
-          return { type:"rejected", friendly:"📧 O servidor de e-mail do empregador rejeitou a mensagem. Vaga pulada, continuando com a próxima." };
-        if (msg.includes("timeout") || msg.includes("ETIMEDOUT") || msg.includes("ECONNRESET"))
-          return { type:"network", friendly:"🌐 Erro de conexão temporário. O sistema vai tentar novamente automaticamente." };
-        if (msg.includes("500") || msg.includes("503") || msg.includes("Service Unavailable"))
-          return { type:"server_error", friendly:"⚠️ Erro temporário no servidor do Gmail. Tentando novamente automaticamente." };
-        return { type:"unknown", friendly:`❌ Erro ao enviar: ${msg.slice(0, 200)}` };
-      }
-
-      const { type: errType, friendly: errFriendly } = translateGmailError(errMsg);
+      // v18-FIX: translateGmailError agora é a função compartilhada
+      // translateGmailErrorMsg() (hoisted acima de _doAutoSendInner) — o
+      // /api/send (envio manual) passou a usá-la também, então a lógica de
+      // tradução vive num único lugar em vez de duplicada.
+      const { type: errType, friendly: errFriendly } = translateGmailErrorMsg(errMsg, logEntry.to);
       const isRateLimit = errType === "rate_limit";
       const isAuth      = errType === "auth" || errType === "permission";
       const isSuspended = errType === "suspended" || errType === "send_disabled";
@@ -3753,7 +4305,7 @@ function generateIconPNG(size) {
 }
 
 // httpsReq: extraído para src/gmail.js (Fase 1 · Módulo 2)
-const { httpsReq, normalizeEmail: _normEmailMod, buildMime: _buildMimeMod } = require("./mod-gmail.js");
+const { httpsReq, normalizeEmail: _normEmailMod, buildMime: _buildMimeMod, sanitizeHeaderField } = require("./mod-gmail.js");
 const MAX_BODY_SIZE = 50 * 1024 * 1024; // 50MB — suficiente para PDFs base64
 function readBody(req){return new Promise((res,rej)=>{const p=[];let sz=0;req.on("data",c=>{sz+=c.length;if(sz>MAX_BODY_SIZE){rej(new Error("Payload too large"));return;}p.push(c);});req.on("end",()=>res(Buffer.concat(p).toString()));req.on("error",rej);});}
 function json(res,status,data){
@@ -3978,15 +4530,19 @@ function buildMimeWithHeaders({to,subject,text,fromName,fromEmail,attachments=[]
     `To: ${to}`
   ];
   L.push(`Subject: =?UTF-8?B?${b64(subject)}?=`);
-  // Cabeçalhos de threading
-  if(threadHeaders["In-Reply-To"])L.push(`In-Reply-To: ${threadHeaders["In-Reply-To"]}`);
-  if(threadHeaders["References"])L.push(`References: ${threadHeaders["References"]}`);
+  // Cabeçalhos de threading — v18-SEC: In-Reply-To/References vêm de
+  // d.messageId/d.threadId enviados pelo CLIENTE (não validados contra o
+  // índice real de threads do usuário); sem sanitizar, um valor com \r\n
+  // injetaria cabeçalhos MIME arbitrários na mensagem enviada pelo Gmail
+  // do próprio usuário. Mesmo tratamento para nome de anexo, abaixo.
+  if(threadHeaders["In-Reply-To"])L.push(`In-Reply-To: ${sanitizeHeaderField(threadHeaders["In-Reply-To"],300)}`);
+  if(threadHeaders["References"])L.push(`References: ${sanitizeHeaderField(threadHeaders["References"],300)}`);
   L.push("MIME-Version: 1.0");
   if(!attachments.length){
     L.push("Content-Type: text/plain; charset=UTF-8","Content-Transfer-Encoding: 7bit","",text);
   }else{
     L.push(`Content-Type: multipart/mixed; boundary="${bnd}"`,"",`--${bnd}`,"Content-Type: text/plain; charset=UTF-8","Content-Transfer-Encoding: 7bit","",text,"");
-    for(const a of attachments){const aMime=a.mime||"application/octet-stream";L.push(`--${bnd}`,`Content-Type: ${aMime}; name="${a.name}"`,"Content-Transfer-Encoding: base64",`Content-Disposition: attachment; filename="${a.name}"`,"", ...(a.data.match(/.{1,76}/g)||[a.data]),"");}
+    for(const a of attachments){const aMime=a.mime||"application/octet-stream";const aName=sanitizeHeaderField(a.name);L.push(`--${bnd}`,`Content-Type: ${aMime}; name="${aName}"`,"Content-Transfer-Encoding: base64",`Content-Disposition: attachment; filename="${aName}"`,"", ...(a.data.match(/.{1,76}/g)||[a.data]),"");}
     L.push(`--${bnd}--`);
   }
   return Buffer.from(L.join("\r\n")).toString("base64").replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
@@ -5200,7 +5756,10 @@ const server=http.createServer(async(req,res)=>{
     "base-uri 'self'",
     "form-action 'self'",
   ].join("; "));
-  const org=req.headers.origin||"";const ao=(org===APP_URL||/^https?:\/\/localhost/.test(org))?org:APP_URL;
+  // v18-SEC: regex de localhost tinha limite solto — "http://localhost.evil.com"
+  // também passava (sem \b/porta delimitando o fim do host). Agora exige que
+  // depois de "localhost" venha só ":porta" ou fim da string.
+  const org=req.headers.origin||"";const ao=(org===APP_URL||/^https?:\/\/localhost(:\d+)?$/.test(org))?org:APP_URL;
   res.setHeader("Access-Control-Allow-Origin",ao);res.setHeader("Access-Control-Allow-Credentials","true");res.setHeader("Access-Control-Allow-Methods","GET,POST,DELETE,PATCH,OPTIONS");res.setHeader("Access-Control-Allow-Headers","Content-Type");
   if(req.method==="OPTIONS"){res.writeHead(204);return res.end();}
 
@@ -5209,7 +5768,85 @@ const server=http.createServer(async(req,res)=>{
   if(pathname==="/admin"||pathname==="/admin.html")return serveHtml("admin.html");
   if(pathname==="/admin-v2"||pathname==="/admin-v2.html")return serveHtml("admin-v2.html");
   if(pathname==="/guia"||pathname==="/guia.html")return serveHtml("guia.html");
+  if(pathname==="/h2bapply-funciona"||pathname==="/h2bapply-funciona.html")return serveHtml("h2bapply-funciona.html"); // SEO: página "H2BApply funciona?" (como funciona, confiança, preços, FAQ)
+  if(pathname==="/h2b-e-golpe"||pathname==="/h2b-e-golpe.html")return serveHtml("h2b-e-golpe.html"); // SEO/confiança: página "H2B é golpe?" — golpes comuns, regra federal anti-taxa-de-recrutamento, como verificar vaga real
+  if(pathname==="/quanto-ganha-h2b"||pathname==="/quanto-ganha-h2b.html")return serveHtml("quanto-ganha-h2b.html"); // SEO: página "quanto ganha quem trabalha H2B/H2A" — médias reais calculadas ao vivo via /api/public-wage-stats
+  // SEO programático por estado: /vagas-h2b/texas, /vagas-h2b/florida, etc. — gerado
+  // no servidor com números reais (nunca arquivo estático). Estados com poucas vagas
+  // (< MIN_JOBS_FOR_STATE_PAGE) não têm página própria pra evitar "thin content";
+  // caem de volta pro hub de salários.
+  if(pathname==="/vagas-h2b"||pathname==="/vagas-h2b/"){res.writeHead(302,{"Location":"/quanto-ganha-h2b"});return res.end();}
+  // v18-SEO: SEO programático por CATEGORIA: /vagas-h2b/categoria/landscape, etc.
+  // Checado ANTES da rota genérica por estado abaixo, senão "/vagas-h2b/categoria"
+  // seria lido como se "categoria" fosse o slug de um estado.
+  if(pathname==="/vagas-h2b/categoria"||pathname==="/vagas-h2b/categoria/"){res.writeHead(302,{"Location":"/quanto-ganha-h2b"});return res.end();}
+  if(pathname.startsWith("/vagas-h2b/categoria/")){
+    const catKey=pathname.slice("/vagas-h2b/categoria/".length).replace(/\/$/,"").toLowerCase();
+    try{
+      const{byCategoryAll,topStatesByCategory,overall}=computeWageStats();
+      const entry=byCategoryAll.find(c=>c.key===catKey);
+      if(!entry||entry.count<MIN_JOBS_FOR_CATEGORY_PAGE){res.writeHead(302,{"Location":"/quanto-ganha-h2b"});return res.end();}
+      const topStates=topStatesByCategory.get(entry.key)||[];
+      const html=renderCategoryPage(entry,topStates,overall.count);
+      return sendHtmlCompressed(req,res,html,"public, max-age=1800");
+    }catch(e){
+      console.warn("[vagas-h2b/categoria] erro:",e.message);
+      res.writeHead(302,{"Location":"/quanto-ganha-h2b"});return res.end();
+    }
+  }
+  if(pathname.startsWith("/vagas-h2b/")){
+    const slug=pathname.slice("/vagas-h2b/".length).replace(/\/$/,"").toLowerCase();
+    try{
+      const{byStateAll,topCategoriesByState,overall}=computeWageStats();
+      const entry=byStateAll.find(s=>s.slug===slug);
+      if(!entry||entry.count<MIN_JOBS_FOR_STATE_PAGE){res.writeHead(302,{"Location":"/quanto-ganha-h2b"});return res.end();}
+      const topCats=topCategoriesByState.get(entry.key)||[];
+      const html=renderStatePage(entry,topCats,overall.count);
+      return sendHtmlCompressed(req,res,html,"public, max-age=1800");
+    }catch(e){
+      console.warn("[vagas-h2b/state] erro:",e.message);
+      res.writeHead(302,{"Location":"/quanto-ganha-h2b"});return res.end();
+    }
+  }
   if(pathname==="/diagnostico"||pathname==="/diagnostico.html")return serveHtml("diagnostico.html");
+  if(pathname==="/admin-reviews"||pathname==="/admin-reviews.html")return serveHtml("admin-reviews.html"); // Moderação de avaliações reais (protegido via checagem de admin nas próprias rotas /api/admin/reviews*)
+
+  // ── SEO: robots.txt + sitemap.xml (KB-SEO-01: site não tinha nenhum dos dois,
+  // dificultando indexação/descoberta pelo Google) ──────────────────────────
+  if(pathname==="/robots.txt"){
+    res.writeHead(200,{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"public, max-age=3600"});
+    return res.end("User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /admin-v2\nDisallow: /admin-reviews\nDisallow: /ad\nDisallow: /api/\nDisallow: /diagnostico\n\nSitemap: https://h2bapply.com/sitemap.xml\n");
+  }
+  if(pathname==="/sitemap.xml"){
+    const _pages=[
+      {loc:"https://h2bapply.com/",priority:"1.0",changefreq:"daily"},
+      {loc:"https://h2bapply.com/guia",priority:"0.9",changefreq:"weekly"},
+      {loc:"https://h2bapply.com/h2bapply-funciona",priority:"0.8",changefreq:"weekly"},
+      {loc:"https://h2bapply.com/h2b-e-golpe",priority:"0.8",changefreq:"weekly"},
+      {loc:"https://h2bapply.com/quanto-ganha-h2b",priority:"0.8",changefreq:"weekly"},
+    ];
+    // SEO programático: inclui só os estados com vagas suficientes pra ter página própria
+    // (mesmo corte de MIN_JOBS_FOR_STATE_PAGE usado na rota /vagas-h2b/:estado).
+    try{
+      const{byStateAll,byCategoryAll}=computeWageStats();
+      byStateAll.filter(s=>s.count>=MIN_JOBS_FOR_STATE_PAGE).forEach(s=>{
+        _pages.push({loc:`https://h2bapply.com/vagas-h2b/${s.slug}`,priority:"0.7",changefreq:"weekly"});
+      });
+      // v18-SEO: páginas por categoria (mesmo corte de MIN_JOBS_FOR_CATEGORY_PAGE
+      // usado na rota /vagas-h2b/categoria/:categoria).
+      byCategoryAll.filter(c=>c.count>=MIN_JOBS_FOR_CATEGORY_PAGE).forEach(c=>{
+        _pages.push({loc:`https://h2bapply.com/vagas-h2b/categoria/${c.key}`,priority:"0.7",changefreq:"weekly"});
+      });
+    }catch(e){console.warn("[sitemap] erro ao listar páginas de estado/categoria:",e.message);}
+    // v18-SEO: <lastmod> ajuda o Google a saber que a página foi atualizada
+    // recentemente (o sitemap não tinha nenhuma data — usa a data do boot,
+    // já que o conteúdo destas páginas é recalculado a cada deploy/boot).
+    const _lastmod=new Date().toISOString().slice(0,10);
+    const _urls=_pages.map(p=>`  <url>\n    <loc>${p.loc}</loc>\n    <lastmod>${_lastmod}</lastmod>\n    <changefreq>${p.changefreq}</changefreq>\n    <priority>${p.priority}</priority>\n  </url>`).join("\n");
+    const _xml=`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${_urls}\n</urlset>\n`;
+    res.writeHead(200,{"Content-Type":"application/xml; charset=utf-8","Cache-Control":"public, max-age=3600"});
+    return res.end(_xml);
+  }
 
   // ── /ad — painel admin protegido ──────────────────────────
   // Só emails admin podem acessar. Qualquer outro usuário recebe
@@ -6424,6 +7061,11 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
   if(pathname==="/google-aviso.jpg"){
     try{const img=fs.readFileSync(path.join(__dirname,"google-aviso.jpg"));res.writeHead(200,{"Content-Type":"image/jpeg","Cache-Control":"public, max-age=604800"});return res.end(img);}catch{res.writeHead(404);return res.end();}
   }
+  // v18-SEO: banner de preview pra WhatsApp/redes sociais (og:image) — sem
+  // ele, links compartilhados do H2BApply apareciam sem nenhuma imagem.
+  if(pathname==="/og-image.png"){
+    try{const img=fs.readFileSync(path.join(__dirname,"og-image.png"));res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=604800"});return res.end(img);}catch{res.writeHead(404);return res.end();}
+  }
   if(ICON_MAP[pathname]){
     const iconPath=path.join(__dirname,ICON_MAP[pathname]);
     if(fs.existsSync(iconPath)){const data=fs.readFileSync(iconPath);res.writeHead(200,{"Content-Type":"image/png","Cache-Control":"public, max-age=604800, immutable"});return res.end(data);}
@@ -6823,6 +7465,20 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         const page2=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Gmail adicionado!</title></head><body><script>sessionStorage.setItem('senderAdded',${_safeEmail2});window.location.href='/';<\/script></body></html>`;
         res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Content-Length":Buffer.byteLength(page2),"Cache-Control":"no-cache"});return res.end(page2);
       }catch(e2){return fail2("Erro ao adicionar email: "+e2.message);}
+    }
+    // v18-SEC: validação de CSRF do fluxo de LOGIN principal — faltava por completo.
+    // /oauth/start grava sessions["__p__"+st] (state aleatório de 20 bytes) mas o
+    // callback nunca conferia esse state de volta antes de trocar o code. Sem isso,
+    // um atacante podia iniciar o próprio fluxo OAuth, capturar o code/state gerados
+    // para A CONTA DELE, e induzir a vítima a completar o callback com esses valores
+    // (login CSRF) — a vítima ficaria logada na conta do atacante e poderia enviar
+    // dados sensíveis (currículo, PII) para uma conta que o atacante controla.
+    // Mesmo padrão de validação/consumo já usado no fluxo __sender__ acima.
+    {
+      const pendingLogin=sessions["__p__"+_st];
+      if(!pendingLogin){return fail("Sessão de login inválida ou expirada. Tente entrar novamente.");}
+      delete sessions["__p__"+_st]; // uso único — nunca reaproveitar o state
+      if(Date.now()-pendingLogin.ts>600_000){return fail("Sessão de login expirada. Tente entrar novamente.");}
     }
     try{
       const tb=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:REDIRECT_URI,grant_type:"authorization_code"}).toString();
@@ -8198,9 +8854,8 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
             setPedidoPreCheck(pedido.id,{veredito:"REVISAR_MANUAL",resumo:"Comprovante em PDF — confira manualmente.",bateComEsperado:false,alertas:["PDF não lido automaticamente."]});
             return;
           }
-          // Tabela de preços oficial
-          const TAB={vip:{30:100,60:190,90:270,365:960},vipro:{30:150,60:285,90:405,365:1440},doublepro:{30:250,60:475,90:675,365:2400}};
-          const precoEsp=(TAB[pedido.plano]||{})[pedido.dias]||null;
+          // Tabela de preços oficial (hoisted — ver PLANO_PRECO_TAB)
+          const precoEsp=(PLANO_PRECO_TAB[pedido.plano]||{})[pedido.dias]||null;
           const b64=String(pedido.comprovante).replace(/^data:[^;]+;base64,/,"");
           // ── ANTI-FRAUDE: impressão digital do comprovante (detecta reuso) ──
           let dupAlerta=null;
@@ -8384,10 +9039,18 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
     const pid=decodeURIComponent(pathname.slice("/api/pedido/".length));
-    const idx=DB_PEDIDOS.findIndex(x=>x.id===pid);
-    if(idx<0)return json(res,404,{error:"Pedido não encontrado."});
+    if(DB_PEDIDOS.findIndex(x=>x.id===pid)<0)return json(res,404,{error:"Pedido não encontrado."});
     try{
       const d=JSON.parse(await readBody(req));
+      // v18-FIX: NÃO reaproveita o índice calculado antes do await acima —
+      // POST /api/pedido faz DB_PEDIDOS.unshift(...), que desloca o índice de
+      // TODO pedido existente em +1. Se um pedido novo chegar enquanto este
+      // PATCH está no meio do upload do body (rede lenta, comum em 4G),
+      // o índice antigo passa a apontar pra OUTRO pedido — ativando o VIP
+      // errado / creditando dias na conta de outro usuário. Refaz a busca
+      // por ID (não por índice) agora que o body já terminou de chegar.
+      const idx=DB_PEDIDOS.findIndex(x=>x.id===pid);
+      if(idx<0)return json(res,404,{error:"Pedido não encontrado (pode ter sido removido)."});
       const pd=DB_PEDIDOS[idx];
 
       // Validar senha de editor ao ativar
@@ -8415,7 +9078,20 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
         pd.ativadoPor=s.user_email;
         pd.ativadoEm=Date.now();
         const planoKey={vip:"vip",vipro:"vipro",doublepro:"doublepro"}[pd.plano]||"vipro";
-        const diasBase=Math.max(1,Math.min(3650,parseInt(pd.dias||30,10)));
+        // v18-FIX: pd.dias vem do CLIENTE (preenchido na criação do pedido, antes
+        // de qualquer revisão humana) — antes disso, só passava por um clamp
+        // [1,3650], então {plano:"vip",dias:3650} creditava 10 anos de VIP se o
+        // editor aprovasse sem reparar no alerta do Gemini. Agora só aceita os
+        // combos REAIS da tabela de preços oficial (30/60/90/365 por plano); se
+        // pd.dias não bater com nenhum, cai pro menor prazo válido (30d) — nunca
+        // credita mais do que a tabela permite, na dúvida credita de menos (o
+        // editor sempre pode complementar via "dias de bônus" se for engano).
+        const _diasPedido=parseInt(pd.dias,10)||30;
+        const _diasValidos=Object.keys(PLANO_PRECO_TAB[planoKey]||{}).map(Number);
+        const diasBase=_diasValidos.includes(_diasPedido)?_diasPedido:Math.min(..._diasValidos.length?_diasValidos:[30]);
+        if(diasBase!==_diasPedido){
+          console.warn(`[pedido] ⚠️ dias solicitados (${_diasPedido}) não batem com nenhum plano oficial de ${planoKey} — usando ${diasBase}d em vez disso. Pedido #${pd.id}`);
+        }
         const diasBonus=Math.max(0,Math.min(60,parseInt(d.bonusDias||0,10)));
         const diasTotal=diasBase+diasBonus;
         pd.diasBonus=diasBonus;pd.diasTotal=diasTotal;
@@ -8521,6 +9197,12 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
           body:`${planoKey.toUpperCase()} ativo por ${diasTotal} dias${diasBonus>0?` (inclui ${diasBonus}d bônus)`:""}.`,
           icon:"/icon-192.png"
         });}catch{}
+        // E-mail de confirmação (2026-07): quem não tem push habilitado (comum em iOS
+        // Safari sem instalar como app) hoje não recebe NENHUM aviso de que pagou e
+        // foi ativado — só descobre reabrindo o app. Fica atrás do mesmo kill-switch
+        // de e-mails (DB_ADMIN_SETTINGS.emailNotificationsEnabled) que o dono já
+        // configurou — não manda nada enquanto esse interruptor estiver desligado.
+        try{await sendNotifEmail(pd.userEmail,"plan_activated");}catch{}
         addLog(pd.userEmail,{status:"sistema",
           jobTitle:`🎉 Plano ${planoKey} ativado — ${diasTotal} dias${diasBonus>0?` (+${diasBonus} bônus)`:""}`,
           company:`Ativado por ${pd._ativadoEditor||"Admin"} (${s.user_email})`
@@ -8556,14 +9238,27 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
           });
           const rawAud=(gR?.candidates?.[0]?.content?.parts?.[0]?.text||"").replace(/```json|```/g,"").trim();
           const aud=JSON.parse(rawAud);
-          DB_PEDIDOS[idx].geminiAuditoria=aud;DB_PEDIDOS[idx].geminiAuditoriaAt=Date.now();
+          // v18-FIX: muta o objeto `pd` diretamente (referência já viva dentro
+          // de DB_PEDIDOS, não importa em qual índice) em vez de DB_PEDIDOS[idx]
+          // — por essa altura já rolaram vários await (chamada ao Gemini inclusa),
+          // então `idx` pode ter ficado obsoleto se outro pedido chegou nesse
+          // meio-tempo (unshift desloca todo mundo). Escrever em DB_PEDIDOS[idx]
+          // stale sobrescreveria um pedido diferente com estes dados.
+          pd.geminiAuditoria=aud;pd.geminiAuditoriaAt=Date.now();
           persistPedidos();
           setUser(pd.userEmail,{lastValidatedAt:Date.now(),lastValidatedBy:"Gemini Auto",lastValidationResult:aud.status==="OK"?"CLIENTE_VALIDADO":"PENDENCIAS_DETECTADAS"});
           console.log(`[gemini] Auditoria #${pd.id.slice(-8)}: ${aud.status} — ${aud.resumo}`);
         }catch(eG){console.warn("[gemini] audit err:",eG.message);}})();
 
         pd.ativadoEm=pd.ativadoEm||Date.now(); // garantir que está setado
-        DB_PEDIDOS[idx]=pd;persistPedidos();
+        // v18-FIX: sem DB_PEDIDOS[idx]=pd aqui de propósito — `pd` já É o
+        // objeto que vive dentro do array (mesma referência), então toda
+        // mutação em pd.* já reflete no array sozinha. Reescrever por índice
+        // é redundante quando idx está certo e PERIGOSO quando não está (dois
+        // awaits — pushToUser/sendNotifEmail — já passaram desde o lookup;
+        // se outro pedido foi criado nesse meio-tempo, esse índice mudou de
+        // dono e a escrita indexada sobrescreveria o pedido errado).
+        persistPedidos();
         return json(res,200,{ok:true,persistWarning:_persistWarn,pedido:pd,diasBase,diasBonus,diasTotal,planoKey,
           manualExpiresDate:new Date(manualExpires).toLocaleDateString("pt-BR"),
           autoExpiresDate:autoExpires>now?new Date(autoExpires).toLocaleDateString("pt-BR"):null,
@@ -8572,7 +9267,7 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
       }
 
       if(d.status==="cancelado"){pd.canceladoPor=s.user_email;pd.canceladoEm=Date.now();}
-      DB_PEDIDOS[idx]=pd;persistPedidos();
+      persistPedidos(); // v18-FIX: idem — pd já é a referência viva do array, sem reescrita por índice
       return json(res,200,{ok:true,pedido:pd});
     }catch(e){return json(res,500,{error:e.message});}
   }
@@ -8683,7 +9378,7 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
   if(pathname==="/api/cv/upload"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Sessão expirada. Faça login novamente.",sessionExpired:true,code:"SESSION_EXPIRED"});if(rateLimit(s.user_email+"_cv",10,3600_000))return json(res,429,{error:"Muitos uploads. Tente novamente em 1 hora."});try{const d=JSON.parse(await readBody(req));if(!d.base64||!d.name)return json(res,400,{error:"base64 e name obrigatórios."});// Tamanho: base64 representa ~75% dos bytes reais
 const estimatedBytes=Math.round(d.base64.length*0.75);if(d.base64.length>14_000_000)return json(res,400,{error:"Arquivo maior que 10MB."});if(estimatedBytes<1000)return json(res,400,{error:"Arquivo muito pequeno ou corrompido."});// Valida magic bytes %PDF (mais robusto: verifica os 4 primeiros bytes do binário real)
 const pdfBuf=Buffer.from(d.base64.slice(0,8),"base64");if(pdfBuf.length<4||pdfBuf[0]!==0x25||pdfBuf[1]!==0x50||pdfBuf[2]!==0x44||pdfBuf[3]!==0x46)return json(res,400,{error:"Arquivo inválido: não é um PDF. Envie um arquivo .pdf válido."});// Nome seguro
-const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)return json(res,400,{error:"Nome do arquivo inválido."});const p=getUser(s.user_email)||{};const cvs=p.cvs||[];const cvType=d.cvType||"resume";const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filter(c=>(c.cvType||"resume")===cvType);if(sameType.length>=typeLimit)return json(res,429,{error:`Limite de ${typeLimit} ${cvType==="cover"?"cover letters":"currículos"} atingido. Para liberar espaço: abra o editor de perfil → seção Currículo → clique no ícone 🗑️ ao lado de um PDF antigo.`,limitReached:true,cvType,limit:typeLimit});const idx=Date.now();const meta={idx,name:safeName,size:estimatedBytes,date:new Date().toISOString(),cvType,b64:d.base64};cvs.push(meta);saveCv(s.user_email,idx,d.base64);setUser(s.user_email,{cvs});trackJourney(s.user_email,'pdf_upload',{detail:`PDF: ${safeName} ~${Math.round(estimatedBytes/1024)}KB`,meta:{name:safeName,idx,cvType}});
+const safeName=String(d.name).replace(/[<>"'&\r\n\t]/g,"").slice(0,200);if(!safeName)return json(res,400,{error:"Nome do arquivo inválido."});const p=getUser(s.user_email)||{};const cvs=p.cvs||[];const cvType=d.cvType||"resume";const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filter(c=>(c.cvType||"resume")===cvType);if(sameType.length>=typeLimit)return json(res,429,{error:`Limite de ${typeLimit} ${cvType==="cover"?"cover letters":"currículos"} atingido. Para liberar espaço: abra o editor de perfil → seção Currículo → clique no ícone 🗑️ ao lado de um PDF antigo.`,limitReached:true,cvType,limit:typeLimit});const idx=Date.now();const meta={idx,name:safeName,size:estimatedBytes,date:new Date().toISOString(),cvType,b64:d.base64};cvs.push(meta);saveCv(s.user_email,idx,d.base64);setUser(s.user_email,{cvs});trackJourney(s.user_email,'pdf_upload',{detail:`PDF: ${safeName} ~${Math.round(estimatedBytes/1024)}KB`,meta:{name:safeName,idx,cvType}});
       return json(res,200,{ok:true,cv:{idx:meta.idx,name:meta.name,size:meta.size,date:meta.date,cvType:meta.cvType}});}catch(e){return json(res,500,{error:e.message});}}
   if(/^\/api\/cv\/\d+$/.test(pathname)&&req.method==="GET"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const idx=parseInt(pathname.split("/").pop(),10);const p=getUser(s.user_email);if(!p?.cvs?.find(c=>c.idx===idx))return json(res,403,{error:"CV não encontrado."});const b64=loadCv(s.user_email,idx);if(!b64)return json(res,404,{error:"Arquivo não encontrado."});return json(res,200,{base64:b64,idx});}
   if(/^\/api\/cv\/\d+$/.test(pathname)&&req.method==="DELETE"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const idx=parseInt(pathname.split("/").pop(),10);const p=getUser(s.user_email);if(!p?.cvs?.find(c=>c.idx===idx))return json(res,403,{error:"CV não encontrado."});deleteCv(s.user_email,idx);const _cleanProfiles=(p.profiles||[]).map(pr=>{const np={...pr};if(np.resumeIdx===idx){delete np.resumeIdx;delete np.pdfName;delete np.pdfSize;}if(np.coverIdx===idx){delete np.coverIdx;}return np;});setUser(s.user_email,{cvs:(p.cvs||[]).filter(c=>c.idx!==idx),profiles:_cleanProfiles});return json(res,200,{ok:true});}
@@ -8693,14 +9388,21 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     const s=getSess(req);if(!s?.access_token)return json(res,401,{error:"Sessão expirada."});
     const p=getUser(s.user_email)||{};
     let dedupKey = null; // declarado fora do try para que o catch possa acessar
+    let _reservedManualSlot=false; // idem — precisa ser liberada mesmo se o catch pegar um erro
+    let _toEmailForErr=null; // idem — usado só pra dar contexto numa mensagem de erro amigável
     try{
       const d=JSON.parse(await readBody(req));if(!d.to||!d.subject||!d.message)return json(res,400,{error:"Campos obrigatórios."});
+      _toEmailForErr=String(d.to||"");
       // v15-SEC: normalização e validação robusta do destinatário
       const _parsedTo = parseEmail(d.to);
       if (!_parsedTo.ok) return json(res,400,{error:`E-mail inválido: ${_parsedTo.reason}`});
       const toEmail = _parsedTo.email;
       // v15-SEC: guarda contra auto-envio
-      if (toEmail === s.user_email.toLowerCase()) return json(res,400,{error:"Não é possível enviar candidatura para o seu próprio e-mail."});
+      // v18-FIX: antes só comparava com o email PRINCIPAL — quem tem um Gmail
+      // extra conectado (recurso pago, ex. DoublePro) podia "candidatar-se" sem
+      // querer pro próprio segundo Gmail, desperdiçando 1 vaga do limite diário.
+      const _ownEmails=new Set([s.user_email.toLowerCase(), ...((p.senderEmails||[]).map(x=>String(x.email||"").toLowerCase()).filter(Boolean))]);
+      if (_ownEmails.has(toEmail)) return json(res,400,{error:"Não é possível enviar candidatura para seu próprio e-mail (principal ou extra conectado)."});
       // v15-SEC: assunto e corpo não podem ser vazios
       if (!String(d.subject).trim()) return json(res,400,{error:"O assunto do e-mail não pode estar em branco."});
       if (!String(d.message).trim()) return json(res,400,{error:"O corpo do e-mail não pode estar em branco."});
@@ -8717,16 +9419,47 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
       setTimeout(()=>_manualSendInFlight.delete(dedupKey), 15000);
 
       if(!isReply){
+        // v18-FIX: rajada — antes só a resposta (reply) tinha rateLimit(); o envio
+        // de candidatura nova não tinha NENHUM freio de curto prazo, só o limite
+        // diário (que por sua vez tinha a corrida corrigida abaixo). Agora também
+        // trava rajadas rápidas independente do limite diário total.
+        if(rateLimit(s.user_email+"_send_burst",20,60_000))return json(res,429,{error:"Muitos envios em pouco tempo. Aguarde um minuto."});
         // Só verifica limite para candidaturas novas (não respostas)
         const lim=getManualLimit(p);const h=getHist(s.user_email);const sent=countManualToday(h);
-        if(sent>=lim)return json(res,429,{error:`Limite de ${lim} envios/dia atingido.`,limitReached:true,plan:getPlan(p),todaySent:sent,dailyLimit:lim});
+        // v18-FIX (corrida TOCTOU / "180 envios em 3h"): soma as reservas de envios
+        // já em voo (checagem passou, Gmail ainda não respondeu) — sem isso, duas
+        // requisições concorrentes liam a mesma contagem "antiga" do histórico e
+        // as DUAS passavam no limite, estourando a cota do plano numa rajada.
+        const _reserved=_manualSendReserved.get(s.user_email)||0;
+        if(sent+_reserved>=lim)return json(res,429,{error:`Limite de ${lim} envios/dia atingido.`,limitReached:true,plan:getPlan(p),todaySent:sent,dailyLimit:lim});
         // v16-FIX: bloqueia manual se já enviado (manual ou automático) — evita duplicata
         if(hasSent(s.user_email,toEmail))return json(res,409,{error:"Você já enviou para esta empresa. Verifique o histórico.",alreadySent:true});
         // v17-FIX: verifica se email está na fila do automático (ainda não enviado)
         const _autoQ = getAutoJob(s.user_email);
         if(_autoQ?.active && _autoQ.queue?.some(q => _normEmail(q.to) === _normEmail(toEmail)))
           return json(res,409,{error:"Esta empresa está na fila do envio automático. Aguarde ou cancele o automático primeiro.",inAutoQueue:true});
+        // v18-FIX: o automático marca a vaga em job.currentJob ENQUANTO está enviando
+        // (antes de terminar e marcar em DB_SENT) — a checagem acima não pegava esse
+        // instante intermediário, permitindo que o manual mandasse pra MESMA empresa
+        // que o automático estava processando naquele exato momento (envio duplicado).
+        if(_autoQ?.active && _autoQ.currentJob && _normEmail(_autoQ.currentJob.to)===_normEmail(toEmail))
+          return json(res,409,{error:"O envio automático está processando esta empresa agora. Aguarde alguns segundos e tente novamente.",inAutoQueue:true});
+        _reserveManualSlot(s.user_email); _reservedManualSlot=true;
+        // Rede de segurança: libera a reserva sozinha em 60s mesmo se algo impedir
+        // o fluxo normal de chegar ao release explícito (ex. crash raro no meio do envio).
+        setTimeout(()=>{ if(_reservedManualSlot){_releaseManualSlot(s.user_email);_reservedManualSlot=false;} }, 60_000);
       }else{
+        // v18-SEC: antes isReply=true (valor enviado pelo CLIENTE, sem verificação)
+        // pulava TODAS as checagens acima — limite diário, "já enviado" e fila do
+        // automático — liberando até 50 envios/dia completamente fora do limite do
+        // plano, pra qualquer destinatário, bastando o cliente mandar isReply:true
+        // com um threadId inventado. Agora exige que o threadId corresponda a uma
+        // candidatura que ESTE usuário realmente enviou pelo H2BApply (índice real).
+        const _threadId=String(d.threadId||"").trim();
+        const _ix=ensureIdx(s.user_email);
+        if(!_threadId||!_ix.byThread[_threadId]){
+          return json(res,403,{error:"Não foi possível confirmar esta conversa. Resposta bloqueada por segurança."});
+        }
         // Rate limit leve para respostas (50/dia) para evitar abuso
         if(rateLimit(s.user_email+"_reply",50,86400_000))return json(res,429,{error:"Muitas respostas em um dia."});
       }
@@ -8823,6 +9556,10 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
           caseNum: d.caseNum || ""
         };
         addHist(s.user_email, histEntry);
+        // v18-FIX: libera a reserva do limite AQUI — o histórico real (addHist)
+        // já reflete este envio a partir de agora, então countManualToday() já
+        // conta com ele; manter a reserva depois disso contaria em dobro.
+        if(_reservedManualSlot){_releaseManualSlot(s.user_email);_reservedManualSlot=false;}
         indexApp(s.user_email, histEntry);
         // Buscar o header Message-Id real em background para indexar (fire-and-forget)
         if(r.id){
@@ -8856,7 +9593,20 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
         _manualSendInFlight.delete(dedupKey);
         return json(res,200,{ok:true,messageId:r.id,countedAsManual:false,isReply:true});
       }
-    }catch(e){_manualSendInFlight.delete(dedupKey);console.error("[send]",e.message);return json(res,500,{error:e.message});}
+    }catch(e){
+      _manualSendInFlight.delete(dedupKey);
+      if(_reservedManualSlot){_releaseManualSlot(s.user_email);_reservedManualSlot=false;}
+      console.error("[send]",e.message);
+      // v18-FIX: antes devolvia e.message CRU pro usuário — texto técnico do
+      // Google tipo "User-rate limit exceeded. Retry after 2026-07-15T12:31:47Z"
+      // que ninguém leigo entende e parece bug do H2BApply (não é — é o Google
+      // limitando a conta Gmail da pessoa). Agora traduz pra uma explicação
+      // clara em português antes de responder; o texto técnico original ainda
+      // vai pro console (linha acima) e no campo errorRaw, pra investigar se
+      // precisar, mas quem aparece pro usuário é a versão amigável.
+      const {type:_errType,friendly:_errFriendly}=translateGmailErrorMsg(e.message,_toEmailForErr);
+      return json(res,500,{error:_errFriendly,errorType:_errType,errorRaw:e.message});
+    }
   }
 
 
@@ -9229,13 +9979,20 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
 
   // ── PROFILES ──────────────────────────────────────────
   if(pathname==="/api/profiles"&&req.method==="GET"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const p=getUser(s.user_email)||{};return json(res,200,{profiles:p.profiles||[]});}
-  if(pathname==="/api/profiles/save"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});try{const d=JSON.parse(await readBody(req));if(!d.name)return json(res,400,{error:"name obrigatório"});const p=getUser(s.user_email)||{};let prfs=p.profiles||[];const idx=prfs.findIndex(x=>x.id===d.id);
+  if(pathname==="/api/profiles/save"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});try{const d=JSON.parse(await readBody(req));if(!d.name)return json(res,400,{error:"name obrigatório"});const p=getUser(s.user_email)||{};let prfs=p.profiles||[];
     // Validate and normalize subjects (up to 10, no duplicates, no empty)
     const rawSubjs=Array.isArray(d.subjects)?d.subjects:[];
     const subjects=[...new Set(rawSubjs.map(s=>String(s).trim()).filter(Boolean))].slice(0,10);
     // Validate and normalize email bodies (no empty)
     const rawBodies=Array.isArray(d.emailBodies)?d.emailBodies:[];
     const emailBodies=rawBodies.map(b=>String(b).trim()).filter(Boolean);
+    // ── PERFIL ÚNICO (2026-07, pedido do dono): mínimo 3 assuntos e 3 corpos
+    // diferentes, escritos pelo próprio usuário — sem isso a candidatura sai
+    // com texto padrão igual à de milhares de outros usuários. Antes só o
+    // editor completo (frontend) validava isso; agora vale pra qualquer
+    // chamador da API (onboarding incluso), sem brecha.
+    if(subjects.length<3)return json(res,400,{error:"Mínimo 3 assuntos diferentes de email."});
+    if(emailBodies.length<3)return json(res,400,{error:"Mínimo 3 corpos de email diferentes."});
     // Normalize categories (only known keys)
     const KNOWN_CATS=["landscape","construction","housekeeper","seafood","farm","golf","amusement","forest","lifeguard","other"];
     const categories=Array.isArray(d.categories)?d.categories.filter(c=>KNOWN_CATS.includes(c)):[];
@@ -9246,8 +10003,20 @@ const safeName=String(d.name).replace(/[<>"'&]/g,"").slice(0,200);if(!safeName)r
     // fixas + todas as chaves publicadas em SHEET_EXTRAS no momento do save.
     const KNOWN_SHEETS=["jan2026","jul2025","h2a-jun2026","dol",...Object.keys(SHEET_EXTRAS)];
     const sheets=Array.isArray(d.sheets)?d.sheets.filter(s=>KNOWN_SHEETS.includes(s)):[];
-    const prf={id:d.id||crypto.randomUUID(),name:String(d.name).slice(0,80),desc:String(d.desc||"").slice(0,200),active:d.active!==false,type:"normal",icon:String(d.icon||"🎯").slice(0,8),isFavorite:!!d.isFavorite,allowManual:d.allowManual!==false,allowAuto:d.allowAuto!==false,coverName:d.coverName?String(d.coverName).slice(0,200):undefined,coverSize:d.coverSize||0,isGeneral:!!d.isGeneral,subjects,emailBodies,subject:subjects[0]||String(d.subject||"").slice(0,200),body:emailBodies[0]||String(d.body||"").slice(0,5000),categories,sheets,resumeIdx:d.resumeIdx??null,pdfName:d.pdfName?String(d.pdfName).slice(0,200):undefined,pdfSize:d.pdfSize||0,coverIdx:d.coverIdx??null,state:String(d.state||"").slice(0,40),updatedAt:new Date().toISOString(),createdAt:d.createdAt||new Date().toISOString()};if(idx>=0)prfs[idx]=prf;else{if(prfs.length>=20)return json(res,429,{error:"Limite de 20 perfis atingido"});prfs.unshift(prf);}setUser(s.user_email,{profiles:prfs});return json(res,200,{ok:true,profile:prf});}catch(e){return json(res,500,{error:e.message});}}
-  if(pathname==="/api/profiles/delete"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});try{const d=JSON.parse(await readBody(req));if(!d.id)return json(res,400,{error:"id obrigatório"});const p=getUser(s.user_email)||{};setUser(s.user_email,{profiles:(p.profiles||[]).filter(pr=>pr.id!==d.id)});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
+    // ── PERFIL ÚNICO: só existe (no máximo) 1 perfil por usuário — sempre
+    // edita esse perfil, nunca cria um segundo (ignora d.id de outro perfil).
+    // "Um perfil com informações gerais" pra todas as vagas, não vários por tipo.
+    const existing=prfs[0]||null;
+    const prf={id:existing?existing.id:(d.id||crypto.randomUUID()),name:String(d.name).slice(0,80),desc:String(d.desc||"").slice(0,200),active:true,type:"normal",icon:String(d.icon||"🎯").slice(0,8),isFavorite:true,allowManual:true,allowAuto:true,coverName:d.coverName?String(d.coverName).slice(0,200):undefined,coverSize:d.coverSize||0,isGeneral:true,subjects,emailBodies,subject:subjects[0]||String(d.subject||"").slice(0,200),body:emailBodies[0]||String(d.body||"").slice(0,5000),categories:[],sheets,resumeIdx:d.resumeIdx??null,pdfName:d.pdfName?String(d.pdfName).slice(0,200):undefined,pdfSize:d.pdfSize||0,coverIdx:d.coverIdx??null,state:String(d.state||"").slice(0,40),updatedAt:new Date().toISOString(),createdAt:existing?existing.createdAt:(d.createdAt||new Date().toISOString())};
+    prfs=[prf]; // substitui sempre — nunca acumula um segundo perfil
+    setUser(s.user_email,{profiles:prfs});return json(res,200,{ok:true,profile:prf});}catch(e){return json(res,500,{error:e.message});}}
+  if(pathname==="/api/profiles/delete"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});try{const d=JSON.parse(await readBody(req));if(!d.id)return json(res,400,{error:"id obrigatório"});const p=getUser(s.user_email)||{};
+    // PERFIL ÚNICO: não deixa apagar o único perfil (ficaria sem assunto/corpo
+    // configurado e o envio cairia no fallback genérico — exatamente o que
+    // este redesenho quis eliminar). Editar continua liberado, apagar não.
+    const cur=p.profiles||[];
+    if(cur.length<=1&&cur.some(pr=>pr.id===d.id))return json(res,400,{error:"Você precisa de pelo menos 1 perfil configurado. Edite-o em vez de apagar."});
+    setUser(s.user_email,{profiles:cur.filter(pr=>pr.id!==d.id)});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
 
   if(pathname==="/api/debug/export"){const s=getSess(req);if(!s?.user_email||(getUser(s.user_email)||{}).isAdmin!==true)return json(res,403,{error:"Acesso negado."});return json(res,200,{ts:new Date().toISOString(),users:DB_USERS,totalUsers:Object.keys(DB_USERS).length,dataDir:DATA_DIR,disk:fs.existsSync("/data")});}
 
@@ -9716,6 +10485,16 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
     if(pathname==="/api/admin/vip/activate"&&req.method==="POST"){try{
       const d=JSON.parse(await readBody(req));
       if(!d.email)return json(res,400,{error:"email obrigatório."});
+      // v18-FIX: guarda de idempotência — este endpoint (crédito manual de VIP
+      // pelo admin) não tinha NENHUMA proteção contra duplo-clique/retry, ao
+      // contrário do fluxo de aprovação de pedido (que já trava por pd.ativadoEm).
+      // Um duplo-clique aqui somava os dias DUAS vezes silenciosamente. Trava
+      // simples: mesmo admin + mesmo email-alvo não pode repetir em <5s.
+      const _vipActKey=s.user_email+"|"+String(d.email||"").toLowerCase();
+      if(_adminVipActivateLock.has(_vipActKey))
+        return json(res,409,{error:"Ativação em andamento para este usuário. Aguarde alguns segundos e confira antes de tentar de novo.",duplicate:true});
+      _adminVipActivateLock.set(_vipActKey,Date.now());
+      setTimeout(()=>_adminVipActivateLock.delete(_vipActKey),5000);
       const target=getUser(d.email);
       if(!target)return json(res,404,{error:"Usuário não encontrado."});
       const days=Math.max(0,Math.min(365,parseInt(d.days||30,10)));
@@ -10860,6 +11639,24 @@ Responda APENAS em JSON (sem markdown):
     return json(res,200,{totalUsers,vipUsers,todaySent,todayAuto,totalSent,totalAuto,trialEnabled:!!DB_ADMIN_SETTINGS.newUserTrialEnabled,trialDays:1,rankPreview:rankPreview.slice(0,5)}); // FIX Fase-0: era hardcode 5; trial real = 1 dia (KB-686: números de plano nunca hardcodados... este estava)
   }
 
+  // ── /api/public-wage-stats — GET, sem login (SEO: página "quanto ganha quem
+  // trabalha H-2B/H-2A"). Calcula médias de salário/hora REAIS a partir das
+  // planilhas de vagas já carregadas em memória (mesma fonte que /api/jobs) —
+  // nunca número inventado. Só considera vagas com salário por HORA (r.wunit
+  // === "h", ~98% do total); as poucas vagas mensais (ex.: pastores de ovelha)
+  // ficam de fora pra não misturar unidade e distorcer a média. ─────────────
+  if(pathname==="/api/public-wage-stats"&&req.method==="GET"){
+    try{
+      const{overall,byCategoryAll,byStateAll}=computeWageStats();
+      const byCategory=byCategoryAll.slice(0,14).map(({key,label,count,avgWage})=>({key,label,count,avgWage}));
+      const byState=byStateAll.slice(0,12).map(({key,label,count,avgWage,slug})=>({key,label,count,avgWage,slug}));
+      return json(res,200,{ok:true,overall,byCategory,byState,source:"Planilhas públicas de certificação do Departamento do Trabalho dos EUA (DOL), mesma base usada na busca de vagas do H2BApply.",updatedAt:new Date().toISOString()});
+    }catch(e){
+      console.warn("[public-wage-stats] erro:",e.message);
+      return json(res,200,{ok:false,overall:{count:0,avg:0,min:0,max:0},byCategory:[],byState:[]});
+    }
+  }
+
   // ── RANKING API ───────────────────────────────────────────
   // GET /api/gamification — XP, nível e conquistas do usuário logado (V954).
   // Tudo derivado do histórico: recomputável, sem estado novo, sem migração.
@@ -11758,6 +12555,98 @@ APRENDIZADO: [padrão detectado, conciso, acionável, max 200 chars]`;
     }catch(e){return json(res,500,{error:e.message});}
   }
 
+  // ── AVALIAÇÕES REAIS DE USUÁRIOS (landing page) ─────────────────────────
+  // Substitui os depoimentos fixos/fictícios da landing por avaliações reais,
+  // enviadas por usuários autenticados e moderadas por admin antes de ir ao ar
+  // (evita spam/abuso e conteúdo impróprio aparecendo direto na home pública).
+  if(pathname==="/api/reviews" && req.method==="POST"){
+    const s=getSess(req); if(!s?.user_email) return json(res,401,{error:"Não autenticado"});
+    if(rateLimit(s.user_email+"_review",3,86400_000)) return json(res,429,{error:"Muitas avaliações enviadas. Tente novamente amanhã."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const text=(d.text||"").trim();
+      const rating=Math.round(Number(d.rating));
+      const location=(d.location||"").trim().slice(0,60);
+      const p=getUser(s.user_email)||{};
+      const fallbackName=(p.name||s.user_name||"Usuário").trim().split(/\s+/)[0]||"Usuário";
+      let displayName=(d.displayName||"").trim().slice(0,40);
+      if(!displayName) displayName=fallbackName;
+      if(!text||text.length<15) return json(res,400,{error:"Conte um pouco mais — mínimo 15 caracteres."});
+      if(text.length>600) return json(res,400,{error:"Avaliação muito longa. Máximo 600 caracteres."});
+      if(!Number.isFinite(rating)||rating<1||rating>5) return json(res,400,{error:"Escolha uma nota de 1 a 5 estrelas."});
+      const review={
+        id:"rev_"+Date.now()+"_"+crypto.randomBytes(3).toString("hex"),
+        text, rating, displayName, location,
+        email:s.user_email,
+        plan:p.plan||"free",
+        status:"pending", // pending | approved | rejected
+        createdAt:new Date().toISOString(),
+      };
+      if(!Array.isArray(DB_REVIEWS)) DB_REVIEWS=[];
+      DB_REVIEWS.unshift(review);
+      if(DB_REVIEWS.length>2000) DB_REVIEWS=DB_REVIEWS.slice(0,2000);
+      persist(REVIEWS_FILE, DB_REVIEWS);
+      console.log(`[review] ${s.user_email} (${rating}★): "${text.slice(0,60)}..."`);
+      return json(res,200,{ok:true,id:review.id});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  // Usuário logado vê o status das próprias avaliações enviadas
+  if(pathname==="/api/reviews/mine" && req.method==="GET"){
+    const s=getSess(req); if(!s?.user_email) return json(res,401,{error:"Não autenticado"});
+    const mine=(DB_REVIEWS||[]).filter(r=>r.email===s.user_email).slice(0,20)
+      .map(r=>({id:r.id,text:r.text,rating:r.rating,displayName:r.displayName,location:r.location,status:r.status,createdAt:r.createdAt}));
+    return json(res,200,{ok:true,reviews:mine});
+  }
+
+  // Público (landing page, sem autenticação): só avaliações aprovadas, sem e-mail/plano
+  if(pathname==="/api/reviews/public" && req.method==="GET"){
+    const approved=(DB_REVIEWS||[]).filter(r=>r.status==="approved");
+    const list=approved.slice(0,24)
+      .map(r=>({id:r.id,text:r.text,rating:r.rating,displayName:r.displayName,location:r.location,createdAt:r.createdAt}));
+    // v18-SEO: totalApproved (contagem REAL, sem o corte de 24) alimenta o
+    // aggregateRating (reviewCount) na landing — precisa refletir o total de
+    // verdade, não só quantas cabem na grade visível, senão o schema.org fica
+    // incorreto (Google exige que reviewCount reflita as avaliações reais).
+    const avgRating=approved.length?+(approved.reduce((s,r)=>s+(r.rating||5),0)/approved.length).toFixed(2):0;
+    return json(res,200,{ok:true,reviews:list,count:list.length,totalApproved:approved.length,avgRating});
+  }
+
+  // Admin: lista todas (default = pendentes) para moderação
+  if(pathname==="/api/admin/reviews" && req.method==="GET"){
+    const s=getSess(req); if(!s?.user_email) return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email)||{};
+    if(!p.isAdmin && !isAdminEmail(s.user_email)) return json(res,403,{error:"Acesso negado"});
+    const filter=(u.searchParams.get("status")||"pending").trim();
+    const list=filter==="all" ? (DB_REVIEWS||[]) : (DB_REVIEWS||[]).filter(r=>r.status===filter);
+    const counts={pending:0,approved:0,rejected:0};
+    for(const r of (DB_REVIEWS||[])) if(counts[r.status]!==undefined) counts[r.status]++;
+    return json(res,200,{ok:true,reviews:list.slice(0,300),counts});
+  }
+
+  // Admin: aprova/rejeita/exclui uma avaliação
+  if(pathname==="/api/admin/reviews/status" && req.method==="POST"){
+    const s=getSess(req); if(!s?.user_email) return json(res,401,{error:"Não autenticado"});
+    const p=getUser(s.user_email)||{};
+    if(!p.isAdmin && !isAdminEmail(s.user_email)) return json(res,403,{error:"Acesso negado"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      if(d.action==="delete"){
+        DB_REVIEWS=(DB_REVIEWS||[]).filter(r=>r.id!==d.id);
+        persist(REVIEWS_FILE, DB_REVIEWS);
+        return json(res,200,{ok:true,deleted:true});
+      }
+      const rev=(DB_REVIEWS||[]).find(x=>x.id===d.id);
+      if(!rev) return json(res,404,{error:"Avaliação não encontrada"});
+      if(!["approved","rejected","pending"].includes(d.status)) return json(res,400,{error:"Status inválido"});
+      rev.status=d.status;
+      rev.reviewedAt=new Date().toISOString();
+      rev.reviewedBy=s.user_email;
+      persist(REVIEWS_FILE, DB_REVIEWS);
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
   // ── SISTEMA DE INDICAÇÃO REMOVIDO DEFINITIVAMENTE (2026-07-03, KB-059) ──
   // Motivo: uso de má fé (abuso do programa de bônus). Removidos: genRefCode,
   // getOrCreateRefCode, GET /api/referral/info, GET /api/admin/referral/list,
@@ -12253,6 +13142,7 @@ async function sendNotifEmail(userEmail, tipo) {
                : tipo === "vip_desync"    ? MSGS_VIP_DESYNC
                : tipo === "no_profile"    ? MSGS_NO_PROFILE
                : tipo === "refill"        ? MSGS_REFILL
+               : tipo === "plan_activated"? MSGS_PLAN_ACTIVATED
                : MSGS_FINISHED);
     // Escolhe variação aleatória
     const idx = Math.floor(Math.random() * msgs.length);
@@ -12649,6 +13539,13 @@ const { tokenGuardianRun, vipExpiryWatchdog, authErrorWatchdog, getAuthErrNotifi
   getUser, getAutoJob, setAutoJob, addLog, sendNotifEmail, refreshTokenForUser,
   authErrNotifiedAtInit: _DB_NOTIF_COOLDOWN.authErrNotifiedAt, // V951: sobrevive a deploy
   botLog, // 📜 log unificado — pedido do dono (07/07/2026)
+  // v18-FIX: canal de push como FALLBACK — sendNotifEmail está 100% bloqueado
+  // pela chave DB_ADMIN_SETTINGS.emailNotificationsEnabled=false (decisão do
+  // dono, 06/07/2026, intocada aqui). Sem um canal alternativo, usuário pagante
+  // com robô travado ficava sem NENHUM aviso, em NENHUM canal. Push é um canal
+  // separado (não passa pelo kill-switch de e-mail) — não contorna a decisão
+  // do dono, só usa o canal que sobrou ligado.
+  pushToUser,
 });
 
 // ══════════════════════════════════════════════════════════
@@ -13164,6 +14061,7 @@ function flushAll() {
   try { persist(RANK_BADGES_FILE, DB_RANK_BADGES); } catch(e) { console.warn("[shutdown] rank_badges:", e.message); }
   try { persist(NOTIF_FILE,    DB_NOTIF);    } catch(e) { console.warn("[shutdown] notif:",    e.message); }
   try { persist(SUGGESTIONS_FILE, DB_SUGGESTIONS); } catch(e) { console.warn("[shutdown] suggestions:", e.message); }
+  try { persist(REVIEWS_FILE, DB_REVIEWS); } catch(e) { console.warn("[shutdown] reviews:", e.message); }
   try { _persistNotifCooldowns(); } catch(e) { console.warn("[shutdown] notif-cooldowns:", e.message); }
 
   // 3. Persiste sent_emails (conversão Set → Array)
@@ -13499,7 +14397,7 @@ RESPONDA APENAS com array JSON:
 //  🩺 HEALTH SENTINEL — extraído para src/sentinel.js (Fase 1 · Módulo 3)
 //  Injeção de dependências via getters: estado vivo do servidor sempre atual.
 // ══════════════════════════════════════════════════════════════════════════
-const { MSGS_VIP_EXPIRING, MSGS_NO_PROFILE, MSGS_VIP_DESYNC, MSGS_REFILL } = require("./mod-notif-templates.js");
+const { MSGS_VIP_EXPIRING, MSGS_NO_PROFILE, MSGS_VIP_DESYNC, MSGS_REFILL, MSGS_PLAN_ACTIVATED } = require("./mod-notif-templates.js");
 const { initSentinel } = require("./mod-sentinel.js");
 const { healthSentinelRun, pendingOrderAlert, queueSanitizerRun, getPedAlertSent } = initSentinel({
   DB_USERS: ()=>DB_USERS, DB_AUTO: ()=>DB_AUTO, DB_PEDIDOS: ()=>DB_PEDIDOS,
@@ -13511,6 +14409,7 @@ const { healthSentinelRun, pendingOrderAlert, queueSanitizerRun, getPedAlertSent
   cooldownMaps: { notifSentAt: ()=>_notifSentAt, authErrNotifiedAt: getAuthErrNotifiedAt },
   pedAlertSentInit: _DB_NOTIF_COOLDOWN.pedAlertSent, // V951: sobrevive a deploy
   botLog, // 📜 log unificado — pedido do dono (07/07/2026)
+  pushToUser, // v18-FIX: fallback de notificação enquanto o e-mail está desligado pelo dono
 });
 
 // ── Router do grupo saúde/operação (Fase 1 · Módulo 5) ──

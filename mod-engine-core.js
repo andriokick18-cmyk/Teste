@@ -26,7 +26,29 @@ function createCalcSmartInterval({ getUser, isAdminVip }){
     }
     const MIN_MS = 5 * 60 * 1000; // 5 minutos
     const MAX_MS = 6 * 60 * 1000; // 6 minutos
-    return MIN_MS + Math.random() * (MAX_MS - MIN_MS);
+    const base = MIN_MS + Math.random() * (MAX_MS - MIN_MS);
+
+    // ── Múltiplas contas Gmail conectadas (recurso pago "2 Gmails") ─────────
+    // O round-robin (getSenderToken, em server.js) já alterna os envios entre
+    // a conta principal e as extras, sempre escolhendo quem enviou MENOS hoje
+    // — então, na prática, cada CONTA individual continua recebendo o mesmo
+    // espaçamento humanizado de 5-6min entre as SUAS próprias mensagens (o
+    // que é o que protege contra bloqueio/spam do Gmail). Só que com 2 contas
+    // se revezando, o ritmo GERAL do usuário fica mais rápido, sem aumentar
+    // o risco por conta — exatamente o que a 2ª conta deveria comprar.
+    // Sem este ajuste, o intervalo era fixo por USUÁRIO (não por conta): o
+    // plano DoublePro prometia "400 automático/dia · 2 Gmails = máximo
+    // poder", mas o motor só conseguia ~260/dia mesmo com 2 contas Gmail
+    // conectadas — a 2ª conta não acelerava nada na prática. Dividindo o
+    // intervalo pelo nº de contas ativas corrige esse descompasso.
+    let activeSenders = 1;
+    if (email) {
+      const u = getUser(email);
+      const extras = Array.isArray(u?.senderEmails) ? u.senderEmails : [];
+      activeSenders += extras.filter(s => s && s.active !== false && !s.tokenExpired && !s.blocked).length;
+    }
+    activeSenders = Math.min(3, Math.max(1, activeSenders)); // trava defensiva
+    return base / activeSenders;
   };
 }
 

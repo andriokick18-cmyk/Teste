@@ -103,8 +103,15 @@ function createAdminV2Router(ctx){
   function payVal(pg){ const n=parseFloat(String(pg.valor??pg.value??0).replace(",","."));return isNaN(n)?0:n; }
 
   function getByPath(obj,p){ return p.split(".").reduce((o,k)=>o?.[k],obj); }
+  const _DANGEROUS_KEYS=new Set(["__proto__","constructor","prototype"]);
   function setByPath(obj,p,v){
-    const keys=p.split("."); const last=keys.pop();
+    const keys=p.split(".");
+    // v18-SEC: bloqueia poluição de protótipo — nenhum segmento do path pode
+    // ser __proto__/constructor/prototype, senão dá pra sobrescrever
+    // Object.prototype (ex: isAdmin=true) e promover QUALQUER conta a admin,
+    // já que quase todos os gates do servidor checam `p?.isAdmin`.
+    if(keys.some(k=>_DANGEROUS_KEYS.has(k)))throw new Error("Caminho de configuração inválido.");
+    const last=keys.pop();
     let o=obj; for(const k of keys){ if(typeof o[k]!=="object"||o[k]===null)o[k]={}; o=o[k]; }
     o[last]=v;
   }
@@ -320,7 +327,10 @@ function createAdminV2Router(ctx){
       }
 
       const oldValue=getByPath(usr,field);
-      setByPath(usr,field,value);
+      // v18-SEC: setByPath pode lançar se o path tentar poluir o protótipo —
+      // NUNCA deixar essa exceção subir sem resposta (handler http.createServer
+      // sem try/catch = requisição pendurada pra sempre, ver lição KB no topo do server.js).
+      try{ setByPath(usr,field,value); }catch(e){ json(res,400,{error:e.message}); return true; }
       // rastro no formato legado também (compatibilidade com painel antigo)
       usr.adminEditHistory=[...(usr.adminEditHistory||[]).slice(-49),{ts:now,admin:adminName,field,old:oldValue,novo:value,motivo:b.reason||""}];
       setUser(email,usr);
@@ -540,7 +550,7 @@ function createAdminV2Router(ctx){
       const st=(ADMIN_SETTINGS?ADMIN_SETTINGS():null);
       if(!st){json(res,500,{error:"Store de configurações indisponível."});return true;}
       const old=getByPath(st,b.key);
-      setByPath(st,b.key,coerce(b.value));
+      try{ setByPath(st,b.key,coerce(b.value)); }catch(e){ json(res,400,{error:e.message}); return true; }
       persistAdminSettings&&persistAdminSettings();
       audit(req,{admin:adminName,sessionEmail:s.user_email,action:"config_set",target:"config",field:b.key,oldValue:old,newValue:coerce(b.value),reason:b.reason||""});
       json(res,200,{ok:true,key:b.key,oldValue:old,newValue:coerce(b.value)});

@@ -1550,6 +1550,7 @@ const RobotV2 = (function(){
   let _doneTests = 0;
   let _emailResults = {}; // rastrea cada email de teste
   let _createdProfileIds = []; // perfis criados pelo robô para limpar depois
+  let _originalProfileSnapshot = null; // v18-FIX: perfil real do usuário ANTES do teste (perfil único = save sobrescreve!), pra poder restaurar na limpeza
   let _uploadedCvIdxs = []; // CVs upados pelo robô para limpar depois
   let _autoJobStarted = false;
   let _selectedSuites = new Set(['apis','auth','perfil','pdf','manual','auto','ranking','admin','cleanup']);
@@ -1557,7 +1558,7 @@ const RobotV2 = (function(){
   const SUITE_CONFIG = {
     apis:    {label:'APIs Core', icon:'🔌', tests:16},
     auth:    {label:'Autenticação', icon:'🔐', tests:4},
-    perfil:  {label:'Perfil & Config', icon:'👤', tests:8},
+    perfil:  {label:'Perfil & Config', icon:'👤', tests:9},
     pdf:     {label:'Upload PDF', icon:'📄', tests:4},
     manual:  {label:'Envio Manual', icon:'✉️', tests:8},
     auto:    {label:'Automático', icon:'🤖', tests:10},
@@ -1798,84 +1799,83 @@ const RobotV2 = (function(){
       addIssue('medium','Settings','Falha ao salvar dados pessoais','/api/settings POST');
     }
 
-    // 2. Criar perfil H2B CATEGORIA Landscape
+    // v18-FIX: sistema de PERFIL ÚNICO (07/2026) — /api/profiles/save agora
+    // SEMPRE reaproveita o id do perfil existente (prfs[0]), então "criar 3
+    // perfis diferentes" na prática só sobrescreve o mesmo perfil 3 vezes.
+    // Reescrito para testar o que o sistema realmente faz hoje: 1 criação +
+    // 2 atualizações (overwrite), confirmando que NUNCA vira mais de 1 perfil.
+    //
+    // v18-FIX (importante!): como o save SEMPRE sobrescreve prfs[0], rodar
+    // "Testar Tudo" numa conta que já tem um perfil real (ex: a própria conta
+    // do admin) apaga os dados reais desse perfil e põe dados de teste no
+    // lugar — SEM isso, o robô de QA destruiria silenciosamente o perfil de
+    // quem estiver logado ao clicar em "Testar Tudo". Tira um snapshot ANTES
+    // de mexer em nada, pra Limpeza poder restaurar no final.
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Criando perfil H2B Landscape...');
-    const p1=await post('/api/profiles/save',{
-      name:'[ROBOT] H2B Landscape QA',
-      type:'category',
-      categories:['landscape'],
-      subjects: TEST_SUBJECTS,
-      emailBodies: TEST_BODIES.map(b=>fill(b,{ts:nowStr()})),
-      body: TEST_BODIES[0],
-      subject: TEST_SUBJECTS[0],
-      active:true,
-      isGeneral:false,
-      allowManual:true,
-      allowAuto:true,
-      visaType:'h2b',
-      rotateSubjects:true,
-      rotateBodies:true
-    });
-    if(p1.ok && p1.data?.profile?.id){
-      _createdProfileIds.push(p1.data.profile.id);
-      log('ok',`[Perfil] Perfil H2B Landscape criado — ID: ${p1.data.profile.id}`);
+    _setProgress((_doneTests/_totalTests)*100,'Guardando perfil original (se existir) antes do teste...');
+    const _snapR=await apiFetch('/api/profiles');
+    if(_snapR.ok && _snapR.data?.profiles?.[0] && !_snapR.data.profiles[0].name?.includes('[ROBOT]')){
+      _originalProfileSnapshot=_snapR.data.profiles[0];
+      log('info',`[Perfil] Perfil original salvo pra restaurar depois: "${_originalProfileSnapshot.name||'(sem nome)'}"`);
     } else {
-      log('err',`[Perfil] Falha ao criar perfil Landscape`,p1.data?.error);
-      addIssue('critical','Perfil H2B','Falha ao criar perfil',p1.data?.error||'Verificar /api/profiles/save');
+      log('info','[Perfil] Nenhum perfil real pré-existente encontrado (conta nova ou já em [ROBOT])');
     }
 
-    // 3. Criar perfil H2B NORMAL (sem categorias — serve para qualquer vaga)
+    // 2. Criar o perfil (única vez)
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Criando perfil H2B Normal...');
-    const p2=await post('/api/profiles/save',{
-      name:'[ROBOT] H2B Normal QA',
-      type:'normal',
+    _setProgress((_doneTests/_totalTests)*100,'Criando perfil de teste...');
+    const p1=await post('/api/profiles/save',{
+      name:'[ROBOT] Perfil QA v1',
       categories:[],
       subjects: TEST_SUBJECTS,
       emailBodies: TEST_BODIES.map(b=>fill(b,{ts:nowStr()})),
-      body: TEST_BODIES[1],
-      subject: TEST_SUBJECTS[1],
-      active:true,
-      isGeneral:true,
-      allowManual:true,
-      allowAuto:true,
-      visaType:'h2b',
-      rotateSubjects:true,
-      rotateBodies:true
+      active:true
     });
-    if(p2.ok && p2.data?.profile?.id){
-      _createdProfileIds.push(p2.data.profile.id);
-      log('ok',`[Perfil] Perfil H2B Normal criado — ID: ${p2.data.profile.id}`);
+    if(p1.ok && p1.data?.profile?.id){
+      _createdProfileIds.push(p1.data.profile.id);
+      log('ok',`[Perfil] Perfil criado — ID: ${p1.data.profile.id}`);
     } else {
-      log('err',`[Perfil] Falha ao criar perfil Normal`,p2.data?.error);
-      addIssue('medium','Perfil Normal','Falha ao criar perfil normal',p2.data?.error);
+      log('err',`[Perfil] Falha ao criar perfil`,p1.data?.error);
+      addIssue('critical','Perfil','Falha ao criar perfil',p1.data?.error||'Verificar /api/profiles/save');
     }
 
-    // 4. Criar perfil H2A
+    // 3. Atualizar o MESMO perfil (deve reaproveitar o id, não criar um 2º)
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,'Criando perfil H2A...');
-    const p3=await post('/api/profiles/save',{
-      name:'[ROBOT] H2A Agrícola QA',
-      type:'general',
-      categories:['farm'],
+    _setProgress((_doneTests/_totalTests)*100,'Atualizando perfil (deve sobrescrever, não duplicar)...');
+    const p2=await post('/api/profiles/save',{
+      id: p1.data?.profile?.id,
+      name:'[ROBOT] Perfil QA v2',
+      categories:[],
       subjects: TEST_SUBJECTS,
       emailBodies: TEST_BODIES.map(b=>fill(b,{ts:nowStr()})),
-      body: TEST_BODIES[2],
-      subject: TEST_SUBJECTS[2],
-      active:true,
-      isGeneral:false,
-      allowManual:true,
-      allowAuto:false,
-      visaType:'h2a',
-      rotateSubjects:true,
-      rotateBodies:true
+      active:true
     });
-    if(p3.ok && p3.data?.profile?.id){
-      _createdProfileIds.push(p3.data.profile.id);
-      log('ok',`[Perfil] Perfil H2A criado — ID: ${p3.data.profile.id}`);
+    if(p2.ok && p2.data?.profile?.id===p1.data?.profile?.id){
+      log('ok',`[Perfil] Atualização reaproveitou o mesmo id (perfil único OK) — ID: ${p2.data.profile.id}`);
+    } else if(p2.ok){
+      log('err',`[Perfil] Atualização criou um id DIFERENTE (${p2.data?.profile?.id}) — sistema de perfil único quebrado!`);
+      addIssue('critical','Perfil','Save não reaproveitou o id do perfil existente','/api/profiles/save deveria sempre reusar prfs[0].id');
+      if(p2.data?.profile?.id)_createdProfileIds.push(p2.data.profile.id);
     } else {
-      log('warn',`[Perfil] Falha ao criar perfil H2A`,p3.data?.error);
+      log('err',`[Perfil] Falha ao atualizar perfil`,p2.data?.error);
+      addIssue('medium','Perfil','Falha ao atualizar perfil',p2.data?.error);
+    }
+
+    // 4. Atualizar de novo (nome final [ROBOT] Perfil QA — usado no teste de PDF abaixo)
+    _doneTests++;
+    _setProgress((_doneTests/_totalTests)*100,'Atualizando perfil novamente...');
+    const p3=await post('/api/profiles/save',{
+      id: p1.data?.profile?.id,
+      name:'[ROBOT] Perfil QA',
+      categories:[],
+      subjects: TEST_SUBJECTS,
+      emailBodies: TEST_BODIES.map(b=>fill(b,{ts:nowStr()})),
+      active:true
+    });
+    if(p3.ok && p3.data?.profile?.id===p1.data?.profile?.id){
+      log('ok',`[Perfil] 2ª atualização também reaproveitou o mesmo id — ID: ${p3.data.profile.id}`);
+    } else {
+      log('warn',`[Perfil] Falha na 2ª atualização`,p3.data?.error);
     }
 
     // 5. Verificar templates
@@ -1901,7 +1901,7 @@ const RobotV2 = (function(){
     // 7. Verificar rotação de assuntos
     _doneTests++;
     _setProgress((_doneTests/_totalTests)*100,'Verificando rotação de assuntos...');
-    const profileData=listR.data?.profiles?.find(p=>p.name?.includes('Landscape'));
+    const profileData=listR.data?.profiles?.find(p=>p.name?.includes('Perfil QA'));
     if(profileData){
       const subjs=profileData.subjects||[];
       if(subjs.length>=3){
@@ -1964,7 +1964,7 @@ const RobotV2 = (function(){
       const coverIdx=_uploadedCvIdxs.find(c=>c.type==='cover')?.idx;
       const updR=await post('/api/profiles/save',{
         id: _createdProfileIds[0],
-        name:'[ROBOT] H2B Landscape QA',
+        name:'[ROBOT] Perfil QA',
         subjects: TEST_SUBJECTS,
         emailBodies: TEST_BODIES.map(b=>fill(b,{ts:nowStr()})),
         body: TEST_BODIES[0],
@@ -2440,11 +2440,13 @@ const RobotV2 = (function(){
     }
     await wait(300);
     // 3. GET /api/pedido/:id
+    let _pedidoDetalhe=null; // v18-FIX: guardado pra virar uma checagem REAL no passo 7 (era um no-op)
     if(testePedidoId){
       _doneTests++;_setProgress((_doneTests/_totalTests)*100,'Pedidos: detalhe...');
       const detR=await apiFetch('/api/pedido/'+testePedidoId);
       if(detR.ok){
         const pd=detR.data?.pedido;
+        _pedidoDetalhe=pd||null;
         log('ok',`[Pedidos] GET /api/pedido/:id → OK`,`status:${pd?.status} plano:${pd?.plano} valor:${pd?.valorTotal}`);
       } else {
         log('err','[Pedidos] GET /api/pedido/:id falhou',detR.data?.error);
@@ -2485,9 +2487,23 @@ const RobotV2 = (function(){
     }
     await wait(300);
     // 7. Verificar campos obrigatórios de pedido
+    // v18-FIX: antes era `.every(f=>true)` — ignorava `f` e sempre dava certo,
+    // então se o backend algum dia parar de devolver um campo (ex: userEmail),
+    // esse "teste" continuava reportando OK. Agora confere de verdade contra o
+    // pedido real buscado no passo 3 (_pedidoDetalhe).
     _doneTests++;_setProgress((_doneTests/_totalTests)*100,'Pedidos: validar campos...');
-    const camposOk=['id','plano','dias','valorTotal','status','userEmail','createdAt'].every(f=>true);
-    log('ok','[Pedidos] Campos obrigatórios verificados: id, plano, dias, valorTotal, status, userEmail');
+    const _camposObrigatorios=['id','plano','dias','valorTotal','status','userEmail','createdAt'];
+    if(_pedidoDetalhe){
+      const _faltando=_camposObrigatorios.filter(f=>_pedidoDetalhe[f]===undefined||_pedidoDetalhe[f]===null);
+      if(_faltando.length===0){
+        log('ok','[Pedidos] Campos obrigatórios verificados: '+_camposObrigatorios.join(', '));
+      } else {
+        log('err',`[Pedidos] Campo(s) ausente(s) no pedido: ${_faltando.join(', ')}`);
+        addIssue('major','pedidos','Backend não está devolvendo todos os campos obrigatórios do pedido',`Faltando: ${_faltando.join(', ')} — verificar GET /api/pedido/:id`);
+      }
+    } else {
+      log('warn','[Pedidos] Não foi possível validar campos — pedido de teste não disponível (passo 3 falhou)');
+    }
     // 8. Verificar notificação admin
     _doneTests++;_setProgress((_doneTests/_totalTests)*100,'Pedidos: sistema notificação...');
     log('ok','[Pedidos] Sistema de notificação por email: configurado (dispara em background)');
@@ -2582,15 +2598,52 @@ const RobotV2 = (function(){
       log('info','[Cleanup] Automático não estava ativo');
     }
 
-    // Deletar perfis criados pelo robô
+    // Deletar perfis criados pelo robô (ou restaurar o perfil original, se havia um)
+    // v18-FIX: perfil único → todo save/delete de teste mexeu no MESMO perfil
+    // (prfs[0]), então _createdProfileIds normalmente tem 1-2 ids repetidos.
+    // Dedup antes de iterar pra não tentar deletar o mesmo perfil 2x.
     _doneTests++;
-    _setProgress((_doneTests/_totalTests)*100,`Deletando ${_createdProfileIds.length} perfil(is) de teste...`);
-    for(const id of _createdProfileIds){
-      const r=await post('/api/profiles/delete',{id});
-      log(r.ok?'ok':'warn',`[Cleanup] Perfil ${id} — ${r.ok?'deletado':'falha'}`);
-      await wait(100);
+    const _uniqueProfileIds=[...new Set(_createdProfileIds)];
+    _setProgress((_doneTests/_totalTests)*100,`Restaurando/limpando ${_uniqueProfileIds.length} perfil(is) de teste...`);
+    if(_originalProfileSnapshot){
+      // Havia um perfil real antes do teste — restaura os dados originais
+      // no mesmo id (o "delete" não se aplica: perfil único não pode ficar
+      // com 0 perfis, então o certo é sempre restaurar, não deletar).
+      const restoreR=await post('/api/profiles/save',{
+        id: _originalProfileSnapshot.id,
+        name: _originalProfileSnapshot.name,
+        categories: _originalProfileSnapshot.categories||[],
+        subjects: _originalProfileSnapshot.subjects||[],
+        emailBodies: _originalProfileSnapshot.emailBodies||[],
+        active: _originalProfileSnapshot.active!==false,
+        resumeIdx: _originalProfileSnapshot.resumeIdx,
+        coverIdx: _originalProfileSnapshot.coverIdx,
+        pdfName: _originalProfileSnapshot.pdfName
+      });
+      if(restoreR.ok){
+        log('ok',`[Cleanup] Perfil original "${_originalProfileSnapshot.name||'(sem nome)'}" restaurado com sucesso`);
+      } else {
+        log('err','[Cleanup] FALHA ao restaurar o perfil original — dados de teste podem ter ficado no lugar do perfil real!',restoreR.data?.error);
+        addIssue('critical','Cleanup','Falha ao restaurar perfil original do usuário após o teste','/api/profiles/save — restaurar manualmente os dados do perfil');
+      }
+    } else if(_uniqueProfileIds.length>0){
+      // Não havia perfil real antes — tenta deletar; o backend corretamente
+      // BLOQUEIA deletar o último perfil (regra de negócio: perfil único
+      // nunca pode chegar a 0), então isso é esperado e não é uma falha.
+      for(const id of _uniqueProfileIds){
+        const r=await post('/api/profiles/delete',{id});
+        if(r.ok){
+          log('ok',`[Cleanup] Perfil ${id} — deletado`);
+        } else if(/pelo menos 1 perfil/i.test(r.data?.error||'')){
+          log('info',`[Cleanup] Perfil de teste [ROBOT] mantido — sistema exige pelo menos 1 perfil por design (conta não tinha perfil antes do teste). Configure seu perfil real quando quiser.`);
+        } else {
+          log('warn',`[Cleanup] Perfil ${id} — falha ao deletar`,r.data?.error);
+        }
+        await wait(100);
+      }
+    } else {
+      log('info','[Cleanup] Nenhum perfil para deletar');
     }
-    if(_createdProfileIds.length===0) log('info','[Cleanup] Nenhum perfil para deletar');
 
     // Deletar CVs upados
     _doneTests++;
@@ -2678,7 +2731,7 @@ const RobotV2 = (function(){
 
   // ── Contagem total de testes ─────────────────────────────────────
   function _countTotal(){
-    const counts={apis:15, auth:4, perfil:8, pdf:4, manual:8, auto:10, ranking:5, admin:10, cleanup:4, fixauto:6, pedidos:8, financeiro:6};
+    const counts={apis:15, auth:4, perfil:9, pdf:4, manual:8, auto:10, ranking:5, admin:10, cleanup:4, fixauto:6, pedidos:8, financeiro:6};
     return [..._selectedSuites].reduce((s,k)=>s+(counts[k]||0),0);
   }
 
@@ -2700,7 +2753,7 @@ const RobotV2 = (function(){
 
     clearLogs(){
       _logs=[]; _stats={ok:0,err:0,warn:0,send:0,skip:0}; _issues={critical:[],medium:[],low:[]};
-      _emailResults={}; _createdProfileIds=[]; _uploadedCvIdxs=[]; _autoJobStarted=false;
+      _emailResults={}; _createdProfileIds=[]; _uploadedCvIdxs=[]; _autoJobStarted=false; _originalProfileSnapshot=null;
       const lb=document.getElementById('rb-log-body');
       if(lb) lb.innerHTML='<div class="rb-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:8px;color:var(--t3)"><i class="ti ti-robot" style="font-size:32px;opacity:.3"></i><div style="font-size:11px">Logs limpos — pronto para novo teste</div></div>';
       _updateStats();
@@ -2757,6 +2810,7 @@ const RobotV2 = (function(){
       _createdProfileIds=[];
       _uploadedCvIdxs=[];
       _autoJobStarted=false;
+      _originalProfileSnapshot=null;
       _startTime=Date.now();
       _doneTests=0;
       _totalTests=_countTotal();
@@ -4660,7 +4714,7 @@ function renderUsersTable(){
           <div class="uc-section-title"><i class="ti ti-heart-rate-monitor" style="color:var(--red)"></i> Saúde & Conta</div>
           <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:6px">${chkHtml}</div>
           <div class="uc-row"><span class="uc-key">CVs</span><span class="uc-val ${(u.cvCount||0)>0?'ok':'warn'}">${u.cvCount||0} arquivo(s)</span></div>
-          <div class="uc-row"><span class="uc-key">Perfis</span><span class="uc-val">${u.profileCount||0}</span></div>
+          <div class="uc-row"><span class="uc-key">Perfil</span><span class="uc-val">${u.profileCount?'✅ configurado':'⚠️ não criado'}</span></div>
           <div class="uc-row"><span class="uc-key">Manual hoje</span><span class="uc-val">${u.todaySentManual||0} / ${u.manualLimit||20}</span></div>
           <div class="uc-row"><span class="uc-key">Total geral</span><span class="uc-val">${(u.totalSent||0).toLocaleString('pt-BR')}</span></div>
           <div class="uc-row"><span class="uc-key">Membro desde</span><span class="uc-key">${(u.createdAt||'').slice(0,10)||'–'}</span></div>
@@ -6148,7 +6202,7 @@ function adminPreviewComprovante(input, email){
     const tipo = document.getElementById('cp-tipo')?.value||'pagamento';
     const desc = document.getElementById('cp-desc')?.value.trim();
     if(img) img.src = compressed;
-    if(info) info.innerHTML = `<strong>${tipo==='pagamento'?'💰 Pagamento':'💸 Gasto'}</strong>${desc?` — ${esc(desc)}`:''}<br><span style="color:var(--t3);font-size:11px">${file.name} · comprimido para economizar espaço</span>`;
+    if(info) info.innerHTML = `<strong>${tipo==='pagamento'?'💰 Pagamento':'💸 Gasto'}</strong>${desc?` — ${esc(desc)}`:''}<br><span style="color:var(--t3);font-size:11px">${esc(file.name)} · comprimido para economizar espaço</span>`;
     if(wrap) wrap.style.display = 'block';
   });
 }

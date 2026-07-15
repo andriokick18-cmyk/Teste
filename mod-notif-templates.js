@@ -100,4 +100,30 @@ Mas atenção: robô parado não gera entrevista. 😉
 — Equipe H2BApply 🤖` }
 ];
 
-module.exports = { MSGS_VIP_EXPIRING, MSGS_NO_PROFILE, MSGS_VIP_DESYNC, MSGS_REFILL };
+const MSGS_PLAN_ACTIVATED = [
+  { sub:"🎉 {nome}, seu plano no H2BApply já está ativo!", body:`Oi {nome}! 👋
+
+Boa notícia: recebemos seu comprovante, conferimos e o seu plano JÁ ESTÁ ATIVO. 🎉
+
+✅ Pode voltar pro app agora mesmo e:
+1. Acessar h2bapply.com
+2. Conferir seu novo limite diário na aba "Início"
+3. Ativar o Envio Automático (se o seu plano incluir)
+
+Se algo parecer errado (dias, valor, plano), é só responder este e-mail que a gente ajusta na hora.
+
+Bora pra cima! 🇺🇸
+
+— Equipe H2BApply 🤖` },
+  { sub:"✅ Pagamento confirmado — plano ativo no H2BApply, {nome}!", body:`Olá {nome}!
+
+Seu pagamento foi confirmado e o plano já está valendo na sua conta. 🚀
+
+Acesse h2bapply.com pra ver seu novo limite diário e, se o plano incluir, ligar o robô de envio automático.
+
+Qualquer dúvida sobre a cobrança ou o plano, responda este e-mail — Andrio ou Diego respondem direto.
+
+— Equipe H2BApply 🤖` }
+];
+
+module.exports = { MSGS_VIP_EXPIRING, MSGS_NO_PROFILE, MSGS_VIP_DESYNC, MSGS_REFILL, MSGS_PLAN_ACTIVATED };

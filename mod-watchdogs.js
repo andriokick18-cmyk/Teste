@@ -36,6 +36,16 @@ async function tokenGuardianRun() {
         ctx.setAutoJob(email, {...job, active:false, status:"paused_no_refresh_token"});
         if (ctx.autoTimers().has(email)) { clearTimeout(ctx.autoTimers().get(email)); ctx.autoTimers().delete(email); }
         ctx.addLog(email, {status:"pausado", jobTitle:"🔐 Sem token de autenticação", company:"Faça login novamente no H2BApply para reativar o envio automático.", error:"Nenhum refresh_token disponível"});
+        // v18-FIX: este caso (sem refresh_token) NUNCA notificava o usuário —
+        // só o caso irmão logo abaixo (token revogado) chamava sendNotifEmail.
+        // A ação necessária é idêntica ("faça login de novo"), então reaproveita
+        // o mesmo template — sem isso a pessoa ficava com o robô parado pra
+        // sempre e nenhum canal (nem e-mail, quando reativado, nem nada mais)
+        // jamais avisava.
+        ctx.sendNotifEmail(email, "token_revoked").catch(e => console.warn("[notif/no_refresh_token/guardian]", e.message));
+        // v18-FIX: push como fallback — sendNotifEmail acima está bloqueado
+        // pelo kill-switch de e-mail do dono; push é canal separado.
+        if(ctx.pushToUser)ctx.pushToUser(email,{type:"auto_paused",title:"🔐 Seu robô parou",body:"Faça login de novo no H2BApply para reativar o envio automático.",icon:"/icon-192.png"}).catch(()=>{});
         pausedNoToken++;
       }
       continue;
@@ -58,6 +68,8 @@ async function tokenGuardianRun() {
             ctx.addLog(email, {status:"pausado", jobTitle:"🔐 Acesso Google revogado pelo usuário", company:"O usuário removeu o acesso do H2BApply no painel Google. Faça login novamente para reativar.", error: msg});
             // Notifica usuário por email para que saiba que precisa fazer login novamente
             ctx.sendNotifEmail(email, "token_revoked").catch(e => console.warn("[notif/token_revoked/guardian]", e.message));
+            // v18-FIX: push como fallback (canal separado do kill-switch de e-mail)
+            if(ctx.pushToUser)ctx.pushToUser(email,{type:"auto_paused",title:"🔐 Acesso Google revogado",body:"Faça login de novo no H2BApply para reativar o envio automático.",icon:"/icon-192.png"}).catch(()=>{});
             pausedRevoked++;
           }
         }
