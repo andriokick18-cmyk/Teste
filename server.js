@@ -358,6 +358,33 @@ let DB_SUGGESTIONS = []; // Array de sugestões dos usuários
 let DB_REVIEWS = []; // Array de avaliações reais de usuários {id,text,rating,displayName,location,email,plan,status,createdAt}
 let DB_PEDIDOS     = []; // Array de pedidos de plano
 let DB_FINANCEIRO  = {pagamentos:[],gastos:[]};  // Dados financeiros persistentes
+// ── AUDITORIA DE AÇÕES DO ADMIN (v19, dono 15/07/2026) ──────────────────────
+// Toda mutação de plano/VIP feita pelo painel fica registrada com snapshot
+// ANTES/DEPOIS — e as reversíveis podem ser desfeitas em 1 clique ("adm fez
+// cagada tem reversão?"). Append-only, persistido em disco.
+const ADMIN_AUDIT_FILE = path.join(DATA_DIR, "admin_audit.json");
+let DB_ADMIN_AUDIT = [];
+function logAdminAction(admin, action, targetEmail, before, after, detail){
+  try{
+    const entry={
+      id:"aud_"+Date.now().toString(36)+"_"+Math.random().toString(36).slice(2,7),
+      ts:Date.now(), admin:String(admin||"?"), action:String(action||"?"),
+      targetEmail:String(targetEmail||""), detail:String(detail||"").slice(0,300),
+      before:before?JSON.parse(JSON.stringify(before)):null,
+      after:after?JSON.parse(JSON.stringify(after)):null,
+      reverted:false
+    };
+    DB_ADMIN_AUDIT.unshift(entry);
+    if(DB_ADMIN_AUDIT.length>2000)DB_ADMIN_AUDIT.length=2000;
+    persist(ADMIN_AUDIT_FILE,DB_ADMIN_AUDIT);
+    return entry.id;
+  }catch(e){console.warn("[audit]",e.message);return null;}
+}
+// Snapshot mínimo e suficiente pra reverter plano/VIP de um usuário
+function _vipSnapshot(u){
+  if(!u)return null;
+  return {plan:u.plan||"free", vip:u.vip?JSON.parse(JSON.stringify(u.vip)):null};
+}
 // ── Tabela oficial de preços (plano→dias→R$) ──────────────────────────────
 // v18-FIX: hoisted pra fora do pré-check de comprovante (onde vivia sozinha)
 // pra poder ser reaproveitada também na ATIVAÇÃO do pedido — antes, os "dias"
@@ -367,6 +394,80 @@ let DB_FINANCEIRO  = {pagamentos:[],gastos:[]};  // Dados financeiros persistent
 // aprovasse sem reparar no alerta do Gemini, o sistema creditava 10 anos de
 // VIP. Preços em R$ — mudar aqui exige avisar o Andrio antes (dinheiro real).
 const PLANO_PRECO_TAB={vip:{30:100,60:190,90:270,365:960},vipro:{30:150,60:285,90:405,365:1440},doublepro:{30:250,60:475,90:675,365:2400}};
+
+// ══════════════════════════════════════════════════════════════════════════
+// 💰 CONTABILIDADE CANÔNICA — UMA função, UM número (dono, 15/07/2026)
+// O painel mostrava 4 receitas diferentes pro MESMO caixa:
+//   • Painel Financeiro (topo):  R$ 3.750  (/api/admin/financeiro — livro-caixa cru)
+//   • Indicadores essenciais:    R$ 3.585  (/api/admin/fin-insights — com correção de pedido)
+//   • Aba Pagantes:              R$ 1.250/mês (soma crua de TODOS os pagamentos, sem regra)
+//   • Aba Pedidos de Plano:      R$ 3.850  (soma de pedidos pagos/ativos — não é caixa)
+// Quatro fórmulas = quatro verdades = zero confiança. Agora TODAS as telas
+// chamam esta função. Regras únicas:
+//   1. Fonte por pagante (sem dupla contagem): livro-caixa → pedido pago/ativo → paymentAmount.
+//   2. RAIZ ÚNICA DE VALOR: se a entrada do livro-caixa aponta pra um pedido
+//      (pedidoId) e o pedido foi CORRIGIDO depois, o valor do pedido vence.
+//   3. source 'code'/'trial' NUNCA é receita nem pagante.
+//   4. Entradas avulsas (sem usuário) entram na receita como categoria própria.
+// ══════════════════════════════════════════════════════════════════════════
+function computeFinanceCanonico(){
+  const now=Date.now();
+  const pv=v=>{if(typeof v==="number")return v||0;if(!v)return 0;const n=parseFloat(String(v).replace(/[^0-9,.-]/g,"").replace(",","."));return isNaN(n)?0:n;};
+  const ts=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
+  const PRICE={vip:100,pro:150,vipro:150,doublepro:250};
+  const finBy={},pedBy={};
+  const _pedById={};for(const ped of (DB_PEDIDOS||[])){if(ped&&ped.id)_pedById[ped.id]=ped;}
+  for(const pg of ((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[])){
+    if(!pg||!pg.email)continue;const e=String(pg.email).toLowerCase();
+    let v=pv(pg.valor);
+    const _ped=pg.pedidoId?_pedById[pg.pedidoId]:null;
+    if(_ped&&pv(_ped.valorTotal)>0&&pv(_ped.valorTotal)!==v)v=pv(_ped.valorTotal);
+    (finBy[e]=finBy[e]||[]).push({valor:v,date:ts(pg.dataPagamento)||ts(pg.data)||pg.criadoEm||0});
+  }
+  for(const ped of Object.values(DB_PEDIDOS||{})){
+    if(!ped||!ped.userEmail)continue;const st=String(ped.status||"").toLowerCase();
+    if(st!=="pago"&&st!=="ativo")continue;const e=String(ped.userEmail).toLowerCase();
+    (pedBy[e]=pedBy[e]||[]).push({valor:pv(ped.valorTotal),date:ts(ped.ativadoEm)||ts(ped.pagoEm)||0});
+  }
+  const ms=new Date();ms.setDate(1);ms.setHours(0,0,0,0);const monthStart=ms.getTime();
+  let receitaTotal=0,receitaMes=0,qtdPagantes=0,novosMes=0,vencendo7=0,vencendo7Valor=0,vencidos=0,trials=0,gift=0,giftDias=0;
+  const porPlano={vip:0,vipro:0,doublepro:0,pro:0}, porPlanoQtd={vip:0,vipro:0,doublepro:0,pro:0};
+  const topPagantes=[];
+  for(const u of Object.values(DB_USERS||{})){
+    if(!u||!u.email)continue;const elc=u.email.toLowerCase();const vip=u.vip||{};const src=String(vip.source||"").toLowerCase();
+    if(src==="trial"){ if(isVipActive(u)) trials++; continue; }
+    if(src==="code"){ gift++; giftDias+=(vip.days||0); continue; }
+    let pags=finBy[elc]||[];if(!pags.length)pags=pedBy[elc]||[];if(!pags.length&&u.paymentAmount)pags=[{valor:pv(u.paymentAmount),date:ts(vip.activatedAt)||0}];
+    pags=pags.filter(x=>x.valor>0);
+    const everPaid=(src===""||src==="admin"||src==="pago"||src==="payment")&&((vip.manualExpires||0)>0||(vip.autoExpires||0)>0||vip.activatedAt);
+    if(!pags.length&&!everPaid)continue;
+    const tot=pags.reduce((a,x)=>a+x.valor,0);
+    if(tot>0){qtdPagantes++;topPagantes.push({nome:u.name||u.email,email:u.email,valor:tot,plano:vip.plan||getPlan(u)});}
+    receitaTotal+=tot;
+    const firstDate=pags.length?Math.min(...pags.map(x=>x.date||now)):(ts(vip.activatedAt)||0);
+    if(firstDate>=monthStart) novosMes++;
+    for(const x of pags){if((x.date||0)>=monthStart)receitaMes+=x.valor;}
+    const plan=vip.plan||getPlan(u); if(porPlano[plan]!==undefined){porPlano[plan]+=tot;porPlanoQtd[plan]++;}
+    const nextExp=Math.max(vip.manualExpires||0,vip.autoExpires||0);
+    if(nextExp>0){const dleft=Math.ceil((nextExp-now)/86400000); if(dleft<=0)vencidos++; else if(dleft<=7){vencendo7++;vencendo7Valor+=(PRICE[plan]||100);}}
+  }
+  topPagantes.sort((a,b)=>b.valor-a.valor);
+  let receitaAvulsa=0; const avulsas=[];
+  const _uEm=new Set(Object.keys(DB_USERS||{}).map(e=>e.toLowerCase()));
+  for(const pg of ((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[])){
+    if(!pg) continue;
+    const e=String(pg.email||"").toLowerCase();
+    if(e&&_uEm.has(e)) continue;
+    const v=pv(pg.valor); if(v<=0) continue;
+    const dt=ts(pg.dataPagamento)||ts(pg.data)||pg.criadoEm||0;
+    receitaAvulsa+=v; receitaTotal+=v; avulsas.push({valor:v,date:dt});
+    if(dt>=monthStart) receitaMes+=v;
+  }
+  // Valor "em pedidos" (pagos/ativos) — NÃO é caixa; exposto separado pra aba
+  // Pedidos mostrar o rótulo honesto e a diferença vs. o caixa ficar explicável.
+  let valorPedidos=0;for(const e in pedBy)for(const x of pedBy[e])valorPedidos+=x.valor;
+  return {receitaTotal,receitaMes,receitaAvulsa,qtdPagantes,novosMes,vencendo7,vencendo7Valor,vencidos,trials,gift,giftDias,porPlano,porPlanoQtd,topPagantes,finBy,pedBy,avulsas,monthStart,valorPedidos};
+}
 // ── MONITOR ETA ──────────────────────────────────────────────────────────
 // Registro permanente de TODAS as vagas por ETA Case Number: status, grupo,
 // histórico completo, agenda de consultas. Alimentado pelas planilhas +
@@ -699,6 +800,8 @@ function boot() {
   if(!Array.isArray(DB_REVIEWS)) DB_REVIEWS = [];
   DB_PEDIDOS = load(PEDIDOS_FILE, []);
   if(!Array.isArray(DB_PEDIDOS)) DB_PEDIDOS = [];
+  DB_ADMIN_AUDIT = load(ADMIN_AUDIT_FILE, []);
+  if(!Array.isArray(DB_ADMIN_AUDIT)) DB_ADMIN_AUDIT = [];
   DB_FINANCEIRO = load(FINANCEIRO_FILE, {pagamentos:[],gastos:[],repasses:[]});
   if(!DB_FINANCEIRO.pagamentos) DB_FINANCEIRO = {pagamentos:[],gastos:[],repasses:[]};
   if(!Array.isArray(DB_FINANCEIRO.repasses)) DB_FINANCEIRO.repasses = []; // repasses entre sócios (dinheiro que um já pagou ao outro)
@@ -1300,6 +1403,13 @@ function boot() {
     rebuildAppIndex();
     console.log(`[db] 🔁 índice de candidaturas reconstruído (${Object.values(DB_APP_INDEX).reduce((n,x)=>n+Object.keys(x.byThread||{}).length+Object.keys(x.byMsgId||{}).length,0)} chaves)`);
   }
+  // NOTA v19: a reconciliação de jobs automáticos após restart já existe —
+  // ver reactivateAutoJobs() (chamada 6s após o boot, mais abaixo no arquivo).
+  // Ela é mais cuidadosa que um "scheduleAuto pra tudo que tá active" ingênuo:
+  // respeita waiting_limit/waiting_rate_limit/waiting_interval e o nextSendAt
+  // já salvo (não reenvia na hora ignorando um cooldown de rate-limit em
+  // andamento) e pré-aquece tokens antes de agendar. Não duplicar essa lógica
+  // aqui — ver defesa complementar em /api/auto/start (self-heal de timer morto).
 }
 
 function persist(file, data) {
@@ -1377,23 +1487,53 @@ function _mergeProfilesToOne(profiles){
   survivor.updatedAt=new Date().toISOString();
   return [survivor];
 }
+// v19 (dono, 15/07/2026): detecta se um perfil legado era de H-2A pelo nome,
+// descrição ou planilhas selecionadas — usado só na migração, pra não rotular
+// como H-2B o perfil de quem sempre foi de agricultura.
+function _inferVisaType(p){
+  if(p?.visaType==="h2a"||p?.visaType==="h2b")return p.visaType;
+  const txt=((p?.name||"")+" "+(p?.desc||"")).toLowerCase().replace(/[^a-z0-9]/g,"");
+  if(txt.includes("h2a"))return "h2a";
+  if(Array.isArray(p?.sheets)&&p.sheets.some(s=>String(s).toLowerCase().includes("h2a")))return "h2a";
+  return "h2b";
+}
 function _migrateUsersToSingleProfile(users){
-  let touched=0,mergedSubjTotal=0,mergedBodyTotal=0;
+  // v19: era "perfil único"; virou "1 perfil POR TIPO DE VISTO" (máx. 2: H-2B
+  // + H-2A). Cliente real tinha 2 perfis H-2B + 1 H-2A e a consolidação antiga
+  // juntou TUDO num perfil só — vaga de H-2A passou a sair com texto de H-2B.
+  // Agora: agrupa por tipo inferido (nome/desc/planilhas), consolida DENTRO de
+  // cada tipo, e carimba visaType em todo perfil que não tem. Idempotente.
+  let touched=0;
   for(const email of Object.keys(users)){
     const u=users[email];
-    if(!u||!Array.isArray(u.profiles)||u.profiles.length<=1)continue;
-    const before=u.profiles.length;
-    const beforeSubj=u.profiles.reduce((n,p)=>n+(p.subjects?.length||0),0);
-    const beforeBody=u.profiles.reduce((n,p)=>n+(p.emailBodies?.length||0),0);
-    u.profiles=_mergeProfilesToOne(u.profiles);
-    touched++;
-    mergedSubjTotal+=beforeSubj-(u.profiles[0]?.subjects?.length||0);
-    mergedBodyTotal+=beforeBody-(u.profiles[0]?.emailBodies?.length||0);
-    console.log(`[perfil-único] 🔀 ${email}: ${before} perfis → 1 (assuntos ${beforeSubj}→${u.profiles[0]?.subjects?.length||0}, corpos ${beforeBody}→${u.profiles[0]?.emailBodies?.length||0})`);
+    if(!u||!Array.isArray(u.profiles)||!u.profiles.length)continue;
+    let changed=false;
+    // Carimba visaType em quem não tem (usuários já migrados pro perfil único)
+    for(const p of u.profiles){
+      if(p&&p.visaType!=="h2a"&&p.visaType!=="h2b"){p.visaType=_inferVisaType(p);changed=true;}
+    }
+    if(u.profiles.length>1){
+      const byType={h2b:[],h2a:[]};
+      for(const p of u.profiles)byType[(p.visaType==="h2a")?"h2a":"h2b"].push(p);
+      const result=[];
+      for(const vt of ["h2b","h2a"]){
+        if(!byType[vt].length)continue;
+        const merged=byType[vt].length>1?_mergeProfilesToOne(byType[vt]):byType[vt];
+        merged[0].visaType=vt;
+        if(vt==="h2a"){merged[0].isFavorite=false;if(!merged[0].icon||merged[0].icon==="🎯")merged[0].icon="🌾";}
+        result.push(merged[0]);
+      }
+      if(result.length!==u.profiles.length){
+        console.log(`[perfil-por-visto] 🔀 ${email}: ${u.profiles.length} perfis → ${result.length} (${result.map(p=>p.visaType).join("+")})`);
+        changed=true;
+      }
+      u.profiles=result;
+    }
+    if(changed)touched++;
   }
   if(touched>0){
     persist(USERS_FILE,users);
-    console.log(`[perfil-único] ✅ Migração concluída: ${touched} usuário(s) consolidado(s) pra 1 perfil só.`);
+    console.log(`[perfil-por-visto] ✅ Migração concluída: ${touched} usuário(s) com perfis por tipo de visto.`);
   }
 }
 const getHist    = e => DB_HIST[e]||[];
@@ -3393,13 +3533,31 @@ function scheduleAuto(email) {
   doAutoSend(email);
 }
 
-// ── Seleção de perfil — REESTRUTURADO (perfil normal único) ────────────────
-// Prioridade: 1. perfil ESCOLHIDO pelo usuário no wizard (job.profileId) — sempre vence
-//             2. (avançado) perfil que declarou a categoria da vaga
-//             3. perfil normal (sem categorias) — serve para qualquer vaga (favorito 1º)
-//             4. qualquer perfil ativo
-// Removidas as heurísticas por nome ("h2a", "farm"...) e o conceito de "tipo":
-// o sistema NUNCA adivinha mais — quem manda é a escolha explícita do usuário.
+// ── Tipo de visto da vaga: 'h2a' | 'h2b' | null ─────────────────────────────
+// v19 (dono, 15/07/2026): a vaga manda no perfil. H-2A → perfil H-2A;
+// H-2B → perfil H-2B. Detecta pelo campo visa da vaga, senão pela planilha.
+function jobVisaType(target, sheet){
+  const v=String(target?.visa||target?.visaType||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  if(v.includes("H2A"))return "h2a";
+  if(v.includes("H2B"))return "h2b";
+  const sh=String(sheet||"").toLowerCase();
+  if(sh.includes("h2a"))return "h2a";
+  if(sh&&sh!=="manual"&&sh!=="seasonal")return "h2b"; // planilhas restantes são H-2B
+  return null;
+}
+
+// ── Seleção de perfil — v19: PERFIL POR TIPO DE VISTO (dono, 15/07/2026) ────
+// Cada usuário pode ter até 2 perfis: 1 H-2B e 1 H-2A (cliente real reclamou:
+// tinha perfis separados, a consolidação juntou tudo e o texto de H-2B saiu
+// pra vaga de H-2A). Prioridade:
+//   1. perfil ATIVO do MESMO tipo de visto da vaga — regra absoluta do dono:
+//      "a vaga é de h2a tem que ir o perfil de h2a"
+//   2. perfil escolhido explicitamente no wizard (job.profileId)
+//   3. (avançado) perfil que declarou a categoria da vaga
+//   4. perfil normal/geral (favorito 1º)
+//   5. qualquer perfil ativo
+// Se o usuário NÃO tem perfil do tipo da vaga (ele escolhe se cria ou não),
+// cai nos passos seguintes — envia com o que existe, nunca trava o envio.
 function selectProfile(profiles, target, sheet, preferredId) {
   if (!profiles || !profiles.length) return null;
   const active = profiles.filter(pr => pr.active !== false);
@@ -3408,7 +3566,14 @@ function selectProfile(profiles, target, sheet, preferredId) {
   const autoOk = active.filter(pr => pr.allowAuto !== false);
   const pool = autoOk.length ? autoOk : active;
 
-  // 1. Escolha explícita do usuário (wizard do automático)
+  // 1. Tipo de visto da vaga — vence tudo quando existe perfil correspondente
+  const vt = jobVisaType(target, sheet);
+  if (vt) {
+    const byVisa = pool.find(pr => (pr.visaType||"h2b") === vt) || active.find(pr => (pr.visaType||"h2b") === vt);
+    if (byVisa) return byVisa;
+  }
+
+  // 2. Escolha explícita do usuário (wizard do automático)
   if (preferredId) {
     const chosen = pool.find(pr => pr.id === preferredId) || active.find(pr => pr.id === preferredId);
     if (chosen) return chosen;
@@ -3416,15 +3581,15 @@ function selectProfile(profiles, target, sheet, preferredId) {
 
   const jobCat = (target.category || "other").toLowerCase();
 
-  // 2. (Avançado, opcional) perfil que declarou a categoria da vaga
+  // 3. (Avançado, opcional) perfil que declarou a categoria da vaga
   const byCat = pool.filter(pr => Array.isArray(pr.categories) && pr.categories.length && pr.categories.includes(jobCat));
   if (byCat.length) return byCat.find(pr => pr.isFavorite) || byCat[0];
 
-  // 3. Perfil normal — sem categorias (compat: isGeneral legado conta como normal)
+  // 4. Perfil normal — sem categorias (compat: isGeneral legado conta como normal)
   const normal = pool.filter(pr => pr.isGeneral || !(pr.categories || []).length);
   if (normal.length) return normal.find(pr => pr.isFavorite) || normal[0];
 
-  // 4. Fallback
+  // 5. Fallback
   return pool[0];
 }
 
@@ -4107,6 +4272,48 @@ const fillTpl=(tpl,v)=>(tpl||"")
   .replace(/{inicio}/g,     v.inicio||"")
   .replace(/{start}/g,      v.inicio||"");
 
+// v19-FIX: corpo do loop de reactivateAutoJobs() extraído pra função própria,
+// reutilizável em qualquer lugar que precise "religar" um job travado (timer
+// morto) SEM ignorar um cooldown em andamento — é o que diferencia isso de um
+// scheduleAuto() direto: respeita waiting_limit/waiting_rate_limit/waiting_interval
+// e o nextSendAt já salvo, senão um "self-heal" ingênuo poderia disparar um
+// envio na hora bem no meio de um cooldown de rate-limit do Google, piorando
+// o bloqueio em vez de esperar ele passar. Retorna true se agendou algo.
+function reactivateOneAutoJob(email, job, now){
+  now = now || Date.now();
+  if(!job?.active||!job.queue?.length) return false;
+  // FIX-BUG13: valida estrutura da fila
+  if(!Array.isArray(job.queue)){
+    console.error(`[auto] ${email}: queue corrompida — resetando`);
+    setAutoJob(email,{...job,active:false,status:"paused_corrupt_queue"});
+    addLog(email,{status:"pausado",jobTitle:"❌ Fila corrompida",company:"Reinicie o automático.",error:"queue não é array"});
+    return false;
+  }
+
+  const waitStatuses=new Set(["waiting_rate_limit","waiting_limit","waiting_interval"]);
+  const hasNextSend = job.nextSendAt && job.nextSendAt > now;
+
+  if(job.status === "waiting_limit"){
+    // Para waiting_limit: sempre verifica se o limite já zerou (novo dia)
+    if(hasNextSend){
+      const delay = Math.max(1000, job.nextSendAt - now);
+      console.log(`[auto] ${email} aguardando limite — retoma em ${Math.round(delay/60000)}min`);
+      autoTimers.set(email, setTimeout(()=>scheduleAuto(email), delay));
+    } else {
+      // nextSendAt passou → meia-noite cruzou → novo dia → dispara imediatamente
+      console.log(`[auto] ${email} limite de ontem expirou — disparando imediatamente`);
+      scheduleAuto(email);
+    }
+  } else if(waitStatuses.has(job.status) && hasNextSend){
+    const delay = Math.max(1000, job.nextSendAt - now);
+    console.log(`[auto] reativado com delay ${Math.round(delay/1000)}s para ${email} (status: ${job.status})`);
+    autoTimers.set(email, setTimeout(()=>scheduleAuto(email), delay));
+  } else {
+    scheduleAuto(email);
+  }
+  return true;
+}
+
 async function reactivateAutoJobs(){
   let n=0;
   const now = Date.now();
@@ -4138,37 +4345,7 @@ async function reactivateAutoJobs(){
 
   // Passo 2: agenda os jobs
   for(const[email,job]of Object.entries(DB_AUTO)){
-    if(!job.active||!job.queue?.length) continue;
-    // FIX-BUG13: valida estrutura da fila
-    if(!Array.isArray(job.queue)){
-      console.error(`[boot/auto] ${email}: queue corrompida — resetando`);
-      setAutoJob(email,{...job,active:false,status:"paused_corrupt_queue"});
-      addLog(email,{status:"pausado",jobTitle:"❌ Fila corrompida no boot",company:"Reinicie o automático.",error:"queue não é array"});
-      continue;
-    }
-
-    const waitStatuses=new Set(["waiting_rate_limit","waiting_limit","waiting_interval"]);
-    const hasNextSend = job.nextSendAt && job.nextSendAt > now;
-
-    if(job.status === "waiting_limit"){
-      // Para waiting_limit: sempre verifica se o limite já zerou (novo dia)
-      if(hasNextSend){
-        const delay = Math.max(1000, job.nextSendAt - now);
-        console.log(`[boot/auto] ${email} aguardando limite — retoma em ${Math.round(delay/60000)}min`);
-        autoTimers.set(email, setTimeout(()=>scheduleAuto(email), delay));
-      } else {
-        // nextSendAt passou → meia-noite cruzou → novo dia → dispara imediatamente
-        console.log(`[boot/auto] ${email} limite de ontem expirou — disparando imediatamente`);
-        scheduleAuto(email);
-      }
-    } else if(waitStatuses.has(job.status) && hasNextSend){
-      const delay = Math.max(1000, job.nextSendAt - now);
-      console.log(`[boot/auto] reativado com delay ${Math.round(delay/1000)}s para ${email} (status: ${job.status})`);
-      autoTimers.set(email, setTimeout(()=>scheduleAuto(email), delay));
-    } else {
-      scheduleAuto(email);
-    }
-    n++;
+    if(reactivateOneAutoJob(email, job, now)) n++;
   }
   if(n) console.log(`[boot/auto] ${n} job(s) reativados após restart`);
 }
@@ -8156,44 +8333,12 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
       codGift.diasTotal+=dias;
       codGift.lista.push({email:u.email,nome:u.name||u.email,codigo:u.vip?.usedCode||null,dias,ativo,plano:u.vip?.plan||"vip"});
     }
-    // ── RECEITA REAL: soma TODOS os pagantes (inclui os aceitos antes do
-    // livro-caixa automático). Por pagante usa UMA fonte (sem dupla contagem):
-    // livro-caixa (DB_FINANCEIRO) → pedido pago/ativo (DB_PEDIDOS) → paymentAmount.
-    const _pv=v=>{if(typeof v==="number")return v||0;if(!v)return 0;const n=parseFloat(String(v).replace(/[^0-9,.-]/g,"").replace(",","."));return isNaN(n)?0:n;};
-    const _ts=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
-    const _finBy={}, _pedBy={};
-    for(const pg of ((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[])){ if(!pg||!pg.email)continue; const e=String(pg.email).toLowerCase(); (_finBy[e]=_finBy[e]||[]).push({valor:_pv(pg.valor),date:_ts(pg.dataPagamento)||_ts(pg.data)||pg.criadoEm||0}); }
-    for(const ped of Object.values(DB_PEDIDOS||{})){ if(!ped||!ped.userEmail)continue; const st=String(ped.status||"").toLowerCase(); if(st!=="pago"&&st!=="ativo")continue; const e=String(ped.userEmail).toLowerCase(); (_pedBy[e]=_pedBy[e]||[]).push({valor:_pv(ped.valorTotal),date:_ts(ped.ativadoEm)||_ts(ped.pagoEm)||0}); }
-    const _msD=new Date();_msD.setDate(1);_msD.setHours(0,0,0,0);const _monthStart=_msD.getTime();
-    let receitaReal=0, receitaMes=0, qtdPagantes=0;
-    for(const u of Object.values(DB_USERS||{})){
-      if(!u||!u.email)continue; const elc=u.email.toLowerCase(); const vip=u.vip||{}; const src=String(vip.source||"").toLowerCase();
-      if(src==="code"||src==="trial") continue; // gift/código e trial NUNCA contam como receita
-      let pags=_finBy[elc]||[]; if(!pags.length) pags=_pedBy[elc]||[]; if(!pags.length&&u.paymentAmount) pags=[{valor:_pv(u.paymentAmount),date:vip.activatedAt||0}];
-      pags=pags.filter(p=>p.valor>0);
-      const everPaid=(src===""||src==="admin"||src==="pago"||src==="payment")&&((vip.manualExpires||0)>0||(vip.autoExpires||0)>0||vip.activatedAt);
-      if(!pags.length&&!everPaid) continue;
-      const tot=pags.reduce((a,p)=>a+p.valor,0);
-      if(tot>0) qtdPagantes++;
-      receitaReal+=tot;
-      for(const p of pags){ if((p.date||0)>=_monthStart) receitaMes+=p.valor; }
-    }
-    // ── ENTRADAS AVULSAS: pagamentos SEM email de usuário cadastrado (ex.:
-    // Pix/PicPay recebido direto por um sócio, saldo inicial, acerto externo).
-    // O loop acima itera DB_USERS, então essas entradas ficavam INVISÍVEIS na
-    // receita — some da receita total, do mês e dos indicadores (bug v947).
-    // Aqui elas entram como categoria própria, sem inflar a contagem de pagantes.
-    let receitaAvulsa=0;
-    const _userEmails=new Set(Object.keys(DB_USERS||{}).map(e=>e.toLowerCase()));
-    for(const pg of ((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[])){
-      if(!pg) continue;
-      const e=String(pg.email||"").toLowerCase();
-      if(e&&_userEmails.has(e)) continue; // já contado no loop por usuário
-      const v=_pv(pg.valor); if(v<=0) continue;
-      receitaAvulsa+=v; receitaReal+=v;
-      const dt=_ts(pg.dataPagamento)||_ts(pg.data)||pg.criadoEm||0;
-      if(dt>=_monthStart) receitaMes+=v;
-    }
+    // ── RECEITA: fonte canônica ÚNICA (computeFinanceCanonico) — a MESMA que
+    // alimenta fin-insights, Pagantes e Pedidos. Antes este endpoint tinha uma
+    // cópia da fórmula SEM a correção de valor por pedido, e mostrava R$ 3.750
+    // enquanto os Indicadores mostravam R$ 3.585 pro mesmo caixa (dono, 15/07).
+    const F=computeFinanceCanonico();
+    const receitaReal=F.receitaTotal, receitaMes=F.receitaMes, receitaAvulsa=F.receitaAvulsa, qtdPagantes=F.qtdPagantes;
     return json(res,200,{ok:true,financeiro:slim,pagamentos:slim.pagamentos,gastos:slim.gastos,repasses:slim.repasses,codGift,receitaReal,receitaMes,receitaAvulsa,qtdPagantes});
   }
   // ── Admin: Gemini LÊ a documentação mestre e devolve as conclusões dele ──
@@ -8270,56 +8415,11 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
     const now=Date.now();
     const pv=v=>{if(typeof v==="number")return v||0;if(!v)return 0;const n=parseFloat(String(v).replace(/[^0-9,.-]/g,"").replace(",","."));return isNaN(n)?0:n;};
     const ts=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
-    const PRICE={vip:100,pro:150,vipro:150,doublepro:250};
-    const finBy={},pedBy={};
-    // RAIZ ÚNICA DE VALOR: se o pagamento do livro-caixa está ligado a um pedido
-    // (pedidoId) e o pedido foi CORRIGIDO depois, o valor do pedido vence — assim
-    // a correção feita na ficha do cliente reflete no Top 5 e na receita.
-    const _pedById={};for(const ped of (DB_PEDIDOS||[])){if(ped&&ped.id)_pedById[ped.id]=ped;}
-    for(const pg of ((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[])){if(!pg||!pg.email)continue;const e=String(pg.email).toLowerCase();
-      let v=pv(pg.valor);
-      const _ped=pg.pedidoId?_pedById[pg.pedidoId]:null;
-      if(_ped&&pv(_ped.valorTotal)>0&&pv(_ped.valorTotal)!==v)v=pv(_ped.valorTotal);
-      (finBy[e]=finBy[e]||[]).push({valor:v,date:ts(pg.dataPagamento)||ts(pg.data)||pg.criadoEm||0});}
-    for(const ped of Object.values(DB_PEDIDOS||{})){if(!ped||!ped.userEmail)continue;const st=String(ped.status||"").toLowerCase();if(st!=="pago"&&st!=="ativo")continue;const e=String(ped.userEmail).toLowerCase();(pedBy[e]=pedBy[e]||[]).push({valor:pv(ped.valorTotal),date:ts(ped.ativadoEm)||ts(ped.pagoEm)||0});}
-    const ms=new Date();ms.setDate(1);ms.setHours(0,0,0,0);const monthStart=ms.getTime();
-    let receitaTotal=0,receitaMes=0,qtdPagantes=0,novosMes=0,vencendo7=0,vencendo7Valor=0,vencidos=0,trials=0,gift=0,giftDias=0;
-    const porPlano={vip:0,vipro:0,doublepro:0,pro:0}, porPlanoQtd={vip:0,vipro:0,doublepro:0,pro:0};
-    const topPagantes=[];
-    for(const u of Object.values(DB_USERS||{})){
-      if(!u||!u.email)continue;const elc=u.email.toLowerCase();const vip=u.vip||{};const src=String(vip.source||"").toLowerCase();
-      if(src==="trial"){ if(isVipActive(u)) trials++; continue; }
-      if(src==="code"){ gift++; giftDias+=(vip.days||0); continue; }
-      let pags=finBy[elc]||[];if(!pags.length)pags=pedBy[elc]||[];if(!pags.length&&u.paymentAmount)pags=[{valor:pv(u.paymentAmount),date:ts(vip.activatedAt)||0}];
-      pags=pags.filter(x=>x.valor>0);
-      const everPaid=(src===""||src==="admin"||src==="pago"||src==="payment")&&((vip.manualExpires||0)>0||(vip.autoExpires||0)>0||vip.activatedAt);
-      if(!pags.length&&!everPaid)continue;
-      const tot=pags.reduce((a,x)=>a+x.valor,0);
-      if(tot>0){qtdPagantes++;topPagantes.push({nome:u.name||u.email,email:u.email,valor:tot,plano:vip.plan||getPlan(u)});}
-      receitaTotal+=tot;
-      let firstDate=pags.length?Math.min(...pags.map(x=>x.date||now)):(ts(vip.activatedAt)||0);
-      if(firstDate>=monthStart) novosMes++;
-      for(const x of pags){if((x.date||0)>=monthStart)receitaMes+=x.valor;}
-      const plan=vip.plan||getPlan(u); if(porPlano[plan]!==undefined){porPlano[plan]+=tot;porPlanoQtd[plan]++;}
-      const nextExp=Math.max(vip.manualExpires||0,vip.autoExpires||0);
-      if(nextExp>0){const dleft=Math.ceil((nextExp-now)/86400000); if(dleft<=0)vencidos++; else if(dleft<=7){vencendo7++;vencendo7Valor+=(PRICE[plan]||100);}}
-    }
-    topPagantes.sort((a,b)=>b.valor-a.valor);
-    // ── ENTRADAS AVULSAS (sem email de usuário): entram na receita como
-    // categoria própria — mesma correção do GET /api/admin/financeiro.
-    let receitaAvulsa=0; const _avulsas=[];
-    {
-      const _uEm=new Set(Object.keys(DB_USERS||{}).map(e=>e.toLowerCase()));
-      for(const pg of ((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[])){
-        if(!pg) continue;
-        const e=String(pg.email||"").toLowerCase();
-        if(e&&_uEm.has(e)) continue;
-        const v=pv(pg.valor); if(v<=0) continue;
-        const dt=ts(pg.dataPagamento)||ts(pg.data)||pg.criadoEm||0;
-        receitaAvulsa+=v; receitaTotal+=v; _avulsas.push({valor:v,date:dt});
-        if(dt>=monthStart) receitaMes+=v;
-      }
-    }
+    // v19: TODOS os números compartilhados vêm da fonte canônica única —
+    // a mesma dos outros endpoints financeiros (fim das 4 receitas diferentes).
+    const F=computeFinanceCanonico();
+    const {receitaTotal,receitaMes,receitaAvulsa,qtdPagantes,novosMes,vencendo7,vencendo7Valor,vencidos,trials,gift,giftDias,porPlano,porPlanoQtd,topPagantes,finBy,monthStart}=F;
+    const pedBy=F.pedBy, _avulsas=F.avulsas;
     // Despesas
     const gastos=(DB_FINANCEIRO&&DB_FINANCEIRO.gastos)||[];
     let despTotal=0,despMes=0; const despCat={},despSocio={andrio:0,diego:0,empresa:0};
@@ -8645,8 +8745,10 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
       const VALID_PLANS=['free','vip','vipro','doublepro','pro'];
       if(!VALID_PLANS.includes(plan))return json(res,400,{error:"Plano inválido"});
       const tgt=getUser(email);if(!tgt)return json(res,404,{error:"Usuário não encontrado"});
+      const _audBefore=_vipSnapshot(tgt); // v19: snapshot pra reversão
       if(plan!=='free'){addManualVipDays(email,30);if(['vipro','doublepro','pro'].includes(plan))addAutoVipDays(email,30);}
       setUser(email,{plan,vip:{...(tgt.vip||{}),active:plan!=='free',plan,source:'admin',activatedBy:s.user_email}});
+      logAdminAction(s.user_email,"set_plan",email,_audBefore,_vipSnapshot(getUser(email)),`Plano → ${plan}${plan!=='free'?" (+30d)":""}`);
       // 11/07 (caso Cleiton): plano foi ativado 3x e sumia após cada restart porque
       // o persist falhava em silêncio com o disco cheio. Agora VERIFICA a gravação
       // e grita para o admin — nunca mais falha silenciosa em dado de dinheiro.
@@ -10003,17 +10105,21 @@ const safeName=String(d.name).replace(/[<>"'&\r\n\t]/g,"").slice(0,200);if(!safe
     // fixas + todas as chaves publicadas em SHEET_EXTRAS no momento do save.
     const KNOWN_SHEETS=["jan2026","jul2025","h2a-jun2026","dol",...Object.keys(SHEET_EXTRAS)];
     const sheets=Array.isArray(d.sheets)?d.sheets.filter(s=>KNOWN_SHEETS.includes(s)):[];
-    // ── PERFIL ÚNICO: só existe (no máximo) 1 perfil por usuário — sempre
-    // edita esse perfil, nunca cria um segundo (ignora d.id de outro perfil).
-    // "Um perfil com informações gerais" pra todas as vagas, não vários por tipo.
-    const existing=prfs[0]||null;
-    const prf={id:existing?existing.id:(d.id||crypto.randomUUID()),name:String(d.name).slice(0,80),desc:String(d.desc||"").slice(0,200),active:true,type:"normal",icon:String(d.icon||"🎯").slice(0,8),isFavorite:true,allowManual:true,allowAuto:true,coverName:d.coverName?String(d.coverName).slice(0,200):undefined,coverSize:d.coverSize||0,isGeneral:true,subjects,emailBodies,subject:subjects[0]||String(d.subject||"").slice(0,200),body:emailBodies[0]||String(d.body||"").slice(0,5000),categories:[],sheets,resumeIdx:d.resumeIdx??null,pdfName:d.pdfName?String(d.pdfName).slice(0,200):undefined,pdfSize:d.pdfSize||0,coverIdx:d.coverIdx??null,state:String(d.state||"").slice(0,40),updatedAt:new Date().toISOString(),createdAt:existing?existing.createdAt:(d.createdAt||new Date().toISOString())};
-    prfs=[prf]; // substitui sempre — nunca acumula um segundo perfil
+    // ── v19 (dono, 15/07/2026): 1 PERFIL POR TIPO DE VISTO — até 2 perfis por
+    // usuário (1 H-2B + 1 H-2A). Cliente real tinha perfis separados por visto
+    // e a consolidação pra perfil único misturou os textos: vaga H-2A passou a
+    // receber corpo de H-2B. Agora: salvar com visaType X sempre EDITA o perfil
+    // X existente (nunca cria um segundo do mesmo tipo) e NUNCA toca no perfil
+    // do outro tipo. Criar o segundo tipo é opcional — o usuário escolhe.
+    const visaType=(String(d.visaType||"").toLowerCase()==="h2a")?"h2a":"h2b";
+    const existing=prfs.find(pr=>(pr.visaType||"h2b")===visaType)||null;
+    const prf={id:existing?existing.id:(d.id||crypto.randomUUID()),name:String(d.name).slice(0,80),desc:String(d.desc||"").slice(0,200),active:true,type:"normal",visaType,icon:String(d.icon||(visaType==="h2a"?"🌾":"🎯")).slice(0,8),isFavorite:visaType==="h2b",allowManual:true,allowAuto:true,coverName:d.coverName?String(d.coverName).slice(0,200):undefined,coverSize:d.coverSize||0,isGeneral:true,subjects,emailBodies,subject:subjects[0]||String(d.subject||"").slice(0,200),body:emailBodies[0]||String(d.body||"").slice(0,5000),categories:[],sheets,resumeIdx:d.resumeIdx??null,pdfName:d.pdfName?String(d.pdfName).slice(0,200):undefined,pdfSize:d.pdfSize||0,coverIdx:d.coverIdx??null,state:String(d.state||"").slice(0,40),updatedAt:new Date().toISOString(),createdAt:existing?existing.createdAt:(d.createdAt||new Date().toISOString())};
+    prfs=[...prfs.filter(pr=>(pr.visaType||"h2b")!==visaType),prf]; // preserva o perfil do OUTRO tipo
     setUser(s.user_email,{profiles:prfs});return json(res,200,{ok:true,profile:prf});}catch(e){return json(res,500,{error:e.message});}}
   if(pathname==="/api/profiles/delete"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});try{const d=JSON.parse(await readBody(req));if(!d.id)return json(res,400,{error:"id obrigatório"});const p=getUser(s.user_email)||{};
-    // PERFIL ÚNICO: não deixa apagar o único perfil (ficaria sem assunto/corpo
-    // configurado e o envio cairia no fallback genérico — exatamente o que
-    // este redesenho quis eliminar). Editar continua liberado, apagar não.
+    // v19: com perfis por tipo de visto (1 H-2B + 1 H-2A), pode apagar um dos
+    // dois — mas nunca o ÚLTIMO (ficaria sem assunto/corpo e o envio cairia
+    // no fallback genérico). Editar continua sempre liberado.
     const cur=p.profiles||[];
     if(cur.length<=1&&cur.some(pr=>pr.id===d.id))return json(res,400,{error:"Você precisa de pelo menos 1 perfil configurado. Edite-o em vez de apagar."});
     setUser(s.user_email,{profiles:cur.filter(pr=>pr.id!==d.id)});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
@@ -10029,6 +10135,27 @@ const safeName=String(d.name).replace(/[<>"'&\r\n\t]/g,"").slice(0,200);if(!safe
     }
     const existingJob=getAutoJob(s.user_email);
     if(existingJob&&existingJob.active){
+      // v19-FIX: "active:true" no disco não significa que o robô está de fato
+      // rodando — o timer (autoTimers, em memória) morre em todo restart do
+      // processo (deploy/spin-down/disco efêmero); reactivateAutoJobs() cobre
+      // isso 6s após o boot, mas esta é uma segunda camada de defesa: se por
+      // QUALQUER motivo (ex.: usuário clicou bem nesses 6s, ou uma exceção
+      // engoliu o reagendamento em algum ponto) não existe timer vivo pra esse
+      // usuário, religar aqui em vez de travar o usuário pra sempre atrás de um
+      // "já está em andamento" que é mentira. Usa reactivateOneAutoJob() (não
+      // scheduleAuto() direto) pra respeitar um cooldown de rate-limit/limite
+      // diário já salvo em vez de disparar um envio na hora ignorando ele.
+      if(!autoTimers.has(s.user_email)){
+        console.warn(`[auto/start] ⚠️ ${s.user_email} tinha job active:true sem timer vivo (robô parado de verdade) — reagendando em vez de bloquear.`);
+        reactivateOneAutoJob(s.user_email, existingJob);
+        addLog(s.user_email,{status:"sistema",jobTitle:"🔧 Timer morto detectado e reagendado no início",company:"auto-heal"});
+        // Mesmo formato de resposta do início normal (ok+queueSize+skippedAlreadySent)
+        // pra não quebrar o front-end, que espera esses campos numéricos — só que
+        // aqui a fila é a que já existia (não uma nova), e sinalizamos healed:true
+        // pra quem quiser mostrar uma mensagem diferente de "iniciado" pro usuário.
+        const _healedJob=getAutoJob(s.user_email);
+        return json(res,200,{ok:true,healed:true,queueSize:_healedJob?.queue?.length||0,skippedAlreadySent:0,message:"O robô estava travado (parado sem avisar) e foi reiniciado agora."});
+      }
       return json(res,409,{error:"Envio automático já está em andamento. Pause ou pare antes de iniciar novamente.",alreadyRunning:true,queueSize:existingJob.queue?.length||0});
     }
     const p=getUser(s.user_email)||{};const h=getHist(s.user_email);const todayAuto=countAutoToday(h);const autoLimit=getAutoLimit(p);
@@ -10520,7 +10647,9 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
       const vip={...(target.vip||{}),active:true,manualExpires,autoExpires,
         activatedAt:now,activatedBy:s.user_email,
         note:d.note||"",days,autoDays,plan:planName,source:'admin'};
+      const _audBefore=_vipSnapshot(target); // v19: snapshot pra reversão
       setUser(d.email,{plan:planName,vip});
+      logAdminAction(s.user_email,"vip_activate",d.email,_audBefore,_vipSnapshot(getUser(d.email)),`+${days}d manual, +${autoDays}d auto, plano ${planName}${d.note?` — ${d.note}`:""}`);
       if(days>0) addCredito(d.email,{dias:days,tipo:"gratis",origem:"admin",motivo:`Ativação admin — ${planName}`+(d.note?` (${d.note})`:""),dadoPor:isAdminEmail(s.user_email)&&s.user_email===ADMIN_EMAIL?"Andrio":(ADMIN_EMAIL_2&&s.user_email===ADMIN_EMAIL_2?"Diego":s.user_email)});
       console.log(`[admin] ✅ Ativou ${planName} → ${d.email} (manual:${days}d→${new Date(manualExpires).toLocaleDateString('pt-BR')} auto:${autoDays}d→${autoExpires>now?new Date(autoExpires).toLocaleDateString('pt-BR'):'–'})`);
 
@@ -10531,7 +10660,60 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
         autoExpiresDate:autoExpires>now?new Date(autoExpires).toLocaleDateString("pt-BR"):null});
     }catch(e){return json(res,500,{error:e.message});}}
 
-    if(pathname==="/api/admin/vip/revoke"&&req.method==="POST"){try{const d=JSON.parse(await readBody(req));if(!d.email)return json(res,400,{error:"email obrigatório."});if(autoTimers.has(d.email)){clearTimeout(autoTimers.get(d.email));autoTimers.delete(d.email);}delAutoJob(d.email);setUser(d.email,{plan:"free",vip:{active:false,revokedAt:Date.now(),manualExpires:0,autoExpires:0}});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
+    if(pathname==="/api/admin/vip/revoke"&&req.method==="POST"){try{const d=JSON.parse(await readBody(req));if(!d.email)return json(res,400,{error:"email obrigatório."});const _audBefore=_vipSnapshot(getUser(d.email));if(autoTimers.has(d.email)){clearTimeout(autoTimers.get(d.email));autoTimers.delete(d.email);}delAutoJob(d.email);setUser(d.email,{plan:"free",vip:{active:false,revokedAt:Date.now(),manualExpires:0,autoExpires:0}});logAdminAction(s.user_email,"vip_revoke",d.email,_audBefore,_vipSnapshot(getUser(d.email)),"VIP revogado → free");return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
+
+    // ── CONTAS DUPLICADAS (v19, dono 15/07/2026): mesma pessoa com 2+ contas ──
+    // Detecta por: (a) mesmo nome normalizado (sem acento/caixa/espaço extra),
+    // (b) mesmo telefone/WhatsApp, (c) mesmo IP de trial. Dandara Neves 2x,
+    // Simone Santana 2x e Lucas Hara 2x apareciam soltos na lista sem nenhum
+    // aviso — agora o admin vê os grupos e decide o que fazer.
+    if(pathname==="/api/admin/duplicates"&&req.method==="GET"){
+      const _norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/\s+/g," ").trim();
+      const byName={},byPhone={};
+      for(const u of Object.values(DB_USERS)){
+        if(!u?.email)continue;
+        const n=_norm(u.name);
+        if(n&&n.length>5)(byName[n]=byName[n]||[]).push(u.email);
+        const ph=String(u.whatsapp||u.phone||"").replace(/[^0-9]/g,"");
+        if(ph&&ph.length>=10)(byPhone[ph]=byPhone[ph]||[]).push(u.email);
+      }
+      const byIp={};
+      try{for(const[ip,rec]of Object.entries(DB_TRIAL_USED?.ips||{})){const ems=Array.isArray(rec)?rec:(rec?.emails||[rec?.email].filter(Boolean));if(ems&&ems.length>1)byIp[ip]=ems;}}catch{}
+      const groups=[];
+      const _mk=(tipo,chave,emails)=>{
+        const users=emails.map(e=>{const u=getUser(e)||{};const vip=u.vip||{};return{email:e,name:u.name||e,plan:getPlan(u),source:vip.source||"",vipAtivo:isVipActive(u),criadoEm:u.created_at||null,totalEnviado:(getHist(e)||[]).length};});
+        groups.push({tipo,chave,users});
+      };
+      for(const[n,ems]of Object.entries(byName))if(new Set(ems).size>1)_mk("nome",n,[...new Set(ems)]);
+      for(const[ph,ems]of Object.entries(byPhone))if(new Set(ems).size>1)_mk("telefone",ph,[...new Set(ems)]);
+      for(const[ip,ems]of Object.entries(byIp))if(new Set(ems).size>1)_mk("ip_trial",ip,[...new Set(ems)]);
+      return json(res,200,{ok:true,groups,total:groups.length});
+    }
+
+    // ── AUDITORIA DO ADMIN: listar + reverter (v19, dono 15/07/2026) ─────────
+    if(pathname==="/api/admin/audit"&&req.method==="GET"){
+      return json(res,200,{ok:true,audit:DB_ADMIN_AUDIT.slice(0,200)});
+    }
+    if(pathname==="/api/admin/audit/revert"&&req.method==="POST"){try{
+      const d=JSON.parse(await readBody(req));
+      if(!d.id)return json(res,400,{error:"id obrigatório."});
+      const motivo=String(d.motivo||"").trim();
+      if(motivo.length<3)return json(res,400,{error:"Motivo é obrigatório (mín. 3 caracteres) — fica registrado na auditoria."});
+      const entry=DB_ADMIN_AUDIT.find(a=>a.id===d.id);
+      if(!entry)return json(res,404,{error:"Registro de auditoria não encontrado."});
+      if(entry.reverted)return json(res,409,{error:"Esta ação já foi revertida antes."});
+      if(!entry.before||!entry.targetEmail)return json(res,400,{error:"Esta ação não tem snapshot para reverter."});
+      const target=getUser(entry.targetEmail);
+      if(!target)return json(res,404,{error:"Usuário-alvo não existe mais."});
+      const _now=_vipSnapshot(target);
+      // Restaura EXATAMENTE o plano/vip de antes da ação
+      setUser(entry.targetEmail,{plan:entry.before.plan||"free",vip:entry.before.vip||null});
+      entry.reverted=true;entry.revertedAt=Date.now();entry.revertedBy=s.user_email;entry.revertMotivo=motivo;
+      persist(ADMIN_AUDIT_FILE,DB_ADMIN_AUDIT);
+      logAdminAction(s.user_email,"revert",entry.targetEmail,_now,entry.before,`Reversão de "${entry.action}" (${entry.id}): ${motivo}`);
+      console.log(`[audit] ↩️ ${s.user_email} reverteu ${entry.action} de ${entry.targetEmail}`);
+      return json(res,200,{ok:true,restored:entry.before});
+    }catch(e){return json(res,500,{error:e.message});}}
 
     if(pathname==="/api/admin/vip/set-expiry"&&req.method==="POST"){try{
       const d=JSON.parse(await readBody(req));
@@ -10553,7 +10735,9 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
         note:d.note||(target.vip?.note||""),
         plan:planName,source:target.vip?.source||"admin",
         usedCode:target.vip?.usedCode||null};
+      const _audBefore=_vipSnapshot(target); // v19: snapshot pra reversão
       setUser(d.email,{plan:planName,vip});
+      logAdminAction(s.user_email,"set_expiry",d.email,_audBefore,_vipSnapshot(getUser(d.email)),`Validade → manual:${manualDays}d auto:${autoDays}d plano:${planName}`);
       console.log("[admin] set-expiry "+d.email+" manual:"+manualDays+"d auto:"+autoDays+"d plano:"+planName);
       return json(res,200,{ok:true,vip,planName,
         manualExpiresDate:manualExpires>0?new Date(manualExpires).toLocaleDateString("pt-BR"):null,
@@ -10612,22 +10796,17 @@ if(pathname==="/api/admin/pagantes"&&req.method==="GET"){try{
     });
   }
   rows.sort((a,b)=>{if(a.daysLeft===null&&b.daysLeft===null)return 0;if(a.daysLeft===null)return 1;if(b.daysLeft===null)return -1;return a.daysLeft-b.daysLeft;});
-  // Receita: livro-caixa (canônico); se vazio, soma pedidos
-  const ms=new Date();ms.setDate(1);ms.setHours(0,0,0,0);const monthStart=ms.getTime();
-  let recMes=0,recTotal=0;
-  const finAll=((DB_FINANCEIRO&&DB_FINANCEIRO.pagamentos)||[]);
-  if(finAll.length){
-    for(const pg of finAll){const v=parseVal(pg.valor);recTotal+=v;const dt=toTs(pg.dataPagamento)||toTs(pg.data)||pg.criadoEm||0;if(dt>=monthStart)recMes+=v;}
-  } else {
-    for(const e in pedByEmail)for(const p of pedByEmail[e]){recTotal+=p.valor;if((p.date||0)>=monthStart)recMes+=p.valor;}
-  }
+  // v19: Receita da fonte canônica ÚNICA — antes esta aba somava o livro-caixa
+  // CRU (sem excluir code/trial, sem correção de pedido) e mostrava
+  // "R$ 1.250 receita do mês" enquanto os Indicadores mostravam R$ 1.085.
+  const _F=computeFinanceCanonico();
   const summary={
     totalPagantes:rows.length,
     ativos:rows.filter(r=>r.status==="ativo"||r.status==="vencendo").length,
     vencendo:rows.filter(r=>r.status==="vencendo").length,
     vencidos:rows.filter(r=>r.status==="vencido").length,
     semData:rows.filter(r=>r.status==="sem_data").length,
-    receitaMes:recMes,receitaTotal:recTotal
+    receitaMes:_F.receitaMes,receitaTotal:_F.receitaTotal
   };
   return json(res,200,{ok:true,rows,summary,generatedAt:now});
 }catch(e){return json(res,500,{error:e.message});}}
@@ -10728,6 +10907,7 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
         else if(!job.active){phase="paused_manual";phDet=`Parado: ${job.status||"?"}`;phIco="⏸";canFix=true;}
         else if(job.active&&tAuto>=aLim){const nx=job.nextSendAt?new Date(job.nextSendAt):null;phase="waiting_limit";phDet=`Limite ${tAuto}/${aLim}. ${nx?`Retoma em ${Math.round((nx-bsNow)/60000)}min`:"Retoma meia-noite"}. Fila:${qLen}`;phIco="📊";canFix=true;}
         // waiting_hour removido — sem janela de horário
+        else if(job.active&&["waiting_rate_limit","waiting_interval","waiting_token_retry"].includes(job.status)){const nx=job.nextSendAt;phase="waiting_limit";phDet=`${job.status==="waiting_rate_limit"?"Rate limit Google":"Aguardando"}. ${nx&&nx>bsNow?`Retoma em ${Math.round((nx-bsNow)/60000)}min`:"Retoma sozinho"}. Fila:${qLen}`;phIco="⏳";}
         else if(job.active&&stalMs>1200000){phase="stalled";phDet=`Travado ${Math.round(stalMs/60000)}min. Timer:${hasTmr?'ativo':'MORTO'}`;phIco="🚨";canFix=true;}
         else if(job.active&&!hasTmr&&qLen>0){phase="dead_timer";phDet="Timer morto";phIco="💀";canFix=true;}
         else if(job.active&&qLen>0){const nx=job.nextSendAt;phase="running";phDet=`${qLen} restantes (${pct}%). ${nx&&nx>bsNow?`Próximo ${Math.round((nx-bsNow)/1000)}s`:"Enviando"}`;phIco="🟢";}
@@ -10990,7 +11170,15 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
       const onlineSessions=Object.values(sessions).filter(s=>s.user_email&&!s.pending&&(now-(s.created_at||0))<SESS_TTL);
       const onlineEmails=new Set(onlineSessions.map(s=>s.user_email));
       const activeJobs=Object.entries(DB_AUTO).filter(([,j])=>j.active&&j.queue?.length>0);
+      // v19-FIX (dono, 15/07): "22 fila(s) travada(s)" era ALARME FALSO — jobs em
+      // waiting_limit (limite diário atingido, retoma meia-noite) e waiting_rate_limit
+      // (Google pausou, retoma sozinho) contavam como "travados" porque o único
+      // critério era tempo-sem-enviar. É a MESMA lição do KB-001, que já tinha sido
+      // aplicada na auditoria/incidentes mas NÃO aqui no /api/admin/live — que é
+      // exatamente o que pinta o banner vermelho e o contador do painel.
+      const _WAIT_STATUSES=new Set(["waiting_limit","waiting_rate_limit","waiting_interval","waiting_token_retry"]);
       const stalledJobs=activeJobs.filter(([email,job])=>{
+        if(_WAIT_STATUSES.has(job.status))return false;
         const lastAct=job.lastSentAt||job.startedAt||0;
         return now-lastAct>STALL_THRESHOLD;
       });
@@ -11009,7 +11197,10 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
         const isOnline=onlineEmails.has(u.email);
         const lastSession=onlineSessions.find(s=>s.user_email===u.email);
         const sessionAge=lastSession?Math.round((now-(lastSession.created_at||0))/60000):null;
-        const jobStalled=job?.active&&job?.queue?.length>0&&(now-(job.lastSentAt||job.startedAt||0))>STALL_THRESHOLD;
+        // v19-FIX: waiting_limit/rate_limit/interval NÃO é travado (mesma regra do
+        // stalledJobs acima) — era isso que marcava "🚨 Travado"/"Problema" em
+        // usuário que só atingiu o limite diário (10/10, 200/200).
+        const jobStalled=job?.active&&!_WAIT_STATUSES.has(job?.status)&&job?.queue?.length>0&&(now-(job.lastSentAt||job.startedAt||0))>STALL_THRESHOLD;
         const uPlan=getPlan(u);
         const autoLimitU=getAutoLimit(u);
         const manualLimitU=getManualLimit(u);
