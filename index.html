@@ -4019,6 +4019,9 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 <i class="ti ti-rocket" style="font-size:22px"></i>
                 <span>🤖 Começar Envio Automático</span>
               </button>
+              <div style="text-align:center;margin-top:10px">
+                <button onclick="confirmResetAuto()" style="background:none;border:none;color:var(--t3);font-size:11.5px;font-weight:700;cursor:pointer;text-decoration:underline;font-family:inherit"><i class="ti ti-refresh"></i> O automático zerou a fila? Resetar enviados</button>
+              </div>
             </div>
           </div>
         </div>
@@ -9676,6 +9679,33 @@ async function doClearHist(ovEl){
   updSheetCounter();
   toast("Resetado — todas as vagas voltaram à lista ✓","g");
   try{await fetch("/api/history/clear",{method:"POST",credentials:"include"});}catch{}
+}
+
+// 🔄 Reset direto da aba AUTOMÁTICO (dono, 18/07/2026): cliente no WhatsApp
+// não achava o reset — ele ficava só na aba Enviados. Mesmo fluxo/endpoint
+// (/api/history/clear: limpa histórico + trava anti-duplicata DB_SENT), com
+// confirmação explicando o efeito: TODAS as empresas ficam liberadas para
+// receber de novo e a fila do automático volta a encher.
+function confirmResetAuto(){
+  const n=HIST.length;
+  const ov=document.createElement("div");
+  ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)";
+  ov.innerHTML=`<div style="background:#fff;border-radius:18px;padding:24px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:fadeScale .18s ease">
+    <div style="font-size:32px;text-align:center;margin-bottom:8px">🔄</div>
+    <div style="font-size:17px;font-weight:800;text-align:center;margin-bottom:6px;color:#0f172a">Resetar enviados do automático?</div>
+    <div style="font-size:13px;color:#475569;text-align:center;margin-bottom:10px;line-height:1.6">${n?`Remove <strong>${n} candidatura${n!==1?"s":""}</strong> do histórico e libera`:`Libera`} <strong>todas as empresas</strong> para receber de novo — a fila do automático volta a encher.</div>
+    <div style="background:#fef9c3;border:1.5px solid #fde047;border-radius:10px;padding:10px 12px;font-size:12px;color:#713f12;margin-bottom:16px;display:flex;align-items:flex-start;gap:7px"><i class="ti ti-alert-triangle" style="flex-shrink:0;margin-top:1px"></i><span>O automático poderá <strong>enviar de novo para as mesmas empresas</strong>. Use quando a fila zerou e você quer se recandidatar a tudo.</span></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="this.closest('div[style]').remove()" class="btn btn-secondary" style="flex:1">Cancelar</button>
+      <button onclick="doResetAuto(this.closest('div[style]'))" class="btn btn-danger" style="flex:2"><i class="ti ti-refresh"></i> Sim, resetar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+}
+async function doResetAuto(ovEl){
+  await doClearHist(ovEl);
+  toast("Agora toque em 🤖 Começar Envio Automático para recomeçar a fila","g");
 }
 
 // ── Excluir UMA entrada do histórico ────────────

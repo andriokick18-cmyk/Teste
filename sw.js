@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v18b"; // v18b (11/07): + fix disco cheio (ENOSPC) — backups 20d→3d sem logs, faxina automática, auto-recuperação de gravação
+const CACHE_NAME = "h2bapply-v19b"; // v19b (18/07): + botão "Resetar enviados" na aba Automático (com confirmação) — cliente não achava o reset que ficava só na aba Enviados
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

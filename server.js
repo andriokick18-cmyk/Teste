@@ -2548,9 +2548,9 @@ const CATEGORY_LABELS = {
   other:        { label:"📋 Outros",                  en:"Other" },
 };
 
-// ── Normalização de estado (KB-SEO-02): h2a_jobs.json usa sigla de 2 letras
-// ("TX"), enquanto jul2025_compact.json e h2a_jun2026_compact.json usam nome
-// por extenso ("TEXAS") — sem normalizar, agregados por estado (ex.: página
+// ── Normalização de estado (KB-SEO-02): planilhas antigas usavam sigla de 2
+// letras ("TX"), enquanto jul2025_compact.json e h2a_jun2026_compact.json usam
+// nome por extenso ("TEXAS") — sem normalizar, agregados por estado (ex.: página
 // de salários, páginas por estado) contavam "TX" e "TEXAS" como lugares
 // diferentes, subcontando quase todo estado. Esta função sempre devolve o
 // NOME POR EXTENSO em maiúsculas, e o slug (para URL) em minúsculas sem acento.
@@ -5943,7 +5943,6 @@ const server=http.createServer(async(req,res)=>{
   const serveHtml=f=>sendAsset(req,res,f,"text/html; charset=utf-8","no-cache"); // V951: brotli/gzip + ETag
   if(pathname==="/"||pathname==="/index.html")return serveHtml("index.html");
   if(pathname==="/admin"||pathname==="/admin.html")return serveHtml("admin.html");
-  if(pathname==="/admin-v2"||pathname==="/admin-v2.html")return serveHtml("admin-v2.html");
   if(pathname==="/guia"||pathname==="/guia.html")return serveHtml("guia.html");
   if(pathname==="/h2bapply-funciona"||pathname==="/h2bapply-funciona.html")return serveHtml("h2bapply-funciona.html"); // SEO: página "H2BApply funciona?" (como funciona, confiança, preços, FAQ)
   if(pathname==="/h2b-e-golpe"||pathname==="/h2b-e-golpe.html")return serveHtml("h2b-e-golpe.html"); // SEO/confiança: página "H2B é golpe?" — golpes comuns, regra federal anti-taxa-de-recrutamento, como verificar vaga real
@@ -5992,7 +5991,7 @@ const server=http.createServer(async(req,res)=>{
   // dificultando indexação/descoberta pelo Google) ──────────────────────────
   if(pathname==="/robots.txt"){
     res.writeHead(200,{"Content-Type":"text/plain; charset=utf-8","Cache-Control":"public, max-age=3600"});
-    return res.end("User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /admin-v2\nDisallow: /admin-reviews\nDisallow: /ad\nDisallow: /api/\nDisallow: /diagnostico\n\nSitemap: https://h2bapply.com/sitemap.xml\n");
+    return res.end("User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /admin-reviews\nDisallow: /ad\nDisallow: /api/\nDisallow: /diagnostico\n\nSitemap: https://h2bapply.com/sitemap.xml\n");
   }
   if(pathname==="/sitemap.xml"){
     const _pages=[
@@ -8341,37 +8340,6 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
     const receitaReal=F.receitaTotal, receitaMes=F.receitaMes, receitaAvulsa=F.receitaAvulsa, qtdPagantes=F.qtdPagantes;
     return json(res,200,{ok:true,financeiro:slim,pagamentos:slim.pagamentos,gastos:slim.gastos,repasses:slim.repasses,codGift,receitaReal,receitaMes,receitaAvulsa,qtdPagantes});
   }
-  // ── Admin: Gemini LÊ a documentação mestre e devolve as conclusões dele ──
-  if(pathname==="/api/admin/gemini-doc-report"&&req.method==="POST"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
-    if(!getGeminiKey())return json(res,503,{error:"Gemini API não configurada (GEMINI_API_KEY)."});
-    let doc="";
-    try{ doc=fs.readFileSync(path.join(__dirname,"DOCUMENTACAO_MESTRA_H2BAPPLY.md"),"utf8"); }
-    catch(e){ return json(res,404,{error:"Documentação mestre não encontrada no servidor."}); }
-    const systemPrompt=`Você é um Arquiteto de Software Sênior e Auditor de Sistemas. Vou te dar a DOCUMENTAÇÃO MESTRA do H2BApply (um SaaS Node.js monólito, frontend HTML/JS vanilla, persistência em JSON, integrações Google OAuth/Gmail, Gemini e DOL). Leia TODA a documentação e produza um RELATÓRIO com as SUAS PRÓPRIAS CONCLUSÕES — não repita a documentação, analise-a criticamente. Estruture assim, em português do Brasil, direto e prático:\n\n1. RESUMO EXECUTIVO (3-5 linhas: o que é, em que estado está).\n2. PONTOS FORTES (o que está bem feito).\n3. RISCOS CRÍTICOS (o que pode quebrar/escalar mal, em ordem de gravidade).\n4. TOP 5 PRIORIDADES (o que atacar primeiro, com motivo).\n5. PROBLEMAS OCULTOS QUE VOCÊ NOTOU (que a doc não destacou).\n6. RECOMENDAÇÃO DE ARQUITETURA (próximo passo de escala).\n7. NOTA GERAL (0-10) com justificativa de 1 linha.\n\nSeja honesto e específico. Cite arquivos/funções/rotas quando relevante.`;
-    const contents=[{role:"user",parts:[{text:"Aqui está a documentação mestre para você analisar:\n\n"+doc.slice(0,120000)}]}];
-    const GEMINI_MODELS=["gemini-2.5-flash","gemini-2.0-flash","gemini-2.5-flash-lite"];
-    let text="",lastErr="";
-    for(const modelName of GEMINI_MODELS){
-      try{
-        const geminiUrl=`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${getGeminiKey()}`;
-        const payload={system_instruction:{parts:[{text:systemPrompt}]},contents,generationConfig:{temperature:0.6,maxOutputTokens:3000,topP:0.95}};
-        const result=await new Promise((resolve,reject)=>{
-          const body=JSON.stringify(payload);const url=new URL(geminiUrl);
-          const opts={hostname:url.hostname,path:url.pathname+url.search,method:"POST",headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(body)}};
-          const req2=https.request(opts,resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{try{resolve({status:resp.statusCode,body:JSON.parse(Buffer.concat(ch).toString())});}catch{reject(new Error("Resposta inválida"));}});});
-          req2.on("error",reject);req2.setTimeout(40000,()=>{req2.destroy();reject(new Error("Timeout"));});
-          req2.write(body);req2.end();
-        });
-        if(result.status===200){text=result.body?.candidates?.[0]?.content?.parts?.[0]?.text||"";if(text){console.log(`[gemini-doc] ✅ ${modelName}`);break;}}
-        else{lastErr=result.body?.error?.message||`HTTP ${result.status}`;}
-      }catch(e){lastErr=e.message;}
-    }
-    if(!text)return json(res,502,{error:"Erro na análise: "+lastErr});
-    return json(res,200,{ok:true,report:text,docBytes:doc.length,generatedAt:new Date().toISOString()});
-  }
-
   // POST /api/admin/fin/ai-review — a IA (Gemini) analisa uma edição financeira
   // e conversa com o admin sobre ela. Corpo: {contexto:{tipo,antes,depois,motivo},
   // conversa:[{de:'admin'|'ia',texto}]}. Retorna {ok,resposta,veredito}.
@@ -8433,7 +8401,7 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
       novosMes,vencendo7,vencendo7Valor,vencidos,trials,gift,giftDias,
       porPlano,porPlanoQtd,despCat,despSocio,
       topPagantes:topPagantes.slice(0,5),serie,
-      mrrEstimado:porPlano.vip*0+receitaMes, // receita reconhecida no mês
+      mrrEstimado:receitaMes, // receita reconhecida no mês
       projecaoRenovacao:vencendo7Valor,
       geradoEm:new Date().toISOString()
     }});
@@ -9198,30 +9166,31 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
         const diasTotal=diasBase+diasBonus;
         pd.diasBonus=diasBonus;pd.diasTotal=diasTotal;
 
-        // ── CÁLCULO DA VALIDADE (corrigido) ───────────────────────────────
-        // Regra única que vale para recuperação E renovação:
-        //   início      = tem VIP ativo ? expiração_atual : data_de_pagamento
+        // ── CÁLCULO DA VALIDADE — REGRA DO DONO (18/07/2026) ──────────────
+        // "Os dias de VIP têm que ser a partir do dia que foi APROVADO o
+        //  pedido." Regra única:
+        //   início      = tem VIP ativo ? expiração_atual : AGORA (aprovação)
         //   vence_pago  = início + dias_pagos
-        //   vence_final = max(hoje, vence_pago) + dias_bônus   (bônus nunca retroage)
-        // • Sem VIP ativo (1º cadastro pós-reset / recuperação): conta da DATA DO
-        //   PAGAMENTO — não dá dias grátis por demora na ativação.
-        // • Com VIP ativo (renovação): empilha sobre o que ele já tem ("60 + 2").
-        // • Pago muito antigo cuja validade já passou: max(hoje,...) garante que
-        //   só o bônus vale (🔴 expirado).
+        //   vence_final = max(hoje, vence_pago) + dias_bônus  (bônus nunca retroage)
+        // • Sem VIP ativo: conta do MOMENTO DA APROVAÇÃO — se o comprovante
+        //   ficou pendente 2 dias, o cliente NÃO perde esses 2 dias (antes
+        //   ancorava na data do pagamento e roubava o tempo pendente; pior:
+        //   a reconciliação do boot, que SEMPRE ancorou em ativadoEm,
+        //   devolvia a diferença depois — duas verdades brigando).
+        // • Com VIP ativo (renovação): empilha sobre o que ele já tem.
+        // • Mesma âncora da reconciliação (ativadoEm) — uma regra só.
         const now=Date.now();
         const DAY=86400_000;
         const tgt=getUser(pd.userEmail)||{};
-        const _pagoTs=pd.pagoEm?new Date(pd.pagoEm).getTime():now;
-        const pagoTs=(isNaN(_pagoTs)||!_pagoTs)?now:_pagoTs;
         const manualAtivo=tgt.vip?.manualExpires&&tgt.vip.manualExpires>now;
         const autoAtivo=tgt.vip?.autoExpires&&tgt.vip.autoExpires>now;
         // Trial (1 dia, source 'trial') NÃO conta como plano ativo para empilhar:
-        // na recuperação queremos ANCORAR na data de pagamento, não somar o dia grátis.
+        // o dia grátis do trial não soma — os dias pagos começam da aprovação.
         const _ehTrial=(tgt.vip?.source==="trial");
         const _manualStack=manualAtivo&&!_ehTrial;
         const _autoStack=autoAtivo&&!_ehTrial;
-        const baseManual=_manualStack?tgt.vip.manualExpires:pagoTs;
-        const baseAuto=_autoStack?tgt.vip.autoExpires:pagoTs;
+        const baseManual=_manualStack?tgt.vip.manualExpires:now;
+        const baseAuto=_autoStack?tgt.vip.autoExpires:now;
         const isAuto=["vipro","doublepro"].includes(planoKey);
         const manualExpires=Math.max(now, baseManual+diasBase*DAY)+diasBonus*DAY;
         const autoExpires=isAuto?(Math.max(now, baseAuto+diasBase*DAY)+diasBonus*DAY):(tgt.vip?.autoExpires||0);
@@ -9368,7 +9337,49 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
         });
       }
 
-      if(d.status==="cancelado"){pd.canceladoPor=s.user_email;pd.canceladoEm=Date.now();}
+      if(d.status==="cancelado"){
+        pd.canceladoPor=s.user_email;pd.canceladoEm=Date.now();
+        // ── Caixa acompanha o cancelamento (dono, 18/07/2026) ─────────────
+        // A ativação do pedido cria uma entrada automática no livro-caixa
+        // (source 'pedido_automatico'). Antes, cancelar o pedido deixava essa
+        // entrada ÓRFÃ inflando a receita — caso real: 3 pedidos duplicados
+        // do mesmo cliente = R$450 no caixa de 1 pagamento de R$150. Agora o
+        // cancelamento remove a entrada automática LIGADA a este pedido e
+        // registra na trilha de alterações (nada some sem histórico).
+        const _pagsAuto=(DB_FINANCEIRO.pagamentos||[]).filter(x=>x.pedidoId===pd.id&&x.source==="pedido_automatico");
+        if(_pagsAuto.length){
+          DB_FINANCEIRO.pagamentos=DB_FINANCEIRO.pagamentos.filter(x=>!(x.pedidoId===pd.id&&x.source==="pedido_automatico"));
+          if(!Array.isArray(DB_FINANCEIRO.alteracoes))DB_FINANCEIRO.alteracoes=[];
+          for(const _pg of _pagsAuto){
+            const {comprovante,img,..._limpo}=_pg;
+            DB_FINANCEIRO.alteracoes.push({id:'alt_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6),
+              tipo:'excluir_pagamento',por:s.user_email===ADMIN_EMAIL?'Andrio':(ADMIN_EMAIL_2&&s.user_email===ADMIN_EMAIL_2?'Diego':s.user_email),
+              porEmail:s.user_email,em:Date.now(),
+              motivo:'Automático: pedido #'+pd.id.slice(-8).toUpperCase()+' cancelado — entrada do caixa removida junto',
+              antes:_limpo,depois:null});
+          }
+          persistFinanceiro();
+          console.log(`[financeiro] pedido ${pd.id} cancelado — ${_pagsAuto.length} entrada(s) automática(s) removida(s) do caixa`);
+        }
+        // ── Estorno de DIAS (dono, 18/07/2026): os dias SEGUEM o pedido ──
+        // A ativação credita pd.diasTotal a partir da data do pagamento (ou
+        // empilha na renovação). Cancelou o pedido, estorna exatamente o que
+        // ele creditou — caso real: 3 pedidos duplicados = 90d de um único
+        // pagamento de 30d; cancelar os 2 extras devolve o cliente aos 30d
+        // contados do 1º pagamento. Só mexe em VIP de origem paga.
+        if(pd.ativadoEm && (pd.diasTotal||0)>0){
+          const tgtC=getUser(pd.userEmail);
+          if(tgtC&&tgtC.vip&&["payment","pago"].includes(String(tgtC.vip.source||""))){
+            const DAYc=86400_000;
+            const v={...tgtC.vip};
+            if((v.manualExpires||0)>0)v.manualExpires=v.manualExpires-pd.diasTotal*DAYc;
+            if(["vipro","doublepro"].includes(pd.plano)&&(v.autoExpires||0)>0)v.autoExpires=v.autoExpires-pd.diasTotal*DAYc;
+            v.note=(String(v.note||"")+" · estorno "+pd.diasTotal+"d (pedido #"+pd.id.slice(-8).toUpperCase()+" cancelado)").slice(-220);
+            setUser(pd.userEmail,{vip:v});
+            console.log(`[pedido] ${pd.id} cancelado — estornados ${pd.diasTotal}d de VIP de ${pd.userEmail}`);
+          }
+        }
+      }
       persistPedidos(); // v18-FIX: idem — pd já é a referência viva do array, sem reescrita por índice
       return json(res,200,{ok:true,pedido:pd});
     }catch(e){return json(res,500,{error:e.message});}
@@ -10609,6 +10620,40 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
     const p=getUser(s.user_email);if(!p?.isAdmin)return json(res,403,{error:"Acesso negado."});
     if(pathname==="/api/admin/stats"&&req.method==="GET"){const tu=Object.keys(DB_USERS).length;const ts=Object.values(DB_HIST).reduce((n,a)=>n+a.length,0);const ds=todayStr();const tt=Object.values(DB_HIST).reduce((n,a)=>n+a.filter(h=>h.dateStr===ds).length,0);const vu=Object.values(DB_USERS).filter(u=>isVipActive(u)).length;const au=Object.values(DB_AUTO).filter(j=>j.active).length;return json(res,200,{totalUsers:tu,totalSent:ts,todayTotal:tt,vipUsers:vu,activeAutoJobs:au,freeUsers:tu-vu,jobsCached:jobsCache.length,jobsTotal,activeSessions:Object.keys(sessions).filter(k=>!k.startsWith("__")).length,dataDir:DATA_DIR,disk:fs.existsSync("/data"),sheetJan:SHEET_JAN.length,sheetJul:SHEET_JUL.length});}
     if(pathname==="/api/admin/users"&&req.method==="GET"){const list=Object.values(DB_USERS).map(u=>{const vok=isVipActive(u);const h=getHist(u.email);const autoJob=getAutoJob(u.email);return{email:u.email,name:u.name,picture:u.picture,country:u.country,phone:u.phone,created_at:u.created_at,cvCount:(u.cvs||[]).length,histCount:h.length,todaySent:countManualToday(h)+countAutoToday(h),plan:getPlan(u),isAdmin:!!u.isAdmin,vip:u.vip?{active:vok,expiresAt:u.vip.expiresAt,activatedAt:u.vip.activatedAt,days:u.vip.days||30,plan:u.vip.plan||"vip",manualExpires:u.vip.manualExpires||0,autoExpires:u.vip.autoExpires||0,source:u.vip.source||"admin",usedCode:u.vip.usedCode||null,codeNote:u.vip.codeNote||null,activatedBy:u.vip.activatedBy||null,note:u.vip.note||null}:null,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0}:null};}).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));return json(res,200,{users:list,total:list.length});}
+    // ── 🎁 DIAS GRÁTIS (cortesia) — dono, 18/07/2026 ─────────────────────
+    // Caso de uso: "o site ficou 2 dias com problema, quero dar 2 dias a mais
+    // pro cliente". Estende a validade SEM tocar em NADA da contabilidade:
+    // não cria pagamento, não muda plano, não muda source (pagante continua
+    // pagante, trial continua trial). Só empurra a(s) data(s) de vencimento
+    // e registra quem deu, quantos dias e por quê (vip.giftHistory).
+    if(pathname==="/api/admin/vip/gift-days"&&req.method==="POST"){try{
+      const d=JSON.parse(await readBody(req));
+      const email=String(d.email||"").trim().toLowerCase();
+      if(!email)return json(res,400,{error:"email obrigatório."});
+      const dias=Math.max(1,Math.min(60,parseInt(d.dias,10)||0));
+      if(!(parseInt(d.dias,10)>0))return json(res,400,{error:"Informe quantos dias (1 a 60)."});
+      const motivo=String(d.motivo||"").trim();
+      if(motivo.length<3)return json(res,400,{error:"Informe o motivo (obrigatório — ex.: 'site fora do ar 2 dias')."});
+      const target=getUser(email);
+      if(!target)return json(res,404,{error:"Usuário não encontrado."});
+      const now=Date.now(),DAYg=86400_000;
+      const v={...(target.vip||{})};
+      // Estende o manual sempre; o automático só se o cliente JÁ tem automático
+      // (cortesia espelha o que ele contratou — não dá recurso novo de graça).
+      const baseM=(v.manualExpires&&v.manualExpires>now)?v.manualExpires:now;
+      v.manualExpires=baseM+dias*DAYg;
+      if((v.autoExpires||0)>0){
+        const baseA=(v.autoExpires>now)?v.autoExpires:now;
+        v.autoExpires=baseA+dias*DAYg;
+      }
+      v.active=true;
+      v.giftHistory=[...(v.giftHistory||[]).slice(-19),{em:now,dias,motivo:motivo.slice(0,160),
+        por:s.user_email===ADMIN_EMAIL?"Andrio":(ADMIN_EMAIL_2&&s.user_email===ADMIN_EMAIL_2?"Diego":s.user_email)}];
+      setUser(email,{vip:v});
+      console.log(`[gift-days] +${dias}d para ${email} por ${s.user_email} — ${motivo.slice(0,80)}`);
+      return json(res,200,{ok:true,dias,manualExpires:v.manualExpires,autoExpires:v.autoExpires||0,
+        venceEm:new Date(v.manualExpires).toLocaleDateString("pt-BR")});
+    }catch(e){return json(res,500,{error:e.message});}}
     if(pathname==="/api/admin/vip/activate"&&req.method==="POST"){try{
       const d=JSON.parse(await readBody(req));
       if(!d.email)return json(res,400,{error:"email obrigatório."});
@@ -14613,20 +14658,11 @@ const handleAdminHealthRoutes = createAdminHealthRouter({
 });
 console.log("[health-sentinel] 🩺 Módulo carregado: desync VIP↔robô, lembrete de renovação, alerta de pedidos, sanitização de fila.");
 
-// ── 🚀 PAINEL ADMIN V2 (novo) — rotas /api/admin/v2/* ──
+// ── ⛃ BACKUP DO SISTEMA — rotas /api/admin/v2/backup/* (mod-admin-v2.js) ──
+// O painel V2 foi aposentado (18/07/2026); o módulo agora só cuida de backup
+// (usado pelo painel clássico /admin) + auditoria dessas ações.
 const { createAdminV2Router } = require("./mod-admin-v2.js");
 const handleAdminV2Routes = createAdminV2Router({
-  getSess, getUser, setUser, isAdminVip, isAdminEmail, json, readBody,
-  DB_USERS: ()=>DB_USERS, DB_HIST: ()=>DB_HIST, DB_AUTO: ()=>DB_AUTO,
-  DB_PEDIDOS: ()=>DB_PEDIDOS, DB_FINANCEIRO: ()=>DB_FINANCEIRO,
-  DB_LOGS: ()=>DB_LOGS, DB_KB: ()=>DB_KB, DB_NOTES: ()=>DB_NOTES,
-  DB_ALERTS: ()=>DB_ALERTS, DB_SHEETS_META: ()=>DB_SHEETS_META,
-  getPlan, getAutoJob, setAutoJob, getHist,
-  persistUsers: ()=>persist(USERS_FILE, DB_USERS),
-  persistAuto:  ()=>persist(AUTO_FILE, DB_AUTO),
-  persistPedidos, persistFinanceiro,
-  DATA_DIR, getGeminiKey, scheduleAuto, httpsReq,
-  ADMIN_SETTINGS: ()=>DB_ADMIN_SETTINGS,
-  persistAdminSettings: ()=>persist(ADMIN_SETTINGS_FILE, DB_ADMIN_SETTINGS),
+  getSess, getUser, isAdminVip, json, readBody, DATA_DIR,
 });
-console.log("[admin-v2] 🚀 Painel V2 carregado: auditoria permanente, dashboard, edição universal, bots, IA, logs, financeiro, relatórios, backup, config.");
+console.log("[admin-v2] ⛃ Módulo de backup carregado (rotas /api/admin/v2/backup/*).");

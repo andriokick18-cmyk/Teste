@@ -103,13 +103,10 @@ Tudo na raiz do repositório (não há árvore de pastas `/src`).
 | `jan2026_compact.json` | ~2 MB | **Planilha built-in** Jan 2026 (H-2B, ~9.240 vagas). |
 | `jul2025_compact.json` | ~490 KB | **Planilha built-in** Jul 2025 (H-2B, ~2.206 vagas). |
 | `h2a_jun2026_compact.json` | ~4,5 MB | **Planilha built-in** H-2A Agricultura (5.000 vagas, 20 categorias). |
-| `h2a_compact.json` / `h2a_jobs.json` | — | Bases auxiliares H-2A. |
 | `build-sheets.js` | — | Script utilitário para montar planilhas compactas. |
 | `reset_h2bapply.js` | — | Script de reset de temporada (`npm run reset`). |
-| `update_clientes_pagantes.js` | — | Script de manutenção de pagantes. |
 | `.env.example` | — | Modelo de variáveis de ambiente. |
 | `*.md`, `*.txt` | — | Auditorias, constituição da IA, checklists Google. |
-| `admin-3.html`, `index-1.html` | — | **Versões antigas/backup** (código morto — ver §24). |
 | ícones `.png/.svg`, `favicon`, `apple-touch-icon` | — | Assets PWA. |
 | `google380652ea59ad95e1.html` | — | Verificação de domínio Google. |
 
@@ -498,8 +495,10 @@ admin cola URL → _parseDolAdvancedUrl → _runDolBuildBot (OData paginado)
 ## 24. PROBLEMAS, CÓDIGO MORTO E MELHORIAS
 
 **Código morto / backups no repo:**
-- `admin-3.html`, `index-1.html` — versões antigas (não servidas; ocupam ~1,5 MB). Recomendado arquivar fora do deploy.
-- `h2a_compact.json` + `h2a_jobs.json` — bases auxiliares possivelmente redundantes com `h2a_jun2026_compact.json`.
+- Lote de limpeza 18/07/2026 (parte 2): `mod-dol-monitor.js` REMOVIDO (52 KB — nada dava require, rotas nunca despachadas, zero chamadas no admin; as funções de grupos/ETA vivem no server.js). `icon_master.svg` (v1) removido — `icon_master_v2.svg` é a fonte atual dos ícones. `package.json`: scripts `test`/`test:*` apontavam para pasta `tests/` que nunca foi commitada — substituídos por `npm run check` (node --check em server.js, storage.js e mod-*.js). `.env.example` completado com as 8 variáveis que faltavam (GEMINI_API_KEY, GEMINI_DAILY_LIMIT, DATA_ENC_KEY, EDITOR_PWD_ANDREW/DIEGO, STORAGE, STORAGE_MIRROR, RESET_NOW). README: `SESSION_SECRET` (não existe no código) trocado pelas variáveis reais. sw.js: CACHE_NAME v18b→v19.
+- Notas de entrega antigas REMOVIDAS em 18/07/2026: `CORRECAO_EMAIL_SECUNDARIO.md` e `CORRECAO_ENVIO_MANUAL_PERFIL.md` (correções de 03/07 já aplicadas e vivas no código) e `BOTS-REMOVIDOS.md` (descrevia a remoção do `_dolBuildBot`, que foi RECRIADO depois — o documento contradizia o código). `admin-v2.html` + `TRANSFORMACAO_ADMIN_V2.md` também removidos (painel V2 aposentado; `mod-admin-v2.js` reduzido às rotas de backup usadas pelo painel clássico).
+- `admin-3.html`, `index-1.html`, `update_clientes_pagantes.js` — REMOVIDOS em 18/07/2026 (revisão da contabilidade: eram versões antigas não servidas + script de migração já executado com dados de clientes hardcoded).
+- `h2a_compact.json`, `h2a_jobs.json` e `eta_grupos_oficiais.json` — REMOVIDOS em 18/07/2026 (nada os carregava: as planilhas vivas são jan2026/jul2025/jul2026/h2a_jun2026_compact.json e os grupos vivem em jul2026_compact.json + /data/grupos_jul2026.json; recuperáveis no histórico do git se precisar).
 
 **Riscos arquiteturais:**
 - **Monólito de 1 arquivo** (`server.js` ~11k linhas) — difícil manutenção; sem testes automatizados.

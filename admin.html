@@ -763,9 +763,8 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             </div>
             <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-ghost btn-sm" onclick="loadFinanceiro()"><i class="ti ti-refresh"></i> Atualizar</button>
-              <button class="btn btn-sm" style="background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.35);color:#a5b4fc" onclick="geminiDocReport()"><i class="ti ti-robot"></i> Relatório do Gemini</button>
-              <button class="btn btn-sm" style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);color:#6ee7b7" onclick="finInsights()"><i class="ti ti-chart-bar"></i> Inteligência</button>
               <button class="btn btn-ghost btn-sm" onclick="finVerHistorico()"><i class="ti ti-history"></i> Histórico</button>
+              <button class="btn btn-ghost btn-sm" onclick="adminReconciliarPlanos()" title="Confere todos os pedidos pagos × dias reais. Só adiciona, nunca remove. Roda sozinho a cada boot."><i class="ti ti-rotate"></i> Reconciliar</button>
               <button class="btn btn-sm" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:var(--red)" onclick="finShowGasto()"><i class="ti ti-minus"></i> Registrar gasto</button>
               <button class="btn btn-sm" style="background:var(--greeng);border:1px solid var(--greenb);color:var(--green)" onclick="showAddPagamento()"><i class="ti ti-plus"></i> Registrar entrada</button>
             </div>
@@ -1069,26 +1068,10 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             <div id="pc-vip"></div><div id="pc-vipro"></div><div id="pc-doublepro"></div><div id="pc-pro"></div>
           </div>
 
-          <!-- Aviso: ativação via Pedidos -->
-          <div style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.05));border:1px solid var(--greenb);border-radius:var(--rl);padding:18px;display:flex;gap:14px;align-items:center">
-            <div style="width:44px;height:44px;background:var(--greeng);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🛒</div>
-            <div style="flex:1;min-width:0">
-              <div style="font-weight:800;font-size:15px;color:var(--green);margin-bottom:3px">Ativação de plano agora é só pelos Pedidos</div>
-              <div style="margin:8px 0">
-                <button class="btn" onclick="adminReconciliarPlanos()" style="background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-weight:800;border:none">
-                  <i class="ti ti-refresh"></i> 🔄 Reconciliar planos — devolver dias a quem pagou
-                </button>
-                <span style="font-size:11px;color:rgba(255,255,255,.5);margin-left:8px">Confere todos os pedidos pagos × dias reais. Só adiciona, nunca remove. Também roda sozinho a cada boot.</span>
-              </div>
-              <div style="font-size:12px;color:var(--t2);line-height:1.5">
-                Todo plano é ativado na aba <strong>Pedidos de Plano</strong>, onde o usuário envia o comprovante de pagamento.
-                Isso garante que cada ativação tenha comprovante anexado e entre automaticamente na contabilidade.
-              </div>
-              <button class="btn btn-success btn-sm" style="margin-top:10px" onclick="showView('pedidos');loadPedidos()">
-                <i class="ti ti-arrow-right"></i> Ir para Pedidos de Plano
-              </button>
-            </div>
-          </div>
+          <!-- Card explicativo removido a pedido do dono (18/07/2026): a regra
+               "plano só ativa pelos Pedidos" já roda sozinha (inclusive no boot)
+               e o texto só confundia. O Reconciliar virou botão pequeno no
+               cabeçalho do Painel Financeiro. -->
 
           <!-- VIPs ativos agora + ações extras -->
           <div>
@@ -6553,15 +6536,6 @@ async function adminVipQuick(email,days,plan){
   }catch(e){toast(e.message,'err');}
 }
 
-async function adminClearSentUser(email){
-  if(!confirm(`Limpar histórico de enviados de ${email}?\nIsso permite que o automático reenvie para as mesmas empresas.`)) return;
-  try{
-    const r=await fetch('/api/admin/clear-sent',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-    const d=await r.json();
-    if(d.ok){toast('✅ Histórico limpo','ok');}
-    else toast(d.error||'Erro','err');
-  }catch(e){toast(e.message,'err');}
-}
 
 async function deleteUser(email){
   if(!confirm(`⚠️⚠️ EXCLUIR PERMANENTEMENTE o usuário ${email}?\nTodos os dados, histórico, PDFs e configurações serão apagados.\nEsta ação NÃO pode ser desfeita!`)) return;
@@ -7634,11 +7608,29 @@ function renderPagantes(){
       <div class="venc-days" style="color:${color}" title="dias restantes">${daysLabel}</div>
       <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
         <button onclick="pagRenovar('${esc(r.email)}','${esc(r.plan)}')" style="display:inline-flex;align-items:center;gap:3px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);border-radius:6px;padding:5px 9px;font-size:10px;font-weight:800;color:#34d399;cursor:pointer;font-family:inherit;white-space:nowrap"><i class="ti ti-plus"></i> Renovar 30d</button>
+        <button onclick="pagDarDiasGratis('${esc(r.email)}')" title="Cortesia: estende o vencimento SEM mexer na contabilidade (ex.: site fora do ar)" style="display:inline-flex;align-items:center;gap:3px;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.35);border-radius:6px;padding:5px 9px;font-size:10px;font-weight:800;color:#fbbf24;cursor:pointer;font-family:inherit;white-space:nowrap">🎁 +Dias grátis</button>
         ${wa?`<a href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:3px;justify-content:center;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;color:#25d366;cursor:pointer;text-decoration:none"><i class="ti ti-brand-whatsapp"></i> WhatsApp</a>`:''}
         <button onclick="copyEmail('${esc(r.email)}',this)" style="display:inline-flex;align-items:center;gap:3px;justify-content:center;background:var(--glass2);border:1px solid var(--border2);border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;color:var(--t2);cursor:pointer;font-family:inherit"><i class="ti ti-copy"></i> Email</button>
       </div>
     </div>`;
   }).join('');
+}
+// 🎁 Dias grátis (cortesia) — dono, 18/07/2026: "site ficou 2 dias com
+// problema, quero dar 2 dias a mais". Estende o vencimento SEM tocar na
+// contabilidade: não cria pagamento, não muda plano nem origem — pagante
+// continua pagante, e o dinheiro do caixa não muda um centavo.
+async function pagDarDiasGratis(email){
+  const dias=parseInt(prompt('🎁 Quantos DIAS GRÁTIS para\n'+email+'?\n(1 a 60 — não mexe na contabilidade)'),10);
+  if(!dias||dias<1)return;
+  const motivo=prompt('Motivo (obrigatório — fica registrado):\nEx.: "site fora do ar 2 dias"');
+  if(!motivo||motivo.trim().length<3){toast('Cancelado — motivo é obrigatório','r');return;}
+  try{
+    const r=await fetch('/api/admin/vip/gift-days',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,dias,motivo})});
+    const d=await r.json().catch(()=>null);
+    if(r.ok&&d&&d.ok){toast(`🎁 +${d.dias} dias para ${email} — vence ${d.venceEm}`,'ok');loadPagantes();}
+    else toast('❌ '+((d&&d.error)||('HTTP '+r.status)),'r');
+  }catch(e){toast('💥 Falha: '+e.message,'r');}
 }
 async function pagRenovar(email,plan){
   if(!confirm(`Renovar +30 dias de ${plan||'VIP'} para:\n${email}?`))return;
@@ -8133,17 +8125,25 @@ function finSetTab(tab){
 
 // ── Editar / Excluir registro financeiro (motivo OBRIGATÓRIO → trilha) ──
 async function finExcluirRegistro(id,tipo){
-  const motivo=prompt('MOTIVO da exclusão (obrigatório — fica no histórico):\nEx.: "Pagamento duplicado da Vanessa, mantendo só 1 de R$150"');
+  if(!id){ toast('❌ Registro sem ID (dado antigo do cache) — atualize a página e tente de novo','r'); return; }
+  // Se a entrada nasceu de um pedido, avisar ANTES: excluir aqui não cancela o pedido.
+  const _rec=(finGetData()[tipo==='pagamento'?'pagamentos':'gastos']||[]).find(x=>x.id===id);
+  const motivo=prompt('MOTIVO da exclusão (obrigatório — fica no histórico):\nEx.: "Pagamento duplicado do Wagner, cliente pagou 1x só"');
   if(!motivo||motivo.trim().length<3){ toast('Exclusão cancelada — motivo é obrigatório','r'); return; }
-  if(!confirm('Excluir este registro de '+(tipo==='pagamento'?'PAGAMENTO':'GASTO')+'?\nMotivo: '+motivo+'\n\nA exclusão fica registrada no histórico.')) return;
+  const _avisoPedido=(tipo==='pagamento'&&_rec&&_rec.pedidoId)?'\n\n⚠️ Esta entrada veio do pedido #'+String(_rec.pedidoId).slice(-8).toUpperCase()+'. Se o pedido está duplicado, cancele-o também na aba Pedidos de Plano (senão os DIAS concedidos continuam valendo).':'';
+  if(!confirm('Excluir este registro de '+(tipo==='pagamento'?'PAGAMENTO':'GASTO')+'?\nMotivo: '+motivo+_avisoPedido+'\n\nA exclusão fica registrada no histórico.')) return;
+  let _ok=false,_err='';
   try{
     const r=await fetch('/api/admin/financeiro',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:tipo==='pagamento'?'delete_pagamento':'delete_gasto',id,motivo})});
     const d=await r.json().catch(()=>null);
-    if(r.ok&&d&&d.ok){ toast('✅ Registro excluído (motivo salvo no histórico)','ok'); }
-    else{ toast('❌ '+((d&&d.error)||('HTTP '+r.status)),'r'); }
-  }catch(e){ toast('💥 Falha: '+e.message,'r'); }
+    _ok=r.ok&&d&&d.ok;
+    if(!_ok)_err=(d&&d.error)||('HTTP '+r.status);
+  }catch(e){ _err=e.message; }
+  // SEMPRE relê do servidor — a lista mostra o que está gravado de verdade.
   _finLoaded=false; await finLoadFromServer(); loadFinanceiro();
+  if(_ok){ toast('✅ Registro excluído (motivo salvo no histórico)','ok'); }
+  else{ toast('❌ NÃO excluiu: '+_err,'r'); }
 }
 async function finEditarRegistro(id,tipo){
   const data=finGetData();
@@ -8321,92 +8321,6 @@ async function finVerHistoricoFiltrado(filtroId){
   }catch(e){ ov.querySelector('#fin-hist-body').textContent='Erro: '+e.message; }
 }
 
-async function finInsights(){
-  const ov=document.createElement('div');
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto';
-  ov.innerHTML=`<div style="background:#0d1629;border:1px solid var(--border,#333);border-radius:16px;max-width:880px;width:100%;margin:auto;overflow:hidden">
-    <div style="padding:14px 18px;border-bottom:1px solid var(--border,#333);display:flex;align-items:center;gap:10px;position:sticky;top:0;background:#0d1629;z-index:2">
-      <i class="ti ti-chart-bar" style="color:#6ee7b7;font-size:20px"></i>
-      <div style="font-size:15px;font-weight:800;color:#fff;flex:1">Inteligência Financeira — Andrio & Diego</div>
-      <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--t3,#888);font-size:22px;cursor:pointer">×</button>
-    </div>
-    <div id="fin-ins-body" style="padding:16px">⏳ Calculando...</div>
-  </div>`;
-  document.body.appendChild(ov);
-  const body=ov.querySelector('#fin-ins-body');
-  try{
-    const r=await fetch('/api/admin/fin-insights',{credentials:'include'});
-    const d=await r.json();
-    if(!r.ok||!d.ok){ body.textContent='❌ '+((d&&d.error)||('HTTP '+r.status)); return; }
-    const i=d.insights;
-    const f=v=>'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-    const card=(t,v,sub,cor)=>`<div style="background:rgba(255,255,255,.03);border:1px solid var(--border2,#222);border-radius:12px;padding:13px"><div style="font-size:11px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.04em">${t}</div><div style="font-size:20px;font-weight:800;color:${cor||'#fff'};margin-top:4px;font-family:monospace">${v}</div>${sub?`<div style="font-size:11px;color:var(--t3);margin-top:3px">${sub}</div>`:''}</div>`;
-    const serieMax=Math.max(1,...i.serie.map(x=>x.valor));
-    const serieBars=i.serie.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:100%;background:linear-gradient(180deg,#10b981,#059669);border-radius:4px 4px 0 0;height:${Math.max(4,Math.round(x.valor/serieMax*90))}px" title="${f(x.valor)}"></div><div style="font-size:9px;color:var(--t3)">${x.mes}</div></div>`).join('');
-    const topRows=i.topPagantes.map((t,n)=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05)"><span style="color:var(--t2)">${n+1}. ${t.nome.slice(0,24)}</span><strong style="color:#6ee7b7;font-family:monospace">${f(t.valor)}</strong></div>`).join('')||'<div style="font-size:12px;color:var(--t3)">Sem dados</div>';
-    const catRows=Object.entries(i.despCat).map(([c,v])=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0"><span style="color:var(--t2)">${c}</span><span style="font-family:monospace;color:#f87171">${f(v)}</span></div>`).join('')||'<div style="font-size:12px;color:var(--t3)">Nenhum gasto</div>';
-    body.innerHTML=`
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px">
-        ${card('1· Receita total',f(i.receitaTotal),i.qtdPagantes+' pagantes','#10b981')}
-        ${card('2· Receita do mês',f(i.receitaMes),null,'#10b981')}
-        ${card('3· Lucro líquido',f(i.lucro),'cada sócio '+f(i.metade),'#34d399')}
-        ${card('4· Ticket médio',f(i.ticketMedio),'por pagante','#a5b4fc')}
-        ${card('5· Despesas total',f(i.despTotal),'mês '+f(i.despMes),'#f87171')}
-        ${card('6· Novos no mês',i.novosMes+' clientes',null,'#fbbf24')}
-        ${card('7· Vencendo 7d',i.vencendo7+' planos',f(i.vencendo7Valor)+' se renovar','#fbbf24')}
-        ${card('8· Vencidos',i.vencidos+' planos','reativar','#f87171')}
-        ${card('9· Projeção renov.',f(i.projecaoRenovacao),'próximos 7 dias','#34d399')}
-        ${card('10· Gift/Código',i.gift+' usuários',i.giftDias+' dias · sem R$','#c084fc')}
-        ${card('11· Trials ativos',i.trials,'não contam R$','#94a3b8')}
-        ${card('12· Receita VIP',f(i.porPlano.vip),i.porPlanoQtd.vip+' clientes','#fff')}
-        ${card('13· Receita VIPro',f(i.porPlano.vipro),i.porPlanoQtd.vipro+' clientes','#fff')}
-        ${card('14· Receita DoublePro',f(i.porPlano.doublepro),i.porPlanoQtd.doublepro+' clientes','#fff')}
-        ${card('15· Gastos Andrio',f(i.despSocio.andrio),null,'#60a5fa')}
-        ${card('16· Gastos Diego',f(i.despSocio.diego),null,'#c084fc')}
-        ${card('17· Gastos empresa',f(i.despSocio.empresa),'dividido 50/50','#94a3b8')}
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2,#222);border-radius:12px;padding:13px">
-          <div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:10px">18· Receita — últimos 6 meses</div>
-          <div style="display:flex;align-items:flex-end;gap:6px;height:110px">${serieBars}</div>
-        </div>
-        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2,#222);border-radius:12px;padding:13px">
-          <div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:8px">19· Top 5 pagantes</div>
-          ${topRows}
-        </div>
-        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2,#222);border-radius:12px;padding:13px;grid-column:1/-1">
-          <div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:8px">20· Despesas por categoria</div>
-          ${catRows}
-        </div>
-      </div>
-      <div style="font-size:10px;color:var(--t3);margin-top:12px;text-align:center">Tudo calculado no servidor — Andrio e Diego veem exatamente os mesmos números. Gift/código e trial nunca entram na receita.</div>`;
-  }catch(e){ body.textContent='💥 Falha: '+e.message; }
-}
-
-async function geminiDocReport(){
-  const ov=document.createElement('div');
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
-  ov.innerHTML=`<div style="background:var(--bg2,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;max-width:760px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden">
-    <div style="padding:14px 18px;border-bottom:1px solid var(--border,#333);display:flex;align-items:center;gap:10px">
-      <i class="ti ti-robot" style="color:#a5b4fc;font-size:20px"></i>
-      <div style="font-size:15px;font-weight:800;color:#fff;flex:1">Relatório do Gemini — Documentação Mestre</div>
-      <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--t3,#888);font-size:22px;cursor:pointer">×</button>
-    </div>
-    <div id="gdr-body" style="padding:18px;overflow:auto;font-size:13.5px;line-height:1.65;color:var(--t2,#ccc);white-space:pre-wrap">⏳ O Gemini está lendo a documentação e gerando as conclusões dele... (pode levar até 40s)</div>
-  </div>`;
-  document.body.appendChild(ov);
-  const body=ov.querySelector('#gdr-body');
-  try{
-    const r=await fetch('/api/admin/gemini-doc-report',{method:'POST',credentials:'include'});
-    const d=await r.json();
-    if(r.ok&&d.ok){
-      body.textContent=d.report;
-    }else{
-      body.textContent='❌ '+((d&&d.error)||('Erro HTTP '+r.status));
-    }
-  }catch(e){ body.textContent='💥 Falha de rede: '+e.message; }
-}
-
 async function loadFinInsightsInline(){
   const box=document.getElementById('fin-insights-inline'); if(!box) return;
   try{
@@ -8414,39 +8328,52 @@ async function loadFinInsightsInline(){
     const d=await r.json(); if(!r.ok||!d.ok) return;
     const i=d.insights;
     const f=v=>'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-    const c=(n,t,v,sub,cor)=>`<div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;padding:11px"><div style="font-size:10px;color:var(--t3);font-weight:700">${n}· ${t}</div><div style="font-size:17px;font-weight:800;color:${cor||'#fff'};font-family:monospace;margin-top:2px">${v}</div>${sub?`<div style="font-size:10px;color:var(--t3);margin-top:2px">${sub}</div>`:''}</div>`;
+    const c=(t,v,sub,cor)=>`<div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;padding:11px"><div style="font-size:10px;color:var(--t3);font-weight:700">${t}</div><div style="font-size:17px;font-weight:800;color:${cor||'#fff'};font-family:monospace;margin-top:2px">${v}</div>${sub?`<div style="font-size:10px;color:var(--t3);margin-top:2px">${sub}</div>`:''}</div>`;
     const sMax=Math.max(1,...i.serie.map(x=>x.valor));
     const bars=i.serie.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px"><div style="width:100%;background:linear-gradient(180deg,#10b981,#059669);border-radius:3px 3px 0 0;height:${Math.max(4,Math.round(x.valor/sMax*70))}px" title="${f(x.valor)}"></div><div style="font-size:8px;color:var(--t3)">${x.mes}</div></div>`).join('');
     const top=i.topPagantes.map((t,n)=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0"><span style="color:var(--t2)">${n+1}. ${(t.nome||'').slice(0,20)}</span><strong style="color:#6ee7b7;font-family:monospace">${f(t.valor)}</strong></div>`).join('')||'<div style="font-size:11px;color:var(--t3)">—</div>';
     box.innerHTML=`
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
         <span style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em"><i class="ti ti-chart-bar"></i> Indicadores essenciais — Andrio & Diego</span>
-        <button onclick="finInsights()" style="margin-left:auto;background:none;border:1px solid var(--border2);border-radius:7px;padding:3px 10px;font-size:10.5px;font-weight:700;color:var(--t3);cursor:pointer;font-family:inherit">ver análise completa</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">
-        ${c(1,'Receita total',f(i.receitaTotal),i.qtdPagantes+' pagantes'+((i.receitaAvulsa||0)>0?' + '+f(i.receitaAvulsa)+' avulsas':''),'#10b981')}
-        ${c(2,'Receita do mês',f(i.receitaMes),null,'#10b981')}
-        ${c(3,'Despesas',f(i.despTotal),'mês '+f(i.despMes),'#f87171')}
-        ${c(4,'Lucro líquido',f(i.lucro),'cada sócio '+f(i.metade),'#34d399')}
-        ${c(5,'Ticket médio',f(i.ticketMedio),i.novosMes+' novos no mês','#a5b4fc')}
-        ${c(6,'Vencendo 7d',i.vencendo7+' planos',f(i.vencendo7Valor)+' se renovarem','#fbbf24')}
-        ${c(7,'Vencidos',i.vencidos,'reativar','#f87171')}
-        ${c(8,'Sem R$',(i.trials+i.gift)+' contas',i.trials+' trial · '+i.gift+' gift/código','#94a3b8')}
+        ${c('Receita do mês',f(i.receitaMes),'despesas do mês '+f(i.despMes),'#10b981')}
+        ${c('Vencendo 7d',i.vencendo7+' planos',f(i.vencendo7Valor)+' se renovarem','#fbbf24')}
+        ${c('Vencidos',i.vencidos,'reativar','#f87171')}
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;margin-top:8px">
-        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;padding:11px">
-          <div style="font-size:11px;font-weight:800;color:#fff;margin-bottom:6px">💎 Receita por plano</div>
-          <div style="display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-family:monospace">
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--t2)">⭐ VIP (${i.porPlanoQtd.vip}x)</span><b style="color:#fff">${f(i.porPlano.vip)}</b></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--t2)">⭐🤖 VIPro (${i.porPlanoQtd.vipro}x)</span><b style="color:#fff">${f(i.porPlano.vipro)}</b></div>
-            <div style="display:flex;justify-content:space-between"><span style="color:var(--t2)">🚀💎 DoublePro (${i.porPlanoQtd.doublepro}x)</span><b style="color:#fff">${f(i.porPlano.doublepro)}</b></div>
-          </div>
-        </div>
         <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;padding:11px"><div style="font-size:11px;font-weight:800;color:#fff;margin-bottom:8px">📈 Receita 6 meses</div><div style="display:flex;align-items:flex-end;gap:5px;height:84px">${bars}</div></div>
         <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;padding:11px"><div style="font-size:11px;font-weight:800;color:#fff;margin-bottom:6px">🏆 Top 5 pagantes</div>${top}</div>
-      </div>
-      <div style="font-size:10px;color:var(--t3);margin-top:8px">Despesas por categoria: ${Object.entries(i.despCat).map(([k,v])=>`${k} ${f(v)}`).join(' · ')||'nenhuma'} — tudo do servidor, Andrio e Diego veem igual.</div>`;
+      </div>`;
   }catch(e){}
+}
+
+// ══ ACERTO ENTRE SÓCIOS — FÓRMULA ÚNICA (dono, 18/07/2026) ══════════════
+// Painel e Robô de Conferência tinham CÓPIAS desta conta; se uma mudasse,
+// a outra divergia em silêncio (de novo o problema das "4 verdades").
+// O que cada sócio segura = recebeu − gastos que bancou − metade dos gastos
+// da empresa ± repasses já feitos. O repasse que falta é o que IGUALA os
+// dois lados: (heldAndrio − heldDiego)/2 — matemática pura do livro-caixa,
+// alcançável com o dinheiro que cada um realmente tem na mão.
+function finCalcAcerto(data){
+  const pags  =(data&&data.pagamentos)||[];
+  const gastos=(data&&data.gastos)||[];
+  const reps  =(data&&data.repasses)||[];
+  const recAndrio=pags.filter(p=>(p.recebidoPor||'andrio')!=='diego').reduce((s,p)=>s+(p.valor||0),0);
+  const recDiego =pags.filter(p=>(p.recebidoPor)==='diego').reduce((s,p)=>s+(p.valor||0),0);
+  const gAndrio  =gastos.filter(g=>(g.pagoPor||'')==='andrio').reduce((s,g)=>s+(g.valor||0),0);
+  const gDiego   =gastos.filter(g=>(g.pagoPor||'')==='diego').reduce((s,g)=>s+(g.valor||0),0);
+  const gEmpresa =gastos.filter(g=>!['andrio','diego'].includes(g.pagoPor||'')).reduce((s,g)=>s+(g.valor||0),0);
+  const repA2D   =reps.filter(r=>(r.de||'')==='andrio').reduce((s,r)=>s+(r.valor||0),0); // Andrio já pagou ao Diego
+  const repD2A   =reps.filter(r=>(r.de||'')==='diego').reduce((s,r)=>s+(r.valor||0),0);  // Diego já pagou ao Andrio
+  const heldAndrio=recAndrio-gAndrio-gEmpresa/2-repA2D+repD2A;
+  const heldDiego =recDiego -gDiego -gEmpresa/2-repD2A+repA2D;
+  const transfer  =(heldAndrio-heldDiego)/2;  // >0: Andrio repassa; <0: Diego repassa
+  const alvo      =(heldAndrio+heldDiego)/2;  // com quanto cada um termina após o acerto
+  return {recAndrio,recDiego,gAndrio,gDiego,gEmpresa,repA2D,repD2A,heldAndrio,heldDiego,transfer,alvo,
+          acertoVal:Math.abs(transfer)<0.01?0:Math.abs(transfer),
+          acertoDe:transfer>0.009?'Andrio':(transfer<-0.009?'Diego':''),
+          acertoPara:transfer>0.009?'Diego':(transfer<-0.009?'Andrio':'')};
 }
 
 async function loadFinanceiro(){
@@ -8491,18 +8418,10 @@ async function loadFinanceiro(){
   // ('andrio'|'diego'|'empresa'). Gasto "empresa" é dividido 50/50.
   // Cada sócio deve terminar com metade do lucro → calcula o repasse.
   try{
-    const recAndrio = pags.filter(p=>(p.recebidoPor||'andrio')!=='diego').reduce((s,p)=>s+(p.valor||0),0);
-    const recDiego  = pags.filter(p=>(p.recebidoPor)==='diego').reduce((s,p)=>s+(p.valor||0),0);
-    const gAndrio   = gastos.filter(g=>(g.pagoPor||'')==='andrio').reduce((s,g)=>s+(g.valor||0),0);
-    const gDiego    = gastos.filter(g=>(g.pagoPor||'')==='diego').reduce((s,g)=>s+(g.valor||0),0);
-    const gEmpresa  = gastos.filter(g=>!['andrio','diego'].includes(g.pagoPor||'')).reduce((s,g)=>s+(g.valor||0),0);
-    // ── REPASSES já feitos entre sócios: abatem o que falta acertar ──
-    const reps     = data.repasses||[];
-    const repA2D   = reps.filter(r=>(r.de||'')==='andrio').reduce((s,r)=>s+(r.valor||0),0); // Andrio já pagou ao Diego
-    const repD2A   = reps.filter(r=>(r.de||'')==='diego').reduce((s,r)=>s+(r.valor||0),0);  // Diego já pagou ao Andrio
-    // ── Tabela passo a passo (v948): cada linha da conta, por sócio ──
-    const heldAndrio = recAndrio - gAndrio - gEmpresa/2 - repA2D + repD2A;
-    const heldDiego  = recDiego  - gDiego  - gEmpresa/2 - repD2A + repA2D;
+    // FÓRMULA ÚNICA: mesma função usada pelo Robô de Conferência.
+    const A=finCalcAcerto(data);
+    const {recAndrio,recDiego,gAndrio,gDiego,gEmpresa,repA2D,repD2A,heldAndrio,heldDiego}=A;
+    const reps = data.repasses||[];
     const _rep=(pagou,recebeu)=>{
       if(pagou<=0&&recebeu<=0)return '<span style="color:var(--t3)">—</span>';
       const parts=[];
@@ -8521,8 +8440,11 @@ async function loadFinanceiro(){
     setHtml('fin-ac-repdiego',  _rep(repD2A,repA2D));
     setText('fin-ac-holdandrio', finFmt(heldAndrio));
     setText('fin-ac-holddiego',  finFmt(heldDiego));
-    setText('fin-ac-alvoandrio', finFmt(metade));
-    setText('fin-ac-alvodiego',  finFmt(metade));
+    // Alvo = com quanto cada um termina após o acerto — vem da MESMA conta
+    // do livro-caixa (antes usava lucro canônico/2, que podia ser inalcançável
+    // quando a receita canônica difere do que está lançado no livro-caixa).
+    setText('fin-ac-alvoandrio', finFmt(A.alvo));
+    setText('fin-ac-alvodiego',  finFmt(A.alvo));
     renderFinRepasses(reps);
     const resEl=document.getElementById('fin-ac-result');
     if(resEl){
@@ -8530,16 +8452,12 @@ async function loadFinanceiro(){
         resEl.textContent='Sem lucro a dividir ainda.';
         resEl.style.background='var(--amberg)';resEl.style.borderColor='var(--amberb)';resEl.style.color='var(--amber)';
       } else {
-        // heldAndrio já calculado acima (tabela passo a passo) — mesma fonte.
-        const transfer   = heldAndrio - metade;   // >0: Andrio repassa; <0: Diego repassa
         const jaRepTxt   = (repA2D>0||repD2A>0)?`<br><span style="font-weight:600;font-size:10.5px;opacity:.8">já repassado: ${repD2A>0?('Diego→Andrio '+finFmt(repD2A)):''}${repD2A>0&&repA2D>0?' · ':''}${repA2D>0?('Andrio→Diego '+finFmt(repA2D)):''}</span>`:'';
-        if(Math.abs(transfer)<0.01){
+        if(!A.acertoVal){
           resEl.innerHTML='✅ Já está equilibrado — ninguém precisa repassar.'+jaRepTxt;
           resEl.style.background='var(--greeng)';resEl.style.borderColor='var(--greenb)';resEl.style.color='var(--green)';
         } else {
-          const de   = transfer>0?'Andrio':'Diego';
-          const para = transfer>0?'Diego':'Andrio';
-          resEl.innerHTML=`🔁 <b>${de}</b> repassa <b>${finFmt(Math.abs(transfer))}</b> para <b>${para}</b><br><span style="font-weight:600;font-size:11px;opacity:.85">para cada um ficar com ${finFmt(metade)}</span>`+jaRepTxt;
+          resEl.innerHTML=`🔁 <b>${A.acertoDe}</b> repassa <b>${finFmt(A.acertoVal)}</b> para <b>${A.acertoPara}</b><br><span style="font-weight:600;font-size:11px;opacity:.85">para cada um ficar com ${finFmt(A.alvo)}</span>`+jaRepTxt;
           resEl.style.background='rgba(59,130,246,.12)';resEl.style.borderColor='rgba(59,130,246,.3)';resEl.style.color='var(--blue)';
         }
       }
@@ -8641,6 +8559,17 @@ function renderFinLista(){
       return db-da;
     });
     const planoLabel={vip:'⭐ VIP',vipro:'⭐🤖 VIPro',doublepro:'🚀💎 DoublePro',vip60:'⭐ VIP 60d',vipro60:'⭐🤖 VIPro 60d',outro:'Outro',avulsa:'💠 Entrada avulsa'};
+    // ⚠️ Duplicata provável: MESMO cliente + MESMO valor em até 3 dias.
+    // Caso real (dono, 18/07/2026): 3 pedidos iguais do mesmo cliente foram
+    // aprovados e viraram 3 entradas de R$150 — só 1 pagamento existiu.
+    const _dupIds=new Set();
+    for(let i=0;i<sorted.length;i++)for(let j=i+1;j<sorted.length;j++){
+      const a=sorted[i],b=sorted[j];
+      if(!a.email||a.email!==b.email)continue;
+      if(Math.abs((a.valor||0)-(b.valor||0))>=0.01)continue;
+      const ta=new Date(a.dataPagamento||a.data||0).getTime(),tb=new Date(b.dataPagamento||b.data||0).getTime();
+      if(Math.abs(ta-tb)<=3*86400000){if(a.id)_dupIds.add(a.id);if(b.id)_dupIds.add(b.id);}
+    }
     el.innerHTML=sorted.map(p=>{
       const dataPag=p.dataPagamento||p.data;
       const dateStr=dataPag?new Date(dataPag).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'–';
@@ -8658,10 +8587,11 @@ function renderFinLista(){
       const recBadge=(p.recebidoPor==='diego')
         ?'<span style="background:rgba(168,85,247,.13);border:1px solid rgba(168,85,247,.3);color:var(--purple);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700">→ DIEGO</span>'
         :'<span style="background:rgba(59,130,246,.13);border:1px solid rgba(59,130,246,.3);color:var(--blue);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700">→ ANDRIO</span>';
+      const dupBadge=_dupIds.has(p.id)?'<span style="background:rgba(245,158,11,.18);border:1px solid rgba(245,158,11,.45);color:var(--amber);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800" title="Mesmo cliente, mesmo valor, em até 3 dias — se o cliente pagou 1x só, exclua a extra (lixeira) e cancele o pedido duplicado na aba Pedidos">⚠️ DUPLICADA?</span>':'';
       return `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;cursor:pointer" onclick="finVerDetalhes(${p._idx},'pagamento')">
         <div style="width:40px;height:40px;border-radius:10px;background:var(--greeng);border:1px solid var(--greenb);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">${temImg?'🖼️':(p.tipo==='avulsa'||!p.email)?'💠':'💰'}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px">${esc(p.email||p.nota||'Entrada avulsa')} ${avulsaBadge}${statusBadge}${recBadge}</div>
+          <div style="font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px">${esc(p.email||p.nota||'Entrada avulsa')} ${dupBadge}${avulsaBadge}${statusBadge}${recBadge}</div>
           <div style="font-size:11px;color:var(--t3);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap">
             <span>${planoLabel[p.plano]||p.plano||'–'}</span>
             <span>·</span><span>${esc(p.nota||'sem nota')}</span>
@@ -8672,7 +8602,7 @@ function renderFinLista(){
           ${precoOrigStr}<div style="font-size:15px;font-weight:800;color:var(--green);font-family:monospace">+${finFmt(p.valor)}</div>${descontoStr}
           ${temImg?'<span class="badge b-blue" style="font-size:9px;margin-top:2px">📸 print</span>':''}
         </div>
-        <button onclick="event.stopPropagation();finRemovePagamento(${p._idx})" style="background:var(--redg);border:1px solid var(--redb);border-radius:6px;color:var(--red);cursor:pointer;padding:5px 8px;font-size:12px;flex-shrink:0" title="Remover"><i class="ti ti-trash"></i></button>
+        <button onclick="event.stopPropagation();finExcluirRegistro('${p.id||''}','pagamento')" style="background:var(--redg);border:1px solid var(--redb);border-radius:6px;color:var(--red);cursor:pointer;padding:5px 8px;font-size:12px;flex-shrink:0" title="Excluir (exige motivo — fica no histórico)"><i class="ti ti-trash"></i></button>
       </div>`;
     }).join('');
   } else {
@@ -8701,7 +8631,7 @@ function renderFinLista(){
           <div style="font-size:15px;font-weight:800;color:var(--red);font-family:monospace">−${finFmt(g.valor)}</div>
           ${temImg?'<span class="badge b-blue" style="font-size:9px;margin-top:2px">📸 print</span>':''}
         </div>
-        <button onclick="event.stopPropagation();finRemoveGasto(${g._idx})" style="background:var(--redg);border:1px solid var(--redb);border-radius:6px;color:var(--red);cursor:pointer;padding:5px 8px;font-size:12px;flex-shrink:0" title="Remover"><i class="ti ti-trash"></i></button>
+        <button onclick="event.stopPropagation();finExcluirRegistro('${g.id||''}','gasto')" style="background:var(--redg);border:1px solid var(--redb);border-radius:6px;color:var(--red);cursor:pointer;padding:5px 8px;font-size:12px;flex-shrink:0" title="Excluir (exige motivo — fica no histórico)"><i class="ti ti-trash"></i></button>
       </div>`;
     }).join('');
   }
@@ -9217,28 +9147,13 @@ async function _registrarGastoInner(){
   document.getElementById('fin-g-desc').value='';
 }
 
-function finRemovePagamento(idx){
-  if(!confirm('Remover esta entrada?')) return;
-  const data=finGetData();
-  const removed=data.pagamentos[idx];
-  data.pagamentos.splice(idx,1);
-  finSaveData(data);
-  // Remove também do servidor (se tiver id)
-  if(removed&&removed.id){ try{ fetch('/api/admin/financeiro',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete_pagamento',id:removed.id})}); }catch(e){} }
-  loadFinanceiro();
-  toast('Entrada removida','warn');
-}
-
-function finRemoveGasto(idx){
-  if(!confirm('Remover este gasto?')) return;
-  const data=finGetData();
-  const removed=data.gastos[idx];
-  data.gastos.splice(idx,1);
-  finSaveData(data);
-  if(removed&&removed.id){ try{ fetch('/api/admin/financeiro',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete_gasto',id:removed.id})}); }catch(e){} }
-  loadFinanceiro();
-  toast('Gasto removido','warn');
-}
+// REMOVIDO 18/07/2026 (bug relatado pelo dono): finRemovePagamento/finRemoveGasto
+// apagavam só do cache local por índice, mandavam o delete ao servidor SEM o
+// motivo obrigatório (400 silencioso — nada era excluído de verdade), não
+// conferiam a resposta e mostravam "Entrada removida" mesmo assim. No reload,
+// a linha voltava. A lixeira da lista agora chama finExcluirRegistro() — o
+// MESMO fluxo do modal: motivo obrigatório, confirmação, resposta conferida
+// e recarga do servidor.
 
 console.log('[admin v15] ✅ 20 melhorias carregadas');
 
@@ -9685,20 +9600,6 @@ async function excluirPermanente(id, nome){
 // ══════════════════════════════════════════════════════════
 //  NOVAS AÇÕES DO MODAL DE USUÁRIO
 // ══════════════════════════════════════════════════════════
-function openWhatsAppFromModal(){
-  if(!currentModalData&&!currentModalEmail)return;
-  const user=currentModalData?.user||{};
-  const phone=user.phone||user.whatsapp||'';
-  const name=user.name||currentModalEmail||'';
-  const num=phone.replace(/\D/g,'');
-  if(num){
-    const wppNum=num.startsWith('55')?num:'55'+num;
-    window.open(`https://wa.me/${wppNum}?text=${encodeURIComponent('Olá '+name+'! Aqui é o suporte do H2BApply.')}`,'_blank');
-  } else {
-    const tel=prompt('Número do WhatsApp deste usuário (com DDD):');
-    if(tel){const n=tel.replace(/\D/g,'');const wn=n.startsWith('55')?n:'55'+n;window.open('https://wa.me/'+wn,'_blank');}
-  }
-}
 
 async function adminResetDailyUser(email){
   if(!email)return;
@@ -9710,112 +9611,16 @@ async function adminResetDailyUser(email){
   }catch(e){toast('Erro: '+e.message,'r');}
 }
 
-async function adminClearSentUser(email){
-  if(!email)return;
-  if(!confirm('⚠️ Limpar TODOS os e-mails enviados de '+email+'? O usuário poderá enviar para as mesmas empresas novamente.'))return;
-  try{
-    const r=await fetch('/api/admin/clear-sent',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-    const d=await r.json();
-    if(d.ok)toast('✅ Enviados limpos','g');else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-
-async function adminSetAutoLimit(email){
-  if(!email)return;
-  const lim=prompt('Novo limite de envios automáticos por dia para '+email+':');
-  if(!lim||isNaN(parseInt(lim)))return;
-  try{
-    const r=await fetch('/api/admin/set-auto-limit',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,limit:parseInt(lim)})});
-    const d=await r.json();
-    if(d.ok)toast('✅ Limite definido: '+lim,'g');else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
 
 
-async function adminRevokeVip(email){
-  if(!email)return;
-  if(!confirm('Revogar VIP de '+email+'? O plano voltará para Free.'))return;
-  try{
-    const r=await fetch('/api/admin/revoke-vip',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-    const d=await r.json();
-    if(d.ok){toast('VIP revogado','r');setTimeout(()=>refreshModal(),800);}else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
 
-function adminSetCustomExpiry(email){
-  if(!email)return;
-  const dt=prompt('Data de expiração (YYYY-MM-DD):',new Date(Date.now()+30*86400000).toISOString().slice(0,10));
-  if(!dt)return;
-  const ts=new Date(dt).getTime();
-  if(isNaN(ts))return toast('Data inválida','r');
-  setVipExpiry(email,ts);
-}
 
-async function adminEditName(email){
-  if(!email)return;
-  const user=currentModalData?.user||{};
-  const name=prompt('Novo nome:',user.name||'');
-  if(!name)return;
-  try{
-    const r=await fetch('/api/admin/set-user-field',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,field:'name',value:name})});
-    const d=await r.json();
-    if(d.ok){toast('✅ Nome atualizado','g');setTimeout(()=>refreshModal(),800);}else toast('Erro','r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
 
-async function adminEditPhone(email){
-  if(!email)return;
-  const user=currentModalData?.user||{};
-  const phone=prompt('Novo telefone/WhatsApp (com código do país, ex: 5553981453496):',user.phone||'');
-  if(!phone)return;
-  try{
-    const r=await fetch('/api/admin/set-user-field',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,field:'phone',value:phone})});
-    const d=await r.json();
-    if(d.ok){toast('✅ Telefone atualizado','g');setTimeout(()=>refreshModal(),800);}else toast('Erro','r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
 
-async function adminMakeAdmin(email){
-  if(!email)return;
-  if(!confirm('Tornar '+email+' um administrador? Esta ação dá acesso total ao sistema.'))return;
-  try{
-    const r=await fetch('/api/admin/set-user-field',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,field:'isAdmin',value:true})});
-    const d=await r.json();
-    if(d.ok){toast('✅ Admin definido','g');setTimeout(()=>refreshModal(),800);}else toast('Erro','r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
 
-async function adminExportUser(email){
-  if(!email)return;
-  try{
-    const r=await fetch(`/api/admin/user-detail/${encodeURIComponent(email)}`,{credentials:'include'});
-    const d=await r.json();
-    const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
-    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=email.replace(/[^a-z0-9]/gi,'_')+'_export.json';a.click();
-    toast('Export feito','g');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
 
-async function adminResetPdfs(email){
-  if(!email)return;
-  if(!confirm('Limpar TODOS os PDFs de '+email+'? (currículos e cover letters)'))return;
-  try{
-    const r=await fetch('/api/admin/reset-pdfs',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-    const d=await r.json();
-    if(d.ok){toast('PDFs limpos','r');setTimeout(()=>refreshModal(),800);}else toast('Erro','r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
 
-async function adminDeleteUser(email){
-  if(!email)return;
-  const confirm1=prompt('ATENÇÃO: Isso apagará TODOS os dados de '+email+'.\nDigite o email para confirmar:');
-  if(confirm1!==email)return toast('Email não confere. Cancelado.','r');
-  try{
-    const r=await fetch('/api/admin/delete-user',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
-    const d=await r.json();
-    if(d.ok){toast('Conta excluída','r');closeUserModal();setTimeout(()=>loadUsers(),1000);}else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
+
 
 async function adminSendMessage(email){
   if(!email)return;
@@ -9829,18 +9634,6 @@ async function adminSendMessage(email){
   }catch(e){toast('Erro: '+e.message,'r');}
 }
 
-async function adminSendNotifToUser(email){
-  if(!email)return;
-  const title=prompt('Título da notificação:','H2BApply — Mensagem importante');
-  if(!title)return;
-  const body=prompt('Mensagem:');
-  if(!body)return;
-  try{
-    const r=await fetch('/api/admin/push-user',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,title,body})});
-    const d=await r.json();
-    if(d.ok)toast('✅ Push enviado','g');else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
 
 
 </script>
@@ -11048,24 +10841,12 @@ const RoboContabil = (function(){
         const saldoPorSocio = Math.max(0,saldo)/2;
 
         // ── ACERTO ENTRE SÓCIOS (quem deve a quem) ──────────────────
-        // MESMA fórmula do painel principal (fonte única — v948): o que cada
-        // um segura = recebeu − gastos que bancou − metade dos gastos empresa
-        // ± repasses. Antes este robô ignorava os gastos e dava número
-        // DIFERENTE do painel — duas verdades, confusão entre os sócios.
-        const recAndrio = finPags.filter(p=>(p.recebidoPor||'andrio')!=='diego').reduce((s,p)=>s+(p.valor||0),0);
-        const recDiego  = finPags.filter(p=>(p.recebidoPor)==='diego').reduce((s,p)=>s+(p.valor||0),0);
-        const _rcGA     = finGastos.filter(g=>(g.pagoPor||'')==='andrio').reduce((s,g)=>s+(g.valor||0),0);
-        const _rcGD     = finGastos.filter(g=>(g.pagoPor||'')==='diego').reduce((s,g)=>s+(g.valor||0),0);
-        const _rcGE     = finGastos.filter(g=>!['andrio','diego'].includes(g.pagoPor||'')).reduce((s,g)=>s+(g.valor||0),0);
-        // Repasses já feitos entre sócios abatem o acerto (mesma regra do painel)
-        const _rcReps  = (finGetData().repasses)||[];
-        const _rcA2D   = _rcReps.filter(r=>(r.de||'')==='andrio').reduce((s,r)=>s+(r.valor||0),0);
-        const _rcD2A   = _rcReps.filter(r=>(r.de||'')==='diego').reduce((s,r)=>s+(r.valor||0),0);
-        const _holdA   = recAndrio - _rcGA - _rcGE/2 - _rcA2D + _rcD2A;  // o que sobra na mão do Andrio
-        const _holdD   = recDiego  - _rcGD - _rcGE/2 - _rcD2A + _rcA2D;  // o que sobra na mão do Diego
-        const acertoVal = Math.abs(_holdA-_holdD)/2;          // valor do repasse que ainda falta
-        const acertoDe  = _holdA>_holdD ? 'Andrio' : (_holdD>_holdA ? 'Diego' : '');   // quem paga
-        const acertoPara= _holdA>_holdD ? 'Diego'  : (_holdD>_holdA ? 'Andrio' : '');   // quem recebe
+        // FÓRMULA ÚNICA: chama a MESMA função do painel (finCalcAcerto).
+        // Antes era uma cópia colada da conta — se o painel mudasse, este
+        // robô divergia em silêncio (o problema das "4 verdades" de novo).
+        const _ac = finCalcAcerto({pagamentos:finPags,gastos:finGastos,repasses:(finGetData().repasses)||[]});
+        const recAndrio=_ac.recAndrio, recDiego=_ac.recDiego;
+        const acertoVal=_ac.acertoVal, acertoDe=_ac.acertoDe, acertoPara=_ac.acertoPara;
 
         // Dedup: detectar gastos duplicados (mesmo valor + mesma descrição ± 2 dias)
         const dupGastos = [];
@@ -11092,6 +10873,32 @@ const RoboContabil = (function(){
               email:'', wpp:'', acoes:[],
             });
             rcLog('warn',`  ⚠️ POSSÍVEL DUPLICATA: ${fmtMoney(dup.a.valor)} — "${dup.a.descricao||dup.a.titulo||'?'}"`);
+          });
+        }
+
+        // Dedup ENTRADAS: mesmo cliente + mesmo valor em ≤3 dias. Caso real
+        // (dono, 18/07/2026): 3 pedidos iguais do mesmo cliente aprovados →
+        // 3 entradas de R$150 no caixa, mas o cliente pagou 1x só.
+        const dupPags=[];
+        finPags.forEach((p,i)=>{
+          finPags.slice(i+1).forEach(p2=>{
+            if(!p.email||p.email!==p2.email)return;
+            if(Math.abs((p.valor||0)-(p2.valor||0))>=0.01)return;
+            const t1=new Date(p.dataPagamento||p.data||0).getTime(),t2=new Date(p2.dataPagamento||p2.data||0).getTime();
+            const dd=Math.abs(t1-t2)/86400000;
+            if(dd<=3)dupPags.push({a:p,b:p2,diffDays:dd.toFixed(1)});
+          });
+        });
+        if(dupPags.length){
+          dupPags.forEach(dup=>{
+            warnCount++;
+            alertas.push({
+              tipo:'warn', pedidoId:null,
+              titulo:`🔄 Possível ENTRADA duplicada — ${fmtMoney(dup.a.valor)}`,
+              detalhe:`${dup.a.email} tem 2 entradas de ${fmtMoney(dup.a.valor)} em ${dup.diffDays}d. Se o cliente pagou 1x só: exclua a extra na lixeira do Financeiro (com motivo) e cancele o pedido duplicado na aba Pedidos de Plano.`,
+              email:dup.a.email||'', wpp:dup.a.whatsapp||'', acoes:[],
+            });
+            rcLog('warn',`  ⚠️ ENTRADA DUPLICADA? ${fmtMoney(dup.a.valor)} — ${dup.a.email}`);
           });
         }
 

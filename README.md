@@ -51,10 +51,12 @@ cp .env.example .env
 ```
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
-SESSION_SECRET=...
 ADMIN_EMAIL=seu@email.com
 APP_URL=https://seu-dominio.com
 ```
+Recomendadas em produção: `DATA_ENC_KEY` (cifra os tokens Gmail no disco),
+`GEMINI_API_KEY` (IA de aprovação/chat) e `EDITOR_PWD_*` (senhas dos editores).
+Veja todas em `.env.example`.
 
 ### 4. Rodar localmente
 ```bash

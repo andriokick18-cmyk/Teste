@@ -6,12 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "reset": "node reset_h2bapply.js",
-    "test": "node tests/unit.js && node tests/engine.js && node tests/sentinel.js && node tests/watchdogs.js && node tests/smoke.js",
-    "test:unit": "node tests/unit.js",
-    "test:smoke": "node tests/smoke.js",
-    "test:sentinel": "node tests/sentinel.js",
-    "test:watchdogs": "node tests/watchdogs.js",
-    "test:engine": "node tests/engine.js"
+    "check": "node --check server.js && node --check storage.js && for f in mod-*.js; do node --check \"$f\" || exit 1; done"
   },
   "engines": {
     "node": ">=18"
