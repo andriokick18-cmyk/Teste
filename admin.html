@@ -765,8 +765,8 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
               <button class="btn btn-ghost btn-sm" onclick="loadFinanceiro()"><i class="ti ti-refresh"></i> Atualizar</button>
               <button class="btn btn-ghost btn-sm" onclick="finVerHistorico()"><i class="ti ti-history"></i> Histórico</button>
               <button class="btn btn-ghost btn-sm" onclick="adminReconciliarPlanos()" title="Confere todos os pedidos pagos × dias reais. Só adiciona, nunca remove. Roda sozinho a cada boot."><i class="ti ti-rotate"></i> Reconciliar</button>
-              <button class="btn btn-sm" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:var(--red)" onclick="finShowGasto()"><i class="ti ti-minus"></i> Registrar gasto</button>
-              <button class="btn btn-sm" style="background:var(--greeng);border:1px solid var(--greenb);color:var(--green)" onclick="showAddPagamento()"><i class="ti ti-plus"></i> Registrar entrada</button>
+              <button class="btn" style="background:rgba(239,68,68,.15);border:1.5px solid rgba(239,68,68,.4);color:var(--red);font-size:14px;font-weight:800;padding:10px 18px" onclick="finShowGasto()"><i class="ti ti-minus"></i> Registrar gasto</button>
+              <button class="btn" style="background:var(--greeng);border:1.5px solid var(--greenb);color:var(--green);font-size:14px;font-weight:800;padding:10px 18px" onclick="showAddPagamento()"><i class="ti ti-plus"></i> Registrar entrada</button>
             </div>
           </div>
 
@@ -869,9 +869,9 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
 
           <!-- Abas: Entradas / Gastos -->
           <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:12px">
-            <button id="fin-tab-entradas" onclick="finSetTab('entradas')" style="background:none;border:none;padding:9px 16px;font-size:13px;font-weight:700;color:var(--green);border-bottom:2px solid var(--green);margin-bottom:-2px;cursor:pointer;font-family:inherit">💰 Entradas</button>
-            <button id="fin-tab-gastos" onclick="finSetTab('gastos')" style="background:none;border:none;padding:9px 16px;font-size:13px;font-weight:700;color:var(--t3);border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;font-family:inherit">💸 Gastos</button>
-            <button id="fin-tab-mensal" onclick="finSetTab('mensal')" style="background:none;border:none;padding:9px 16px;font-size:13px;font-weight:700;color:var(--t3);border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;font-family:inherit">📅 Mensal</button>
+            <button id="fin-tab-entradas" onclick="finSetTab('entradas')" style="background:none;border:none;padding:13px 20px;font-size:15px;font-weight:800;color:var(--green);border-bottom:3px solid var(--green);margin-bottom:-2px;cursor:pointer;font-family:inherit">💰 Entradas</button>
+            <button id="fin-tab-gastos" onclick="finSetTab('gastos')" style="background:none;border:none;padding:13px 20px;font-size:15px;font-weight:800;color:var(--t3);border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;font-family:inherit">💸 Gastos</button>
+            <button id="fin-tab-mensal" onclick="finSetTab('mensal')" style="background:none;border:none;padding:13px 20px;font-size:15px;font-weight:800;color:var(--t3);border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;font-family:inherit">📅 Mensal</button>
             <button onclick="finExportCSV()" style="margin-left:auto;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--blue);cursor:pointer;font-family:inherit;align-self:center" title="Baixar entradas e gastos em CSV"><i class="ti ti-download"></i> CSV</button>
           </div>
           <div id="fin-pagamentos-list" style="background:rgba(0,0,0,.2);border-radius:10px;overflow:hidden;max-height:220px;overflow-y:auto">
@@ -8393,6 +8393,10 @@ async function loadFinanceiro(){
 
   const setText=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
 
+  // Contadores nas abas — o dono bate o olho e sabe quantos lançamentos tem
+  setText('fin-tab-entradas',`💰 Entradas (${pags.length})`);
+  setText('fin-tab-gastos',`💸 Gastos (${gastos.length})`);
+
   setText('fin-custo',   finFmt(totalGastos));
   const _cg=window._codGift||{usuarios:0,ativos:0,diasTotal:0};
   setText('fin-codgift', _cg.usuarios+' cód.');
@@ -8602,7 +8606,10 @@ function renderFinLista(){
           ${precoOrigStr}<div style="font-size:15px;font-weight:800;color:var(--green);font-family:monospace">+${finFmt(p.valor)}</div>${descontoStr}
           ${temImg?'<span class="badge b-blue" style="font-size:9px;margin-top:2px">📸 print</span>':''}
         </div>
-        <button onclick="event.stopPropagation();finExcluirRegistro('${p.id||''}','pagamento')" style="background:var(--redg);border:1px solid var(--redb);border-radius:6px;color:var(--red);cursor:pointer;padding:5px 8px;font-size:12px;flex-shrink:0" title="Excluir (exige motivo — fica no histórico)"><i class="ti ti-trash"></i></button>
+        <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+          <button onclick="event.stopPropagation();finEditarRegistro('${p.id||''}','pagamento')" style="background:rgba(99,102,241,.14);border:1px solid rgba(99,102,241,.4);border-radius:8px;color:#a5b4fc;cursor:pointer;padding:7px 12px;font-size:12px;font-weight:800;font-family:inherit;white-space:nowrap"><i class="ti ti-pencil"></i> Editar</button>
+          <button onclick="event.stopPropagation();finExcluirRegistro('${p.id||''}','pagamento')" style="background:var(--redg);border:1px solid var(--redb);border-radius:8px;color:var(--red);cursor:pointer;padding:7px 12px;font-size:12px;font-weight:800;font-family:inherit;white-space:nowrap" title="Exige motivo — fica no histórico"><i class="ti ti-trash"></i> Excluir</button>
+        </div>
       </div>`;
     }).join('');
   } else {
@@ -8631,7 +8638,10 @@ function renderFinLista(){
           <div style="font-size:15px;font-weight:800;color:var(--red);font-family:monospace">−${finFmt(g.valor)}</div>
           ${temImg?'<span class="badge b-blue" style="font-size:9px;margin-top:2px">📸 print</span>':''}
         </div>
-        <button onclick="event.stopPropagation();finExcluirRegistro('${g.id||''}','gasto')" style="background:var(--redg);border:1px solid var(--redb);border-radius:6px;color:var(--red);cursor:pointer;padding:5px 8px;font-size:12px;flex-shrink:0" title="Excluir (exige motivo — fica no histórico)"><i class="ti ti-trash"></i></button>
+        <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+          <button onclick="event.stopPropagation();finEditarRegistro('${g.id||''}','gasto')" style="background:rgba(99,102,241,.14);border:1px solid rgba(99,102,241,.4);border-radius:8px;color:#a5b4fc;cursor:pointer;padding:7px 12px;font-size:12px;font-weight:800;font-family:inherit;white-space:nowrap"><i class="ti ti-pencil"></i> Editar</button>
+          <button onclick="event.stopPropagation();finExcluirRegistro('${g.id||''}','gasto')" style="background:var(--redg);border:1px solid var(--redb);border-radius:8px;color:var(--red);cursor:pointer;padding:7px 12px;font-size:12px;font-weight:800;font-family:inherit;white-space:nowrap" title="Exige motivo — fica no histórico"><i class="ti ti-trash"></i> Excluir</button>
+        </div>
       </div>`;
     }).join('');
   }
@@ -9812,6 +9822,16 @@ function renderPedidoCard(pd){
   const _agoH=Math.round(_agoMs/3600000);
   const _agoLbl=_agoH<1?'agora':_agoH<24?`há ${_agoH}h`:`há ${Math.round(_agoH/24)}d`;
   const _isCritico=pd.status==='pendente'&&_agoMs>24*3600000;
+  // ⚠️ Duplicado provável (caso Wagner, 18/07/2026): OUTRO pedido do MESMO
+  // cliente e MESMO plano, pago/ativo, com ≤3 dias de diferença. O editor
+  // vê a etiqueta ANTES de abrir a aprovação (e o servidor barra na
+  // ativação de qualquer jeito — dupla proteção).
+  const _tsPed=x=>{if(!x)return 0;if(typeof x==='number')return x;const t=Date.parse(x);return isNaN(t)?0:t;};
+  const _pdT=_tsPed(pd.ativadoEm)||_tsPed(pd.pagoEm)||pd.createdAt||0;
+  const _dupDe=(typeof _pedTodos!=='undefined'?_pedTodos:[]).find(x=>x&&x.id!==pd.id&&x.userEmail===pd.userEmail
+    &&x.plano===pd.plano&&['pago','ativo'].includes(x.status)
+    &&Math.abs((_tsPed(x.ativadoEm)||_tsPed(x.pagoEm)||x.createdAt||0)-_pdT)<=3*86400_000);
+  const dupBanner=(_dupDe&&pd.status!=='cancelado')?`<div style="background:rgba(239,68,68,.14);border:1.5px solid rgba(239,68,68,.4);border-radius:8px;padding:6px 10px;margin:0 0 6px;font-size:11px;font-weight:800;color:#f87171">⚠️ POSSÍVEL DUPLICADO do pedido #${(_dupDe.id||'').slice(-8).toUpperCase()} — mesmo cliente, mesmo plano, ≤3 dias. Se for o mesmo pagamento, CANCELE um deles (cancelar limpa o caixa e estorna os dias sozinho).</div>`:'';
   const temComp=pd.comprovante===true||typeof pd.comprovante==='string';
   const wppNum=(pd.userWhatsapp||'').replace(/\D/g,'');
   const wppBase=wppNum?`https://wa.me/${wppNum.startsWith('55')?wppNum:'55'+wppNum}`:'';
@@ -9825,6 +9845,7 @@ function renderPedidoCard(pd){
     <button class="pv2-btn pv2-btn-cancel" onclick="cancelarPedido('${pd.id}')"><i class="ti ti-x"></i> Cancelar</button>
   `:`${wppMsg?`<a href="${wppMsg}" target="_blank" rel="noopener noreferrer" class="pv2-btn pv2-btn-wpp"><i class="ti ti-brand-whatsapp"></i> Contatar</a>`:''}`;
   return`<div class="pv2-card ${statusCls}" id="pvc-${pd.id}">
+  ${dupBanner}
   <div class="pv2-top" onclick="pedToggle('${pd.id}')">
     <span class="pv2-plan-badge ${planCls}">${esc(plano.name)}</span>
     <div class="pv2-user">
@@ -14034,7 +14055,7 @@ function maprovRenderExtrato(){
     ${linhas}`;
 }
 
-async function maprovConfirmarAtivacao(){
+async function maprovConfirmarAtivacao(_confirmarDuplicado){
   if(!_maprovPedidoId||!_maprovPedidoData) return;
   const editor=document.getElementById('maprov-editor')?.value;
   const senha=document.getElementById('maprov-senha')?.value;
@@ -14047,9 +14068,19 @@ async function maprovConfirmarAtivacao(){
     const r=await fetch('/api/pedido/'+_maprovPedidoId,{
       method:'PATCH',credentials:'include',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({status:'ativo',editorPassword:senha,bonusDias:_maprovBonusDias,notaAdmin:nota,recebidoPor:(editor==='diego'?'diego':'andrio')})
+      body:JSON.stringify({status:'ativo',editorPassword:senha,bonusDias:_maprovBonusDias,notaAdmin:nota,recebidoPor:(editor==='diego'?'diego':'andrio'),confirmarDuplicado:!!_confirmarDuplicado})
     });
     const d=await r.json();
+    // ⚠️ Servidor detectou OUTRO pedido igual deste cliente (≤3 dias):
+    // pergunta ao editor antes de reenviar com a confirmação explícita.
+    if(r.status===409&&d&&d.duplicado){
+      if(btn){btn.disabled=false;btn.innerHTML='✅ Ativar Plano';}
+      if(confirm(d.error+'\n\nAPROVAR MESMO ASSIM? (só se o cliente pagou de novo DE VERDADE)')){
+        return maprovConfirmarAtivacao(true);
+      }
+      toast('Aprovação suspensa — confira os pedidos deste cliente','r');
+      return;
+    }
     if(d.ok){
       const gemEl=document.getElementById('maprov-gemini-result');
       if(gemEl){

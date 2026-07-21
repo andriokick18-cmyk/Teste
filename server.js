@@ -8868,6 +8868,21 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
           return json(res,200,{ok:true,duplicado:true,pedido:jaPendente,
             message:"Você já tem um pedido em análise. Acompanhe o status do pedido existente."});
         }
+        // DEDUP 2 (caso Wagner, 18/07/2026): o dedup acima só vê PENDENTE —
+        // aprovado o 1º pedido, o cliente conseguia criar outro igual e o
+        // editor aprovava de novo (3× no caso real). Se já existe pedido do
+        // MESMO plano pago/ativo há ≤3 dias, devolve o existente em vez de
+        // criar outro. Renovação de verdade (dias depois) passa normal, e o
+        // admin (Regularizar) não passa por aqui.
+        const _tsP=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
+        const jaRecente=DB_PEDIDOS.find(x=>x.userEmail===targetEmail
+          &&["pago","ativo"].includes(String(x.status||"").toLowerCase())
+          &&String(x.plano||"")===String(d.plano||"")
+          &&(Date.now()-(_tsP(x.ativadoEm)||_tsP(x.pagoEm)||x.createdAt||0))<=3*86400_000);
+        if(jaRecente){
+          return json(res,200,{ok:true,duplicado:true,pedido:jaRecente,
+            message:"Você já tem um pedido deste plano aprovado há poucos dias — seu plano já está ativo. Se você pagou de novo ou acha que é engano, fale com o suporte pelo WhatsApp."});
+        }
       }
       const pedido={
         id:"ped_"+Date.now().toString(36)+"_"+crypto.randomBytes(4).toString("hex"),
@@ -9134,6 +9149,25 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
           const quando=pd.ativadoEm?new Date(pd.ativadoEm).toLocaleString("pt-BR"):"";
           console.log(`[pedido] ⛔ dupla ativação barrada: ${pd.id} (já ativado por ${quem})`);
           return json(res,409,{error:`⛔ Este pedido JÁ FOI ATIVADO por ${quem}${quando?` em ${quando}`:""}. Não dá pra ativar de novo (evita contar os dias duas vezes).`,jaAtivado:true,ativadoPor:quem,ativadoEm:pd.ativadoEm});
+        }
+        // GUARD PEDIDO DUPLICADO (dono, 18/07/2026 — caso Wagner: 3 pedidos
+        // iguais do MESMO cliente aprovados em sequência = R$450 e 90 dias
+        // creditados de UM pagamento de R$150/30d). A guarda acima só vê o
+        // MESMO pedido; esta vê OUTRO pedido igual: mesmo cliente, mesmo
+        // plano, pago/ativo há ≤3 dias. Só ativa com confirmação explícita
+        // do editor (confirmarDuplicado:true) — na dúvida, cancela o extra.
+        if(!d.confirmarDuplicado){
+          const _3d=3*86400_000,_agr=Date.now();
+          const _ts=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
+          const _dup=DB_PEDIDOS.find(x=>x&&x.id!==pd.id&&x.userEmail===pd.userEmail
+            &&["pago","ativo"].includes(String(x.status||"").toLowerCase())
+            &&String(x.plano||"")===String(pd.plano||"")
+            &&(_agr-(_ts(x.ativadoEm)||_ts(x.pagoEm)||_ts(x.criadoEm)))<=_3d);
+          if(_dup){
+            console.log(`[pedido] ⚠️ possível duplicado: ${pd.id} × ${_dup.id} (${pd.userEmail})`);
+            return json(res,409,{duplicado:true,pedidoDup:_dup.id,
+              error:`⚠️ POSSÍVEL DUPLICADO: este cliente já tem o pedido #${_dup.id.slice(-8).toUpperCase()} (${_dup.plano}) pago/ativo há menos de 3 dias. Se ele pagou DE NOVO de verdade, confirme; se é o mesmo pagamento, CANCELE este pedido.`});
+          }
         }
         const editorKey=matchEditorPassword(d.editorPassword);
         if(!editorKey)return json(res,403,{error:"Senha de editor inválida. Use a senha do Andrew ou do Diego."});
