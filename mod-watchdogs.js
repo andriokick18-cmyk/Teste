@@ -121,10 +121,20 @@ async function authErrorWatchdog(){
       const diasInativo = Math.round((now-(u.lastSeenAt||0))/86400000);
       if(diasInativo > 30) continue; // usuário inativo >30 dias — não notifica
       try{
+        // 📲 PUSH primeiro — o canal que está LIGADO. O e-mail abaixo fica
+        // atrás do kill-switch do dono (emailNotificationsEnabled=false,
+        // 06/07/2026): com ele desligado, sem este push o cliente pagante
+        // ficava com o robô morto SEM NENHUM aviso em NENHUM canal (os casos
+        // irmãos do Token Guardian já tinham o fallback; este era o que
+        // faltava — a promessa do comentário v18-FIX agora é inteira).
+        if(ctx.pushToUser)await ctx.pushToUser(email,{type:"auto_paused",
+          title:"⛔ Seu robô parou — reconecte o Gmail",
+          body:"O envio automático está pausado por erro de autenticação há mais de 12h. Abra o app e reconecte sua conta pra voltar a enviar.",
+          icon:"/icon-192.png",url:"/?tab=auto"}).catch(()=>{});
         await ctx.sendNotifEmail(email, "auth_error");
         _authErrNotifiedAt[email] = now;
         notified++;
-        console.log(`[auth-watchdog] 📧 Notificado ${email} sobre paused_auth_error (${Math.round(pausedMs/3600000)}h parado)`);
+        console.log(`[auth-watchdog] 📲 Notificado ${email} sobre paused_auth_error (${Math.round(pausedMs/3600000)}h parado)`);
       }catch(e){ console.warn(`[auth-watchdog] erro notif ${email}:`, e.message); }
       await new Promise(r=>setTimeout(r,2000)); // pausa entre emails
     }

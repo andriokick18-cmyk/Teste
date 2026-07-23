@@ -44,8 +44,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@700;800&display=swap" rel="stylesheet">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
-<link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'" onerror="this.onerror=null;this.href='https://unpkg.com/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css';this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css"></noscript>
+<link rel="preload" as="style" href="/vendor/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'" onerror="this.onerror=null;this.href='/vendor/tabler-icons.min.css';this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="/vendor/tabler-icons.min.css"></noscript>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{height:100%;-webkit-text-size-adjust:100%}
@@ -884,6 +884,12 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .d-item{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:var(--r);font-size:14px;color:#4c4f82;cursor:pointer;transition:all .12s;border:none;background:none;width:100%;font-family:inherit}
 .d-item:hover{background:#f0f4ff;color:#1e1b4b}
 .d-item i{font-size:17px;flex-shrink:0}
+/* v40: .d-quick-btn NUNCA teve CSS — os atalhos do drawer renderizavam como
+   botão cru do navegador (reclamação real do dono, com print). */
+.d-quick-btn{display:flex;align-items:center;justify-content:center;gap:7px;background:var(--sf2);border:1.5px solid var(--border2);border-radius:12px;padding:11px 8px;font-size:12.5px;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit;transition:all .12s;min-height:42px}
+.d-quick-btn i{font-size:16px;flex-shrink:0}
+.d-quick-btn:hover{background:#eef2ff;border-color:#c7d2fe}
+.d-quick-btn:active{transform:scale(.97)}
 
 /* ══ INBOX ══ */
 .icard{background:var(--surface);border-bottom:1px solid var(--border);padding:11px 14px;cursor:pointer;transition:background .1s;display:flex;gap:10px;align-items:flex-start;position:relative}
@@ -2684,6 +2690,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <!-- MAIS -->
       <div class="sb-sec">
         <div class="sb-lbl">Mais</div>
+        <button class="sb-item" id="si-noticias" onclick="sv('noticias');loadNoticias()"><i class="ti ti-news"></i>Notícias H-2B<span class="sb-badge" id="sib-noticias" style="display:none;background:var(--red);color:#fff">NOVA</span></button>
         <button class="sb-item" id="si-hist" onclick="sv('hist')"><i class="ti ti-history"></i>Enviadas<span class="sb-badge sb-badge-g" id="sib-hist" style="display:none"></span></button>
         <button class="sb-item" id="si-notificacoes" onclick="sv('notificacoes')"><i class="ti ti-bell"></i>Notificações<span class="sb-badge" id="sib-notificacoes" style="display:none;background:#7c3aed;color:#fff"></span></button>
         <button class="sb-item" onclick="openDrawer()"><i class="ti ti-dots-circle-horizontal"></i>Ver tudo</button>
@@ -2783,6 +2790,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
           <!-- ══ PEDIDO EM ANÁLISE — pagamento aguardando aprovação (renderPendingOrderCard) ══ -->
           <div id="home-pending-order" style="display:none;padding:12px 14px 0"></div>
+          <!-- v42: manchete da última notícia H-2B/H-2A — quem não abre a aba vê a novidade -->
+          <div id="home-noticia-card" style="display:none;padding:12px 14px 0"></div>
 
           <!-- ══ TURBINE SUAS CANDIDATURAS — card claro (layout do print) ══ -->
           <div id="home-reset-card" style="display:none;padding:12px 14px 0">
@@ -2850,10 +2859,10 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div style="font-size:12px;font-weight:800;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:13px">Atalhos Rápidos</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
 
-              <!-- Manual -->
-              <button onclick="sv('jobs')" class="home-shortcut" style="border:1.5px solid rgba(37,99,235,.3);border-radius:16px;padding:15px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 14px rgba(37,99,235,.10)" onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 10px 24px rgba(37,99,235,.22)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(37,99,235,.10)'">
-                <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#2563eb,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 16px rgba(37,99,235,.4)">📤</div>
-                <div style="font-size:11.5px;font-weight:800;color:#2563eb;line-height:1.2;text-align:center">Envio<br>Manual</div>
+              <!-- v30: era "Envio Manual" — duplicava o CTA grande logo acima; virou Notícias -->
+              <button onclick="sv('noticias');loadNoticias()" class="home-shortcut" style="border:1.5px solid rgba(30,64,175,.3);border-radius:16px;padding:15px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 14px rgba(30,64,175,.10)" onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 10px 24px rgba(30,64,175,.22)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(30,64,175,.10)'">
+                <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#1e40af,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 16px rgba(30,64,175,.4)">📰</div>
+                <div style="font-size:11.5px;font-weight:800;color:#1e40af;line-height:1.2;text-align:center">Notícias<br>H-2B</div>
               </button>
 
               <!-- Pesquisar Vagas -->
@@ -2926,31 +2935,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div id="home-followup-list" style="background:var(--surface);border:1.5px solid rgba(245,158,11,.3);border-radius:14px;overflow:hidden"></div>
           </div>
 
-          <!-- ══ SUA CONTA — card claro (layout do print) ══ -->
-          <div style="padding:16px 14px 20px">
-            <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:20px;padding:16px;box-shadow:0 4px 18px rgba(15,23,42,.06)">
-              <div style="font-size:12px;font-weight:800;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">Sua Conta</div>
-              <div style="border:1.5px solid var(--border);border-radius:14px;overflow:hidden">
-                <button class="home-reply-item" onclick="sv('plans')" style="border:none;width:100%;background:none;font-family:inherit;padding:14px">
-                  <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px;box-shadow:0 4px 12px rgba(99,102,241,.35)">💎</div>
-                  <div style="flex:1;text-align:left"><div style="font-size:13.5px;font-weight:800">Planos &amp; Recompensas</div><div style="font-size:11px;color:var(--t3)" id="home-plan-label">Gerencie seu plano e confira seus benefícios</div></div>
-                  <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
-                </button>
-                <button class="home-reply-item" onclick="sv('ranking')" style="border:none;width:100%;background:none;font-family:inherit;border-top:1px solid var(--border);padding:14px">
-                  <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#f59e0b,#fbbf24);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px;box-shadow:0 4px 12px rgba(245,158,11,.35)">🏆</div>
-                  <div style="flex:1;text-align:left"><div style="font-size:13.5px;font-weight:800">Ranking Competitivo</div><div style="font-size:11px;color:var(--t3)">Veja sua posição e concorra a prêmios</div></div>
-                  <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
-                </button>
-                <button class="home-reply-item" onclick="sv('hist')" style="border:none;width:100%;background:none;font-family:inherit;border-top:1px solid var(--border);padding:14px">
-                  <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#2563eb,#3b82f6);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:19px;box-shadow:0 4px 12px rgba(37,99,235,.35)">✈️</div>
-                  <div style="flex:1;text-align:left"><div style="font-size:13.5px;font-weight:800">Candidaturas Enviadas</div><div style="font-size:11px;color:var(--t3)">Histórico completo dos seus envios</div></div>
-                  <i class="ti ti-chevron-right" style="font-size:16px;color:var(--t3)"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-
-        </div>
+          <!-- v30 LIMPEZA: secao Sua Conta removida - os 3 destinos (Planos, Ranking, Enviadas) ja existem nos Atalhos Rapidos desta mesma tela (duplicacao pura). -->
       </div>
 
       <!-- ══ JOBS ══ -->
@@ -3094,6 +3079,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div style="font-size:11px;opacity:.7;margin-top:1px" id="inbox-subtitle">Gmail conectado</div>
           </div>
           <div style="display:flex;gap:6px;align-items:center">
+            <button onclick="showTextStats()" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);padding:6px 10px" title="Qual dos meus textos recebe mais resposta?"><i class="ti ti-chart-bar"></i></button>
             <button onclick="showInboxOptions()" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);padding:6px 10px" title="Mais opções"><i class="ti ti-dots-vertical"></i></button>
             <button onclick="loadInbox(true)" id="inbox-refresh-btn" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);flex-shrink:0"><i class="ti ti-refresh"></i></button>
           </div>
@@ -3877,6 +3863,9 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
           <!-- LIVE DASHBOARD (quando ativo) -->
           <div id="auto-live-section" style="display:none">
+            <!-- v36: convite de push no momento certo — o robô só fala com o
+                 usuário por notificação quando o app está fechado -->
+            <div id="auto-push-ask" style="display:none"></div>
             <!-- Card único: status + números + progresso -->
             <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:14px">
               <!-- Status banner -->
@@ -4046,7 +4035,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
               <div style="background:var(--bluel);border:1.5px solid var(--blueb);border-radius:var(--r);padding:10px;text-align:center">
                 <div style="font-size:20px;font-weight:800;color:var(--blue)" id="pf-count">–</div>
-                <div style="font-size:10px;color:var(--t2);font-weight:600;margin-top:2px">vagas na fila</div>
+                <div style="font-size:10px;color:var(--t2);font-weight:600;margin-top:2px">vagas pra você</div>
               </div>
               <div style="background:var(--purplel);border:1.5px solid var(--purpleb);border-radius:var(--r);padding:10px;text-align:center">
                 <div style="font-size:20px;font-weight:800;color:var(--purple)" id="pf-duration">–</div>
@@ -4061,7 +4050,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <!-- Aviso Gmail -->
             <div class="alert al-amber" style="margin-bottom:10px;font-size:12px;position:relative;padding-right:28px">
               <i class="ti ti-alert-triangle" style="flex-shrink:0"></i>
-              <div><strong>⚠️ Limite Gmail:</strong> Enviar 400–500 e-mails/dia com o mesmo Gmail tem risco de bloqueio pelo Google. Seu plano respeita o limite automático — mas cuidado ao reiniciar muitas vezes no mesmo dia.</div>
+              <div id="pf-gmail-warning"><strong>⚠️ Limite Gmail:</strong> o Google aceita até 500 e-mails por janela de 24h por conta. Seu plano respeita o limite automático — mas cuidado ao reiniciar muitas vezes no mesmo dia.</div>
               <button onclick="this.closest('.alert').style.display='none'" style="position:absolute;top:6px;right:8px;background:none;border:none;cursor:pointer;color:var(--amber);font-size:17px;line-height:1;padding:0;opacity:.7" title="Fechar">×</button>
             </div>
 
@@ -4075,7 +4064,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <!-- Servidor continua mesmo offline -->
             <div class="alert al-green" style="margin-bottom:14px;font-size:12px">
               <i class="ti ti-server-bolt" style="flex-shrink:0"></i>
-              <div><strong>✅ Funciona com app fechado!</strong> O envio roda no servidor Railway — feche o celular, desligue o Wi-Fi, não importa. Quando você voltar, os e-mails já foram enviados. <em>Só precisa estar logado uma vez.</em></div>
+              <div><strong>✅ Funciona com app fechado!</strong> O envio roda no nosso servidor na nuvem — feche o celular, desligue o Wi-Fi, não importa. Quando você voltar, os e-mails já foram enviados. <em>Só precisa estar logado uma vez.</em></div>
             </div>
 
             <!-- Escolha quando iniciar -->
@@ -4143,6 +4132,13 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
         <!-- Status do plano atual -->
         <div id="plan-status-card" style="display:none;margin-bottom:14px"></div>
+        <!-- v29: Resgatar código saiu do menu (limpeza) e mora aqui, na jornada de plano.
+             v32: Meus pagamentos idem — histórico do cliente mora DENTRO de Planos. -->
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button class="btn btn-secondary btn-sm" style="flex:1;justify-content:center" onclick="sv('redeem')"><i class="ti ti-ticket" style="color:#7c3aed"></i> 🎟️ Tenho código</button>
+          <button class="btn btn-secondary btn-sm" style="flex:1;justify-content:center" onclick="toggleMeusPagamentos()"><i class="ti ti-receipt" style="color:#10b981"></i> 🧾 Meus pagamentos</button>
+        </div>
+        <div id="meus-pagamentos" style="display:none;margin-bottom:14px"></div>
 
         <!-- Header -->
         <div style="background:linear-gradient(160deg,#0f172a,#1e3a8a,#2563eb,#7c3aed);color:#fff;border-radius:var(--rl);padding:24px 20px;text-align:center;margin-bottom:16px">
@@ -4325,7 +4321,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               <div style="font-size:14px;font-weight:800">Pagamento</div>
             </div>
             <div style="padding:14px 16px" id="plan-payment-section">
-              <!-- Link de pagamento InfinitePay — dinâmico por plano/período -->
+              <!-- v43: pagamento único — Pix pro PicPay do Andrio (dinâmico por plano/período) -->
               <div id="plan-payment-links"></div>
             </div>
           </div>
@@ -4370,12 +4366,13 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <!-- PASSO FINAL: Agradecimento -->
         <div id="plan-step-done" style="display:none;text-align:center;padding:32px 16px">
           <div style="font-size:64px;margin-bottom:16px">🎉</div>
-          <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800;margin-bottom:8px">Pedido enviado!</div>
-          <div style="font-size:14px;color:var(--t2);margin-bottom:20px;line-height:1.7">
+          <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800;margin-bottom:8px" id="plan-done-title">Pedido enviado!</div>
+          <div style="font-size:14px;color:var(--t2);margin-bottom:20px;line-height:1.7" id="plan-done-msg">
             Recebemos seu pedido e comprovante.<br>
-            Seu plano será analisado e ativado <strong>em breve</strong>.<br>
+            Se o robô validar seu comprovante, o plano ativa <strong>em instantes</strong> — e a confirmação final da equipe sai em <strong>até 24h</strong>. Acompanhe na tela inicial.<br>
             <strong>Para dúvidas, entre em contato:</strong>
           </div>
+          <div id="plan-push-ask" style="display:none;max-width:340px;margin:0 auto 12px;text-align:left"></div>
           <div style="display:flex;flex-direction:column;gap:10px;max-width:300px;margin:0 auto">
             <a href="https://wa.me/5553981453496" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="text-decoration:none;justify-content:center">
               <i class="ti ti-brand-whatsapp"></i> Diego ou Andrio — WhatsApp
@@ -4754,6 +4751,19 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       </div></div>
 
       <!-- ══ IA CHAT (Gemini) ══ -->
+      <!-- ══ 📰 v26: NOTÍCIAS DO DOL (traduzidas automaticamente) ══ -->
+      <div class="view gone" id="v-noticias" style="display:flex;flex-direction:column;overflow:hidden">
+        <div style="background:linear-gradient(135deg,#0f172a,#1e40af);color:#fff;padding:12px 16px 10px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div>
+            <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px">📰 Notícias do DOL</div>
+            <div style="font-size:11px;opacity:.75;margin-top:1px">Anúncios oficiais do governo americano, traduzidos</div>
+          </div>
+          <button onclick="loadNoticias(true)" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25)"><i class="ti ti-refresh"></i></button>
+        </div>
+        <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px" id="noticias-list">
+          <div style="text-align:center;padding:30px"><span class="spin"></span></div>
+        </div>
+      </div>
       <div class="view gone" id="v-iaChat" style="display:flex;flex-direction:column;overflow:hidden">
         <!-- Header -->
         <div style="background:linear-gradient(135deg,#0c4a6e,#0891b2,#06b6d4);color:#fff;padding:12px 16px 10px;flex-shrink:0">
@@ -4779,7 +4789,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <!-- Aviso se API não configurada -->
         <div id="ia-not-configured" style="display:none;margin:14px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:12px;padding:14px">
           <div style="font-size:14px;font-weight:800;color:#dc2626;margin-bottom:6px">⚠️ Gemini API não configurada</div>
-          <div style="font-size:12px;color:#7f1d1d;line-height:1.6">Adicione <code style="background:#fee2e2;padding:1px 5px;border-radius:4px">GEMINI_API_KEY</code> nas variáveis do servidor Railway para ativar.</div>
+          <div style="font-size:12px;color:#7f1d1d;line-height:1.6">Adicione <code style="background:#fee2e2;padding:1px 5px;border-radius:4px">GEMINI_API_KEY</code> nas variáveis de ambiente do servidor para ativar.</div>
         </div>
 
         <!-- Mensagens -->
@@ -4831,6 +4841,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         </div>
 
         <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;gap:14px">
+          <!-- v29: Sugestões saiu do menu (limpeza) e mora aqui -->
+          <button class="btn btn-secondary" style="justify-content:center" onclick="sv('sugestoes')"><i class="ti ti-bulb" style="color:#059669"></i> Enviar sugestão ou ideia pros desenvolvedores</button>
 
           <!-- Conta -->
           <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:16px">
@@ -5131,9 +5143,12 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
       <!-- LOCALIZAÇÃO -->
       <div class="mf-sec">
-        <div class="mf-sec-title">📍 Localização</div>
-        <select class="mf-select" id="f-state" onchange="mfOnChange()" style="margin-bottom:8px">
-          <option value="">Todos estados</option>
+        <div class="mf-sec-title">📍 Localização <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--t3)">— pode escolher vários estados</span></div>
+        <!-- v22: valor canônico = lista separada por vírgula (multi-estado) -->
+        <input type="hidden" id="f-state" value="">
+        <div id="f-state-chips" style="display:none;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+        <select class="mf-select" id="f-state-add" onchange="mfAddState(this.value)" style="margin-bottom:8px">
+          <option value="">➕ Adicionar estado…</option>
           <option>ALABAMA</option><option>ALASKA</option><option>ARIZONA</option><option>ARKANSAS</option>
           <option>CALIFORNIA</option><option>COLORADO</option><option>CONNECTICUT</option><option>DELAWARE</option>
           <option>FLORIDA</option><option>GEORGIA</option><option>HAWAII</option><option>IDAHO</option>
@@ -5172,6 +5187,23 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             </select>
           </div>
         </div>
+      </div>
+
+      <!-- v22: MÊS DE INÍCIO — trabalhador sazonal planeja a vida pela data de início -->
+      <div class="mf-sec" id="mf-months-section">
+        <div class="mf-sec-title">📅 Mês de início da vaga <span style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--t3)">— pode marcar vários</span></div>
+        <div id="mf-months-row" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+
+      <!-- v22: ORDENAÇÃO (vale para a lista do Envio Manual) -->
+      <div class="mf-sec" id="mf-sort-section">
+        <div class="mf-sec-title">↕️ Ordenar resultados</div>
+        <select class="mf-select" id="mf-sort" onchange="mfOnChange()">
+          <option value="random">🎲 Aleatório (padrão)</option>
+          <option value="wage">💰 Maior salário primeiro</option>
+          <option value="start">📅 Começa mais cedo primeiro</option>
+          <option value="desc">🆕 Mais recentes primeiro</option>
+        </select>
       </div>
 
     </div>
@@ -5365,6 +5397,11 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div style="flex:1;height:1px;background:var(--border)"></div>
           </div>
           <div id="pe-cover-slots" style="display:flex;flex-direction:column;gap:5px"></div>
+          <!-- v20: regra explícita — depois do caso real da carta H-2A saindo em vaga H-2B -->
+          <div style="font-size:11px;color:var(--t3);background:var(--sf2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;margin-top:8px;line-height:1.5">
+            💡 A carta escolhida aqui sai <strong>apenas nas vagas do tipo de visto deste perfil</strong>.
+            Marcando <strong>Nenhuma</strong>, suas candidaturas vão só com o currículo — o sistema nunca usa a carta de outro perfil no lugar.
+          </div>
         </div>
       </div>
 
@@ -5581,7 +5618,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <div class="field">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px">
           <label style="margin:0">📝 Cover Letter <span style="color:var(--t3);font-weight:400">(opcional)</span></label>
-          <button class="btn btn-secondary btn-xs" id="ai-btn" style="display:none" onclick="aiCover()"><i class="ti ti-robot"></i> IA gera</button>
+          <!-- v22 (ordem do dono): botão "IA gera" removido — era template fixo escrevendo a candidatura pelo usuário -->
+
         </div>
         <div id="m-cov-slots"></div>
       </div>
@@ -5737,7 +5775,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <button onclick="closeDrawer();sv('ranking')" class="d-quick-btn"><i class="ti ti-trophy" style="color:#f59e0b"></i><span>Ranking</span></button>
         <button onclick="closeDrawer();sv('hist')" class="d-quick-btn"><i class="ti ti-history" style="color:#059669"></i><span>Enviadas</span></button>
         <button onclick="closeDrawer();sv('saved')" class="d-quick-btn"><i class="ti ti-bookmark" style="color:#e11d48"></i><span>Salvas</span></button>
-        <button onclick="closeDrawer();sv('redeem')" class="d-quick-btn"><i class="ti ti-ticket" style="color:#7c3aed"></i><span>Resgatar Código</span></button>
+        <button onclick="closeDrawer();sv('noticias');loadNoticias()" class="d-quick-btn"><i class="ti ti-news" style="color:#1e40af"></i><span>Notícias H-2B</span><span id="noticias-new-badge" style="display:none;background:var(--red);color:#fff;font-size:9px;font-weight:800;padding:1px 6px;border-radius:99px;margin-left:4px">NOVA</span></button>
       </div>
     </div>
     <div style="height:1px;background:var(--border);margin:0 12px"></div>
@@ -5773,21 +5811,16 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <div style="flex:1"><div style="font-size:13px;font-weight:700">IA Chat H2B</div><div style="font-size:11px;color:var(--t3);font-weight:400">Tire dúvidas com inteligência artificial</div></div>
         <span style="font-size:9px;background:linear-gradient(135deg,#0891b2,#6366f1);color:#fff;padding:2px 7px;border-radius:99px;font-weight:700">IA</span>
       </button>
-      <button class="d-item" onclick="closeDrawer();sv('tutorial')" style="border-radius:12px;margin-bottom:4px">
+      <button class="d-item" onclick="closeDrawer();openTour()" style="border-radius:12px;margin-bottom:4px">
         <div style="width:36px;height:36px;border-radius:10px;background:rgba(99,102,241,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-help-circle" style="color:#6366f1;font-size:18px"></i></div>
-        <div style="flex:1"><div style="font-size:13px;font-weight:700">Tutorial</div><div style="font-size:11px;color:var(--t3);font-weight:400">Como usar o H2BApply</div></div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:700">Tutorial</div><div style="font-size:11px;color:var(--t3);font-weight:400">Passo a passo em slides — como usar tudo</div></div>
         <i class="ti ti-chevron-right" style="color:var(--t3);font-size:16px"></i>
       </button>
-      <button class="d-item" onclick="closeDrawer();sv('sugestoes')" style="border-radius:12px;margin-bottom:4px">
-        <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,.08);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-bulb" style="color:#059669;font-size:18px"></i></div>
-        <div style="flex:1"><div style="font-size:13px;font-weight:700">Sugestões para Devs</div><div style="font-size:11px;color:var(--t3);font-weight:400">Envie ideias e melhorias</div></div>
-        <i class="ti ti-chevron-right" style="color:var(--t3);font-size:16px"></i>
-      </button>
-      <button class="d-item" onclick="closeDrawer();sv('logs')" style="border-radius:12px;margin-bottom:4px">
-        <div style="width:36px;height:36px;border-radius:10px;background:var(--sf3);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-list-details" style="color:var(--t2);font-size:18px"></i></div>
-        <div style="flex:1"><div style="font-size:13px;font-weight:700">Logs do Automático</div><div style="font-size:11px;color:var(--t3);font-weight:400">Histórico detalhado de envios</div></div>
-        <i class="ti ti-chevron-right" style="color:var(--t3);font-size:16px"></i>
-      </button>
+      <!-- v29 LIMPEZA (ordem do dono): itens fundidos nas telas-mãe —
+           Guia completo → dentro do Tutorial (último slide)
+           Sugestões → dentro de Configurações
+           Logs do Automático → dentro da aba Automático (botão "Ver logs" já existia)
+           Resgatar código → dentro de Planos -->
       <button class="d-item" onclick="closeDrawer();sv('settings')" style="border-radius:12px;margin-bottom:4px">
         <div style="width:36px;height:36px;border-radius:10px;background:var(--sf3);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-settings" style="color:var(--t2);font-size:18px"></i></div>
         <div style="flex:1"><div style="font-size:13px;font-weight:700">Configurações</div><div style="font-size:11px;color:var(--t3);font-weight:400">Conta, privacidade e preferências</div></div>
@@ -5885,6 +5918,24 @@ let U={connected:false,email:"",name:"",picture:"",isAdmin:false,plan:"free",vip
 let _lastGaPlanSelected=null; // evita reenviar o mesmo evento select_plan repetidamente
 let CFG={name:"",country:"Brazil",phone:"",city:"",language:"pt-BR",subject:"",body:""};
 let DOCS=[],activeResIdx=null,activeCovIdx=null;
+// v27: EMPREGADORES BLOQUEADOS (enviados + fila do robô) — fonte única pro
+// front inteiro saber se uma vaga é nova de verdade. Regra do dono: usuário
+// nunca se preocupa com duplicado; a vaga se identifica sozinha.
+let _empSent=new Set(),_empQueued=new Set();
+async function loadEmpregadoresBloqueados(){
+  try{
+    const d=await fetch("/api/sent-emails",{credentials:"include"}).then(r=>r.json());
+    if(d.ok){_empSent=new Set(d.sent||[]);_empQueued=new Set(d.queued||[]);}
+  }catch(e){}
+}
+// null = livre | "sent" = já enviada | "queued" = na fila do robô
+function empregadorStatus(email){
+  const e=String(email||"").toLowerCase().trim();
+  if(!e)return null;
+  if(_empSent.has(e))return "sent";
+  if(_empQueued.has(e))return "queued";
+  return null;
+}
 let JOBS=[],HIST=[],SAVED=new Set(),APPLIED=new Set();
 
 // ── Sistema de filtro de vagas ──
@@ -6416,6 +6467,8 @@ function showApp(){
   // Abre na HOME após login (não direto em Vagas)
   history.replaceState({view:"home"},"",location.pathname+location.search);
   sv("home");
+  // v27: carrega o conjunto de empregadores bloqueados (enviados + fila)
+  setTimeout(loadEmpregadoresBloqueados,800);
   // Carrega inbox em background para badge
   setTimeout(()=>fetch("/api/inbox?limit=200",{credentials:"include"}).then(r=>r.json()).then(d=>{if(d.ok){INBOX_EMAILS=d.emails||[];_mergeReadState();_updateInboxStats();updInboxBadge(INBOX_EMAILS.filter(e=>!e.isRead).length);_renderHomeReplies();}}).catch(()=>{}),1500);
   // Mensagem de boas-vindas: APENAS no primeiro login verdadeiro (onboarded===false)
@@ -6637,7 +6690,7 @@ function renderDrawer(){
 // ═══════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════
-const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","notificacoes","redeem","tutorial","iaChat","sugestoes","settings"];
+const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","notificacoes","redeem","tutorial","iaChat","sugestoes","settings","noticias"];
 function sv(v,...args){
   // ── "auto" abre modal em vez da view ──
   if(v==="auto"){if(typeof openAutoModal==="function"){openAutoModal();return;}}
@@ -6926,7 +6979,9 @@ function setTab(t){
   _masterFiltersSyncBadge();
   // FIX: resetar filtros que não existem nas planilhas para não contaminar os resultados
   if(t!=="seasonal"){fWage=0;fWorkers=0;const fw=g("#f-wage");if(fw)fw.value="";const wk=g("#f-workers");if(wk)wk.value="";const fc=g("#f-city");if(fc)fc.value="";}
-  if(t!=="seasonal"&&fSort!=="random"){fSort="random";g("#so-rand")?.classList.add("on");g("#so-desc")?.classList.remove("on");g("#so-asc")?.classList.remove("on");}
+  // v22: planilhas agora suportam ordenação real (random/desc/wage/start via
+  // modal de filtros) — só reseta o que a planilha NÃO entende (asc do seasonal)
+  if(t!=="seasonal"&&!["random","desc","wage","start"].includes(fSort)){fSort="random";g("#so-rand")?.classList.add("on");g("#so-desc")?.classList.remove("on");g("#so-asc")?.classList.remove("on");}
   document.querySelectorAll(".stab").forEach(b=>b.classList.remove("active"));
   g("#stab-"+t)?.classList.add("active");
   g("#jlist").innerHTML="";g("#lmore").innerHTML="";
@@ -6995,11 +7050,49 @@ let _titlesTax=null; // cache da taxonomia já buscada (por sheet)
 // estado de cada contexto é trocado ao abrir/fechar (snapshot por contexto).
 let _mfCtx="jobs";
 let _mfGrupos=[];        // grupos marcados AGORA no modal (do ctx ativo)
+// v22-FILTROS: meses de início marcados no modal (mesmo padrão dual-contexto
+// dos grupos) + estado dos meses aplicados por contexto
+let _mfBeginMonths=[];
+let fBeginMonths=[],afBeginMonths=[];
+const _MF_MONTH_LABELS=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+function _mfRenderMonths(){
+  const row=g("#mf-months-row");if(!row)return;
+  row.innerHTML=_MF_MONTH_LABELS.map((lb,i)=>{
+    const m=i+1,sel=_mfBeginMonths.includes(m);
+    return `<button onclick="mfToggleMonth(${m})" style="padding:6px 12px;border-radius:20px;border:2px solid ${sel?"var(--blue)":"var(--border2)"};background:${sel?"rgba(37,99,235,.12)":"var(--sf2)"};color:${sel?"var(--blue)":"var(--t2)"};font-size:12px;font-weight:800;cursor:pointer;font-family:inherit">${lb}</button>`;
+  }).join("");
+}
+function mfToggleMonth(m){
+  const i=_mfBeginMonths.indexOf(m);if(i>=0)_mfBeginMonths.splice(i,1);else _mfBeginMonths.push(m);
+  _mfBeginMonths.sort((a,b)=>a-b);_mfRenderMonths();mfOnChange();
+}
+// v22-FILTROS: multi-estado — #f-state (hidden) guarda "FLORIDA,TEXAS";
+// o select #f-state-add só adiciona; chips removem.
+function _mfStates(){return (g("#f-state")?.value||"").split(",").map(s=>s.trim()).filter(Boolean);}
+function _mfRenderStateChips(){
+  const box=g("#f-state-chips");if(!box)return;
+  const sts=_mfStates();
+  if(!sts.length){box.style.display="none";box.innerHTML="";return;}
+  box.style.display="flex";
+  box.innerHTML=sts.map(st=>`<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(37,99,235,.1);border:1.5px solid rgba(37,99,235,.35);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;color:var(--blue)">📍 ${esc(st)}<button onclick="mfRemoveState('${esc(st)}')" style="background:none;border:none;cursor:pointer;color:var(--blue);padding:0;line-height:1;font-size:14px;font-weight:800">×</button></span>`).join("");
+}
+function mfAddState(v){
+  const sel=g("#f-state-add");if(sel)sel.value="";
+  v=String(v||"").trim();if(!v)return;
+  const sts=_mfStates();if(sts.includes(v))return;
+  sts.push(v);const h=g("#f-state");if(h)h.value=sts.join(",");
+  _mfRenderStateChips();mfOnChange();
+}
+function mfRemoveState(v){
+  const sts=_mfStates().filter(s=>s!==v);
+  const h=g("#f-state");if(h)h.value=sts.join(",");
+  _mfRenderStateChips();mfOnChange();
+}
 const _mfCtxState={jobs:null,auto:null};
 let _mfFacets={};        // cache de facetas (status/grupos reais) por planilha
 function _mfIsDP(){return !!(U.isAdmin||U.plan==="doublepro");}
-function _mfCapture(){return{state:g("#f-state")?.value||"",city:g("#f-city")?.value||"",wage:g("#f-wage")?.value||"",workers:g("#f-workers")?.value||"",titles:[...fTitles],grupos:[..._mfGrupos],dolStatus:g("#mf-dol-status")?.value||""};}
-function _mfLoad(st){st=st||{};const fs2=g("#f-state");if(fs2)fs2.value=st.state||"";const fc=g("#f-city");if(fc)fc.value=st.city||"";const fw=g("#f-wage");if(fw)fw.value=st.wage||"";const fk=g("#f-workers");if(fk)fk.value=st.workers||"";fTitles=[...(st.titles||[])];_mfGrupos=[...(st.grupos||[])];const ds=g("#mf-dol-status");if(ds)ds.value=st.dolStatus||"";_mfRenderGrupos();}
+function _mfCapture(){return{state:g("#f-state")?.value||"",city:g("#f-city")?.value||"",wage:g("#f-wage")?.value||"",workers:g("#f-workers")?.value||"",titles:[...fTitles],grupos:[..._mfGrupos],dolStatus:g("#mf-dol-status")?.value||"",beginMonths:[..._mfBeginMonths],sort:g("#mf-sort")?.value||"random"};}
+function _mfLoad(st){st=st||{};const fs2=g("#f-state");if(fs2)fs2.value=st.state||"";const fc=g("#f-city");if(fc)fc.value=st.city||"";const fw=g("#f-wage");if(fw)fw.value=st.wage||"";const fk=g("#f-workers");if(fk)fk.value=st.workers||"";fTitles=[...(st.titles||[])];_mfGrupos=[...(st.grupos||[])];const ds=g("#mf-dol-status");if(ds)ds.value=st.dolStatus||"";_mfBeginMonths=[...(st.beginMonths||[])];const ms=g("#mf-sort");if(ms)ms.value=st.sort||"random";_mfRenderGrupos();_mfRenderMonths();_mfRenderStateChips();}
 function mfOnChange(){_masterFiltersSyncBadge();if(_mfCtx==="jobs")applyF();}
 
 const _MF_GRUPO_COLORS={A:"#10b981",B:"#f59e0b",C:"#3b82f6",D:"#ef4444",E:"#8b5cf6",F:"#06b6d4",G:"#ec4899",H:"#6b7280"};
@@ -7036,14 +7129,28 @@ async function openMasterFilters(ctx){
   const ov=g("#master-filters-overlay");if(!ov)return;
   // Troca de contexto: guarda o estado do ctx atual e carrega o do novo
   if(ctx!==_mfCtx){_mfCtxState[_mfCtx]=_mfCapture();_mfCtx=ctx;
-    if(ctx==="auto"&&!_mfCtxState.auto){_mfCtxState.auto={state:g("#af-state")?.value||"",city:g("#af-city")?.value||"",wage:g("#af-min-wage")?.value||"",workers:g("#af-min-workers")?.value||"",titles:[...afTitles],grupos:[...afGrupos],dolStatus:afEtaStatus};}
+    if(ctx==="auto"&&!_mfCtxState.auto){_mfCtxState.auto={state:g("#af-state")?.value||"",city:g("#af-city")?.value||"",wage:g("#af-min-wage")?.value||"",workers:g("#af-min-workers")?.value||"",titles:[...afTitles],grupos:[...afGrupos],dolStatus:afEtaStatus,beginMonths:[...afBeginMonths]};}
     _mfLoad(_mfCtxState[ctx]);
   } else if(ctx==="auto"){
-    _mfLoad(_mfCtxState.auto||{titles:[...afTitles],grupos:[...afGrupos],dolStatus:afEtaStatus,state:g("#af-state")?.value||"",city:g("#af-city")?.value||"",wage:g("#af-min-wage")?.value||"",workers:g("#af-min-workers")?.value||""});
+    _mfLoad(_mfCtxState.auto||{titles:[...afTitles],grupos:[...afGrupos],dolStatus:afEtaStatus,state:g("#af-state")?.value||"",city:g("#af-city")?.value||"",wage:g("#af-min-wage")?.value||"",workers:g("#af-min-workers")?.value||"",beginMonths:[...afBeginMonths]});
   }
   ov.classList.remove("gone");
   const sheetKey=_mfCurrentSheet();
   const isSheet=ctx==="auto"?true:(tab!=="seasonal");
+  // v22: ordenação só faz sentido na LISTA do manual (a fila do automático é
+  // embaralhada de propósito); mês de início só quando a planilha TEM datas
+  const sortSec=g("#mf-sort-section");if(sortSec)sortSec.style.display=(ctx==="jobs"&&isSheet)?"":"none";
+  const moSec=g("#mf-months-section");
+  if(moSec){
+    if(!isSheet){moSec.style.display="none";}
+    else{
+      moSec.style.display="";_mfRenderMonths();
+      _mfLoadFacets(sheetKey).then(()=>{
+        const f=_mfFacets[sheetKey];
+        if(f&&f.datedCount===0){moSec.style.display="none";_mfBeginMonths=[];}
+      });
+    }
+  }
   const cityWrap=g("#f-city");if(cityWrap)cityWrap.style.display=isSheet?"":"none";
   const tSec=g("#mf-type-section");if(tSec)tSec.style.display=isSheet?"none":"";
   // Categoria rápida: no automático ela já vive no wizard — esconde aqui
@@ -7127,6 +7234,7 @@ function _countActiveFilters(){
   if((g("#f-city")?.value||"").trim())n++;
   if(parseFloat(g("#f-wage")?.value||0))n++;
   if(parseInt(g("#f-workers")?.value||0))n++;
+  if(_mfBeginMonths.length)n++;
   if(_mfCtx==="jobs"){if(fGrupos&&fGrupos.length)n++;if(fEtaStatus)n++;}
   else{if(_mfGrupos.length)n++;if((g("#mf-dol-status")?.value||""))n++;}
   if(typeof fType!=="undefined"&&fType!=="all")n++;
@@ -7148,6 +7256,7 @@ function applyMasterFilters(){
     const st=_mfCapture();
     _mfCtxState.auto=st;
     afTitles=[...st.titles];afGrupos=[...st.grupos];afEtaStatus=st.dolStatus||"";
+    afBeginMonths=[...(st.beginMonths||[])]; // v22: mês de início no automático
     const set=(id,v)=>{const el=g(id);if(el)el.value=v;};
     set("#af-state",st.state);set("#af-city",st.city);
     set("#af-min-wage",st.wage);set("#af-min-workers",st.workers);
@@ -7155,8 +7264,9 @@ function applyMasterFilters(){
     renderAutoFilterChips();_syncAutoFiltersBadge();refreshAutoFilterCount();
     return;
   }
-  // MANUAL (comportamento original + grupos/status)
+  // MANUAL (comportamento original + grupos/status + v22: meses/ordenação)
   fGrupos=[..._mfGrupos];fEtaStatus=g("#mf-dol-status")?.value||"";
+  fBeginMonths=[..._mfBeginMonths];fSort=g("#mf-sort")?.value||"random";
   closeMasterFilters();
   if(fTitles.length){ fCat="all"; document.querySelectorAll("#cat-chips-jobs .cat-chip").forEach(b=>b.classList.toggle("on",b.dataset.cat==="all")); }
   _masterFiltersSyncBadge();renderJobsFilterChips();
@@ -7165,8 +7275,11 @@ function applyMasterFilters(){
 }
 
 function clearAllFilters(){
-  fTitles=[];_mfGrupos=[];
+  fTitles=[];_mfGrupos=[];_mfBeginMonths=[];
+  const msrt=g("#mf-sort");if(msrt)msrt.value="random";
+  _mfRenderMonths();
   const fs=g("#f-state");if(fs)fs.value="";
+  _mfRenderStateChips();
   const fc=g("#f-city");if(fc)fc.value="";
   const fw=g("#f-wage");if(fw)fw.value="";
   const fwk=g("#f-workers");if(fwk)fwk.value="";
@@ -7202,6 +7315,8 @@ function renderJobsFilterChips(){
   const wk=parseInt(g("#f-workers")?.value||0);if(wk)chips.push(_chip(`👥 ${wk}+ vagas`,"mfClearJobsDim('workers')","var(--green)"));
   if(fGrupos.length)chips.push(_chip(`💎 Grupo ${fGrupos.join(",")}`,"mfClearJobsDim('grupos')","#d97706"));
   if(fEtaStatus)chips.push(_chip(`📶 ${esc(fEtaStatus.slice(0,22))}`,"mfClearJobsDim('status')","#d97706"));
+  if(fBeginMonths.length)chips.push(_chip(`📅 Início: ${fBeginMonths.map(m=>_MF_MONTH_LABELS[m-1]).join(", ")}`,"mfClearJobsDim('months')","var(--blue)"));
+  if(fSort&&fSort!=="random"&&tab!=="seasonal")chips.push(_chip(`↕️ ${fSort==="wage"?"Maior salário":fSort==="start"?"Começa cedo":"Recentes"}`,"mfClearJobsDim('sort')","var(--purple)"));
   if(!chips.length){box.style.display="none";box.innerHTML="";return;}
   box.style.display="flex";
   box.innerHTML=chips.join("")+`<button onclick="mfClearJobsDim('all')" style="background:none;border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--t3);cursor:pointer;font-family:inherit">Limpar tudo</button>`;
@@ -7215,6 +7330,9 @@ function mfClearJobsDim(dim){
   if(dim==="workers"||dim==="all"){const el=g("#f-workers");if(el)el.value="";}
   if(dim==="grupos"||dim==="all"){fGrupos=[];if(_mfCtx==="jobs")_mfGrupos=[];}
   if(dim==="status"||dim==="all"){fEtaStatus="";const ds=g("#mf-dol-status");if(ds&&_mfCtx==="jobs")ds.value="";}
+  if(dim==="months"||dim==="all"){fBeginMonths=[];if(_mfCtx==="jobs"){_mfBeginMonths=[];_mfRenderMonths();}}
+  if(dim==="sort"||dim==="all"){fSort="random";const ms=g("#mf-sort");if(ms)ms.value="random";}
+  if(dim==="state"||dim==="all")_mfRenderStateChips();
   _mfRenderGrupos();renderTitlesFilterList?.();
   applyF();renderJobsFilterChips();
 }
@@ -7229,6 +7347,7 @@ function renderAutoFilterChips(){
   const wk=parseInt(g("#af-min-workers")?.value||0);if(wk)chips.push(_chip(`👥 ${wk}+ vagas`,"mfClearAutoDim('workers')","var(--green)"));
   if(afGrupos.length)chips.push(_chip(`💎 Grupo ${afGrupos.join(",")}`,"mfClearAutoDim('grupos')","#d97706"));
   if(afEtaStatus)chips.push(_chip(`📶 ${esc(afEtaStatus.slice(0,22))}`,"mfClearAutoDim('status')","#d97706"));
+  if(afBeginMonths.length)chips.push(_chip(`📅 Início: ${afBeginMonths.map(m=>_MF_MONTH_LABELS[m-1]).join(", ")}`,"mfClearAutoDim('months')","var(--blue)"));
   if(!chips.length){box.innerHTML="";return;}
   box.innerHTML=chips.join("")+`<button onclick="mfClearAutoDim('all')" style="background:none;border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--t3);cursor:pointer;font-family:inherit">Limpar tudo</button>`;
 }
@@ -7241,6 +7360,7 @@ function mfClearAutoDim(dim){
   if(dim==="workers"||dim==="all")set("#af-min-workers","");
   if(dim==="grupos"||dim==="all")afGrupos=[];
   if(dim==="status"||dim==="all")afEtaStatus="";
+  if(dim==="months"||dim==="all")afBeginMonths=[];
   _mfCtxState.auto=null; // snapshot invalidado — será remontado do estado real
   renderAutoFilterChips();_syncAutoFiltersBadge();refreshAutoFilterCount();
 }
@@ -7263,7 +7383,7 @@ async function refreshAutoFilterCount(){
   const box=g("#af-filter-count");if(!box)return;
   if(!autoSelectedSrc){box.style.display="none";return;}
   const seq=++_afCountSeq;
-  const p=new URLSearchParams({sheet:autoSelectedSrc,skip:0,top:1});
+  const p=new URLSearchParams({sheet:autoSelectedSrc,skip:0,top:1,hideSent:"1"});
   const st=g("#af-state")?.value||"";const ci=(g("#af-city")?.value||"").trim();
   const wg=parseFloat(g("#af-min-wage")?.value||"0")||0;const wk=parseInt(g("#af-min-workers")?.value||"0")||0;
   if(st)p.append("state",st);if(ci)p.append("city",ci);
@@ -7272,6 +7392,7 @@ async function refreshAutoFilterCount(){
   if(afTitles.length)p.append("titles",afTitles.join(","));
   if(afGrupos.length)p.append("grupos",afGrupos.join(","));
   if(afEtaStatus)p.append("dolStatus",afEtaStatus);
+  if(afBeginMonths.length)p.append("beginMonth",afBeginMonths.join(",")); // v22
   box.style.display="block";box.innerHTML='<span class="spin spin-sm"></span> Contando vagas...';
   try{
     const r=await fetch("/api/sheet-meta?"+p,{credentials:"include"});const d=await r.json();
@@ -7350,7 +7471,7 @@ async function loadTabCounts(){
 // ═══════════════════════════════════════════
 let stmr;
 function onSearch(){clearTimeout(stmr);stmr=setTimeout(()=>{const q=g("#q").value.trim();if(q!==fQ){fQ=q;if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}},350);}
-function applyF(){fState=g("#f-state")?.value||"";fWage=parseFloat(g("#f-wage")?.value||0);fWorkers=parseInt(g("#f-workers")?.value||0);_masterFiltersSyncBadge();renderJobsFilterChips();if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];g("#jlist").innerHTML="";loadSheetMeta(true);}}
+function applyF(){fState=g("#f-state")?.value||"";fWage=parseFloat(g("#f-wage")?.value||0);fWorkers=parseInt(g("#f-workers")?.value||0);fBeginMonths=[..._mfBeginMonths];fSort=g("#mf-sort")?.value||fSort;_masterFiltersSyncBadge();renderJobsFilterChips();if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];g("#jlist").innerHTML="";loadSheetMeta(true);}}
 function setType(t){fType=t;["all","agri","nonag"].forEach(k=>g("#ft-"+k)?.classList.remove("on"));const m={all:"ft-all",agricultural:"ft-agri","non-agricultural":"ft-nonag"};g("#"+m[t])?.classList.add("on");_masterFiltersSyncBadge();if(tab==="seasonal")loadJobs(true);}
 function setStat(s){fStat=s;g("#fs-all")?.classList.toggle("on",s==="all");g("#fs-active")?.classList.toggle("on",s==="active");_masterFiltersSyncBadge();if(tab==="seasonal")loadJobs(true);}
 function setSort(s){fSort=s;g("#so-rand")?.classList.toggle("on",s==="random");g("#so-desc")?.classList.toggle("on",s==="desc");g("#so-asc")?.classList.toggle("on",s==="asc");if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}
@@ -7365,7 +7486,7 @@ async function loadJobs(reset=false){
     const r=await fetch("/api/jobs?"+p,{credentials:"include"});const d=await r.json();
     let jobs=d.jobs||[]; // wage/workers já filtrados pelo servidor
     if(reset)g("#jlist").innerHTML="";
-    var _sj=jobs.filter(function(j){return !_isSentSeasonal(j.id);});
+    var _sj=jobs.filter(function(j){return !_isSentSeasonal(j.id)&&!(typeof empregadorStatus==="function"&&empregadorStatus(j.email));});
     if(!_sj.length&&!JOBS.length){done=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">Nenhuma vaga encontrada.</div>`;}
     else if(_sj.length){_sj.forEach(function(j){JOBS.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkCard(j));});skip+=d.jobs.length;total=d.total||JOBS.length;if(d.jobs.length<PAGE){done=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadJobs()">Carregar mais</button></div>`;}
     const cnt=g("#jcount");if(cnt)cnt.innerHTML=`<strong>${total.toLocaleString()}</strong> vaga${total!==1?"s":""}`;const cc=g("#jfrom-cache");if(cc)cc.style.display=d.from_cache?"":"none";
@@ -7382,21 +7503,26 @@ async function loadSheetMeta(reset=false){
   let _jobsToEnrich=[];
   try{
     const fCity=g("#f-city")?.value.trim()||"";
-    const p=new URLSearchParams({sheet:tab,skip:sSkip,top:PAGE,sort:fSort});if(fQ)p.append("q",fQ);if(fState)p.append("state",fState);if(fCat&&fCat!=="all")p.append("category",fCat);
+    const p=new URLSearchParams({sheet:tab,skip:sSkip,top:PAGE,sort:fSort,hideSent:"1"});if(fQ)p.append("q",fQ);if(fState)p.append("state",fState);if(fCat&&fCat!=="all")p.append("category",fCat);
     if(fTitles.length)p.append("titles",fTitles.join(","));
     // FIX WAGE: mandar filtro de salário e vagas pro servidor (não filtrar no frontend por lote)
     if(fWage>0)p.append("minWage",String(fWage));if(fWorkers>0)p.append("minWorkers",String(fWorkers));
     if(fCity)p.append("city",fCity);
     if(fGrupos.length)p.append("grupos",fGrupos.join(","));
     if(fEtaStatus)p.append("dolStatus",fEtaStatus);
+    if(fBeginMonths.length)p.append("beginMonth",fBeginMonths.join(",")); // v22
     const r=await fetch("/api/sheet-meta?"+p,{credentials:"include"});const d=await r.json();
     if(reset)g("#jlist").innerHTML="";
     if(!d.jobs?.length){sDone=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">${sJobs.length?"Sem mais vagas.":"Nenhuma vaga encontrada."}</div>`;}
     else{
-      // Filtrar vagas já enviadas e as que estão no automático
+      // Filtrar vagas já enviadas e as que estão no automático — por NÚMERO
+      // e também por E-MAIL do empregador (v38: a regra do dono é por e-mail;
+      // o servidor já corta via hideSent, esta é a cinta local)
       var _fj=d.jobs.filter(function(j){
         var cn=j.caseNum||j.id||"";
-        return !_isSent(cn,tab)&&!_inAuto(cn);
+        if(_isSent(cn,tab)||_inAuto(cn))return false;
+        if(j.email&&typeof empregadorStatus==="function"&&empregadorStatus(j.email))return false;
+        return true;
       });
       var _removed=d.jobs.length-_fj.length;
       if(_removed>0&&reset){
@@ -7553,6 +7679,35 @@ function updSheetCard(cn,job){
   }
   if(tge)tge.innerHTML=`${job.active?'<span class="tag tg"><i class="ti ti-check" style="font-size:9px"></i>Ativa</span>':'<span class="tag tr"><i class="ti ti-x" style="font-size:9px"></i>Inativa</span>'}<span class="tag ${job.visa==="H-2A"?"ta":"tb"}">${esc(job.visa||"H-2B")}</span>${job.wage&&job.wage!=="–"?`<span class="tag tg">${esc(job.wage)}</span>`:""}<span class="tag tgr"><i class="ti ti-map-pin" style="font-size:9px"></i>${esc(job.state)}</span>${job.workers>1?`<span class="tag tgr">${job.workers}×</span>`:""}${job.start&&job.start!=="–"?`<span class="tag ta"><i class="ti ti-calendar" style="font-size:9px"></i>${esc(job.start)}</span>`:""}`;
   if(card&&APPLIED.has(cn))card.style.display="none";
+  // 🧹 v38 (dono, 22/07): e-mail descoberto no enriquecimento pertence a
+  // empregador JÁ contatado → o card some NA HORA (a regra é por e-mail do
+  // empregador; o filtro do servidor não alcança vaga que ainda estava sem
+  // e-mail na planilha — esta varredura fecha essa corrida).
+  if(job&&job.email)_sweepContactedCard(cn,job.email);
+}
+
+// 🧹 GUARDA-RAIZ anti-duplicado (dono, 22/07/2026): "se a pessoa enviou,
+// essa vaga não aparece mais pra ela". Empregador já contatado (enviado OU
+// na fila do automático) → vaga varrida da lista no instante em que o
+// e-mail é conhecido — antes do clique quando der, no clique quando não.
+function _sweepContactedCard(cn,email){
+  const st=(typeof empregadorStatus==="function")?empregadorStatus(email):null;
+  if(!st)return null;
+  const card=g("#jcard-s_"+String(cn).replace(/[^a-zA-Z0-9]/g,"_"));
+  if(card&&card.style.display!=="none")card.style.display="none";
+  return st;
+}
+// Mostra a vaga OU varre o card e explica — retorna true se mostrou.
+function _showJobOrSweep(cn,j){
+  const st=_sweepContactedCard(cn,j&&j.email);
+  if(!st){selJob=j;showDetail(mkDetailHTML(j));return true;}
+  selJob=null;
+  const msg=st==="sent"
+    ?"Você já enviou candidatura pra essa empresa — a vaga foi removida da sua lista. (Ela só volta se você resetar os enviados.)"
+    :"Essa empresa está na fila do seu envio automático — o robô cuida dela. Vaga removida da sua lista.";
+  toast(st==="sent"?"🧹 Já enviada — vaga removida da lista.":"🤖 Na fila do automático — vaga removida.","au");
+  showDetail(`<div class="jd-content"><div class="alert al-green" style="margin-top:8px"><i class="ti ti-check"></i><div>${msg}</div></div></div>`);
+  return false;
 }
 
 async function selSheetJob(cn){
@@ -7560,14 +7715,15 @@ async function selSheetJob(cn){
   g("#jcard-s_"+cn.replace(/[^a-zA-Z0-9]/g,"_"))?.classList.add("active");
   const loading=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:40px;color:var(--t3)"><span class="spin spin-lg"></span><div style="font-size:13px;font-weight:600">Carregando detalhes...</div></div>`;
   showDetail(loading);
-  // 1) Cache em memória — mais rápido
-  if(sCache[cn]){const j=sCache[cn];selJob=j;showDetail(mkDetailHTML(j));return;}
+  // 1) Cache em memória — mais rápido (v38: com guarda de empregador contatado)
+  if(sCache[cn]){_showJobOrSweep(cn,sCache[cn]);return;}
   // 2) Já temos o email em sJobs (vem do /api/sheet-meta com email da planilha local)
   //    Usa imediatamente sem esperar o DOL — compatível com DOL offline
   const localMeta=sJobs.find(x=>x.id===cn||x.caseNum===cn);
   if(localMeta&&localMeta.email){
     const j={...localMeta,fromSheet:true};
-    sCache[cn]=j;selJob=j;showDetail(mkDetailHTML(j));
+    sCache[cn]=j;
+    if(!_showJobOrSweep(cn,j))return; // varrida — não enriquece nem abre
     // Tenta enriquecer em background com dados extras do DOL (não bloqueia envio)
     fetch(`/api/sheet-detail?case=${encodeURIComponent(cn)}`,{credentials:"include"})
       .then(r=>r.json()).then(d=>{if(d.job){sCache[cn]={...j,...d.job,email:d.job.email||j.email};updSheetCard(cn,sCache[cn]);}}).catch(()=>{});
@@ -7576,16 +7732,16 @@ async function selSheetJob(cn){
   // 3) Fallback: tenta buscar no servidor (que agora usa planilha local primeiro)
   try{
     const r=await fetch(`/api/sheet-detail?case=${encodeURIComponent(cn)}`,{credentials:"include"});const d=await r.json();
-    if(d.job){sCache[cn]=d.job;updSheetCard(cn,d.job);selJob=d.job;showDetail(mkDetailHTML(d.job));}
+    if(d.job){sCache[cn]=d.job;updSheetCard(cn,d.job);_showJobOrSweep(cn,d.job);}
     else if(localMeta){
       // notFound no DOL mas temos dados locais — usa o que temos
-      const j={...localMeta,fromSheet:true};sCache[cn]=j;selJob=j;showDetail(mkDetailHTML(j));
+      const j={...localMeta,fromSheet:true};sCache[cn]=j;_showJobOrSweep(cn,j);
     } else {
       const meta=localMeta||{};showDetail(`<div class="jd-content"><div style="font-size:15px;font-weight:800;margin-bottom:8px">${esc(meta.company||cn)}</div><div class="alert al-amber"><i class="ti ti-alert-triangle"></i><div>Vaga não encontrada no portal. Tente novamente em alguns minutos.<br><strong>Case:</strong> ${esc(cn)}</div></div></div>`);
     }
   }catch(e){
     // Erro de rede (DOL offline) — se tiver dados locais usa, senão mostra erro
-    if(localMeta){const j={...localMeta,fromSheet:true};sCache[cn]=j;selJob=j;showDetail(mkDetailHTML(j));}
+    if(localMeta){const j={...localMeta,fromSheet:true};sCache[cn]=j;_showJobOrSweep(cn,j);}
     else{showDetail(`<div class="jd-content"><div class="alert al-red"><i class="ti ti-alert-circle"></i>Erro ao carregar vaga: ${esc(e.message)}</div></div>`);}
   }
 }
@@ -7741,7 +7897,7 @@ async function openModal(jobId){
   g("#m-lbar").style.cssText=`width:${pct}%;background:${col}`;
   buildModalProfileSlots(j);
   buildCvSlots();
-  const aib=g("#ai-btn");if(aib)aib.style.display=U.plan!=="free"?"inline-flex":"none";
+  /* v22: ai-btn removido */
   g("#m-sending").style.display="none";g("#m-send").disabled=false;
   g("#modal").classList.remove("gone");
 }
@@ -7824,9 +7980,15 @@ function applyModalProfileById(pid,updateSlots){
     // Se o CV do perfil não está na lista DOCS (cache dessincronizado), injeta a partir do perfil
     if(!DOCS.some(c=>c.idx===p.resumeIdx)&&p.pdfName){DOCS.push({idx:p.resumeIdx,name:p.pdfName,size:p.pdfSize||0,cvType:"resume"});}
   }
+  // v20 (reclamação real, 07/2026): a cover do perfil manda SEMPRE — inclusive
+  // quando é "Nenhuma" (coverIdx null). Antes o null deixava o activeCovIdx
+  // "grudado" no valor anterior (ex.: cover do perfil H-2A), e a carta errada
+  // saía em toda candidatura manual.
   if(p.coverIdx!=null){
     activeCovIdx=p.coverIdx;
     if(!DOCS.some(c=>c.idx===p.coverIdx)&&p.coverName){DOCS.push({idx:p.coverIdx,name:p.coverName,size:p.coverSize||0,cvType:"cover"});}
+  } else {
+    activeCovIdx=null;
   }
   if(updateSlots)buildCvSlots();
 }
@@ -7852,6 +8014,10 @@ function closeModal(){g("#modal").classList.add("gone");curJob=null;_currentModa
 async function doSend(){
   const j=curJob;
   const to=(g("#m-to")?.value||"").trim()||(j&&j.email)||"";
+  // v27: aviso ANTES do clique chegar no servidor (que continua sendo a trava real)
+  const _est=empregadorStatus(to);
+  if(_est==="sent"){g("#m-warn").innerHTML='<div class="alert al-red" style="margin-top:8px"><i class="ti ti-alert-circle"></i><span>✅ Você JÁ enviou para esta empresa — o sistema bloqueia duplicados automaticamente.</span></div>';_sweepContactedCard(j?.caseNum||j?.id||"",to);return;}
+  if(_est==="queued"){g("#m-warn").innerHTML='<div class="alert al-red" style="margin-top:8px"><i class="ti ti-robot"></i><span>🤖 Esta empresa está na fila do seu envio automático — o robô vai enviar sozinho.</span></div>';_sweepContactedCard(j?.caseNum||j?.id||"",to);return;}
   const subj=(g("#m-subj")?.value||"").trim();
   const msg=(g("#m-body")?.value||"").trim();
   const warn=s=>{g("#m-warn").innerHTML=`<div class="alert al-red" style="margin-top:8px"><i class="ti ti-alert-circle"></i><span>${esc(s)}</span></div>`;};
@@ -7904,6 +8070,23 @@ async function doSend(){
       const shc=g("#jcard-"+iid);
       if(shc){shc.style.transition="opacity .3s ease";shc.style.opacity="0";setTimeout(()=>{shc.style.display="none";shc.style.opacity="";shc.style.transition="";updSheetCounter();},320);}
       else{updSheetCounter();}
+      // v27 (reclamação real): o dedup de verdade é por EMPREGADOR (e-mail) —
+      // some TAMBÉM com as vagas irmãs do mesmo empregador que já estão na
+      // tela (o servidor já corta nas próximas páginas via hideSent=1).
+      try{
+        const _sentTo=(to||"").toLowerCase().trim();
+        if(_sentTo)_empSent.add(_sentTo); // v27: bloqueio imediato no front inteiro
+        if(_sentTo&&Array.isArray(sJobs)){
+          for(const sj of sJobs){
+            if(sj&&sj.id!==j.id&&(sj.email||"").toLowerCase().trim()===_sentTo){
+              _sentAll.add(sj.caseNum||sj.id);
+              const sid2="s_"+(sj.id||"").replace(/[^a-zA-Z0-9]/g,"_");
+              const el2=g("#jcard-"+sid2)||g("#jcard-"+sj.id);
+              if(el2){el2.style.transition="opacity .3s ease";el2.style.opacity="0";setTimeout(()=>{el2.style.display="none";},320);}
+            }
+          }
+        }
+      }catch(e){}
       closeMobDetail();
     }
     g("#suc-sub").textContent=`Enviado para ${to}`;g("#suc-rem").textContent=`Restam ${U.manualRemaining} envios manuais hoje`;g("#success-overlay").style.display="flex";
@@ -8067,7 +8250,7 @@ function reviewInviteDismiss(){
   try{localStorage.setItem(_reviewInviteDismissKey(),"1");}catch(e){}
 }
 
-async function aiCover(){const j=curJob;if(!j)return;const btn=g("#ai-btn");btn.disabled=true;btn.innerHTML='<span class="spin spin-sm"></span>';try{const r=await fetch("/api/generate-cover",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({job:j.title,company:j.company,city:j.city,state:j.state,wage:j.wage})});const d=await r.json();if(d.letter){g("#m-body").value=d.letter;toast("Cover Letter gerada ✓","g");}else throw new Error(d.error);}catch(e){toast("Erro: "+e.message,"r");}btn.disabled=false;btn.innerHTML='<i class="ti ti-robot"></i> IA gera';}
+// v22 (ordem do dono): aiCover() removida junto com o /api/generate-cover.
 
 // fill() definida abaixo com suporte a {email}
 
@@ -8409,41 +8592,14 @@ async function saveH2BProfile(){
 // ═══════════════════════════════════════════
 //  SISTEMA DE TEMPLATES & PERFIS
 // ═══════════════════════════════════════════
-const DEFAULT_SUBJECT="H-2B Winter 2026 Application – {nome}";
-const DEFAULT_BODY=`Dear Hiring Manager,\n\nMy name is {nome}, and I am writing to express my strong interest in the {vaga} position at {empresa}.\n\nI am a motivated and reliable worker with experience in hospitality, food service, and general labor. I am fully available for the H-2B Winter 2026 season and ready to relocate.\n\nKey qualifications:\n• Available immediately and flexible with schedule\n• Physically fit and able to work long hours\n• Responsible, punctual, and team-oriented\n• Open to any role that fits your seasonal needs\n\nI would love the opportunity to contribute to your team. Please feel free to contact me at {email} or {telefone}.\n\nThank you for your time and consideration.\n\nBest regards,\n{nome}\n{telefone}\n{email}`;
-const SUBJ_SUGGESTIONS=[
-  "H-2B Winter 2026 Application – {nome}",
-  "Application for {vaga} – {nome}",
-  "Seasonal Worker Application – {vaga} at {empresa}",
-  "H-2B Visa Worker – Available Now – {nome}",
-  "Experienced {vaga} Seeking H-2B Position",
-  "Re: {vaga} Opening at {empresa} – {nome}",
-  "Immediate Availability – {vaga} – {nome}",
-  "H-2A/H-2B Application – {nome} – {vaga}",
-];
-const BUILTIN_TEMPLATES=[
-  {id:"bt-h2b-winter",name:"⭐ H-2B Winter 2026 (Padrão)",category:"general",subject:DEFAULT_SUBJECT,body:DEFAULT_BODY},
-  {id:"bt-formal",name:"Formal Geral",category:"general",subject:"Application for {vaga} – {nome}",body:`Dear Hiring Manager,\n\nI am writing to apply for the {vaga} position at {empresa}. With dedication and a strong work ethic, I am confident in my ability to contribute effectively to your team.\n\nI am available for the full season and eager to bring value to {empresa}.\n\nThank you for your consideration.\n\nSincerely,\n{nome}\n{telefone} | {email}`},
-  {id:"bt-short",name:"Curto e Direto",category:"general",subject:"H-2B Application – {nome} – {vaga}",body:`Dear Hiring Manager,\n\nI am interested in the {vaga} position at {empresa}. I am available, reliable, and ready to start immediately.\n\nPlease contact me at {telefone} or {email}.\n\nBest regards,\n{nome}`},
-  {id:"bt-quick",name:"Quick Apply (ultra-curto)",category:"general",subject:"Application – {vaga}",body:`Hi,\n\nApplying for {vaga} at {empresa}. Available now. Contact: {telefone} / {email}.\n\n{nome}`},
-  {id:"bt-hospitality",name:"Hospitality / Resort",category:"hospitality",subject:"H-2B Hospitality Application – {nome}",body:`Dear Hiring Manager,\n\nI am applying for the {vaga} position at {empresa}. I have experience in hospitality and guest services, and I am passionate about creating excellent experiences for visitors.\n\nI am fully available for the upcoming season and excited to join your team in {pais}.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
-  {id:"bt-hotel",name:"Hotel (Housekeeping/Front Desk)",category:"hospitality",subject:"Hotel Staff Application – {vaga} – {nome}",body:`Dear {empresa} Team,\n\nI am writing to apply for the {vaga} opening. I am experienced in hotel operations including housekeeping, front desk, and guest relations.\n\nI am detail-oriented, professional, and available for the full H-2B season.\n\nThank you,\n{nome}\n{telefone} | {email}`},
-  {id:"bt-construction",name:"Construction",category:"construction",subject:"Construction Worker Application – {nome}",body:`Dear Hiring Manager,\n\nI am applying for the {vaga} position at {empresa}. I am physically fit, experienced with construction tools and safety protocols, and ready to work hard from day one.\n\nAvailable for full season. References available upon request.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
-  {id:"bt-landscape",name:"Landscape / Jardinagem",category:"landscape",subject:"Landscaping Application – {nome} – {vaga}",body:`Dear {empresa},\n\nI would like to apply for the {vaga} position. I have experience in lawn care, planting, irrigation, and general landscaping tasks. I am hardworking and comfortable with outdoor work in all conditions.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
-  {id:"bt-cleaning",name:"Cleaning / Housekeeping",category:"cleaning",subject:"Cleaning Staff Application – {nome}",body:`Dear Hiring Manager,\n\nI am interested in the {vaga} position at {empresa}. I am thorough, efficient, and experienced in commercial and residential cleaning. I take pride in maintaining high standards of cleanliness.\n\nAvailable immediately.\n\n{nome}\n{telefone} | {email}`},
-  {id:"bt-restaurant",name:"Restaurant / Food Service",category:"restaurant",subject:"Food Service Application – {nome} – {vaga}",body:`Dear {empresa} Team,\n\nI am applying for the {vaga} position. I have experience in food preparation, kitchen assistance, and customer service. I work well under pressure and thrive in fast-paced environments.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
-  {id:"bt-warehouse",name:"Warehouse / Depósito",category:"warehouse",subject:"Warehouse Worker Application – {nome}",body:`Dear Hiring Manager,\n\nI am applying for the {vaga} role at {empresa}. I am experienced in warehouse operations including loading, unloading, inventory management, and forklift operation. I am reliable and physically capable.\n\n{nome}\n{telefone} | {email}`},
-  {id:"bt-farm",name:"Farm / Agricultura",category:"farm",subject:"Farm Worker Application – {nome}",body:`Dear {empresa},\n\nI am interested in the {vaga} position. I have experience in agricultural work including planting, harvesting, and equipment operation. I am hardworking, dependable, and available for the full season.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
-  {id:"bt-beginner",name:"Iniciante (sem experiência)",category:"general",subject:"Entry Level Application – {nome} – {vaga}",body:`Dear Hiring Manager,\n\nI am applying for the {vaga} position at {empresa}. Although I am new to this field, I am a fast learner, highly motivated, and committed to giving my best effort every single day.\n\nI am available immediately and willing to work any schedule.\n\nThank you,\n{nome}\n{telefone} | {email}`},
-  {id:"bt-experienced",name:"Trabalhador Experiente",category:"general",subject:"Experienced {vaga} – H-2B Application – {nome}",body:`Dear Hiring Manager,\n\nWith several years of hands-on experience in {vaga} roles, I am confident in my ability to make an immediate impact at {empresa}. My background includes [your experience], and I consistently deliver quality results.\n\nI am available for the full H-2B season.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
-  {id:"bt-bilingual",name:"Bilíngue (PT/EN)",category:"general",subject:"Bilingual Worker – {vaga} – {nome}",body:`Dear Hiring Manager / Prezado Contratante,\n\nI am applying for the {vaga} position at {empresa}. I am bilingual (Portuguese/English) which allows me to communicate effectively in diverse environments.\n\nI am hardworking, adaptable, and available immediately.\n\nBest regards / Atenciosamente,\n{nome}\n{telefone} | {email}`},
-  {id:"bt-professional",name:"Apresentação Profissional",category:"general",subject:"Professional Application – {vaga} at {empresa} – {nome}",body:`Dear Hiring Manager,\n\nI am reaching out to express my sincere interest in the {vaga} opportunity at {empresa}. After researching your organization, I am impressed by your reputation and believe my skills align well with your needs.\n\nI bring dedication, professionalism, and a strong commitment to excellence. I am available for the upcoming season and would welcome the chance to speak with you.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
-  {id:"bt-seasonal",name:"Seasonal Resumido",category:"general",subject:"Seasonal Worker – {vaga} – Available Now",body:`Hi {empresa} Team,\n\nLooking for seasonal staff? I am available for {vaga} — hardworking, reliable, no visa issues, ready to start.\n\n{nome} | {telefone} | {email}`},
-  {id:"bt-maintenance",name:"Maintenance / Manutenção",category:"construction",subject:"Maintenance Worker Application – {nome}",body:`Dear Hiring Manager,\n\nI am applying for the {vaga} position at {empresa}. I have experience in general maintenance, repairs, plumbing basics, electrical assistance, and HVAC support. I am dependable and safety-conscious.\n\n{nome}\n{telefone} | {email}`},
-  {id:"bt-driver",name:"Driver / Motorista",category:"general",subject:"Driver Application – {nome} – {vaga}",body:`Dear {empresa},\n\nI am applying for the {vaga} driver position. I have a clean driving record, experience with [vehicle types], and I am punctual and safety-focused. Available for full season.\n\n{nome}\n{telefone} | {email}`},
-  {id:"bt-retail",name:"Retail / Varejo",category:"general",subject:"Retail Staff Application – {nome}",body:`Dear Hiring Manager,\n\nI am interested in the {vaga} position at {empresa}. I have experience in retail sales, inventory, and customer service. I am friendly, organized, and motivated to provide excellent service.\n\n{nome}\n{telefone} | {email}`},
-  {id:"bt-concierge",name:"Concierge / Atendimento",category:"hospitality",subject:"Concierge Application – {nome}",body:`Dear {empresa} Team,\n\nI am applying for the {vaga} (Concierge/Guest Services) position. I am fluent in guest communication, knowledgeable about local attractions, and dedicated to creating memorable experiences.\n\nBest regards,\n{nome}\n{telefone} | {email}`},
-];
+// v22 (ORDEM DO DONO, 21/07/2026): NENHUM texto padrão. Os ~20 templates
+// prontos, o assunto/corpo "de fábrica" e as sugestões de assunto foram
+// removidos — candidatura é escrita pelo próprio usuário, sempre. As
+// constantes ficam vazias pra não quebrar quem as referencia.
+const DEFAULT_SUBJECT="";
+const DEFAULT_BODY="";
+const SUBJ_SUGGESTIONS=[];
+const BUILTIN_TEMPLATES=[];
 
 let UTPL=[],UPROFILES=[],tplCurId=null,tplCurBuiltin=false,
     tplCatFilter="all",pickerCatFilter="all",
@@ -9350,9 +9506,10 @@ async function deleteProfile(id){
 
 async function toggleProfileStatus(id){
   const p=UPROFILES.find(x=>x.id===id);if(!p)return;
-  const updated={...p,active:p.active===false};
   try{
-    const r=await fetch("/api/profiles/save",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(updated)});
+    // v21: endpoint dedicado — o save exigia mínimo de 3 assuntos/corpos e
+    // impedia até DESATIVAR um perfil legado incompleto
+    const r=await fetch("/api/profiles/toggle",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,active:p.active===false})});
     const d=await jsonSafe(r);if(!d.ok)throw new Error(d.error);
     const idx=UPROFILES.findIndex(x=>x.id===d.profile.id);
     if(idx>=0)UPROFILES[idx]=d.profile;U.profiles=UPROFILES;
@@ -9635,7 +9792,7 @@ function openModalFromHist(jobJSON){
     g("#m-lim-lbl").textContent="Envios manuais hoje";g("#m-lim-num").textContent=`${U.todaySentManual}/${U.manualLimit}`;
     g("#m-lbar").style.cssText=`width:${pct}%;background:${col}`;
     buildCvSlots();
-    const aib=g("#ai-btn");if(aib)aib.style.display=U.plan!=="free"?"inline-flex":"none";
+    /* v22: ai-btn removido */
     g("#m-sending").style.display="none";g("#m-send").disabled=false;
     g("#modal").classList.remove("gone");setTimeout(()=>g("#m-to").focus(),300);
   }catch(e){toast("Erro ao abrir reenvio","r");console.error(e);}
@@ -9669,6 +9826,18 @@ async function doClearHist(ovEl){
   ovEl?.remove();
   APPLIED.clear();HIST=[];
   updHistBadge();renderHist();
+  // v38-FIX (caça ativa, 22/07): o reset limpava o SERVIDOR e os cards
+  // visíveis, mas DEIXAVA os conjuntos de bloqueio da sessão — _empSent
+  // (por e-mail do empregador, usado pela varredura e pelo modal) e
+  // _sentAll/_sentJan/_sentJul/_sentSeasonal (por número da vaga, usados
+  // pelo filtro da lista). Resultado real: logo após resetar, as vagas
+  // voltavam… e SUMIAM de novo na primeira varredura, ou bloqueavam no
+  // clique — o CONTRÁRIO da regra ("resetou, tudo volta"). Agora o reset
+  // zera os conjuntos locais, espera o servidor limpar e re-sincroniza.
+  _empSent=new Set();
+  _sentAll=new Set();_sentJan=new Set();_sentJul=new Set();_sentSeasonal=new Set();
+  window._sheetAvail={}; // contagens pessoais do wizard recalculam do zero
+  sCache={}; // detalhes cacheados podem re-mostrar sem medo — servidor decide
   // Faz todas as vagas reaparecerem na lista
   document.querySelectorAll(".jcard").forEach(c=>{
     if(c.style.display==="none"||c.classList.contains("applied")){
@@ -9679,6 +9848,12 @@ async function doClearHist(ovEl){
   updSheetCounter();
   toast("Resetado — todas as vagas voltaram à lista ✓","g");
   try{await fetch("/api/history/clear",{method:"POST",credentials:"include"});}catch{}
+  // Re-sincroniza com o servidor JÁ LIMPO (a fila do automático, se existir,
+  // CONTINUA bloqueando — correto: ela ainda vai enviar) e recarrega a lista
+  // pra paginação/contagem virem do servidor sem os cortes antigos.
+  try{if(typeof loadEmpregadoresBloqueados==="function")loadEmpregadoresBloqueados();}catch{}
+  try{if(typeof _loadSentIds==="function"){_sentLoaded=false;_loadSentIds();}}catch{}
+  try{if(typeof tab!=="undefined"&&tab!=="seasonal"){sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}catch{}
 }
 
 // 🔄 Reset direto da aba AUTOMÁTICO (dono, 18/07/2026): cliente no WhatsApp
@@ -10301,10 +10476,32 @@ function openPreflightModal(){
   const durPerDay=hpd>0?(mpd>0?`${hpd}h${mpd}min`:`${hpd}h`):`${mpd}min`;
   const intervalLbl=_activeSenders>1?`${(5/_activeSenders).toFixed(1)}–${(6/_activeSenders).toFixed(1)} min`:"5–6 min";
 
-  g("#pf-count").textContent="Auto";
+  // Contagem HONESTA no lugar do antigo "Auto": disponibilidade PESSOAL da
+  // fonte (já buscada no Passo 2 via /api/my-availability). "~" porque os
+  // filtros avançados (cargo, estado...) só são aplicados na hora do início.
+  const _pfAvail=window._sheetAvail?.[autoSelectedSrc]||null;
+  let _pfN=null;
+  if(_pfAvail){
+    if(autoSelectedCats&&autoSelectedCats.length){
+      const _pfKeys=new Set(autoSelectedCats.flatMap(c=>String(c).split(",")));
+      _pfN=[..._pfKeys].reduce((s,k)=>s+(_pfAvail.byCategory?.[k]||0),0);
+    }else{
+      _pfN=_pfAvail.available;
+    }
+  }
+  g("#pf-count").textContent=(_pfN!=null&&isFinite(_pfN))?"~"+_pfN.toLocaleString("pt-BR"):"–";
   g("#pf-duration").textContent=durPerDay;
   if(g("#pf-interval"))g("#pf-interval").textContent=intervalLbl;
   g("#pf-subtitle").textContent=_activeSenders>1?`${autoLimit} e-mails/dia • intervalo ${intervalLbl} (${_activeSenders} Gmails revezando) • servidor sempre ligado`:`${autoLimit} e-mails/dia • intervalo 5–6 min • servidor sempre ligado`;
+
+  // Aviso Gmail com os números REAIS do usuário (limite oficial do Google:
+  // 500 e-mails por janela móvel de 24h por conta; exceder repetido pode
+  // travar a conta por até 24h — support.google.com/mail/answer/22839)
+  const _gw=g("#pf-gmail-warning");
+  if(_gw){
+    const _perGmail=Math.ceil(autoLimit/_activeSenders);
+    _gw.innerHTML=`<strong>⚠️ Limite do Google:</strong> cada Gmail aceita até <strong>500 e-mails por janela de 24h</strong> — insistir acima disso pode travar a conta por 1 dia. Seu automático envia até <strong>${autoLimit}/dia</strong>${_activeSenders>1?` revezando entre <strong>${_activeSenders} Gmails</strong> (~${_perGmail} por conta)`:""}, dentro do limite. Só lembre: envios manuais do mesmo Gmail contam nessa mesma janela.`;
+  }
 
   // Pre-fill horário
   const sh=g("#af-start-h")?.value||"8";
@@ -10433,7 +10630,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
     const allCases=[];const caseMeta={};
     let sk=0;const pageSize=50;
     while(allCases.length<limit){
-      const p=new URLSearchParams({sheet:autoSelectedSrc,skip:sk,top:Math.min(pageSize,limit-allCases.length)});
+      const p=new URLSearchParams({sheet:autoSelectedSrc,skip:sk,top:Math.min(pageSize,limit-allCases.length),hideSent:"1"});
       if(state)p.append("state",state);
       if(keyword)p.append("q",keyword);
       if(autoSelectedCats&&autoSelectedCats.length>0)p.append("category",autoSelectedCats.join(","));else if(autoSelectedCat&&autoSelectedCat!=="all")p.append("category",autoSelectedCat);
@@ -10447,6 +10644,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
       if(afTitles.length)p.append("titles",afTitles.join(","));
       if(afGrupos.length)p.append("grupos",afGrupos.join(","));
       if(afEtaStatus)p.append("dolStatus",afEtaStatus);
+      if(afBeginMonths.length)p.append("beginMonth",afBeginMonths.join(",")); // v22
       const r=await fetch("/api/sheet-meta?"+p,{credentials:"include"});
       const d=await r.json();
       if(!d.jobs?.length)break;
@@ -10469,7 +10667,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
     }
     if(!allCases.length){
       toast("Nenhuma vaga encontrada com esses filtros.","r");
-      btn.disabled=false;btn.innerHTML='<i class="ti ti-rocket" style="font-size:20px"></i><span>Iniciar Envio Automático</span>';
+      btn.disabled=false;btn.innerHTML='<i class="ti ti-rocket" style="font-size:22px"></i><span>🤖 Começar Envio Automático</span>';
       return;
     }
 
@@ -10485,7 +10683,11 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
                    : (autoResIdx !== null && autoResIdx !== undefined) ? autoResIdx
                    : (activeResIdx !== null && activeResIdx !== undefined) ? activeResIdx
                    : null;
-    let _coverIdx  = (_selAutoProfile&&_selAutoProfile.coverIdx!=null) ? _selAutoProfile.coverIdx
+    // v20 (reclamação real, 07/2026): se o usuário escolheu um perfil no
+    // Passo 3, a cover DELE manda SEMPRE — coverIdx null é "Nenhuma" (escolha
+    // explícita), não "pegue qualquer uma". Sem perfil escolhido, só entra
+    // cover escolhida explicitamente no painel — nunca a de outro perfil.
+    let _coverIdx  = _selAutoProfile ? (_selAutoProfile.coverIdx!=null?_selAutoProfile.coverIdx:null)
                    : (autoCovIdx !== null && autoCovIdx !== undefined) ? autoCovIdx
                    : (activeCovIdx !== null && activeCovIdx !== undefined) ? activeCovIdx
                    : null;
@@ -10493,10 +10695,6 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
     if (_resumeIdx == null) {
       const prfWithCv = activeProfiles.find(pr => pr.resumeIdx != null);
       if (prfWithCv) _resumeIdx = prfWithCv.resumeIdx;
-    }
-    if (_coverIdx == null) {
-      const prfWithCover = activeProfiles.find(pr => pr.coverIdx != null);
-      if (prfWithCover) _coverIdx = prfWithCover.coverIdx;
     }
     // Fallback final: primeiro PDF tipo "resume" em DOCS
     if (_resumeIdx == null && typeof DOCS !== "undefined" && Array.isArray(DOCS)) {
@@ -10519,7 +10717,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
         mode:_mode,
         senders:getSelectedAutoSenders(),
         profileId:autoSelectedProfileId||null,
-        filters:{state,keyword,limit,category:autoSelectedCat,minWage,hasEmail,titles:afTitles,grupos:afGrupos,dolStatus:afEtaStatus}
+        filters:{state,keyword,limit,category:autoSelectedCat,minWage,hasEmail,titles:afTitles,grupos:afGrupos,dolStatus:afEtaStatus,beginMonths:afBeginMonths,city:(g("#af-city")?.value||"").trim(),minWorkers:parseInt(g("#af-min-workers")?.value||"0")||0}
       })
     });
     const data=await resp.json();
@@ -10552,19 +10750,25 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
       setTimeout(()=>{const lv=g("#auto-live-section");const wz=g("#auto-wizard");if(lv)lv.style.display="block";if(wz)wz.style.display="none";if(typeof loadAutoLogs==="function")loadAutoLogs();},100);
       toast(`🔧 Seu robô estava travado (parado sem avisar) — reiniciei ele agora. ${data.queueSize} vaga(s) na fila.`,"g");
       btn.disabled=false;
-      btn.innerHTML='<i class="ti ti-rocket" style="font-size:20px"></i><span>Iniciar Envio Automático</span>';
+      btn.innerHTML='<i class="ti ti-rocket" style="font-size:22px"></i><span>🤖 Começar Envio Automático</span>';
       return;
     }
     if(data.skippedAlreadySent>0){
       toast(`🧹 ${data.skippedAlreadySent.toLocaleString()} vaga(s) já enviadas antes ficaram de fora — fila só com vagas novas: ${data.queueSize.toLocaleString()}`,"g");
     }
+    // v23: fila tem vagas de um tipo de visto sem perfil correspondente — avisa
+    if(data.visaWarning&&data.visaWarning.message){
+      setTimeout(()=>toast(data.visaWarning.message,"r"),1200);
+    }
     // FIX-3: popula _autoQueueIds imediatamente ao iniciar para ocultar do manual
     if(data.queueIds&&data.queueIds.length){_autoQueueIds=new Set(data.queueIds);}else{try{const _as=await fetch("/api/auto/status",{credentials:"include"}).then(r=>r.json());_autoQueueIds=new Set(_as.autoQueueIds||[]);}catch{}}
+    loadEmpregadoresBloqueados(); // v27: fila nova entra no bloqueio de todas as telas
     _syncAutoQueueVisibility(); // FIX: oculta vagas do manual imediatamente
     U.autoJob={...U.autoJob,mode:_mode};
     updateLimChip();updateAutoDot(true);updateAutoUI();startAutoPolling();
     // Fecha o wizard e abre direto o painel de monitoramento
-    setTimeout(()=>{const lv=g("#auto-live-section");const wz=g("#auto-wizard");if(lv)lv.style.display="block";if(wz)wz.style.display="none";if(typeof loadAutoLogs==="function")loadAutoLogs();},100);
+    setTimeout(()=>{const lv=g("#auto-live-section");const wz=g("#auto-wizard");if(lv)lv.style.display="block";if(wz)wz.style.display="none";if(typeof loadAutoLogs==="function")loadAutoLogs();
+      renderPushAsk("auto-push-ask","Seu robô trabalha com o app fechado — ative as notificações pra ele te avisar do progresso e se parar por algum motivo.");},100);
     const msg=_mode==="now"
       ?`🟢 Enviando agora! Contínuo até zerar a fila.`
       :(nowH>=startH&&nowH<endH
@@ -10577,7 +10781,7 @@ async function startAuto(overrideStartH, overrideEndH, _mode="now"){
     console.error("[startAuto]",e);
   }
   btn.disabled=false;
-  btn.innerHTML='<i class="ti ti-rocket" style="font-size:20px"></i><span>Iniciar Envio Automático</span>';
+  btn.innerHTML='<i class="ti ti-rocket" style="font-size:22px"></i><span>🤖 Começar Envio Automático</span>';
 }
 
 async function pauseAuto(){try{await fetch("/api/auto/pause",{method:"POST",credentials:"include"});U.autoJob={...U.autoJob,active:false,status:"paused"};updateAutoUI();updateLimChip();toast("Pausado","au");}catch(e){toast("Erro","r");}}
@@ -10731,13 +10935,36 @@ function updateAutoUI(){
 
   // Status banner
   const banner=g("#auto-status-banner");const txt=g("#auto-status-text");const sub=g("#auto-status-sub");
-  const statusLabels={starting:"🟡 Iniciando...",sending:"🟢 Enviando...",paused:"⏸ Pausado",paused_no_session:"⚠️ Faça login novamente",finished:"✅ Concluído",resuming:"🟢 Retomando...",waiting_interval:"⏳ Aguardando intervalo...",waiting_hour:"⏳ Aguardando...",waiting_limit:"📊 Limite diário atingido"};
+  // v39 (caça ativa, 22/07): mapa COMPLETO de status — antes, os status de
+  // FALHA (auth_error, token revogado, rate-limit do Google, fila
+  // recarregada...) apareciam como CÓDIGO CRU EM INGLÊS pro usuário leigo,
+  // justo nos momentos em que ele mais precisava de instrução. Cada falha
+  // agora tem rótulo claro em PT + a linha de baixo diz O QUE FAZER.
+  const statusLabels={starting:"🟡 Iniciando...",sending:"🟢 Enviando...",paused:"⏸ Pausado",
+    paused_no_session:"⚠️ Faça login novamente",finished:"✅ Concluído",resuming:"🟢 Retomando...",
+    recovering:"🟢 Retomando...",recovered:"🟢 Retomando...",refilled:"🔄 Fila recarregada — enviando...",
+    waiting_interval:"⏳ Aguardando intervalo...",waiting_hour:"⏳ Aguardando horário...",
+    waiting_limit:"📊 Limite diário atingido",
+    waiting_rate_limit:"⏳ O Google pediu uma pausa — retomamos sozinhos",
+    paused_auth_error:"⛔ Pausado — reconecte seu Gmail",
+    paused_token_revoked:"🔐 Acesso Google revogado — faça login de novo",
+    paused_no_refresh_token:"🔐 Faça login de novo para reativar",
+    paused_corrupt_queue:"❌ Fila com problema — reinicie o automático",
+    paused_no_vip:"⏸ Pausado"};
+  const statusHints={
+    paused_auth_error:"Abra Configurações e conecte sua conta Google de novo — sua fila continua salva.",
+    paused_token_revoked:"Saia e faça login com o Google de novo — sua fila continua salva.",
+    paused_no_refresh_token:"Faça login com o Google de novo — sua fila continua salva.",
+    paused_no_session:"Entre de novo com o Google — sua fila continua salva.",
+    paused_corrupt_queue:"Toque em Parar e inicie o automático de novo.",
+    waiting_rate_limit:"Proteção normal do Gmail contra spam — nada a fazer, o robô retoma sozinho."};
   if(banner){banner.className="auto-status-banner "+(active?"asb-sending":j.status==="finished"?"asb-done":"asb-paused");}
-  if(txt)txt.textContent=statusLabels[j.status]||j.status||"–";
+  if(txt)txt.textContent=statusLabels[j.status]||("⏸ "+(j.status||"–"));
 
   // Next send countdown — roda em tempo real (atualiza a cada 1s)
+  // v39: waiting_rate_limit também tem nextSendAt — agora mostra contagem
   if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}
-  if(j.nextSendAt&&(j.status==="waiting_interval"||j.status==="waiting_hour"||j.status==="waiting_limit")&&sub){
+  if(j.nextSendAt&&(j.status==="waiting_interval"||j.status==="waiting_hour"||j.status==="waiting_limit"||j.status==="waiting_rate_limit")&&sub){
     const updateCountdown=()=>{
       const left=Math.max(0,Math.round((j.nextSendAt-Date.now())/1000));
       if(left===0){sub.textContent="Enviando em instantes...";if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}return;}
@@ -10746,7 +10973,7 @@ function updateAutoUI(){
     };
     updateCountdown();
     _autoCountdown=setInterval(updateCountdown,1000);
-  } else if(sub)sub.textContent="";
+  } else if(sub)sub.textContent=statusHints[j.status]||"";
 
   // Dashboard
   const stats=U.autoStats||{};
@@ -11565,6 +11792,22 @@ function dismissNotifBanner(){
   const b=g("#inbox-notif-banner");if(b)b.style.display="none";
 }
 
+// v36: convite de push nos MOMENTOS de maior motivação (ligou o robô /
+// enviou o pedido) — o banner antigo só vivia na aba Respostas, e todos os
+// avisos importantes (robô parou, plano ativado, renovação, notícia) são
+// push. Só aparece se a permissão ainda não foi decidida (default), e o
+// clique é gesto do usuário (exigência dos navegadores).
+function renderPushAsk(elId,msg){
+  const el=g("#"+elId);if(!el)return;
+  if(!("Notification" in window)||Notification.permission!=="default"){el.style.display="none";return;}
+  el.style.display="block";
+  el.innerHTML=`<div style="background:linear-gradient(135deg,#eff6ff,#e0e7ff);border:1.5px solid var(--blueb);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:10px;margin:10px 0">
+    <div style="font-size:20px;flex-shrink:0">🔔</div>
+    <div style="flex:1;font-size:12px;color:var(--t2);line-height:1.45">${msg}</div>
+    <button onclick="requestPushPermission();g('#${elId}').style.display='none'" style="background:var(--blue);color:#fff;border:none;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;flex-shrink:0">Ativar</button>
+  </div>`;
+}
+
 async function requestPushPermission(){
   if(!("Notification" in window)){toast("Seu navegador não suporta notificações","r");return;}
   const p=await Notification.requestPermission().catch(()=>"denied");
@@ -11574,6 +11817,11 @@ async function requestPushPermission(){
     _renderNotifToggle();
     playPlaneSound();
     toast("🔔 Notificações ativadas! Você será avisado de novas respostas.","g");
+    // v36-FIX: registra a INSCRIÇÃO no servidor JÁ — sem isso a permissão
+    // ficava concedida mas o servidor só ganhava a subscription na PRÓXIMA
+    // visita (o timer de 4s pós-load já tinha passado), e os robôs
+    // (renovação, robô parado, plano ativado) falavam com o vazio até lá.
+    try{if(typeof _registerPushSubscription==="function")await _registerPushSubscription();}catch{}
     // Testa notificação imediatamente
     try{new Notification("✅ H2BApply",{body:"Notificações ativadas! Você será avisado de novas respostas.",icon:"/icon-192.png",tag:"h2b-test"});}catch{}
   }else if(p==="denied"){
@@ -12488,8 +12736,9 @@ function renderResetCard(){
   if(!U.connected){box.style.display="none";return;}
   const v=U.vip||{};
   const pagoAtivo = v.source==="payment" && (v.manualActive||v.autoActive);
-  // Some se: já tem VIP pago ativo, OU o usuário fechou no X nesta sessão.
-  box.style.display = (pagoAtivo || _resetCardDismissed) ? "none" : "block";
+  // Some se: já tem VIP pago ativo, é ADMIN (v30 — dono não precisa de upsell
+  // do próprio produto), OU o usuário fechou no X nesta sessão.
+  box.style.display = (pagoAtivo || U.isAdmin || _resetCardDismissed) ? "none" : "block";
 }
 
 // ── Card "pedido em análise" (2026-07) ──────────────────────────────────
@@ -12529,11 +12778,32 @@ async function renderPendingOrderCard(){
     </div>
   </div>`;
 }
+// v42 (padrão consagrado de widget de notícia: manchete ÚNICA, informativa,
+// 1 toque abre a aba — sem carrossel): usa o cache que o badge de não-lida
+// já busca 4s após o boot; zero requisição extra.
+function renderNoticiaHomeCard(){
+  const box=g("#home-noticia-card");if(!box)return;
+  const d=(typeof _noticiasCache!=="undefined")?_noticiasCache:null;
+  const n=d&&d.items&&d.items[0];
+  const t=n&&(n.titlePT||n.titleEN);
+  if(!t){box.style.display="none";return;}
+  const[,m,dd]=String(n.date||"").split("-");
+  box.style.display="block";
+  box.innerHTML=`<div onclick="sv('noticias');loadNoticias()" style="background:linear-gradient(135deg,#eff6ff,#e0e7ff);border:1.5px solid var(--blueb);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:11px;cursor:pointer">
+    <div style="width:40px;height:40px;border-radius:11px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.06)">📰</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:10px;font-weight:800;color:#1d4ed8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:1px">${n.importante?"⚡ Notícia importante":"Última notícia H-2B/H-2A"}${dd?` · ${dd}/${m}`:""}</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${esc(t)}</div>
+    </div>
+    <i class="ti ti-chevron-right" style="color:var(--t3);flex-shrink:0"></i>
+  </div>`;
+}
 function renderHome(){
   _showWelcome();
   try{renderNextStep();}catch(e){}
   try{renderResetCard();}catch(e){}
   try{renderPendingOrderCard();}catch(e){}
+  try{renderNoticiaHomeCard();}catch(e){}
 
   // ── Banner VIP expirando — DESATIVADO a pedido do Andrio (28/06/2026) ──
   // Estava fixo no topo (position:fixed) cobrindo o header → "atrapalhando".
@@ -13137,6 +13407,8 @@ if ("serviceWorker" in navigator) {
           sv(tab);
           // Se foi para respostas, toca o som selecionado
           if (tab === "respostas" && msg.sound) playNotifSound(msg.sound);
+          // v26: notificação de notícia H-2B/H-2A abre a aba já carregada
+          if (tab === "noticias" && typeof loadNoticias === "function") loadNoticias(true);
         }, 200);
       }
     }
@@ -14978,6 +15250,276 @@ function _showWelcome(){
 }
 </script>
 
+<script>
+// ══ 📰 v26: NOTÍCIAS DO DOL — carregamento e renderização ══
+let _noticiasCache=null,_noticiasAt=0;
+async function loadNoticias(force){
+  const box=g("#noticias-list");if(!box)return;
+  if(!force&&_noticiasCache&&Date.now()-_noticiasAt<120000){_renderNoticias(_noticiasCache);return;}
+  box.innerHTML='<div style="text-align:center;padding:30px"><span class="spin"></span></div>';
+  try{
+    const d=await fetch("/api/noticias",{credentials:"include"}).then(r=>r.json());
+    if(!d.ok)throw new Error(d.error||"erro");
+    _noticiasCache=d;_noticiasAt=Date.now();
+    _renderNoticias(d);
+    try{localStorage.setItem("h2b_noticias_seen",String(Date.now()));}catch(e){}
+    const bg=g("#noticias-new-badge");if(bg)bg.style.display="none";
+    const sb=g("#sib-noticias");if(sb)sb.style.display="none";
+  }catch(e){
+    box.innerHTML='<div style="text-align:center;padding:26px;color:var(--t3);font-size:13px;line-height:1.6">Não consegui carregar agora.<br>Tente de novo em instantes.<br><br><a href="https://www.dol.gov/agencies/eta/foreign-labor/news" target="_blank" rel="noopener" style="color:var(--blue);font-weight:700">Ver direto na fonte oficial ↗</a></div>';
+  }
+}
+// v41: filtro de 1 toque na aba Notícias — com a lista crescendo todo dia
+// (DOL + pesquisa IA), o usuário acha o que importa sem rolar tudo.
+let _notFiltro="all";
+function setNotFiltro(f){_notFiltro=f;if(_noticiasCache)_renderNoticias(_noticiasCache);}
+function _renderNoticias(d){
+  const box=g("#noticias-list");if(!box)return;
+  const all=d.items||[];
+  const items=all.filter(n=>_notFiltro==="dol"?n.origem!=="ia":_notFiltro==="ia"?n.origem==="ia":_notFiltro==="imp"?n.importante===true:true);
+  const chip=(f,lbl)=>`<button onclick="setNotFiltro('${f}')" style="border:1.5px solid ${_notFiltro===f?"var(--blue)":"var(--border2)"};background:${_notFiltro===f?"rgba(37,99,235,.1)":"var(--surface)"};color:${_notFiltro===f?"var(--blue)":"var(--t2)"};border-radius:20px;padding:5px 12px;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit">${lbl}</button>`;
+  const chipsHtml=all.length>5?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${chip("all",`Tudo (${all.length})`)}${chip("dol","🏛️ DOL")}${chip("ia","🔎 Pesquisa IA")}${chip("imp","⚡ Importantes")}</div>`:"";
+  if(!items.length&&all.length){
+    box.innerHTML=chipsHtml+'<div style="text-align:center;padding:20px;color:var(--t3);font-size:13px">Nada nesse filtro ainda.</div>';
+    return;
+  }
+  if(!all.length){
+    box.innerHTML='<div style="text-align:center;padding:26px;color:var(--t3);font-size:13px;line-height:1.7">📰 Ainda estamos coletando os anúncios do DOL.<br>O robô confere a página oficial a cada 10 minutos — volte em breve!<br><br><a href="'+esc(d.fonte||"https://www.dol.gov/agencies/eta/foreign-labor/news")+'" target="_blank" rel="noopener" style="color:var(--blue);font-weight:700">Ver a página oficial ↗</a></div>';
+    return;
+  }
+  const fmtD=iso=>{const[y,m,dd]=String(iso).split("-");return `${dd}/${m}/${y}`;};
+  const NOW=Date.now(),SEVEN=7*86400000;
+  // v44: cabeçalho de MÊS (linha do tempo — padrão de feed cronológico com
+  // agrupamento estável). Só aparece quando a lista é longa (>8).
+  const MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const agrupar=items.length>8;
+  let _mesAnt="";
+  box.innerHTML=
+    '<div style="font-size:11px;color:var(--t3);margin-bottom:10px;line-height:1.5">Tudo que o Departamento de Trabalho dos EUA (DOL) publica sobre vistos de trabalho, traduzido automaticamente. Fonte oficial: <a href="'+esc(d.fonte)+'" target="_blank" rel="noopener" style="color:var(--blue);font-weight:700">dol.gov ↗</a>'+(d.atualizadoEm?' · conferido '+new Date(d.atualizadoEm).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"")+'</div>'+
+    chipsHtml+
+    items.map(n=>{
+      let mesHdr="";
+      if(agrupar){
+        const[yy,mm]=String(n.date||"").split("-");
+        const mesKey=`${yy}-${mm}`;
+        if(mesKey!==_mesAnt&&yy&&mm){
+          _mesAnt=mesKey;
+          mesHdr=`<div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin:14px 2px 8px">📅 ${MESES[parseInt(mm,10)-1]||mm} ${yy}</div>`;
+        }
+      }
+      const isNew=(NOW-new Date(n.date+"T12:00:00Z").getTime())<SEVEN;
+      const titulo=n.titlePT||n.titleEN;
+      const pendente=!n.titlePT;
+      const isIA=n.origem==="ia";
+      return mesHdr+`<div style="background:var(--surface);border:1.5px solid ${n.importante?"rgba(239,68,68,.45)":isNew?"var(--blueb, rgba(37,99,235,.4))":"var(--border)"};border-radius:14px;padding:13px 14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+          <span style="font-size:10.5px;font-weight:800;color:var(--blue);background:rgba(37,99,235,.1);border-radius:6px;padding:2px 8px">📅 ${fmtD(n.date)}</span>
+          <span style="font-size:9.5px;font-weight:800;border-radius:6px;padding:2px 8px;${isIA?"color:#7c3aed;background:rgba(124,58,237,.1)":"color:#0f766e;background:rgba(15,118,110,.1)"}">${isIA?"🔎 Pesquisa IA":"🏛️ DOL oficial"}</span>
+          ${n.importante?'<span style="font-size:9px;font-weight:800;background:var(--red);color:#fff;border-radius:99px;padding:2px 7px">⚡ IMPORTANTE</span>':isNew?'<span style="font-size:9px;font-weight:800;background:var(--red);color:#fff;border-radius:99px;padding:2px 7px">NOVA</span>':""}
+          ${pendente?'<span style="font-size:9px;font-weight:700;color:var(--amber)">🌐 tradução a caminho…</span>':""}
+        </div>
+        <div style="font-size:14px;font-weight:800;line-height:1.4;margin-bottom:${n.resumoPT?"6px":"8px"}">${esc(titulo)}</div>
+        ${n.resumoPT?`<div style="font-size:12.5px;color:var(--t2);line-height:1.6;margin-bottom:8px">${esc(n.resumoPT)}</div>`:""}
+        ${(n.titlePT&&n.titleEN)?`<div style="font-size:10.5px;color:var(--t3);font-style:italic;margin-bottom:8px">Original: "${esc(n.titleEN)}"</div>`:""}
+        <a href="${esc(n.url)}" target="_blank" rel="noopener" style="font-size:11.5px;font-weight:800;color:var(--blue);text-decoration:none">🔗 Fonte: ${esc(n.fonte||"DOL")} ↗</a>
+      </div>`;
+    }).join("");
+}
+// Badge NOVA no menu: se a notícia mais recente é mais nova que a última visita à aba
+setTimeout(async()=>{
+  try{
+    if(typeof U==="undefined"||!U.connected)return;
+    const d=await fetch("/api/noticias",{credentials:"include"}).then(r=>r.json());
+    if(!d.ok||!d.items?.length)return;
+    _noticiasCache=d;_noticiasAt=Date.now();
+    const seen=parseInt(localStorage.getItem("h2b_noticias_seen")||"0",10);
+    const newest=new Date(d.items[0].date+"T12:00:00Z").getTime();
+    if(newest>seen){const bg=g("#noticias-new-badge");if(bg)bg.style.display="inline";const sb=g("#sib-noticias");if(sb)sb.style.display="";}
+    try{if(curView==="home")renderNoticiaHomeCard();}catch(e){} // v42: cache chegou — pinta a manchete da Home
+  }catch(e){}
+},4000);
+</script>
+<!-- ══ 🤖 IA FLUTUANTE (v25, pedido do dono): assistente sempre à mão ══
+     Botão fixo que abre um painel de chat MINIMIZÁVEL por cima de qualquer
+     tela — pergunta sobre H-2B, experiências reais da equipe e uso do app
+     sem sair do que estava fazendo. Mesmo backend do IA Chat (/api/gemini). -->
+<style>
+#ia-fab{position:fixed;right:14px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:900;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#0891b2,#6366f1);color:#fff;border:none;box-shadow:0 6px 20px rgba(8,145,178,.45);font-size:24px;cursor:pointer;display:none;align-items:center;justify-content:center;transition:transform .15s}
+#ia-fab:active{transform:scale(.92)}
+#ia-float{position:fixed;right:10px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:901;width:min(370px,calc(100vw - 20px));max-height:min(540px,72dvh);background:var(--surface);border:1.5px solid var(--border2);border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.28);display:none;flex-direction:column;overflow:hidden}
+#ia-float.open{display:flex}
+.iaf-bub{max-width:85%;padding:8px 12px;border-radius:14px;font-size:12.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.iaf-user{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+.iaf-bot{align-self:flex-start;background:var(--sf2);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px}
+</style>
+<button id="ia-fab" onclick="iaFloatToggle()" title="Assistente IA — tire qualquer dúvida sobre H-2B e o app">🤖</button>
+<div id="ia-float">
+  <div style="background:linear-gradient(135deg,#0c4a6e,#0891b2);color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0">
+    <div style="min-width:0">
+      <div style="font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px">🤖 Assistente H2B</div>
+      <div style="font-size:10px;opacity:.8">Dúvidas de H-2B, experiências reais e uso do app</div>
+    </div>
+    <div style="display:flex;gap:4px;flex-shrink:0">
+      <button onclick="closeTour&&closeTour();iaFloatToggle();sv('iaChat')" title="Abrir em tela cheia" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:7px;width:26px;height:26px;cursor:pointer;font-size:12px"><i class="ti ti-arrows-maximize"></i></button>
+      <button onclick="iaFloatToggle()" title="Minimizar" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:7px;width:26px;height:26px;cursor:pointer;font-size:14px;font-weight:800">—</button>
+    </div>
+  </div>
+  <div id="iaf-msgs" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:180px"></div>
+  <div style="display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0">
+    <input id="iaf-input" placeholder="Pergunte qualquer coisa…" style="flex:1;height:38px;border-radius:10px;border:1.5px solid var(--border2);background:var(--sf2);padding:0 12px;font-size:13px;font-family:inherit;color:var(--text)" onkeydown="if(event.key==='Enter')iaFloatSend()">
+    <button id="iaf-send" onclick="iaFloatSend()" class="btn btn-primary" style="height:38px;padding:0 14px"><i class="ti ti-send"></i></button>
+  </div>
+</div>
+<script>
+let _iafMsgs=[],_iafBusy=false;
+try{_iafMsgs=JSON.parse(sessionStorage.getItem("h2b_iaf")||"[]");}catch(e){}
+function iaFloatToggle(){
+  const p=g("#ia-float");if(!p)return;
+  p.classList.toggle("open");
+  if(p.classList.contains("open")){_iafRender();setTimeout(()=>g("#iaf-input")?.focus(),150);}
+}
+function _iafRender(){
+  const box=g("#iaf-msgs");if(!box)return;
+  if(!_iafMsgs.length){
+    box.innerHTML='<div class="iaf-bub iaf-bot">👋 Oi! Pergunte <b>qualquer coisa</b>:\n• dúvidas do visto H-2B/H-2A\n• experiências reais de quem já foi\n• como usar o app (filtros, robô, perfis)\n• traduzir/responder e-mail de empresa 🇺🇸</div>';
+    return;
+  }
+  box.innerHTML=_iafMsgs.map(m=>`<div class="iaf-bub ${m.role==="model"?"iaf-bot":"iaf-user"}">${esc(m.text)}</div>`).join("");
+  if(_iafBusy)box.innerHTML+='<div class="iaf-bub iaf-bot"><span class="spin spin-sm"></span> pensando…</div>';
+  box.scrollTop=box.scrollHeight;
+}
+async function iaFloatSend(){
+  if(_iafBusy)return;
+  const inp=g("#iaf-input");const txt=(inp?.value||"").trim();
+  if(!txt)return;
+  inp.value="";
+  _iafMsgs.push({role:"user",text:txt});
+  _iafBusy=true;_iafRender();
+  try{
+    const r=await fetch("/api/gemini/chat",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:_iafMsgs.slice(-20)})});
+    const d=await r.json();
+    _iafMsgs.push({role:"model",text:d.ok?(d.text||"(sem resposta)"):("⚠️ "+(d.error||"Erro ao responder."))});
+  }catch(e){_iafMsgs.push({role:"model",text:"⚠️ Sem conexão agora. Tente de novo."});}
+  _iafMsgs=_iafMsgs.slice(-40);
+  try{sessionStorage.setItem("h2b_iaf",JSON.stringify(_iafMsgs));}catch(e){}
+  _iafBusy=false;_iafRender();
+}
+// FAB aparece só logado (checa a cada troca de estado, leve)
+setInterval(()=>{const f=g("#ia-fab");if(!f)return;const want=(typeof U!=="undefined"&&U.connected)?"flex":"none";if(f.style.display!==want)f.style.display=want;},1500);
+</script>
+<!-- ══ 📊 DESEMPENHO DOS MEUS TEXTOS (v23) ══ -->
+<div class="overlay gone" id="text-stats-overlay" onclick="if(event.target===this)g('#text-stats-overlay').classList.add('gone')">
+  <div class="modal" style="max-width:460px;max-height:85dvh;display:flex;flex-direction:column;overflow:hidden">
+    <div class="mhandle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 2px 10px">
+      <div style="font-size:16px;font-weight:800">📊 Qual texto seu funciona melhor?</div>
+      <button onclick="g('#text-stats-overlay').classList.add('gone')" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:17px">✕</button>
+    </div>
+    <div id="text-stats-body" style="overflow-y:auto;flex:1"><div style="text-align:center;padding:30px"><span class="spin"></span></div></div>
+  </div>
+</div>
+<script>
+async function showTextStats(){
+  const ov=g("#text-stats-overlay");if(!ov)return;
+  ov.classList.remove("gone");
+  const box=g("#text-stats-body");box.innerHTML='<div style="text-align:center;padding:30px"><span class="spin"></span></div>';
+  try{
+    const d=await fetch("/api/my-text-stats",{credentials:"include"}).then(r=>r.json());
+    if(!d.ok)throw new Error(d.error||"erro");
+    if(!d.stats.length){
+      box.innerHTML='<div style="text-align:center;padding:24px;color:var(--t3);font-size:13px;line-height:1.6">Ainda sem dados suficientes.<br>O sistema passa a medir cada envio do <b>automático</b> a partir de agora — volte aqui depois de algumas remessas e descubra qual dos seus assuntos recebe mais respostas. 📈</div>';
+      return;
+    }
+    const best=d.stats[0];
+    box.innerHTML=
+      '<div style="font-size:12px;color:var(--t3);margin-bottom:12px;line-height:1.5">O robô alterna seus assuntos a cada envio. Aqui você vê <b>qual deles recebe mais resposta</b> — considere usar mais os campeões e trocar os fracos.</div>'+
+      d.stats.map((x,i)=>{
+        const top=i===0&&x.replies>0;
+        return `<div style="border:1.5px solid ${top?"var(--greenb)":"var(--border)"};background:${top?"var(--greenl)":"var(--sf2)"};border-radius:10px;padding:10px 12px;margin-bottom:8px">
+          <div style="font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${top?"🏆 ":""}${esc(x.tpl)}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+            <div style="flex:1;height:7px;background:var(--border);border-radius:20px;overflow:hidden"><div style="height:100%;width:${Math.min(100,x.rate*4)}%;background:${top?"var(--green)":"var(--blue)"};border-radius:20px"></div></div>
+            <div style="font-size:12px;font-weight:800;color:${top?"var(--green)":"var(--t2)"};flex-shrink:0">${x.rate}%</div>
+          </div>
+          <div style="font-size:10.5px;color:var(--t3);margin-top:3px">${x.sent.toLocaleString()} envio(s) · ${x.replies.toLocaleString()} resposta(s)</div>
+        </div>`;
+      }).join("")+
+      `<div style="font-size:11px;color:var(--t3);margin-top:4px">${esc(d.note||"")}</div>`;
+  }catch(e){box.innerHTML='<div style="text-align:center;padding:24px;color:var(--red);font-size:13px">Erro ao carregar: '+esc(e.message)+'</div>';}
+}
+</script>
+<!-- ══ 🎓 TOUR DESLIZÁVEL (v22, pedido do dono): passo a passo em slides ══
+     Usuário novo estava perdido ("muita informação, não sabe por onde
+     começar"). Abre 1x sozinho após o login (nunca por cima do onboarding)
+     e fica pra sempre em ☰ → Tutorial. Arrasta pro lado ou usa os botões. -->
+<style>
+#tour-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+#tour-track::-webkit-scrollbar{display:none}
+.tour-slide{min-width:100%;scroll-snap-align:center;scroll-snap-stop:always;padding:28px 24px 12px;box-sizing:border-box;text-align:center}
+.tour-emoji{font-size:44px;margin-bottom:12px}
+.tour-title{font-size:18px;font-weight:800;margin-bottom:10px}
+.tour-text{font-size:13.5px;color:var(--t2);line-height:1.65;text-align:left}
+.tour-text b{color:var(--text)}
+.tour-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);transition:all .2s}
+.tour-dot.on{background:var(--blue);width:22px;border-radius:20px}
+</style>
+<div class="overlay gone" id="tour-overlay" style="z-index:998" onclick="if(event.target===this)closeTour()">
+  <div class="modal" style="max-width:430px;padding:0;overflow:hidden;display:flex;flex-direction:column">
+    <button onclick="closeTour()" style="position:absolute;top:10px;right:12px;background:var(--sf2);border:1px solid var(--border);border-radius:50%;width:30px;height:30px;cursor:pointer;color:var(--t3);z-index:2;font-size:15px;line-height:1">✕</button>
+    <div id="tour-track">
+      <div class="tour-slide"><div class="tour-emoji">👋</div><div class="tour-title">Bem-vindo ao H2BApply!</div><div class="tour-text">Aqui você se candidata a <b>vagas de trabalho legal nos EUA</b> (vistos H-2B e H-2A) direto do <b>seu próprio Gmail</b> — o empregador recebe o e-mail como se você tivesse enviado manualmente, com seu currículo anexado.<br><br>👉 <b>Arraste pro lado</b> pra ver o passo a passo.</div></div>
+      <div class="tour-slide"><div class="tour-emoji">👤</div><div class="tour-title">Passo 1 — Crie seu perfil</div><div class="tour-text">Vá em <b>Perfil</b> (menu de baixo) e monte seu perfil de candidatura:<br><br>1️⃣ Anexe seu <b>currículo em PDF</b><br>2️⃣ Escreva <b>3 assuntos</b> de e-mail diferentes<br>3️⃣ Escreva <b>3 textos</b> de e-mail diferentes<br><br>⚠️ Os textos são <b>seus</b> — o sistema alterna entre eles a cada envio, então sua candidatura nunca sai igual à de outra pessoa (isso protege seu Gmail de virar spam).</div></div>
+      <div class="tour-slide"><div class="tour-emoji">✉️</div><div class="tour-title">Passo 2 — Envio manual</div><div class="tour-text">Na aba <b>Vagas</b>:<br><br>1️⃣ Escolha uma planilha de vagas no topo<br>2️⃣ Toque numa vaga que gostou<br>3️⃣ Confira o e-mail já montado com seu perfil<br>4️⃣ Toque em <b>Enviar</b> — pronto, foi do seu Gmail!<br><br>💡 Vagas pra onde você já enviou <b>somem da lista sozinhas</b> — impossível enviar duas vezes.</div></div>
+      <div class="tour-slide"><div class="tour-emoji">🔍</div><div class="tour-title">Filtre do seu jeito</div><div class="tour-text">Toque no botão <b>Filtros</b> pra achar exatamente o que quer:<br><br>🏷️ <b>Cargo</b> (Cook, Landscaper...)<br>📍 <b>Vários estados</b> ao mesmo tempo<br>💰 <b>Salário mínimo</b> por hora<br>📅 <b>Mês que a vaga começa</b><br>↕️ <b>Ordenar</b> por maior salário<br><br>Os filtros ativos viram <b>etiquetas</b> — toque no ✕ de qualquer uma pra remover.</div></div>
+      <div class="tour-slide"><div class="tour-emoji">🤖</div><div class="tour-title">Passo 3 — Envio automático</div><div class="tour-text">Na aba <b>Automático</b> (planos VIP), o robô envia por você <b>24 horas por dia</b>:<br><br>1️⃣ Escolha a fonte de vagas<br>2️⃣ Ajuste os filtros (os mesmos do manual)<br>3️⃣ Escolha seu perfil<br>4️⃣ Toque em <b>Iniciar</b><br><br>🛡️ O robô envia em <b>ritmo humano</b> (um a cada 5-6 min) pra proteger seu Gmail, e você acompanha tudo em tempo real.</div></div>
+      <div class="tour-slide"><div class="tour-emoji">📬</div><div class="tour-title">Quando a empresa responder…</div><div class="tour-text">A resposta chega no seu Gmail e aparece na aba <b>Respostas</b> do app — com <b>notificação no celular</b> se você permitir.<br><br>Dali mesmo você responde a empresa, mantendo a conversa na mesma linha do e-mail original.<br><br>📊 Em <b>Enviadas</b> você vê o histórico completo de todas as candidaturas.</div></div>
+      <div class="tour-slide"><div class="tour-emoji">🚀</div><div class="tour-title">Pronto pra começar!</div><div class="tour-text">Ordem que funciona:<br><br>1️⃣ <b>Criar perfil</b> (currículo + seus textos)<br>2️⃣ <b>Testar um envio manual</b><br>3️⃣ <b>Ligar o automático</b> e deixar trabalhar<br><br>Este tutorial fica pra sempre em <b>☰ Menu → Tutorial</b> · <span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="closeTour();sv('tutorial')">ver o guia completo →</span></div>
+        <div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-primary" style="flex:1" onclick="closeTour();sv('profile');setTimeout(function(){if(typeof switchProfileTab==='function')switchProfileTab('profiles')},150)">👤 Criar meu perfil</button><button class="btn btn-secondary" style="flex:1" onclick="closeTour();sv('jobs')">🔎 Ver vagas</button></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--border)">
+      <button class="btn btn-secondary btn-xs" id="tour-prev" onclick="tourGo(_tourIdx-1)" style="visibility:hidden">← Voltar</button>
+      <div id="tour-dots" style="display:flex;gap:5px"></div>
+      <button class="btn btn-primary btn-xs" id="tour-next" onclick="tourGo(_tourIdx+1)">Avançar →</button>
+    </div>
+  </div>
+</div>
+<script>
+let _tourIdx=0,_tourN=0;
+function _tourSlides(){return document.querySelectorAll("#tour-track .tour-slide");}
+function _tourRender(){
+  const dots=g("#tour-dots");if(dots)dots.innerHTML=Array.from({length:_tourN},(_,i)=>`<span class="tour-dot${i===_tourIdx?" on":""}" onclick="tourGo(${i})" style="cursor:pointer"></span>`).join("");
+  const pv=g("#tour-prev");if(pv)pv.style.visibility=_tourIdx>0?"visible":"hidden";
+  const nx=g("#tour-next");if(nx){if(_tourIdx>=_tourN-1){nx.textContent="Concluir ✓";nx.onclick=closeTour;}else{nx.textContent="Avançar →";nx.onclick=()=>tourGo(_tourIdx+1);}}
+}
+function tourGo(i){
+  const tk=g("#tour-track");if(!tk)return;
+  _tourIdx=Math.max(0,Math.min(_tourN-1,i));
+  tk.scrollTo({left:_tourIdx*tk.clientWidth,behavior:"smooth"});
+  _tourRender();
+}
+function openTour(){
+  const ov=g("#tour-overlay");if(!ov)return;
+  _tourN=_tourSlides().length;_tourIdx=0;
+  ov.classList.remove("gone");
+  const tk=g("#tour-track");if(tk){tk.scrollTo({left:0});tk.onscroll=()=>{const i=Math.round(tk.scrollLeft/Math.max(1,tk.clientWidth));if(i!==_tourIdx){_tourIdx=i;_tourRender();}};}
+  _tourRender();
+  try{localStorage.setItem("h2b_tour_v1","1");}catch(e){}
+}
+function closeTour(){g("#tour-overlay")?.classList.add("gone");}
+// Auto-abre UMA vez após o login — nunca por cima do onboarding/termos
+setTimeout(function(){
+  try{
+    if(localStorage.getItem("h2b_tour_v1"))return;
+    if(typeof U==="undefined"||!U.connected)return;
+    const ob=document.getElementById("onboarding-overlay");
+    if(ob&&ob.style.display==="flex")return; // onboarding na frente — o tour fica pra próxima visita
+    const to=document.getElementById("terms-overlay");
+    if(to&&to.style.display==="flex")return;
+    openTour();
+  }catch(e){}
+},3500);
+</script>
 </body>
 <script>
 // ════════════════════════════════════════════════════
@@ -16148,7 +16690,11 @@ console.debug("[v14+] Onboarding, FAQ, Preview Auto, Follow-up, Score carregados
 
   function _mkCard(item, q){
     const sl = SRC_LABELS[item._src]||{label:item._src,cls:""};
-    const badgeHtml = `<span class="pesq-src-badge ${sl.cls}">${sl.label}</span>`;
+    // v27: a vaga se identifica sozinha — mesmo empregador já contatado/na fila
+    const _es = (typeof empregadorStatus==="function") ? empregadorStatus(item.email) : null;
+    const _esBadge = _es==="sent" ? '<span class="pesq-src-badge" style="background:var(--greenl);color:var(--green);border:1px solid var(--greenb)">✅ Já enviada</span>'
+                   : _es==="queued" ? '<span class="pesq-src-badge" style="background:rgba(124,58,237,.1);color:#7c3aed;border:1px solid rgba(124,58,237,.3)">🤖 Na fila do robô</span>' : "";
+    const badgeHtml = `<span class="pesq-src-badge ${sl.cls}">${sl.label}</span>${_esBadge}`;
 
     const pills = [];
     if(item.visa) pills.push(`<span class="pesq-result-pill" style="background:${item.visa.includes("H-2A")?"var(--amberl)":"var(--bluel)"};border-color:${item.visa.includes("H-2A")?"var(--amberb)":"var(--blueb)"};color:${item.visa.includes("H-2A")?"var(--amber)":"var(--blue)"}">${_esc2(item.visa)}</span>`);
@@ -17833,29 +18379,8 @@ const PLAN_PRICES_USER = {
   doublepro: { month: 250, name: '💎 DoublePro',   desc: '400 manual + 400 auto/dia (2 Gmails)' },
 };
 const DISCOUNTS = { 30: 0, 60: 5, 90: 10, 365: 20 };
-// Links InfinitePay por plano e período (imagens enviadas)
-const PAY_LINKS = {
-  vip: {
-    30:  'https://invoice.infinitepay.io/plans/jesuscristh/80c9x5E849',
-    60:  null, // combo — Pix
-    90:  null,
-    365: null,
-  },
-  vipro: {
-    30:  'https://invoice.infinitepay.io/plans/jesuscristh/i3vAYHC3y5',
-    60:  null,
-    90:  null,
-    365: null,
-  },
-  doublepro: {
-    30:  'https://invoice.infinitepay.io/plans/jesuscristh/GeGyVj7ElA',
-    60:  null,
-    90:  null,
-    365: null,
-  },
-};
-// Chave Pix para combos de 3 meses (90d) ou 1 ano (365d)
-// Só aparece quando período >= 90 dias
+// v43 (ordem do dono, 23/07/2026): InfinitePay REMOVIDA — todo pagamento é
+// Pix pro PicPay do Andrio (chave 53981453496), em qualquer plano/período.
 // 2026-07: consolidado numa chave só (telefone do Andrio) — antes o combo
 // mostrava a chave/e-mail do Jesus (jesuscristh@jim.com), removido a pedido.
 const PIX_KEY = '53981453496'; // Andrio — única chave Pix usada em todo o sistema
@@ -17945,63 +18470,33 @@ function goToPlanStep2() {
     <div style="font-weight:800;color:var(--green);font-size:18px">R$ ${total.replace('.', ',')}</div>
   </div>${disc > 0 ? `<div style="font-size:11px;color:var(--green);margin-top:4px">✅ ${disc}% de desconto aplicado</div>` : ''}`;
 
-  // Links de pagamento — regras:
-  // 30d e 60d: só link InfinitePay (sem Pix)
-  // 90d e 365d: link InfinitePay + Pix direto na chave do Andrio (53981453496)
+  // v43 (ordem do dono, 23/07/2026): pagamento ÚNICO — Pix pro PicPay do
+  // Andrio (chave 53981453496), em TODO plano e TODO período. InfinitePay
+  // removida por completo. Menos etapas: paga → manda o comprovante → o
+  // robô confere e libera provisório → admin confirma.
   const payEl = g('#plan-payment-links');
   if(payEl) {
-    const link30 = PAY_LINKS[plan]?.[30]; // link base (mensalidade)
-    const isLongo = dias >= 90; // 90d ou 365d → mostra Pix combo
-    let html = '';
-
-    // Link InfinitePay (sempre aparece — link do plano mensal)
-    if(link30) {
-      const valorBtn = isLongo
-        ? `R$ ${total.replace('.', ',')} (combo ${dias === 365 ? '1 ano' : dias + ' dias'})`
-        : `R$ ${dias === 30 ? price.month.toFixed(2).replace('.', ',') : total.replace('.', ',')}`;
-      html += `<div style="margin-bottom:14px">
-        <div style="font-size:12px;font-weight:700;color:var(--t3);margin-bottom:8px;display:flex;align-items:center;gap:6px">
-          💳 Pagar com cartão — InfinitePay
-        </div>
-        <a href="${link30}" target="_blank" rel="noopener noreferrer" class="btn btn-primary w100" style="text-decoration:none;justify-content:center;font-size:15px;padding:14px">
-          <i class="ti ti-credit-card"></i> Pagar ${valorBtn} via InfinitePay
-        </a>
-        ${dias > 30 ? `<div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center">Plano mensal — você pagará mensalmente pelo InfinitePay</div>` : ''}
-      </div>`;
-    }
-
-    // Pix direto (chave do Andrio) — SOMENTE para 90 dias ou 365 dias
-    if(isLongo) {
-      html += `<div style="margin-top:4px">
-        <div style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.35);border-radius:12px;padding:14px">
-          <div style="font-size:13px;font-weight:800;color:var(--green);margin-bottom:10px;display:flex;align-items:center;gap:6px">
-            📱 Pagar via Pix — Combo ${dias === 365 ? '1 ano (melhor preço!)' : '3 meses'}
-          </div>
-          <div style="background:rgba(0,0,0,.2);border-radius:8px;padding:10px;margin-bottom:10px">
-            <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Chave Pix (telefone):</div>
-            <div style="font-size:16px;font-weight:800;color:var(--green);letter-spacing:.5px;word-break:break-all">${PIX_KEY}</div>
-            <div style="font-size:11px;color:var(--t3);margin-top:4px">Titular: <strong style="color:var(--text)">${PIX_NAME}</strong></div>
-          </div>
-          <button class="btn btn-success w100" onclick="navigator.clipboard.writeText('${PIX_KEY}');toast('Chave Pix copiada ✓','g')" style="margin-bottom:10px;font-size:14px;padding:12px">
-            <i class="ti ti-copy"></i> Copiar chave Pix
-          </button>
-          <div style="background:rgba(16,185,129,.12);border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:20px;font-weight:800;color:var(--green)">R$ ${total.replace('.', ',')}</div>
-            <div style="font-size:11px;color:var(--t3);margin-top:2px">${dias === 365 ? '1 ano' : '3 meses'} · Pagamento único</div>
-          </div>
-          <div style="font-size:11px;color:var(--t3);margin-top:8px;text-align:center">
-            Após o Pix, envie o comprovante abaixo e aguarde ativação em até 2h
-          </div>
-        </div>
-      </div>`;
-    } else if(!link30) {
-      // Fallback: se não tem link e não é combo longo
-      html += `<div style="padding:12px;background:var(--sf2);border-radius:10px;font-size:12px;color:var(--t2);text-align:center">
-        Entre em contato pelo WhatsApp para pagamento deste período.
-      </div>`;
-    }
-
-    payEl.innerHTML = html;
+    const periodoLbl = dias === 365 ? '1 ano (melhor preço!)' : dias === 90 ? '3 meses' : dias === 60 ? '2 meses' : '30 dias';
+    payEl.innerHTML = `<div style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.35);border-radius:12px;padding:14px">
+      <div style="font-size:13px;font-weight:800;color:var(--green);margin-bottom:10px;display:flex;align-items:center;gap:6px">
+        📱 Pagar via Pix (PicPay) — ${periodoLbl}${disc > 0 ? ` · ${disc}% off` : ''}
+      </div>
+      <div style="background:rgba(0,0,0,.2);border-radius:8px;padding:10px;margin-bottom:10px">
+        <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Chave Pix (telefone) — PicPay:</div>
+        <div style="font-size:16px;font-weight:800;color:var(--green);letter-spacing:.5px;word-break:break-all">${PIX_KEY}</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:4px">Titular: <strong style="color:var(--text)">${PIX_NAME}</strong></div>
+      </div>
+      <button class="btn btn-success w100" onclick="navigator.clipboard.writeText('${PIX_KEY}');toast('Chave Pix copiada ✓','g')" style="margin-bottom:10px;font-size:14px;padding:12px">
+        <i class="ti ti-copy"></i> Copiar chave Pix
+      </button>
+      <div style="background:rgba(16,185,129,.12);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:20px;font-weight:800;color:var(--green)">R$ ${total.replace('.', ',')}</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">${periodoLbl} · Pagamento único</div>
+      </div>
+      <div style="font-size:11px;color:var(--t3);margin-top:8px;text-align:center">
+        Pague por QUALQUER banco ou pelo app do PicPay usando a chave acima. Depois envie o comprovante abaixo — se o valor conferir, o robô libera seu plano na hora.
+      </div>
+    </div>`;
   }
 
   g('#plan-step-1').style.display = 'none';
@@ -18084,20 +18579,86 @@ async function submitPlanOrder() {
     });
     const d = await r.json();
     if(d.ok) {
-      gaEvent('purchase_order_submitted',{plan,dias,value:total,currency:'BRL'});
       g('#plan-step-2').style.display = 'none';
       g('#plan-step-done').style.display = 'block';
       g('#plan-roi-calc').style.display = 'none';
-      toast('✅ Pedido enviado! Em breve será ativado.', 'g');
+      const dTitle = g('#plan-done-title'), dMsg = g('#plan-done-msg');
+      if(d.duplicado) {
+        // Servidor NÃO criou pedido novo (já existe pendente ou aprovado há
+        // pouco) — dizer a verdade em vez de "Pedido enviado!"
+        if(dTitle) dTitle.textContent = 'Você já tem um pedido!';
+        if(dMsg) dMsg.innerHTML = esc(d.message || 'Você já tem um pedido em análise.') + '<br><strong>Para dúvidas, entre em contato:</strong>';
+        toast('ℹ️ ' + (d.message || 'Você já tem um pedido em análise.'), 'au');
+      } else {
+        gaEvent('purchase_order_submitted',{plan,dias,value:total,currency:'BRL'});
+        if(dTitle) dTitle.textContent = 'Pedido enviado!';
+        if(dMsg) dMsg.innerHTML = 'Recebemos seu pedido e comprovante.<br>Se o robô validar seu comprovante, o plano ativa <strong>em instantes</strong> — e a confirmação final da equipe sai em <strong>até 24h</strong>. Acompanhe na tela inicial.<br><strong>Para dúvidas, entre em contato:</strong>';
+        toast('✅ Pedido enviado! Em breve será ativado.', 'g');
+      }
+      renderPushAsk('plan-push-ask','Quer saber NA HORA em que seu plano for ativado? Ative as notificações — avisamos assim que a equipe (ou o robô) confirmar.');
       _pendingOrderCache=undefined; // força recheck — o card "em análise" já aparece na próxima Home
+      _mpLoaded=false; // 🧾 Meus pagamentos recarrega com o pedido novo
 
     } else {
       if(statusEl) statusEl.innerHTML = '<div style="font-size:12px;color:var(--red)">Erro: ' + esc(d.error||'?') + '</div>';
-      if(btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar pedido'; }
+      if(btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar pedido de ativação'; }
     }
   } catch(e) {
     if(statusEl) statusEl.innerHTML = '<div style="font-size:12px;color:var(--red)">Erro: ' + esc(e.message) + '</div>';
-    if(btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar pedido'; }
+    if(btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar pedido de ativação'; }
+  }
+}
+
+// ── 🧾 MEUS PAGAMENTOS (v32) — histórico do cliente DENTRO de Planos ────────
+// Espelho da Conferência do admin, do lado do cliente: cada pedido com status
+// honesto. Mata o "paguei, cadê?" no WhatsApp. /api/pedidos já devolve só os
+// pedidos do próprio usuário (sem a imagem do comprovante — lista leve).
+let _mpLoaded=false;
+async function toggleMeusPagamentos(){
+  const box=g("#meus-pagamentos");if(!box)return;
+  if(box.style.display!=="none"){box.style.display="none";return;}
+  box.style.display="block";
+  if(!_mpLoaded)await loadMeusPagamentos();
+}
+async function loadMeusPagamentos(){
+  const box=g("#meus-pagamentos");if(!box)return;
+  box.innerHTML=`<div style="text-align:center;padding:14px"><span class="spin"></span></div>`;
+  try{
+    const r=await fetch("/api/pedidos",{credentials:"include"});
+    const d=await r.json();
+    const peds=(d.pedidos||[]).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    _mpLoaded=true;
+    const stLbl=(p)=>{
+      if(p.status==="pendente"&&p.autoAtivado)return["⚡ Liberado provisório","#d97706","rgba(245,158,11,.12)","Comprovante conferido pelo robô — plano já liberado; confirmação final da equipe pendente"];
+      if(p.status==="pendente")return["⏳ Em análise","#d97706","rgba(245,158,11,.12)","Analisamos e ativamos em até 24h"];
+      if(p.status==="pago")return["💰 Pago — ativação a caminho","#2563eb","rgba(37,99,235,.1)",""];
+      if(p.status==="ativo")return["✅ Ativo","#059669","rgba(16,185,129,.12)",p.ativadoEm?("Ativado em "+new Date(p.ativadoEm).toLocaleDateString("pt-BR")):""];
+      if(p.status==="cancelado")return["✖ Cancelado","#dc2626","rgba(239,68,68,.1)","Se achar que foi engano, chame no WhatsApp"];
+      return[esc(p.status||"?"),"var(--t3)","var(--sf2)",""];
+    };
+    const codeNote=(U.vip?.source==="code")?`<div style="font-size:11.5px;color:var(--t2);background:var(--sf2);border:1px solid var(--border2);border-radius:10px;padding:9px 12px;margin-bottom:6px">🎟️ Seu plano atual veio de um <strong>código promocional</strong>.</div>`:"";
+    if(!peds.length){
+      box.innerHTML=codeNote+`<div style="font-size:12px;color:var(--t3);text-align:center;padding:10px">Nenhum pagamento por aqui ainda.</div>`;
+      return;
+    }
+    box.innerHTML=codeNote+peds.map(p=>{
+      const[lbl,cor,bg,sub]=stLbl(p);
+      const planLbl={vip:"⭐ VIP Manual",vipro:"🤖 VIPro",doublepro:"💎 DoublePro"}[p.plano]||esc(p.plano||"?");
+      const dt=p.createdAt?new Date(p.createdAt).toLocaleDateString("pt-BR"):"–";
+      return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="flex:1;min-width:120px">
+            <div style="font-size:13px;font-weight:700">${planLbl} · ${parseInt(p.dias,10)||"?"}d</div>
+            <div style="font-size:11px;color:var(--t3)">${dt} · #${esc((p.id||"").slice(-8).toUpperCase())}</div>
+          </div>
+          <div style="font-size:14px;font-weight:800;color:var(--green)">R$ ${(+p.valorTotal||0).toFixed(2)}</div>
+          <span style="font-size:10.5px;font-weight:800;color:${cor};background:${bg};border-radius:8px;padding:3px 8px">${lbl}</span>
+        </div>
+        ${sub?`<div style="font-size:11px;color:var(--t3);margin-top:4px">${sub}</div>`:""}
+      </div>`;
+    }).join("");
+  }catch(e){
+    box.innerHTML=`<div style="font-size:12px;color:var(--red);text-align:center;padding:10px">Erro ao carregar. <span style="text-decoration:underline;cursor:pointer" onclick="loadMeusPagamentos()">Tentar de novo</span></div>`;
   }
 }
 

@@ -380,7 +380,13 @@ async function main() {
   console.log("═══════════════════════════════════════════\n");
 }
 
-main().catch(e => {
-  console.error("ERRO FATAL:", e);
-  process.exit(1);
-});
+// v35: quando importado pelo server.js (bot de coleta do admin), exporta os
+// helpers e NÃO roda o main — o mesmo caminho de download/formato serve o
+// cron standalone E o botão do painel, sem duplicar lógica.
+if (require.main === module) {
+  main().catch(e => {
+    console.error("ERRO FATAL:", e);
+    process.exit(1);
+  });
+}
+module.exports = { DOL_BASE, downloadAndParse, toCompact, shouldDiscard, detectCategoryBest };

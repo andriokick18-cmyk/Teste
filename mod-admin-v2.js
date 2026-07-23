@@ -102,6 +102,13 @@ function createAdminV2Router(ctx){
           if(!f.endsWith(".json"))continue;
           try{fs.copyFileSync(path.join(DATA_DIR,f),path.join(dir,f));n++;}catch{}
         }
+        // v27-FIX (ensaio de restauração): os PDFs dos usuários vivem em cvs/
+        // (desde a v21 não estão mais dentro do users.json) — backup sem eles
+        // restaurava contas SEM currículo. Agora a pasta vai junto.
+        try{
+          const cvsDir=path.join(DATA_DIR,"cvs");
+          if(fs.existsSync(cvsDir)){fs.cpSync(cvsDir,path.join(dir,"cvs"),{recursive:true});n+=fs.readdirSync(cvsDir).length;}
+        }catch{}
         audit(req,{admin:adminName,sessionEmail:s.user_email,action:"backup_create",target:"sistema",field:"backup",newValue:stamp,note:`${n} arquivos`});
         json(res,200,{ok:true,name:stamp,files:n});
       }catch(e){json(res,500,{error:e.message});}
@@ -119,9 +126,22 @@ function createAdminV2Router(ctx){
         const pre=path.join(BK_DIR,"pre-restore-"+Date.now());fs.mkdirSync(pre,{recursive:true});
         for(const f of fs.readdirSync(DATA_DIR))if(f.endsWith(".json"))try{fs.copyFileSync(path.join(DATA_DIR,f),path.join(pre,f));}catch{}
         let n=0;
-        for(const f of fs.readdirSync(dir)){try{fs.copyFileSync(path.join(dir,f),path.join(DATA_DIR,f));n++;}catch{}}
-        audit(req,{admin:adminName,sessionEmail:s.user_email,action:"backup_restore",target:"sistema",field:"backup",newValue:name,note:`${n} arquivos restaurados; reinicie o servidor para recarregar as stores`});
-        json(res,200,{ok:true,restored:n,aviso:"Arquivos restaurados em disco. REINICIE o servidor para as stores em memória recarregarem."});
+        for(const f of fs.readdirSync(dir)){
+          const src=path.join(dir,f);
+          try{
+            if(f==="cvs"&&fs.statSync(src).isDirectory()){fs.cpSync(src,path.join(DATA_DIR,"cvs"),{recursive:true});n++;continue;}
+            fs.copyFileSync(src,path.join(DATA_DIR,f));n++;
+          }catch{}
+        }
+        // v27-FIX (ARMADILHA DO SQLITE): com o storage SQLite ativo, o boot lê
+        // do h2bapply.db e IGNORA os JSONs restaurados — o restore ficava
+        // silenciosamente inútil. Apagar o .db força o boot a re-importar dos
+        // JSONs restaurados (comportamento nativo do storage: 1ª vez importa).
+        for(const dbf of ["h2bapply.db","h2bapply.db-wal","h2bapply.db-shm"]){
+          try{fs.unlinkSync(path.join(DATA_DIR,dbf));}catch{}
+        }
+        audit(req,{admin:adminName,sessionEmail:s.user_email,action:"backup_restore",target:"sistema",field:"backup",newValue:name,note:`${n} arquivos restaurados (PDFs inclusos) + SQLite resetado pra re-importar; reinicie o servidor`});
+        json(res,200,{ok:true,restored:n,aviso:"Arquivos restaurados (PDFs inclusos) e SQLite preparado pra re-importar. REINICIE o servidor para concluir."});
       }catch(e){json(res,500,{error:e.message});}
       return true;
     }

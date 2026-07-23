@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v19b"; // v19b (18/07): + botão "Resetar enviados" na aba Automático (com confirmação) — cliente não achava o reset que ficava só na aba Enviados
+const CACHE_NAME = "h2bapply-v20"; // v20 (21/07): cover letter obedece o perfil ("Nenhuma" é Nenhuma), fim dos PDFs triplicados, cura em massa de perfis bugados, PDFs fora do users.json, correções de segurança e memória
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

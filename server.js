@@ -34,12 +34,23 @@ const zlib = require("zlib");
 // 304 sem corpo). Compressão roda UMA vez por arquivo/mtime e fica em cache
 // de memória — custo por request é zero.
 const _assetCache = {}; // { file: { mtime, raw, gz, br, etag } }
+// v34-GA: ID do Google Analytics em UM lugar só. Os HTMLs carregam o
+// placeholder G-XXXXXXXXXX; se GA_MEASUREMENT_ID estiver no ambiente
+// (Render), o servidor troca na hora de servir — analytics liga em TODAS as
+// páginas de uma vez, sem tocar em arquivo. Sem a env, tudo fica como era.
+const GA_MEASUREMENT_ID = String(process.env.GA_MEASUREMENT_ID || "").trim();
+function _injectGaId(raw){
+  if (!GA_MEASUREMENT_ID || !/^G-[A-Z0-9]{4,}$/i.test(GA_MEASUREMENT_ID)) return raw;
+  const txt = raw.toString("utf8");
+  if (!txt.includes("G-XXXXXXXXXX")) return raw;
+  return Buffer.from(txt.split("G-XXXXXXXXXX").join(GA_MEASUREMENT_ID), "utf8");
+}
 function getStaticAsset(file){
   const fp = path.join(__dirname, file);
   const st = fs.statSync(fp);
   const c = _assetCache[file];
   if (c && c.mtime === st.mtimeMs) return c;
-  const raw = fs.readFileSync(fp);
+  const raw = _injectGaId(fs.readFileSync(fp));
   const entry = {
     mtime: st.mtimeMs,
     raw,
@@ -230,6 +241,22 @@ function decStr(s){
 }
 // Campos sensíveis do usuário cifrados no disco (cópia rasa — runtime intocado)
 const USER_SECRET_FIELDS=["refresh_token","cached_access_token"];
+// v21-SEC: versão SEGURA de um usuário pra mandar pro navegador (admin ou não).
+// Remove os segredos de NÍVEL RAIZ e também os tokens OAuth aninhados em
+// senderEmails[] (access_token/refresh_token dos Gmails extras) — antes o
+// /api/admin/user-detail e o /api/debug/export mandavam esses tokens pro
+// browser, onde extensão/console/histórico de rede conseguem ler.
+function sanitizeUserForClient(u){
+  if(!u)return u;
+  const c={...u,password:undefined,refresh_token:undefined,cached_access_token:undefined};
+  if(Array.isArray(c.senderEmails))c.senderEmails=c.senderEmails.map(se=>se?{
+    email:se.email,label:se.label||"",active:se.active!==false,
+    tokenExpired:!!se.tokenExpired,blocked:!!se.blocked,addedAt:se.addedAt,
+    reauthedAt:se.reauthedAt,hasRefreshToken:!!se.refresh_token
+  }:se);
+  if(Array.isArray(c.cvs))c.cvs=c.cvs.map(cv=>{if(cv&&cv.b64){const{b64,...rest}=cv;return rest;}return cv;});
+  return c;
+}
 function _encUsersForDisk(db){
   if(!_encKey)return db;
   const out={};
@@ -281,6 +308,8 @@ const TRIAL_USED_FILE  = path.join(DATA_DIR, "trial_used.json");       // Histó
 // de verdade entre reinícios do processo.
 const NOTIF_COOLDOWN_FILE = path.join(DATA_DIR, "notif_cooldowns.json");
 const KB_FILE          = path.join(DATA_DIR, "knowledge_base.json");  // Base de Conhecimento Permanente (IA↔IA)
+const AI_KB_FILE       = path.join(DATA_DIR, "ai_knowledge.json");    // v25: experiências reais + treino extra do IA Chat (editável pelo admin, sem deploy)
+let DB_AI_KB = { entries: [] };
 try { fs.mkdirSync(CVS_DIR, { recursive: true }); } catch {}
 
 console.log(`[boot] H2BApply v13.0 | ${APP_URL} | ${DATA_DIR}`);
@@ -764,6 +793,10 @@ function boot() {
   DB_USERS  = mig(USERS_FILE,  path.join(DATA_DIR, "h2b_users.json"),   {});
   _decUsersFromDisk(DB_USERS); // V955: decifra tokens gravados com DATA_ENC_KEY
   _migrateUsersToSingleProfile(DB_USERS); // KB-SEO-03 (2026-07): consolida perfis múltiplos → 1 por usuário
+  _dedupeAndHealUserCvs(DB_USERS); // v20 (07/2026): remove PDFs duplicados e cura perfis com referência quebrada
+  _migrateCvBlobsToDisk(DB_USERS); // v21 (07/2026): PDFs base64 saem do users.json → disco (RAM e persist leves)
+  _sweepOrphanCvFiles(DB_USERS);   // v21 (07/2026): apaga PDFs órfãos do disco (lixo do antigo delete sem unlink)
+  _wipeCannedDefaults(DB_USERS);   // v22 (ordem do dono): remove texto enlatado de fábrica intocado — conteúdo é do usuário
   DB_HIST   = mig(HIST_FILE,   path.join(DATA_DIR, "h2b_history.json"), {});
   DB_AUTO   = load(AUTO_FILE, {});
   DB_NOTES  = load(NOTES_FILE, {});
@@ -828,6 +861,48 @@ function boot() {
   // Carregada do disco; se vazia, popula com entradas fundadoras do projeto
   DB_KB = load(KB_FILE, { entries: [] });
   if(!DB_KB || !Array.isArray(DB_KB.entries)) DB_KB = { entries: [] };
+  // ── v25: Treino do IA Chat (experiências reais + conhecimento extra) ──────
+  // Adicionável pelo painel admin sem deploy — "treinar o Gemini sempre mais".
+  DB_AI_KB = load(AI_KB_FILE, { entries: [] });
+  if(!DB_AI_KB || !Array.isArray(DB_AI_KB.entries)) DB_AI_KB = { entries: [] };
+  // Sementes de conhecimento (v25.1 — pesquisa em fontes oficiais DOL/USCIS/
+  // Federal Register, jul/2026). IDEMPOTENTE por id: entra o que falta, nunca
+  // apaga nem duplica — o que Andrio/Diego adicionarem pelo painel é intocado.
+  {
+    const _AI_SEEDS=[
+      {id:"ai_seed_golpes",autor:"Equipe H2BApply",titulo:"🚨 Golpes comuns no mundo H-2B (da nossa página oficial)",
+       texto:"O visto H-2B em si NÃO é golpe — é um programa oficial do governo americano. Os golpes acontecem EM VOLTA dele: (1) 'agenciador' cobrando caro prometendo visto garantido — NINGUÉM pode garantir visto; (2) 'vaga' que pede pagamento adiantado do candidato — empregador legítimo não cobra para contratar; (3) falsas entrevistas pedindo dados bancários. Como verificar se uma vaga é real: ela deve existir no site oficial seasonaljobs.dol.gov com ETA case number — toda vaga do H2BApply vem de lá e tem o link oficial no cartão da vaga. Regra de ouro: desconfie de qualquer promessa de garantia e nunca pague para ser contratado."},
+      {id:"ai_seed_oque",autor:"Equipe H2BApply (fontes: USCIS/DOL)",titulo:"O que são os vistos H-2B e H-2A, na prática",
+       texto:"H-2B = trabalho temporário NÃO-agrícola nos EUA (jardinagem/landscaping, hotelaria/housekeeping, restaurantes, construção, frutos do mar, parques). H-2A = trabalho AGRÍCOLA temporário (colheita, plantio, fazendas). Nos dois, quem pede o visto é o EMPREGADOR americano: ele prova ao governo que não achou americano pra vaga, a petição é aprovada, e aí o trabalhador tira o visto no consulado. São vistos de temporada — no fim do contrato a pessoa volta pro Brasil (e voltar direitinho é o que abre a porta pra próxima temporada). Setores que mais contrataram H-2B: landscaping (~39% das vagas), housekeeping (~7%), reflorestamento (~6%), além de seafood, parques e construção."},
+      {id:"ai_seed_processo",autor:"Equipe H2BApply (fontes: USCIS/Departamento de Estado)",titulo:"O caminho completo do trabalhador, passo a passo",
+       texto:"1) CANDIDATURA: enviar currículo pros empregadores com vaga aprovada no DOL (é exatamente o que o H2BApply automatiza). 2) RESPOSTA/ENTREVISTA: empresa interessada responde por e-mail, pode fazer entrevista por vídeo ou telefone. 3) OFERTA: empresa te inclui na petição dela (I-129) e você recebe a confirmação com o nome da empresa e datas. 4) DS-160: formulário online do visto. 5) TAXA: US$205 (valor 2026), não reembolsável. 6) ENTREVISTA NO CONSULADO: agendada pelo ais.usvisa-info.com — no Brasil tem consulado em São Paulo, Rio, Recife, Porto Alegre e Brasília. 7) VISTO APROVADO → passagem → EUA. IMPORTANTE: sem oferta de empregador não existe visto — desconfie de quem vende 'o visto' sem vaga real."},
+      {id:"ai_seed_custos",autor:"Diego e Andrio (live no canal Diego Pelo Mundo) + fontes oficiais",titulo:"💰 Quanto custa do seu bolso — números reais (e o reembolso que veio depois)",
+       texto:"Na live 'Diego e Andrio Revelam Tudo Sobre o Visto H-2B e H-2A' (canal Diego Pelo Mundo), os fundadores do H2BApply contaram o número real deles: gastaram cerca de R$ 5.000 do próprio bolso no Brasil pra fazer o processo todo (taxa do visto, deslocamentos etc.) — e DEPOIS a empresa americana REEMBOLSOU esse valor. Ou seja: na prática funcionou exatamente como a lei manda — o custo inicial é um adiantamento que volta quando você cumpre o contrato. Prepare-se pra ter essa reserva (~R$5.000) pra bancar o começo, sabendo que empregador sério devolve. Custos típicos: taxa do visto US$205; passaporte (~R$260); deslocamento/hospedagem pra entrevista no consulado; passagem aérea. O QUE VOCÊ NUNCA DEVE PAGAR (nem com promessa de reembolso): taxa de recrutador/agenciador — é ILEGAL pela lei americana; se pagou, o empregador é obrigado a devolver no primeiro salário. No H-2A o empregador PAGA o transporte até a fazenda (reembolso na metade do contrato) e a volta ao fim. No H-2B o reembolso de passagem/custos costuma estar no contrato escrito (que é obrigatório) — leia antes e pergunte à empresa como funciona o reembolso dela."},
+      {id:"ai_seed_cap2026",autor:"Equipe H2BApply (fontes: USCIS/Federal Register 2026)",titulo:"Cap do H-2B em 2026: por que 'returning worker' vale ouro",
+       texto:"O H-2B tem limite anual de 66.000 vistos (33.000 por semestre do ano fiscal, que vai de outubro a setembro). Em 2026 o governo liberou até 64.716 vistos EXTRAS, divididos em 3 lotes: jan-mar (18.490, SÓ pra quem já teve H-2B em 2023/2024/2025), abril (27.736, também só returning workers) e mai-set (18.490, aberto pra todos). Tradução prática: quem já foi UMA vez e cumpriu o contrato entra numa fila muito maior nos anos seguintes — por isso a primeira temporada bem feita é o maior investimento da carreira H-2B. O H-2A (agrícola) NÃO tem limite de vagas."},
+      {id:"ai_seed_direitos_h2a",autor:"Equipe H2BApply (fonte: DOL/WHD)",titulo:"Direitos de quem vai de H-2A (agrícola) — o que a lei garante",
+       texto:"No H-2A a lei americana garante: MORADIA GRÁTIS fornecida pelo empregador (com padrão mínimo de segurança); TRANSPORTE DIÁRIO grátis da moradia ao trabalho; salário pelo AEWR da região (em 2026 varia por estado, na faixa de ~US$15 a US$22/hora) ou o piso local, o que for MAIOR; a GARANTIA DOS 3/4: o empregador é obrigado a oferecer pelo menos 75% das horas do contrato — se oferecer menos, paga a diferença mesmo assim; contrato POR ESCRITO em idioma que você entenda, com salário e descontos detalhados; reembolso do transporte de ida na metade do contrato e volta paga no fim. Se o empregador descumprir: Wage and Hour Division do DOL, telefone 1-866-487-9243 (aceita denúncia em português)."},
+      {id:"ai_seed_direitos_h2b",autor:"Equipe H2BApply (fonte: DOL/WHD)",titulo:"Direitos de quem vai de H-2B — o que a lei garante",
+       texto:"No H-2B: salário pelo MENOS igual ao 'prevailing wage' da função na região (está escrito na própria vaga do DOL — o app mostra); termos de trabalho POR ESCRITO em idioma que você entenda; é ILEGAL cobrar taxa de recrutamento do trabalhador (se cobrado, tem que ser devolvido no 1º salário); você paga os MESMOS impostos que um americano na folha (Social Security, Medicare, imposto de renda) — desconto em folha é normal, não é golpe; moradia NEM SEMPRE é grátis no H-2B (diferente do H-2A) — muitas empresas oferecem moradia descontada do salário: pergunte ANTES e confira no contrato. Problemas com o empregador: Wage and Hour Division 1-866-487-9243."},
+      {id:"ai_seed_consulado",autor:"Equipe H2BApply",titulo:"A entrevista no consulado: como se preparar",
+       texto:"Depois da petição aprovada e do DS-160 preenchido, agende no ais.usvisa-info.com (consulados no Brasil: São Paulo, Rio, Recife, Porto Alegre, Brasília). Leve: passaporte válido, confirmação do DS-160, dados da petição/empresa (nome, cidade, função, datas da temporada). As perguntas são simples e diretas: 'o que você vai fazer lá?', 'pra qual empresa?', 'quanto vai ganhar?', 'quando volta?'. A regra de ouro é RESPONDER CURTO E VERDADEIRO — o oficial quer ver que você sabe pra que está indo e que vai voltar no fim da temporada. Muitas entrevistas de H-2B acontecem em português. Negativa mais comum: não saber explicar a própria vaga — estude o nome da empresa, a cidade e a função antes de ir."},
+      {id:"ai_seed_temporadas",autor:"Equipe H2BApply",titulo:"O calendário das temporadas (quando se candidatar)",
+       texto:"O ano fiscal americano vai de outubro a setembro, e o H-2B se divide em duas grandes ondas: temporada de VERÃO americano (começa entre abril e junho — landscaping, parques, turismo de praia) e temporada de INVERNO (começa entre outubro e dezembro — estações de esqui, hotelaria de inverno). As empresas contratam MESES antes da data de início — por isso o filtro de 'mês de início' do app importa: candidate-se com 3 a 6 meses de antecedência da temporada que você quer. Enviar candidatura fora de época não é perdido (a empresa guarda contatos), mas o grosso das respostas vem quando as petições da temporada estão sendo montadas."},
+      {id:"ai_seed_vida",autor:"Equipe H2BApply",titulo:"A vida real na temporada: expectativas honestas",
+       texto:"Verdades que todo veterano conta: o trabalho é FÍSICO e puxado (jardinagem no sol, limpeza de dezenas de quartos, fábrica de pescado em pé o dia todo); na alta temporada as horas extras são muitas — e são exatamente onde se ganha bem (overtime costuma pagar 1,5x); moradia geralmente é compartilhada com outros trabalhadores; dá pra economizar um bom dinheiro na temporada, mas depende de disciplina (quem manda quase tudo pro Brasil volta com reserva; quem gasta lá, não); inglês básico resolve o dia a dia e melhora rápido na convivência; cumprir o contrato até o fim e sair bem com o patrão é o que gera CONVITE pro ano seguinte — muitos veteranos voltam pra MESMA empresa por anos. E nunca, jamais, ficar depois do prazo do visto: overstay mata as temporadas futuras e pode significar anos de proibição de entrada nos EUA."},
+      {id:"ai_seed_returning",autor:"Equipe H2BApply",titulo:"Returning worker: o maior ativo da carreira H-2B",
+       texto:"'Returning worker' é quem já teve visto H-2B nos 3 anos fiscais anteriores e voltou pro Brasil no prazo. Em 2026, DOIS dos três lotes de vistos extras (46 mil dos ~65 mil) foram EXCLUSIVOS pra returning workers. Na prática: a primeira temporada é a mais difícil de conseguir; da segunda em diante, você concorre num grupo muito menor, o empregador já te conhece e muitas empresas pedem o MESMO trabalhador de volta nominalmente. Estratégia que os veteranos recomendam: na primeira temporada, aceite a vaga que vier (mesmo que não seja a ideal), trabalhe bem, cumpra o contrato até o último dia, volte no prazo — e a partir daí escolha melhor a cada ano."},
+    ];
+    let _seeded=0;
+    const _haveIds=new Set(DB_AI_KB.entries.map(e=>e.id));
+    for(const s of _AI_SEEDS){
+      if(!_haveIds.has(s.id)){DB_AI_KB.entries.push({...s,addedAt:Date.now()});_seeded++;}
+    }
+    if(_seeded>0){
+      persist(AI_KB_FILE, DB_AI_KB);
+      console.log(`[ai-kb] 🌱 ${_seeded} semente(s) de conhecimento H-2B/H-2A plantadas (total: ${DB_AI_KB.entries.length})`);
+    }
+  }
   // Garante entradas fundadoras sempre presentes (idempotente)
   const _kbFoundingIds = new Set(DB_KB.entries.map(e => e.id));
   const _kbFounding = [
@@ -1536,6 +1611,204 @@ function _migrateUsersToSingleProfile(users){
     console.log(`[perfil-por-visto] ✅ Migração concluída: ${touched} usuário(s) com perfis por tipo de visto.`);
   }
 }
+// v20 (reclamação real, 07/2026): LIMPEZA de PDFs duplicados + cura de perfis.
+// Muita gente ficou com o mesmo PDF 3x na conta (o upload não deduplicava e o
+// editor de perfil re-subia o arquivo a cada edição) e com perfis apontando
+// para idx de PDF que não existe mais (sobras da consolidação v19). Regras:
+//   1. PDFs do mesmo tipo com o MESMO nome → sobrevive 1 (preferência: o que
+//      algum perfil referencia > o que tem b64 salvo > o mais recente); os
+//      perfis que apontavam pros removidos são remapeados pro sobrevivente.
+//   2. Perfil apontando para idx inexistente → tenta casar pelo NOME salvo no
+//      perfil (pdfName/coverName); se não achar, limpa a referência (o editor
+//      passa a mostrar a verdade em vez de um anexo fantasma).
+// Idempotente: usuário sem duplicata e sem referência quebrada não é tocado.
+function _dedupeAndHealUserCvs(users){
+  let touched=0;
+  for(const email of Object.keys(users)){
+    const u=users[email];
+    if(!u)continue;
+    let changed=false;
+    const cvs=Array.isArray(u.cvs)?u.cvs:[];
+    if(cvs.length>1){
+      const refs=new Set();
+      for(const pr of (u.profiles||[])){
+        if(pr?.resumeIdx!=null)refs.add(parseInt(pr.resumeIdx,10));
+        if(pr?.coverIdx!=null)refs.add(parseInt(pr.coverIdx,10));
+      }
+      const groups=new Map();
+      for(const c of cvs){
+        const key=(c.cvType||"resume")+"||"+String(c.name||"").trim().toLowerCase();
+        if(!groups.has(key))groups.set(key,[]);
+        groups.get(key).push(c);
+      }
+      const remap=new Map(); // idx removido → idx sobrevivente
+      const kept=[];
+      for(const arr of groups.values()){
+        if(arr.length===1){kept.push(arr[0]);continue;}
+        const score=c=>(refs.has(parseInt(c.idx,10))?4:0)+((c.b64&&c.b64.length>100)?2:0);
+        arr.sort((a,b)=>score(b)-score(a)||parseInt(b.idx,10)-parseInt(a.idx,10));
+        const survivor=arr[0];
+        if(!(survivor.b64&&survivor.b64.length>100)){
+          const withB64=arr.find(c=>c.b64&&c.b64.length>100);
+          if(withB64)survivor.b64=withB64.b64;
+        }
+        kept.push(survivor);
+        for(const dup of arr.slice(1)){
+          remap.set(parseInt(dup.idx,10),survivor.idx);
+          try{fs.unlinkSync(cvPath(email,dup.idx));}catch{}
+        }
+        changed=true;
+      }
+      if(changed){
+        u.cvs=kept;
+        for(const pr of (u.profiles||[])){
+          if(!pr)continue;
+          if(pr.resumeIdx!=null&&remap.has(parseInt(pr.resumeIdx,10)))pr.resumeIdx=remap.get(parseInt(pr.resumeIdx,10));
+          if(pr.coverIdx!=null&&remap.has(parseInt(pr.coverIdx,10)))pr.coverIdx=remap.get(parseInt(pr.coverIdx,10));
+        }
+        console.log(`[cv-dedup] 🧹 ${email}: duplicatas removidas — ${cvs.length} → ${kept.length} PDF(s)`);
+      }
+    }
+    // Cura de referências quebradas (roda pra todo mundo, mesmo sem duplicata)
+    const cvSet=new Set((u.cvs||[]).map(c=>parseInt(c.idx,10)));
+    const byName=(name,type)=>{
+      const t=String(name||"").trim().toLowerCase();if(!t)return null;
+      const m=(u.cvs||[]).find(c=>(c.cvType||"resume")===type&&String(c.name||"").trim().toLowerCase()===t);
+      return m?m.idx:null;
+    };
+    for(const pr of (u.profiles||[])){
+      if(!pr)continue;
+      if(pr.resumeIdx!=null&&!cvSet.has(parseInt(pr.resumeIdx,10))){
+        const m=byName(pr.pdfName,"resume");
+        if(m!=null){pr.resumeIdx=m;console.log(`[cv-dedup] 🩹 ${email}: currículo do perfil "${pr.name}" recuperado pelo nome (${pr.pdfName})`);}
+        else{pr.resumeIdx=null;delete pr.pdfName;pr.pdfSize=0;}
+        changed=true;
+      }
+      if(pr.coverIdx!=null&&!cvSet.has(parseInt(pr.coverIdx,10))){
+        const m=byName(pr.coverName,"cover");
+        if(m!=null){pr.coverIdx=m;console.log(`[cv-dedup] 🩹 ${email}: cover do perfil "${pr.name}" recuperada pelo nome (${pr.coverName})`);}
+        else{pr.coverIdx=null;delete pr.coverName;pr.coverSize=0;}
+        changed=true;
+      }
+      // Nome-fantasma: perfil "diz" que tem PDF (pdfName/coverName) mas não
+      // aponta pra nenhum (idx null) — sobra do sistema legado. O editor
+      // mostrava um anexo que NUNCA era enviado. Tenta recuperar pelo nome;
+      // se o arquivo não existe mais, apaga o nome pra UI mostrar a verdade.
+      if(pr.resumeIdx==null&&pr.pdfName){
+        const m=byName(pr.pdfName,"resume");
+        if(m!=null){pr.resumeIdx=m;console.log(`[cv-dedup] 🩹 ${email}: currículo-fantasma do perfil "${pr.name}" religado pelo nome (${pr.pdfName})`);}
+        else{delete pr.pdfName;pr.pdfSize=0;}
+        changed=true;
+      }
+      if(pr.coverIdx==null&&pr.coverName){
+        const m=byName(pr.coverName,"cover");
+        if(m!=null){pr.coverIdx=m;console.log(`[cv-dedup] 🩹 ${email}: cover-fantasma do perfil "${pr.name}" religada pelo nome (${pr.coverName})`);}
+        else{delete pr.coverName;pr.coverSize=0;}
+        changed=true;
+      }
+    }
+    if(changed)touched++;
+  }
+  if(touched>0){
+    persist(USERS_FILE,users);
+    console.log(`[cv-dedup] ✅ Limpeza concluída: ${touched} usuário(s) com PDFs deduplicados e/ou perfis curados.`);
+  }
+}
+// v21 (07/2026): MIGRAÇÃO — move os PDFs base64 de dentro de users.json pro
+// disco (CVS_DIR) e limpa o campo b64. Motivo: com o b64 no DB, todo persist
+// de users.json reserializava os PDFs de TODOS os usuários (megabytes por
+// escrita de qualquer campo) e o Node carregava tudo isso na RAM — combustível
+// do 502 por falta de memória. Regras de segurança:
+//   - só apaga o b64 DEPOIS de confirmar o arquivo válido no disco (>100 bytes);
+//   - se a escrita falhar, o b64 fica no DB (nada se perde);
+//   - idempotente: quem não tem b64 não é tocado.
+function _migrateCvBlobsToDisk(users){
+  let touched=0, freedBytes=0, kept=0;
+  for(const email of Object.keys(users)){
+    const u=users[email];
+    if(!u||!Array.isArray(u.cvs))continue;
+    let changed=false;
+    for(const c of u.cvs){
+      if(!c||!c.b64||c.b64.length<=100)continue;
+      const fp=cvPath(email,c.idx);
+      let onDisk=false;
+      try{ onDisk=fs.statSync(fp).size>100; }catch{}
+      if(!onDisk){
+        try{
+          fs.writeFileSync(fp+".tmp",Buffer.from(c.b64,"base64"));
+          fs.renameSync(fp+".tmp",fp);
+          onDisk=fs.statSync(fp).size>100;
+        }catch(err){ console.warn(`[cv-blobs] falha ao gravar ${fp}: ${err.message} — b64 mantido no DB`); }
+      }
+      if(onDisk){ freedBytes+=c.b64.length; delete c.b64; changed=true; }
+      else kept++;
+    }
+    if(changed)touched++;
+  }
+  if(touched>0){
+    persist(USERS_FILE,users);
+    console.log(`[cv-blobs] ✅ ${touched} usuário(s) migrados: ~${(freedBytes/1048576).toFixed(1)}MB de PDFs saíram do users.json pro disco${kept?` (${kept} b64 mantidos por falha de disco)`:""}.`);
+  }
+}
+// v22 (ORDEM DO DONO, 21/07/2026): "não quero nada de preenchimento padrão de
+// nada — quem faz isso é o usuário". Limpa das contas existentes o texto
+// ENLATADO que o sistema gravava no cadastro (settings.subject/body/followup*).
+// Só remove o que bate EXATAMENTE com os padrões históricos de fábrica — texto
+// que o usuário editou é DELE e nunca é tocado. Idempotente.
+const _CANNED_DEFAULTS=[
+  "Application for {vaga} – {nome}",
+  "Dear Hiring Manager,\n\nMy name is {nome} and I am writing to express my strong interest in the {vaga} position at {empresa}.\n\nI am from {pais} and fully available to start on the requested date.\n\nPlease find my resume attached.\n\nBest regards,\n{nome}\n{telefone}",
+  "Following up: {vaga} at {empresa}",
+  "Dear Hiring Manager,\n\nFollowing up on {vaga} at {empresa}.\n\nBest regards,\n{nome}",
+];
+function _wipeCannedDefaults(users){
+  let touched=0;
+  for(const email of Object.keys(users)){
+    const u=users[email];
+    if(!u||!u.settings)continue;
+    let changed=false;
+    for(const f of ["subject","body","followupSubject","followupBody"]){
+      if(typeof u.settings[f]==="string"&&_CANNED_DEFAULTS.includes(u.settings[f])){
+        delete u.settings[f];changed=true;
+      }
+    }
+    if(changed)touched++;
+  }
+  if(touched>0){
+    persist(USERS_FILE,users);
+    console.log(`[texto-enlatado] 🧹 ${touched} conta(s) limparam o template de fábrica intocado — texto agora é 100% do usuário.`);
+  }
+}
+// v21 (07/2026): VARREDURA de PDFs órfãos em CVS_DIR. O antigo POST
+// /api/cv/delete removia o PDF do registro mas NUNCA apagava o arquivo do
+// disco — lixo acumulando num volume que já encheu uma vez (incidente ENOSPC).
+// Monta o conjunto de arquivos esperados a partir de TODOS os usuários e apaga
+// o que ninguém referencia (só arquivos no padrão nosso: <email>_<idx>.pdf,
+// mais .tmp abandonados de escrita interrompida). Roda depois das migrações.
+function _sweepOrphanCvFiles(users){
+  try{
+    if(!fs.existsSync(CVS_DIR))return;
+    const expected=new Set();
+    for(const email of Object.keys(users)){
+      for(const c of (users[email]?.cvs||[])){
+        if(c&&c.idx!=null)expected.add(path.basename(cvPath(email,c.idx)));
+      }
+    }
+    let removed=0,freed=0;
+    for(const f of fs.readdirSync(CVS_DIR)){
+      const isTmp=f.endsWith(".pdf.tmp");
+      const isPdf=/_\d+\.pdf$/.test(f);
+      if(!isTmp&&!isPdf)continue;            // não é arquivo nosso — não toca
+      if(!isTmp&&expected.has(f))continue;   // em uso — não toca
+      try{
+        const fp=path.join(CVS_DIR,f);
+        freed+=(fs.statSync(fp).size||0);
+        fs.unlinkSync(fp);removed++;
+      }catch{}
+    }
+    if(removed>0)console.log(`[cv-sweep] 🧹 ${removed} PDF(s) órfão(s) removidos do disco (~${(freed/1048576).toFixed(1)}MB liberados).`);
+  }catch(e){ console.warn("[cv-sweep] varredura falhou:",e.message); }
+}
 const getHist    = e => DB_HIST[e]||[];
 const addHist    = (e,entry) => { if(!DB_HIST[e])DB_HIST[e]=[]; DB_HIST[e].unshift(entry); if(DB_HIST[e].length>10000)DB_HIST[e]=DB_HIST[e].slice(0,10000); invalidateUserStatsCache(e); persistDebounced(HIST_FILE,DB_HIST,1500); }; // FIX-BUG8
 const delHist    = e => { delete DB_HIST[e]; persist(HIST_FILE,DB_HIST); };
@@ -1911,6 +2184,15 @@ function criarBackupCompleto(){
       try{ fs.copyFileSync(path.join(DATA_DIR,f), path.join(dir,f)); n++; }
       catch(e){ console.warn("[backup] falhou copiar",f,e.message); }
     }
+    // v21 (07/2026): os PDFs agora vivem SÓ em CVS_DIR (saíram do users.json),
+    // então o backup precisa cobrir a pasta cvs/ — e mesmo assim fica MENOR que
+    // antes (base64 no JSON inflava cada PDF em ~33%, copiado 3x na retenção).
+    try{
+      if(fs.existsSync(CVS_DIR)){
+        fs.cpSync(CVS_DIR, path.join(dir,"cvs"), {recursive:true});
+        n+=fs.readdirSync(CVS_DIR).length;
+      }
+    }catch(e){ console.warn("[backup] falhou copiar pasta cvs/:",e.message); }
     // Poda: mantém só os BACKUP_RETENCAO mais recentes, apaga o resto
     try{
       const todos=fs.readdirSync(BACKUP_DIR).filter(d=>/^\d{4}-/.test(d)).sort();
@@ -2405,12 +2687,24 @@ const countAutoToday   = h => (h||[]).filter(x=>(x.dateStr||"")===todayStr()&&x.
 // CVs — v16-FIX: dupla persistência (disco + DB) para nunca perder PDF no reinício
 const cvPath   = (e,i) => path.join(CVS_DIR,e.replace(/[^a-zA-Z0-9@._-]/g,"_")+"_"+i+".pdf");
 
+// v21 (07/2026): DISCO É A FONTE ÚNICA dos PDFs. O b64 dentro de DB_USERS
+// (v16) fazia TODO persist de users.json reserializar os PDFs de todos os
+// usuários (megabytes por escrita, avisos de >800ms no storage) e mantinha
+// tudo isso na RAM do Node — combustível do 502 por falta de memória do
+// Servidor 2. CVS_DIR mora dentro de DATA_DIR: mesma durabilidade do JSON.
+// O b64 no DB vira SÓ rede de segurança: usado apenas se a escrita em disco
+// falhar (e limpo pelo loadCv/migração assim que o disco voltar a funcionar).
 const saveCv = (e,i,b64) => {
-  // 1. Salva no disco (rápido para leitura)
-  try { fs.writeFileSync(cvPath(e,i), Buffer.from(b64,"base64")); } catch(err) {
-    console.warn(`[cv] Falha ao salvar disco: ${err.message}`);
+  // Escrita atômica (tmp+rename): nunca deixa PDF truncado se o processo cair
+  try {
+    const fp=cvPath(e,i);
+    fs.writeFileSync(fp+".tmp", Buffer.from(b64,"base64"));
+    fs.renameSync(fp+".tmp", fp);
+    return true;
+  } catch(err) {
+    console.warn(`[cv] Falha ao salvar disco (${err.message}) — guardando b64 no DB como rede de segurança`);
   }
-  // 2. Salva base64 no DB do usuário (sobrevive a reinícios)
+  // Fallback raro: disco indisponível → guarda no DB pra não perder o arquivo
   try {
     const p = getUser(e) || {};
     const cvs = (p.cvs || []).map(c => {
@@ -2418,8 +2712,10 @@ const saveCv = (e,i,b64) => {
       return c;
     });
     setUser(e, {cvs});
+    return true;
   } catch(err) {
     console.warn(`[cv] Falha ao salvar DB: ${err.message}`);
+    return false;
   }
 };
 
@@ -2429,15 +2725,21 @@ const loadCv = (e,i) => {
     const buf = fs.readFileSync(cvPath(e,i));
     if(buf && buf.length > 100) return buf.toString("base64");
   } catch {}
-  // 2. Fallback: recupera do DB (sobrevive a reinícios do /tmp)
+  // 2. Fallback: recupera do DB (rede de segurança de quando o disco falhou)
   try {
     const p = getUser(e);
     const cv = (p?.cvs||[]).find(c => parseInt(c.idx,10) === parseInt(i,10));
     if(cv?.b64 && cv.b64.length > 100) {
-      // Restaura no disco para próximas leituras
-      try { fs.writeFileSync(cvPath(e,i), Buffer.from(cv.b64,"base64")); } catch {}
-      console.log(`[cv] ✅ PDF restaurado do DB para disco: ${e} idx=${i}`);
-      return cv.b64;
+      const b64 = cv.b64;
+      // Restaura no disco e, se der certo, LIMPA o b64 do DB (v21: disco é a
+      // fonte única — o DB não deve seguir carregando o PDF pra sempre)
+      try {
+        fs.writeFileSync(cvPath(e,i), Buffer.from(b64,"base64"));
+        const cvs=(p.cvs||[]).map(c=>{ if(parseInt(c.idx,10)===parseInt(i,10)){const {b64:_,...rest}=c;return rest;} return c; });
+        setUser(e,{cvs});
+        console.log(`[cv] ✅ PDF restaurado do DB para disco (e b64 limpo do DB): ${e} idx=${i}`);
+      } catch {}
+      return b64;
     }
   } catch {}
   return null;
@@ -2863,6 +3165,236 @@ function computeWageStats(){
 // (contagem, salário médio/mín/máx, top categorias daquele estado). Reaproveita
 // o mesmo sistema visual das outras páginas SEO (h2bapply-funciona.html etc).
 const MIN_JOBS_FOR_STATE_PAGE=20; // abaixo disso, conteúdo fraco demais pra indexar bem
+// ── 📊 RESUMO DIÁRIO DO DONO (v37) ──────────────────────────────────────────
+// Todo dia às 8h BRT, Andrio e Diego recebem PUSH com o dia de ontem:
+// vendas, pedidos na mesa (com alerta dos parados >24h), envios/respostas e
+// usuários novos. Decisão de dono chega no bolso — sem precisar abrir o
+// painel. Gatilho manual: POST /api/admin/resumo-diario-run.
+async function resumoDiarioDonoRun(){
+  try{
+    const DAY=86400_000;
+    const ontem=new Date(Date.now()-3*3600_000-DAY); // "ontem" no fuso BRT
+    const ontemISO=ontem.toISOString().slice(0,10);
+    const [yy,mm,dd]=ontemISO.split("-");
+    const ontemBR=`${dd}/${mm}/${yy}`; // formato do dateStr do histórico
+    let vendas=0,vendasQtd=0;
+    for(const pg of (DB_FINANCEIRO.pagamentos||[])){
+      const dt=String(pg.dataPagamento||pg.data||"").slice(0,10);
+      if(dt===ontemISO){vendas+=(+pg.valor||0);vendasQtd++;}
+    }
+    const pend=DB_PEDIDOS.filter(x=>x.status==="pendente").length;
+    const criticos=DB_PEDIDOS.filter(x=>x.status==="pendente"&&(Date.now()-(x.createdAt||0))>24*3600_000).length;
+    let envios=0,respostas=0;
+    for(const arr of Object.values(DB_HIST)){
+      if(!Array.isArray(arr))continue;
+      for(const h of arr){
+        if(h.dateStr!==ontemBR)continue;
+        if(h.type==="manual"||h.type==="auto")envios++;
+        else if(h.type==="reply")respostas++;
+      }
+    }
+    let novos=0;
+    for(const u of Object.values(DB_USERS)){
+      if(String(u?.created_at||"").slice(0,10)===ontemISO)novos++;
+    }
+    const body=`💰 R$ ${vendas.toFixed(0)} em ${vendasQtd} venda(s) · 🛒 ${pend} pedido(s) na mesa${criticos?` (⚡ ${criticos} há +24h!)`:""} · 📨 ${envios} envio(s), ${respostas} resposta(s) · 👤 ${novos} usuário(s) novo(s)`;
+    for(const ae of ADMIN_EMAILS){
+      await pushToUser(ae,{type:"resumo_diario",title:`📊 Ontem no H2BApply (${dd}/${mm})`,body,icon:"/icon-192.png",url:"/admin"}).catch(()=>{});
+    }
+    try{botLog('resumo-dono','Resumo Diário do Dono',`Enviado aos admins: ${body}`,'info');}catch{}
+    console.log(`[resumo-dono] 📊 ${body}`);
+    return {ok:true,ontem:ontemISO,vendas,vendasQtd,pendentes:pend,criticos,envios,respostas,novosUsuarios:novos};
+  }catch(e){ console.warn("[resumo-dono]",e.message); return {ok:false,error:e.message}; }
+}
+function scheduleResumoDono(){
+  const now=new Date();const next=new Date(now);
+  next.setUTCHours(11,0,0,0); // 8h BRT = 11h UTC
+  if(next<=now)next.setUTCDate(next.getUTCDate()+1);
+  setTimeout(async()=>{ await resumoDiarioDonoRun(); scheduleResumoDono(); }, next-now);
+}
+
+// ── 🤖 BOT DE COLETA "Nova Planilha do DOL" (v35 — reescrito do KB) ─────────
+// O bot original vivia só no server.js de PRODUÇÃO (perdido no upload deste
+// repo — pendência registrada). Reescrito seguindo as lições dos KB-044/045/
+// 046/047: MAS sobre o caminho do FEED ZIP do datahub (o mesmo do cron
+// build-sheets.js, que comprovadamente funciona em produção) em vez do OData
+// $filter que rendeu 4 KBs de bug — "quando há dois caminhos e um já roda em
+// produção, o outro é o primeiro réu" (KB-045). Regras mantidas: running=true
+// síncrono no topo; log ao vivo; dedupe por ETA case number + guarda de
+// integridade (mod-vagas-integrity, mesmo módulo do cron); planilha nasce em
+// RASCUNHO — publicar é decisão manual do admin, sempre (KB-078).
+const _dolColeta={running:false,log:[],startedAt:0,finishedAt:0,key:null,count:0,error:null};
+function _dcLog(msg,type){
+  _dolColeta.log.push({t:Date.now(),msg:String(msg).slice(0,300),type:type||"info"});
+  if(_dolColeta.log.length>200)_dolColeta.log=_dolColeta.log.slice(-200);
+  console.log("[coleta]",msg);
+}
+async function _runDolColeta({visa,sheetKey,sheetName,beginFrom,beginTo}){
+  _dolColeta.running=true;_dolColeta.log=[];_dolColeta.startedAt=Date.now();
+  _dolColeta.finishedAt=0;_dolColeta.key=sheetKey;_dolColeta.count=0;_dolColeta.error=null;
+  try{
+    const bs=require("./build-sheets.js");
+    // DOL_FEED_BASE: override pra teste (o smoke aponta pra um feed local) —
+    // em produção fica vazio e usa o datahub oficial.
+    const base=(process.env.DOL_FEED_BASE||bs.DOL_BASE).replace(/\/$/,"");
+    const type=visa==="H-2A"?"h2a":"h2b";
+    const feedDate=new Date().toISOString().slice(0,10);
+    const url=`${base}/${type}/${feedDate}`;
+    _dcLog(`🚀 Coleta iniciada: ${sheetName} (${visa}) — feed ${url}`);
+    const raw=await bs.downloadAndParse(url);
+    const records=Array.isArray(raw)?raw:(raw.data||raw.results||raw.items||raw.cases||[]);
+    _dcLog(`📥 ${records.length} registros brutos do DOL`);
+    for(const rec of records){rec._cn=(rec.case_number||rec.case_id||"").trim().toUpperCase();}
+    const {rows:uniq,uniqueCount,duplicatesMerged}=_vagasDedupe(records,{caseField:"_cn"});
+    _dcLog(`🔑 ${uniqueCount} ETA case numbers únicos${duplicatesMerged?` (${duplicatesMerged} duplicados mesclados, nenhum dado perdido)`:""}`);
+    let descartadas=0,foraJanela=0;const compact=[];
+    for(const rec of uniq){
+      if(bs.shouldDiscard(rec)){descartadas++;continue;}
+      const c=bs.toCompact(rec);
+      if(beginFrom&&c.d&&c.d<beginFrom){foraJanela++;continue;}
+      if(beginTo&&c.d&&c.d>beginTo){foraJanela++;continue;}
+      compact.push(c);
+    }
+    _dcLog(`✅ ${compact.length} vagas válidas (${descartadas} sem e-mail/qualidade${foraJanela?`, ${foraJanela} fora da janela de datas`:""})`);
+    if(compact.length<10)throw new Error(`só ${compact.length} vagas válidas — resposta suspeita do DOL, NADA foi salvo (planilha anterior intacta)`);
+    const check=_vagasVerify(compact,{caseField:"c"});
+    if(!check.ok)throw new Error("guarda de integridade achou duplicata após o dedupe — NADA foi salvo");
+    compact.forEach(r=>{r._sheet=sheetKey;});
+    if(!fs.existsSync(SHEETS_DIR))fs.mkdirSync(SHEETS_DIR,{recursive:true});
+    fs.writeFileSync(path.join(SHEETS_DIR,sheetKey+".json"),JSON.stringify(compact));
+    try{fs.writeFileSync(path.join(SHEETS_DIR,sheetKey+".manifest.json"),
+      JSON.stringify(_vagasManifest(compact,{caseField:"c",extra:{feedUrl:url,visa,sheetName}}),null,2));}catch{}
+    SHEET_EXTRAS[sheetKey]=compact;
+    DB_SHEETS_META[sheetKey]={name:sheetName,key:sheetKey,emoji:visa==="H-2A"?"🌾":"📋",
+      file:sheetKey+".json",published:false,visaType:visa,
+      count:compact.length,uniqueCaseCount:compact.length,
+      source:"coleta-feed",uploaded:Date.now()};
+    try{fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));}catch(e){_dcLog("⚠️ meta não gravado: "+e.message,"warn");}
+    _dolColeta.count=compact.length;
+    const comEmail=compact.filter(r=>r.e&&r.e.includes("@")).length;
+    _dcLog(`💾 Planilha salva em RASCUNHO: ${compact.length} vagas (${comEmail} já com e-mail). Revise e clique PUBLICAR pra liberar aos usuários.`);
+    _dcLog(`🤖 O Enriquecimento automático completa os campos que faltarem (roda sozinho em até 30min).`);
+  }catch(e){
+    _dolColeta.error=e.message;
+    _dcLog(`❌ ${e.message}`,"error");
+  }
+  _dolColeta.running=false;_dolColeta.finishedAt=Date.now();
+}
+
+// ── 📰 /noticias — página PÚBLICA das notícias DOL traduzidas (v33-SEO) ─────
+// As notícias em PT (exclusivas, atualizadas todo dia pelos robôs) estavam
+// trancadas dentro do app logado. Público = conteúdo fresco diário indexável
+// ("notícias H-2B em português") + porta de entrada pra conversão. Mesma
+// casca visual das outras páginas SEO (renderStatePage).
+function renderNoticiasPage(){
+  const e=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const items=(DB_DOL_NOTICIAS.items||[]).slice(0,60);
+  const fmtDt=d=>{const t=Date.parse(d);return isNaN(t)?e(d||""):new Date(t).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});};
+  const cards=items.length?items.map(i=>{
+    const titulo=e(i.titlePT||i.titleEN||"");
+    const resumo=e(i.resumoPT||"");
+    const chip=i.origem==="ia"
+      ?'<span class="nt-chip nt-chip-ia">🔎 Pesquisa H2BApply</span>'
+      :'<span class="nt-chip nt-chip-dol">🇺🇸 DOL oficial</span>';
+    const imp=i.importante===true?'<span class="nt-chip nt-chip-imp">⚡ IMPORTANTE</span>':"";
+    return `<article class="card nt-card${i.importante===true?" nt-importante":""}">
+      <div class="nt-meta">${chip}${imp}<span class="nt-date">${fmtDt(i.date)}</span></div>
+      <h3 class="nt-title">${titulo}</h3>
+      ${resumo?`<p>${resumo}</p>`:""}
+      <a class="nt-fonte" href="${e(/^https?:\/\//i.test(String(i.url||""))?i.url:DOL_NEWS_URL)}" target="_blank" rel="noopener">Fonte: ${e(i.fonte||"DOL")} →</a>
+    </article>`;
+  }).join("\n"):`<div class="card"><p>As novidades aparecem aqui assim que o Departamento do Trabalho dos EUA publicar — nossos robôs conferem todos os dias e traduzem na hora.</p></div>`;
+  const ldItems=items.slice(0,25).map((i,ix)=>({"@type":"ListItem",position:ix+1,name:String(i.titlePT||i.titleEN||"").slice(0,110),url:i.url||"https://h2bapply.com/noticias"}));
+  const jsonLd=JSON.stringify({"@context":"https://schema.org","@type":"ItemList",name:"Notícias H-2B e H-2A em português",itemListElement:ldItems});
+  const desc="Notícias oficiais sobre os vistos de trabalho H-2B e H-2A traduzidas para português, direto do Departamento do Trabalho dos EUA (DOL), atualizadas todos os dias.";
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a56db">
+<title>Notícias H-2B e H-2A em Português — Atualizadas Todo Dia | H2BApply</title>
+<meta name="description" content="${desc}">
+<meta name="author" content="H2BApply">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://h2bapply.com/noticias">
+<meta property="og:title" content="Notícias H-2B e H-2A em Português — Atualizadas Todo Dia">
+<meta property="og:description" content="${desc}">
+<meta property="og:url" content="https://h2bapply.com/noticias">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://h2bapply.com/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Notícias H-2B e H-2A em Português — Atualizadas Todo Dia">
+<meta name="twitter:description" content="${desc}">
+<meta name="twitter:image" content="https://h2bapply.com/og-image.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<script type="application/ld+json">${jsonLd}</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}body{font-family:'DM Sans',system-ui,sans-serif;background:#f0f4ff;color:#1e1b4b;font-size:15px;line-height:1.6}
+a{color:inherit;text-decoration:none}
+:root{--surface:#fff;--sf4:#e0e7ff;--border:rgba(99,102,241,.12);--t2:#4c4f82;--t3:#7c7fb5;--blue:#3b82f6;--green:#10b981;--navy:#0f172a;--rl:14px;--rxl:20px}
+.top-bar{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:58px;background:rgba(255,255,255,.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+.logo-row{display:flex;align-items:center;gap:10px;font-family:'Sora',sans-serif;font-weight:800;font-size:17px;color:var(--navy)}
+.logo-row img{width:36px;height:36px;border-radius:10px}
+.btn-login{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#3b82f6,#7c3aed);color:#fff;font-weight:700;font-size:13px;padding:9px 18px;border-radius:10px;border:none;box-shadow:0 4px 15px rgba(59,130,246,.3)}
+.hero{background:linear-gradient(160deg,#0a0520,#1e1b4b,#312e81,#3b82f6);color:#fff;padding:48px 20px 36px;text-align:center}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;margin-bottom:18px}
+.hero h1{font-family:'Sora',sans-serif;font-size:clamp(22px,4.8vw,34px);font-weight:800;line-height:1.26;margin-bottom:12px;max-width:680px;margin-left:auto;margin-right:auto}
+.hero-sub{font-size:14.5px;opacity:.9;max-width:540px;margin:0 auto 22px;line-height:1.7}
+.btn-hero{display:inline-flex;align-items:center;gap:8px;padding:13px 24px;border-radius:12px;font-weight:700;font-size:14px;background:#fff;color:#1e1b4b;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.content{max-width:820px;margin:0 auto;padding:24px 20px 56px}
+.card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:18px 20px;box-shadow:0 2px 10px rgba(99,102,241,.04)}
+.card p{font-size:13.5px;color:var(--t2);line-height:1.75}
+.nt-card{margin-bottom:12px}
+.nt-importante{border-color:rgba(245,158,11,.5);background:linear-gradient(135deg,#fffdf5,#fff)}
+.nt-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.nt-chip{font-size:10.5px;font-weight:800;border-radius:8px;padding:3px 9px}
+.nt-chip-dol{background:rgba(59,130,246,.12);color:#1d4ed8}
+.nt-chip-ia{background:rgba(124,58,237,.12);color:#6d28d9}
+.nt-chip-imp{background:rgba(245,158,11,.16);color:#b45309}
+.nt-date{font-size:11.5px;color:var(--t3);margin-left:auto}
+.nt-title{font-family:'Sora',sans-serif;font-size:16px;font-weight:800;color:var(--navy);line-height:1.4;margin-bottom:6px}
+.nt-fonte{display:inline-block;margin-top:8px;font-size:12px;font-weight:700;color:var(--blue)}
+.nt-fonte:hover{text-decoration:underline}
+.cta-section{background:linear-gradient(160deg,#0a0520,#1e1b4b,#4c1d95,#7c3aed);color:#fff;border-radius:var(--rxl);padding:34px 24px;text-align:center;margin:40px 0 28px}
+.cta-section h3{font-family:'Sora',sans-serif;font-size:20px;font-weight:800;margin-bottom:8px}
+.cta-section p{font-size:13.5px;opacity:.82;margin-bottom:20px;max-width:440px;margin-left:auto;margin-right:auto}
+.btn-cta-white{display:inline-flex;align-items:center;gap:8px;background:#fff;color:#1e1b4b;font-weight:700;font-size:13.5px;padding:12px 22px;border-radius:12px;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+footer{background:#fff;border-top:1px solid var(--border);text-align:center;padding:22px 20px;font-size:12px;color:var(--t3)}
+footer a{color:var(--blue);font-weight:600}
+</style>
+</head>
+<body>
+<header class="top-bar">
+  <a href="/" class="logo-row"><img src="/apple-touch-icon.png" alt="H2BApply logo"><span>H2BApply</span></a>
+  <a href="/oauth/google" class="btn-login">🚀 Começar grátis</a>
+</header>
+<section class="hero">
+  <div class="hero-badge">📰 Direto do DOL, traduzido pra você</div>
+  <h1>Notícias H-2B e H-2A em português, atualizadas todo dia</h1>
+  <p class="hero-sub">Tudo que o Departamento do Trabalho dos EUA publica sobre os vistos H-2B e H-2A, traduzido automaticamente para português — com a fonte oficial linkada em cada notícia.</p>
+  <a href="/" class="btn-hero">🔔 Receber cada notícia no celular</a>
+</section>
+<div class="content">
+${cards}
+<div class="cta-section">
+  <h3>Não perca a próxima janela do H-2B</h3>
+  <p>No app do H2BApply você recebe notificação de cada notícia nova, vê as vagas certificadas pelo DOL e envia candidaturas direto do seu Gmail.</p>
+  <a href="/oauth/google" class="btn-cta-white">🚀 Criar conta grátis</a>
+</div>
+</div>
+<footer>
+  <a href="/">H2BApply</a> · <a href="/guia">Guia H-2B</a> · <a href="/quanto-ganha-h2b">Quanto ganha</a> · <a href="/h2b-e-golpe">Como evitar golpes</a>
+</footer>
+</body>
+</html>`;
+}
+
 function renderStatePage(entry,topCats,overallCount){
   const {key:stateName,count,avgWage,minWage,maxWage}=entry;
   const titleCase=stateName.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
@@ -2899,8 +3431,8 @@ function renderStatePage(entry,topCats,overallCount){
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'" onerror="this.onerror=null;this.href='https://unpkg.com/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css';this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css"></noscript>
+<link rel="preload" as="style" href="/vendor/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'" onerror="this.onerror=null;this.href='/vendor/tabler-icons.min.css';this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="/vendor/tabler-icons.min.css"></noscript>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}body{font-family:'DM Sans',system-ui,sans-serif;background:#f0f4ff;color:#1e1b4b;font-size:15px;line-height:1.6}
@@ -3060,8 +3592,8 @@ function renderCategoryPage(entry,topStates,overallCount){
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Sora:wght@700;800&display=swap" rel="stylesheet">
-<link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'" onerror="this.onerror=null;this.href='https://unpkg.com/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css';this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css"></noscript>
+<link rel="preload" as="style" href="/vendor/tabler-icons.min.css" onload="this.onload=null;this.rel='stylesheet'" onerror="this.onerror=null;this.href='/vendor/tabler-icons.min.css';this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="/vendor/tabler-icons.min.css"></noscript>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}body{font-family:'DM Sans',system-ui,sans-serif;background:#f0f4ff;color:#1e1b4b;font-size:15px;line-height:1.6}
@@ -3471,8 +4003,15 @@ function scheduleAuto(email) {
   if(autoTimers.has(email))clearTimeout(autoTimers.get(email));
   const job=getAutoJob(email);
   if(!job||!job.active){autoTimers.delete(email);return;}
-  // Fila zerada: finalizar com status correto
+  // Fila zerada: v23 — tenta refill automático antes de finalizar
   if(!job.queue?.length){
+    const _added=tryAutoRefill(email,job);
+    if(_added>0){
+      addLog(email,{status:"sistema",jobTitle:`🔄 Fila recarregada sozinha: +${_added} vaga(s) nova(s)`,company:"O robô continua trabalhando com os mesmos filtros — nada pra você fazer."});
+      pushToUser(email,{type:"refill",title:"🔄 Robô recarregou sozinho!",body:`+${_added} vagas novas na fila com os mesmos filtros. Seguimos enviando.`,icon:"/icon-192.png"}).catch(()=>{});
+      autoTimers.set(email,setTimeout(()=>scheduleAuto(email),5000));
+      return;
+    }
     setAutoJob(email,{...job,active:false,queue:[],finishedAt:Date.now(),status:"finished"});
     autoTimers.delete(email);
     addLog(email,{status:"sistema",jobTitle:"✅ Fila finalizada",company:`Total: ${job.originalCount||0} vagas processadas.`});
@@ -3591,6 +4130,141 @@ function selectProfile(profiles, target, sheet, preferredId) {
 
   // 5. Fallback
   return pool[0];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🧠 v23 — INTELIGÊNCIA DO ROBÔ (pedido do dono: "programa agindo certo,
+// pensando certo"). 4 peças: fila esperta, vaga morta, refill automático.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Quantos e-mails o APP INTEIRO já mandou pra cada empregador (cache 30min).
+// Usado pra ordenar a fila: empregador MENOS contatado primeiro — mais chance
+// de resposta pro usuário e menos risco de spam coletivo nos populares.
+let _globalContactCache={map:null,ts:0};
+function getGlobalContactCounts(){
+  if(_globalContactCache.map&&Date.now()-_globalContactCache.ts<30*60_000)return _globalContactCache.map;
+  const m=new Map();
+  try{
+    for(const h of Object.values(DB_HIST)){
+      for(const x of (h||[])){
+        if(x.type==="reply")continue;
+        const t=String(x.to||"").toLowerCase();
+        if(t)m.set(t,(m.get(t)||0)+1);
+      }
+    }
+  }catch(e){console.warn("[fila-esperta] contagem falhou:",e.message);}
+  _globalContactCache={map:m,ts:Date.now()};
+  return m;
+}
+// Ordena a fila em faixas de "quanto o app já contatou esse empregador"
+// (0 → 1-2 → 3-5 → 6-15 → 16+), embaralhando DENTRO de cada faixa — mantém
+// a proteção original (usuários simultâneos não batem nos mesmos alvos) e
+// ainda prioriza os empregadores mais frescos.
+function orderQueueSmart(queue){
+  try{
+    const counts=getGlobalContactCounts();
+    const buckets=new Map();
+    for(const it of queue){
+      const c=counts.get(String(it.to||"").toLowerCase())||0;
+      const b=c===0?0:c<=2?1:c<=5?2:c<=15?3:4;
+      if(!buckets.has(b))buckets.set(b,[]);
+      buckets.get(b).push(it);
+    }
+    const out=[];
+    for(const b of [...buckets.keys()].sort((x,y)=>x-y))out.push(...shuffleArray(buckets.get(b)));
+    return out;
+  }catch(e){console.warn("[fila-esperta] falhou — usando shuffle:",e.message);return shuffleArray(queue);}
+}
+
+// A fila envelhece (dias/semanas no automático). Antes de gastar 1 envio do
+// limite diário do usuário, confere se a vaga ainda está VIVA na planilha
+// atual. Devolve o motivo (string) se morreu, null se está ok/desconhecida.
+function isQueueJobDead(source,caseNum){
+  try{
+    if(!caseNum)return null;
+    const rows=getSheet(source||"");
+    if(!rows||!rows.length)return null;
+    const cn=String(caseNum).toUpperCase();
+    const row=rows.find(r=>String(r.c||"").toUpperCase()===cn);
+    if(!row)return null; // sumiu da planilha — não dá pra afirmar que morreu
+    const st=String(row.st||"").toUpperCase();
+    if(st.includes("WITHDRAWN"))return "vaga RETIRADA pelo empregador";
+    if(st.includes("DENIED"))return "vaga NEGADA pelo DOL";
+    if(st.includes("EXPIRED")||st.includes("INVALIDATED")||row.exp===1||row.exp===true)return "vaga EXPIRADA";
+    return null;
+  }catch{return null;}
+}
+
+// 🔄 REFILL AUTOMÁTICO: quando a fila zera, o robô se realimenta SOZINHO com
+// os MESMOS filtros que o usuário escolheu no início (job.filters), cortando
+// tudo que já foi enviado — em vez de parar e esperar o usuário voltar.
+// Devolve quantas vagas novas entraram (0 = nada novo → finaliza como antes).
+function tryAutoRefill(email,job){
+  try{
+    if(!job||(job.refills||0)>=50)return 0; // trava de segurança absoluta
+    const rows=getSheet(job.source||"");
+    if(!rows||!rows.length)return 0; // fonte não é planilha (fila manual) — sem refill
+    const f=job.filters||{};
+    const sentSet=buildUserSentSet(email);
+    const own=_ownEmailsOf(email);
+    const u2=getUser(email)||{};
+    const isDP=!!(u2.isAdmin||getPlan(u2)==="doublepro");
+    const states=String(f.state||"").split(",").map(s=>s.trim().toUpperCase()).filter(Boolean);
+    const cats=String(f.category||"").split(",").map(s=>s.trim()).filter(s=>s&&s!=="all");
+    const kw=String(f.keyword||"").toLowerCase().trim();
+    const months=Array.isArray(f.beginMonths)?f.beginMonths.map(Number).filter(m=>m>=1&&m<=12):[];
+    const titles=Array.isArray(f.titles)?f.titles.map(t=>String(t).toLowerCase().trim()).filter(Boolean):[];
+    const wantOutros=titles.includes("__outros__");
+    const titleSet=new Set(titles.filter(t=>t!=="__outros__"));
+    let freq=null;
+    if(wantOutros){freq=new Map();for(const r of rows){const t=(r.t||"").trim().toLowerCase();if(t)freq.set(t,(freq.get(t)||0)+1);}}
+    const grupos=isDP?String(f.grupos||(Array.isArray(f.grupos)?f.grupos.join(","):"")).toString().toUpperCase().replace(/[^A-H,]/g,""):"";
+    const gset=new Set(grupos.split(",").filter(Boolean));
+    const dolStatus=isDP?String(f.dolStatus||"").toLowerCase().slice(0,60):"";
+    const minWage=parseFloat(f.minWage)||0;
+    const parseW=w=>{if(!w)return 0;const m=String(w).match(/[0-9.]+/);return m?parseFloat(m[0]):0;};
+    const city=String(f.city||"").toLowerCase().trim();
+    const minWorkers=parseInt(f.minWorkers)||0;
+    const cap=Math.min(2000,parseInt(f.limit)||job.originalCount||500);
+    const fresh=[];
+    for(const r of rows){
+      const em=String(r.e||"").toLowerCase().trim();
+      if(!em||!em.includes("@"))continue;
+      if(sentSet.has(_normEmail(em))||own.has(em)||isEmailInvalid(em))continue;
+      if(states.length&&!states.includes(String(r.s||"").toUpperCase()))continue;
+      if(city&&!(String(r.ci||"").toLowerCase().includes(city)))continue;
+      if(cats.length&&!cats.includes(r.k||"other"))continue;
+      if(minWage>0&&parseW(r.w)<minWage)continue;
+      if(minWorkers>0&&(r.wk||0)<minWorkers)continue;
+      if(kw&&!((r.t||"").toLowerCase().includes(kw)||(r.n||"").toLowerCase().includes(kw)))continue;
+      if(months.length){const mm=String(r.d||"").match(/^\d{4}-(\d{2})/);if(!mm||!months.includes(parseInt(mm[1],10)))continue;}
+      if(titleSet.size||wantOutros){
+        const t=(r.t||"").trim().toLowerCase();
+        if(!t)continue;
+        const okTitle=titleSet.has(t)||(wantOutros&&(freq.get(t)||0)<=3);
+        if(!okTitle)continue;
+      }
+      if(gset.size){const cn=String(r.c||"").toUpperCase();const g0=(r.g&&/^[A-H]$/.test(r.g))?r.g:(DB_GRUPOS_J26.mapa[cn]?.grupo||"");if(!g0||!gset.has(g0))continue;}
+      if(dolStatus&&!String(r.st||"").toLowerCase().includes(dolStatus))continue;
+      const st=String(r.st||"").toUpperCase();
+      if(st.includes("WITHDRAWN")||st.includes("DENIED")||st.includes("EXPIRED")||st.includes("INVALIDATED"))continue;
+      fresh.push({
+        id:r.c,to:em,title:r.t||"Seasonal Worker",company:r.n||"",category:r.k||"other",
+        state:r.s||"",city:r.ci||"",wage:r.w?`$${r.w}/${r.wunit||"h"}`:"",visa:r.visa||"",
+        start:r.d||"",end:r.de||"",workers:r.wk||null,desc:"",caseNum:r.c,
+        url:r.c&&String(r.c).startsWith("H-")?`https://seasonaljobs.dol.gov/jobs/${r.c}`:"",
+        sheetOrigin:job.source
+      });
+      if(fresh.length>=cap)break;
+    }
+    if(!fresh.length)return 0;
+    const ordered=orderQueueSmart(fresh);
+    setAutoJob(email,{...job,queue:ordered,originalCount:(job.originalCount||0)+ordered.length,
+      filteredCount:ordered.length,refills:(job.refills||0)+1,lastRefillAt:Date.now(),
+      status:"refilled",active:true,finishedAt:null});
+    console.log(`[auto-refill] 🔄 ${email}: fila recarregada sozinha com ${ordered.length} vaga(s) nova(s) (refill #${(job.refills||0)+1})`);
+    return ordered.length;
+  }catch(e){console.warn(`[auto-refill] falhou p/ ${email}:`,e.message);return 0;}
 }
 
 // ── Rotação de assunto sem repetição consecutiva ──────────
@@ -3766,6 +4440,14 @@ async function _doAutoSendInner(email) {
         addLog(email, { status:"pulado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:`⚫ Email inválido removido da fila: ${motivo} (${invInfo?.count||1}x detectado)` });
         queue.shift(); continue;
       }
+      // ── v23: VAGA MORTA — a fila envelhece; não gasta envio do limite
+      // diário do usuário numa vaga que foi retirada/negada/expirou depois
+      // que a fila foi montada.
+      const _dead = isQueueJobDead(job.source, candidate.caseNum || candidate.id);
+      if (_dead) {
+        addLog(email, { status:"pulado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:`🪦 ${_dead} depois que a fila foi montada — pulada (não contou no seu limite)` });
+        queue.shift(); continue;
+      }
       candidate.to = _ce.email; // normalizado
       target = Object.assign({}, candidate); break;
     }
@@ -3775,6 +4457,15 @@ async function _doAutoSendInner(email) {
 
   // FIX-BUG6: finaliza APENAS quando !target
   if (!target) {
+    // v23: antes de finalizar, o robô tenta se REALIMENTAR sozinho com os
+    // mesmos filtros do usuário (vagas novas que ele ainda não enviou).
+    const _added = tryAutoRefill(email, { ...job, queue:[] });
+    if (_added > 0) {
+      addLog(email, { status:"sistema", jobTitle:`🔄 Fila recarregada sozinha: +${_added} vaga(s) nova(s)`, company:"O robô continua trabalhando com os mesmos filtros — nada pra você fazer." });
+      pushToUser(email,{type:"refill",title:"🔄 Robô recarregou sozinho!",body:`+${_added} vagas novas na fila com os mesmos filtros. Seguimos enviando.`,icon:"/icon-192.png"}).catch(()=>{});
+      autoTimers.set(email, setTimeout(()=>scheduleAuto(email), 5000));
+      return;
+    }
     setAutoJob(email, { ...job, active:false, queue:[], finishedAt:Date.now(), status:"finished" });
     autoTimers.delete(email);
     addLog(email, { status:"sistema", jobTitle:"✅ Fila finalizada", company:`Total: ${job.originalCount||0} vagas processadas. Todas enviadas!` });
@@ -3916,7 +4607,12 @@ async function _doAutoSendInner(email) {
     let effectiveCoverIdx  = (job.coverIdx  != null) ? job.coverIdx  : null;
     if (selectedProfile) {
       if (selectedProfile.resumeIdx != null) effectiveResumeIdx = selectedProfile.resumeIdx;
-      if (selectedProfile.coverIdx  != null) effectiveCoverIdx  = selectedProfile.coverIdx;
+      // v20 (reclamação real, 07/2026): cover letter do perfil manda SEMPRE —
+      // coverIdx null no perfil significa "Nenhuma" (escolha explícita do
+      // usuário), não "sem preferência". Antes o null deixava valer o
+      // job.coverIdx, que o /api/auto/start preenchia com a cover de OUTRO
+      // perfil (ex.: carta do H-2A saindo em toda vaga H-2B).
+      effectiveCoverIdx = (selectedProfile.coverIdx != null) ? selectedProfile.coverIdx : null;
     }
     // Fallback automático: se ainda nulo, usa o primeiro resume disponível do usuário
     if (effectiveResumeIdx == null) {
@@ -3987,15 +4683,13 @@ async function _doAutoSendInner(email) {
     const subjectPool = (selectedProfile?.subjects?.length) ? [...selectedProfile.subjects]
                       : (job.subjects?.length)              ? [...job.subjects]
                       : null;
-    let chosenSubject, newSubjIdx;
+    // v22 (ORDEM DO DONO): sem assunto do usuário → NÃO inventa um (genSubject
+    // removido). O envio é pulado logo abaixo com erro claro mandando
+    // configurar o perfil. Texto de candidatura é 100% do usuário.
+    let chosenSubject = "", newSubjIdx = -1;
     if (subjectPool && subjectPool.length) {
       const rot = rotateItem(subjectPool, rotState.lastSubjIdx);
       chosenSubject = rot.value; newSubjIdx = rot.idx;
-    } else {
-      chosenSubject = genSubject(String(target.title || "")); newSubjIdx = -1;
-    }
-    if (!chosenSubject || !String(chosenSubject).trim()) {
-      chosenSubject = genSubject(String(target.title || "")); newSubjIdx = -1;
     }
 
     // ── Corpo (rotação, novo objeto a cada envio) ──────────
@@ -4160,7 +4854,7 @@ async function _doAutoSendInner(email) {
         })();
       }
 
-      addLog(email, { ...logEntry, status:"enviado", appId, profileUsed:selectedProfile?.name||"", subjectUsed:subject.slice(0,120), attachCount:attachments.length, attempt:retryCount+1, senderEmail:_autoSenderEmail||email, wage:target.wage||"", city:target.city||"", workers:target.workers||null, start:target.start||"", caseNum:target.caseNum||"" });
+      addLog(email, { ...logEntry, status:"enviado", appId, profileUsed:selectedProfile?.name||"", subjectUsed:subject.slice(0,120), subjectTpl:(chosenSubject||"").slice(0,120), attachCount:attachments.length, attempt:retryCount+1, senderEmail:_autoSenderEmail||email, wage:target.wage||"", city:target.city||"", workers:target.workers||null, start:target.start||"", caseNum:target.caseNum||"" });
       updateAutoStats(email, { sent:(getAutoStats(email).sent||0)+1, startedAt:getAutoStats(email).startedAt||Date.now() });
       // ✅ Heartbeat: registra atividade para o watchdog
       { const h=getHealth(email); h.lastSent=Date.now(); h.errors=0; h.stalledAt=null; h.status="ok"; }
@@ -4249,7 +4943,7 @@ async function _doAutoSendInner(email) {
   autoTimers.set(email, setTimeout(() => scheduleAuto(email), interval));
 }
 
-const genSubject=title=>{const pfx=["Application for","Interest in","Applying for","H-2B Application:","Candidature for"];return`${pfx[Math.floor(Math.random()*pfx.length)]} ${title}`;};
+// v22 (ORDEM DO DONO): genSubject removido — o programa não inventa assunto.
 // fillTpl: substitui TODAS as variáveis de template — incluindo {email}, {cidade}, {estado}
 const fillTpl=(tpl,v)=>(tpl||"")
   .replace(/{vaga}/g,       v.vaga||"")
@@ -4955,7 +5649,8 @@ async function gmailMarkRead(sid,messageId){
   },{removeLabelIds:["UNREAD"]});
 }
 
-async function genCover({name,country,phone,job,company,city,state,wage}){return`Dear Hiring Manager,\n\nI am writing to express my sincere interest in the ${job} position at ${company}, located in ${city}, ${state}.\n\nMy name is ${name}, and I am from ${country}. I am highly motivated and fully committed to contributing my best. I am available to start on the specified date and commit to the full season.\n${wage&&wage!=="–"?`\nI am pleased with the offered compensation of ${wage}.\n`:""}\nPlease find my resume attached.\n\nSincerely,\n${name}\n${country}${phone?"\n"+phone:""}`;}
+// v22 (ORDEM DO DONO): genCover/"IA gera" removidos — era um template FIXO
+// disfarçado de IA escrevendo a candidatura pelo usuário. Texto é do usuário.
 
 // ══════════════════════════════════════════════════════════
 //  HTTP SERVER
@@ -5373,7 +6068,11 @@ async function j26CheckDolNewsAndImport(){
   }
 }
 async function j26AutoTick(){
-  if(DB_GRUPOS_J26.meta.autoCheckEnabled===false) return;
+  // v26 (ORDEM DO DONO, 21/07/2026): a lista randomizada só sai em JANEIRO e
+  // JULHO — a de julho/2026 já saiu, a próxima demora meses. O bot agora
+  // HIBERNA por padrão (opt-in): só varre se o admin LIGAR explicitamente o
+  // auto-check no painel quando a próxima janela (dez/jan) se aproximar.
+  if(DB_GRUPOS_J26.meta.autoCheckEnabled!==true) return;
   if(DB_GRUPOS_J26.meta.ultimoResultadoAuto==='importado' && DB_GRUPOS_J26.meta.urlJaImportada) return; // já achou e importou — não precisa mais varrer
   await j26CheckDolNewsAndImport();
 }
@@ -5573,6 +6272,7 @@ async function dolNewsCheckNow(){
       return { ok:false, reason:'http-'+status };
     }
     const html = buffer.toString("utf8");
+    try{ dolNoticiasIngest(html); }catch(e){} // v26: alimenta a aba Notícias no mesmo fetch
     const found = dolNewsParseLatest(html);
     if(!found.ok){
       DB_DOL_NEWS_WATCH.ultimoResultado='erro-parse';
@@ -5585,28 +6285,18 @@ async function dolNewsCheckNow(){
     DB_DOL_NEWS_WATCH.ultimoErroDetalhe = null;
     const baseline = DB_DOL_NEWS_WATCH.ultimaConhecida;
     if(found.date > baseline.date || (found.date===baseline.date && found.title!==baseline.title)){
-      // 🚨 Anúncio novo!
-      dolNewsLog(`🚨 ANÚNCIO NOVO detectado (via ${found.estrategia}): "${found.date}" — "${found.title}"`,'ok');
-      const admins = getAllAdminEmails();
-      const subject = `🚨 DOL publicou anúncio novo — confira agora!`;
-      const text = `O robô do H2BApply detectou uma publicação NOVA na página de anúncios do DOL.
-
-📅 Data: ${found.date}
-📰 Título: ${found.title}
-
-🔗 Confira e baixe o que for preciso: ${DOL_NEWS_URL}
-
-Se for a lista randomizada de Julho 2026, faça o download logo!
-
-— Vigia de Anúncios DOL · H2BApply 🤖`;
-      const sendResult = await sendAdminAlertEmail(subject, text);
+      // 🚨 Anúncio novo na página. v26 (ORDEM DO DONO): NÃO manda mais e-mail
+      // genérico de "anúncio novo" (era pro ciclo da planilha randomizada, que
+      // só volta em meses). A notificação agora acontece SÓ quando a notícia é
+      // classificada como H-2B/H-2A na tradução — ver _notificarNoticiasRelevantes().
+      dolNewsLog(`📰 Anúncio novo detectado (via ${found.estrategia}): "${found.date}" — "${found.title}" — foi pra aba Notícias; notificação só se for sobre H-2B/H-2A.`,'ok');
       DB_DOL_NEWS_WATCH.ultimaConhecida = { date:found.date, title:found.title, detectadaEm:Date.now(), origem:found.estrategia };
       DB_DOL_NEWS_WATCH.ultimoResultado='nova-encontrada';
       DB_DOL_NEWS_WATCH.ultimoErro=null;
-      DB_DOL_NEWS_WATCH.historicoAlertas.unshift({ at:Date.now(), date:found.date, title:found.title, emailsEnviados:sendResult.enviados||[] });
+      DB_DOL_NEWS_WATCH.historicoAlertas.unshift({ at:Date.now(), date:found.date, title:found.title, emailsEnviados:[] });
       if(DB_DOL_NEWS_WATCH.historicoAlertas.length>30) DB_DOL_NEWS_WATCH.historicoAlertas.length=30;
       persistDolNewsWatch();
-      return { ok:true, novo:true, date:found.date, title:found.title, emailsEnviados:sendResult.enviados };
+      return { ok:true, novo:true, date:found.date, title:found.title };
     }
     DB_DOL_NEWS_WATCH.ultimoResultado='sem-novidade';
     DB_DOL_NEWS_WATCH.ultimoErro=null;
@@ -5623,6 +6313,214 @@ Se for a lista randomizada de Julho 2026, faça o download logo!
 async function dolNewsAutoTick(){
   if(DB_DOL_NEWS_WATCH.autoCheckEnabled===false) return;
   await dolNewsCheckNow();
+  // v26: aproveita o mesmo tick pra traduzir notícias pendentes (no-op se nada)
+  await dolNoticiasTraduzirPendentes().catch(()=>{});
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📰 v26 — ABA NOTÍCIAS (pedido do dono): todo anúncio da página oficial do
+// DOL (foreign-labor/news) desde JANEIRO/2026 vira notícia TRADUZIDA no site,
+// com fonte e link. Aproveita o fetch do Vigia (mesmo ciclo de 10min, mesmo
+// contorno de WAF) — aqui só se acrescenta: parser de TODOS os itens (não só
+// o mais novo), arquivo próprio, tradução automática via Gemini e API.
+// ═══════════════════════════════════════════════════════════════════════════
+const DOL_NOTICIAS_FILE = path.join(DATA_DIR, "dol_noticias.json");
+let DB_DOL_NOTICIAS = { items: [] };
+function loadDolNoticias(){ try{ if(fs.existsSync(DOL_NOTICIAS_FILE)){ const d=JSON.parse(fs.readFileSync(DOL_NOTICIAS_FILE,"utf8")); if(d&&Array.isArray(d.items)) DB_DOL_NOTICIAS=d; } }catch{} }
+function persistDolNoticias(){ try{ const t=DOL_NOTICIAS_FILE+".tmp"; fs.writeFileSync(t,JSON.stringify(DB_DOL_NOTICIAS)); fs.renameSync(t,DOL_NOTICIAS_FILE); }catch(e){ dolNewsLog("❌ persist notícias: "+e.message,"error"); } }
+
+// Parser de TODOS os anúncios da página (as mesmas 2 estratégias do Vigia,
+// só que coletando tudo em vez de parar no primeiro). Captura o link do
+// anúncio quando o heading tiver <a href>; senão a fonte é a própria página.
+function dolNewsParseAll(html){
+  const out=[];
+  const push=(iso,title,url)=>{
+    title=String(title||"").trim().replace(/\s+/g," ");
+    // Estratégia texto-puro captura texto além do título — corta no próximo
+    // padrão de data ("... Month DD, YYYY.") se ele vazou pra dentro
+    const nx=title.search(/\s[A-Z][a-z]+\s+\d{1,2},\s+\d{4}\./);
+    if(nx>8)title=title.slice(0,nx).trim();
+    if(!iso||title.length<8)return;
+    // Dedupe tolerante: mesma data + um título é prefixo do outro (60 chars
+    // normalizados) = mesmo anúncio visto pelas 2 estratégias. A 1ª ocorrência
+    // vence (headings vêm primeiro e trazem o link do anúncio).
+    const tnorm=title.toLowerCase().slice(0,60);
+    if(out.some(o=>o.date===iso&&(o._tnorm.startsWith(tnorm)||tnorm.startsWith(o._tnorm))))return;
+    out.push({date:iso,titleEN:title.slice(0,300),url:url||"",_tnorm:tnorm});
+  };
+  const DATE_TITLE_RE=/([A-Z][a-z]+)\s+(\d{1,2}),\s+(\d{4})\.\s*([^<\r\n]{8,300})/;
+  const headingRe=/<h[1-4][^>]*>([\s\S]*?)<\/h[1-4]>/gi; let hm;
+  while((hm=headingRe.exec(html))){
+    const inner=hm[1];
+    const text=inner.replace(/<[^>]+>/g,"").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").trim();
+    const dm=DATE_TITLE_RE.exec(text);
+    if(dm){
+      const iso=_parseEnDateToISO(dm[1],dm[2],dm[3]);
+      const href=(inner.match(/href="([^"]+)"/)||[])[1]||"";
+      const url=href?(href.startsWith("http")?href:"https://www.dol.gov"+href):"";
+      if(iso)push(iso,dm[4],url);
+    }
+  }
+  const plain=html.replace(/<script[\s\S]*?<\/script>/gi,"").replace(/<style[\s\S]*?<\/style>/gi,"").replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/&amp;/g,"&").replace(/\s+/g," ");
+  const globalRe=new RegExp(DATE_TITLE_RE.source,"g"); let gm;
+  while((gm=globalRe.exec(plain))){
+    // O título capturado é guloso e pode ter ENGOLIDO o anúncio seguinte —
+    // se dentro dele aparecer outro "Month DD, YYYY.", rebobina o cursor do
+    // regex pra esse ponto (senão o próximo anúncio seria pulado).
+    const nxIn=gm[4].search(/\s[A-Z][a-z]+\s+\d{1,2},\s+\d{4}\./);
+    if(nxIn>0)globalRe.lastIndex=gm.index+(gm[0].length-(gm[4].length-nxIn))-0;
+    const y=parseInt(gm[3],10); if(y<2024||y>2030)continue;
+    const iso=_parseEnDateToISO(gm[1],gm[2],gm[3]);
+    if(iso)push(iso,gm[4],"");
+  }
+  return out.map(({_tnorm,...rest})=>rest);
+}
+
+// Ingestão: chamada a cada checagem bem-sucedida do Vigia. Idempotente por id
+// (hash de data+título) — só entra o que ainda não existe; corte: >= jan/2026.
+function dolNoticiasIngest(html){
+  try{
+    const all=dolNewsParseAll(html).filter(n=>n.date>="2026-01-01");
+    if(!all.length)return 0;
+    const have=new Set(DB_DOL_NOTICIAS.items.map(i=>i.id));
+    let added=0;
+    for(const n of all){
+      const id="n_"+crypto.createHash("md5").update(n.date+"|"+n.titleEN.toLowerCase()).digest("hex").slice(0,12);
+      if(have.has(id))continue;
+      DB_DOL_NOTICIAS.items.push({id,date:n.date,titleEN:n.titleEN,url:n.url||DOL_NEWS_URL,titlePT:"",resumoPT:"",translatedAt:null,addedAt:Date.now()});
+      have.add(id); added++;
+    }
+    if(added>0){
+      DB_DOL_NOTICIAS.items.sort((a,b)=>b.date.localeCompare(a.date)||(b.addedAt-a.addedAt));
+      if(DB_DOL_NOTICIAS.items.length>300)DB_DOL_NOTICIAS.items.length=300;
+      persistDolNoticias();
+      dolNewsLog(`📰 ${added} notícia(s) nova(s) na aba Notícias (total ${DB_DOL_NOTICIAS.items.length}) — tradução a caminho`,"ok");
+      setTimeout(()=>dolNoticiasTraduzirPendentes().catch(()=>{}),2000);
+    }
+    return added;
+  }catch(e){ dolNewsLog("❌ ingestão de notícias: "+e.message,"error"); return 0; }
+}
+
+// Tradução automática (Gemini): lote de até 8 pendentes por vez, JSON
+// estrito. Falhou? Fica pendente e o próximo tick de 10min tenta de novo —
+// a aba mostra o título em inglês com aviso "tradução a caminho" enquanto isso.
+let _noticiasTraduzindo=false;
+async function dolNoticiasTraduzirPendentes(){
+  if(_noticiasTraduzindo)return;
+  const key=getGeminiKey(); if(!key)return;
+  const pend=DB_DOL_NOTICIAS.items.filter(i=>!i.titlePT).slice(0,8);
+  if(!pend.length)return;
+  _noticiasTraduzindo=true;
+  try{
+    const prompt=`Traduza para português do Brasil e resuma cada anúncio oficial do Departamento de Trabalho dos EUA (DOL) listado abaixo. O leitor é um trabalhador brasileiro que busca visto H-2B/H-2A. Para cada item devolva: "titulo_pt" (tradução fiel e natural do título), "resumo_pt" (2 a 3 frases simples explicando o que o anúncio é e o que muda na prática para quem busca H-2B/H-2A; se o assunto não afetar o H-2B/H-2A diretamente, diga isso em 1 frase) e "sobre_h2" (true se o anúncio trata de H-2B/H-2A ou afeta diretamente esses trabalhadores; false caso contrário). NÃO invente detalhes que não estão no título. Responda APENAS um array JSON válido, na mesma ordem, sem markdown: [{"id":"...","titulo_pt":"...","resumo_pt":"...","sobre_h2":true}]
+
+ANÚNCIOS:
+${pend.map(p=>`- id: ${p.id} | data: ${p.date} | título: ${p.titleEN}`).join("\n")}`;
+    const GEMINI_MODELS=["gemini-2.0-flash","gemini-2.5-flash-lite","gemini-2.5-flash"];
+    let text="";
+    for(const model of GEMINI_MODELS){
+      try{
+        const gu=new URL(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`);
+        const body=JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.2,maxOutputTokens:1800}});
+        const r=await new Promise((rs,rj)=>{const rq=https.request({hostname:gu.hostname,path:gu.pathname+gu.search,method:"POST",headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(body)}},resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{try{rs(JSON.parse(Buffer.concat(ch).toString()));}catch{rj(new Error("parse"));}});});rq.on("error",rj);rq.setTimeout(20000,()=>{rq.destroy();rj(new Error("timeout"));});rq.write(body);rq.end();});
+        text=(r?.candidates?.[0]?.content?.parts?.[0]?.text||"").replace(/```json|```/g,"").trim();
+        if(text)break;
+      }catch(e){/* tenta o próximo modelo */}
+    }
+    if(!text)return;
+    const arr=JSON.parse(text);
+    let done=0;
+    for(const t of (Array.isArray(arr)?arr:[])){
+      const item=DB_DOL_NOTICIAS.items.find(i=>i.id===t.id);
+      if(item&&t.titulo_pt){item.titlePT=String(t.titulo_pt).slice(0,300);item.resumoPT=String(t.resumo_pt||"").slice(0,600);item.sobreH2=t.sobre_h2===true;item.translatedAt=Date.now();done++;}
+    }
+    if(done>0){persistDolNoticias();dolNewsLog(`🌐 ${done} notícia(s) traduzidas pro português na aba Notícias`,"ok");
+      setTimeout(()=>_notificarNoticiasRelevantes().catch(()=>{}),1500);}
+  }catch(e){ dolNewsLog("⚠️ tradução de notícias falhou (tenta no próximo ciclo): "+e.message,"warn"); }
+  finally{ _noticiasTraduzindo=false; }
+}
+
+// ── v26: NOTIFICAÇÃO SÓ DO QUE IMPORTA (ordem do dono) ─────────────────────
+// Notícia nova classificada como SOBRE H-2B/H-2A (sobreH2 no DOL, importante
+// na pesquisa IA) → push pra todos os usuários com push + e-mail pros admins.
+// Uma vez só por notícia (notifiedAt). Nada de aviso pra anúncio genérico.
+async function _notificarNoticiasRelevantes(){
+  const pend=DB_DOL_NOTICIAS.items.filter(i=>!i.notifiedAt&&i.titlePT&&(i.sobreH2===true||i.importante===true)).slice(0,3);
+  if(!pend.length)return;
+  for(const n of pend)n.notifiedAt=Date.now();
+  persistDolNoticias();
+  const usersWithPush=Object.keys(DB_PUSH).filter(e=>(DB_PUSH[e]||[]).length>0);
+  let pushed=0;
+  for(const n of pend){
+    for(const email of usersWithPush){
+      try{await pushToUser(email,{type:"noticia",title:"📰 Notícia nova sobre H-2B/H-2A!",body:n.titlePT.slice(0,120),icon:"/icon-192.png",url:"/?tab=noticias"});pushed++;}catch{}
+    }
+  }
+  try{
+    await sendAdminAlertEmail(`📰 Notícia H-2B/H-2A publicada na aba Notícias`,
+      pend.map(n=>`📅 ${n.date} — ${n.titlePT}\n${n.resumoPT||""}\n🔗 ${n.url}`).join("\n\n")+`\n\n— Vigia de Anúncios · H2BApply 🤖`);
+  }catch{}
+  dolNewsLog(`🔔 ${pend.length} notícia(s) H-2B/H-2A notificadas (push pra ${usersWithPush.length} usuário(s) + e-mail admins)`,"ok");
+}
+
+// ── v26: 🔎 PESQUISA DIÁRIA COM IA (ordem do dono) ─────────────────────────
+// 1x por dia o Gemini pesquisa NA INTERNET (busca do Google embutida na API)
+// novidades sobre H-2B/H-2A em fontes oficiais/confiáveis e publica o que
+// achar como notícia na MESMA aba — com nome da fonte e link. Sem novidade
+// real = não publica nada (instrução explícita contra encher linguiça).
+let _pesquisaIaRodando=false;
+async function dolNoticiasPesquisaIA(){
+  if(_pesquisaIaRodando)return;
+  const key=getGeminiKey(); if(!key)return;
+  _pesquisaIaRodando=true;
+  try{
+    const hoje=new Date().toISOString().slice(0,10);
+    const recentes=DB_DOL_NOTICIAS.items.slice(0,20).map(i=>i.titlePT||i.titleEN).join(" | ");
+    const prompt=`Você é o pesquisador de notícias do H2BApply (app brasileiro de candidaturas a vistos de trabalho H-2B/H-2A nos EUA). Hoje é ${hoje}. PESQUISE na internet novidades RECENTES (últimos ~7 dias) sobre os vistos H-2B e H-2A que interessem a trabalhadores brasileiros: mudanças de regra, números de vistos/cap, datas importantes, taxas, decisões do DOL/USCIS/Departamento de Estado, alertas de golpe. Use APENAS fontes oficiais ou de alta confiança (uscis.gov, dol.gov, federalregister.gov, travel.state.gov, embaixadas, grandes escritórios de imigração, imprensa séria).
+
+REGRAS RÍGIDAS:
+- Máximo 2 itens, SÓ o que for genuinamente novo e relevante. NADA novo de verdade? Devolva [] — não invente nem recicle.
+- NÃO repita estes assuntos já publicados: ${recentes||"(nenhum)"}
+- Cada item PRECISA da URL real da fonte encontrada na pesquisa.
+Responda APENAS um array JSON sem markdown: [{"titulo_pt":"...","resumo_pt":"2-4 frases práticas pro trabalhador","fonte_nome":"ex: USCIS","fonte_url":"https://...","data":"YYYY-MM-DD","importante":true/false}] ("importante"=true só pra mudança que o trabalhador PRECISA saber já).`;
+    const GEMINI_MODELS=["gemini-2.5-flash","gemini-2.0-flash"];
+    let text="";
+    for(const model of GEMINI_MODELS){
+      try{
+        const gu=new URL(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`);
+        const body=JSON.stringify({contents:[{parts:[{text:prompt}]}],tools:[{google_search:{}}],generationConfig:{temperature:0.2,maxOutputTokens:1500}});
+        const r=await new Promise((rs,rj)=>{const rq=https.request({hostname:gu.hostname,path:gu.pathname+gu.search,method:"POST",headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(body)}},resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{try{rs(JSON.parse(Buffer.concat(ch).toString()));}catch{rj(new Error("parse"));}});});rq.on("error",rj);rq.setTimeout(30000,()=>{rq.destroy();rj(new Error("timeout"));});rq.write(body);rq.end();});
+        text=(r?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("").replace(/```json|```/g,"").trim();
+        if(text)break;
+      }catch(e){/* tenta o próximo modelo */}
+    }
+    if(!text){botLog('noticias-ia','Pesquisador de Notícias IA','⚠️ Gemini não respondeu — tenta amanhã','warn');return;}
+    let arr=[];try{arr=JSON.parse(text.slice(text.indexOf("[")));}catch{botLog('noticias-ia','Pesquisador de Notícias IA','⚠️ resposta não-JSON — tenta amanhã','warn');return;}
+    let added=0;
+    for(const t of (Array.isArray(arr)?arr:[]).slice(0,2)){
+      const titulo=String(t.titulo_pt||"").trim().slice(0,300);
+      const furl=String(t.fonte_url||"").trim();
+      if(!titulo||titulo.length<10||!/^https?:\/\//.test(furl))continue;
+      const id="n_"+crypto.createHash("md5").update("ia|"+titulo.toLowerCase()).digest("hex").slice(0,12);
+      if(DB_DOL_NOTICIAS.items.some(i=>i.id===id))continue;
+      const dt=/^\d{4}-\d{2}-\d{2}$/.test(String(t.data||""))?t.data:hoje;
+      DB_DOL_NOTICIAS.items.push({id,date:dt,titleEN:"",titlePT:titulo,resumoPT:String(t.resumo_pt||"").slice(0,600),
+        url:furl,fonte:String(t.fonte_nome||"Pesquisa IA").slice(0,60),origem:"ia",
+        importante:t.importante===true,sobreH2:true,translatedAt:Date.now(),addedAt:Date.now(),
+        notifiedAt:t.importante===true?null:Date.now()}); // só "importante" notifica
+      added++;
+    }
+    if(added>0){
+      DB_DOL_NOTICIAS.items.sort((a,b)=>b.date.localeCompare(a.date)||(b.addedAt-a.addedAt));
+      if(DB_DOL_NOTICIAS.items.length>300)DB_DOL_NOTICIAS.items.length=300;
+      persistDolNoticias();
+      botLog('noticias-ia','Pesquisador de Notícias IA',`🔎 ${added} notícia(s) nova(s) encontradas na pesquisa diária e publicadas na aba`,'ok');
+      setTimeout(()=>_notificarNoticiasRelevantes().catch(()=>{}),1500);
+    }else{
+      botLog('noticias-ia','Pesquisador de Notícias IA','✅ Pesquisa diária feita — nada genuinamente novo hoje (não publicou nada)','info');
+    }
+  }catch(e){ botLog('noticias-ia','Pesquisador de Notícias IA','❌ '+e.message,'error'); }
+  finally{ _pesquisaIaRodando=false; }
 }
 
 
@@ -5908,6 +6806,13 @@ function _saveEnrichedSheet(sheetKey, sheet){
       // Salva também na pasta do código (para leitura imediata neste boot)
       try{fs.writeFileSync(srcPath, payload);}catch{}
       _enrichLog(`💾 Salvo em /data/ e código: ${sheet.length} vagas`, "ok");
+    } else if(sheetKey==="h2a-jun2026"||sheetKey==="h2a"){
+      // v24-FIX: a H-2A é built-in como jan/jul mas este save NÃO tinha o ramo
+      // dela — qualquer atualização (frescor/enriquecimento) era descartada em
+      // silêncio. Mesmo dual-write das outras built-ins.
+      fs.writeFileSync(path.join(DATA_DIR,"h2a_jun2026_compact.json"), payload);
+      try{fs.writeFileSync(path.join(__dirname,"h2a_jun2026_compact.json"), payload);}catch{}
+      _enrichLog(`💾 H-2A salva em /data/ e código: ${sheet.length} vagas`, "ok");
     } else if(SHEET_EXTRAS[sheetKey]){
       const meta = DB_SHEETS_META[sheetKey];
       const fp = path.join(SHEETS_DIR, meta?.file||`${sheetKey}.json`);
@@ -5924,11 +6829,13 @@ const server=http.createServer(async(req,res)=>{
   res.setHeader("X-Content-Type-Options","nosniff");res.setHeader("X-Frame-Options","SAMEORIGIN");
   res.setHeader("Content-Security-Policy",[
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
+    // v34-GA: googletagmanager liberado — o funil inteiro tinha gaEvent()
+    // instrumentado mas a CSP bloqueava o script do Analytics em silêncio.
+    "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://unpkg.com",
     "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net https://unpkg.com",
     "img-src 'self' data: https:",
-    "connect-src 'self' https://oauth2.googleapis.com https://gmail.googleapis.com https://api.seasonaljobs.dol.gov https://fcm.googleapis.com",
+    "connect-src 'self' https://oauth2.googleapis.com https://gmail.googleapis.com https://api.seasonaljobs.dol.gov https://fcm.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -5941,12 +6848,26 @@ const server=http.createServer(async(req,res)=>{
   if(req.method==="OPTIONS"){res.writeHead(204);return res.end();}
 
   const serveHtml=f=>sendAsset(req,res,f,"text/html; charset=utf-8","no-cache"); // V951: brotli/gzip + ETag
+  // v40 (reclamação real do dono, 22/07): os ícones Tabler vinham de CDN
+  // (jsdelivr/unpkg) que MUITAS redes móveis brasileiras bloqueiam — app
+  // inteiro ficava sem ícone ("tudo feio"). Fonte agora é BUILT-IN, servida
+  // pelo próprio site (regra KB-048: o que não pode faltar mora no repo).
+  if(pathname==="/vendor/tabler-icons.min.css")return sendAsset(req,res,"tabler-icons.min.css","text/css; charset=utf-8","public, max-age=31536000, immutable");
+  if(pathname==="/vendor/fonts/tabler-icons.woff2")return sendAsset(req,res,"tabler-icons.woff2","font/woff2","public, max-age=31536000, immutable");
   if(pathname==="/"||pathname==="/index.html")return serveHtml("index.html");
-  if(pathname==="/admin"||pathname==="/admin.html")return serveHtml("admin.html");
+  // v34-SEO: páginas privadas NUNCA entram no Google — o robots.txt só pede
+  // pra não rastrear; o X-Robots-Tag (+ meta noindex no HTML) proíbe indexar
+  // mesmo se alguém linkar a URL por fora.
+  if(pathname==="/admin"||pathname==="/admin.html"){res.setHeader("X-Robots-Tag","noindex, nofollow");return serveHtml("admin.html");}
   if(pathname==="/guia"||pathname==="/guia.html")return serveHtml("guia.html");
   if(pathname==="/h2bapply-funciona"||pathname==="/h2bapply-funciona.html")return serveHtml("h2bapply-funciona.html"); // SEO: página "H2BApply funciona?" (como funciona, confiança, preços, FAQ)
   if(pathname==="/h2b-e-golpe"||pathname==="/h2b-e-golpe.html")return serveHtml("h2b-e-golpe.html"); // SEO/confiança: página "H2B é golpe?" — golpes comuns, regra federal anti-taxa-de-recrutamento, como verificar vaga real
   if(pathname==="/quanto-ganha-h2b"||pathname==="/quanto-ganha-h2b.html")return serveHtml("quanto-ganha-h2b.html"); // SEO: página "quanto ganha quem trabalha H2B/H2A" — médias reais calculadas ao vivo via /api/public-wage-stats
+  // v33-SEO: notícias DOL traduzidas viram página PÚBLICA (conteúdo fresco diário)
+  if(pathname==="/noticias"||pathname==="/noticias.html"){
+    try{return sendHtmlCompressed(req,res,renderNoticiasPage(),"public, max-age=1800");}
+    catch(e){console.warn("[/noticias] erro:",e.message);res.writeHead(302,{"Location":"/"});return res.end();}
+  }
   // SEO programático por estado: /vagas-h2b/texas, /vagas-h2b/florida, etc. — gerado
   // no servidor com números reais (nunca arquivo estático). Estados com poucas vagas
   // (< MIN_JOBS_FOR_STATE_PAGE) não têm página própria pra evitar "thin content";
@@ -5984,8 +6905,8 @@ const server=http.createServer(async(req,res)=>{
       res.writeHead(302,{"Location":"/quanto-ganha-h2b"});return res.end();
     }
   }
-  if(pathname==="/diagnostico"||pathname==="/diagnostico.html")return serveHtml("diagnostico.html");
-  if(pathname==="/admin-reviews"||pathname==="/admin-reviews.html")return serveHtml("admin-reviews.html"); // Moderação de avaliações reais (protegido via checagem de admin nas próprias rotas /api/admin/reviews*)
+  if(pathname==="/diagnostico"||pathname==="/diagnostico.html"){res.setHeader("X-Robots-Tag","noindex, nofollow");return serveHtml("diagnostico.html");}
+  if(pathname==="/admin-reviews"||pathname==="/admin-reviews.html"){res.setHeader("X-Robots-Tag","noindex, nofollow");return serveHtml("admin-reviews.html");} // Moderação de avaliações reais (protegido via checagem de admin nas próprias rotas /api/admin/reviews*)
 
   // ── SEO: robots.txt + sitemap.xml (KB-SEO-01: site não tinha nenhum dos dois,
   // dificultando indexação/descoberta pelo Google) ──────────────────────────
@@ -5996,6 +6917,7 @@ const server=http.createServer(async(req,res)=>{
   if(pathname==="/sitemap.xml"){
     const _pages=[
       {loc:"https://h2bapply.com/",priority:"1.0",changefreq:"daily"},
+      {loc:"https://h2bapply.com/noticias",priority:"0.9",changefreq:"daily"},
       {loc:"https://h2bapply.com/guia",priority:"0.9",changefreq:"weekly"},
       {loc:"https://h2bapply.com/h2bapply-funciona",priority:"0.8",changefreq:"weekly"},
       {loc:"https://h2bapply.com/h2b-e-golpe",priority:"0.8",changefreq:"weekly"},
@@ -6603,6 +7525,52 @@ ul li{margin-bottom:6px}
     return json(res,200,{ok:true,allOk,results});
   }
 
+  // ── 🤖 Coleta "Nova Planilha do DOL" (v35) ────────────────────────────────
+  // POST coleta-start — dispara o bot em background (resposta imediata; o
+  // log ao vivo sai no coleta-status, lição KB-045/046: corpo lido via
+  // readBody SEMPRE, e o front mostra o painel NO CLIQUE).
+  if(pathname==="/api/admin/sheet/coleta-start"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    let b={};try{b=JSON.parse((await readBody(req))||"{}");}catch{return json(res,400,{error:"JSON inválido."});}
+    if(_dolColeta.running)return json(res,409,{error:"Já existe uma coleta rodando — acompanhe o log."});
+    const visa=b.visa==="H-2A"?"H-2A":"H-2B";
+    const sheetKey=String(b.sheetKey||"").trim().toLowerCase();
+    const sheetName=String(b.sheetName||"").trim().slice(0,60);
+    const beginFrom=String(b.beginFrom||"").trim();
+    const beginTo=String(b.beginTo||"").trim();
+    if(!/^[a-z0-9][a-z0-9-]{2,23}$/.test(sheetKey))return json(res,400,{error:"Chave inválida — use 3-24 letras minúsculas/números/hífen (ex.: jul2027)."});
+    if(["jan2026","jul2025","h2a-jun2026"].includes(sheetKey))return json(res,400,{error:"Essa chave é de uma planilha fixa do sistema — escolha outra."});
+    if(!sheetName)return json(res,400,{error:"Dê um nome pra planilha (ex.: Julho 2027)."});
+    for(const dt of [beginFrom,beginTo])if(dt&&!/^\d{4}-\d{2}-\d{2}$/.test(dt))return json(res,400,{error:"Datas da janela devem ser YYYY-MM-DD."});
+    _runDolColeta({visa,sheetKey,sheetName,beginFrom,beginTo}); // sem await — bot roda em background
+    addLog(s.user_email,{status:"sistema",jobTitle:`🤖 Coleta DOL iniciada: ${sheetName} (${visa})`,company:"Nova Planilha do DOL"});
+    return json(res,200,{ok:true,key:sheetKey});
+  }
+  // GET coleta-status — estado + log ao vivo do bot
+  if(pathname==="/api/admin/sheet/coleta-status"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    const published=_dolColeta.key?DB_SHEETS_META[_dolColeta.key]?.published===true:false;
+    return json(res,200,{ok:true,..._dolColeta,published});
+  }
+  // POST coleta-publish — publicação MANUAL e explícita (KB-078: nenhuma
+  // planilha nova chega a cliente sem o admin decidir).
+  if(pathname==="/api/admin/sheet/coleta-publish"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    let b={};try{b=JSON.parse((await readBody(req))||"{}");}catch{return json(res,400,{error:"JSON inválido."});}
+    const key=String(b.key||"").trim().toLowerCase();
+    const meta=DB_SHEETS_META[key];
+    if(!meta)return json(res,404,{error:"Planilha não encontrada."});
+    if(!Array.isArray(SHEET_EXTRAS[key])||!SHEET_EXTRAS[key].length)return json(res,400,{error:"Planilha sem vagas carregadas — colete de novo antes de publicar."});
+    meta.published=true;meta.publishedAt=Date.now();meta.publishedBy=s.user_email;
+    try{fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));}catch{}
+    addLog(s.user_email,{status:"sistema",jobTitle:`📢 Planilha publicada: ${meta.name||key} (${SHEET_EXTRAS[key].length} vagas)`,company:"Nova Planilha do DOL"});
+    console.log(`[coleta] 📢 ${key} publicada por ${s.user_email} (${SHEET_EXTRAS[key].length} vagas)`);
+    return json(res,200,{ok:true,key,count:SHEET_EXTRAS[key].length});
+  }
+
   // POST /api/admin/sheet/upload — recebe nova planilha (JSON compacto ou CSV)
   if(pathname==="/api/admin/sheet/upload"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
@@ -6704,8 +7672,10 @@ ul li{margin-bottom:6px}
   // ══════════════════════════════════════════════════════════════════════
   const BOT_REGISTRY = [
     {id:'enrich',        label:'Enriquecimento de Planilha', desc:'Completa e-mail/telefone/cidade/salário de vagas já coletadas, por ETA case number.'},
+    {id:'planilha-fresca',label:'Planilha Sempre Fresca',    desc:'Revisita as vagas já publicadas no DOL a cada ciclo: atualiza status (retirada/expirada), datas de início e salário — sem nenhum clique do admin.'},
     {id:'grupos-jul2026',label:'Grupos — Julho 2026',        desc:'Grupo A–H só de Julho 2026, só do relatório oficial do DOL (upload manual ou download automático) — nunca adivinhado.'},
-    {id:'dol-news-watch', label:'Vigia de Anúncios DOL',      desc:'Checa dol.gov/agencies/eta/foreign-labor/news a cada 10min. Anúncio novo = e-mail pra todos os admins na hora.'},
+    {id:'dol-news-watch', label:'Vigia de Anúncios DOL',      desc:'Checa dol.gov/agencies/eta/foreign-labor/news a cada 10min e alimenta a aba Notícias (traduzida). Notifica push+e-mail SÓ quando a notícia é sobre H-2B/H-2A.'},
+    {id:'noticias-ia',    label:'Pesquisador de Notícias IA', desc:'1x por dia o Gemini pesquisa na internet novidades de H-2B/H-2A em fontes oficiais e publica na aba Notícias, com fonte e link. Sem novidade real, não publica nada.'},
     {id:'robot-teste',   label:'Robô de Teste',               desc:'Simula um usuário real (QA) e limpa os dados de teste no final.'},
     {id:'robo-auditoria',label:'Robô de Auditoria',           desc:'Coleta dados do sistema e manda pro Gemini analisar — só lê, nunca altera.'},
     {id:'sentinel',      label:'Health Sentinel',             desc:'Detecta VIP com robô parado, VIP expirando, planilha desatualizada — notifica sozinho.'},
@@ -7349,7 +8319,11 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
   if(pathname==="/api/sheet-meta"){
     const sheet=u.searchParams.get("sheet")||"";const arr=getSheet(sheet);
     const skip=Math.max(0,parseInt(u.searchParams.get("skip")||"0",10));const top=Math.min(2000,Math.max(1,parseInt(u.searchParams.get("top")||"25",10)));
-    const q=(u.searchParams.get("q")||"").trim();const state=(u.searchParams.get("state")||"").trim();const sort=u.searchParams.get("sort")||"random";
+    const q=(u.searchParams.get("q")||"").trim();let state=(u.searchParams.get("state")||"").trim();const sort=u.searchParams.get("sort")||"random";
+    // v22-FILTROS: MÚLTIPLOS estados ("FLORIDA,TEXAS"). Com 2+, pré-filtra
+    // aqui e zera o param do searchSheet (que só entende 1). Com 1, segue
+    // o caminho antigo intacto.
+    let _stateList=state?state.split(",").map(x=>x.trim().toUpperCase()).filter(Boolean):[];
     const category=(u.searchParams.get("category")||"").trim();
     const minWage=parseFloat(u.searchParams.get("minWage")||"0")||0;
     const minWorkers=parseInt(u.searchParams.get("minWorkers")||"0")||0;
@@ -7358,9 +8332,15 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
     const filterJobStatus=(u.searchParams.get("jobStatus")||"").trim();
     const filterCity=(u.searchParams.get("city")||"").trim().toLowerCase();
     const filterCompany=(u.searchParams.get("company")||"").trim().toLowerCase();
-    // DB_SENT has email addresses (not case numbers), so we DON'T filter by caseNum
-    // Instead we show all available jobs (sent ones are hidden via HIST in frontend)
-    const baseArr=arr; // No server-side sent filtering (would break search)
+    // v27 (reclamação real): hideSent=1 → o SERVIDOR corta, ANTES da paginação,
+    // toda vaga cujo EMPREGADOR (e-mail) o usuário já contatou OU está na fila
+    // do automático. O filtro antigo era só no navegador e por NÚMERO da vaga —
+    // o mesmo empregador aparece em várias vagas, então o usuário enviava numa
+    // e as irmãs continuavam aparecendo ("fico pulando vaga já enviada").
+    // Regra do dono: enviada ou na fila = NUNCA mais aparece (manual e auto),
+    // até o usuário resetar (o reset limpa DB_SENT/HIST → o corte respeita).
+    const hideSent=(u.searchParams.get("hideSent")||"").trim()==="1";
+    const baseArr=arr;
     const catTitles={landscape:"Landscape Worker",construction:"Construction Worker",
       housekeeper:"Housekeeper",seafood:"Seafood Processor",farm:"Farm Worker",
       golf:"Golf Course Worker",amusement:"Amusement Park Worker",
@@ -7369,6 +8349,19 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
     const parseW=w=>{if(!w)return 0;const m=String(w).match(/[0-9.]+/);return m?parseFloat(m[0]):0;};
     // FIX WAGE: aplicar filtros pesados ANTES da paginação para retornar total correto
     let preFiltered=baseArr;
+    if(hideSent){
+      const _sh=getSess(req);
+      if(_sh?.user_email){
+        const _sSet=buildUserSentSet(_sh.user_email);
+        const _aJob=getAutoJob(_sh.user_email);
+        const _aSet=new Set((_aJob?.queue||[]).map(it=>_normEmail(it.to||"")).filter(Boolean));
+        if(_sSet.size||_aSet.size)preFiltered=preFiltered.filter(r=>{
+          const e=_normEmail(r.e||"");
+          return !e||(!_sSet.has(e)&&!_aSet.has(e));
+        });
+      }
+    }
+    if(_stateList.length>1){const _sset=new Set(_stateList);preFiltered=preFiltered.filter(r=>_sset.has(String(r.s||"").toUpperCase()));state="";}
     if(minWage>0) preFiltered=preFiltered.filter(r=>parseW(r.w)>=minWage);
     if(minWorkers>0) preFiltered=preFiltered.filter(r=>(r.wk||0)>=minWorkers);
     if(filterVisa) preFiltered=preFiltered.filter(r=>(r.st||"").toUpperCase().includes(filterVisa));
@@ -7481,9 +8474,14 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
       const g0=(r.g&&/^[A-H]$/.test(r.g))?r.g:(DB_GRUPOS_J26.mapa[cn]?.grupo||"");
       if(g0)grMap.set(g0,(grMap.get(g0)||0)+1);
     }
+    // v22: datedCount — quantas vagas têm data de início. O front esconde o
+    // filtro de mês quando a planilha não tem datas (senão zera resultados
+    // sem explicação — jan2026/jul2025 não têm a coluna preenchida).
+    let _dated=0;for(const r of arr){if(r.d)_dated++;}
     return json(res,200,{ok:true,
       statuses:[...stMap.entries()].map(([v,count])=>({v,count})).sort((a,b)=>b.count-a.count).slice(0,30),
-      grupos:[...grMap.entries()].map(([g,count])=>({g,count})).sort((a,b)=>a.g.localeCompare(b.g))
+      grupos:[...grMap.entries()].map(([g,count])=>({g,count})).sort((a,b)=>a.g.localeCompare(b.g)),
+      datedCount:_dated,total:arr.length
     });
   }
 
@@ -7523,11 +8521,31 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
     const rows = sheet==="all" ? getAllSheets() : getSheet(sheet);
     return json(res,200,{ok:true,sheet,...buildTitleTaxonomy(rows)});
   }
-  if(pathname==="/api/sheet-detail"){const c=(u.searchParams.get("case")||"").trim().toUpperCase();if(!c)return json(res,400,{error:"case obrigatório"});try{const r=await fetchByCase([c]);return json(res,200,{job:r[c]||null,notFound:!r[c]});}catch(e){return json(res,500,{error:e.message});}}
+  if(pathname==="/api/sheet-detail"){const c=(u.searchParams.get("case")||"").trim().toUpperCase();if(!c)return json(res,400,{error:"case obrigatório"});try{const r=await fetchByCase([c]);
+    // v38 (dono, 22/07): e-mail descoberto AQUI é persistido na planilha — a
+    // vaga sem e-mail passava pelo corte hideSent (sem e-mail não há como
+    // casar com os enviados) e vazava pra lista; agora CADA clique que
+    // descobre o e-mail conserta a linha pra TODOS os usuários, e a próxima
+    // listagem já corta certo. (O bot de enriquecimento faz o mesmo em massa.)
+    try{
+      const _job=r[c];
+      if(_job&&_job.email&&_job.email.includes("@")){
+        const _keys=[...new Set(["jan2026","jul2025","h2a-jun2026",...Object.keys(DB_SHEETS_META)])];
+        for(const _k of _keys){
+          const _arr=getSheet(_k);if(!Array.isArray(_arr))continue;
+          const _row=_arr.find(x=>String(x.c||"").toUpperCase()===c);
+          if(_row){ if(!_row.e||!_row.e.includes("@")){ _row.e=_job.email; _saveEnrichedSheet(_k,_arr); console.log(`[sheet-detail] 💾 e-mail de ${c} persistido em ${_k} (descoberto no clique)`);} break; }
+        }
+      }
+    }catch(eP){ console.warn("[sheet-detail] persist:",eP.message); }
+    return json(res,200,{job:r[c]||null,notFound:!r[c]});}catch(e){return json(res,500,{error:e.message});}}
   if(pathname==="/api/sheet-batch"&&req.method==="POST"){try{const d=JSON.parse(await readBody(req));const cases=(d.cases||[]).slice(0,10).map(c=>String(c).trim().toUpperCase());const jobs=await fetchByCase(cases);return json(res,200,{jobs});}catch(e){return json(res,500,{error:e.message});}}
 
   // ── Generate cover ────────────────────────────────────
-  if(pathname==="/api/generate-cover"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});if(rateLimit(s.user_email+"_gen",20,3600_000))return json(res,429,{error:"Muitas gerações."});try{const d=JSON.parse(await readBody(req));const p=getUser(s.user_email)||{};const letter=await genCover({name:p.name||s.user_name||"",country:p.country||"Brazil",phone:p.phone||"",job:d.job||"",company:d.company||"",city:d.city||"",state:d.state||"",wage:d.wage||""});return json(res,200,{ok:true,letter});}catch(e){return json(res,500,{error:e.message});}}
+  // v22 (ORDEM DO DONO): /api/generate-cover removido — o "IA gera" era um
+  // template fixo escrevendo a candidatura pelo usuário. Resposta clara pra
+  // qualquer cliente antigo que ainda chame:
+  if(pathname==="/api/generate-cover"&&req.method==="POST"){return json(res,410,{error:"Recurso removido: o texto da candidatura é escrito por você, no seu perfil."});}
 
   // ── Notes & Alerts ────────────────────────────────────
   if(pathname.startsWith("/api/note/")){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const jobId=decodeURIComponent(pathname.split("/api/note/")[1]||"");if(req.method==="GET")return json(res,200,{note:getNote(s.user_email,jobId)});if(req.method==="POST"){try{const d=JSON.parse(await readBody(req));setNote(s.user_email,jobId,String(d.note||"").slice(0,2000));return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}}
@@ -7744,7 +8762,10 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
           DB_TRIAL_USED.googleIds[_googleId] = ui.email;
           try{fs.writeFileSync(TRIAL_USED_FILE,JSON.stringify(DB_TRIAL_USED,null,2));}catch{}
         }
-        setUser(ui.email,{...tokenData,email:ui.email,name:ui.name||ui.email,picture:ui.picture||"",country:"Brazil",phone:"",cc:"",city:"",language:"pt-BR",cvs:[],created_at:new Date().toISOString(),plan:newUserVip?"vip":"free",vip:newUserVip||null,googleId:_googleId||undefined,saved:[],onboarded:false,isAdmin:isAdminEmail(ui.email),scopeVersion:2,lastLoginAt:Date.now(),_trialBlockedByIp:_ipAbuse||undefined,_trialBlockedByGoogleId:_googleAbuse||undefined,settings:{subject:"Application for {vaga} – {nome}",body:"Dear Hiring Manager,\n\nMy name is {nome} and I am writing to express my strong interest in the {vaga} position at {empresa}.\n\nI am from {pais} and fully available to start on the requested date.\n\nPlease find my resume attached.\n\nBest regards,\n{nome}\n{telefone}",followupSubject:"Following up: {vaga} at {empresa}",followupBody:"Dear Hiring Manager,\n\nFollowing up on {vaga} at {empresa}.\n\nBest regards,\n{nome}"}});
+        setUser(ui.email,{...tokenData,email:ui.email,name:ui.name||ui.email,picture:ui.picture||"",country:"Brazil",phone:"",cc:"",city:"",language:"pt-BR",cvs:[],created_at:new Date().toISOString(),plan:newUserVip?"vip":"free",vip:newUserVip||null,googleId:_googleId||undefined,saved:[],onboarded:false,isAdmin:isAdminEmail(ui.email),scopeVersion:2,lastLoginAt:Date.now(),_trialBlockedByIp:_ipAbuse||undefined,_trialBlockedByGoogleId:_googleAbuse||undefined,settings:{}});
+        // v22 (ORDEM DO DONO, 21/07/2026): NENHUM texto padrão pré-preenchido,
+        // em lugar NENHUM. Todo assunto/corpo é escrito pelo próprio usuário —
+        // o app não assume responsabilidade por conteúdo de candidatura.
         if(trialDays>0) addCredito(ui.email,{dias:trialDays,tipo:"gratis",origem:"trial",motivo:"Trial boas-vindas",dadoPor:"sistema"});
         console.log("[oauth] ✅ Novo:",ui.email,"| trial:",trialDays,"d VIP Manual (sem auto)");
         trackJourney(ui.email,'first_login',{detail:`Novo. Trial:${trialDays}d Manual`,meta:{name:ui.name}});
@@ -7877,8 +8898,19 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
     if(emailToRemove===s.user_email)return json(res,400,{error:"Não é possível remover seu email principal."});
     const p=getUser(s.user_email)||{};
     const existing=p.senderEmails||[];
-    if(!existing.find(x=>x.email===emailToRemove))return json(res,404,{error:"Email não encontrado."});
+    const _snd=existing.find(x=>x.email===emailToRemove);
+    if(!_snd)return json(res,404,{error:"Email não encontrado."});
     setUser(s.user_email,{senderEmails:existing.filter(x=>x.email!==emailToRemove)});
+    // v21-PRIV: revoga o token no GOOGLE também (best-effort, não bloqueia a
+    // remoção). Antes o app só descartava o token — a permissão continuava
+    // ativa na conta Google da pessoa ("acesso de terceiros") pra sempre.
+    // Revogar o refresh_token invalida a família inteira de tokens.
+    const _tok=_snd.refresh_token||_snd.access_token;
+    if(_tok){
+      httpsReq({hostname:"oauth2.googleapis.com",path:"/revoke?token="+encodeURIComponent(_tok),method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"}})
+        .then(r=>console.log(`[sender] 🔒 token de ${emailToRemove} revogado no Google (status ${r.status})`))
+        .catch(e=>console.warn(`[sender] revoke falhou (${emailToRemove}):`,e.message));
+    }
     console.log(`[sender] 🗑 ${emailToRemove} removido de ${s.user_email}`);
     return json(res,200,{ok:true});
   }
@@ -8975,6 +10007,8 @@ Regras: "CONFERE" só se o valor lido bater com o esperado (ou com o valor infor
           }
           setPedidoPreCheck(pedido.id,pc);
           console.log(`[precheck] #${pedido.id.slice(-8)}: ${pc.veredito} — leu R$${pc.valorLido} (esp R$${precoEsp}) — ${pc.resumo}`);
+          // Valor bateu → libera o plano NA HORA (provisório; admin confirma sempre)
+          if(pc.veredito==="CONFERE") autoAtivarProvisorio(pedido.id);
         }catch(eP){
           console.warn("[precheck] falhou:",eP.message);
           setPedidoPreCheck(pedido.id,{veredito:"ERRO",resumo:"Não foi possível pré-analisar (confira manual).",bateComEsperado:false,alertas:[eP.message]});
@@ -9138,6 +10172,32 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
       if(idx<0)return json(res,404,{error:"Pedido não encontrado (pode ter sido removido)."});
       const pd=DB_PEDIDOS[idx];
 
+      // ── Correção de VALOR pelo admin (aba Conferência) — com auditoria ────
+      // O valor original nunca some (valorOriginal), fica quem corrigiu e
+      // quando, e se o caixa já tem a entrada automática deste pedido, ela é
+      // corrigida JUNTO (uma verdade só — pedido e caixa nunca divergem).
+      if(d.corrigirValor!==undefined){
+        const nv=parseFloat(d.corrigirValor);
+        if(isNaN(nv)||nv<0||nv>100000)return json(res,400,{error:"Valor inválido."});
+        if(pd.valorOriginal===undefined)pd.valorOriginal=pd.valorTotal||0;
+        const antes=pd.valorTotal||0;
+        pd.valorTotal=nv;pd.valorCorrigidoPor=s.user_email;pd.valorCorrigidoEm=Date.now();
+        const _pgC=(DB_FINANCEIRO.pagamentos||[]).find(x=>x.pedidoId===pd.id&&x.source==="pedido_automatico");
+        if(_pgC){
+          _pgC.valor=nv;
+          if(!Array.isArray(DB_FINANCEIRO.alteracoes))DB_FINANCEIRO.alteracoes=[];
+          DB_FINANCEIRO.alteracoes.push({id:'alt_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6),
+            tipo:'corrigir_valor',por:s.user_email===ADMIN_EMAIL?'Andrio':(ADMIN_EMAIL_2&&s.user_email===ADMIN_EMAIL_2?'Diego':s.user_email),
+            porEmail:s.user_email,em:Date.now(),
+            motivo:`Conferência: valor do pedido #${pd.id.slice(-8).toUpperCase()} corrigido de R$${antes.toFixed(2)} para R$${nv.toFixed(2)}`,
+            antes:{valor:antes},depois:{valor:nv}});
+          persistFinanceiro();
+        }
+        persistPedidos();
+        console.log(`[conferencia] valor do pedido ${pd.id}: R$${antes} → R$${nv} (${s.user_email})`);
+        return json(res,200,{ok:true,pedido:pd,caixaCorrigido:!!_pgC});
+      }
+
       // Validar senha de editor ao ativar
       if(d.status==="ativo"){
         // GUARD DUPLA ATIVAÇÃO: se este pedido JÁ foi ativado, recusa com erro claro.
@@ -9175,7 +10235,14 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
         pd._ativadoEditorEmail=s.user_email;
       }
 
-      if(d.status)pd.status=d.status;
+      // v21: status só da máquina de estados oficial. As guardas de duplicidade
+      // comparam com igualdade EXATA (x.status==="pendente") — um status fora
+      // do padrão (typo, capitalização) faria todas falharem em silêncio.
+      if(d.status){
+        const _STATUS_OK=["pendente","pago","ativo","cancelado","expirado"];
+        if(!_STATUS_OK.includes(d.status))return json(res,400,{error:`Status inválido: "${d.status}". Use: ${_STATUS_OK.join(", ")}.`});
+        pd.status=d.status;
+      }
       if(d.notaAdmin!==undefined)pd.notaAdmin=String(d.notaAdmin).slice(0,500);
 
       if(d.status==="ativo"&&!pd.ativadoEm){
@@ -9218,9 +10285,11 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
         const tgt=getUser(pd.userEmail)||{};
         const manualAtivo=tgt.vip?.manualExpires&&tgt.vip.manualExpires>now;
         const autoAtivo=tgt.vip?.autoExpires&&tgt.vip.autoExpires>now;
-        // Trial (1 dia, source 'trial') NÃO conta como plano ativo para empilhar:
-        // o dia grátis do trial não soma — os dias pagos começam da aprovação.
-        const _ehTrial=(tgt.vip?.source==="trial");
+        // Trial (1 dia, source 'trial') e ativação PROVISÓRIA do robô
+        // ('auto-provisorio') NÃO contam como plano ativo para empilhar: o
+        // dia grátis não soma, e a confirmação do admin SUBSTITUI a janela
+        // provisória (senão o cliente ganharia os 3 dias do robô em dobro).
+        const _ehTrial=["trial","auto-provisorio"].includes(String(tgt.vip?.source||""));
         const _manualStack=manualAtivo&&!_ehTrial;
         const _autoStack=autoAtivo&&!_ehTrial;
         const baseManual=_manualStack?tgt.vip.manualExpires:now;
@@ -9287,9 +10356,14 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
             // recebidoPor: quem efetivamente recebeu o dinheiro (acerto entre sócios).
             // Override explícito do modal de aprovação (d.recebidoPor) tem prioridade;
             // senão deriva do editor que confirmou (Andrew→andrio, Diego→diego).
+            // v27-FIX (pego pelo smoke): editorKey ficava FORA de escopo aqui
+            // (declarado no bloco da senha) — ativação sem d.recebidoPor
+            // explícito concedia o VIP e QUEBRAVA antes de lançar o caixa
+            // (ReferenceError → 500 com estado pela metade). Deriva do
+            // pd._ativadoEditor, que está em escopo e é a mesma verdade.
             recebidoPor: (["andrio","diego"].includes((d.recebidoPor||"").toLowerCase()))
               ? (d.recebidoPor||"").toLowerCase()
-              : (editorKey==="diego" ? "diego" : "andrio"),
+              : (pd._ativadoEditor==="Diego" ? "diego" : "andrio"),
             whatsapp:pd.userWhatsapp||""
           });
           persistFinanceiro();
@@ -9413,10 +10487,130 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
             console.log(`[pedido] ${pd.id} cancelado — estornados ${pd.diasTotal}d de VIP de ${pd.userEmail}`);
           }
         }
+        // ── Revogação da ativação PROVISÓRIA: o robô liberou pelo comprovante,
+        // mas o admin decidiu cancelar (fraude, engano) — o provisório cai JUNTO.
+        if(pd.autoAtivado && !pd.ativadoEm){
+          const tgtP=getUser(pd.userEmail);
+          if(tgtP&&tgtP.vip&&tgtP.vip.source==="auto-provisorio"&&tgtP.vip.pedidoId===pd.id){
+            const agora=Date.now();
+            setUser(pd.userEmail,{plan:"free",vip:{...tgtP.vip,active:false,
+              manualExpires:Math.min(tgtP.vip.manualExpires||0,agora),
+              autoExpires:Math.min(tgtP.vip.autoExpires||0,agora),
+              note:(String(tgtP.vip.note||"")+" · ⛔ provisório revogado (pedido cancelado pelo admin)").slice(-220)}});
+            addLog(pd.userEmail,{status:"sistema",
+              jobTitle:"⛔ Ativação provisória revogada — pedido cancelado pelo admin",
+              company:`Pedido #${pd.id.slice(-8).toUpperCase()}`});
+            console.log(`[auto-ativa] ⛔ provisório de ${pd.userEmail} revogado (pedido ${pd.id} cancelado)`);
+          }
+        }
       }
       persistPedidos(); // v18-FIX: idem — pd já é a referência viva do array, sem reescrita por índice
       return json(res,200,{ok:true,pedido:pd});
     }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  // ── GET /api/admin/conferencia — TODOS os pagamentos desde a 1ª compra ────
+  // (dono, 21/07/2026) Uma linha por pagamento: pedidos de plano (qualquer
+  // status, valor editável via PATCH corrigirValor, comprovante sob demanda
+  // via GET /api/pedido/:id) + resgates de código promocional. Regra do dono:
+  // código de 30 dias (os do YouTube do Diego) entra valendo R$147 — os
+  // demais códigos entram como cortesia (R$0). Sem imagens na lista (leve).
+  if(pathname==="/api/admin/conferencia"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    const rows=[];
+    for(const pd of DB_PEDIDOS){
+      rows.push({tipo:"pedido",id:pd.id,em:pd.createdAt||0,
+        email:pd.userEmail,nome:pd.userName||pd.userEmail,
+        plano:pd.plano,dias:pd.dias,valor:pd.valorTotal||0,status:pd.status,
+        temComprovante:!!pd.comprovante,comprovanteType:pd.comprovanteType||null,
+        autoAtivado:!!pd.autoAtivado,ativadoEm:pd.ativadoEm||null,
+        ativadoPor:pd._ativadoEditor||pd.ativadoPor||null,pagoEm:pd.pagoEm||null,
+        preCheck:pd.preCheck?{veredito:pd.preCheck.veredito,resumo:pd.preCheck.resumo||""}:null,
+        valorOriginal:pd.valorOriginal!==undefined?pd.valorOriginal:null,
+        valorCorrigidoPor:pd.valorCorrigidoPor||null,valorCorrigidoEm:pd.valorCorrigidoEm||null});
+    }
+    const CODIGO_YT_VALOR=147; // valor de venda dos códigos de 30d (YouTube do Diego)
+    for(const [code,c] of Object.entries(DB_CODES)){
+      const diasCod=Math.max(c.manualDays||0,c.autoDays||0);
+      const valorCod=diasCod===30?CODIGO_YT_VALOR:0;
+      for(const em of (c.usedBy||[])){
+        const cu=getUser(em)||{};
+        // usedBy não guarda quando cada um resgatou — usa a ativação do VIP
+        // se o código dele ainda for este; senão, a criação do código.
+        const quando=(cu.vip?.usedCode===code&&cu.vip?.activatedAt)?cu.vip.activatedAt:(c.createdAt||0);
+        rows.push({tipo:"codigo",id:"code_"+code+"_"+em,em:quando,
+          email:em,nome:cu.name||em,
+          plano:(c.autoDays>0&&c.manualDays>0)?"vipro":(c.autoDays>0?"pro":"vip"),
+          dias:diasCod,valor:valorCod,status:"codigo",code,codeNote:c.note||"",
+          temComprovante:false});
+      }
+    }
+    rows.sort((a,b)=>(b.em||0)-(a.em||0));
+    const resumo={
+      total:rows.length,
+      pedidos:rows.filter(r=>r.tipo==="pedido").length,
+      codigos:rows.filter(r=>r.tipo==="codigo").length,
+      valorPedidos:rows.filter(r=>r.tipo==="pedido"&&["pago","ativo"].includes(r.status)).reduce((s2,r)=>s2+(r.valor||0),0),
+      valorCodigos:rows.filter(r=>r.tipo==="codigo").reduce((s2,r)=>s2+(r.valor||0),0),
+    };
+    // ── 🔍 DIVERGÊNCIAS plano × pedido × caixa ────────────────────────────
+    // A reconciliação do boot só cobre UMA direção (pedido pago → devolver
+    // dias). Aqui as outras quatro, pro número do dono nunca mentir:
+    //   1. VIP pago ativo sem NENHUM pedido pago/ativo que o justifique
+    //   2. pedido ATIVO com valor mas sem entrada no caixa
+    //   3. entrada automática do caixa apontando pra pedido inexistente ou
+    //      CANCELADO (receita inflada)
+    //   4. valor do caixa ≠ valor do pedido (legado de antes da correção
+    //      sincronizada — a própria Conferência corrige)
+    const divergencias=[];
+    const nowD=Date.now();
+    const _emailsComPedidoPago=new Set(DB_PEDIDOS
+      .filter(pd=>["pago","ativo"].includes(String(pd.status||"").toLowerCase()))
+      .map(pd=>String(pd.userEmail||"").toLowerCase()));
+    for(const [em,usr] of Object.entries(DB_USERS)){
+      if(!usr?.vip||usr.isAdmin)continue;
+      if(!["payment","pago"].includes(String(usr.vip.source||"")))continue;
+      const expD=Math.max(usr.vip.manualExpires||0,usr.vip.autoExpires||0);
+      if(expD<=nowD)continue;
+      if(!_emailsComPedidoPago.has(String(em).toLowerCase()))
+        divergencias.push({tipo:"vip_sem_pedido",email:em,nome:usr.name||em,
+          msg:`VIP ${String(usr.vip.plan||"?").toUpperCase()} ativo até ${new Date(expD).toLocaleDateString("pt-BR")} sem NENHUM pedido pago/ativo no sistema`});
+    }
+    const _pagsAut=(DB_FINANCEIRO.pagamentos||[]);
+    for(const pd of DB_PEDIDOS){
+      if(String(pd.status||"")!=="ativo"||(pd.valorTotal||0)<=0)continue;
+      if(!_pagsAut.some(x=>x.pedidoId===pd.id))
+        divergencias.push({tipo:"pedido_sem_caixa",email:pd.userEmail,nome:pd.userName||pd.userEmail,pedidoId:pd.id,
+          msg:`Pedido #${(pd.id||"").slice(-8).toUpperCase()} ATIVO (R$ ${(pd.valorTotal||0).toFixed(2)}) sem entrada no caixa`});
+    }
+    for(const pg of _pagsAut){
+      if(pg.source!=="pedido_automatico"||!pg.pedidoId)continue;
+      const pdX=DB_PEDIDOS.find(x=>x.id===pg.pedidoId);
+      if(!pdX)divergencias.push({tipo:"caixa_orfao",email:pg.email,nome:pg.nome||pg.email,
+        msg:`Entrada de R$ ${(pg.valor||0).toFixed(2)} no caixa aponta pra pedido que NÃO existe (${String(pg.pedidoId).slice(-8).toUpperCase()})`});
+      else if(String(pdX.status||"")==="cancelado")divergencias.push({tipo:"caixa_cancelado",email:pg.email,nome:pg.nome||pg.email,pedidoId:pdX.id,
+        msg:`Entrada de R$ ${(pg.valor||0).toFixed(2)} no caixa de pedido CANCELADO #${(pdX.id||"").slice(-8).toUpperCase()} — receita inflada`});
+      else if(Math.abs((pg.valor||0)-(pdX.valorTotal||0))>0.01)divergencias.push({tipo:"valor_diverge",email:pg.email,nome:pg.nome||pg.email,pedidoId:pdX.id,
+        msg:`Caixa R$ ${(pg.valor||0).toFixed(2)} ≠ pedido R$ ${(pdX.valorTotal||0).toFixed(2)} (#${(pdX.id||"").slice(-8).toUpperCase()}) — corrija pelo ✏️ da Conferência`});
+    }
+    return json(res,200,{ok:true,rows,resumo,divergencias});
+  }
+
+  // ── POST /api/admin/resumo-diario-run — gatilho manual do Resumo do Dono ──
+  if(pathname==="/api/admin/resumo-diario-run"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    return json(res,200,await resumoDiarioDonoRun());
+  }
+
+  // ── POST /api/admin/renova-run — gatilho manual do Robô de Renovação ──────
+  // (útil pro admin testar/forçar a varredura sem esperar o ciclo de 6h)
+  if(pathname==="/api/admin/renova-run"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    const avisados=await renovacaoWatchdogRun();
+    return json(res,200,{ok:true,avisados});
   }
 
   // ── /api/status ───────────────────────────────────────
@@ -9525,10 +10719,18 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
   if(pathname==="/api/cv/upload"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Sessão expirada. Faça login novamente.",sessionExpired:true,code:"SESSION_EXPIRED"});if(rateLimit(s.user_email+"_cv",10,3600_000))return json(res,429,{error:"Muitos uploads. Tente novamente em 1 hora."});try{const d=JSON.parse(await readBody(req));if(!d.base64||!d.name)return json(res,400,{error:"base64 e name obrigatórios."});// Tamanho: base64 representa ~75% dos bytes reais
 const estimatedBytes=Math.round(d.base64.length*0.75);if(d.base64.length>14_000_000)return json(res,400,{error:"Arquivo maior que 10MB."});if(estimatedBytes<1000)return json(res,400,{error:"Arquivo muito pequeno ou corrompido."});// Valida magic bytes %PDF (mais robusto: verifica os 4 primeiros bytes do binário real)
 const pdfBuf=Buffer.from(d.base64.slice(0,8),"base64");if(pdfBuf.length<4||pdfBuf[0]!==0x25||pdfBuf[1]!==0x50||pdfBuf[2]!==0x44||pdfBuf[3]!==0x46)return json(res,400,{error:"Arquivo inválido: não é um PDF. Envie um arquivo .pdf válido."});// Nome seguro
-const safeName=String(d.name).replace(/[<>"'&\r\n\t]/g,"").slice(0,200);if(!safeName)return json(res,400,{error:"Nome do arquivo inválido."});const p=getUser(s.user_email)||{};const cvs=p.cvs||[];const cvType=d.cvType||"resume";const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filter(c=>(c.cvType||"resume")===cvType);if(sameType.length>=typeLimit)return json(res,429,{error:`Limite de ${typeLimit} ${cvType==="cover"?"cover letters":"currículos"} atingido. Para liberar espaço: abra o editor de perfil → seção Currículo → clique no ícone 🗑️ ao lado de um PDF antigo.`,limitReached:true,cvType,limit:typeLimit});const idx=Date.now();const meta={idx,name:safeName,size:estimatedBytes,date:new Date().toISOString(),cvType,b64:d.base64};cvs.push(meta);saveCv(s.user_email,idx,d.base64);setUser(s.user_email,{cvs});trackJourney(s.user_email,'pdf_upload',{detail:`PDF: ${safeName} ~${Math.round(estimatedBytes/1024)}KB`,meta:{name:safeName,idx,cvType}});
+const safeName=String(d.name).replace(/[<>"'&\r\n\t]/g,"").slice(0,200);if(!safeName)return json(res,400,{error:"Nome do arquivo inválido."});const p=getUser(s.user_email)||{};const cvs=p.cvs||[];const cvType=d.cvType||"resume";
+// v20 (reclamação real, 07/2026): upload do MESMO arquivo (mesmo nome + mesmo
+// tipo) SUBSTITUI o existente em vez de duplicar. Antes cada re-upload (editor
+// de perfil, onboarding, aba Documentos) criava mais uma cópia — usuários
+// ficavam com o mesmo PDF 3x na lista. Substituir mantém o idx, então os
+// perfis que apontam pra ele continuam válidos.
+const _dup=cvs.find(c=>(c.cvType||"resume")===cvType&&String(c.name||"").trim().toLowerCase()===safeName.trim().toLowerCase());
+if(_dup){_dup.size=estimatedBytes;_dup.date=new Date().toISOString();delete _dup.b64;setUser(s.user_email,{cvs});saveCv(s.user_email,_dup.idx,d.base64);trackJourney(s.user_email,'pdf_upload',{detail:`PDF substituído: ${safeName} ~${Math.round(estimatedBytes/1024)}KB`,meta:{name:safeName,idx:_dup.idx,cvType,replaced:true}});return json(res,200,{ok:true,replaced:true,cv:{idx:_dup.idx,name:_dup.name,size:_dup.size,date:_dup.date,cvType}});}
+const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filter(c=>(c.cvType||"resume")===cvType);if(sameType.length>=typeLimit)return json(res,429,{error:`Limite de ${typeLimit} ${cvType==="cover"?"cover letters":"currículos"} atingido. Para liberar espaço: abra o editor de perfil → seção Currículo → clique no ícone 🗑️ ao lado de um PDF antigo.`,limitReached:true,cvType,limit:typeLimit});const idx=Date.now();const meta={idx,name:safeName,size:estimatedBytes,date:new Date().toISOString(),cvType};cvs.push(meta);setUser(s.user_email,{cvs});saveCv(s.user_email,idx,d.base64);trackJourney(s.user_email,'pdf_upload',{detail:`PDF: ${safeName} ~${Math.round(estimatedBytes/1024)}KB`,meta:{name:safeName,idx,cvType}});
       return json(res,200,{ok:true,cv:{idx:meta.idx,name:meta.name,size:meta.size,date:meta.date,cvType:meta.cvType}});}catch(e){return json(res,500,{error:e.message});}}
   if(/^\/api\/cv\/\d+$/.test(pathname)&&req.method==="GET"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const idx=parseInt(pathname.split("/").pop(),10);const p=getUser(s.user_email);if(!p?.cvs?.find(c=>c.idx===idx))return json(res,403,{error:"CV não encontrado."});const b64=loadCv(s.user_email,idx);if(!b64)return json(res,404,{error:"Arquivo não encontrado."});return json(res,200,{base64:b64,idx});}
-  if(/^\/api\/cv\/\d+$/.test(pathname)&&req.method==="DELETE"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const idx=parseInt(pathname.split("/").pop(),10);const p=getUser(s.user_email);if(!p?.cvs?.find(c=>c.idx===idx))return json(res,403,{error:"CV não encontrado."});deleteCv(s.user_email,idx);const _cleanProfiles=(p.profiles||[]).map(pr=>{const np={...pr};if(np.resumeIdx===idx){delete np.resumeIdx;delete np.pdfName;delete np.pdfSize;}if(np.coverIdx===idx){delete np.coverIdx;}return np;});setUser(s.user_email,{cvs:(p.cvs||[]).filter(c=>c.idx!==idx),profiles:_cleanProfiles});return json(res,200,{ok:true});}
+  if(/^\/api\/cv\/\d+$/.test(pathname)&&req.method==="DELETE"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const idx=parseInt(pathname.split("/").pop(),10);const p=getUser(s.user_email);if(!p?.cvs?.find(c=>c.idx===idx))return json(res,403,{error:"CV não encontrado."});deleteCv(s.user_email,idx);const _cleanProfiles=(p.profiles||[]).map(pr=>{const np={...pr};if(np.resumeIdx===idx){delete np.resumeIdx;delete np.pdfName;np.pdfSize=0;}if(np.coverIdx===idx){delete np.coverIdx;delete np.coverName;np.coverSize=0;}return np;});setUser(s.user_email,{cvs:(p.cvs||[]).filter(c=>c.idx!==idx),profiles:_cleanProfiles});return json(res,200,{ok:true});}
 
   if(pathname==="/api/send"&&req.method==="POST"){
     const _sendT0=Date.now(); // DIAGNÓSTICO (2026-07-09): mede onde o tempo vai num envio manual — relato de "180 envios em 3h" sem causa óbvia no código; até achar a causa definitiva, loga se demorar muito, pra próxima vez ter dado real em vez de suposição.
@@ -9615,6 +10817,16 @@ const safeName=String(d.name).replace(/[<>"'&\r\n\t]/g,"").slice(0,200);if(!safe
       if(!isReply){// Anexos só em candidaturas originais
         if(d.resumeIdx!=null){const a=await getAtt(d.resumeIdx);if(a)attachments.push(a);}else if(d.pdfBase64){attachments.push({data:d.pdfBase64,name:d.pdfName||"resume.pdf"});}
         if(d.coverIdx!=null){const a=await getAtt(d.coverIdx);if(a)attachments.push(a);}
+        // v21: MESMA regra do automático (v16-FIX) — candidatura sem currículo
+        // anexado não pode chegar no empregador (queima o usuário e a
+        // reputação do app). Se o resumeIdx apontava pra PDF apagado/corrompido
+        // e nada foi anexado, tenta o primeiro currículo válido da conta; se
+        // não existir NENHUM, bloqueia com erro claro em vez de enviar vazio.
+        if(!attachments.length){
+          const _fb=(p.cvs||[]).find(c=>(c.cvType||"resume")==="resume"&&loadCv(s.user_email,c.idx));
+          if(_fb){attachments.push({data:loadCv(s.user_email,_fb.idx),name:_fb.name||"resume.pdf"});console.warn(`[send] ⚠️ ${s.user_email}: resumeIdx=${d.resumeIdx} sem arquivo — usando fallback "${_fb.name}"`);}
+          else return json(res,400,{error:"Seu currículo (PDF) não foi encontrado no servidor. Vá em Perfil → Documentos e envie o PDF de novo antes de se candidatar.",pdfMissing:true});
+        }
       }
 
       // Cabeçalhos de threading para manter na mesma conversa
@@ -9769,11 +10981,14 @@ const safeName=String(d.name).replace(/[<>"'&\r\n\t]/g,"").slice(0,200);if(!safe
       const u=getUser(sd.user_email);
       if(!u)return json(res,404,{error:"Usuário não encontrado."});
       const cvs=(u.cvs||[]).filter(c=>c.idx!==idx);
-      // Remover referência de perfis que usavam esse PDF
+      // v21: apaga o ARQUIVO também — antes só sumia do registro e o PDF
+      // ficava órfão no disco pra sempre (disco cheio já derrubou o sistema)
+      deleteCv(sd.user_email,idx);
+      // Remover referência de perfis que usavam esse PDF (nome-fantasma incluso)
       const profiles=(u.profiles||[]).map(p=>{
         const np={...p};
-        if(np.resumeIdx===idx){delete np.resumeIdx;delete np.pdfName;delete np.pdfSize;}
-        if(np.coverIdx===idx){delete np.coverIdx;}
+        if(np.resumeIdx===idx){delete np.resumeIdx;delete np.pdfName;np.pdfSize=0;}
+        if(np.coverIdx===idx){delete np.coverIdx;delete np.coverName;np.coverSize=0;}
         return np;
       });
       setUser(sd.user_email,{cvs,profiles});
@@ -10119,6 +11334,40 @@ const safeName=String(d.name).replace(/[<>"'&\r\n\t]/g,"").slice(0,200);if(!safe
     }catch(e){return json(res,500,{error:e.message});}
   }
 
+  // ── v27-TEST: LOGIN DE TESTE (para o npm test cobrir fluxos autenticados) ──
+  // SÓ EXISTE quando a env TEST_LOGIN_TOKEN (mín. 20 chars) está definida —
+  // em produção a variável não existe e a rota responde 404 como qualquer
+  // caminho inválido. O smoke test gera um token aleatório por execução.
+  // Nunca defina TEST_LOGIN_TOKEN num servidor de verdade.
+  if(pathname==="/api/test/login"&&req.method==="POST"){
+    const _tt=String(process.env.TEST_LOGIN_TOKEN||"");
+    if(!_tt||_tt.length<20)return json(res,404,{error:"404"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      if(String(d.token||"")!==_tt)return json(res,403,{error:"token inválido"});
+      const email=String(d.email||"").toLowerCase().trim();
+      if(!email.includes("@"))return json(res,400,{error:"email inválido"});
+      if(!getUser(email))setUser(email,{email,name:String(d.name||"Test User"),created_at:new Date().toISOString(),plan:"free",cvs:[],profiles:[],saved:[],onboarded:true,isAdmin:d.isAdmin===true});
+      else if(d.isAdmin===true)setUser(email,{isAdmin:true});
+      const sid="test_"+crypto.randomBytes(16).toString("hex");
+      sessions[sid]={user_email:email,user_name:String(d.name||"Test"),created_at:Date.now(),access_token:"test-token",expires_at:Date.now()+3600_000};
+      res.writeHead(200,{"Content-Type":"application/json","Set-Cookie":makeCookieStr(sid)});
+      return res.end(JSON.stringify({ok:true,email}));
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+
+  // ── v27: EMPREGADORES BLOQUEADOS do usuário (enviados + fila do robô) ────
+  // Alimenta o front pra TODA superfície (pesquisa, seasonal, salvas) saber
+  // na hora se uma vaga é "nova de verdade" ou do mesmo empregador já
+  // contatado — regra do dono: o usuário nunca deve se preocupar com duplicado.
+  if(pathname==="/api/sent-emails"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const sentSet=buildUserSentSet(s.user_email);
+    const j=getAutoJob(s.user_email);
+    const queued=[...new Set((j?.queue||[]).map(it=>_normEmail(it.to||"")).filter(Boolean))];
+    return json(res,200,{ok:true,sent:[...sentSet],queued});
+  }
+
   // ── TEMPLATES ─────────────────────────────────────────
   if(pathname==="/api/templates"&&req.method==="GET"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const p=getUser(s.user_email)||{};return json(res,200,{templates:p.templates||[]});}
   if(pathname==="/api/templates/save"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});try{const d=JSON.parse(await readBody(req));if(!d.name||!d.body)return json(res,400,{error:"name e body obrigatórios"});const p=getUser(s.user_email)||{};let tpls=p.templates||[];const idx=tpls.findIndex(t=>t.id===d.id);const tpl={id:d.id||crypto.randomUUID(),name:String(d.name).slice(0,80),subject:String(d.subject||"").slice(0,200),body:String(d.body).slice(0,5000),category:String(d.category||"general").slice(0,40),updatedAt:new Date().toISOString(),createdAt:d.createdAt||new Date().toISOString()};if(idx>=0)tpls[idx]=tpl;else{if(tpls.length>=50)return json(res,429,{error:"Limite de 50 templates atingido"});tpls.unshift(tpl);}setUser(s.user_email,{templates:tpls});return json(res,200,{ok:true,template:tpl});}catch(e){return json(res,500,{error:e.message});}}
@@ -10158,9 +11407,41 @@ const safeName=String(d.name).replace(/[<>"'&\r\n\t]/g,"").slice(0,200);if(!safe
     // do outro tipo. Criar o segundo tipo é opcional — o usuário escolhe.
     const visaType=(String(d.visaType||"").toLowerCase()==="h2a")?"h2a":"h2b";
     const existing=prfs.find(pr=>(pr.visaType||"h2b")===visaType)||null;
-    const prf={id:existing?existing.id:(d.id||crypto.randomUUID()),name:String(d.name).slice(0,80),desc:String(d.desc||"").slice(0,200),active:true,type:"normal",visaType,icon:String(d.icon||(visaType==="h2a"?"🌾":"🎯")).slice(0,8),isFavorite:visaType==="h2b",allowManual:true,allowAuto:true,coverName:d.coverName?String(d.coverName).slice(0,200):undefined,coverSize:d.coverSize||0,isGeneral:true,subjects,emailBodies,subject:subjects[0]||String(d.subject||"").slice(0,200),body:emailBodies[0]||String(d.body||"").slice(0,5000),categories:[],sheets,resumeIdx:d.resumeIdx??null,pdfName:d.pdfName?String(d.pdfName).slice(0,200):undefined,pdfSize:d.pdfSize||0,coverIdx:d.coverIdx??null,state:String(d.state||"").slice(0,40),updatedAt:new Date().toISOString(),createdAt:existing?existing.createdAt:(d.createdAt||new Date().toISOString())};
+    // v20 (reclamação real, 07/2026): três consertos neste objeto —
+    // (a) active/allowManual/allowAuto eram FORÇADOS true no servidor, então
+    //     desativar um perfil nunca funcionou de verdade; agora respeitam o
+    //     que veio do front.
+    // (b) resumeIdx/coverIdx: campo AUSENTE no payload (ex.: onboarding, que
+    //     não mexe em PDF) herda o valor do perfil existente — antes recriar o
+    //     perfil pelo onboarding APAGAVA o vínculo do currículo. null explícito
+    //     continua significando "Nenhum" (escolha do usuário no editor).
+    const prf={id:existing?existing.id:(d.id||crypto.randomUUID()),name:String(d.name).slice(0,80),desc:String(d.desc||"").slice(0,200),active:d.active!==false,type:"normal",visaType,icon:String(d.icon||(visaType==="h2a"?"🌾":"🎯")).slice(0,8),isFavorite:visaType==="h2b",allowManual:d.allowManual!==false,allowAuto:d.allowAuto!==false,coverName:d.coverName?String(d.coverName).slice(0,200):undefined,coverSize:d.coverSize||0,isGeneral:true,subjects,emailBodies,subject:subjects[0]||String(d.subject||"").slice(0,200),body:emailBodies[0]||String(d.body||"").slice(0,5000),categories:[],sheets,resumeIdx:(d.resumeIdx!==undefined)?d.resumeIdx:(existing?(existing.resumeIdx??null):null),pdfName:d.pdfName?String(d.pdfName).slice(0,200):undefined,pdfSize:d.pdfSize||0,coverIdx:(d.coverIdx!==undefined)?d.coverIdx:(existing?(existing.coverIdx??null):null),state:String(d.state||"").slice(0,40),updatedAt:new Date().toISOString(),createdAt:existing?existing.createdAt:(d.createdAt||new Date().toISOString())};
+    // v20 (reclamação real, 07/2026): perfil só pode apontar pra PDF que existe
+    // de verdade na conta — e o nome exibido vem SEMPRE do arquivo real. Antes
+    // um idx órfão (sobra de migração/exclusão) e nomes-fantasma (pdfName/
+    // coverName sem arquivo) faziam o editor mostrar anexo que nunca era
+    // enviado — e o envio caía num PDF de fallback que o usuário não escolheu.
+    const _cvsAll=p.cvs||[];
+    const _cvMetaOf=idx=>idx==null?null:_cvsAll.find(c=>parseInt(c.idx,10)===parseInt(idx,10))||null;
+    const _resMeta=_cvMetaOf(prf.resumeIdx);
+    if(_resMeta){prf.pdfName=_resMeta.name;prf.pdfSize=_resMeta.size||0;}
+    else{prf.resumeIdx=null;delete prf.pdfName;prf.pdfSize=0;}
+    const _covMeta=_cvMetaOf(prf.coverIdx);
+    if(_covMeta){prf.coverName=_covMeta.name;prf.coverSize=_covMeta.size||0;}
+    else{prf.coverIdx=null;delete prf.coverName;prf.coverSize=0;}
     prfs=[...prfs.filter(pr=>(pr.visaType||"h2b")!==visaType),prf]; // preserva o perfil do OUTRO tipo
     setUser(s.user_email,{profiles:prfs});return json(res,200,{ok:true,profile:prf});}catch(e){return json(res,500,{error:e.message});}}
+  // v21: liga/desliga perfil SEM passar pela validação de conteúdo do save.
+  // Antes o front reenviava o perfil inteiro pro /api/profiles/save só pra
+  // mudar active — e perfil legado com <3 assuntos nem DESATIVAR conseguia
+  // (barrava no "Mínimo 3 assuntos"). Toggle não muda texto: não valida texto.
+  if(pathname==="/api/profiles/toggle"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});try{
+    const d=JSON.parse(await readBody(req));if(!d.id)return json(res,400,{error:"id obrigatório"});
+    const p=getUser(s.user_email)||{};let found=null;
+    const prfs=(p.profiles||[]).map(pr=>{if(pr.id!==d.id)return pr;found={...pr,active:(typeof d.active==="boolean")?d.active:!(pr.active!==false),updatedAt:new Date().toISOString()};return found;});
+    if(!found)return json(res,404,{error:"Perfil não encontrado."});
+    setUser(s.user_email,{profiles:prfs});return json(res,200,{ok:true,profile:found});
+  }catch(e){return json(res,500,{error:e.message});}}
   if(pathname==="/api/profiles/delete"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});try{const d=JSON.parse(await readBody(req));if(!d.id)return json(res,400,{error:"id obrigatório"});const p=getUser(s.user_email)||{};
     // v19: com perfis por tipo de visto (1 H-2B + 1 H-2A), pode apagar um dos
     // dois — mas nunca o ÚLTIMO (ficaria sem assunto/corpo e o envio cairia
@@ -10169,7 +11450,11 @@ const safeName=String(d.name).replace(/[<>"'&\r\n\t]/g,"").slice(0,200);if(!safe
     if(cur.length<=1&&cur.some(pr=>pr.id===d.id))return json(res,400,{error:"Você precisa de pelo menos 1 perfil configurado. Edite-o em vez de apagar."});
     setUser(s.user_email,{profiles:cur.filter(pr=>pr.id!==d.id)});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
 
-  if(pathname==="/api/debug/export"){const s=getSess(req);if(!s?.user_email||(getUser(s.user_email)||{}).isAdmin!==true)return json(res,403,{error:"Acesso negado."});return json(res,200,{ts:new Date().toISOString(),users:DB_USERS,totalUsers:Object.keys(DB_USERS).length,dataDir:DATA_DIR,disk:fs.existsSync("/data")});}
+  if(pathname==="/api/debug/export"){const s=getSess(req);if(!s?.user_email||(getUser(s.user_email)||{}).isAdmin!==true)return json(res,403,{error:"Acesso negado."});
+    // v21-SEC: antes exportava DB_USERS CRU — refresh_tokens do Google de TODOS
+    // os usuários (principal + senders extras) iam pro navegador do admin.
+    const _safeUsers={};for(const[em,uu]of Object.entries(DB_USERS))_safeUsers[em]=sanitizeUserForClient(uu);
+    return json(res,200,{ts:new Date().toISOString(),users:_safeUsers,totalUsers:Object.keys(DB_USERS).length,dataDir:DATA_DIR,disk:fs.existsSync("/data")});}
 
   // ── ENVIO AUTOMÁTICO ──────────────────────────────────
   if(pathname==="/api/auto/start"&&req.method==="POST"){
@@ -10217,7 +11502,9 @@ const safeName=String(d.name).replace(/[<>"'&\r\n\t]/g,"").slice(0,200);if(!safe
         if(chosen){
           jobProfileId=chosen.id;
           if(chosen.resumeIdx!=null)d.resumeIdx=chosen.resumeIdx;
-          if(chosen.coverIdx!=null)d.coverIdx=chosen.coverIdx;
+          // v20: cover do perfil manda SEMPRE — null aqui é "Nenhuma" (escolha
+          // explícita), então zera qualquer coverIdx que o front tenha mandado.
+          d.coverIdx=(chosen.coverIdx!=null)?chosen.coverIdx:null;
           console.log(`[auto/start] perfil escolhido pelo usuário: "${chosen.name}" (res=${chosen.resumeIdx} cover=${chosen.coverIdx})`);
         } else {
           console.warn(`[auto/start] profileId=${d.profileId} não encontrado/inativo — seguirá com seleção padrão`);
@@ -10402,19 +11689,33 @@ const safeName=String(d.name).replace(/[<>"'&\r\n\t]/g,"").slice(0,200);if(!safe
         console.log(`[auto/start] usando fallback resumeIdx=${jobResumeIdx} (${availablePdfs[0].source})`);
       }
       let jobCoverIdx = (d.coverIdx != null && _cvExists(d.coverIdx)) ? parseInt(d.coverIdx, 10) : null;
-      // Tenta achar uma cover letter em algum perfil ativo
-      if (jobCoverIdx == null) {
-        for (const pr of profiles) {
-          if (pr.coverIdx != null && _cvExists(pr.coverIdx)) {
-            jobCoverIdx = parseInt(pr.coverIdx, 10);
-            break;
+      // v20 (reclamação real, 07/2026): REMOVIDA a "caça" de cover letter em
+      // qualquer perfil ativo. Ela fazia a carta de UM perfil (ex.: H-2A) virar
+      // anexo de TODOS os envios, mesmo com o usuário tendo escolhido "Nenhuma"
+      // no perfil da vaga. Cover letter agora só entra por escolha explícita
+      // (do perfil ou do painel) — nunca por adivinhação.
+
+      // ✅ v23 FILA ESPERTA: empregador MENOS contatado pelo app inteiro vai
+      // primeiro (mais chance de resposta; menos spam coletivo nos populares).
+      // Dentro de cada faixa continua embaralhado — usuários simultâneos não
+      // batem nos mesmos alvos (proteção original preservada).
+      queue = orderQueueSmart(queue);
+      // ── v23 AVISO DE VISTO: fila tem vagas de um tipo que o usuário não tem
+      // perfil — o envio segue (regra do dono: nunca trava), mas ele fica
+      // SABENDO que essas vagas sairão com o texto do outro perfil.
+      let visaWarning=null;
+      {
+        const _vtCount={h2a:0,h2b:0};
+        for(const it of queue){const vt=jobVisaType(it,d.source||"");if(vt)_vtCount[vt]++;}
+        const _profVts=new Set(profiles.map(pr=>pr.visaType||"h2b"));
+        for(const vt of ["h2a","h2b"]){
+          if(_vtCount[vt]>0&&!_profVts.has(vt)){
+            const nome=vt==="h2a"?"H-2A":"H-2B";
+            visaWarning={missing:vt,count:_vtCount[vt],message:`⚠️ ${_vtCount[vt]} vaga(s) da fila são ${nome} e você ainda não tem um perfil ${nome} — elas vão sair com o texto do seu outro perfil. Crie o perfil ${nome} em Perfil → Meus Perfis pra cada vaga receber o texto certo.`};
+            addLog(s.user_email,{status:"sistema",jobTitle:`⚠️ ${_vtCount[vt]} vaga(s) ${nome} sem perfil ${nome}`,company:"Crie o perfil desse tipo de visto pra essas vagas saírem com o texto certo."});
           }
         }
       }
-
-      // ✅ Embaralha a fila no servidor — cada usuário terá ordem diferente
-      // Evita que múltiplos usuários simultâneos enviem para as mesmas empresas ao mesmo tempo
-      queue = shuffleArray(queue);
       // ── Seleção de e-mails de envio (rodízio 1 a 1 SÓ entre os escolhidos) ──
       // Valida contra principal + extras ativos; se nada válido vier, usa todos (comportamento padrão).
       let jobSenders = null;
@@ -10431,7 +11732,7 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
       trackJourney(s.user_email,'auto_start',{detail:`Auto: ${queue.length} vagas | ${d.source||"manual"}`,meta:{queueSize:queue.length,skippedAlreadySent}});
       // Inicia imediatamente
       setTimeout(()=>scheduleAuto(s.user_email),100);
-      return json(res,200,{ok:true,queueSize:queue.length,skippedAlreadySent});
+      return json(res,200,{ok:true,queueSize:queue.length,skippedAlreadySent,visaWarning});
     }catch(e){return json(res,500,{error:e.message});}
   }
   if(pathname==="/api/auto/pause"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});const j=getAutoJob(s.user_email);if(!j)return json(res,404,{error:"Nenhum job."});if(autoTimers.has(s.user_email)){clearTimeout(autoTimers.get(s.user_email));autoTimers.delete(s.user_email);}setAutoJob(s.user_email,{...j,active:false,status:"paused"});addLog(s.user_email,{status:"pausado",jobTitle:"Envio pausado pelo usuário",company:""});return json(res,200,{ok:true});}
@@ -10487,6 +11788,42 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
     return json(res,200,{ok:true,removed:kbId});
   }
 
+  // ══ v25: TREINO DO IA CHAT — experiências reais + conhecimento extra ══
+  // Andrio/Diego adicionam relatos (deles, do Eudes, de clientes) pelo painel
+  // e o Gemini passa a usá-los NA HORA, sem deploy. Entra inteiro no prompt.
+  if(pathname==="/api/admin/ai-kb"&&req.method==="GET"){
+    const s=getSess(req);
+    if(!s?.user_email||!isAdminEmail(s.user_email))return json(res,403,{error:"Acesso negado."});
+    return json(res,200,{ok:true,total:DB_AI_KB.entries.length,entries:DB_AI_KB.entries});
+  }
+  if(pathname==="/api/admin/ai-kb"&&req.method==="POST"){
+    const s=getSess(req);
+    if(!s?.user_email||!isAdminEmail(s.user_email))return json(res,403,{error:"Acesso negado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const titulo=String(d.titulo||"").trim().slice(0,120);
+      const texto=String(d.texto||"").trim().slice(0,4000);
+      if(!titulo||!texto)return json(res,400,{error:"titulo e texto obrigatórios."});
+      if(DB_AI_KB.entries.length>=200)return json(res,429,{error:"Limite de 200 entradas de treino. Apague alguma antiga."});
+      const entry={id:"ai_"+Date.now().toString(36)+"_"+crypto.randomBytes(3).toString("hex"),
+        titulo,texto,autor:String(d.autor||s.user_email).trim().slice(0,60),addedAt:Date.now()};
+      DB_AI_KB.entries.unshift(entry);
+      persist(AI_KB_FILE,DB_AI_KB);
+      console.log(`[ai-kb] 🎓 Treino novo: "${titulo}" (${entry.autor})`);
+      return json(res,200,{ok:true,entry});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  if(pathname.startsWith("/api/admin/ai-kb/")&&req.method==="DELETE"){
+    const s=getSess(req);
+    if(!s?.user_email||!isAdminEmail(s.user_email))return json(res,403,{error:"Acesso negado."});
+    const aid=pathname.replace("/api/admin/ai-kb/","");
+    const before=DB_AI_KB.entries.length;
+    DB_AI_KB.entries=DB_AI_KB.entries.filter(e=>e.id!==aid);
+    if(DB_AI_KB.entries.length===before)return json(res,404,{error:"Entrada não encontrada."});
+    persist(AI_KB_FILE,DB_AI_KB);
+    return json(res,200,{ok:true,removed:aid});
+  }
+
   // ── ADMIN: Reinicia todos os workers travados de uma vez ───────────────────────
   if(pathname==="/api/admin/restart-all-stalled"&&req.method==="POST"){
     const s=getSess(req);
@@ -10531,6 +11868,28 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
     const autoQueueIds=j&&j.active?(j.queue||[]).map(q=>q.id||q.caseNum).filter(Boolean):[];return json(res,200,{job:j?{active:j.active,status:j.status,queueSize:j.queue?.length||0,originalCount:j.originalCount,filteredCount:j.filteredCount,startedAt:j.startedAt,lastSentAt:j.lastSentAt,nextSendAt:j.nextSendAt,currentJob:j.currentJob,source:j.source,category:j.category,}:null,todayAuto:countAutoToday(h),autoLimit:getAutoLimit(p),stats,recentLogs:logs,logStats,todayStats,autoQueueIds:autoQueueIds});}
 
   // ── INBOX: Respostas recebidas no Gmail ───────────────────
+  // ── v23-STATS: qual dos MEUS textos recebe mais resposta? ─────────────────
+  // Cruza os envios do automático (log.subjectTpl = assunto CRU do perfil,
+  // registrado a partir da v23) com os empregadores que responderam
+  // (user.repliedFrom, alimentado pelo /api/inbox). Nenhum app do mercado dá
+  // isso: vira consultoria de candidatura com os dados do próprio usuário.
+  if(pathname==="/api/my-text-stats"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p2=getUser(s.user_email)||{};
+    const replied=p2.repliedFrom||{};
+    const logs=(DB_LOGS[s.user_email]||[]).filter(l=>l.status==="enviado"&&l.subjectTpl);
+    const by=new Map();
+    for(const l of logs){
+      const k=l.subjectTpl;
+      if(!by.has(k))by.set(k,{tpl:k,sent:0,replies:0});
+      const e2=by.get(k);e2.sent++;
+      if(replied[String(l.to||"").toLowerCase()])e2.replies++;
+    }
+    const stats=[...by.values()].map(x=>({...x,rate:x.sent?Math.round((x.replies/x.sent)*1000)/10:0}))
+      .sort((a,b)=>b.rate-a.rate||b.sent-a.sent);
+    return json(res,200,{ok:true,stats,tracked:logs.length,
+      note:"Contabiliza envios do automático a partir desta versão — os números crescem conforme o robô trabalha."});
+  }
   if(pathname==="/api/inbox"&&req.method==="GET"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
     const sid=getSessId(req);
@@ -10567,6 +11926,23 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
         const base = { ...em, isRead };
         return match ? { ...base, linkedApp: { appId: match.app.appId, jobSnapshot: match.app.jobSnapshot || null, job: match.app.job, company: match.app.company, to: match.app.to, sentAt: match.app.sentAt || match.app.date, type: match.app.type, matchType: match.matchType } } : base;
       });
+      // v23-STATS: grava DURÁVEL quais empregadores responderam (from de cada
+      // e-mail casado com uma candidatura) — alimenta a estatística "qual dos
+      // meus textos recebe mais resposta". Cap 2000 empregadores por usuário.
+      try{
+        const _repl={...(dbUser.repliedFrom||{})};
+        let _newRepl=0;
+        for(const em of enriched){
+          if(!em.linkedApp)continue;
+          const fr=String(em.linkedApp.to||"").toLowerCase().trim();
+          if(fr&&!_repl[fr]){_repl[fr]=Date.now();_newRepl++;}
+        }
+        if(_newRepl>0){
+          const keys=Object.keys(_repl);
+          if(keys.length>2000){keys.sort((a,b)=>_repl[a]-_repl[b]);for(const k of keys.slice(0,keys.length-2000))delete _repl[k];}
+          setUser(s.user_email,{repliedFrom:_repl});
+        }
+      }catch{}
       // Cache result
       global._inboxCache[cKey]={emails:enriched,ts:Date.now()};
       return json(res,200,{ok:true,emails:enriched,total:enriched.length,unread:enriched.filter(e=>!e.isRead).length});
@@ -10822,6 +12198,54 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
         manualExpiresDate:manualExpires>0?new Date(manualExpires).toLocaleDateString("pt-BR"):null,
         autoExpiresDate:autoExpires>0?new Date(autoExpires).toLocaleDateString("pt-BR"):null});
     }catch(e){return json(res,500,{error:e.message});}}
+    // ── v28: 💰 VISÃO DO DONO — a 1ª tela do admin (ordem do dono: "o adm
+    // precisa saber sobre valores, entradas, e tudo sobre isso"). Padrão dos
+    // painéis de referência: 4-6 números de dinheiro/ação, zero ruído.
+    if(pathname==="/api/admin/dono-resumo"&&req.method==="GET"){
+      const now=Date.now(),DAY=86400_000;
+      // "hoje" em BRT: compara a data ISO (YYYY-MM-DD) do timestamp deslocado
+      // -3h com a de agora deslocada -3h (todayStrBRT é DD/MM — não serve aqui)
+      const hojeISO=new Date(now-3*3600_000).toISOString().slice(0,10);
+      const _ts=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
+      const pags=(DB_FINANCEIRO.pagamentos||[]);
+      const val=p=>parseFloat(p.valor)||0;
+      let eHoje=0,e7=0,e30=0,eTotal=0,n30=0;
+      for(const p of pags){
+        const t=_ts(p.dataPagamento||p.data);const v=val(p);
+        eTotal+=v;
+        if(t>=now-7*DAY)e7+=v;
+        if(t>=now-30*DAY){e30+=v;n30++;}
+        if(t&&new Date(t-3*3600_000).toISOString().slice(0,10)===hojeISO)eHoje+=v;
+      }
+      let g30=0;for(const g of (DB_FINANCEIRO.gastos||[])){const t=_ts(g.dataPagamento||g.data);if(t>=now-30*DAY)g30+=parseFloat(g.valor)||0;}
+      // Pedidos esperando decisão = dinheiro parado na mesa
+      const pend=DB_PEDIDOS.filter(x=>["pendente","pago"].includes(String(x.status||"").toLowerCase()));
+      const pendValor=pend.reduce((a,x)=>a+(parseFloat(x.valorTotal)||0),0);
+      // Pagantes ativos + vencendo (renovação = receita da semana que vem)
+      let pagantes=0;const vencendo=[];
+      for(const[em,u2]of Object.entries(DB_USERS)){
+        if(!u2?.vip?.active||u2.vip.source==="trial"||u2.vip.source==="code")continue;
+        const exp=Math.max(u2.vip.manualExpires||0,u2.vip.autoExpires||0);
+        if(exp<=now)continue;
+        pagantes++;
+        if(exp<=now+7*DAY)vencendo.push({email:em,nome:u2.name||em,plano:u2.vip.plan||u2.plan||"vip",diasRestantes:Math.max(0,Math.ceil((exp-now)/DAY))});
+      }
+      vencendo.sort((a,b)=>a.diasRestantes-b.diasRestantes);
+      // Cadastros
+      let novosHoje=0,novos7=0,totalUsers=0;
+      for(const u2 of Object.values(DB_USERS)){
+        totalUsers++;
+        const c=_ts(u2?.created_at);
+        if(c>=now-7*DAY)novos7++;
+        if(c&&new Date(c-3*3600_000).toISOString().slice(0,10)===hojeISO)novosHoje++;
+      }
+      return json(res,200,{ok:true,
+        entradas:{hoje:eHoje,dias7:e7,dias30:e30,total:eTotal,ticketMedio30:n30?Math.round(e30/n30):0},
+        gastos30:g30,liquido30:e30-g30,
+        pendentes:{qtd:pend.length,valor:pendValor},
+        pagantes,vencendo7d:vencendo.slice(0,8),vencendoQtd:vencendo.length,
+        novos:{hoje:novosHoje,dias7:novos7,total:totalUsers}});
+    }
     // ── Admin: PAGANTES — visão única "quem pagou + dias de VIP" (calculada no servidor = fonte única) ──
 if(pathname==="/api/admin/pagantes"&&req.method==="GET"){try{
   const now=Date.now();
@@ -11495,7 +12919,8 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
         return{idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType,onDisk:exists};
       });
       return json(res,200,{
-        user:{...u,password:undefined,cached_access_token:undefined,refresh_token:undefined},
+        user:sanitizeUserForClient(u), // v21-SEC: antes vazava tokens OAuth dos senders extras
+
         job,health:h,
         histCount:hist.length,
         todayManual:todayManualCount,
@@ -11894,6 +13319,15 @@ Responda APENAS em JSON (sem markdown):
     return json(res,200,{ok:true,selfId:_selfId,list:rows.slice(0,50).map((r,i)=>({pos:i+1,...r})),updatedAt:new Date().toISOString()});
   }
 
+  // 📰 v26: notícias do DOL traduzidas (aba Notícias). Público — é informação
+  // pública oficial; rate-limit por IP pra não virar endpoint de abuso.
+  if(pathname==="/api/noticias"&&req.method==="GET"){
+    const _nip=(req.headers["x-forwarded-for"]||req.socket?.remoteAddress||"").split(",")[0].trim();
+    if(rateLimit("noticias_"+_nip,60,60_000))return json(res,429,{error:"Muitas consultas. Aguarde."});
+    return json(res,200,{ok:true,fonte:DOL_NEWS_URL,total:DB_DOL_NOTICIAS.items.length,
+      atualizadoEm:DB_DOL_NEWS_WATCH.ultimaChecagemAt||null,
+      items:DB_DOL_NOTICIAS.items.slice(0,100).map(i=>({id:i.id,date:i.date,titleEN:i.titleEN,titlePT:i.titlePT,resumoPT:i.resumoPT,url:i.url||DOL_NEWS_URL,fonte:i.fonte||"DOL",origem:i.origem||"dol",importante:i.importante===true}))});
+  }
   if(pathname==="/api/public-stats"&&req.method==="GET"){
     const ds=todayStr();
     const totalUsers=Object.keys(DB_USERS).length;
@@ -12132,27 +13566,28 @@ O H2BApply é um app PWA (funciona no celular como app) que envia e-mails de can
 5. Envia manual (vaga por vaga) OU ativa o Envio Automático (roda 24h no servidor mesmo com o celular desligado)
 6. Acompanha respostas das empresas na aba Respostas (inbox do Gmail integrado)
 
-=== PLANOS E LIMITES ===
-- FREE (Gratuito): 20 envios manuais/dia + 10 automáticos/dia
-- VIP: R$99,90/mês → 400 manuais/dia + 10 automáticos/dia
-- VIPro: R$150/mês → 200 manuais/dia + 200 automáticos/dia
+=== PLANOS E PREÇOS (TABELA OFICIAL ATUAL — use SEMPRE estes valores) ===
+- VIP (manual turbinado): 30d R$${PLANO_PRECO_TAB.vip[30]} | 60d R$${PLANO_PRECO_TAB.vip[60]} | 90d R$${PLANO_PRECO_TAB.vip[90]} | 1 ano R$${PLANO_PRECO_TAB.vip[365]}
+- VIPro (manual + automático): 30d R$${PLANO_PRECO_TAB.vipro[30]} | 60d R$${PLANO_PRECO_TAB.vipro[60]} | 90d R$${PLANO_PRECO_TAB.vipro[90]} | 1 ano R$${PLANO_PRECO_TAB.vipro[365]}
+- Double Pro (tudo + filtros exclusivos de Grupo/Status DOL): 30d R$${PLANO_PRECO_TAB.doublepro[30]} | 60d R$${PLANO_PRECO_TAB.doublepro[60]} | 90d R$${PLANO_PRECO_TAB.doublepro[90]} | 1 ano R$${PLANO_PRECO_TAB.doublepro[365]}
 - Novos usuários ganham 1 dia de VIP Manual grátis ao se cadastrar (trial de boas-vindas)
+- Os limites de envios por plano aparecem na aba Planos do app — indique-a para detalhes
 
 === COMO PAGAR ===
-Pagamento via PIX para Andrio Kickhofel (telefone: 53981453496). Após pagar, enviar comprovante + Gmail pelo WhatsApp: +55 53 98145-3496. Plano ativado em até 24h.
+Pelo PRÓPRIO app: aba Planos → escolher o plano e o período → fazer o pedido → pagar o PIX indicado → enviar o comprovante no próprio pedido. A equipe confirma e o plano ativa (os dias contam a partir da APROVAÇÃO — tempo em análise não é perdido). Dúvidas: WhatsApp +55 53 98145-3496.
 
 === ENVIO AUTOMÁTICO (DETALHE TÉCNICO) ===
-- Roda no servidor Railway, NÃO precisa do celular ligado
+- Roda no servidor do H2BApply na nuvem, NÃO precisa do celular ligado
 - Intervalo de 5 a 6 minutos entre e-mails (anti-spam)
 - Sistema anti-duplicata: nunca envia duas vezes para a mesma empresa
-- Limite Gmail: não ultrapassar 400-500 e-mails/dia pelo mesmo Gmail (risco de bloqueio)
+- Limite Gmail (oficial Google): até 500 e-mails por janela móvel de 24h por conta; exceder repetido pode travar a conta por até 24h. Envios manuais e automáticos do mesmo Gmail contam juntos
 - O automático usa o perfil certo por categoria automaticamente
 - Pode pausar, retomar ou parar a qualquer momento
 
-=== PERFIS DE E-MAIL ===
-- Perfil Geral (🌐): usado como fallback para qualquer vaga sem perfil específico
-- Perfil por Categoria (📂): landscape, construction, housekeeper, seafood, farm, golf, amusement, forest, lifeguard, etc.
-- Cada perfil precisa: nome, currículo PDF (obrigatório), mínimo 3 assuntos, mínimo 3 corpos de e-mail
+=== PERFIS DE E-MAIL (REGRA ATUAL: 1 POR TIPO DE VISTO) ===
+- Cada usuário pode ter até 2 perfis: um H-2B (🎯) e um H-2A (🌾) — A VAGA MANDA: vaga H-2A sai com o perfil H-2A, vaga H-2B com o perfil H-2B
+- Cada perfil precisa: currículo PDF (obrigatório), mínimo 3 assuntos e 3 corpos de e-mail ESCRITOS PELO PRÓPRIO USUÁRIO (o app não preenche nada — o sistema alterna entre as versões a cada envio pra candidatura nunca sair idêntica à de outra pessoa)
+- Carta de apresentação é opcional POR PERFIL: escolher "Nenhuma" significa que a candidatura vai só com o currículo — o sistema nunca usa a carta de outro perfil
 - Variáveis automáticas nos templates: {nome}, {vaga}, {empresa}, {pais}, {telefone}, {email}, {cidade}, {estado}, {wage}, {salario}, {inicio}, {fim}, {case_number}, {url_vaga}
 
 === CATEGORIAS DE VAGAS ===
@@ -12203,7 +13638,17 @@ O H2BApply NÃO garante contratação, entrevista ou aprovação de visto — ap
 - YouTube: canal Diego H2B (tutoriais em vídeo)
 - WhatsApp suporte: +55 53 98145-3496
 
-=== SEU PAPEL COMO ASSISTENTE ===
+=== RECURSOS RECENTES DO APP (cite quando ajudarem) ===
+- Filtros: vários ESTADOS ao mesmo tempo, MÊS DE INÍCIO da vaga, ordenar por MAIOR SALÁRIO/começa mais cedo, cargo específico, salário mínimo, cidade
+- Robô automático se REALIMENTA sozinho: quando a fila zera, recarrega com os mesmos filtros e avisa por notificação — o usuário não precisa reiniciar
+- Vaga que expirou/foi retirada é pulada sem gastar o limite diário do usuário
+- 📊 Na aba Respostas, o botão de gráfico mostra QUAL assunto do usuário recebe mais respostas — incentive a usar os campeões
+- Tutorial em slides: ☰ Menu → Tutorial (indique pra quem estiver perdido)
+
+${DB_AI_KB.entries.length?`=== EXPERIÊNCIAS REAIS E CONHECIMENTO DA EQUIPE (Andrio, Diego, Eudes e convidados — adicionado por eles, use como fonte confiável e cite como "experiência real da equipe/comunidade") ===
+${DB_AI_KB.entries.map(e=>`• ${e.titulo} (por ${e.autor}):\n${e.texto}`).join("\n\n")}
+
+`:""}=== SEU PAPEL COMO ASSISTENTE ===
 - Responda SEMPRE em português brasileiro, de forma amigável, direta e prática
 - Quando o usuário pedir para redigir um email em inglês para uma empresa americana, escreva o email COMPLETO e profissional
 - Quando o usuário receber uma resposta de empresa em inglês e não entender, traduza e explique o que a empresa quer
@@ -12930,7 +14375,12 @@ APRENDIZADO: [padrão detectado, conciso, acionável, max 200 chars]`;
 });
 
 // ── Cleanup ───────────────────────────────────────────────
-setInterval(()=>{const n=Date.now();let c=0;Object.keys(sessions).forEach(k=>{const s=sessions[k],a=n-(s.ts||s.created_at||0);if((s.pending&&a>600_000)||(!s.pending&&a>SESS_TTL)){delete sessions[k];c++;}});if(c)console.log(`[cleanup] ${c} sessão(ões)`);persistSessionsDebounced(1000); // V955: snapshot periódico (captura refresh de tokens)Object.keys(rateMap).forEach(k=>{if(rateMap[k].r<Date.now())delete rateMap[k];});// Limpa locks de send órfãos (>30s)
+setInterval(()=>{const n=Date.now();let c=0;Object.keys(sessions).forEach(k=>{const s=sessions[k],a=n-(s.ts||s.created_at||0);if((s.pending&&a>600_000)||(!s.pending&&a>SESS_TTL)){delete sessions[k];c++;}});if(c)console.log(`[cleanup] ${c} sessão(ões)`);persistSessionsDebounced(1000); // V955: snapshot periódico (captura refresh de tokens)
+// v21-FIX: a limpeza do rateMap abaixo estava GRUDADA no comentário da linha
+// acima desde a V955 — virou comentário e NUNCA rodou: o mapa de rate-limit
+// acumulava uma entrada por usuário×ação pra sempre (vazamento lento de RAM).
+Object.keys(rateMap).forEach(k=>{if(rateMap[k].r<n)delete rateMap[k];});
+// Limpa locks de send órfãos (>30s)
 _manualSendInFlight.forEach((ts,k)=>{if(n-ts>30000)_manualSendInFlight.delete(k);});},300_000);
 // BUG-001 CORRIGIDO: cron VIP agora suporta schema novo (manualExpires/autoExpires) E schema legado (expiresAt)
 setInterval(()=>{
@@ -13390,89 +14840,16 @@ Equipe H2BApply 🤖` },
 ];
 
 async function sendNotifEmail(userEmail, tipo) {
-  // 🔕 KILL SWITCH (pedido do dono, 06/07/2026): desativa TODAS as notificações
-  // automáticas por e-mail enviadas pela conta admin (andrio.kick18@gmail.com)
-  // até um novo sistema de notificações ser configurado. Reversível em
-  // DB_ADMIN_SETTINGS.emailNotificationsEnabled (toggle em Configurações ou
-  // POST /api/admin/notif/toggle-email).
-  if (DB_ADMIN_SETTINGS.emailNotificationsEnabled !== true) return;
-  // Trava: não envia o mesmo tipo 2x em 24h
-  const lockKey = `${userEmail}_${tipo}`;
-  if (_notifLock.has(lockKey)) return;
-  const last = _notifSentAt[lockKey] || 0;
-  if (Date.now() - last < 22 * 3600_000) return; // 22h de cooldown
-
-  try {
-    const p = getUser(userEmail);
-    const nome = (p?.name || userEmail.split("@")[0] || "amigo").split(" ")[0];
-    const msgs = (tipo === "stalled"       ? MSGS_STALLED
-               : tipo === "token_revoked" ? MSGS_TOKEN_REVOKED
-               : tipo === "auth_error"    ? MSGS_AUTH_ERROR
-               : tipo === "vip_expiring"  ? MSGS_VIP_EXPIRING
-               : tipo === "vip_desync"    ? MSGS_VIP_DESYNC
-               : tipo === "no_profile"    ? MSGS_NO_PROFILE
-               : tipo === "refill"        ? MSGS_REFILL
-               : tipo === "plan_activated"? MSGS_PLAN_ACTIVATED
-               : MSGS_FINISHED);
-    // Escolhe variação aleatória
-    const idx = Math.floor(Math.random() * msgs.length);
-    const msg = msgs[idx];
-    const subject = msg.sub.replace(/{nome}/g, nome);
-    const body = msg.body.replace(/{nome}/g, nome);
-
-    // Pega sessão do admin — com fallback automático via refresh_token
-    let adminToken = null;
-    const adminSessEntry = Object.entries(sessions).find(([,s]) => s.user_email === ADMIN_EMAIL && s.access_token);
-    if (adminSessEntry) {
-      adminToken = adminSessEntry[1].access_token;
-    } else {
-      // Sem sessão ativa — tenta renovar via refresh_token do banco
-      const adminUser = getUser(ADMIN_EMAIL);
-      if (adminUser?.refresh_token) {
-        try {
-          adminToken = await refreshTokenForUser(ADMIN_EMAIL);
-        } catch(re) {
-          console.warn(`[notif] Não foi possível renovar token do admin: ${re.message}`);
-          return;
-        }
-      } else {
-        console.warn(`[notif] Admin sem sessão e sem refresh_token — notificação para ${userEmail} não enviada`);
-        return;
-      }
-    }
-
-    const raw = buildMime({
-      to: userEmail,
-      subject,
-      fromName: "H2BApply 🤖",
-      fromEmail: ADMIN_EMAIL,
-      text: body,
-    });
-
-    const { status } = await httpsReq({
-      hostname: "gmail.googleapis.com",
-      path: "/gmail/v1/users/me/messages/send",
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + adminToken,
-        "Content-Type": "application/json"
-      }
-    }, { raw });
-
-    if (status === 200) {
-      _notifLock.add(lockKey);
-      _notifSentAt[lockKey] = Date.now();
-      setTimeout(() => _notifLock.delete(lockKey), 23 * 3600_000); // libera após 23h
-      // Log do email enviado
-      _notifEmailLog.unshift({ to:userEmail, nome, subject, body, tipo, sentAt:new Date().toISOString(), varIdx:idx });
-      if(_notifEmailLog.length>1000) _notifEmailLog.length=1000;
-      console.log(`[notif] ✅ Email ${tipo} enviado para ${userEmail} (variação ${idx + 1})`);
-    } else {
-      console.warn(`[notif] ❌ Falha ao enviar para ${userEmail}: HTTP ${status}`);
-    }
-  } catch(e) {
-    console.warn(`[notif] erro ao enviar para ${userEmail}:`, e.message);
-  }
+  // 🔕 ORDEM PERMANENTE DO DONO (23/07/2026): "meu e-mail agora só é usado
+  // pra avisar a mim e ao Diego com notificações de compras. NÃO é pra
+  // mandar e-mail pras pessoas falando que tá parado etc. Não quero mais."
+  // → Usuário NUNCA recebe e-mail do sistema — todo aviso a usuário sai por
+  // PUSH (fallbacks já existem em todos os caminhos: watchdogs, sentinel,
+  // motor do automático). No-op INCONDICIONAL de propósito: nenhum toggle
+  // religa por engano. Os e-mails de COMPRA pros admins são outro caminho
+  // (POST /api/pedido → e-mail com comprovante pra Andrio/Diego) e seguem
+  // funcionando. Os textos antigos (MSGS_*) ficam como acervo de copy.
+  return { disabled: true, userEmail, tipo };
 }
 // ══════════════════════════════════════════════════════════
 
@@ -13516,13 +14893,12 @@ const REENGAGEMENT_MSGS = {
 };
 
 function scheduleReengagement(){
-  const now = new Date();
-  const next = new Date(now);
-  next.setUTCHours(12,0,0,0); // 9h BRT = 12h UTC
-  if(next<=now) next.setUTCDate(next.getUTCDate()+1);
-  const delay = next-now;
-  console.log(`[reengagement] Próximo disparo em ${Math.round(delay/60000)}min`);
-  setTimeout(async()=>{ await runReengagement(); scheduleReengagement(); }, delay);
+  // 🔕 ORDEM PERMANENTE DO DONO (23/07/2026): e-mail de reengajamento pra
+  // usuário NUNCA mais — o e-mail dos admins é só pra aviso de compra.
+  // Agendamento desligado em definitivo (o reengajamento de usuário, se um
+  // dia voltar, será por PUSH — nunca por e-mail).
+  console.log("[reengagement] 🔕 desligado em definitivo por ordem do dono (23/07) — e-mail é canal exclusivo de avisos de compra aos admins");
+  return;
 }
 
 async function runReengagement(){
@@ -14198,6 +15574,115 @@ function setPedidoPreCheck(pedidoId, pc){
     persistPedidos();
   }catch(e){ console.warn("[precheck] setPedidoPreCheck:",e.message); }
 }
+
+// ── ATIVAÇÃO PROVISÓRIA AUTOMÁTICA (dono, 21/07/2026) ────────────────────────
+// "Se bateu o valor ele vai ativar direto pro usuário, mas fica pendente pro
+//  adm verificar SEMPRE — nunca pode ficar plano ativo por muitos dias sem o
+//  adm confirmar." Regra: pré-check leu o comprovante e o valor CONFERE →
+// ativa o plano NA HORA, porém só por AUTO_ATIVA_DIAS dias (janela
+// provisória). O pedido continua "pendente" na mesa do admin; a confirmação
+// humana concede o período cheio (substituindo, nunca somando — ver
+// _ehTrial na ativação). Sem confirmação, o provisório expira sozinho.
+// Comprovante reusado nunca chega aqui (o hash anti-fraude rebaixa pra
+// DIVERGENCIA antes). Não roda se o cliente JÁ tem VIP pago ativo
+// (renovação empilha dias — decisão que fica 100% com o admin).
+const AUTO_ATIVA_DIAS = 3;
+function autoAtivarProvisorio(pedidoId){
+  try{
+    const pd=DB_PEDIDOS.find(p=>p.id===pedidoId);
+    if(!pd) return false;
+    if(pd.status!=="pendente"||pd.ativadoEm||pd.autoAtivado) return false;
+    const u=getUser(pd.userEmail); if(!u) return false;
+    const now=Date.now(), DAY=86400_000;
+    const manualAtivo=u.vip?.manualExpires&&u.vip.manualExpires>now;
+    const autoAtivo=u.vip?.autoExpires&&u.vip.autoExpires>now;
+    const ehGratis=["trial","auto-provisorio"].includes(String(u.vip?.source||""));
+    if((manualAtivo||autoAtivo)&&!ehGratis) return false; // já tem VIP pago — admin decide
+    const planoKey={vip:"vip",vipro:"vipro",doublepro:"doublepro"}[pd.plano]||"vipro";
+    const isAuto=["vipro","doublepro"].includes(planoKey);
+    const fim=now+AUTO_ATIVA_DIAS*DAY;
+    setUser(pd.userEmail,{plan:planoKey,vip:{...(u.vip||{}),active:true,plan:planoKey,
+      source:"auto-provisorio",manualExpires:fim,autoExpires:isAuto?fim:0,
+      activatedAt:now,activatedBy:"Robô (comprovante conferido)",pedidoId:pd.id,
+      note:`⚡ Ativação PROVISÓRIA automática (${AUTO_ATIVA_DIAS}d) — pedido #${pd.id.slice(-8).toUpperCase()} aguarda confirmação do admin`,
+      days:AUTO_ATIVA_DIAS,autoDays:isAuto?AUTO_ATIVA_DIAS:0}});
+    pd.autoAtivado=true; pd.autoAtivadoEm=now;
+    persistPedidos();
+    addLog(pd.userEmail,{status:"sistema",
+      jobTitle:`⚡ Plano ${planoKey} ativado PROVISORIAMENTE (${AUTO_ATIVA_DIAS}d) — comprovante conferido pelo robô`,
+      company:`Pedido #${pd.id.slice(-8).toUpperCase()} aguarda confirmação do admin`});
+    ;(async()=>{
+      try{
+        await pushToUser(pd.userEmail,{type:"plan_activated",
+          title:"⚡ Plano liberado na hora!",
+          body:`Seu comprovante foi conferido e o ${planoKey.toUpperCase()} já está ativo. A confirmação final da equipe sai em até ${AUTO_ATIVA_DIAS} dias.`,
+          icon:"/icon-192.png"}).catch(()=>{});
+        for(const ae of ADMIN_EMAILS){
+          await pushToUser(ae,{type:"new_order",
+            title:"⚡ Ativação provisória automática",
+            body:`${pd.userName||pd.userEmail}: comprovante conferiu (R$${(pd.valorTotal||0).toFixed(2)}) — plano liberado por ${AUTO_ATIVA_DIAS}d. Confirme o pedido!`,
+            icon:"/icon-192.png"}).catch(()=>{});
+        }
+      }catch(e){console.warn("[auto-ativa] push:",e.message);}
+    })();
+    console.log(`[auto-ativa] ⚡ ${pd.userEmail} — ${planoKey} provisório ${AUTO_ATIVA_DIAS}d (pedido ${pd.id})`);
+    return true;
+  }catch(e){ console.warn("[auto-ativa]",e.message); return false; }
+}
+
+// ── ⏳ ROBÔ DE RENOVAÇÃO (dono, 21/07/2026) ──────────────────────────────────
+// A Visão do Dono trata cada VIP vencendo como "uma venda a recuperar", mas o
+// CLIENTE só descobria abrindo o app (banner) — e os e-mails automáticos estão
+// desligados por decisão do dono. Este robô avisa por PUSH nos marcos de 3
+// dias e 1 dia antes do vencimento, 1x cada (dedup persistido por vencimento —
+// renovou, os marcos resetam). Só para VIP PAGO ou de código: trial e
+// provisório do robô ficam de fora (provisório é assunto do admin, não do
+// cliente). Push abre direto a aba Planos.
+async function renovacaoWatchdogRun(){
+  const now=Date.now(), DAY=86400_000;
+  let avisados=0;
+  for(const [email,usr] of Object.entries(DB_USERS)){
+    try{
+      if(!usr||usr.isAdmin) continue;
+      const v=usr.vip; if(!v) continue;
+      if(!["payment","pago","code"].includes(String(v.source||""))) continue;
+      const exp=Math.max(v.manualExpires||0,v.autoExpires||0);
+      if(!exp) continue;
+      // Marcos ANTES do vencimento: 3d e 1d. Marcos DEPOIS (reconquista,
+      // dono 21/07): -3 (janela 3–6d vencido) e -7 (janela 7–14d vencido).
+      // Vencido há mais de 14 dias = silêncio — aviso tardio é spam.
+      let marco=null;
+      if(exp>now){
+        const dLeft=Math.ceil((exp-now)/DAY);
+        marco=dLeft<=1?1:(dLeft<=3?3:null);
+      }else{
+        const dSince=Math.floor((now-exp)/DAY);
+        marco=(dSince>=7&&dSince<=14)?-7:((dSince>=3&&dSince<7)?-3:null);
+      }
+      if(!marco) continue;
+      const rw=(usr.renewWarn&&usr.renewWarn.expiry===exp)?usr.renewWarn:{expiry:exp,sent:[]};
+      if(rw.sent.includes(marco)) continue;
+      const planoNm=String(v.plan||usr.plan||"VIP").toUpperCase();
+      const dataStr=new Date(exp).toLocaleDateString("pt-BR");
+      const msg={
+        [3]:{title:"⏳ Seu plano vence em 3 dias",body:`${planoNm} ativo até ${dataStr}. Renove na aba Planos pra suas candidaturas não pararem.`},
+        [1]:{title:"⏳ Seu plano vence AMANHÃ!",body:`${planoNm} ativo até ${dataStr}. Renove na aba Planos pra suas candidaturas não pararem.`},
+        [-3]:{title:"😴 Suas candidaturas pararam",body:`Seu ${planoNm} venceu dia ${dataStr}. Os empregadores continuam contratando — reative na aba Planos.`},
+        [-7]:{title:"⏰ Uma semana sem enviar candidaturas",body:`Seu ${planoNm} venceu dia ${dataStr}. Reative na aba Planos e volte pra corrida das vagas.`},
+      }[marco];
+      await pushToUser(email,{type:"plan_expiring",title:msg.title,body:msg.body,
+        icon:"/icon-192.png",url:"/?tab=plans"}).catch(()=>{});
+      rw.sent=[...rw.sent,marco];
+      setUser(email,{renewWarn:rw});
+      avisados++;
+    }catch(e){ /* um usuário com problema não derruba a varredura */ }
+  }
+  if(avisados>0)console.log(`[renova] ⏳ ${avisados} aviso(s) de renovação/reconquista enviados por push`);
+  try{botLog('renova','Robô de Renovação',
+    avisados>0?`${avisados} cliente(s) avisados por push (marcos: 3d/1d antes de vencer · 3d/7d depois)`:'Verificação rodou — ninguém nos marcos de renovação/reconquista',
+    avisados>0?'warn':'info');}catch{}
+  return avisados;
+}
 function persistFinanceiro(){
   // Salva sem imagens base64 inline para não explodir o arquivo — as
   // imagens ficam como referência de pedido (já persistidas nos pedidos).
@@ -14212,6 +15697,7 @@ setTimeout(j26AutoTick, 45_000);              // 1ª checagem ~45s depois do boo
 setInterval(j26AutoTick, 5*60_000);            // depois, a cada 5 minutos — pedido do dono
 console.log(`[grupos-j26] 🎯 Sistema de Grupos — Julho 2026 pronto | ${Object.keys(DB_GRUPOS_J26.mapa).length} case(s) no mapa`);
 loadDolNewsWatch();
+loadDolNoticias(); // v26: arquivo da aba Notícias
 setTimeout(dolNewsAutoTick, 60_000);           // 1ª checagem ~60s depois do boot
 setInterval(dolNewsAutoTick, 10*60_000);       // depois, a cada 10 minutos
 console.log(`[dol-news-watch] 📰 Vigia de Anúncios DOL pronto | último conhecido: ${DB_DOL_NEWS_WATCH.ultimaConhecida.date} — admins: ${getAllAdminEmails().join(", ")}`);
@@ -14361,6 +15847,93 @@ process.on("unhandledRejection",(reason)=>{
 // Roda invisível no servidor — não depende de sessão, página aberta ou login.
 // Builtins (jan2026, jul2025) + extras (uploadadas via admin).
 // Critério: enrichedAt ausente no DB_SHEETS_META = pendente.
+// ═══════════════════════════════════════════════════════════════════════════
+// 🌿 v24 — PLANILHA SEMPRE FRESCA (pipeline automático de dados)
+// O enriquecimento só olha vagas SEM e-mail — vagas completas nunca eram
+// revisitadas: status envelhecia (vaga retirada continuava "viva"), datas de
+// início faltavam (jan2026 tem 0% — o filtro de mês zerava lá) e salários
+// desatualizavam. Este robô roda sozinho a cada ciclo: escolhe a planilha
+// menos recém-conferida, revisita um LOTE limitado de vagas no DOL
+// (prioridade: sem data > conferida há mais tempo), atualiza SÓ os campos
+// que mudam com o tempo e salva com override em /data (sobrevive a deploy).
+// Educado com o DOL: 1 caso por vez, backoff em 403/429, para após 6 erros.
+// De propósito NÃO refatora o miolo do bot de enriquecimento (código
+// batalhado em produção) — usa um atualizador próprio e enxuto.
+// ═══════════════════════════════════════════════════════════════════════════
+const _freshBot={running:false,sheetKey:null,checked:0,changed:0,lastRunAt:null};
+function _applyDolFreshFields(row,dol){
+  const before=JSON.stringify([row.st,row.d,row.de,row.w,row.wk,row.e]);
+  if(dol.case_status)row.st=String(dol.case_status).trim();
+  const _d=(dol.begin_date||dol.start_date||"");if(_d)row.d=String(_d).slice(0,10);
+  const _de=(dol.end_date||dol.expiration_date||"");if(_de)row.de=String(_de).slice(0,10);
+  const _wk=parseInt(dol.total_positions||dol.nbr_workers_requested||0);if(_wk)row.wk=_wk;
+  if(dol.basic_rate_from)row.w=String(parseFloat(dol.basic_rate_from).toFixed(2));
+  if(!row.e){
+    const ems=[dol.apply_email,dol.employer_email,dol.employer_poc_email,dol.attorney_agent_email,dol.employer_contact_email]
+      .map(e=>(e||"").trim().toLowerCase()).filter(e=>e&&e.includes("@")&&!e.startsWith("n/a"));
+    if(ems.length)row.e=ems[0];
+  }
+  return JSON.stringify([row.st,row.d,row.de,row.w,row.wk,row.e])!==before;
+}
+async function _runFreshCycle(){
+  if(_enrichBot.running||_freshBot.running)return; // enriquecimento tem prioridade
+  const keys=["jan2026","jul2025","h2a-jun2026",...Object.keys(SHEET_EXTRAS)];
+  let pick=null,oldest=Infinity;
+  for(const k of keys){
+    const arr=getSheet(k);if(!arr||!arr.length)continue;
+    const at=DB_SHEETS_META[k]?.freshAt||0;
+    if(at<oldest){oldest=at;pick=k;}
+  }
+  if(!pick)return;
+  const sheet=getSheet(pick);
+  const cands=sheet.filter(r=>r.c&&r.e&&r.e.includes("@"));
+  // Prioridade: sem data de início primeiro (destrava o filtro de mês),
+  // depois quem foi conferido há mais tempo (r.fq = fresh-checked-at)
+  cands.sort((a,b)=>((a.d?1:0)-(b.d?1:0))||((a.fq||0)-(b.fq||0)));
+  const batch=cands.slice(0,120);
+  if(!batch.length){
+    if(!DB_SHEETS_META[pick])DB_SHEETS_META[pick]={name:pick};
+    DB_SHEETS_META[pick].freshAt=Date.now();
+    try{fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));}catch{}
+    return;
+  }
+  _freshBot.running=true;_freshBot.sheetKey=pick;_freshBot.checked=0;_freshBot.changed=0;
+  botLog('planilha-fresca','Planilha Sempre Fresca',`🚀 ${pick}: conferindo ${batch.length} vaga(s) no DOL (status/datas/salário)`,'info');
+  const HDRS={"Accept":"application/json","Accept-Encoding":"identity","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36","Cache-Control":"no-cache","Referer":"https://seasonaljobs.dol.gov/"};
+  let delay=1500,errs=0;
+  try{
+    for(const row of batch){
+      if(!_freshBot.running||_enrichBot.running)break;
+      try{
+        const params=new URLSearchParams({"api-version":"2020-06-30"});
+        params.append("$filter",`case_number eq '${row.c}'`);
+        params.append("$top","1");
+        const {status,body}=await httpsReq({hostname:"api.seasonaljobs.dol.gov",path:"/datahub/?"+params,method:"GET",headers:HDRS});
+        if(status===200){
+          const dol=(body?.value||body?.results||body?.data||[])[0]||null;
+          if(dol&&_applyDolFreshFields(row,dol))_freshBot.changed++;
+          row.fq=Date.now();
+          _freshBot.checked++;errs=0;delay=Math.max(1500,delay-200);
+        }else if(status===403||status===429){
+          errs++;delay=Math.min(60_000,delay*2);
+          botLog('planilha-fresca','Planilha Sempre Fresca',`🚫 DOL bloqueou (HTTP ${status}) — desacelerando pra ${Math.round(delay/1000)}s`,'warn');
+        }else{errs++;row.fq=Date.now();_freshBot.checked++;}
+        if(errs>=6){botLog('planilha-fresca','Planilha Sempre Fresca',`⛔ ${errs} erros seguidos — parando este ciclo (volta no próximo)`,'warn');break;}
+      }catch(e){errs++;if(errs>=6)break;}
+      await new Promise(r=>setTimeout(r,delay));
+    }
+  }finally{
+    _freshBot.running=false;_freshBot.lastRunAt=Date.now();
+    if(_freshBot.checked>0){
+      try{_savePlaniha(pick,sheet);}catch(e){botLog('planilha-fresca','Planilha Sempre Fresca',`❌ erro ao salvar: ${e.message}`,'error');}
+      if(!DB_SHEETS_META[pick])DB_SHEETS_META[pick]={name:pick};
+      DB_SHEETS_META[pick].freshAt=Date.now();
+      try{fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));}catch{}
+      botLog('planilha-fresca','Planilha Sempre Fresca',`✅ ${pick}: ${_freshBot.checked} conferida(s), ${_freshBot.changed} atualizada(s) de verdade`,_freshBot.changed?'ok':'info');
+      console.log(`[planilha-fresca] ✅ ${pick}: ${_freshBot.checked} conferidas, ${_freshBot.changed} atualizadas`);
+    }
+  }
+}
 async function _autoEnrichCycle(){
   if(_enrichBot.running){ return; } // já rodando, aguarda
 
@@ -14656,6 +16229,24 @@ RESPONDA APENAS com array JSON:
 
   // Dispara o ciclo 15s após boot
   setTimeout(()=>_autoEnrichCycle().catch(e=>console.error("[auto-enrich] boot cycle erro:",e.message)), 15000);
+  // v24 — PIPELINE AUTOMÁTICO DE DADOS: as planilhas se mantêm sozinhas.
+  // Enriquecimento (e-mails faltantes) re-roda a cada 12h — antes era só no
+  // boot, então planilha subida entre deploys ficava incompleta até alguém
+  // reiniciar. Frescor (status/datas/salário das vagas JÁ completas) roda a
+  // cada 6h, uma planilha por ciclo, lote limitado — educado com o DOL.
+  setInterval(()=>_autoEnrichCycle().catch(e=>console.error("[auto-enrich] ciclo periódico erro:",e.message)), 12*3600_000);
+  setTimeout(()=>_runFreshCycle().catch(e=>console.error("[planilha-fresca] boot erro:",e.message)), 5*60_000);
+  setInterval(()=>_runFreshCycle().catch(e=>console.error("[planilha-fresca] ciclo erro:",e.message)), 6*3600_000);
+  // v26 — 🔎 Pesquisa diária de notícias H-2B/H-2A com IA (busca do Google
+  // via Gemini): 1ª rodada 15min após o boot, depois a cada 24h.
+  setTimeout(()=>dolNoticiasPesquisaIA().catch(e=>console.error("[noticias-ia] boot erro:",e.message)), 15*60_000);
+  setInterval(()=>dolNoticiasPesquisaIA().catch(e=>console.error("[noticias-ia] ciclo erro:",e.message)), 24*3600_000);
+  // ⏳ Robô de Renovação — avisa clientes por push nos marcos 3d/1d antes do
+  // vencimento (1ª rodada 20min após o boot, depois a cada 6h; dedup interno).
+  setTimeout(()=>renovacaoWatchdogRun().catch(e=>console.error("[renova] boot erro:",e.message)), 20*60_000);
+  setInterval(()=>renovacaoWatchdogRun().catch(e=>console.error("[renova] ciclo erro:",e.message)), 6*3600_000);
+  // 📊 Resumo Diário do Dono — push às 8h BRT com os números de ontem.
+  scheduleResumoDono();
 
   // Watchdog a cada 30 minutos — captura planilhas novas ou que travaram
   setInterval(()=>{

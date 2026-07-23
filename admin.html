@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0a0f1e">
+<meta name="robots" content="noindex, nofollow">
 <title>H2BApply — Admin Console v15</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;600;700;800&family=Sora:wght@700;800&display=swap" rel="stylesheet">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.29.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="/vendor/tabler-icons.min.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{height:100%;scroll-behavior:smooth}
@@ -261,24 +262,31 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
     </div>
     <div class="sb-nav">
       <div class="sb-label">Monitor</div>
-      <button class="sb-item active" onclick="showView('dashboard')"><i class="ti ti-dashboard"></i>Visão Geral<span class="sb-badge sb-badge-r" id="sb-alerts" style="display:none">0</span></button>
+      <!-- v30: bloco 💰 DINHEIRO unificado (eram 6 telas espalhadas; a régua:
+           decisão de dono = menu; conferência = mora dentro da tela certa.
+           Vencimentos → dentro de Pagantes · Confirmações → dentro do Dinheiro) -->
+      <div class="sb-label">💰 Dinheiro</div>
+      <button class="sb-item active" onclick="showView('dono');loadDonoResumo()" style="background:linear-gradient(135deg,rgba(16,185,129,.16),rgba(5,150,105,.08));border:1px solid rgba(16,185,129,.4);font-weight:800"><i class="ti ti-cash-banknote" style="color:#34d399"></i>Visão do Dono</button>
+      <button class="sb-item" onclick="showView('pedidos');loadPedidos()" style="font-weight:800;color:var(--green)"><i class="ti ti-shopping-cart" style="color:var(--green)"></i>Pedidos de Plano<span class="sb-badge sb-badge-g" id="sb-pedidos" style="display:none">0</span></button>
+      <button class="sb-item" onclick="showView('conferencia')"><i class="ti ti-receipt-2" style="color:#a78bfa"></i>🧾 Conferência</button>
+      <button class="sb-item" onclick="showView('pagantes');loadPagantes()"><i class="ti ti-cash" style="color:#34d399"></i>Pagantes &amp; Dias VIP<span class="sb-badge sb-badge-a" id="sb-venc" style="display:none">!</span></button>
+      <button class="sb-item" onclick="showView('vip');loadVipList();loadFinanceiro()"><i class="ti ti-diamond"></i>VIP & Planos</button>
+      <div class="sb-label">Operação</div>
+      <button class="sb-item" onclick="showView('dashboard')"><i class="ti ti-dashboard"></i>Visão Geral<span class="sb-badge sb-badge-r" id="sb-alerts" style="display:none">0</span></button>
       <!-- IA Admin removido do menu a pedido do dono (não utilizado) -->
       <button class="sb-item" onclick="showView('workers')"><i class="ti ti-robot"></i>Automáticos<span class="sb-badge sb-badge-g" id="sb-workers">0</span></button>
-      <button class="sb-item" onclick="showView('events')"><i class="ti ti-receipt"></i>Pagamentos<span class="sb-badge sb-badge-g" id="sb-events-cnt" style="display:none">0</span></button>
       <div class="sb-label">Usuários</div>
       <button class="sb-item" onclick="showView('users')"><i class="ti ti-users"></i>Todos Usuários</button>
-      <button class="sb-item" onclick="showView('vip');loadVipList();loadFinanceiro()"><i class="ti ti-diamond"></i>VIP & Planos</button>
-      <button class="sb-item" onclick="showView('pagantes');loadPagantes()" style="background:linear-gradient(135deg,rgba(16,185,129,.14),rgba(5,150,105,.07));border:1px solid rgba(16,185,129,.35);color:#34d399;font-weight:800"><i class="ti ti-cash" style="color:#34d399"></i>Pagantes &amp; Dias VIP</button>
-      <button class="sb-item" onclick="showView('vencimentos');loadVencimentos()"><i class="ti ti-calendar-time"></i>Vencimentos VIP<span class="sb-badge sb-badge-a" id="sb-venc" style="display:none">!</span></button>
-      <button class="sb-item" onclick="showView('pedidos');loadPedidos()" style="background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.06));border:1px solid rgba(16,185,129,.3);color:var(--green);font-weight:800"><i class="ti ti-shopping-cart" style="color:var(--green)"></i>Pedidos de Plano<span class="sb-badge sb-badge-g" id="sb-pedidos" style="display:none">0</span></button>
-      <button class="sb-item" onclick="showView('pedidos-lixeira');loadPedidosLixeira()" style="font-size:11px;color:var(--t3)"><i class="ti ti-trash" style="color:var(--t3)"></i>Lixeira de Pedidos <span class="sb-badge sb-badge-r" id="sb-lixeira" style="display:none">0</span></button>
+      <!-- v29 LIMPEZA: Lixeira de Pedidos virou botão dentro da tela Pedidos -->
+
       <div class="sb-label">Sistema</div>
       <button class="sb-item" id="sb-robos-item" onclick="showView('robos')" style="background:linear-gradient(135deg,rgba(167,139,250,.15),rgba(99,102,241,.08));border:1px solid rgba(167,139,250,.3);color:#a78bfa;font-weight:800">
         <i class="ti ti-robot" style="color:#a78bfa"></i>🤖 Robôs
         <span id="sb-robot-live" style="display:none;width:7px;height:7px;border-radius:50%;background:#10b981;animation:pulse 1.5s infinite;margin-left:auto"></span>
         <span id="sb-contabil-alert" style="display:none;width:7px;height:7px;border-radius:50%;background:var(--amber);animation:pulse 1.5s infinite;margin-left:4px"></span>
       </button>
-      <button class="sb-item" onclick="showView('emails-invalidos');loadEmailsInvalidos()"><i class="ti ti-mail-x" style="color:var(--red)"></i>Emails Inválidos</button>
+      <!-- v29 LIMPEZA: Emails Inválidos virou acesso dentro da tela Robôs -->
+
       <button class="sb-item" onclick="showView('codes')"><i class="ti ti-ticket"></i>Códigos Promo</button>
       <button class="sb-item" onclick="showView('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
       <button class="sb-item" onclick="showView('notificacoes')"><i class="ti ti-bell"></i>Notificações</button>
@@ -330,7 +338,36 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
            server.js, ou seja o painel de prioridades nunca funcionou — e um
            4º aviso de VIP vencendo injetado por checkVipExpiryAlert() com
            prazo diferente dos outros). Agora é só "priorities-panel". -->
-      <div class="view active" id="view-dashboard">
+      <!-- ══ 💰 v28: VISÃO DO DONO — a 1ª tela (ordem do dono: valores e entradas na cara) ══ -->
+      <div class="view active" id="view-dono">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px">
+          <div class="section" style="text-align:center;padding:18px 12px"><div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase">💵 Hoje</div><div id="dono-hoje" style="font-size:26px;font-weight:900;color:var(--green);margin-top:4px">—</div></div>
+          <div class="section" style="text-align:center;padding:18px 12px"><div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase">📅 7 dias</div><div id="dono-7d" style="font-size:26px;font-weight:900;color:var(--green);margin-top:4px">—</div></div>
+          <div class="section" style="text-align:center;padding:18px 12px"><div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase">🗓️ 30 dias</div><div id="dono-30d" style="font-size:26px;font-weight:900;color:var(--green);margin-top:4px">—</div><div id="dono-liquido" style="font-size:10.5px;color:var(--t3);margin-top:2px"></div></div>
+          <div class="section" style="text-align:center;padding:18px 12px"><div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase">🏦 Total histórico</div><div id="dono-total" style="font-size:26px;font-weight:900;color:var(--text);margin-top:4px">—</div><div id="dono-ticket" style="font-size:10.5px;color:var(--t3);margin-top:2px"></div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:16px">
+          <div class="section" id="dono-pend-card" style="cursor:pointer;border:1.5px solid rgba(245,158,11,.4)" onclick="showView('pedidos');loadPedidos()">
+            <div style="font-size:12px;font-weight:800;color:var(--amber)">🔔 DINHEIRO NA MESA</div>
+            <div id="dono-pendentes" style="font-size:18px;font-weight:900;margin-top:6px">—</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:3px">pedidos esperando sua aprovação — toque pra resolver</div>
+          </div>
+          <div class="section" style="cursor:pointer" onclick="showView('vencimentos');loadVencimentos()">
+            <div style="font-size:12px;font-weight:800;color:var(--purple,#a78bfa)">⏳ RENOVAÇÕES DA SEMANA</div>
+            <div id="dono-vencendo" style="font-size:18px;font-weight:900;margin-top:6px">—</div>
+            <div id="dono-vencendo-lista" style="font-size:11px;color:var(--t3);margin-top:3px;line-height:1.5">VIPs pagantes vencendo em ≤7 dias — cada um é uma venda a recuperar</div>
+          </div>
+          <div class="section">
+            <div style="font-size:12px;font-weight:800;color:var(--blue,#60a5fa)">👥 CRESCIMENTO</div>
+            <div id="dono-novos" style="font-size:18px;font-weight:900;margin-top:6px">—</div>
+            <div id="dono-pagantes" style="font-size:11px;color:var(--t3);margin-top:3px">—</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--t3);text-align:center">Fonte única: livro-caixa + pedidos + contas — calculado no servidor.
+          <a href="#" onclick="showView('vip');loadFinanceiro();return false" style="color:var(--blue,#60a5fa)">Financeiro completo →</a> ·
+          <a href="#" onclick="showView('events');return false" style="color:var(--blue,#60a5fa)">🧾 Confirmações de pagamento →</a></div>
+      </div>
+      <div class="view" id="view-dashboard">
         <div class="section" id="priorities-panel" style="margin-bottom:16px">
           <div class="section-hdr">
             <i class="ti ti-alert-triangle" style="color:var(--amber)"></i>
@@ -1172,6 +1209,7 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             <div class="section-title">🤖 Robôs</div>
             <div class="section-sub">Todos os robôs do sistema num só lugar — escolha a sub-aba.</div>
           </div>
+          <div class="section-actions"><button class="btn btn-ghost btn-sm" onclick="showView('emails-invalidos');loadEmailsInvalidos()" title="Base de e-mails que deram bounce (telemetria dos robôs)"><i class="ti ti-mail-x" style="color:var(--red)"></i> E-mails inválidos</button></div>
         </div>
         <div id="robos-subnav" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
           <button class="robos-tab active" data-sub="planilhas" onclick="roboSubTab('planilhas')"><i class="ti ti-table-import"></i> Planilhas &amp; Enriquecimento</button>
@@ -1375,6 +1413,7 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
           <div class="section-title">Pagantes</div>
           <div class="section-sub">Quem pagou e quantos dias de VIP ainda tem — tudo num lugar só</div>
           <div class="section-actions">
+            <button class="btn btn-ghost btn-sm" onclick="showView('vencimentos');loadVencimentos()" title="Visão por data de vencimento"><i class="ti ti-calendar-time"></i> ⏳ Por vencimento</button>
             <button class="btn btn-ghost btn-sm" onclick="exportPagantesCSV()"><i class="ti ti-download"></i> CSV</button>
             <button class="btn btn-ghost btn-sm" onclick="loadPagantes()"><i class="ti ti-refresh"></i> Atualizar</button>
           </div>
@@ -3537,6 +3576,36 @@ document.addEventListener('DOMContentLoaded',()=>{
   </div>
 </div>
 
+<!-- 🤖 BOT DE COLETA — Nova Planilha do DOL (v35, reescrito do KB) -->
+<div style="background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.3);border-radius:14px;padding:16px;margin-bottom:16px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+    <div style="font-size:28px">📥</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:14px;font-weight:800;color:#fff">Nova Planilha do DOL (coleta automática)</div>
+      <div style="font-size:11px;color:var(--t3)">Baixa o feed oficial do datahub, deduplica por ETA case number e salva em RASCUNHO — publicar é sempre decisão sua. O Enriquecimento completa o resto sozinho.</div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px">
+    <div><label style="font-size:10px;font-weight:700;color:var(--t3);display:block;margin-bottom:3px">VISTO</label>
+      <select class="inp" id="dc-visa" style="width:100%"><option value="H-2B">H-2B (não-agrícola)</option><option value="H-2A">H-2A (agrícola)</option></select></div>
+    <div><label style="font-size:10px;font-weight:700;color:var(--t3);display:block;margin-bottom:3px">CHAVE (ex.: jul2027)</label>
+      <input class="inp" id="dc-key" style="width:100%" placeholder="jul2027"></div>
+    <div><label style="font-size:10px;font-weight:700;color:var(--t3);display:block;margin-bottom:3px">NOME</label>
+      <input class="inp" id="dc-name" style="width:100%" placeholder="Julho 2027"></div>
+    <div><label style="font-size:10px;font-weight:700;color:var(--t3);display:block;margin-bottom:3px">INÍCIO DAS VAGAS DE</label>
+      <input class="inp" id="dc-from" type="date" style="width:100%"></div>
+    <div><label style="font-size:10px;font-weight:700;color:var(--t3);display:block;margin-bottom:3px">ATÉ</label>
+      <input class="inp" id="dc-to" type="date" style="width:100%"></div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button type="button" class="btn btn-primary btn-sm" id="dc-start-btn" onclick="dolColetaStart()"><i class="ti ti-download"></i> Iniciar Coleta</button>
+    <button type="button" class="btn btn-sm" id="dc-publish-btn" style="display:none;background:rgba(16,185,129,.18);border:1px solid rgba(16,185,129,.4);color:#34d399;font-weight:800" onclick="dolColetaPublicar()"><i class="ti ti-speakerphone"></i> 📢 Publicar pros usuários</button>
+  </div>
+  <div id="dc-log-area" style="display:none;margin-top:10px">
+    <div class="enrich-log" id="dc-log"></div>
+  </div>
+</div>
+
 <!-- BOT DE ENRIQUECIMENTO -->
 <div style="background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(67,56,202,.06));border:1.5px solid rgba(99,102,241,.3);border-radius:14px;padding:16px;margin-bottom:16px">
 
@@ -3780,6 +3849,7 @@ const AUTO_REFRESH_MS = 9000;
 // ══════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   startClock();
+  loadDonoResumo(); // 💰 v28: a 1ª tela é o dinheiro
   refreshAll();
   startAutoRefresh();
 });
@@ -3799,13 +3869,35 @@ function startAutoRefresh() {
 // ══════════════════════════════════════════════════════════
 //  NAVIGATION
 // ══════════════════════════════════════════════════════════
+// ── 💰 v28: Visão do Dono — carrega o resumo de dinheiro (fonte única no servidor)
+async function loadDonoResumo(){
+  try{
+    const d=await fetch('/api/admin/dono-resumo',{credentials:'include'}).then(r=>r.json());
+    if(!d.ok)throw new Error(d.error||'?');
+    const R=v=>'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+    const set=(id,t)=>{const e=document.getElementById(id);if(e)e.textContent=t;};
+    set('dono-hoje',R(d.entradas.hoje));
+    set('dono-7d',R(d.entradas.dias7));
+    set('dono-30d',R(d.entradas.dias30));
+    set('dono-total',R(d.entradas.total));
+    set('dono-liquido',d.gastos30?`líquido ${R(d.liquido30)} (gastos ${R(d.gastos30)})`:'');
+    set('dono-ticket',d.entradas.ticketMedio30?`ticket médio ${R(d.entradas.ticketMedio30)}`:'');
+    set('dono-pendentes',d.pendentes.qtd?`${d.pendentes.qtd} pedido(s) · ${R(d.pendentes.valor)}`:'✅ Nenhum pedido esperando');
+    const pc=document.getElementById('dono-pend-card');if(pc)pc.style.border=d.pendentes.qtd?'1.5px solid rgba(245,158,11,.55)':'1px solid var(--border2)';
+    set('dono-vencendo',d.vencendoQtd?`${d.vencendoQtd} VIP(s) vencendo`:'✅ Ninguém vencendo esta semana');
+    const vl=document.getElementById('dono-vencendo-lista');
+    if(vl&&d.vencendo7d?.length)vl.innerHTML=d.vencendo7d.map(v=>`${String(v.nome).replace(/</g,'&lt;').slice(0,22)} — ${v.plano} — <b>${v.diasRestantes}d</b>`).join('<br>');
+    set('dono-novos',`${d.novos.hoje} hoje · ${d.novos.dias7} na semana`);
+    set('dono-pagantes',`${d.pagantes} pagante(s) ativos de ${d.novos.total} contas (${d.novos.total?Math.round(d.pagantes/d.novos.total*100):0}%)`);
+  }catch(e){const el=document.getElementById('dono-hoje');if(el)el.textContent='erro';}
+}
 function showView(name) {
   currentView = name;
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
   const v = document.getElementById('view-'+name);
   if(v) v.classList.add('active');
-  const titles={dashboard:'Visão Geral','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'💳 Confirmação de Pagamentos',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',pagantes:'💳 Pagantes',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas',robos:'🤖 Robôs',auditoria:'🕓 Auditoria & Contas Duplicadas'};
+  const titles={dashboard:'Visão Geral','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'💳 Confirmação de Pagamentos',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',pagantes:'💳 Pagantes',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas',robos:'🤖 Robôs',auditoria:'🕓 Auditoria & Contas Duplicadas',conferencia:'🧾 Conferência de Pagamentos'};
   setText('view-title', titles[name]||name);
   if(name==='robo-contabil' && typeof rcCheckGeminiStatus==='function') setTimeout(rcCheckGeminiStatus,300);
   if(name==='incidentes'){
@@ -3838,6 +3930,7 @@ function showView(name) {
   if(name==='notificacoes'){ loadAdminNotifs(); loadAutoNotifLog(); }
   if(name==='vip') {} // static
   if(name==='pedidos') loadPedidos();
+  if(name==='conferencia') loadConferencia();
   if(name==='pagantes') loadPagantes();
   if(name==='pedidos-lixeira') loadPedidosLixeira();
   if(name==='ia-admin') document.getElementById('ia-admin-input')?.focus();
@@ -6151,9 +6244,10 @@ function renderModalEdit(d,u){
           <div class="form-group">
             <label class="form-label">💳 Via</label>
             <select class="form-inp" id="pag-fonte">
-              <option value="infinitepay" selected>InfinitePay (Diego)</option>
-              <option value="pix">Pix Jesus</option>
+              <option value="picpay" selected>PicPay Andrio (53981453496)</option>
               <option value="pix_andrio">Pix Andrio</option>
+              <option value="pix">Pix Jesus</option>
+              <option value="infinitepay">InfinitePay (antiga)</option>
               <option value="outro">Outro</option>
             </select>
           </div>
@@ -6779,8 +6873,53 @@ async function loadSettings(){
           </div>`).join('')}</div>
       </div>
       <button class="btn btn-primary" style="justify-content:center" onclick="saveSettings()"><i class="ti ti-check"></i> Salvar configurações</button>
+      <div style="border-top:1px solid var(--border2);padding-top:14px;margin-top:14px">
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:4px">🎓 Treinar o IA Chat (experiências reais)</div>
+        <div style="font-size:11px;color:var(--t3);line-height:1.55;margin-bottom:10px">Tudo que você escrever aqui entra <strong>na hora</strong> no cérebro do assistente que os usuários usam — sem deploy. Conte as experiências de vocês (Andrio, Diego, Eudes...), casos de clientes, dicas de consulado, o que quiserem que ele saiba responder.</div>
+        <input class="form-inp" id="aikb-titulo" placeholder="Título (ex: Experiência do Eudes no consulado de Recife)" maxlength="120" style="margin-bottom:6px">
+        <input class="form-inp" id="aikb-autor" placeholder="Autor (ex: Eudes, Andrio, Diego)" maxlength="60" style="margin-bottom:6px">
+        <textarea class="form-inp" id="aikb-texto" placeholder="Conte a experiência/conhecimento com detalhes — o assistente vai usar exatamente isso nas respostas." maxlength="4000" style="min-height:90px;margin-bottom:8px"></textarea>
+        <button class="btn btn-primary" style="justify-content:center;width:100%" onclick="aikbAdd()"><i class="ti ti-school"></i> Adicionar ao cérebro da IA</button>
+        <div id="aikb-list" style="margin-top:10px"></div>
+      </div>
     `;
+    aikbLoad();
   }catch(e){el.innerHTML=`<div style="color:var(--red);font-size:12px">Erro: ${e.message}</div>`;}
+}
+
+// ── v25: Treino do IA Chat ────────────────────────────────────────────────
+async function aikbLoad(){
+  const box=document.getElementById('aikb-list');if(!box)return;
+  try{
+    const d=await fetch('/api/admin/ai-kb',{credentials:'include'}).then(r=>r.json());
+    if(!d.ok)throw new Error(d.error||'?');
+    box.innerHTML=(d.entries||[]).map(e=>`
+      <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;padding:9px 11px;margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+          <div style="font-size:12px;font-weight:800">${String(e.titulo).replace(/</g,'&lt;')} <span style="font-weight:600;color:var(--t3)">— ${String(e.autor).replace(/</g,'&lt;')}</span></div>
+          <button onclick="aikbDel('${e.id}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px;flex-shrink:0" title="Remover"><i class="ti ti-trash"></i></button>
+        </div>
+        <div style="font-size:11px;color:var(--t2);margin-top:3px;line-height:1.5">${String(e.texto).replace(/</g,'&lt;').slice(0,220)}${e.texto.length>220?'…':''}</div>
+      </div>`).join('')||'<div style="font-size:11px;color:var(--t3)">Nenhuma entrada ainda.</div>';
+  }catch(e){box.innerHTML=`<div style="color:var(--red);font-size:11px">Erro: ${e.message}</div>`;}
+}
+async function aikbAdd(){
+  const t=document.getElementById('aikb-titulo'),a=document.getElementById('aikb-autor'),x=document.getElementById('aikb-texto');
+  if(!t?.value.trim()||!x?.value.trim()){toast('Título e texto são obrigatórios','r');return;}
+  try{
+    const d=await fetch('/api/admin/ai-kb',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({titulo:t.value.trim(),autor:a?.value.trim()||'Equipe',texto:x.value.trim()})}).then(r=>r.json());
+    if(!d.ok)throw new Error(d.error||'?');
+    t.value='';if(a)a.value='';x.value='';
+    toast('🎓 A IA aprendeu isso agora mesmo!','g');aikbLoad();
+  }catch(e){toast('Erro: '+e.message,'r');}
+}
+async function aikbDel(id){
+  if(!confirm('Remover esta entrada do cérebro da IA?'))return;
+  try{
+    const d=await fetch('/api/admin/ai-kb/'+id,{method:'DELETE',credentials:'include'}).then(r=>r.json());
+    if(!d.ok)throw new Error(d.error||'?');
+    aikbLoad();
+  }catch(e){toast('Erro: '+e.message,'r');}
 }
 
 async function saveSettings(){
@@ -9167,32 +9306,10 @@ async function _registrarGastoInner(){
 
 console.log('[admin v15] ✅ 20 melhorias carregadas');
 
-
-async function cancelarPedido(id){
-  if(!confirm('Cancelar este pedido?'))return;
-  try{
-    const r=await fetch('/api/pedido/'+id,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'cancelado'})});
-    const d=await r.json();
-    if(d.ok){toast('Pedido cancelado','r');loadPedidos();}
-    else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-async function marcarPago(id){
-  try{
-    const r=await fetch('/api/pedido/'+id,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'pago'})});
-    const d=await r.json();
-    if(d.ok){toast('💰 Marcado como pago','g');loadPedidos();}
-    else toast('Erro: '+(d.error||'?'),'r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
-async function salvarNotaAdmin(id){
-  const nota=document.getElementById('nota-ped-'+id)?.value||'';
-  try{
-    const r=await fetch('/api/pedido/'+id,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({notaAdmin:nota})});
-    const d=await r.json();
-    if(d.ok)toast('Nota salva','g');else toast('Erro','r');
-  }catch(e){toast('Erro: '+e.message,'r');}
-}
+// REMOVIDO 21/07/2026: cópias byte-idênticas de cancelarPedido/marcarPago/
+// salvarNotaAdmin existiam aqui E mais abaixo — a de baixo sobrescrevia esta
+// em silêncio (mesmo padrão que já mascarou o incidente do bloco quebrado da
+// Central de Incidentes). Ficou só a definição de baixo, que era a que valia.
 // ══════════════════════════════════════════════════════════════
 //  CENTRAL DE INCIDENTES — JS
 // ══════════════════════════════════════════════════════════════
@@ -9653,7 +9770,7 @@ async function adminSendMessage(email){
 //  PEDIDOS DE PLANO
 // ══════════════════════════════════════════════════════════
 const PLAN_PRICES = {
-  vip:       { month: 100, name: '⭐ VIP Manual',  desc: '400 manual/dia' },
+  vip:       { month: 100, name: '⭐ VIP Manual',  desc: '200 manual/dia' },
   vipro:     { month: 150, name: '🤖 VIPro',       desc: '200 manual + 200 auto/dia' },
   doublepro: { month: 250, name: '💎 DoublePro',   desc: '400 manual + 400 auto/dia (2 Gmails)' },
 };
@@ -9683,6 +9800,157 @@ async function showPedido(pedidoId){
       setTimeout(()=>{card.style.outline='';card.style.outlineOffset='';},4000);
     } else { toast('Pedido não encontrado na lista (pode estar na Lixeira)','r'); }
   },350);
+}
+
+// ── 🤖 COLETA "Nova Planilha do DOL" (v35) — log NO CLIQUE (lição KB-045:
+// o estado de falha é o que mais precisa ser visível; painel abre antes do
+// fetch e as linhas-cliente ficam até o servidor ter log próprio).
+let _dcPollTimer=null;
+function dolColetaLogLine(msg,type){
+  const el=document.getElementById('dc-log');if(!el)return;
+  el.insertAdjacentHTML('beforeend',`<div class="log-${type||'info'}">${new Date().toLocaleTimeString('pt-BR')} ${String(msg).replace(/</g,'&lt;')}</div>`);
+  el.scrollTop=el.scrollHeight;
+}
+async function dolColetaStart(){
+  const btn=document.getElementById('dc-start-btn');
+  const visa=document.getElementById('dc-visa')?.value||'H-2B';
+  const key=(document.getElementById('dc-key')?.value||'').trim().toLowerCase();
+  const name=(document.getElementById('dc-name')?.value||'').trim();
+  const from=document.getElementById('dc-from')?.value||'';
+  const to=document.getElementById('dc-to')?.value||'';
+  document.getElementById('dc-log-area').style.display='block';
+  document.getElementById('dc-log').innerHTML='';
+  dolColetaLogLine(`🚀 Iniciando coleta ${name||key} (${visa})...`);
+  if(btn){btn.disabled=true;btn.style.opacity='.6';}
+  try{
+    const r=await fetch('/api/admin/sheet/coleta-start',{method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({visa,sheetKey:key,sheetName:name,beginFrom:from,beginTo:to})});
+    let d=null;try{d=await r.json();}catch{}
+    if(!r.ok||!d?.ok){
+      dolColetaLogLine(`❌ Erro ao iniciar (${r.status}): ${d?.error||'resposta inválida do servidor'}`,'error');
+      toast('Erro: '+(d?.error||r.status),'r');
+      if(btn){btn.disabled=false;btn.style.opacity='';}
+      return;
+    }
+    dolColetaLogLine('📡 Servidor aceitou — coletando (acompanhe abaixo)...');
+    if(_dcPollTimer)clearInterval(_dcPollTimer);
+    _dcPollTimer=setInterval(dolColetaPoll,2000);
+  }catch(e){
+    dolColetaLogLine('❌ Falha de rede: '+e.message,'error');
+    toast('Erro: '+e.message,'r');
+    if(btn){btn.disabled=false;btn.style.opacity='';}
+  }
+}
+async function dolColetaPoll(){
+  try{
+    const r=await fetch('/api/admin/sheet/coleta-status',{credentials:'include'});
+    const d=await r.json();if(!d?.ok)return;
+    const el=document.getElementById('dc-log');
+    if(el&&Array.isArray(d.log)&&d.log.length){
+      el.innerHTML=d.log.map(l=>`<div class="log-${l.type==='error'?'error':l.type==='warn'?'warn':'info'}">${new Date(l.t).toLocaleTimeString('pt-BR')} ${String(l.msg).replace(/</g,'&lt;')}</div>`).join('');
+      el.scrollTop=el.scrollHeight;
+    }
+    if(!d.running){
+      if(_dcPollTimer){clearInterval(_dcPollTimer);_dcPollTimer=null;}
+      const btn=document.getElementById('dc-start-btn');
+      if(btn){btn.disabled=false;btn.style.opacity='';}
+      const pub=document.getElementById('dc-publish-btn');
+      if(pub)pub.style.display=(d.count>0&&!d.error&&!d.published)?'':'none';
+      if(d.count>0&&!d.error&&typeof loadPlanilhas==='function')loadPlanilhas();
+    }
+  }catch{}
+}
+async function dolColetaPublicar(){
+  const key=(document.getElementById('dc-key')?.value||'').trim().toLowerCase();
+  if(!key)return toast('Chave vazia','r');
+  if(!confirm(`Publicar a planilha "${key}" pra TODOS os usuários agora?`))return;
+  try{
+    const r=await fetch('/api/admin/sheet/coleta-publish',{method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
+    const d=await r.json();
+    if(d?.ok){toast(`📢 Publicada: ${d.count} vagas no ar!`,'g');dolColetaLogLine(`📢 Publicada pros usuários (${d.count} vagas).`);document.getElementById('dc-publish-btn').style.display='none';}
+    else toast('Erro: '+(d?.error||'?'),'r');
+  }catch(e){toast('Erro: '+e.message,'r');}
+}
+
+// ── 🧾 CONFERÊNCIA DE PAGAMENTOS (dono, 21/07/2026): todos os pagamentos
+// desde a 1ª compra — pedidos + códigos (30d do YT = R$147), valor ao lado
+// do nome, comprovante clicável (reusa verComprovante) e valor editável.
+let _confRows=[];
+async function loadConferencia(){
+  const list=document.getElementById('conf-list');
+  if(list)list.innerHTML='<div class="pv2-empty"><span style="display:inline-block;width:22px;height:22px;border:2px solid var(--blue);border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite"></span></div>';
+  try{
+    const r=await fetch('/api/admin/conferencia',{credentials:'include'});
+    const d=await r.json();
+    if(!d.ok)throw new Error(d.error||'?');
+    _confRows=d.rows||[];
+    const rs=d.resumo||{};
+    // 🔍 Divergências plano×pedido×caixa — só aparece quando EXISTE problema
+    const dv=d.divergencias||[];
+    let dvHtml='';
+    if(dv.length){
+      dvHtml=`<div style="grid-column:1/-1;background:rgba(239,68,68,.08);border:1.5px solid rgba(239,68,68,.35);border-radius:10px;padding:10px 12px">
+        <div style="font-size:12px;font-weight:800;color:#f87171;margin-bottom:6px">🔍 ${dv.length} divergência(s) entre plano, pedido e caixa — cada uma é dinheiro contado errado:</div>
+        ${dv.map(x=>`<div style="font-size:11.5px;color:var(--t2);padding:3px 0;border-top:1px solid rgba(239,68,68,.12)"><span style="cursor:pointer;font-weight:700" onclick="openUser('${esc(x.email||'')}')">${esc(x.nome||x.email||'?')}</span> — ${esc(x.msg||'')}</div>`).join('')}
+      </div>`;
+    }
+    const st=document.getElementById('conf-stats');
+    if(st)st.innerHTML=dvHtml+`
+      <div class="pv2-stat"><div class="pv2-stat-val" style="color:var(--green)">R$ ${(rs.valorPedidos||0).toLocaleString('pt-BR')}</div><div class="pv2-stat-lbl">💳 Pedidos pagos/ativos</div></div>
+      <div class="pv2-stat"><div class="pv2-stat-val" style="color:#a78bfa">R$ ${(rs.valorCodigos||0).toLocaleString('pt-BR')}</div><div class="pv2-stat-lbl">🎟️ Códigos (30d = R$147)</div></div>
+      <div class="pv2-stat"><div class="pv2-stat-val">${rs.pedidos||0}</div><div class="pv2-stat-lbl">pedidos</div></div>
+      <div class="pv2-stat"><div class="pv2-stat-val">${rs.codigos||0}</div><div class="pv2-stat-lbl">códigos usados</div></div>`;
+    confFiltrar();
+  }catch(e){if(list)list.innerHTML=`<div class="pv2-empty" style="color:var(--red)"><i class="ti ti-alert-circle"></i><div>${e.message}</div></div>`;}
+}
+function confFiltrar(){
+  const q=(document.getElementById('conf-search')?.value||'').toLowerCase().trim();
+  const tp=document.getElementById('conf-tipo')?.value||'';
+  const list=document.getElementById('conf-list');if(!list)return;
+  const rows=_confRows.filter(r=>{
+    if(tp&&r.tipo!==tp)return false;
+    if(q&&!((r.nome||'').toLowerCase()+(r.email||'').toLowerCase()).includes(q))return false;
+    return true;
+  });
+  if(!rows.length){list.innerHTML='<div class="pv2-empty"><i class="ti ti-inbox"></i><div>Nada encontrado</div></div>';return;}
+  const stCor={pendente:'var(--amber)',pago:'var(--blue)',ativo:'var(--green)',cancelado:'#f87171',expirado:'var(--t3)',codigo:'#a78bfa'};
+  list.innerHTML=rows.map(r=>{
+    const dt=r.em?new Date(r.em).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}):'–';
+    const origem=r.tipo==='codigo'?`🎟️ Código ${esc(r.code||'')} · ${r.dias}d`:`💳 ${esc(r.plano||'')} · ${r.dias}d`;
+    const corr=(r.valorOriginal!=null&&r.valorOriginal!==r.valor)?`<div style="font-size:10px;color:var(--amber)">corrigido (era R$ ${(+r.valorOriginal).toFixed(2)})</div>`:'';
+    const provis=(r.autoAtivado&&r.status==='pendente')?` <span style="font-size:10px;font-weight:800;color:#fbbf24" title="Liberado pelo robô — confirme o pedido">⚡ provisório</span>`:'';
+    return `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px;flex-wrap:wrap">
+      <div style="font-size:11px;color:var(--t3);width:62px;flex-shrink:0">${dt}</div>
+      <div style="flex:1;min-width:150px">
+        <div style="font-size:13px;font-weight:700;cursor:pointer" onclick="openUser('${esc(r.email||'')}')">${esc(r.nome||r.email||'–')}</div>
+        <div style="font-size:11px;color:var(--t3)">${esc(r.email||'')}</div>
+      </div>
+      <div style="font-size:11.5px;color:var(--t2);min-width:130px">${origem}${provis}</div>
+      <div style="text-align:right;min-width:90px">
+        <div style="font-size:14px;font-weight:800;color:${(+r.valor||0)>0?'var(--green)':'var(--t3)'}">R$ ${(+r.valor||0).toFixed(2)}</div>
+        ${corr}
+      </div>
+      <span style="font-size:10.5px;font-weight:800;color:${stCor[r.status]||'var(--t3)'};min-width:70px;text-align:center">${r.tipo==='codigo'?'CÓDIGO':esc(String(r.status||'').toUpperCase())}</span>
+      <div style="display:flex;gap:4px">
+        ${r.tipo==='pedido'?`<button class="pv2-btn pv2-btn-ghost" onclick="confEditarValor('${r.id}',${(+r.valor||0)})" title="Corrigir valor"><i class="ti ti-pencil"></i></button>`:''}
+        ${r.temComprovante?`<button class="pv2-btn pv2-btn-ghost" onclick="verComprovante('${r.id}')" title="Abrir comprovante">📎 Comprovante</button>`:`<span style="font-size:10px;color:var(--t3)">${r.tipo==='codigo'?'—':'sem 📎'}</span>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+async function confEditarValor(id,atual){
+  const nv=prompt('Novo valor deste pagamento (R$):',(+atual||0).toFixed(2));
+  if(nv===null)return;
+  const num=parseFloat(String(nv).replace(',','.'));
+  if(isNaN(num)||num<0)return toast('Valor inválido','r');
+  try{
+    const r=await fetch('/api/pedido/'+id,{method:'PATCH',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({corrigirValor:num})});
+    const d=await r.json();
+    if(d.ok){toast(`✏️ Valor corrigido para R$ ${num.toFixed(2)}${d.caixaCorrigido?' — caixa corrigido junto':''}`,'g');loadConferencia();}
+    else toast('Erro: '+(d.error||'?'),'r');
+  }catch(e){toast('Erro: '+e.message,'r');}
 }
 
 async function loadPedidos(){
@@ -9832,6 +10100,9 @@ function renderPedidoCard(pd){
     &&x.plano===pd.plano&&['pago','ativo'].includes(x.status)
     &&Math.abs((_tsPed(x.ativadoEm)||_tsPed(x.pagoEm)||x.createdAt||0)-_pdT)<=3*86400_000);
   const dupBanner=(_dupDe&&pd.status!=='cancelado')?`<div style="background:rgba(239,68,68,.14);border:1.5px solid rgba(239,68,68,.4);border-radius:8px;padding:6px 10px;margin:0 0 6px;font-size:11px;font-weight:800;color:#f87171">⚠️ POSSÍVEL DUPLICADO do pedido #${(_dupDe.id||'').slice(-8).toUpperCase()} — mesmo cliente, mesmo plano, ≤3 dias. Se for o mesmo pagamento, CANCELE um deles (cancelar limpa o caixa e estorna os dias sozinho).</div>`:'';
+  // ⚡ Robô liberou o plano provisoriamente (comprovante conferiu) — o admin
+  // ainda precisa confirmar; o provisório expira sozinho em 3 dias.
+  const provisBanner=(pd.autoAtivado&&pd.status==='pendente')?`<div style="background:rgba(251,191,36,.12);border:1.5px solid rgba(251,191,36,.45);border-radius:8px;padding:6px 10px;margin:0 0 6px;font-size:11px;font-weight:800;color:#fbbf24">⚡ PLANO LIBERADO PROVISORIAMENTE pelo robô (comprovante conferiu o valor) — vale 3 dias. Confirme a ativação (ou cancele) antes de expirar.</div>`:'';
   const temComp=pd.comprovante===true||typeof pd.comprovante==='string';
   const wppNum=(pd.userWhatsapp||'').replace(/\D/g,'');
   const wppBase=wppNum?`https://wa.me/${wppNum.startsWith('55')?wppNum:'55'+wppNum}`:'';
@@ -9845,7 +10116,7 @@ function renderPedidoCard(pd){
     <button class="pv2-btn pv2-btn-cancel" onclick="cancelarPedido('${pd.id}')"><i class="ti ti-x"></i> Cancelar</button>
   `:`${wppMsg?`<a href="${wppMsg}" target="_blank" rel="noopener noreferrer" class="pv2-btn pv2-btn-wpp"><i class="ti ti-brand-whatsapp"></i> Contatar</a>`:''}`;
   return`<div class="pv2-card ${statusCls}" id="pvc-${pd.id}">
-  ${dupBanner}
+  ${dupBanner}${provisBanner}
   <div class="pv2-top" onclick="pedToggle('${pd.id}')">
     <span class="pv2-plan-badge ${planCls}">${esc(plano.name)}</span>
     <div class="pv2-user">
@@ -13244,7 +13515,24 @@ function clearEventsCache(){
 <!-- ══════════════════════════════════════════════════════
      VIEW: PEDIDOS DE PLANO
 ══════════════════════════════════════════════════════ -->
+<!-- ══ 🧾 CONFERÊNCIA DE PAGAMENTOS (dono, 21/07/2026) ══ -->
+<div id="view-conferencia" class="view">
+  <div style="font-size:12px;color:var(--t3);margin-bottom:10px;line-height:1.5">Todos os pagamentos desde a primeira compra — pedidos de plano e códigos resgatados (código de <strong>30 dias</strong> do YouTube entra valendo <strong>R$ 147</strong>; os demais são cortesia). 📎 abre o comprovante; ✏️ corrige o valor (fica na trilha de auditoria e corrige o caixa junto).</div>
+  <div id="conf-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px"></div>
+  <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+    <input class="input" id="conf-search" placeholder="🔍 Buscar por nome ou e-mail..." style="flex:1;min-width:200px" oninput="confFiltrar()">
+    <select class="input" id="conf-tipo" style="max-width:190px" onchange="confFiltrar()">
+      <option value="">Tudo</option>
+      <option value="pedido">💳 Pedidos de plano</option>
+      <option value="codigo">🎟️ Códigos resgatados</option>
+    </select>
+  </div>
+  <div id="conf-list"></div>
+</div>
+
 <div id="view-pedidos" class="view">
+<!-- v29: Lixeira saiu do menu lateral e mora aqui -->
+<div style="text-align:right;margin-bottom:8px"><button class="btn btn-ghost btn-sm" onclick="showView('pedidos-lixeira');loadPedidosLixeira()"><i class="ti ti-trash"></i> Lixeira de pedidos <span class="sb-badge sb-badge-r" id="sb-lixeira" style="display:none">0</span></button></div>
 <style>
 /* ── PEDIDOS v2 ─────────────────────────────────── */
 .pv2-header{margin-bottom:14px}
