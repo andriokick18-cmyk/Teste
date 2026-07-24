@@ -1159,7 +1159,11 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
                 <div class="form-group"><label class="form-label">Nota</label><input class="form-inp" id="code-note" placeholder="Opcional"></div>
               </div>
               <div class="form-group"><label class="form-label">Código personalizado (vazio = auto)</label><input class="form-inp" id="code-custom" placeholder="Ex: PROMO2024" maxlength="12" style="text-transform:uppercase;letter-spacing:2px;font-family:monospace"></div>
-              <button class="btn btn-amber" style="justify-content:center" onclick="createCode()"><i class="ti ti-ticket"></i> Gerar Código</button>
+              <button class="btn btn-amber" style="justify-content:center" onclick="createCode()"><i class="ti ti-ticket"></i> Gerar Código (cortesia)</button>
+              <div style="border-top:1px solid var(--border2);margin:4px 0 0;padding-top:12px">
+                <button class="btn btn-danger" style="justify-content:center;width:100%;background:linear-gradient(135deg,#dc2626,#b91c1c)" onclick="createYtCode()"><i class="ti ti-brand-youtube"></i> Código Membro YouTube · R$147</button>
+                <div style="font-size:10px;color:var(--t3);margin-top:6px;text-align:center">Uso único · 30d manual + 30d auto · entra na Conferência valendo R$147</div>
+              </div>
               <div id="code-result" style="display:none"></div>
             </div>
           </div>
@@ -6724,7 +6728,7 @@ async function loadCodes(){
         const usedList = (c.usedBy||[]).slice(0,3).map(e=>`<div style="font-size:10px;color:var(--amber);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">${esc(e)}</div>`).join('');
         const moreUsed = usedCount > 3 ? `<div style="font-size:10px;color:var(--t3)">+${usedCount-3} outros</div>` : '';
         return `<tr>
-          <td class="mono" style="font-size:15px;font-weight:800;letter-spacing:2px;color:var(--amber)">${esc(c.code)}</td>
+          <td class="mono" style="font-size:15px;font-weight:800;letter-spacing:2px;color:var(--amber)">${esc(c.code)}${(c.yt===true||Math.max(c.manualDays||0,c.autoDays||0)===30)?'<div style="font-size:9px;letter-spacing:0;color:#f87171;font-weight:700">🎬 R$147</div>':''}</td>
           <td style="font-size:13px">${c.manualDays||0}d</td>
           <td style="font-size:13px">${c.autoDays||0}d</td>
           <td>
@@ -6754,17 +6758,26 @@ async function createCode(){
   const note=document.getElementById('code-note')?.value.trim();
   const customCode=document.getElementById('code-custom')?.value.trim().toUpperCase()||undefined;
   if(!manualDays&&!autoDays){toast('Configure pelo menos 1 dia (manual ou auto)','err');return;}
+  await _postCreateCode({manualDays,autoDays,maxUses,note,code:customCode});
+}
+// v46 (pedido do dono): código de MEMBRO YOUTUBE — uso único, 30d manual+auto,
+// vale R$147 na Conferência (flag yt no servidor). Um clique, sem preencher nada.
+async function createYtCode(){
+  const customCode=document.getElementById('code-custom')?.value.trim().toUpperCase()||undefined;
+  await _postCreateCode({manualDays:30,autoDays:30,maxUses:1,note:'Membro YouTube (R$147)',code:customCode,yt:true});
+}
+async function _postCreateCode(payload){
   try{
-    const r=await fetch('/api/admin/codes/create',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({manualDays,autoDays,maxUses,note,code:customCode})});
+    const r=await fetch('/api/admin/codes/create',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const d=await r.json();
     if(d.ok){
       const el=document.getElementById('code-result');
       if(el){
         el.style.display='block';
         el.innerHTML=`<div style="background:var(--greeng);border:1px solid var(--greenb);border-radius:8px;padding:14px;text-align:center">
-          <div style="font-size:10px;color:var(--green);font-weight:700;text-transform:uppercase;margin-bottom:6px">✅ Código Gerado</div>
+          <div style="font-size:10px;color:var(--green);font-weight:700;text-transform:uppercase;margin-bottom:6px">✅ Código Gerado${d.yt?' · 🎬 Membro YouTube':''}</div>
           <div style="font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:800;color:var(--green);letter-spacing:4px">${esc(d.code)}</div>
-          <div style="font-size:11px;color:var(--t2);margin-top:6px">Manual: ${d.manualDays}d · Auto: ${d.autoDays}d · Usos: ${maxUses}</div>
+          <div style="font-size:11px;color:var(--t2);margin-top:6px">Manual: ${d.manualDays}d · Auto: ${d.autoDays}d · Usos: ${payload.maxUses}${d.yt?' · <b style="color:var(--green)">vale R$147</b>':' · cortesia (R$0)'}</div>
         </div>`;
       }
       loadCodes();
@@ -13373,7 +13386,7 @@ function rcMarkOk(email, btn){
     const content = document.getElementById('content');
     if(!content) return false;
     let moved = 0;
-    ['view-pedidos','view-robo-contabil','view-planilhas','view-emails-invalidos','view-incidentes','view-pedidos-lixeira','view-ia-admin'].forEach(id=>{
+    ['view-pedidos','view-robo-contabil','view-planilhas','view-emails-invalidos','view-incidentes','view-pedidos-lixeira','view-ia-admin','view-conferencia'].forEach(id=>{
       const v = document.getElementById(id);
       if(v && v.parentElement !== content){
         // v19-FIX (dono, 15/07): roboSubTab() tira a classe .view e força

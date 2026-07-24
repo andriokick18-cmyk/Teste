@@ -2937,6 +2937,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
           <!-- v30 LIMPEZA: secao Sua Conta removida - os 3 destinos (Planos, Ranking, Enviadas) ja existem nos Atalhos Rapidos desta mesma tela (duplicacao pura). -->
       </div>
+      </div><!-- /v-home (v42-FIX: fechamento que faltava — sem ele, TODAS as views seguintes (jobs, plans, notificacoes, noticias, hist, ranking, respostas...) ficavam ANINHADAS dentro de #v-home e desapareciam junto quando .gone escondia a Home. Bug real de produção, 23/07/2026: "nenhuma aba funcionando" — reproduzido com Playwright, corrigido na raiz. -->
 
       <!-- ══ JOBS ══ -->
       <div class="view" id="v-jobs">

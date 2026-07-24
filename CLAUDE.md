@@ -91,6 +91,28 @@
     planilha não tem datas), ordenação real, chips removíveis, contagem
     verdadeira (pós-filtro de enviadas).
 
+6c. **Service Worker**: TODA entrega que mexe em index.html/admin.html/
+   h2b-extras-*.js exige subir o CACHE_NAME do sw.js JUNTO — senão os
+   aparelhos misturam JS velho em cache com HTML novo e as abas ficam EM
+   BRANCO (aconteceu de verdade em 23/07, print do dono).
+6d. **HTML de views (index.html)**: ao remover/editar um bloco dentro de
+   uma `<div class="view" id="v-X">`, CONFERIR o saldo de `<div>` abertas
+   vs fechadas na view inteira antes de commitar — 1 `</div>` a mais ou a
+   menos faz a view SEGUINTE nascer aninhada (filha) da anterior, e some
+   escondida sempre que a anterior leva `.gone` (bug real 23/07: "nenhuma
+   aba funcionando", causa raiz de uma limpeza de HTML anterior, não do
+   trabalho de ícones que levou a culpa). O `npm test` agora tem uma
+   guarda estrutural pra isso (não desativar).
+6e. **setUser()/persist síncrono (server.js)**: NUNCA marcar um campo como
+   "crítico" (grava o banco inteiro na hora, bloqueando o servidor pra
+   TODOS os usuários) checando truthy — array vazio `[]` é truthy em JS.
+   Só é síncrono de verdade dinheiro/acesso (token, vip, isAdmin, plan).
+   Perfil/currículo/e-mail extra são SEMPRE debounced (bug real 23/07:
+   "site lento, até salvar perfil demora" — `d.profiles`/`d.cvs` truthy
+   fazia TODO save reescrever o banco inteiro na hora). Guarda
+   determinística no smoke test (não mede tempo — confere se o arquivo em
+   disco muda ANTES do debounce disparar).
+
 ## ⚠️ PENDÊNCIAS CONHECIDAS (verificar a cada sessão)
 
 - Deploy da branch de trabalho nos 2 servidores (nada vale até subir).

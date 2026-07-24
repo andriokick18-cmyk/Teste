@@ -15,6 +15,7 @@ const http = require("http");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const crypto = require("crypto");
 
 const PORT = 3900 + Math.floor(Math.random() * 90); // evita colisão em CI
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -84,10 +85,46 @@ const users = {
     ],
   },
 };
+// v43-PERF: 1.500 usuários sintéticos, cada um com refresh_token/access_token
+// (o mesmo formato de quem conectou Google de verdade) — estressa o MESMO
+// laço de criptografia (AES-256-GCM sobre todos os usuários) que travava o
+// servidor inteiro a cada salvamento de perfil, ANTES do fix de 23/07/2026
+// (setUser() tratava array — sempre truthy — como campo "crítico" e gravava
+// o banco INTEIRO de forma síncrona e bloqueante a cada save). Sem essa
+// população, o bug de performance passaria despercebido pra sempre — a
+// suíte SEM isso testa correção, não velocidade sob carga real.
+for (let i = 0; i < 5000; i++) {
+  users["perfuser" + i + "@test.com"] = {
+    name: "Perf User " + i,
+    // Tamanho realista de token OAuth de verdade (não "fake-0" — isso não
+    // estressa nada; o custo real é AES-256-GCM + JSON.stringify sobre o
+    // payload inteiro, que só aparece com tokens do tamanho de produção).
+    refresh_token: "1//" + crypto.randomBytes(24).toString("hex"),
+    cached_access_token: "ya29." + crypto.randomBytes(40).toString("hex"),
+    cached_token_expiry: Date.now() + 3600_000,
+    plan: "vip", cvs: [], profiles: [],
+  };
+}
 fs.writeFileSync(path.join(DATA, "users.json"), JSON.stringify(users, null, 2));
 // PDF órfão no disco (lixo do antigo delete sem unlink) — o sweep deve apagar
 fs.mkdirSync(path.join(DATA, "cvs"), { recursive: true });
 fs.writeFileSync(path.join(DATA, "cvs", "fantasma@test.com_777.pdf"), "%PDF-1.4 orfao");
+
+// v46: notícias com data futura/absurda (bug real, print do dono 23/07:
+// "ABRIL 2103", "JUNHO 2027") — a migração do boot deve REMOVER as inválidas
+// e PRESERVAR a válida. Datas futuras construídas dinamicamente pra o teste
+// não apodrecer com o calendário.
+const _futuroISO = new Date(Date.now() + 90 * 86400_000).toISOString().slice(0, 10);
+fs.writeFileSync(path.join(DATA, "dol_noticias.json"), JSON.stringify({ items: [
+  { id: "n_valida001", date: "2026-06-29", titleEN: "OFLC Issues Technical Release Notes VALID", url: "", titlePT: "Notícia válida", resumoPT: "ok", translatedAt: 1, addedAt: 1 },
+  { id: "n_futura001", date: _futuroISO, titleEN: "Future effective-date wrongly parsed", url: "", titlePT: "", resumoPT: "", translatedAt: null, addedAt: 1 },
+  { id: "n_absurda01", date: "2103-04-04", titleEN: "Year 2103 typo announcement", url: "", titlePT: "", resumoPT: "", translatedAt: null, addedAt: 1 },
+] }));
+// Baseline do Vigia corrompido com data futura — deve voltar pro baseline
+// oficial no boot (senão anúncio real novo nunca mais dispararia detecção).
+fs.writeFileSync(path.join(DATA, "dol_news_watch.json"), JSON.stringify({
+  ultimaConhecida: { date: _futuroISO, title: "corrompida", detectadaEm: 1, origem: "teste" },
+}));
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 const TEST_TOKEN = "smoke-" + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
@@ -171,6 +208,27 @@ async function testAuthWatchdogPush() {
     const home = await get("/");
     check("GET / responde 200 com a página", home.status === 200 && home.body.length > 10_000,
       `status=${home.status} bytes=${home.body.length}`);
+
+    // v42: GUARDA ESTRUTURAL — nenhuma <div class="view" id="v-X"> pode ficar
+    // aninhada dentro de outra. Bug real de produção (23/07/2026): faltou um
+    // </div> no fechamento de #v-home, e TODAS as views seguintes (jobs,
+    // plans, notificacoes, noticias, hist, ranking, respostas...) nasceram
+    // como FILHAS de #v-home no DOM — escondidas junto toda vez que a Home
+    // levava .gone (ou seja, sempre que qualquer outra aba estava ativa).
+    // "Nenhuma aba funcionando" — reproduzido com Playwright, raiz corrigida.
+    // Entre a tag de abertura de uma view (que conta como +1 nela mesma) e a
+    // abertura da PRÓXIMA, o saldo de <div> abertas menos fechadas deve
+    // voltar a ZERO — a própria view (e qualquer wrapper interno dela) tem
+    // que fechar por completo antes da próxima começar. Saldo > 0 = sobrou
+    // div aberta = a próxima view nasce aninhada (filha) da anterior.
+    const viewTags = [...home.body.matchAll(/<div\b[^>]*\bid="v-([a-zA-Z]+)"/g)];
+    let nestingBug = null;
+    for (let i = 0; i < viewTags.length - 1; i++) {
+      const seg = home.body.slice(viewTags[i].index, viewTags[i + 1].index);
+      const bal = (seg.match(/<div\b/g) || []).length - (seg.match(/<\/div>/g) || []).length;
+      if (bal !== 0) { nestingBug = `#v-${viewTags[i][1]} não fechou direito (saldo ${bal}, esperado 0) — #v-${viewTags[i + 1][1]} nasceu aninhada dentro dela`; break; }
+    }
+    check("🏗️ nenhuma aba (view) nasce aninhada dentro de outra no HTML", nestingBug === null, nestingBug || "");
     const st = await get("/api/status");
     let stJson = null; try { stJson = JSON.parse(st.body); } catch {}
     check("GET /api/status sem sessão → JSON connected:false",
@@ -185,6 +243,19 @@ async function testAuthWatchdogPush() {
     let ntJson = null; try { ntJson = JSON.parse(nt.body); } catch {}
     check("GET /api/noticias → ok com lista (aba Notícias DOL)",
       nt.status === 200 && ntJson && ntJson.ok === true && Array.isArray(ntJson.items), nt.body.slice(0, 120));
+    // v46: notícia com data FUTURA/absurda ("ABRIL 2103" — print real do dono)
+    // é extração errada de data de vigência do corpo do texto. A migração do
+    // boot remove as inválidas do fixture e preserva a válida.
+    const _ntIds = (ntJson?.items || []).map((i) => i.id);
+    check("📰 migração do boot removeu notícias com data futura/absurda (2103 etc.)",
+      _ntIds.includes("n_valida001") && !_ntIds.includes("n_futura001") && !_ntIds.includes("n_absurda01"),
+      `ids presentes: ${_ntIds.join(", ").slice(0, 120)}`);
+    // Baseline do Vigia corrompido com data futura (anúncio real novo nunca
+    // mais dispararia) — o boot deve restaurar o baseline oficial no arquivo.
+    let _watchDisk = null; try { _watchDisk = JSON.parse(fs.readFileSync(path.join(DATA, "dol_news_watch.json"), "utf8")); } catch {}
+    check("📰 baseline futuro do Vigia foi restaurado pro oficial no boot",
+      _watchDisk?.ultimaConhecida?.date === "2026-06-29",
+      `date no disco: ${_watchDisk?.ultimaConhecida?.date}`);
     // v33-SEO: /noticias é página PÚBLICA renderizada no servidor
     const ntPub = await get("/noticias");
     check("GET /noticias → página pública SEO das notícias traduzidas",
@@ -208,6 +279,57 @@ async function testAuthWatchdogPush() {
       admPage.status === 200 && String(admPage.headers["x-robots-tag"] || "").includes("noindex"), JSON.stringify(admPage.headers["x-robots-tag"]));
     check("CSP libera googletagmanager (funil gaEvent deixa de ser bloqueado)",
       String(home.headers["content-security-policy"] || "").includes("googletagmanager.com"));
+
+    // v44: GUARDA ESTRUTURAL do admin.html — mesma classe de bug do #v-home
+    // (div não fechada = view nasce aninhada e some), mas aqui o admin tem
+    // um mecanismo OFICIAL diferente: fixOrphanViews() no runtime confere
+    // `v.parentElement !== content` e, se for verdade, arranca a view de
+    // onde ela estiver no DOM e a arruma dentro de #content. Ou seja: uma
+    // view pode legitimamente morar FISICAMENTE fora de #content no HTML
+    // cru, contanto que o id dela esteja na lista fixOrphanViews — senão
+    // ela fica escondida pra sempre (bug real de produção: Conferência
+    // nasceu com tela preta por não estar nessa lista). A guarda replica
+    // a MESMA regra do runtime, contando abertura/fechamento de <div> a
+    // partir de "id=\"content\"" pra achar onde #content realmente fecha:
+    // toda view cujo <div id="view-X"> cai DEPOIS desse fechamento (fora
+    // de #content) tem que estar em fixOrphanViews — senão é uma órfã
+    // nova, não registrada, prestes a repetir o mesmo bug.
+    const admNoScript = admPage.body.replace(/<script[\s\S]*?<\/script>/g, "");
+    const admViewTags = [...admNoScript.matchAll(/<div\b[^>]*\bid="(view-[a-zA-Z0-9-]+)"/g)]
+      .filter((m) => m[1] !== "view-title");
+    const orphanArrMatch = admPage.body.match(/fixOrphanViews[\s\S]{0,300}?\[([\s\S]{0,600}?)\]/);
+    const orphanIds = orphanArrMatch ? [...orphanArrMatch[1].matchAll(/['"]([\w-]+)['"]/g)].map((m) => m[1]) : [];
+    check("🧬 admin.html: lista de views órfãs (fixOrphanViews) encontrada no JS",
+      orphanIds.length > 0, `encontrados: ${orphanIds.join(", ") || "NENHUM"}`);
+    const contentIdIdx = admNoScript.indexOf('id="content"');
+    const contentDivStart = contentIdIdx === -1 ? -1 : admNoScript.lastIndexOf("<div", contentIdIdx);
+    let contentDivEnd = -1;
+    if (contentDivStart !== -1) {
+      let depth = 0;
+      const divRe = /<div\b|<\/div>/g;
+      divRe.lastIndex = contentDivStart;
+      let dm;
+      while ((dm = divRe.exec(admNoScript))) {
+        depth += dm[0] === "<div" ? 1 : -1;
+        if (depth === 0) { contentDivEnd = divRe.lastIndex; break; }
+      }
+    }
+    check("🧱 admin.html: fechamento de #content localizado (guarda de órfãs depende disso)",
+      contentDivEnd !== -1, `contentDivStart=${contentDivStart} contentDivEnd=${contentDivEnd}`);
+    const unregisteredOutside = admViewTags.filter((m) => m.index >= contentDivEnd && !orphanIds.includes(m[1]));
+    check("🏗️ admin.html: nenhuma view fora de #content sem registro em fixOrphanViews (não fica preta)",
+      contentDivEnd !== -1 && unregisteredOutside.length === 0,
+      unregisteredOutside.map((m) => m[1]).join(", "));
+    let admNestingBug = null;
+    const insideTags = admViewTags.filter((m) => m.index < contentDivEnd);
+    for (let i = 0; i < insideTags.length - 1; i++) {
+      const idA = insideTags[i][1], idB = insideTags[i + 1][1];
+      const seg = admNoScript.slice(insideTags[i].index, insideTags[i + 1].index);
+      const bal = (seg.match(/<div\b/g) || []).length - (seg.match(/<\/div>/g) || []).length;
+      if (bal !== 0) { admNestingBug = `#${idA} não fechou direito (saldo ${bal}, esperado 0) — #${idB} nasceu aninhada dentro dela`; break; }
+    }
+    check("🏗️ admin.html: nenhuma aba dentro de #content nasce aninhada dentro de outra", admNestingBug === null, admNestingBug || "");
+
     // Rota admin SEM sessão tem que negar — o portão global é vital
     const adm = await get("/api/admin/users");
     check("GET /api/admin/users sem sessão → bloqueado (401/403)",
@@ -254,8 +376,69 @@ async function testAuthWatchdogPush() {
     check('perfil salvo com cover "Nenhuma" (null explícito)', pf1.json?.ok === true && pf1.json?.profile?.coverIdx === null, pf1.body.slice(0, 140));
     const pf2 = await req2("POST", "/api/profiles/save", { name: "Perfil Smoke 2", visaType: "h2b", subjects: ["a1", "a2", "a3"], emailBodies: ["b1", "b2", "b3"] });
     check("salvar sem campo resumeIdx HERDA o currículo do perfil existente", pf2.json?.ok === true && pf2.json?.profile?.resumeIdx === resumeIdx, JSON.stringify(pf2.json?.profile?.resumeIdx));
+
+    // v43-PERF (dono, 23/07: "site lento, até salvar perfil demora muito"):
+    // GUARDA DETERMINÍSTICA — não depende de cronômetro (que varia de
+    // máquina pra máquina e flaca em CI). Testa o MECANISMO em si: salvar
+    // perfil tem que cair no caminho DEBOUNCED (grava em memória, agenda
+    // disco pra depois) — nunca no síncrono (reescreve o banco INTEIRO,
+    // bloqueando o servidor pra TODOS os usuários, a cada clique). Prova:
+    // lê o arquivo em disco ANTES do save, chama a API, lê o arquivo nesse
+    // MESMO INSTANTE de novo (sem esperar) — se já contém o nome novo, a
+    // escrita foi síncrona (bug); se ainda não contém, foi debounced (certo).
+    const _usersFilePath = path.join(DATA, "users.json");
+    const _beforeSave = fs.readFileSync(_usersFilePath, "utf8");
+    const pf3 = await req2("POST", "/api/profiles/save", { name: "Perfil Smoke 3 ÚNICO-MARCADOR", visaType: "h2b", subjects: ["a1", "a2", "a3"], emailBodies: ["b1", "b2", "b3"] });
+    const _afterSaveImmediate = fs.readFileSync(_usersFilePath, "utf8");
+    const _gravouNaHora = _afterSaveImmediate.includes("Perfil Smoke 3 ÚNICO-MARCADOR");
+    check("⚡ salvar perfil usa caminho DEBOUNCED (não trava o servidor gravando o banco inteiro na hora)",
+      pf3.json?.ok === true && _beforeSave === _afterSaveImmediate && !_gravouNaHora,
+      _gravouNaHora ? "BUG: gravou o arquivo INTEIRO em disco de forma síncrona dentro do próprio request" : "ok, debounced");
     const tg = await req2("POST", "/api/profiles/toggle", { id: pf2.json?.profile?.id, active: false });
     check("toggle desativa perfil de verdade", tg.json?.ok === true && tg.json?.profile?.active === false);
+
+    // v45-PERF: GUARDA DETERMINÍSTICA análoga à do perfil (linha acima), mas
+    // pro MOTOR DO AUTOMÁTICO — setAutoJob() é chamado várias vezes por CADA
+    // e-mail que CADA robô de CADA usuário manda (24/7, em produção), então é
+    // uma via bem mais quente que salvar perfil. Mesmo teste: lê o arquivo,
+    // chama a API que dispara setAutoJob, lê de novo NO MESMO INSTANTE — se
+    // já mudou, foi síncrono (bug, trava o servidor a cada envio de qualquer
+    // robô); se não mudou, foi debounced (certo).
+    const _autoFilePath = path.join(DATA, "auto_jobs.json");
+    const _readAutoFile = () => { try { return fs.readFileSync(_autoFilePath, "utf8"); } catch { return ""; } };
+    const _beforeAuto = _readAutoFile();
+    const as1 = await req2("POST", "/api/auto/start", {
+      queue: [{ to: "empregador-smoke-unico@teste-h2b.com", title: "Vaga Smoke", company: "Empresa Smoke" }],
+      resumeIdx, subjects: ["a1"], emailBodies: ["b1"],
+    });
+    const _afterAutoImmediate = _readAutoFile();
+    const _gravouAutoNaHora = _afterAutoImmediate !== _beforeAuto && _afterAutoImmediate.includes("empregador-smoke-unico@teste-h2b.com");
+    check("⚡ robô automático usa caminho DEBOUNCED pro estado do job (não trava o servidor a cada envio)",
+      as1.json?.ok === true && !_gravouAutoNaHora,
+      _gravouAutoNaHora ? "BUG: gravou auto_jobs.json INTEIRO em disco de forma síncrona dentro do próprio request" : "ok, debounced");
+    await req2("POST", "/api/auto/stop", {});
+
+    // ═══ v46: CÓDIGOS PROMO — personalizado honrado + Membro YouTube R$147 ═══
+    // Bug real: o campo "Código personalizado" do admin era IGNORADO pelo
+    // servidor (sempre gerava aleatório). E o dono pediu botão dedicado de
+    // código Membro YouTube: uso único, 30d, valendo R$147 na Conferência.
+    const cc1 = await req2("POST", "/api/admin/codes/create", { manualDays: 5, autoDays: 0, maxUses: 1, code: "PROMOSMOKE1" });
+    check("🎟️ código personalizado é honrado (não vira aleatório)",
+      cc1.json?.ok === true && cc1.json?.code === "PROMOSMOKE1", cc1.body.slice(0, 120));
+    const cc1b = await req2("POST", "/api/admin/codes/create", { manualDays: 5, autoDays: 0, maxUses: 1, code: "PROMOSMOKE1" });
+    check("🎟️ código personalizado repetido é barrado (409)", cc1b.status === 409, `status=${cc1b.status}`);
+    const cc2 = await req2("POST", "/api/admin/codes/create", { manualDays: 30, autoDays: 30, maxUses: 1, yt: true });
+    check("🎬 código Membro YouTube criado com flag yt", cc2.json?.ok === true && cc2.json?.yt === true, cc2.body.slice(0, 120));
+    const ytCode = cc2.json?.code;
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "ytmember@test.com", name: "YT Member" });
+    const rd = await req2("POST", "/api/redeem-code", { code: ytCode });
+    check("🎬 membro YouTube resgata o código (30d manual + 30d auto)",
+      rd.json?.ok === true && rd.json?.manualDays === 30 && rd.json?.autoDays === 30, rd.body.slice(0, 140));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", name: "Smoke", isAdmin: true });
+    const cfYt = await get("/api/admin/conferencia");
+    const ytRow = (cfYt.json?.rows || []).find((r) => r.tipo === "codigo" && r.code === ytCode && r.email === "ytmember@test.com");
+    check("🎬 Conferência lista o resgate do código YouTube valendo R$147",
+      !!ytRow && ytRow.valor === 147, JSON.stringify(ytRow || {}).slice(0, 140));
 
     // ═══ CAMINHO DO DINHEIRO: comprador (não-admin) compra, admin aprova ═══
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "comprador@test.com", name: "Comprador" });

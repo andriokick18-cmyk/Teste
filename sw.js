@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v20"; // v20 (21/07): cover letter obedece o perfil ("Nenhuma" é Nenhuma), fim dos PDFs triplicados, cura em massa de perfis bugados, PDFs fora do users.json, correções de segurança e memória
+const CACHE_NAME = "h2bapply-v22"; // v22 (23/07): admin.html mudou (botão Código Membro YouTube R$147 + badge na lista + código personalizado honrado). Regra permanente 6c: TODA entrega que mexe em index/admin/extras exige bump do CACHE_NAME junto.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

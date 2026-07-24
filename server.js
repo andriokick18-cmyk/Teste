@@ -1522,8 +1522,23 @@ const getUser    = e => DB_USERS[e]||null;
 const _setUserPersistDebounce = { tid: null };
 const setUser    = (e,d) => {
   DB_USERS[e]={...(DB_USERS[e]||{}),...d};
-  // Persiste imediatamente apenas para campos críticos (token, vip, admin)
-  const isCritical = d.refresh_token || d.cached_access_token || d.vip || d.isAdmin || d.plan || d.cvs || d.profiles || d.senderEmails;
+  // v43-FIX (dono, 23/07: "site lento, até salvar perfil demora muito"):
+  // isCritical checava d.cvs/d.profiles/d.senderEmails por TRUTHY — mas são
+  // ARRAYS, e array (mesmo vazio []) é sempre truthy em JS. Resultado real:
+  // TODO save de perfil/currículo/e-mail extra caía no ramo síncrono — que
+  // não é um writeFileSync simples: _encUsersForDisk roda AES-256-GCM sobre
+  // TODOS os usuários, o JSON do banco INTEIRO é serializado 2x (espelho
+  // SQLite + arquivo) e gravado em disco de forma BLOQUEANTE, travando o
+  // Node inteiro (evento único) para TODO mundo, não só quem salvou. Com
+  // milhares de usuários isso é a causa raiz do "trava até salvar perfil".
+  // Perfil/currículo/e-mail extra NÃO são dado financeiro — o debounce de
+  // 5s já é seguro: flushAll() grava DB_USERS de verdade no SIGTERM/SIGINT
+  // (exatamente o sinal que o Render manda antes de reiniciar num deploy),
+  // então a única janela de perda é um crash bruto (SIGKILL) dentro de 5s
+  // de uma edição — infinitamente mais raro que travar todo mundo a cada
+  // clique. Fica síncrono só o que É dinheiro/acesso: token OAuth, VIP,
+  // admin, plano.
+  const isCritical = !!(d.refresh_token || d.cached_access_token || d.vip || d.isAdmin || d.plan);
   if (isCritical) {
     persist(USERS_FILE, DB_USERS);
   } else {
@@ -1813,8 +1828,20 @@ const getHist    = e => DB_HIST[e]||[];
 const addHist    = (e,entry) => { if(!DB_HIST[e])DB_HIST[e]=[]; DB_HIST[e].unshift(entry); if(DB_HIST[e].length>10000)DB_HIST[e]=DB_HIST[e].slice(0,10000); invalidateUserStatsCache(e); persistDebounced(HIST_FILE,DB_HIST,1500); }; // FIX-BUG8
 const delHist    = e => { delete DB_HIST[e]; persist(HIST_FILE,DB_HIST); };
 const getAutoJob = e => DB_AUTO[e]||null;
-const setAutoJob = (e,d) => { DB_AUTO[e]={...(DB_AUTO[e]||{}),...d}; persist(AUTO_FILE,DB_AUTO); };
-const delAutoJob = e => { delete DB_AUTO[e]; persist(AUTO_FILE,DB_AUTO); };
+// v45-FIX (auditoria proativa, mesma classe do setUser() em 23/07: "site
+// lento"): setAutoJob grava o AUTO_FILE INTEIRO em disco de forma SÍNCRONA
+// (bloqueia o Node pra TODO MUNDO) a cada chamada — e é chamado váááárias
+// vezes por CADA e-mail que CADA robô automático de CADA usuário manda (ver
+// doAutoSend/scheduleAuto: status:"sending", depois "waiting_interval" ou
+// erro/rate-limit, de novo a cada reagendamento). addHist logo acima já
+// tinha recebido esse mesmo tratamento (FIX-BUG8) — setAutoJob, que roda
+// com frequência MAIOR (é o motor do automático rodando 24/7 pra cada
+// usuário ativo), tinha ficado pra trás. Estado do job é lido sempre da
+// memória (getAutoJob) — nunca do disco — então debounce não muda nada pra
+// quem usa o site; só evita travar o servidor inteiro a cada envio de
+// qualquer robô. flushAll() já grava de verdade no SIGTERM/SIGINT (deploy).
+const setAutoJob = (e,d) => { DB_AUTO[e]={...(DB_AUTO[e]||{}),...d}; persistDebounced(AUTO_FILE,DB_AUTO,5000); };
+const delAutoJob = e => { delete DB_AUTO[e]; persistDebounced(AUTO_FILE,DB_AUTO,5000); };
 // ══════════════════════════════════════════════════════════
 // REGRA PRINCIPAL — Anti-duplicata absoluta
 // Um usuário NUNCA envia para o mesmo empregador duas vezes
@@ -6146,6 +6173,14 @@ function loadDolNewsWatch(){
       const d = JSON.parse(fs.readFileSync(DOL_NEWS_WATCH_FILE,"utf8"));
       if(d && typeof d==="object") DB_DOL_NEWS_WATCH = { ...DB_DOL_NEWS_WATCH, ...d };
     }
+    // v46-MIGRAÇÃO: se uma data futura/absurda virou "última conhecida" (o
+    // parser antigo deixava), TODO anúncio real novo ficaria ignorado até
+    // essa data passar — o Vigia morreria em silêncio. Volta pro baseline.
+    if(!_dolDataAnuncioValida(DB_DOL_NEWS_WATCH.ultimaConhecida?.date)){
+      console.log(`[migrate] 📰 baseline do Vigia estava com data inválida (${DB_DOL_NEWS_WATCH.ultimaConhecida?.date}) — restaurado pro baseline oficial ${DOL_NEWS_KNOWN_BASELINE.date}.`);
+      DB_DOL_NEWS_WATCH.ultimaConhecida = { ...DOL_NEWS_KNOWN_BASELINE, detectadaEm: null, origem: "migracao-v46" };
+      persistDolNewsWatch();
+    }
   }catch(e){ console.warn("[dol-news-watch] falha ao carregar:", e.message); }
 }
 function persistDolNewsWatch(){
@@ -6217,6 +6252,20 @@ function _parseEnDateToISO(mesNome, dia, ano){
   if(!m) return "";
   return `${ano}-${String(m).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
 }
+// v46-FIX (print do dono, 23/07: "notícias do futuro?" — cards "ABRIL 2103",
+// "JUNHO 2027", "OUTUBRO 2026"): o regex "Mês DD, AAAA." casa QUALQUER data no
+// texto — inclusive datas de VIGÊNCIA citadas no CORPO do anúncio ("start date
+// October 1, 2026", "through June 30, 2027") e até typo/ano absurdo (2103,
+// que passou porque a estratégia de heading não tinha limite de ano nenhum).
+// Regra raiz: data de PUBLICAÇÃO nunca é futura. Válida = ano plausível E
+// não-futura (+26h de folga pra fuso DOL vs servidor).
+function _dolDataAnuncioValida(iso){
+  if(!iso) return false;
+  const y = parseInt(iso.slice(0,4),10);
+  if(!(y>=2024 && y<=2030)) return false;
+  const hojeMax = new Date(Date.now()+26*3600_000).toISOString().slice(0,10);
+  return iso <= hojeMax;
+}
 function dolNewsParseLatest(html){
   const DATE_TITLE_RE = /([A-Z][a-z]+)\s+(\d{1,2}),\s+(\d{4})\.\s*([^<\r\n]{8,300})/;
   // Estratégia A: dentro de headings (h1–h4) — mais confiável, é onde o DOL
@@ -6228,7 +6277,10 @@ function dolNewsParseLatest(html){
     const dm = DATE_TITLE_RE.exec(text);
     if(dm){
       const iso = _parseEnDateToISO(dm[1], dm[2], dm[3]);
-      if(iso) return { ok:true, date:iso, title:dm[4].trim(), estrategia:"heading" };
+      // v46: data inválida/futura NÃO retorna — segue varrendo os próximos
+      // headings (se retornasse, uma data de vigência futura viraria a
+      // "última conhecida" e anúncios REAIS ficariam ignorados até lá).
+      if(iso && _dolDataAnuncioValida(iso)) return { ok:true, date:iso, title:dm[4].trim(), estrategia:"heading" };
     }
   }
   // Estratégia B (reserva): varre o texto puro da página inteira (tira tag)
@@ -6240,11 +6292,9 @@ function dolNewsParseLatest(html){
   let gm;
   while((gm=globalRe.exec(plain))){
     const iso = _parseEnDateToISO(gm[1], gm[2], gm[3]);
-    if(iso){
-      // Ignora datas absurdas (proteção contra casar com algo tipo rodapé "January 1, 1970")
-      const y = parseInt(gm[3],10);
-      if(y>=2024 && y<=2030) return { ok:true, date:iso, title:gm[4].trim(), estrategia:"texto-puro" };
-    }
+    // v46: além do limite de ano (rodapé "January 1, 1970"), rejeita data
+    // FUTURA — data de vigência citada no corpo de um anúncio não é publicação.
+    if(iso && _dolDataAnuncioValida(iso)) return { ok:true, date:iso, title:gm[4].trim(), estrategia:"texto-puro" };
   }
   return { ok:false };
 }
@@ -6326,7 +6376,20 @@ async function dolNewsAutoTick(){
 // ═══════════════════════════════════════════════════════════════════════════
 const DOL_NOTICIAS_FILE = path.join(DATA_DIR, "dol_noticias.json");
 let DB_DOL_NOTICIAS = { items: [] };
-function loadDolNoticias(){ try{ if(fs.existsSync(DOL_NOTICIAS_FILE)){ const d=JSON.parse(fs.readFileSync(DOL_NOTICIAS_FILE,"utf8")); if(d&&Array.isArray(d.items)) DB_DOL_NOTICIAS=d; } }catch{} }
+function loadDolNoticias(){
+  try{ if(fs.existsSync(DOL_NOTICIAS_FILE)){ const d=JSON.parse(fs.readFileSync(DOL_NOTICIAS_FILE,"utf8")); if(d&&Array.isArray(d.items)) DB_DOL_NOTICIAS=d; } }catch{}
+  // v46-MIGRAÇÃO (idempotente): cura notícias já gravadas com data futura/
+  // absurda ("ABRIL 2103", "JUNHO 2027" — print real do dono, 23/07). Eram
+  // datas de vigência extraídas do corpo do texto por engano. Remove — se o
+  // anúncio for real, o próximo tick do Vigia reingere com a data certa
+  // (o id é hash de data+título, então a versão certa não é barrada).
+  try{
+    const antes=DB_DOL_NOTICIAS.items.length;
+    DB_DOL_NOTICIAS.items=DB_DOL_NOTICIAS.items.filter(i=>_dolDataAnuncioValida(i.date));
+    const removidas=antes-DB_DOL_NOTICIAS.items.length;
+    if(removidas>0){ persistDolNoticias(); console.log(`[migrate] 📰 ${removidas} notícia(s) com data futura/absurda removida(s) da aba Notícias (extração errada de data de vigência).`); }
+  }catch(e){ console.warn("[migrate] cura de datas das notícias falhou:", e.message); }
+}
 function persistDolNoticias(){ try{ const t=DOL_NOTICIAS_FILE+".tmp"; fs.writeFileSync(t,JSON.stringify(DB_DOL_NOTICIAS)); fs.renameSync(t,DOL_NOTICIAS_FILE); }catch(e){ dolNewsLog("❌ persist notícias: "+e.message,"error"); } }
 
 // Parser de TODOS os anúncios da página (as mesmas 2 estratégias do Vigia,
@@ -6341,6 +6404,9 @@ function dolNewsParseAll(html){
     const nx=title.search(/\s[A-Z][a-z]+\s+\d{1,2},\s+\d{4}\./);
     if(nx>8)title=title.slice(0,nx).trim();
     if(!iso||title.length<8)return;
+    // v46: data futura/absurda = extração errada (data de vigência do corpo
+    // do texto, ou typo tipo "2103") — nunca vira notícia. Print real do dono.
+    if(!_dolDataAnuncioValida(iso))return;
     // Dedupe tolerante: mesma data + um título é prefixo do outro (60 chars
     // normalizados) = mesmo anúncio visto pelas 2 estratégias. A 1ª ocorrência
     // vence (headings vêm primeiro e trazem o link do anúncio).
@@ -10533,7 +10599,9 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
     const CODIGO_YT_VALOR=147; // valor de venda dos códigos de 30d (YouTube do Diego)
     for(const [code,c] of Object.entries(DB_CODES)){
       const diasCod=Math.max(c.manualDays||0,c.autoDays||0);
-      const valorCod=diasCod===30?CODIGO_YT_VALOR:0;
+      // v46: flag yt explícito vale primeiro; 30d continua como regra legada
+      // (códigos criados antes do flag existir — regra 13b do dono).
+      const valorCod=(c.yt===true||diasCod===30)?CODIGO_YT_VALOR:0;
       for(const em of (c.usedBy||[])){
         const cu=getUser(em)||{};
         // usedBy não guarda quando cada um resgatou — usa a ativação do VIP
@@ -13131,12 +13199,24 @@ Responda APENAS em JSON (sem markdown):
         if(manualDays===0&&autoDays===0)return json(res,400,{error:"Informe pelo menos 1 dia (manual ou auto)."});
         const note=String(d.note||"").slice(0,200);
         const maxUses=Math.max(1,Math.min(10000,parseInt(d.maxUses||1,10)));
-        // Gera código único de 8 chars
-        let code;do{code=crypto.randomBytes(4).toString("hex").toUpperCase();}while(DB_CODES[code]);
-        DB_CODES[code]={manualDays,autoDays,note,maxUses,createdAt:Date.now(),createdBy:s.user_email,active:true,usedBy:[]};
+        // v46: código de MEMBRO YOUTUBE (pedido do dono, 23/07) — uso único,
+        // 30d, entra na Conferência valendo R$147 (regra 13b). O flag fica
+        // gravado no código pra Conferência/lista não dependerem só dos dias.
+        const yt=d.yt===true;
+        // v46-FIX: o campo "Código personalizado" do admin JÁ mandava d.code,
+        // mas a rota IGNORAVA e sempre gerava aleatório — o admin digitava
+        // PROMO2024 e recebia outro código sem aviso. Agora é honrado.
+        let code=String(d.code||"").toUpperCase().trim();
+        if(code){
+          if(!/^[A-Z0-9]{4,12}$/.test(code))return json(res,400,{error:"Código personalizado: 4 a 12 letras/números, sem espaços."});
+          if(DB_CODES[code])return json(res,409,{error:`Código ${code} já existe.`});
+        } else {
+          do{code=crypto.randomBytes(4).toString("hex").toUpperCase();}while(DB_CODES[code]);
+        }
+        DB_CODES[code]={manualDays,autoDays,note,maxUses,yt,createdAt:Date.now(),createdBy:s.user_email,active:true,usedBy:[]};
         persistCodes();
-        console.log(`[codes] Criado ${code} manual:${manualDays}d auto:${autoDays}d maxUses:${maxUses}`);
-        return json(res,200,{ok:true,code,manualDays,autoDays,note,maxUses});
+        console.log(`[codes] Criado ${code} manual:${manualDays}d auto:${autoDays}d maxUses:${maxUses}${yt?" [🎬 Membro YouTube R$147]":""}`);
+        return json(res,200,{ok:true,code,manualDays,autoDays,note,maxUses,yt});
       }catch(e){return json(res,500,{error:e.message});}
     }
     if(pathname==="/api/admin/codes/revoke"&&req.method==="POST"){
