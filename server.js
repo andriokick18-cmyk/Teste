@@ -12536,6 +12536,14 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
         let ent=null;
         // (no npm test não busca irmão de verdade — rede externa não existe lá)
         if(tok&&sv.url&&!process.env.TEST_LOGIN_TOKEN){const pi=await _fetchPeerJson(sv.url,"/api/servers/financeiro",{"x-peer-fin":tok});if(pi&&pi.ok&&pi.entradas)ent=pi.entradas;}
+        // v60 (ORDEM DO DONO: Servidores 1/2 ficam INTOCADOS — código antigo
+        // não tem a rota peer): sem resposta ao vivo, usa o total informado
+        // MANUALMENTE pelo dono no card (fgManual<ID> nas configurações).
+        const manual=parseFloat(DB_ADMIN_SETTINGS["fgManual"+sv.id]);
+        if(!ent&&Number.isFinite(manual)&&manual>0){
+          servidores.push({id:sv.id,nome:sv.nome,self:false,ok:true,manual:true,entradas:{hoje:0,dias7:0,dias30:0,total:manual,pagantes:0}});
+          continue;
+        }
         servidores.push({id:sv.id,nome:sv.nome,self:false,ok:!!ent,entradas:ent});
       }
       const tot=k=>servidores.reduce((a,s2)=>a+((s2.entradas&&s2.entradas[k])||0),0);

@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v30"; // v30 (25/07): admin mudou (v59: card 🌍 Faturamento Global — soma dos 3 servidores na Visão do Dono). Regra 6c: bump junto.
+const CACHE_NAME = "h2bapply-v31"; // v31 (25/07): admin mudou (v60: total manual dos servidores antigos no card 🌍 — 1/2 ficam intocados por ordem do dono). Regra 6c: bump junto.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

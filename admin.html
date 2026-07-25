@@ -3930,12 +3930,29 @@ async function loadFaturamentoGlobal(){
     const sEl=document.getElementById('fg-servidores');
     if(sEl)sEl.innerHTML=(d.servidores||[]).map(s2=>`
       <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:9px 11px">
-        <div style="font-size:10.5px;font-weight:800;color:var(--t3)">${s2.self?'⭐ ':''}${String(s2.nome).replace(/</g,'&lt;')}</div>
+        <div style="font-size:10.5px;font-weight:800;color:var(--t3)">${s2.self?'⭐ ':''}${String(s2.nome).replace(/</g,'&lt;')}${s2.manual?' <span style="font-size:9px;color:var(--amber,#fbbf24)">(informado)</span>':''}</div>
         ${s2.ok
-          ?`<div style="font-size:16px;font-weight:900;color:var(--text)">${R(s2.entradas.total)}</div><div style="font-size:10px;color:var(--t3)">hoje ${R(s2.entradas.hoje)} · ${s2.entradas.pagantes} pagante(s)</div>`
-          :`<div style="font-size:11px;color:var(--amber,#fbbf24);margin-top:4px">⏳ aguardando atualização deste servidor</div>`}
+          ?`<div style="font-size:16px;font-weight:900;color:var(--text)">${R(s2.entradas.total)}</div><div style="font-size:10px;color:var(--t3)">${s2.manual?'valor digitado por você — edite abaixo':'hoje '+R(s2.entradas.hoje)+' · '+s2.entradas.pagantes+' pagante(s)'}</div>`
+          :`<div style="font-size:11px;color:var(--amber,#fbbf24);margin-top:4px">⏳ sem conexão com este servidor</div>`}
+        ${s2.self?'':`<div style="display:flex;gap:5px;margin-top:7px">
+          <input id="fg-man-${s2.id}" type="number" inputmode="decimal" min="0" placeholder="total R$ (manual)" value="${s2.manual?s2.entradas.total:''}" style="flex:1;min-width:0;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:7px;padding:5px 8px;font-size:11px;color:var(--text);font-family:inherit">
+          <button class="btn btn-xs btn-ghost" onclick="fgSalvarManual(${s2.id})" title="Salvar total informado">💾</button>
+        </div>`}
       </div>`).join('');
   }catch(e){const lEl=document.getElementById('fg-linha');if(lEl)lEl.textContent='erro ao somar servidores: '+e.message;}
+}
+// v60: dono digita o total dos servidores ANTIGOS (1/2, que ficam intocados
+// por ordem dele) — vira base fixa da soma global até o dia em que forem
+// atualizados e passarem a responder sozinhos.
+async function fgSalvarManual(id){
+  const el=document.getElementById('fg-man-'+id);if(!el)return;
+  const v=parseFloat(el.value)||0;
+  try{
+    const r=await fetch('/api/admin/settings',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({['fgManual'+id]:v})});
+    const d=await r.json();
+    if(d.ok){toast('💾 Total do Servidor '+id+' salvo','ok');loadFaturamentoGlobal();}
+    else toast(d.error||'Erro','err');
+  }catch(e){toast(e.message,'err');}
 }
 function showView(name) {
   currentView = name;

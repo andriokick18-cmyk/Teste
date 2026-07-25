@@ -630,6 +630,16 @@ async function testAuthWatchdogPush() {
       fg.json?.ok === true && (fg.json?.servidores || []).length === 3 &&
       fg.json.servidores.some((x) => x.self && x.ok) && fg.json?.global?.total >= 147 && fg.json?.peerAuth === true,
       JSON.stringify({ total: fg.json?.global?.total, n: (fg.json?.servidores || []).length }).slice(0, 120));
+    // v60: servidores antigos (1/2, intocados por ordem do dono) entram na
+    // soma pelo TOTAL INFORMADO manualmente — salvo nas configurações.
+    const _fgBase = fg.json?.global?.total || 0;
+    // (no smoke este servidor se resolve como id 1 — então o manual entra no 2)
+    await req2("POST", "/api/admin/settings", { fgManual2: 5000 });
+    const fg2 = await get("/api/admin/financeiro-global");
+    const _srv2m = (fg2.json?.servidores || []).find((x) => x.id === 2);
+    check("🌍 total manual do servidor antigo soma no global (R$5.000 informado no 2)",
+      fg2.json?.ok === true && _srv2m?.manual === true && fg2.json.global.total === _fgBase + 5000,
+      JSON.stringify({ total: fg2.json?.global?.total, esperado: _fgBase + 5000 }).slice(0, 120));
 
     // v32: ⏳ Robô de Renovação — a varredura roda inteira sem erro sob demanda
     const rnv = await req2("POST", "/api/admin/renova-run", {});
