@@ -115,7 +115,15 @@
 
 ## ⚠️ PENDÊNCIAS CONHECIDAS (verificar a cada sessão)
 
-- Deploy da branch de trabalho nos 2 servidores (nada vale até subir).
+- 🔴 URGENTE — DNS de applyh2b.com aponta pro parking da Namecheap
+  (162.255.119.149, sem HTTPS → ERR_CONNECTION_TIMED_OUT, print do dono
+  25/07). Corrigir na Namecheap + Custom Domain no Render — passo a passo
+  em README_SERVIDORES.txt (Caso 1).
+- ESTE repo (Applyh2b.com) é a FONTE ÚNICA dos 3 servidores (ordem do
+  dono, 25/07): toda mudança daqui vale pros 3. Espelhar main → repos dos
+  servidores 1 e 2 (comandos em README_SERVIDORES.txt) — antes do 1º
+  espelho, resgatar dos repos antigos o que só existe lá (ver abaixo).
+- Deploy da branch de trabalho nos 3 servidores (nada vale até subir).
 - `EDITOR_PWD_ANDREW`/`EDITOR_PWD_DIEGO` no Render (padrão de fábrica é público).
 - `GA_MEASUREMENT_ID` no Render: criar propriedade GA4 (analytics.google.com)
   e colar o ID G-XXXX na env — o funil inteiro já está instrumentado

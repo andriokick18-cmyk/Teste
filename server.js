@@ -106,11 +106,14 @@ const CLIENT_ID     = (process.env.GOOGLE_CLIENT_ID     || "").trim();
 const CLIENT_SECRET = (process.env.GOOGLE_CLIENT_SECRET || "").trim();
 const APP_URL       = (process.env.APP_URL || "http://localhost:3000").replace(/\/+$/, "");
 // ── MULTI-SERVIDOR: identidade deste servidor ─────────────────────────────
-// Cada deploy (produção = 1, h2b-teste = 2) define SERVER_ID no ambiente.
-// Mesmo código nos dois; só a env var muda. Default 1 (produção).
+// Cada deploy define SERVER_ID no ambiente: h2bapply.com = 1,
+// h2b-teste.onrender.com = 2, applyh2b.com = 3. O MESMO código roda nos três
+// (fonte única: repo Applyh2b.com — ver README_SERVIDORES.txt); só as envs
+// mudam. Default 1 (produção). Se a env estiver errada, a identidade pelo
+// HOST (_selfId) corrige em runtime — mas o certo é definir a env.
 const SERVER_ID     = parseInt(process.env.SERVER_ID || "1", 10) || 1;
 if(!process.env.SERVER_ID){
-  console.warn("⚠️⚠️⚠️ [servers] Env SERVER_ID NÃO DEFINIDA — assumindo 1 (produção). Se este deploy é o h2b-teste, DEFINA SERVER_ID=2 no Render, senão a trava de 'lotado' bloqueia os cadastros deste servidor! ⚠️⚠️⚠️");
+  console.warn("⚠️⚠️⚠️ [servers] Env SERVER_ID NÃO DEFINIDA — assumindo 1 (produção). DEFINA no Render: 1 = h2bapply.com, 2 = h2b-teste, 3 = applyh2b.com — senão a trava de 'lotado' pode bloquear os cadastros deste servidor! ⚠️⚠️⚠️");
 }
 // ── v55 — MODO SÓ-ENVIO (dono, 25/07/2026, estratégia do Servidor 3) ────────
 // GMAIL_SEND_ONLY=1 no Render → o servidor pede ao Google APENAS o escopo
