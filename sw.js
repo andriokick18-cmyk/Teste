@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v28"; // v28 (25/07): index mudou (modo só-envio v55: aba Respostas some quando o servidor liga GMAIL_SEND_ONLY). Regra 6c: bump junto com toda entrega.
+const CACHE_NAME = "h2bapply-v29"; // v29 (25/07): admin mudou (v57: aprovar plano sem senha — identidade pelo e-mail de admin logado; senhas de fábrica removidas do navegador). Regra 6c: bump junto.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

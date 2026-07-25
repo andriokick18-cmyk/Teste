@@ -138,6 +138,17 @@ fs.writeFileSync(path.join(DATA, "dol_news_watch.json"), JSON.stringify({
   ultimaConhecida: { date: _futuroISO, title: "corrompida", detectadaEm: 1, origem: "teste" },
 }));
 
+// v58 (dono, 25/07: "1 e 2 bloqueados, cadastro só no Servidor 3"): simula o
+// disco de um servidor ANTIGO (lista salva com 2 servidores, o 2 ainda
+// aberto) — a migração one-shot do boot tem que fechar 1/2 e acrescentar o
+// Servidor 3 (applyh2b.com) aberto, gravando de volta com a flag _migSrv3.
+fs.writeFileSync(path.join(DATA, "admin_settings.json"), JSON.stringify({
+  servers: [
+    { id: 1, nome: "Servidor 1", url: "https://h2bapply.com", maxExibido: 50, status: "lotado" },
+    { id: 2, nome: "Servidor 2", url: "https://h2b-teste.onrender.com", maxExibido: 100, status: "aberto" },
+  ],
+}));
+
 // v48: INCIDENTE REAL (25/07, print do dono: "as vagas das planilhas de
 // inverno e h2a sumiram") — cópia de /data truncada (gravação não-atômica
 // interrompida) e cópia vazia. Como /data tem prioridade, o load antigo
@@ -263,6 +274,20 @@ async function testAuthWatchdogPush() {
     let ntJson = null; try { ntJson = JSON.parse(nt.body); } catch {}
     check("GET /api/noticias → ok com lista (aba Notícias DOL)",
       nt.status === 200 && ntJson && ntJson.ok === true && Array.isArray(ntJson.items), nt.body.slice(0, 120));
+    // v58: migração dos servidores — o fixture semeou a lista ANTIGA (2
+    // servidores, o 2 aberto); o boot tem que ter fechado 1/2 e acrescentado
+    // o Servidor 3 (applyh2b.com) como o ÚNICO aberto pra cadastro novo.
+    const svs = await get("/api/servers");
+    const _sv = (id) => (svs.json?.servers || []).find((x) => x.id === id);
+    check("🌐 v58: Servidores 1 e 2 LOTADOS e Servidor 3 (applyh2b.com) é o único aberto",
+      svs.json?.ok === true && _sv(1)?.status === "lotado" && _sv(2)?.status === "lotado" &&
+      _sv(3)?.status === "aberto" && String(_sv(3)?.url || "").includes("applyh2b.com"),
+      JSON.stringify((svs.json?.servers || []).map((x) => x.id + ":" + x.status)));
+    let _admSet = null; try { _admSet = JSON.parse(fs.readFileSync(path.join(DATA, "admin_settings.json"), "utf8")); } catch {}
+    check("🌐 v58: migração gravou a lista nova no disco com a flag one-shot (edição futura do dono vale)",
+      _admSet?._migSrv3 === true && (_admSet?.servers || []).length === 3,
+      `_migSrv3=${_admSet?._migSrv3} servidores=${(_admSet?.servers || []).length}`);
+
     // v46: notícia com data FUTURA/absurda ("ABRIL 2103" — print real do dono)
     // é extração errada de data de vigência do corpo do texto. A migração do
     // boot remove as inválidas do fixture e preserva a válida.
@@ -550,15 +575,18 @@ async function testAuthWatchdogPush() {
     const pd2 = await req2("POST", "/api/pedido", { plano: "vipro", dias: 30, valorTotal: 150 });
     check("2º pedido igual é barrado (dedup devolve o existente)", pd2.json?.duplicado === true && pd2.json?.pedido?.id === pdId, pd2.body.slice(0, 120));
 
+    // v57 (dono, 25/07): aprovar NÃO pede mais senha — o portão é a SESSÃO de
+    // admin (Google), e quem aprovou fica registrado pelo e-mail logado.
+    // Não-admin tentando ativar → 403 (o portão que importa continua de pé).
+    const naoAdm = await req2("PATCH", "/api/pedido/" + pdId, { status: "ativo" });
+    check("🔒 não-admin NÃO consegue ativar pedido (403 — portão é a sessão, não senha)", naoAdm.status === 403, `status=${naoAdm.status}`);
     // troca pro ADMIN pra aprovar
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
     const bad = await req2("PATCH", "/api/pedido/" + pdId, { status: "Banana" });
     check("status fora da máquina de estados → 400", bad.status === 400, bad.body.slice(0, 100));
-    const wrongPwd = await req2("PATCH", "/api/pedido/" + pdId, { status: "ativo", editorPassword: "senha-errada" });
-    check("ativar com senha de editor ERRADA → 403", wrongPwd.status === 403, wrongPwd.body.slice(0, 100));
-    const act = await req2("PATCH", "/api/pedido/" + pdId, { status: "ativo", editorPassword: "84800-54" });
-    check("ativação com senha de editor → plano ativado", act.json?.ok === true && act.json?.planoKey === "vipro", act.body.slice(0, 160));
-    const dupAct = await req2("PATCH", "/api/pedido/" + pdId, { status: "ativo", editorPassword: "84800-54" });
+    const act = await req2("PATCH", "/api/pedido/" + pdId, { status: "ativo" });
+    check("ativação SEM senha (admin logado) → plano ativado e editor registrado", act.json?.ok === true && act.json?.planoKey === "vipro", act.body.slice(0, 160));
+    const dupAct = await req2("PATCH", "/api/pedido/" + pdId, { status: "ativo" });
     check("dupla ativação do MESMO pedido é barrada (409)", dupAct.status === 409, dupAct.body.slice(0, 100));
     const fin1 = await get("/api/admin/financeiro");
     const temCaixa = (fin1.json?.pagamentos || []).some((x) => x.pedidoId === pdId);

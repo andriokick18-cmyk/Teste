@@ -362,9 +362,13 @@ let DB_ADMIN_SETTINGS = { emailNotificationsEnabled: false, newUserTrialEnabled:
   // status "lotado" = fechado p/ contas novas (só login); "aberto" = cadastro liberado.
   // maxExibido é o teto MOSTRADO na barra (pode ser menor que o real p/ marcar lotação).
   // Editável em Admin → Configurações → 🌐 Servidores (sem deploy).
+  // v58 (ORDEM DO DONO, 25/07/2026): Servidores 1 e 2 LOTADOS (só login de
+  // quem já tem conta — limite de ~100 usuários por projeto OAuth de cada um);
+  // cadastro NOVO só no Servidor 3 (applyh2b.com, modo só-envio, OAuth próprio).
   servers: [
-    { id: 1, nome: "Servidor 1", url: "https://h2bapply.com",            maxExibido: 50,  status: "lotado" },
-    { id: 2, nome: "Servidor 2", url: "https://h2b-teste.onrender.com",  maxExibido: 100, status: "aberto" }
+    { id: 1, nome: "Servidor 1", url: "https://h2bapply.com",            maxExibido: 100, status: "lotado" },
+    { id: 2, nome: "Servidor 2", url: "https://h2b-teste.onrender.com",  maxExibido: 100, status: "lotado" },
+    { id: 3, nome: "Servidor 3", url: "https://applyh2b.com",            maxExibido: 100, status: "aberto" }
   ]
 }; // v9: trial = 1d VIP Manual apenas (sem auto)
 // Senhas de editor (Andrew/Diego) agora vivem no banco e podem ser trocadas pelo
@@ -379,8 +383,21 @@ function getEditorPasswords(){
     diego:  dp.diego ||process.env.EDITOR_PWD_DIEGO ||"Diego2026"
   };
 }
+// ── v57 (ORDEM DO DONO, 25/07/2026): aprovar plano/editar cliente NÃO pede
+// mais senha de editor. O admin já entrou com o Google — o E-MAIL logado
+// identifica quem aprova (a rota já exige sessão de admin antes; a senha era
+// redundante e ainda vazou com o repo público). O e-mail verdadeiro segue
+// gravado na trilha (_ativadoEditorEmail) e o modal continua permitindo
+// marcar explicitamente quem RECEBEU o dinheiro (recebidoPor).
+// DIEGO_ADMIN_EMAILS: e-mails que contam como "Diego"; o resto dos admins
+// conta como "Andrew" (Andrio). Ajustável por env sem deploy de código.
+const DIEGO_ADMIN_EMAILS = new Set(String(process.env.DIEGO_ADMIN_EMAILS||"jesuscristh22@gmail.com").split(",").map(e=>e.trim().toLowerCase()).filter(Boolean));
+function editorFromEmail(email){
+  return DIEGO_ADMIN_EMAILS.has(String(email||"").trim().toLowerCase()) ? "diego" : "andrew";
+}
 // Compara senha candidata com as dos editores em tempo constante (anti timing attack).
-// Retorna "andrew" | "diego" | null.
+// Retorna "andrew" | "diego" | null. (v57: mantida SÓ pela rota legada de troca
+// de senha — nenhum fluxo de aprovação usa mais; remoção completa na próxima faxina.)
 function matchEditorPassword(candidate){
   const c=String(candidate||"");if(!c)return null;
   const pwds=getEditorPasswords();
@@ -822,6 +839,22 @@ function boot() {
   DB_RANK_BADGES = load(RANK_BADGES_FILE, {});
   const savedAdminSettings = load(ADMIN_SETTINGS_FILE, null);
   if(savedAdminSettings) Object.assign(DB_ADMIN_SETTINGS, savedAdminSettings);
+  // v58-MIGRAÇÃO (one-shot, dono 25/07: "1 e 2 bloqueados, cadastro só no 3"):
+  // servidores que JÁ têm lista salva em disco ganham o Servidor 3 automatica-
+  // mente e têm 1/2 marcados como lotado — UMA vez só (_migSrv3), pra edição
+  // futura do dono pelo painel valer sem ser revertida a cada boot.
+  try{
+    if(!DB_ADMIN_SETTINGS._migSrv3 && Array.isArray(DB_ADMIN_SETTINGS.servers) && DB_ADMIN_SETTINGS.servers.length){
+      const svs=DB_ADMIN_SETTINGS.servers;
+      for(const sv of svs){ if([1,2].includes(parseInt(sv.id))) sv.status="lotado"; }
+      if(!svs.some(sv=>parseInt(sv.id)===3)){
+        svs.push({ id:3, nome:"Servidor 3", url:"https://applyh2b.com", maxExibido:100, status:"aberto" });
+      }
+      DB_ADMIN_SETTINGS._migSrv3=true;
+      persist(ADMIN_SETTINGS_FILE, DB_ADMIN_SETTINGS);
+      console.log("[migrate] 🌐 v58: Servidores 1/2 marcados LOTADOS e Servidor 3 (applyh2b.com) adicionado à lista — cadastro novo só no 3.");
+    }
+  }catch(e){ console.warn("[migrate] v58 servers:", e.message); }
   // v18-SEC: aviso de boot — as senhas de editor (Andrew/Diego) que aprovam
   // pagamentos reais (pedido de plano) têm um fallback hardcoded no código-fonte
   // ("84800-54"/"Diego2026", ver getEditorPasswords()). Esse fallback só é usado
@@ -10499,8 +10532,9 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
               error:`⚠️ POSSÍVEL DUPLICADO: este cliente já tem o pedido #${_dup.id.slice(-8).toUpperCase()} (${_dup.plano}) pago/ativo há menos de 3 dias. Se ele pagou DE NOVO de verdade, confirme; se é o mesmo pagamento, CANCELE este pedido.`});
           }
         }
-        const editorKey=matchEditorPassword(d.editorPassword);
-        if(!editorKey)return json(res,403,{error:"Senha de editor inválida. Use a senha do Andrew ou do Diego."});
+        // v57 (dono, 25/07): sem senha — o admin já entrou com o Google e a
+        // rota já exige sessão de admin; o e-mail logado identifica o editor.
+        const editorKey=editorFromEmail(s.user_email);
         pd._ativadoEditor=editorKey==="andrew"?"Andrew":"Diego";
         pd._ativadoEditorEmail=s.user_email;
       }
@@ -13249,9 +13283,8 @@ if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB
         const d=JSON.parse(await readBody(req));
         if(!d.email)return json(res,400,{error:"email obrigatório."});
         const target=getUser(d.email);if(!target)return json(res,404,{error:"Usuário não encontrado."});
-        // Validar senha do editor
-        const editorKey=matchEditorPassword(d.editorPassword);
-        if(!editorKey)return json(res,403,{error:"Senha de edição inválida."});
+        // v57 (dono, 25/07): sem senha — identidade pelo e-mail de admin logado.
+        const editorKey=editorFromEmail(s.user_email);
         const editorName=editorKey==="andrew"?"Andrew":"Diego";
         const now=Date.now();
         const upd={};
@@ -13378,11 +13411,8 @@ Responda APENAS em JSON (sem markdown):
         let rawText=(gemResVal.body?.candidates?.[0]?.content?.parts?.[0]?.text||"").replace(/```json|```/g,"").trim();
         let result;try{result=JSON.parse(rawText);}catch{result={status:"PENDENCIAS_DETECTADAS",statusEmoji:"⚠️",resumo:"Erro ao processar auditoria Gemini.",detalhes:[rawText.slice(0,200)],pendencias:["Erro interno Gemini"],recomendacao:"Verificar manualmente."}}
         // Salvar resultado da validação no usuário
-        const {editorPassword}=d;
-        const editorKey=matchEditorPassword(editorPassword);
-        if(editorKey){
-          setUser(d.email,{lastValidatedAt:now,lastValidatedBy:editorKey==="andrew"?"Andrew":"Diego",lastValidationResult:result.status});
-        }
+        // v57: quem validou = e-mail de admin logado (sem senha)
+        setUser(d.email,{lastValidatedAt:now,lastValidatedBy:editorFromEmail(s.user_email)==="andrew"?"Andrew":"Diego",lastValidationResult:result.status});
         return json(res,200,{ok:true,result,dossiePagamento});
       }catch(e){return json(res,500,{error:e.message});}
     }
@@ -15538,8 +15568,9 @@ function inRankPeriod(e, period) {
 // Config dos servidores (default embutido + override em admin_settings.servers)
 function _getServersConfig(){
   const def=[
-    {id:1,nome:"Servidor 1",url:"https://h2bapply.com",maxExibido:50,status:"lotado"},
-    {id:2,nome:"Servidor 2",url:"https://h2b-teste.onrender.com",maxExibido:100,status:"aberto"}
+    {id:1,nome:"Servidor 1",url:"https://h2bapply.com",maxExibido:100,status:"lotado"},
+    {id:2,nome:"Servidor 2",url:"https://h2b-teste.onrender.com",maxExibido:100,status:"lotado"},
+    {id:3,nome:"Servidor 3",url:"https://applyh2b.com",maxExibido:100,status:"aberto"}
   ];
   const raw=Array.isArray(DB_ADMIN_SETTINGS.servers)&&DB_ADMIN_SETTINGS.servers.length?DB_ADMIN_SETTINGS.servers:def;
   return raw.map(sv=>({
