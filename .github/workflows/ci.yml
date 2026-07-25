@@ -1,0 +1,17 @@
+# CI do H2BApply — roda o npm test (sintaxe + anti-duplicata + smoke com
+# servidor real) em todo push e pull request. O smoke sobe o server.js de
+# verdade com um usuário-fixture bugado e valida 13 pontos em ~15s.
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
