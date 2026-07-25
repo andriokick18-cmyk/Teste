@@ -12522,6 +12522,26 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
     // ── v28: 💰 VISÃO DO DONO — a 1ª tela do admin (ordem do dono: "o adm
     // precisa saber sobre valores, entradas, e tudo sobre isso"). Padrão dos
     // painéis de referência: 4-6 números de dinheiro/ação, zero ruído.
+    // ── v59 (dono): 🌍 FATURAMENTO GLOBAL — soma dos 3 servidores. O próprio
+    // entra na hora; os irmãos respondem pela rota autenticada (cache 10min).
+    // Servidor irmão em código antigo ainda não tem a rota → aparece como
+    // "aguardando atualização" em vez de quebrar a soma.
+    if(pathname==="/api/admin/financeiro-global"&&req.method==="GET"){
+      const selfId=_resolveServerId(req);
+      const list=_getServersConfig();
+      const tok=_peerFinToken();
+      const servidores=[];
+      for(const sv of list){
+        if(sv.id===selfId){servidores.push({id:sv.id,nome:sv.nome,self:true,ok:true,entradas:_entradasResumo()});continue;}
+        let ent=null;
+        // (no npm test não busca irmão de verdade — rede externa não existe lá)
+        if(tok&&sv.url&&!process.env.TEST_LOGIN_TOKEN){const pi=await _fetchPeerJson(sv.url,"/api/servers/financeiro",{"x-peer-fin":tok});if(pi&&pi.ok&&pi.entradas)ent=pi.entradas;}
+        servidores.push({id:sv.id,nome:sv.nome,self:false,ok:!!ent,entradas:ent});
+      }
+      const tot=k=>servidores.reduce((a,s2)=>a+((s2.entradas&&s2.entradas[k])||0),0);
+      return json(res,200,{ok:true,servidores,peerAuth:!!tok,
+        global:{hoje:tot("hoje"),dias7:tot("dias7"),dias30:tot("dias30"),total:tot("total"),pagantes:tot("pagantes")}});
+    }
     if(pathname==="/api/admin/dono-resumo"&&req.method==="GET"){
       const now=Date.now(),DAY=86400_000;
       // "hoje" em BRT: compara a data ISO (YYYY-MM-DD) do timestamp deslocado
@@ -13617,6 +13637,17 @@ Responda APENAS em JSON (sem markdown):
   // GET /api/servers — lista completa para o seletor da landing.
   // Para o próprio servidor conta usuários locais; para peers busca (cache 10 min)
   // via httpsReq; se o peer estiver fora, users=null e o front mostra "—".
+  // ── v59: financeiro deste servidor pros IRMÃOS (autenticado por token
+  // derivado da DATA_ENC_KEY compartilhada — comparação em tempo constante).
+  if(pathname==="/api/servers/financeiro"&&req.method==="GET"){
+    const tok=_peerFinToken();
+    if(!tok)return json(res,403,{error:"desativado (sem DATA_ENC_KEY)"});
+    const got=String(req.headers["x-peer-fin"]||"");
+    const a=crypto.createHash("sha256").update(got).digest();
+    const b=crypto.createHash("sha256").update(tok).digest();
+    if(!crypto.timingSafeEqual(a,b))return json(res,403,{error:"não autorizado"});
+    return json(res,200,{ok:true,id:_resolveServerId(req),entradas:_entradasResumo()});
+  }
   if(pathname==="/api/servers"&&req.method==="GET"){
     const _selfId=_resolveServerId(req);
     const list=_getServersConfig();
@@ -15651,18 +15682,51 @@ async function checkAccountOnPeers(email,selfId){
 
 // Cache de chamadas a peers (10 min) — nunca derruba a resposta se o peer cair
 const _peerCache={};
-async function _fetchPeerJson(baseUrl,apiPath){
+async function _fetchPeerJson(baseUrl,apiPath,extraHeaders){
   const key=baseUrl+apiPath;
   const c=_peerCache[key];
   if(c&&Date.now()-c.at<600_000) return c.data;
   try{
     const h=new URL(baseUrl);
     if(h.protocol!=="https:") throw new Error("peer não-https");
-    const {status,body}=await httpsReq({hostname:h.hostname,port:h.port||443,path:apiPath,method:"GET",headers:{"Accept":"application/json","User-Agent":"H2BApply-Server/"+SERVER_ID}});
+    const {status,body}=await httpsReq({hostname:h.hostname,port:h.port||443,path:apiPath,method:"GET",headers:{"Accept":"application/json","User-Agent":"H2BApply-Server/"+SERVER_ID,...(extraHeaders||{})}});
     if(status===200&&body&&typeof body==="object"){ _peerCache[key]={at:Date.now(),data:body}; return body; }
   }catch(e){ console.warn("[servers] peer",baseUrl,apiPath,"falhou:",e.message); }
   _peerCache[key]={at:Date.now(),data:null}; // cacheia a falha p/ não martelar o peer
   return null;
+}
+// ── v59 (dono, 25/07): FATURAMENTO GLOBAL — os 3 servidores somados ─────────
+// Resumo de ENTRADAS deste servidor (mesmas regras da Visão do Dono: conta de
+// admin NUNCA soma). Usado pela Visão do Dono local e servido aos servidores
+// irmãos pela rota /api/servers/financeiro (autenticada por token derivado da
+// DATA_ENC_KEY, que os 3 servidores compartilham — nenhuma env nova).
+function _entradasResumo(){
+  const now=Date.now(),DAY=86400_000;
+  const hojeISO=new Date(now-3*3600_000).toISOString().slice(0,10);
+  const _ts=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
+  const pags=(DB_FINANCEIRO.pagamentos||[]).filter(p=>!isAdminEmail(p.email));
+  let hoje=0,dias7=0,dias30=0,total=0,n30=0;
+  for(const p of pags){
+    const t=_ts(p.dataPagamento||p.data);const v=parseFloat(p.valor)||0;
+    total+=v;
+    if(t>=now-7*DAY)dias7+=v;
+    if(t>=now-30*DAY){dias30+=v;n30++;}
+    if(t&&new Date(t-3*3600_000).toISOString().slice(0,10)===hojeISO)hoje+=v;
+  }
+  let pagantes=0;
+  for(const[em,u2]of Object.entries(DB_USERS)){
+    if(isAdminEmail(em))continue;
+    if(!u2?.vip?.active||u2.vip.source==="trial"||u2.vip.source==="code")continue;
+    const exp=Math.max(u2.vip.manualExpires||0,u2.vip.autoExpires||0);
+    if(exp>now)pagantes++;
+  }
+  return {hoje,dias7,dias30,total,n30,pagantes};
+}
+// Token de autenticação entre servidores irmãos: HMAC da DATA_ENC_KEY (os 3
+// compartilham a mesma). Sem a chave → recurso desligado (fail closed).
+function _peerFinToken(){
+  if(!_encKeyRaw)return null;
+  return crypto.createHmac("sha256",_encKeyRaw).update("h2b-peer-financeiro-v1").digest("hex");
 }
 // Export do top 50 local (envios totais) para o ranking global — só dados já públicos
 function _calcGlobalExport(){

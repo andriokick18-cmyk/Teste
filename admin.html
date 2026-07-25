@@ -363,6 +363,15 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             <div id="dono-pagantes" style="font-size:11px;color:var(--t3);margin-top:3px">—</div>
           </div>
         </div>
+        <!-- v59 (dono, 25/07): 🌍 FATURAMENTO GLOBAL — os 3 servidores somados -->
+        <div class="section" style="margin-top:14px;border:1.5px solid rgba(96,165,250,.35);background:linear-gradient(135deg,rgba(96,165,250,.08),rgba(16,185,129,.05))">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <div style="font-size:12px;font-weight:800;color:var(--blue,#60a5fa)">🌍 FATURAMENTO GLOBAL — todos os servidores</div>
+            <div id="fg-total" style="font-size:24px;font-weight:900;color:var(--green,#34d399)">—</div>
+          </div>
+          <div id="fg-linha" style="font-size:11px;color:var(--t3);margin-top:4px">carregando…</div>
+          <div id="fg-servidores" style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px"></div>
+        </div>
         <div style="font-size:11px;color:var(--t3);text-align:center">Fonte única: livro-caixa + pedidos + contas — calculado no servidor.
           <a href="#" onclick="showView('vip');loadFinanceiro();return false" style="color:var(--blue,#60a5fa)">Financeiro completo →</a> ·
           <a href="#" onclick="showView('events');return false" style="color:var(--blue,#60a5fa)">🧾 Confirmações de pagamento →</a></div>
@@ -3905,6 +3914,28 @@ async function loadDonoResumo(){
     set('dono-novos',`${d.novos.hoje} hoje · ${d.novos.dias7} na semana`);
     set('dono-pagantes',`${d.pagantes} pagante(s) ativos de ${d.novos.total} contas (${d.novos.total?Math.round(d.pagantes/d.novos.total*100):0}%)`);
   }catch(e){const el=document.getElementById('dono-hoje');if(el)el.textContent='erro';}
+  loadFaturamentoGlobal();
+}
+// v59 (dono): 🌍 soma dos 3 servidores — o próprio na hora, irmãos pela rota
+// autenticada (cache de 10min no servidor). Irmão em código antigo aparece
+// como "aguardando atualização" em vez de quebrar a soma.
+async function loadFaturamentoGlobal(){
+  try{
+    const d=await fetch('/api/admin/financeiro-global',{credentials:'include'}).then(r=>r.json());
+    if(!d.ok)throw new Error(d.error||'?');
+    const R=v=>'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+    const tEl=document.getElementById('fg-total');if(tEl)tEl.textContent=R(d.global.total);
+    const lEl=document.getElementById('fg-linha');
+    if(lEl)lEl.textContent=`hoje ${R(d.global.hoje)} · 7d ${R(d.global.dias7)} · 30d ${R(d.global.dias30)} · ${d.global.pagantes} pagante(s) no total`+(d.peerAuth?'':' — ⚠️ DATA_ENC_KEY ausente: soma só deste servidor');
+    const sEl=document.getElementById('fg-servidores');
+    if(sEl)sEl.innerHTML=(d.servidores||[]).map(s2=>`
+      <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:9px 11px">
+        <div style="font-size:10.5px;font-weight:800;color:var(--t3)">${s2.self?'⭐ ':''}${String(s2.nome).replace(/</g,'&lt;')}</div>
+        ${s2.ok
+          ?`<div style="font-size:16px;font-weight:900;color:var(--text)">${R(s2.entradas.total)}</div><div style="font-size:10px;color:var(--t3)">hoje ${R(s2.entradas.hoje)} · ${s2.entradas.pagantes} pagante(s)</div>`
+          :`<div style="font-size:11px;color:var(--amber,#fbbf24);margin-top:4px">⏳ aguardando atualização deste servidor</div>`}
+      </div>`).join('');
+  }catch(e){const lEl=document.getElementById('fg-linha');if(lEl)lEl.textContent='erro ao somar servidores: '+e.message;}
 }
 function showView(name) {
   currentView = name;

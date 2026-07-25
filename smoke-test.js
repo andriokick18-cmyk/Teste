@@ -225,7 +225,7 @@ async function testAuthWatchdogPush() {
   await testAuthWatchdogPush(); // unit puro, não precisa do servidor
   const srv = spawn(process.execPath, ["server.js"], {
     cwd: __dirname,
-    env: { ...process.env, PORT: String(PORT), DATA_DIR: DATA, STORAGE: "json", TEST_LOGIN_TOKEN: TEST_TOKEN, DOL_FEED_BASE: `http://127.0.0.1:${FEED_PORT}/feed` },
+    env: { ...process.env, PORT: String(PORT), DATA_DIR: DATA, STORAGE: "json", TEST_LOGIN_TOKEN: TEST_TOKEN, DATA_ENC_KEY: "smoke-enc-key-1234567890", DOL_FEED_BASE: `http://127.0.0.1:${FEED_PORT}/feed` },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let log = "";
@@ -610,6 +610,26 @@ async function testAuthWatchdogPush() {
     const fin1b = await get("/api/admin/financeiro");
     const pgCorr = (fin1b.json?.pagamentos || []).find((x) => x.pedidoId === pdId);
     check("✏️ correção de valor corrige o caixa JUNTO (uma verdade só)", corr.json?.caixaCorrigido === true && pgCorr?.valor === 147);
+
+    // ═══ v59: 🌍 FATURAMENTO GLOBAL — os 3 servidores somados ═══
+    // Rota peer sem token → 403; com o token derivado da DATA_ENC_KEY → ok.
+    const finNoTok = await get("/api/servers/financeiro");
+    check("🌍 rota peer de financeiro SEM token → 403 (dinheiro nunca fica público)",
+      finNoTok.status === 403, `status=${finNoTok.status}`);
+    const _peerTok = crypto.createHmac("sha256", "smoke-enc-key-1234567890").update("h2b-peer-financeiro-v1").digest("hex");
+    const finTok = await new Promise((resolve, reject) => {
+      const r = http.request({ host: "127.0.0.1", port: PORT, path: "/api/servers/financeiro", method: "GET", headers: { "x-peer-fin": _peerTok } }, (res) => {
+        let b = ""; res.on("data", (c) => (b += c)); res.on("end", () => { let j = null; try { j = JSON.parse(b); } catch {} resolve({ status: res.statusCode, json: j }); });
+      }); r.on("error", reject); r.end();
+    });
+    check("🌍 rota peer COM token responde as entradas (admin nunca na soma)",
+      finTok.status === 200 && finTok.json?.ok === true && typeof finTok.json?.entradas?.total === "number",
+      JSON.stringify(finTok.json?.entradas || {}).slice(0, 120));
+    const fg = await get("/api/admin/financeiro-global");
+    check("🌍 Faturamento Global: lista os 3 servidores e soma (self na hora)",
+      fg.json?.ok === true && (fg.json?.servidores || []).length === 3 &&
+      fg.json.servidores.some((x) => x.self && x.ok) && fg.json?.global?.total >= 147 && fg.json?.peerAuth === true,
+      JSON.stringify({ total: fg.json?.global?.total, n: (fg.json?.servidores || []).length }).slice(0, 120));
 
     // v32: ⏳ Robô de Renovação — a varredura roda inteira sem erro sob demanda
     const rnv = await req2("POST", "/api/admin/renova-run", {});
