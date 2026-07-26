@@ -2389,6 +2389,58 @@ setInterval(()=>{ // 04h BRT, uma vez por dia (horário calmo)
   }catch(e){}
 },10*60*1000);
 
+// ══ v70 — SENTINELA DOS IRMÃOS (ninguém vigia os vigias — até agora) ═════
+// Caso real (26/07 de manhã): servidor fora do ar e o dono descobriu por
+// PRINT DE USUÁRIO. Agora cada servidor checa os 2 irmãos a cada 15 min;
+// 3 falhas seguidas (~45 min) → PUSH pros admins ("🚨 Servidor N não
+// responde"), e outro push quando voltar. Aviso pode chegar em dobro (os
+// 2 irmãos vigiam) — melhor duas vezes do que nenhuma. De quebra, vigia o
+// PRÓPRIO disco: <200MB livres → push 1x/dia (antes do ENOSPC derrubar).
+const SENTINELA_FALHAS_ALERTA=3;
+let _sentinelaEstado={}; // {peerId:{falhas,avisado,desde}}
+let _diskAvisoDia=null;
+function _checarDiscoProprio(){
+  try{
+    if(!fs.statfsSync)return;
+    const st=fs.statfsSync(DATA_DIR);
+    const freeMB=Math.round(st.bavail*st.bsize/1048576);
+    const dia=todayStrBRT();
+    if(freeMB<200&&_diskAvisoDia!==dia){
+      _diskAvisoDia=dia;
+      console.warn(`[sentinela] ⚠️ disco do Servidor ${SERVER_ID} com só ${freeMB}MB livres!`);
+      for(const ae of ADMIN_EMAILS)pushToUser(ae,{type:"generic",title:`⚠️ Disco do Servidor ${SERVER_ID} quase cheio!`,body:`Só ${freeMB}MB livres em /data. Limpe backups antigos ou aumente o disco no Render antes do servidor travar por falta de espaço.`,icon:"/icon-192.png"}).catch(()=>{});
+    }
+  }catch(e){}
+}
+async function sentinelaIrmaos(){
+  try{
+    if(process.env.TEST_LOGIN_TOKEN)return; // npm test não tem rede externa
+    _checarDiscoProprio();
+    for(const sv of _getServersConfig()){
+      if(sv.id===SERVER_ID||!sv.url)continue;
+      const st=_sentinelaEstado[sv.id]=_sentinelaEstado[sv.id]||{falhas:0,avisado:false,desde:null};
+      const pi=await _fetchPeerJson(sv.url,"/api/servers/self");
+      const vivo=!!(pi&&(pi.ok===true||typeof pi.users==="number"||typeof pi.id==="number"));
+      if(vivo){
+        if(st.avisado){
+          console.log(`[sentinela] ✅ Servidor ${sv.id} recuperou`);
+          for(const ae of ADMIN_EMAILS)pushToUser(ae,{type:"generic",title:`✅ Servidor ${sv.id} voltou!`,body:`${sv.nome||("Servidor "+sv.id)} respondeu de novo às ${new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}${st.desde?` (fora do ar desde ${new Date(st.desde).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})})`:""}.`,icon:"/icon-192.png"}).catch(()=>{});
+        }
+        st.falhas=0;st.avisado=false;st.desde=null;
+      }else{
+        st.falhas++;if(!st.desde)st.desde=Date.now();
+        if(st.falhas>=SENTINELA_FALHAS_ALERTA&&!st.avisado){
+          st.avisado=true;
+          console.warn(`[sentinela] 🚨 Servidor ${sv.id} FORA DO AR (${st.falhas} checagens falhas seguidas)`);
+          for(const ae of ADMIN_EMAILS)pushToUser(ae,{type:"generic",title:`🚨 Servidor ${sv.id} não responde!`,body:`${sv.nome||("Servidor "+sv.id)} falhou ${st.falhas} checagens seguidas (desde ${new Date(st.desde).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}). Abra o Render → Events/Logs do serviço e procure memória (502) ou crash.`,icon:"/icon-192.png"}).catch(()=>{});
+        }
+      }
+    }
+  }catch(e){}
+}
+setInterval(sentinelaIrmaos,15*60*1000);
+setTimeout(()=>{sentinelaIrmaos().catch(()=>{});},90*1000); // 1ª checagem logo após o boot
+
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
 const BACKUP_RETENCAO = 3; // 11/07: era 20 — com history/auto_jobs/logs de 30MB+ cada, 20 dias de cópias ENCHERAM o disco do Render (ENOSPC real em produção). 3 dias cobre recuperação sem afogar o disco.
 // Arquivos que NÃO entram no backup: efêmeros/regeneráveis ou redundantes.
@@ -14178,7 +14230,7 @@ Responda APENAS em JSON (sem markdown):
         for(const f of fs.readdirSync(dir)){const st=fs.statSync(path.join(dir,f));recebidos.push({de:d,arquivo:f,bytes:st.size,em:st.mtimeMs});}
       }
     }catch(e){}
-    return json(res,200,{ok:true,envio:_peerBackupInfo,recebidos});
+    return json(res,200,{ok:true,envio:_peerBackupInfo,recebidos,sentinela:_sentinelaEstado});
   }
   if(pathname==="/api/admin/backup-peers/run"&&req.method==="POST"){
     const s=getSess(req);const adm=s?.user_email?getUser(s.user_email):null;

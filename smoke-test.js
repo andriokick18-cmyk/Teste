@@ -826,6 +826,12 @@ async function testAuthWatchdogPush() {
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
     const bst = await get("/api/admin/backup-peers");
     check("🗄️ admin vê o backup recebido na visão de status", bst.json?.ok === true && (bst.json?.recebidos || []).some((r) => r.de === "srv1"), bst.body.slice(0, 140));
+    // DRILL DE RESTAURAÇÃO (regra da casa: ensaiada de verdade, nunca presumida)
+    const { execSync: _exec } = require("child_process");
+    const _restDir = path.join(DATA, "restaurado-drill");
+    _exec(`node restaurar_backup_irmao.js "${path.join(DATA, "backups_peers", "srv1", "2026-07-26.json.gz")}" "${_restDir}"`, { cwd: __dirname, stdio: "pipe" });
+    const _restOk = fs.existsSync(path.join(_restDir, "financeiro.json")) && fs.readFileSync(path.join(_restDir, "financeiro.json"), "utf8") === '{"pagamentos":[]}';
+    check("🗄️ DRILL de restauração: 1 comando devolve os arquivos do pacote intactos", _restOk);
 
     const disk = fs.readdirSync(path.join(DATA, "cvs"));
     check("PDFs válidos gravados no disco", disk.includes("cliente@test.com_1002.pdf") && disk.includes("cliente@test.com_1004.pdf"),

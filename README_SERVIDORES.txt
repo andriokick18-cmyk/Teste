@@ -146,7 +146,12 @@ avaliações, histórico, admin_settings) pros 2 irmãos, guardado em
 /data/backups_peers/srvN/AAAA-MM-DD.json.gz (2 dias de retenção).
 Admin → GET /api/admin/backup-peers mostra o status; POST
 /api/admin/backup-peers/run dispara na hora.
-RESTAURAR (ex.: disco do Servidor 3 morreu):
+RESTAURAR — JEITO FÁCIL (v70, 1 comando, ensaiado no npm test):
+  1. Copie o .gz do irmão pro servidor novo (Render → Shell).
+  2. Rode:  node restaurar_backup_irmao.js /data/backups_peers/srv3/ARQUIVO.json.gz /data
+     (tudo que for sobrescrito ganha cópia .antes-restauracao ao lado)
+  3. Reinicie o serviço (MESMA DATA_ENC_KEY!) e confira login/saldos.
+RESTAURAR — jeito manual (ex.: disco do Servidor 3 morreu):
   1. No Render do Servidor 1 OU 2 → Shell:
        ls /data/backups_peers/srv3/            ← escolha o mais novo
   2. Baixe o arquivo (base64 no shell ou rota admin) e descompacte
