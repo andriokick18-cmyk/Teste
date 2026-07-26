@@ -12536,6 +12536,16 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
     // vazia, mais informação, pedido do dono 26/07).
     const queuePreview=j&&j.active?(j.queue||[]).slice(0,4).map(q=>({company:q.company||"",title:q.title||"",to:q.to||"",state:q.state||""})):[];
     const _ivSecs=(isAdminVip(p)&&p.adminSettings?.intervalSecs)||330; // usuário comum: ~5,5min (média 5-6)
+    // v67b (bug real, print do dono 26/07: card "35 enviados" × "73 hoje"):
+    // autoStats é um Map EM MEMÓRIA — zera a cada restart/deploy do servidor,
+    // enquanto a fila continua rodando (DB_AUTO persiste). O card do painel
+    // subcontava depois de cada deploy. Fonte da verdade é o HISTÓRICO
+    // persistido (o mesmo que conta o limite diário): o card agora conta os
+    // envios do histórico desde o startedAt da fila atual — imune a deploy.
+    if(j&&j.startedAt){
+      const _sentReal=h.filter(x=>x.type==="auto"&&Date.parse(x.sentAt||0)>=j.startedAt).length;
+      if(_sentReal>(stats.sent||0))stats.sent=_sentReal;
+    }
     return json(res,200,{job:j?{active:j.active,status:j.status,queueSize:j.queue?.length||0,originalCount:j.originalCount,filteredCount:j.filteredCount,startedAt:j.startedAt,lastSentAt:j.lastSentAt,nextSendAt:j.nextSendAt,currentJob:j.currentJob,source:j.source,category:j.category,}:null,todayAuto:countAutoToday(h),autoLimit:getAutoLimit(p),stats,recentLogs:logs,logStats,todayStats,autoQueueIds:autoQueueIds,queuePreview,intervalSecs:_ivSecs});}
 
   // ── INBOX: Respostas recebidas no Gmail ───────────────────
