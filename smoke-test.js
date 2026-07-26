@@ -279,10 +279,12 @@ async function testAuthWatchdogPush() {
     // o Servidor 3 (applyh2b.com) como o ÚNICO aberto pra cadastro novo.
     const svs = await get("/api/servers");
     const _sv = (id) => (svs.json?.servers || []).find((x) => x.id === id);
-    check("🌐 v58: Servidores 1 e 2 LOTADOS e Servidor 3 (applyh2b.com) é o único aberto",
+    // v66b: a URL do Servidor 3 é o endereço VIVO do Render enquanto o DNS de
+    // applyh2b.com não aponta pro Render (seletor e ranking global dependem dela).
+    check("🌐 v58+v66b: Servidores 1 e 2 LOTADOS e Servidor 3 (h2b-server-3.onrender.com) é o único aberto",
       svs.json?.ok === true && _sv(1)?.status === "lotado" && _sv(2)?.status === "lotado" &&
-      _sv(3)?.status === "aberto" && String(_sv(3)?.url || "").includes("applyh2b.com"),
-      JSON.stringify((svs.json?.servers || []).map((x) => x.id + ":" + x.status)));
+      _sv(3)?.status === "aberto" && String(_sv(3)?.url || "").includes("h2b-server-3.onrender.com"),
+      JSON.stringify((svs.json?.servers || []).map((x) => x.id + ":" + x.status + ":" + x.url)));
     let _admSet = null; try { _admSet = JSON.parse(fs.readFileSync(path.join(DATA, "admin_settings.json"), "utf8")); } catch {}
     check("🌐 v58: migração gravou a lista nova no disco com a flag one-shot (edição futura do dono vale)",
       _admSet?._migSrv3 === true && (_admSet?.servers || []).length === 3,

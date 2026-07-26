@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v38"; // v38 (26/07): index.html mudou (v66: varredura anti-compra — todo texto do site fala só em doação/💎/troca/recompensas; preços da landing e comparativos em 💎; ordem do dono). Regra 6c: bump junto.
+const CACHE_NAME = "h2bapply-v39"; // v39 (26/07): index.html mudou (v67: painel do Automático reestruturado — próximas candidaturas + ETA da fila + faixa-resumo; IA caça-e-mail nos inválidos). Regra 6c: bump junto.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

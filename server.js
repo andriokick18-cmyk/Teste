@@ -653,10 +653,12 @@ function load(f, def) { return storageLoad(f, def); } // Fase 4: SQLite + migra�
 // ══════════════════════════════════════════════════════════
 const INVALID_EMAILS_FILE   = path.join(DATA_DIR, "invalid_emails.json");
 const EMAIL_CORRECTIONS_FILE = path.join(DATA_DIR, "email_corrections.json");
+const EMAIL_FIXES_FILE       = path.join(DATA_DIR, "email_fixes_ia.json"); // v67: e-mails achados pela IA na internet
 const TEMP_FAILURES_FILE    = path.join(DATA_DIR, "temp_failures.json");
 
 let DB_INVALID_EMAILS   = {};  // { email: {email,domain,motivo,tipo,first,last,count,users,msg,status} }
 let DB_EMAIL_CORRECTIONS = {}; // { orig: {original,corrected,confidence,count,first,last} }
+let DB_EMAIL_FIXES = {}; // v67: { emailInvalido: {fixed:email|null,at,company,by} } — cache das pesquisas da IA (negativo também: nunca pesquisa 2x)
 let DB_TEMP_FAILURES    = {};  // { email: {email,errors:[],count} }
 
 // Padrões de erro permanente (o endereço não existe)
@@ -990,6 +992,7 @@ function boot() {
     DB_INVALID_EMAILS[k] = {...v, users: new Set(Array.isArray(v.users)?v.users:(v.users?[v.users]:[]))};
   }
   DB_EMAIL_CORRECTIONS = load(EMAIL_CORRECTIONS_FILE, {});
+  DB_EMAIL_FIXES = load(EMAIL_FIXES_FILE, {});
   DB_TEMP_FAILURES = load(TEMP_FAILURES_FILE, {});
   const _invalidCount = Object.keys(DB_INVALID_EMAILS).length;
   const _tempCount = Object.keys(DB_TEMP_FAILURES).length;
@@ -4746,6 +4749,52 @@ function translateGmailErrorMsg(msg, toEmailCtx) {
   return { type:"unknown", friendly:`❌ Não foi possível enviar: ${msg.slice(0, 200)}` };
 }
 
+// ══ v67 (ordem do dono, 26/07): IA CAÇA-E-MAIL ═══════════════════════════
+// Vaga com e-mail inválido (bounce permanente) não é mais descartada de cara:
+// o Gemini pesquisa NA INTERNET (google_search) o e-mail de contato atual da
+// empresa. Achou → o robô envia pro novo endereço; não achou → ignora de vez.
+// Cache em disco (positivo E negativo) — a mesma empresa NUNCA é pesquisada
+// duas vezes, e um teto diário global segura o custo. Fail-open: sem chave
+// Gemini, timeout ou resposta ruim = segue o fluxo antigo (pula a vaga).
+async function _recoverEmailViaGemini(badEmail, cand){
+  try{
+    badEmail=String(badEmail||"").toLowerCase().trim();
+    if(!badEmail) return null;
+    const cached=DB_EMAIL_FIXES[badEmail];
+    if(cached) return cached.fixed||null; // já pesquisado (achou ou não) — resposta na hora
+    const gKey=getGeminiKey(); if(!gKey) return null;
+    // Teto diário global de pesquisas (custo da API): 150/dia
+    const _day=todayStrBRT();
+    if(!DB_EMAIL_FIXES._meta||DB_EMAIL_FIXES._meta.day!==_day)DB_EMAIL_FIXES._meta={day:_day,count:0};
+    if(DB_EMAIL_FIXES._meta.count>=150) return null;
+    DB_EMAIL_FIXES._meta.count++;
+    const prompt=`Você é um pesquisador de contatos de RH. O e-mail "${badEmail}" da empresa "${cand.company||"?"}" (vaga: ${cand.title||"?"} — ${cand.state||""}, visto H-2B/H-2A dos EUA) NÃO EXISTE MAIS (bounce permanente confirmado).
+Pesquise no Google o e-mail de contato/recrutamento ATUAL desta empresa (site oficial, seasonaljobs.dol.gov, LinkedIn, diretórios de negócios). Prefira e-mail no MESMO domínio do site da empresa.
+Responda SÓ JSON, sem markdown: {"email":"contato@empresa.com"} ou {"email":null}.
+REGRA DE OURO: NUNCA invente/deduza um e-mail — só devolva um endereço que você realmente ENCONTROU ESCRITO em algum resultado da pesquisa. Na dúvida, {"email":null}.`;
+    const gU=new URL(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${gKey}`);
+    const gB=JSON.stringify({contents:[{parts:[{text:prompt}]}],tools:[{google_search:{}}],generationConfig:{temperature:0,maxOutputTokens:300}});
+    const gR=await new Promise((rs,rj)=>{
+      const r2=https.request({hostname:gU.hostname,path:gU.pathname+gU.search,method:"POST",headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(gB)}},resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{try{rs(JSON.parse(Buffer.concat(ch).toString()));}catch{rj(new Error("parse"));}});});
+      r2.on("error",rj);r2.setTimeout(25000,()=>{r2.destroy();rj(new Error("timeout"));});r2.write(gB);r2.end();
+    });
+    const raw=(gR?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("").replace(/```json|```/g,"").trim();
+    let fixed=null;
+    try{const m=raw.match(/\{[^{}]*\}/);if(m){const pj=JSON.parse(m[0]);fixed=String(pj.email||"").toLowerCase().trim()||null;}}catch(e){}
+    if(fixed){
+      const pe=parseEmail(fixed);
+      // Guardas anti-alucinação: sintaxe válida, diferente do morto, não está
+      // na lista de inválidos, sem domínios de exemplo/noreply.
+      if(!pe.ok||pe.email===badEmail||isEmailInvalid(pe.email)||/example\.|@test\.|noreply|no-reply|donotreply/i.test(pe.email))fixed=null;
+      else fixed=pe.email;
+    }
+    DB_EMAIL_FIXES[badEmail]={fixed:fixed||null,at:Date.now(),company:cand.company||"",by:"gemini"};
+    persistDebounced(EMAIL_FIXES_FILE,DB_EMAIL_FIXES,3000);
+    console.log(`[email-fix] 🔎 ${badEmail} → ${fixed||"NÃO ACHOU (ignorada)"} — ${cand.company||"?"} (${DB_EMAIL_FIXES._meta.count}/150 hoje)`);
+    return fixed;
+  }catch(e){console.warn("[email-fix]",e.message);return null;}
+}
+
 async function _doAutoSendInner(email) {
   // Sempre relê o job do banco — nunca usa objeto em cache
   const job = getAutoJob(email);
@@ -4773,9 +4822,20 @@ async function _doAutoSendInner(email) {
       }
       // ── VERIFICAR BASE GLOBAL DE EMAILS INVÁLIDOS (bounce intelligence) ──
       if (isEmailInvalid(_ce.email)) {
+        // v67: antes de descartar, a IA pesquisa NA INTERNET o e-mail atual
+        // da empresa (1 tentativa por vaga; resultado — inclusive negativo —
+        // fica em cache global, então cada empresa é pesquisada UMA vez).
+        if(!candidate._fixTried){
+          candidate._fixTried=1;
+          const _fix=await _recoverEmailViaGemini(_ce.email,candidate);
+          if(_fix && !hasSent(email,_fix) && !_ownEmailsOf(email).has(_fix)){
+            addLog(email,{ status:"sistema", company:candidate.company||"", to:_fix, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:`🔎 IA pesquisou na internet e ACHOU o e-mail atual desta empresa: ${_ce.email} → ${_fix} — enviando pra ele` });
+            candidate.to=_fix; continue; // re-valida o candidato com o e-mail novo (sem tirar da fila)
+          }
+        }
         const invInfo = DB_INVALID_EMAILS[_ce.email];
         const motivo = invInfo?.motivo || 'Email permanentemente inválido (bounce detectado)';
-        addLog(email, { status:"pulado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:`⚫ Email inválido removido da fila: ${motivo} (${invInfo?.count||1}x detectado)` });
+        addLog(email, { status:"pulado", company:candidate.company||"", to:candidate.to, jobTitle:candidate.title||"", category:candidate.category||"other", state:candidate.state||"", source:job.source||"", error:`⚫ Email inválido removido da fila: ${motivo} (${invInfo?.count||1}x detectado) · 🤖 IA pesquisou na internet e não achou e-mail válido desta empresa — vaga ignorada` });
         queue.shift(); continue;
       }
       // ── v23: VAGA MORTA — a fila envelhece; não gasta envio do limite
@@ -12470,7 +12530,13 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
     const todayLogs=allLogs.filter(l=>{const d=new Date(l.ts||0);return d.toDateString()===new Date().toDateString();});
     const todayStats={sent:todayLogs.filter(l=>l.status==="enviado").length,failed:todayLogs.filter(l=>l.status==="falhou").length};
     // jSH/jEH removidos — sem janela de horário
-    const autoQueueIds=j&&j.active?(j.queue||[]).map(q=>q.id||q.caseNum).filter(Boolean):[];return json(res,200,{job:j?{active:j.active,status:j.status,queueSize:j.queue?.length||0,originalCount:j.originalCount,filteredCount:j.filteredCount,startedAt:j.startedAt,lastSentAt:j.lastSentAt,nextSendAt:j.nextSendAt,currentJob:j.currentJob,source:j.source,category:j.category,}:null,todayAuto:countAutoToday(h),autoLimit:getAutoLimit(p),stats,recentLogs:logs,logStats,todayStats,autoQueueIds:autoQueueIds});}
+    const autoQueueIds=j&&j.active?(j.queue||[]).map(q=>q.id||q.caseNum).filter(Boolean):[];
+    // v67: prévia das PRÓXIMAS vagas da fila + intervalo — o painel mostra o
+    // que vem por aí e calcula o horário estimado de término (menos tela
+    // vazia, mais informação, pedido do dono 26/07).
+    const queuePreview=j&&j.active?(j.queue||[]).slice(0,4).map(q=>({company:q.company||"",title:q.title||"",to:q.to||"",state:q.state||""})):[];
+    const _ivSecs=(isAdminVip(p)&&p.adminSettings?.intervalSecs)||330; // usuário comum: ~5,5min (média 5-6)
+    return json(res,200,{job:j?{active:j.active,status:j.status,queueSize:j.queue?.length||0,originalCount:j.originalCount,filteredCount:j.filteredCount,startedAt:j.startedAt,lastSentAt:j.lastSentAt,nextSendAt:j.nextSendAt,currentJob:j.currentJob,source:j.source,category:j.category,}:null,todayAuto:countAutoToday(h),autoLimit:getAutoLimit(p),stats,recentLogs:logs,logStats,todayStats,autoQueueIds:autoQueueIds,queuePreview,intervalSecs:_ivSecs});}
 
   // ── INBOX: Respostas recebidas no Gmail ───────────────────
   // ── v23-STATS: qual dos MEUS textos recebe mais resposta? ─────────────────

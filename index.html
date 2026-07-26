@@ -3910,11 +3910,11 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 </div>
               </div>
             </div>
-            <!-- Next job preview -->
+            <!-- v67: prévia das PRÓXIMAS candidaturas (até 4) + horário estimado
+                 de término da fila — menos tela vazia, usuário sabe o que vem -->
             <div class="next-job-card" id="next-job-card">
-              <div class="next-job-title">📬 Próxima candidatura</div>
-              <div class="next-job-info" id="next-job-name">–</div>
-              <div class="next-job-sub" id="next-job-email">–</div>
+              <div class="next-job-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px">📬 Próximas candidaturas <span id="next-eta" style="font-weight:800;color:var(--blue);font-size:11px"></span></div>
+              <div id="next-jobs-list"></div>
             </div>
             <!-- Controls -->
             <div class="auto-controls-row">
@@ -3925,6 +3925,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             </div>
             <!-- Recent logs preview -->
             <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Últimos envios</div>
+            <div id="auto-log-chips" style="display:none;flex-wrap:wrap;gap:5px;margin-bottom:8px"></div>
             <div id="auto-recent-logs" style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:14px"></div>
           </div>
 
@@ -10831,7 +10832,7 @@ async function pollAutoStatus(){
     }
     // Toast para status importantes que mudaram
     if(U.autoJob?.status!==_prevStatus){
-      if(U.autoJob?.status==="paused_no_vip")toast("⛔ Automático pausado — plano expirou. Renove em Planos.","r");
+      if(U.autoJob?.status==="paused_no_vip")toast("⛔ Automático pausado — plano expirou. Troque seus 💎 por mais dias em Planos.","r");
       if(U.autoJob?.status==="paused_auth_error")toast("🔑 Automático pausado — erro de autenticação. Faça login novamente.","r");
       if(U.autoJob?.status==="finished"&&_prevStatus!=="finished"){const _frases=["🎉 Fila concluída! Você aplicou para todas as vagas.","🏆 Missão cumprida! Aguarde as respostas chegarem.","✅ Todas as candidaturas enviadas! O sucesso está a caminho. 🇺🇸","🚀 Fila zerada! Você deu um grande passo hoje."];toast(_frases[Math.floor(Math.random()*_frases.length)],"g");}
     }
@@ -10843,8 +10844,22 @@ async function pollAutoStatus(){
     if(_autoVisible){updateAutoUI();_updateAutoFreeBanner();}
     if(curView==="home")renderHome(); // FIX: atualiza stats auto na home
     updateAutoDot(d.job?.active||false);updateLimChip();renderSidebar();
+    // v67: prévia da fila + intervalo (pro card de próximas e a ETA)
+    window._autoQueuePreview=d.queuePreview||[];
+    window._autoIntervalSecs=d.intervalSecs||330;
     // Update recent logs in dashboard
     if(_autoVisible&&d.recentLogs?.length)renderRecentLogs(d.recentLogs);
+    // v67: faixa-resumo de TODO o histórico do robô (não só os 15 visíveis)
+    const _chips=g("#auto-log-chips");
+    if(_autoVisible&&_chips&&d.logStats){
+      const ls=d.logStats;const chip=(txt,bg,bd,cor)=>`<span style="background:${bg};border:1px solid ${bd};border-radius:9px;padding:3px 9px;font-size:10.5px;font-weight:700;color:${cor}">${txt}</span>`;
+      _chips.style.display="flex";
+      _chips.innerHTML=chip(`✅ ${ls.sent} enviados`,"rgba(16,185,129,.1)","rgba(16,185,129,.25)","var(--green)")
+        +chip(`⏭ ${ls.skip} puladas`,"var(--sf2)","var(--border)","var(--t2)")
+        +chip(`🔁 ${ls.dup} duplicadas`,"rgba(245,158,11,.1)","rgba(245,158,11,.25)","#d97706")
+        +(ls.failed?chip(`❌ ${ls.failed} falhas`,"rgba(239,68,68,.08)","rgba(239,68,68,.25)","var(--red)"):"")
+        +chip(`🔎 e-mail inválido? a IA pesquisa o certo na internet antes de ignorar`,"rgba(124,58,237,.08)","rgba(124,58,237,.22)","#7c3aed");
+    }
     if(!d.job?.active&&autoInterval&&!d.job){clearInterval(autoInterval);autoInterval=null;
       _autoQueueIds=new Set(); // limpa quando auto para
     }
@@ -11001,9 +11016,34 @@ function updateAutoUI(){
     if(senderBadge)senderBadge.textContent=senders.length>0?`📧 ${senders.length+1} Gmails ativos`:"📧 1 Gmail";
   } else if(extraInfo){extraInfo.style.display="none";}
 
-  // Next job preview
-  const njc=g("#next-job-card");const njn=g("#next-job-name");const nje=g("#next-job-email");
-  if(j.currentJob&&active){if(njc)njc.classList.add("show");if(njn)njn.textContent=j.currentJob.title||j.currentJob.company||"–";if(nje)nje.textContent=j.currentJob.to||"–";}
+  // v67: PRÓXIMAS candidaturas (agora + até 3 seguintes) e ETA da fila.
+  // ETA = vagas restantes × intervalo real (admin usa o seu; usuário, ~5,5min).
+  const njc=g("#next-job-card");const njl=g("#next-jobs-list");const _eta=g("#next-eta");
+  const _prev=window._autoQueuePreview||[];
+  if(active&&(j.currentJob||_prev.length)){
+    if(njc)njc.classList.add("show");
+    if(_eta){
+      const _iv=window._autoIntervalSecs||330;
+      const _rest=(j.queueSize||0)*_iv*1000;
+      if(_rest>0){
+        const _fim=new Date(Date.now()+_rest);
+        const _dias=_rest>86400000?` (+${Math.floor(_rest/86400000)}d)`:"";
+        _eta.textContent=`termina ≈ ${_fim.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}${_dias}`;
+      } else _eta.textContent="";
+    }
+    if(njl){
+      const _rows=[];
+      if(j.currentJob)_rows.push({company:j.currentJob.company,title:j.currentJob.title,to:j.currentJob.to,state:j.currentJob.state,_now:1});
+      for(const q of _prev){ if(!_rows.some(r=>r.to===q.to)) _rows.push(q); }
+      njl.innerHTML=_rows.slice(0,4).map((q,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;${i>0?"border-top:1px dashed var(--border);":""}">
+        <span style="flex-shrink:0;font-size:10.5px;font-weight:800;color:${q._now?"var(--green)":"var(--t3)"};min-width:44px">${q._now?"▶ AGORA":(i+1)+"ª fila"}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12.5px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(q.title||q.company||"–")}</div>
+          <div style="font-size:10.5px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(q.company||"")}${q.state?" · "+esc(q.state):""}${q.to?" · "+esc(q.to):""}</div>
+        </div>
+      </div>`).join("");
+    }
+  }
   else{if(njc)njc.classList.remove("show");}
 
   // Buttons
