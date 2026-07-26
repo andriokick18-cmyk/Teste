@@ -9055,7 +9055,14 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
       // Login de quem já existe AQUI segue 100% normal — as travas abaixo
       // valem apenas para cadastro novo. Bloqueio é feito ANTES de criar
       // qualquer registro; a sessão pré-criada é descartada.
-      if(!ex){
+      // v63 (ordem do dono, 26/07): ADMIN nunca é barrado — ele entra em
+      // QUALQUER servidor pra administrar/testar (o /api/auth/where já fazia
+      // essa exceção na triagem; a trava pós-auth barrava o admin de novo —
+      // caso real: e-mail admin bloqueado no Servidor 3 com "conta no 2").
+      if(!ex && isAdminEmail(ui.email)){
+        console.log(`[servers] 🛡️ Trava de conta única IGNORADA para admin: ${ui.email} (cadastro liberado neste servidor)`);
+      }
+      if(!ex && !isAdminEmail(ui.email)){
         // (1) Este servidor está LOTADO? Fechado para contas novas de verdade
         //     (não só no visual do seletor).
         // ── V951: identidade única pelo host, resolvida pelo helper

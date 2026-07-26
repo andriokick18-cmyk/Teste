@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v33"; // v33 (26/07): index.html mudou (v62: placeholder da busca ganha "cidade" — a busca do servidor agora cobre cidade/título normalizados). Regra 6c: bump junto.
+const CACHE_NAME = "h2bapply-v34"; // v34 (26/07): index.html mudou (v63: triagem por e-mail ANTES de qualquer tela do Google — 5 botões que pulavam o card de e-mail agora passam por ele). Regra 6c: bump junto.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

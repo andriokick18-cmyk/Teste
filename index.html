@@ -2333,7 +2333,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <div id="ln-rank-preview">
           <div class="ln-rank-loading"><span class="spin spin-sm"></span></div>
         </div>
-        <div class="ln-rank-cta" onclick="showGoogleWarnModal()">
+        <div class="ln-rank-cta" onclick="openAuthGate('choice')">
           <i class="ti ti-trophy"></i> Entre e dispute seu lugar no topo
         </div>
       </div>
@@ -6185,7 +6185,7 @@ function showSrvBlockModal(b){
       <div class="srv-title">Este servidor está lotado</div>
       <div class="srv-sub" style="margin-bottom:20px">Este servidor atingiu a capacidade máxima e está <strong style="color:rgba(255,255,255,.85)">fechado para contas novas</strong>. Sua conta ainda não existe aqui.${b.url?`<br>Crie sua conta grátis no <strong style="color:#34d399">${esc(nome)}</strong> — mesmas vagas, mesmos planos, mesmas funções.`:""}</div>
       ${destino?`<a href="${esc(destino)}" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(135deg,#059669,#10b981);border-radius:12px;padding:14px;font-size:14px;font-weight:800;color:#fff;text-decoration:none;box-shadow:0 8px 25px rgba(16,185,129,.4);box-sizing:border-box">🟢 Criar conta grátis no ${esc(nome)}</a>`:`<div style="font-size:12px;color:rgba(255,255,255,.5);text-align:center">Nenhum servidor aberto no momento — tente novamente em breve.</div>`}
-      <button onclick="g('#srv-block-ov').style.display='none';showGoogleWarnModal()" style="width:100%;margin-top:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:11px;font-size:12px;font-weight:700;color:rgba(255,255,255,.7);cursor:pointer;font-family:inherit">Já tenho conta AQUI — Entrar</button>`;
+      <button onclick="g('#srv-block-ov').style.display='none';openAuthGate('email','login')" style="width:100%;margin-top:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:11px;font-size:12px;font-weight:700;color:rgba(255,255,255,.7);cursor:pointer;font-family:inherit">Já tenho conta AQUI — Entrar</button>`;
   ov.innerHTML=`<div class="srv-modal" style="border-color:${b.kind==="conta_outro_srv"?"rgba(59,130,246,.4)":"rgba(239,68,68,.4)"}">
     <button class="srv-close" onclick="g('#srv-block-ov').style.display='none'" aria-label="Fechar">✕</button>
     ${inner}
@@ -6447,9 +6447,13 @@ function renderServerCards(d){
 function srvGo(i){
   const sv=(_srvData&&_srvData.servers||[])[i]; if(!sv) return;
   if(sv.self){
-    // Este servidor: lotado → login normal; aberto → login/cadastro normal
+    // v63 (ordem do dono, 26/07): NENHUMA autenticação Google antes da
+    // triagem por e-mail. O projeto OAuth de cada servidor tem teto de 100
+    // usuários (app não verificado) — consentimento de quem nem é daqui
+    // QUEIMA uma vaga. O card de e-mail (/api/auth/where) diz na hora em
+    // qual servidor a conta mora, TUDO antes de qualquer tela do Google.
     closeServerSelect();
-    showGoogleWarnModal();
+    openAuthGate('choice');
     return;
   }
   // Servidor remoto: redireciona direto, com ?entrar=1 — lá o card NÃO aparece
@@ -11131,7 +11135,7 @@ async function loadPublicStats(){
         <div style="font-size:28px;margin-bottom:8px">🏆</div>
         <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,.7);margin-bottom:4px">Ranking zerado hoje!</div>
         <div style="font-size:11px;color:rgba(255,255,255,.4)">Seja o primeiro a enviar candidaturas hoje e lidere o ranking.</div>
-        <button onclick="showGoogleWarnModal()" style="margin-top:14px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">Começar agora</button>
+        <button onclick="openAuthGate('choice')" style="margin-top:14px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer">Começar agora</button>
       </div>`;
     }
   }catch{}
@@ -14538,7 +14542,7 @@ html, body, #app, .bottom-nav, .sidebar, .drawer{
                 <span>Ranking e métricas em tempo real</span>
               </div>
             </div>
-            <button class="ln-cta-btn" onclick="showGoogleWarnModal()" style="font-size:14px;padding:12px 20px;width:100%">
+            <button class="ln-cta-btn" onclick="openAuthGate('choice')" style="font-size:14px;padding:12px 20px;width:100%">
               <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
               Ativar o automático agora
             </button>
