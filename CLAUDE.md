@@ -129,10 +129,12 @@
   25/07). Corrigir na Namecheap + Custom Domain no Render — passo a passo
   em README_SERVIDORES.txt (Caso 1).
 - ESTE repo (Applyh2b.com) é a FONTE ÚNICA dos 3 servidores (ordem do
-  dono, 25/07): toda mudança daqui vale pros 3. Espelhar main → repos dos
-  servidores 1 e 2 (comandos em README_SERVIDORES.txt) — antes do 1º
-  espelho, resgatar dos repos antigos o que só existe lá (ver abaixo).
-- Deploy da branch de trabalho nos 3 servidores (nada vale até subir).
+  dono, 25/07): toda mudança daqui vale pros 3. 1º espelho FEITO em
+  26/07 (v65b → main de New-repository e Teste), com o estado antigo
+  preservado no branch backup-pre-espelho-20260726 de cada repo (lá está
+  o mod-dol-monitor.js e os arquivos removidos de propósito). TODA
+  entrega nova precisa reespelhar: push --force do main daqui pros mains
+  dos 2 repos (comandos em README_SERVIDORES.txt).
 - `EDITOR_PWD_ANDREW`/`EDITOR_PWD_DIEGO` no Render (padrão de fábrica é público).
 - `GA_MEASUREMENT_ID` no Render: criar propriedade GA4 (analytics.google.com)
   e colar o ID G-XXXX na env — o funil inteiro já está instrumentado
