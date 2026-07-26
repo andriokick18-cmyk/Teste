@@ -4167,20 +4167,20 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
               <!-- 💎 v64: DOAÇÃO — packs de diamantes (não existe mais compra de plano) -->
               <div style="font-size:12.5px;color:var(--t2);line-height:1.65;background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
-                Você <strong>doa</strong> qualquer valor via PIX e recebe <strong>💎 diamantes</strong> na sua conta (<strong>1 💎 = R$ 1,50</strong>). Com diamantes você <strong>troca por planos</strong> quando quiser — e pode até <strong>doar 💎 para um amigo</strong>.
+                Você <strong>doa</strong> via PIX e recebe <strong>💎 diamantes</strong> na sua conta. Com diamantes você <strong>troca por planos</strong> quando quiser — e pode até <strong>doar 💎 para um amigo</strong>. Escolha a quantidade e veja o valor da doação.
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" id="diam-packs">
                 <div class="plan-option" onclick="setDiamQty(67)" id="dpack-67" style="text-align:center;padding:12px;cursor:pointer">
                   <div style="font-size:16px;font-weight:800">67 💎</div>
-                  <div style="font-size:11px;color:var(--t3)">R$ 100,50 · dá o ⭐ VIP 30d</div>
+                  <div style="font-size:11px;color:var(--t3)">dá o ⭐ VIP 30d</div>
                 </div>
                 <div class="plan-option" onclick="setDiamQty(100)" id="dpack-100" style="text-align:center;padding:12px;cursor:pointer;border-color:var(--purple)">
                   <div style="font-size:16px;font-weight:800;color:var(--purple)">100 💎 <span style="background:var(--purple);color:#fff;font-size:9px;padding:2px 6px;border-radius:8px">POPULAR</span></div>
-                  <div style="font-size:11px;color:var(--t3)">R$ 150,00 · dá o 🤖 VIPro 30d</div>
+                  <div style="font-size:11px;color:var(--t3)">dá o 🤖 VIPro 30d</div>
                 </div>
                 <div class="plan-option" onclick="setDiamQty(167)" id="dpack-167" style="text-align:center;padding:12px;cursor:pointer">
                   <div style="font-size:16px;font-weight:800;color:#d97706">167 💎</div>
-                  <div style="font-size:11px;color:var(--t3)">R$ 250,50 · dá o 💎 DoublePro 30d</div>
+                  <div style="font-size:11px;color:var(--t3)">dá o 💎 DoublePro 30d</div>
                 </div>
                 <div class="plan-option" onclick="var i=document.getElementById('diam-qty');if(i)i.focus()" id="dpack-custom" style="text-align:center;padding:12px;cursor:pointer">
                   <div style="font-size:16px;font-weight:800">✏️ Outro valor</div>
@@ -4196,7 +4196,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                   <div style="font-size:12px;color:var(--t2)" id="calc-desc">Escolha um pacote ou digite a quantidade</div>
                   <div style="font-size:24px;font-weight:800;color:var(--green)" id="calc-total">—</div>
                 </div>
-                <div style="font-size:10px;color:var(--t3);text-align:center;margin-top:6px" id="calc-note">1 💎 = R$ 1,50 · os diamantes caem na conta quando o admin confirmar o comprovante</div>
+                <div style="font-size:10px;color:var(--t3);text-align:center;margin-top:6px" id="calc-note">Os diamantes caem na conta quando o admin confirmar o comprovante</div>
               </div>
 
               <button class="btn btn-primary w100" style="margin-top:8px" onclick="goToPlanStep2()">
