@@ -10983,6 +10983,18 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
     const s=getSess(req);if(!s?.user_email)return json(res,200,{connected:false});
     markOnline(s.user_email);
     const p=getUser(s.user_email);if(!p)return json(res,200,{connected:false,reason:"user_not_found"});
+    // v63b: AUTO-CURA da foto de perfil (bug real 26/07, print do dono:
+    // avatar "?" no Servidor 3). Conta logada SEM picture no banco ganha UMA
+    // tentativa por sessão de puxar a foto do Google com o token que já temos
+    // — achou, persiste (merge não-crítico) e o avatar aparece no próximo
+    // load, sem exigir relogin. Fail-open: token expirado/erro = segue sem foto.
+    if(!p.picture && s.access_token && !s._picTried){
+      s._picTried=true;
+      try{
+        const{status:_ps,body:_ui}=await httpsReq({hostname:"www.googleapis.com",path:"/oauth2/v2/userinfo",method:"GET",headers:{"Authorization":"Bearer "+s.access_token}});
+        if(_ps===200&&_ui&&_ui.picture){setUser(s.user_email,{picture:_ui.picture});p.picture=_ui.picture;console.log(`[status] 📸 Foto de perfil recuperada do Google para ${s.user_email}`);}
+      }catch(e){}
+    }
     const vipOk=isVipActive(p);
     const planKey=getPlan(p);const {todayManual:sentManual,todayAuto:sentAuto}=getUserStatsCached(s.user_email);
     const h=getHist(s.user_email);
