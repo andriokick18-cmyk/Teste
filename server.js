@@ -14213,7 +14213,7 @@ O H2BApply é um app PWA (funciona no celular como app) que envia e-mails de can
 - Os limites de envios por plano aparecem na aba Planos do app — indique-a para detalhes
 
 === COMO PAGAR ===
-Pelo PRÓPRIO app: aba Planos → escolher o plano e o período → fazer o pedido → pagar o PIX indicado → enviar o comprovante no próprio pedido. A equipe confirma e o plano ativa (os dias contam a partir da APROVAÇÃO — tempo em análise não é perdido). Dúvidas: WhatsApp +55 53 98145-3496.
+Pelo PRÓPRIO app, SEM compra: aba Planos → você DOA via PIX e envia o comprovante → a equipe confirma e você recebe DIAMANTES 💎 na conta (1 💎 = R$ 1,50) → troca os diamantes pelo plano que quiser e ele ativa NA HORA. Diamantes reais também podem ser doados a um amigo do mesmo servidor. Dúvidas: WhatsApp +55 53 98145-3496.
 
 === ENVIO AUTOMÁTICO (DETALHE TÉCNICO) ===
 - Roda no servidor do H2BApply na nuvem, NÃO precisa do celular ligado
@@ -16342,8 +16342,8 @@ async function renovacaoWatchdogRun(){
       const planoNm=String(v.plan||usr.plan||"VIP").toUpperCase();
       const dataStr=new Date(exp).toLocaleDateString("pt-BR");
       const msg={
-        [3]:{title:"⏳ Seu plano vence em 3 dias",body:`${planoNm} ativo até ${dataStr}. Renove na aba Planos pra suas candidaturas não pararem.`},
-        [1]:{title:"⏳ Seu plano vence AMANHÃ!",body:`${planoNm} ativo até ${dataStr}. Renove na aba Planos pra suas candidaturas não pararem.`},
+        [3]:{title:"⏳ Seu plano vence em 3 dias",body:`${planoNm} ativo até ${dataStr}. Doe e troque seus 💎 na aba Planos pra suas candidaturas não pararem.`},
+        [1]:{title:"⏳ Seu plano vence AMANHÃ!",body:`${planoNm} ativo até ${dataStr}. Doe e troque seus 💎 na aba Planos pra suas candidaturas não pararem.`},
         [-3]:{title:"😴 Suas candidaturas pararam",body:`Seu ${planoNm} venceu dia ${dataStr}. Os empregadores continuam contratando — reative na aba Planos.`},
         [-7]:{title:"⏰ Uma semana sem enviar candidaturas",body:`Seu ${planoNm} venceu dia ${dataStr}. Reative na aba Planos e volte pra corrida das vagas.`},
       }[marco];

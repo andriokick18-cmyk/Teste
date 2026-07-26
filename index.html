@@ -2810,14 +2810,14 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 <div style="background:var(--sf2);border:1.5px solid var(--border);border-radius:14px;padding:16px 6px 13px;text-align:center">
                   <div style="font-size:22px">⭐</div>
                   <div style="font-size:11.5px;font-weight:800;color:var(--text);margin-top:6px">VIP Manual</div>
-                  <div style="font-size:16px;font-weight:900;color:var(--purple);margin-top:4px">R$100<span style="font-size:9px;font-weight:600;color:var(--t3)">/mês</span></div>
+                  <div style="font-size:16px;font-weight:900;color:var(--purple);margin-top:4px">67 💎<span style="font-size:9px;font-weight:600;color:var(--t3)">/mês</span></div>
                   <div style="font-size:9.5px;color:var(--t3);margin-top:4px">Envios manuais ilimitados</div>
                 </div>
                 <div style="background:var(--surface);border:2px solid var(--purple);border-radius:14px;padding:16px 6px 13px;text-align:center;position:relative;box-shadow:0 6px 18px rgba(124,58,237,.14)">
                   <div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#78350f;font-size:8px;font-weight:900;padding:3px 8px;border-radius:99px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.15)">👑 MAIS POPULAR</div>
                   <div style="font-size:22px;margin-top:3px">👑</div>
                   <div style="font-size:11.5px;font-weight:800;color:var(--text);margin-top:6px">VIP Pro</div>
-                  <div style="font-size:16px;font-weight:900;color:var(--purple);margin-top:4px">R$150<span style="font-size:9px;font-weight:600;color:var(--t3)">/mês</span></div>
+                  <div style="font-size:16px;font-weight:900;color:var(--purple);margin-top:4px">100 💎<span style="font-size:9px;font-weight:600;color:var(--t3)">/mês</span></div>
                   <div style="font-size:9.5px;color:var(--t3);margin-top:4px">Automático + Manual</div>
                 </div>
                 <div style="background:var(--sf2);border:1.5px solid var(--border);border-radius:14px;padding:16px 6px 13px;text-align:center">
@@ -4142,7 +4142,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
              v32: Meus pagamentos idem — histórico do cliente mora DENTRO de Planos. -->
         <div style="display:flex;gap:8px;margin-bottom:12px">
           <button class="btn btn-secondary btn-sm" style="flex:1;justify-content:center" onclick="sv('redeem')"><i class="ti ti-ticket" style="color:#7c3aed"></i> 🎟️ Tenho código</button>
-          <button class="btn btn-secondary btn-sm" style="flex:1;justify-content:center" onclick="toggleMeusPagamentos()"><i class="ti ti-receipt" style="color:#10b981"></i> 🧾 Meus pagamentos</button>
+          <button class="btn btn-secondary btn-sm" style="flex:1;justify-content:center" onclick="toggleMeusPagamentos()"><i class="ti ti-receipt" style="color:#10b981"></i> 🧾 Minhas doações</button>
         </div>
         <div id="meus-pagamentos" style="display:none;margin-bottom:14px"></div>
 
@@ -4274,7 +4274,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <div style="background:var(--surface);border:2px solid var(--border2);border-radius:var(--rl);overflow:hidden;margin-bottom:14px">
             <div style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.06));padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
               <div style="width:28px;height:28px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0">3</div>
-              <div style="font-size:14px;font-weight:800">Pagamento</div>
+              <div style="font-size:14px;font-weight:800">Doação via PIX</div>
             </div>
             <div style="padding:14px 16px" id="plan-payment-section">
               <!-- v43: pagamento único — Pix pro PicPay do Andrio (dinâmico por plano/período) -->
@@ -4287,8 +4287,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div style="background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.07));padding:12px 16px;border-bottom:1px solid rgba(16,185,129,.2);display:flex;align-items:center;gap:8px">
               <div style="width:28px;height:28px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0">4</div>
               <div>
-                <div style="font-size:14px;font-weight:800">📸 Comprovante de pagamento <span style="color:var(--red);font-size:12px">*obrigatório</span></div>
-                <div style="font-size:11px;color:var(--t3)">Print do recibo, confirmação do Pix ou foto do comprovante</div>
+                <div style="font-size:14px;font-weight:800">📸 Comprovante da doação <span style="color:var(--red);font-size:12px">*obrigatório</span></div>
+                <div style="font-size:11px;color:var(--t3)">Print da confirmação do Pix da sua doação</div>
               </div>
             </div>
             <div style="padding:14px 16px">
@@ -4305,9 +4305,9 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               </div>
               <div id="comp-status" style="margin-top:8px;display:none"></div>
               <div style="margin-top:14px">
-                <label style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:5px">📅 Data em que você pagou <span style="color:var(--red)">*</span></label>
+                <label style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:5px">📅 Data em que você doou <span style="color:var(--red)">*</span></label>
                 <input class="input" id="plan-form-pago-em" type="date" style="color-scheme:light dark">
-                <div style="font-size:11px;color:var(--t3);margin-top:4px;line-height:1.5">Coloque a <strong>mesma data que aparece no comprovante</strong>. É por ela que calculamos quantos dias de VIP você tem.</div>
+                <div style="font-size:11px;color:var(--t3);margin-top:4px;line-height:1.5">Coloque a <strong>mesma data que aparece no comprovante</strong>. É por ela que conferimos a sua doação.</div>
               </div>
             </div>
           </div>
@@ -4324,8 +4324,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <div style="font-size:64px;margin-bottom:16px">🎉</div>
           <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800;margin-bottom:8px" id="plan-done-title">Pedido enviado!</div>
           <div style="font-size:14px;color:var(--t2);margin-bottom:20px;line-height:1.7" id="plan-done-msg">
-            Recebemos seu pedido e comprovante.<br>
-            Se o robô validar seu comprovante, o plano ativa <strong>em instantes</strong> — e a confirmação final da equipe sai em <strong>até 24h</strong>. Acompanhe na tela inicial.<br>
+            Recebemos sua doação e o comprovante.<br>
+            Assim que a equipe confirmar (em <strong>até 24h</strong>), seus 💎 caem na conta e você troca por plano <strong>na hora</strong>. Acompanhe na tela inicial.<br>
             <strong>Para dúvidas, entre em contato:</strong>
           </div>
           <div id="plan-push-ask" style="display:none;max-width:340px;margin:0 auto 12px;text-align:left"></div>
@@ -4613,12 +4613,12 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 </div>
                 <div style="background:#fef9c3;border:1.5px solid #fde68a;border-radius:10px;padding:10px;text-align:center">
                   <div style="font-size:18px;margin-bottom:4px">⭐</div>
-                  <div style="font-weight:800;color:#92400e;font-size:12px">VIP R$100/mês</div>
+                  <div style="font-weight:800;color:#92400e;font-size:12px">VIP · 67 💎/mês</div>
                   <div style="font-size:11px;color:#78350f;margin-top:4px">200 manuais/dia<br>sem automático</div>
                 </div>
                 <div style="background:#fdf4ff;border:1.5px solid #e9d5ff;border-radius:10px;padding:10px;text-align:center">
                   <div style="font-size:18px;margin-bottom:4px">🤖</div>
-                  <div style="font-weight:800;color:#7c3aed;font-size:12px">VIPro R$150/mês</div>
+                  <div style="font-weight:800;color:#7c3aed;font-size:12px">VIPro · 100 💎/mês</div>
                   <div style="font-size:11px;color:#6d28d9;margin-top:4px">200 manuais/dia<br>200 automáticos/dia</div>
                 </div>
                 <div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;padding:10px;text-align:center">
@@ -5830,7 +5830,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
     <div class="mhdr"><div class="mttl">Termos de Uso</div><button class="mx" onclick="g('#terms-m').classList.add('gone')"><i class="ti ti-x"></i></button></div>
     <div class="mbody" style="font-size:13px;color:var(--t2);line-height:1.7">
       <p><strong>H2BApply</strong> facilita candidaturas H-2B/H-2A via Gmail.</p><br>
-      <p><strong>Planos:</strong> Free (20 manual + 10 auto/dia), VIP R$100, VIPro R$150, DoublePro R$250.</p><br>
+      <p><strong>Planos:</strong> Free (20 manual + 10 auto/dia); VIP, VIPro e DoublePro são trocados por 💎 diamantes (você doa via PIX, ganha diamantes e troca — sem compra).</p><br>
       <p><strong>Não garantimos contratação.</strong> Facilitamos o envio.</p>
     </div>
   </div>
@@ -5854,7 +5854,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
 <!-- Banner VIP expirando -->
 <div id="vip-expiry-banner" style="display:none;position:fixed;top:0;left:0;right:0;background:linear-gradient(90deg,#f59e0b,#d97706);color:#fff;padding:7px 16px;font-size:12px;font-weight:700;z-index:9990;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.2)">
-  <i class="ti ti-crown"></i> <span id="vip-expiry-text"></span> — <a href="#" onclick="sv('plans');this.parentElement.parentElement.style.display='none'" style="color:#fff;text-decoration:underline">Renovar agora</a>
+  <i class="ti ti-crown"></i> <span id="vip-expiry-text"></span> — <a href="#" onclick="sv('plans');this.parentElement.parentElement.style.display='none'" style="color:#fff;text-decoration:underline">Trocar 💎 por mais dias</a>
   <button onclick="this.parentElement.style.display='none'" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:#fff;cursor:pointer;font-size:16px">×</button>
 </div>
 
@@ -6761,7 +6761,7 @@ function rankChangeHtml(ch){
 }
 
 function scoreLabelHtml(cat){
-  if(cat==="vip")return"compras VIP";
+  if(cat==="vip")return"planos VIP";
   if(cat==="active")return"dias ativos";
   return"envios"; // sends e global
 }
@@ -6908,7 +6908,7 @@ async function openRankProfile(uid){
     g("#rp-badges").innerHTML=planBadgeHtml(p.plan)+(p.specialBadge?`<span class="badge badge-${p.specialBadge.toLowerCase()}">${p.specialBadge}</span>`:"")+(p.online?`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--green);margin-left:4px"><span style="width:7px;height:7px;background:var(--green);border-radius:50%;display:inline-block"></span>Online</span>`:`<span style="font-size:11px;color:var(--t3);margin-left:4px">Offline</span>`);
     g("#rp-stats").innerHTML=`
       <div class="rp-stat"><span class="rp-stat-val">${(p.totalSends||0).toLocaleString("pt-BR")}</span><span class="rp-stat-lbl">Envios totais</span></div>
-      <div class="rp-stat"><span class="rp-stat-val">${(p.vipCompras||0).toLocaleString("pt-BR")}</span><span class="rp-stat-lbl">Compras VIP</span></div>
+      <div class="rp-stat"><span class="rp-stat-val">${(p.vipCompras||0).toLocaleString("pt-BR")}</span><span class="rp-stat-lbl">Planos VIP</span></div>
       <div class="rp-stat"><span class="rp-stat-val">${(p.todaySends||0).toLocaleString("pt-BR")}</span><span class="rp-stat-lbl">Hoje</span></div>
       <div class="rp-stat"><span class="rp-stat-val">${(p.weekSends||0).toLocaleString("pt-BR")}</span><span class="rp-stat-lbl">Essa semana</span></div>
       <div class="rp-stat"><span class="rp-stat-val">${p.streak||0}d</span><span class="rp-stat-lbl">Sequência</span></div>
@@ -12755,15 +12755,15 @@ async function renderPendingOrderCard(){
   }
   if(!_pendingOrderCache){box.style.display="none";return;}
   const p=_pendingOrderCache;
-  const planLbl={vip:"VIP Manual",vipro:"VIPro",doublepro:"DoublePro"}[p.plano]||p.plano||"seu plano";
+  const planLbl={vip:"VIP Manual",vipro:"VIPro",doublepro:"DoublePro",doacao:"💎 Doação"}[p.plano]||p.plano||"sua doação";
   const dt=p.createdAt?new Date(p.createdAt).toLocaleDateString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"";
   box.style.display="block";
   box.innerHTML=`<div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #fcd34d;border-radius:14px;padding:13px 14px;display:flex;align-items:center;gap:12px">
     <div style="width:42px;height:42px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.06)">⏳</div>
     <div style="flex:1;min-width:0">
-      <div style="font-size:10px;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:1px">Pedido em análise</div>
-      <div style="font-size:14px;font-weight:800;color:var(--text);line-height:1.25">Pagamento do ${esc(planLbl)} em revisão</div>
-      <div style="font-size:11.5px;color:var(--t2);line-height:1.35;margin-top:2px">Enviado ${dt?"em "+dt:"recentemente"} · ativação em até 24h · dúvidas: WhatsApp no rodapé</div>
+      <div style="font-size:10px;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:.05em;margin-bottom:1px">Doação em análise</div>
+      <div style="font-size:14px;font-weight:800;color:var(--text);line-height:1.25">${esc(planLbl)} em revisão</div>
+      <div style="font-size:11.5px;color:var(--t2);line-height:1.35;margin-top:2px">Enviado ${dt?"em "+dt:"recentemente"} · confirmação em até 24h · dúvidas: WhatsApp no rodapé</div>
     </div>
   </div>`;
 }
@@ -17327,7 +17327,7 @@ const LANG_DICT = {
     // Plans
     "plan_free":"Plano Free","plan_vip":"Plano VIP","plan_pro":"Plano Pro","plan_vipro":"Plano VIPro","plan_doublepro":"Plano DoublePro",
     "choose_plan":"Escolha seu Plano","pay_pix":"Pague via Pix — ativo em até 24h","pay_pix_title":"Pagar via Pix",
-    "copy_pix":"Copiar Pix","hire_whatsapp":"Contratar pelo WhatsApp",
+    "copy_pix":"Copiar Pix","hire_whatsapp":"Falar no WhatsApp",
     "pix_step1":"Pague o plano via Pix",
     "pix_step2":"Envie comprovante + Gmail no WhatsApp: <a href='https://wa.me/5553981453496' target='_blank' style='color:var(--blue);font-weight:700'>+55 53 98145-3496</a>",
     "pix_step3":"Plano ativado em até 24h ✅",
@@ -17478,7 +17478,7 @@ const LANG_DICT = {
     "sent_apps":"Postulaciones Enviadas","your_pos":"tu posición","you":"Tú","me":"Yo","profiles":"Perfiles",
     "plan_free":"Plan Gratuito","plan_vip":"Plan VIP","plan_pro":"Plan Pro","plan_vipro":"Plan VIPro",
     "choose_plan":"Elige tu Plan","pay_pix":"Paga vía Pix — activo en hasta 24h","pay_pix_title":"Pagar vía Pix",
-    "copy_pix":"Copiar Pix","hire_whatsapp":"Contratar por WhatsApp",
+    "copy_pix":"Copiar Pix","hire_whatsapp":"Hablar por WhatsApp",
     "pix_step1":"Paga el plan vía Pix",
     "pix_step2":"Envía comprobante + Gmail por WhatsApp: <a href='https://wa.me/5553981453496' target='_blank' style='color:var(--blue);font-weight:700'>+55 53 98145-3496</a>",
     "pix_step3":"Plan activado en hasta 24h ✅",
@@ -18662,7 +18662,7 @@ async function loadMeusPagamentos(){
     };
     const codeNote=(U.vip?.source==="code")?`<div style="font-size:11.5px;color:var(--t2);background:var(--sf2);border:1px solid var(--border2);border-radius:10px;padding:9px 12px;margin-bottom:6px">🎟️ Seu plano atual veio de um <strong>código promocional</strong>.</div>`:"";
     if(!peds.length){
-      box.innerHTML=codeNote+`<div style="font-size:12px;color:var(--t3);text-align:center;padding:10px">Nenhum pagamento por aqui ainda.</div>`;
+      box.innerHTML=codeNote+`<div style="font-size:12px;color:var(--t3);text-align:center;padding:10px">Nenhuma doação por aqui ainda.</div>`;
       return;
     }
     box.innerHTML=codeNote+peds.map(p=>{
