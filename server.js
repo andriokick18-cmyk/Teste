@@ -4044,8 +4044,23 @@ const CAT_OCC_LABELS = {
 function searchSheet(arr, q, state, category, skip, top, sort) {
   let list = arr;
   if (q && q.trim()) {
-    const ql = q.toLowerCase().trim();
-    // Detect implied category from job title keyword
+    // ── v62 (bug real, print do dono 26/07: "Marthas vineyard" não achava nada
+    // e a tela enchia de vaga sem relação) — 3 raízes corrigidas de uma vez:
+    // (1) a busca NÃO olhava a CIDADE (r.ci) nem o TÍTULO (r.t) da vaga —
+    //     lugar turístico ("Vineyard Haven", "Edgartown") era inencontrável;
+    // (2) sem normalização, "Marthas" nunca casava com "Martha's" (apóstrofo)
+    //     nem "São" com "Sao" (acento);
+    // (3) sem match direto, o modo categoria-implícita despejava a categoria
+    //     inteira na tela (fazendas aleatórias) — agora categoria só COMPLEMENTA
+    //     depois dos matches diretos, nunca substitui.
+    const _norm=s=>String(s||"").toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g,"")  // acentos fora
+      .replace(/["'‘’`´]/g,"")             // Martha's → marthas
+      .replace(/[^a-z0-9@.\s]+/g," ").replace(/\s+/g," ").trim();
+    const ql=_norm(q);
+    const toks=ql.split(" ").filter(Boolean);
+    const _hay=r=>_norm([r.t,r.n,r.c,r.e,r.s,r.ci].filter(Boolean).join(" "));
+    // Detect implied category from job title keyword (comportamento antigo mantido)
     let impliedCat = null;
     if (ql.length >= 3) {
       for(const[title,cat] of Object.entries(JOB_TITLE_TO_CAT)){
@@ -4057,42 +4072,36 @@ function searchSheet(arr, q, state, category, skip, top, sort) {
         }
       }
     }
-    // Busca direta: empresa, cargo, case number, estado, cidade, descrição
-
+    // (1) Match direto: TODAS as palavras, em qualquer campo (cidade incluída)
+    let direct=toks.length?list.filter(r=>{const h=_hay(r);return toks.every(t=>h.includes(t));}):[];
+    // Relevância: título que contém a busca inteira vem primeiro (espírito do
+    // antigo tier1), o resto mantém a ordem estável (paginação correta).
+    if(direct.length>1){
+      const tHit=r=>_norm(r.t||r.n||"").includes(ql);
+      direct=[...direct.filter(tHit),...direct.filter(r=>!tHit(r))];
+    }
+    // (2) Match parcial multi-palavra COMPLEMENTA depois: qualquer palavra ≥4
+    //     letras ("marthas vineyard" lista também as vagas de "Vineyard Haven"/
+    //     "Edgartown" logo após as exatas — busca de lugar funciona de verdade).
+    let partial=[];
+    if(toks.length>1){
+      const big=toks.filter(t=>t.length>=4);
+      if(big.length){
+        const seenD=new Set(direct.map(r=>r.c));
+        partial=list.filter(r=>{if(seenD.has(r.c))return false;const h=_hay(r);return big.some(t=>h.includes(t));});
+      }
+    }
+    const combined=[...direct,...partial];
+    // (3) Categoria implícita COMPLEMENTA por último (dedupe por case number) —
+    //     ex.: buscar "bartender" lista os matches diretos e na sequência o
+    //     resto da categoria food. NUNCA substitui os matches de texto (antes,
+    //     sem match direto, a categoria inteira tomava a tela sozinha).
     if(impliedCat && (!category||category==="all")){
-      // PRIORITY SEARCH — 3 tiers por relevância:
-      // Tier 1: título da vaga contém exatamente a busca (ex: "Bartender" no título)
-      // Tier 2: empresa ou case number contém a busca
-      // Tier 3: categoria corresponde mas sem match direto no título
-      const ql_words = ql.split(/\s+/).filter(w=>w.length>=3);
-      const titleExact = (r) => {
-        const t = (r.t||r.n||"").toLowerCase();
-        return t===ql || t.startsWith(ql+" ") || t.includes(" "+ql) || t.includes(ql);
-      };
-      const tier1 = arr.filter(r => titleExact(r)); // título contém busca
-      const tier2 = arr.filter(r => !titleExact(r) && (
-        (r.n||"").toLowerCase().includes(ql) ||
-        (r.e||"").toLowerCase().includes(ql) ||
-        (r.c||"").toLowerCase().includes(ql)
-      ));
-      const tier3 = arr.filter(r =>
-        (r.k||"other")===impliedCat &&
-        !titleExact(r) &&
-        !(r.n||"").toLowerCase().includes(ql) &&
-        !(r.c||"").toLowerCase().includes(ql)
-      );
-      // Merge: tier1 primeiro (match exato no título), depois tier2, depois tier3
-      const seen=new Set();
-      const dedup=(r)=>{ if(seen.has(r.c))return false; seen.add(r.c); return true; };
-      list=[...tier1.filter(dedup),...tier2.filter(dedup),...tier3.filter(dedup)];
+      const seen=new Set(combined.map(r=>r.c));
+      const extra=list.filter(r=>(r.k||"other")===impliedCat&&!seen.has(r.c));
+      list=[...combined,...extra];
     } else {
-      // Regular search: company name, state, case number, email only
-      list = list.filter(r =>
-        (r.n  || "").toLowerCase().includes(ql) ||  // company name
-        (r.c  || "").toLowerCase().includes(ql) ||  // ETA case number
-        (r.e  || "").toLowerCase().includes(ql) ||  // email
-        (r.s  || "").toLowerCase().includes(ql)     // state name
-      );
+      list=combined;
     }
   }
   if (state)    list=list.filter(r=>(r.s||"").toUpperCase()===state.toUpperCase());
