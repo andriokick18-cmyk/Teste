@@ -81,6 +81,11 @@
     (brinde do admin) é intransferível e é gasto PRIMEIRO na troca. Preço em
     💎 deriva SEMPRE de PLANO_PRECO_TAB (nunca hardcoded em 2º lugar).
     Cancelou doação aprovada → estorna os 💎 (parcial se já gastou, com log).
+    LINGUAGEM (v66): NENHUM texto visível do site fala em compra/pagamento/
+    contratar/renovar — sempre doação, diamantes, troca e recompensas.
+    Preços exibidos ao usuário são em 💎; o R$ só aparece na calculadora da
+    doação, DEPOIS que a pessoa escolhe a quantidade. Packs de doação
+    mostram só a quantidade de 💎 (nunca o valor junto).
     Aba 🧾 Conferência lista TODOS os pagamentos desde a 1ª compra (valor
     ao lado do nome, comprovante clicável, valor editável com trilha que
     corrige o caixa junto). Código de 30 dias (YouTube do Diego) vale
