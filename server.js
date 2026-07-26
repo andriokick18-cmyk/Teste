@@ -400,10 +400,15 @@ let DB_ADMIN_SETTINGS = { emailNotificationsEnabled: false, newUserTrialEnabled:
   // v58 (ORDEM DO DONO, 25/07/2026): Servidores 1 e 2 LOTADOS (só login de
   // quem já tem conta — limite de ~100 usuários por projeto OAuth de cada um);
   // cadastro NOVO só no Servidor 3 (applyh2b.com, modo só-envio, OAuth próprio).
+  // ⚠️ v66b: o Servidor 3 usa o endereço .onrender.com ENQUANTO o DNS de
+  // applyh2b.com estiver no parking da Namecheap (bug real 26/07: seletor do
+  // srv 1 mandava pro domínio morto e o ranking/faturamento global não
+  // alcançava o srv 3). Quando o DNS apontar pro Render, troque pelo painel
+  // (Admin → Configurações → 🌐 Servidores) — sem deploy.
   servers: [
-    { id: 1, nome: "Servidor 1", url: "https://h2bapply.com",            maxExibido: 100, status: "lotado" },
-    { id: 2, nome: "Servidor 2", url: "https://h2b-teste.onrender.com",  maxExibido: 100, status: "lotado" },
-    { id: 3, nome: "Servidor 3", url: "https://applyh2b.com",            maxExibido: 100, status: "aberto" }
+    { id: 1, nome: "Servidor 1", url: "https://h2bapply.com",              maxExibido: 100, status: "lotado" },
+    { id: 2, nome: "Servidor 2", url: "https://h2b-teste.onrender.com",    maxExibido: 100, status: "lotado" },
+    { id: 3, nome: "Servidor 3", url: "https://h2b-server-3.onrender.com", maxExibido: 100, status: "aberto" }
   ]
 }; // v9: trial = 1d VIP Manual apenas (sem auto)
 // Senhas de editor (Andrew/Diego) agora vivem no banco e podem ser trocadas pelo
@@ -918,13 +923,31 @@ function boot() {
       const svs=DB_ADMIN_SETTINGS.servers;
       for(const sv of svs){ if([1,2].includes(parseInt(sv.id))) sv.status="lotado"; }
       if(!svs.some(sv=>parseInt(sv.id)===3)){
-        svs.push({ id:3, nome:"Servidor 3", url:"https://applyh2b.com", maxExibido:100, status:"aberto" });
+        svs.push({ id:3, nome:"Servidor 3", url:"https://h2b-server-3.onrender.com", maxExibido:100, status:"aberto" });
       }
       DB_ADMIN_SETTINGS._migSrv3=true;
       persist(ADMIN_SETTINGS_FILE, DB_ADMIN_SETTINGS);
-      console.log("[migrate] 🌐 v58: Servidores 1/2 marcados LOTADOS e Servidor 3 (applyh2b.com) adicionado à lista — cadastro novo só no 3.");
+      console.log("[migrate] 🌐 v58: Servidores 1/2 marcados LOTADOS e Servidor 3 adicionado à lista — cadastro novo só no 3.");
     }
   }catch(e){ console.warn("[migrate] v58 servers:", e.message); }
+  // v66b-MIGRAÇÃO (one-shot, bug real 26/07): listas salvas ANTES desta versão
+  // guardam o Servidor 3 como https://applyh2b.com — domínio ainda no parking
+  // da Namecheap (sem DNS). Consequência real: o seletor do Servidor 1
+  // redirecionava cadastros pro endereço morto e o ranking/faturamento GLOBAL
+  // não alcançava o Servidor 3 (timeout). Cura: reescreve a URL pro endereço
+  // vivo do Render. UMA vez só (_migSrv3Url) — quando o DNS for corrigido, o
+  // dono troca pelo painel e o boot NUNCA mais reverte.
+  try{
+    if(!DB_ADMIN_SETTINGS._migSrv3Url && Array.isArray(DB_ADMIN_SETTINGS.servers)){
+      const s3=DB_ADMIN_SETTINGS.servers.find(sv=>sv&&parseInt(sv.id)===3);
+      if(s3&&/applyh2b\.com/i.test(String(s3.url||""))){
+        s3.url="https://h2b-server-3.onrender.com";
+        console.log("[migrate] 🌐 v66b: URL do Servidor 3 curada (applyh2b.com sem DNS → h2b-server-3.onrender.com) — seletor e ranking global voltam a alcançar o 3.");
+      }
+      DB_ADMIN_SETTINGS._migSrv3Url=true;
+      persist(ADMIN_SETTINGS_FILE, DB_ADMIN_SETTINGS);
+    }
+  }catch(e){ console.warn("[migrate] v66b servers:", e.message); }
   // v18-SEC: aviso de boot — as senhas de editor (Andrew/Diego) que aprovam
   // pagamentos reais (pedido de plano) têm um fallback hardcoded no código-fonte
   // ("84800-54"/"Diego2026", ver getEditorPasswords()). Esse fallback só é usado

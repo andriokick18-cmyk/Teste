@@ -108,6 +108,13 @@ CORREÇÃO (Namecheap + Render, ~10 min + propagação):
      propagação de DNS pode levar de minutos a algumas horas.
   4. Conferir: applyh2b.com deve resolver para IP do Render
      (216.24.57.x), NUNCA mais 162.255.119.x.
+  5. DEPOIS que o domínio abrir com cadeado: nos 3 painéis admin
+     (Admin → Configurações → 🌐 Servidores), trocar a URL do
+     Servidor 3 de https://h2b-server-3.onrender.com para
+     https://applyh2b.com (v66b deixou o onrender como URL provisória
+     porque o domínio estava morto — seletor e ranking global usam
+     essa URL pra alcançar o Servidor 3). E no Render do Servidor 3,
+     voltar APP_URL=https://applyh2b.com.
 Enquanto isso, o site continua acessível pelo endereço
 <serviço>.onrender.com do Servidor 3.
 
