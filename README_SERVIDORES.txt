@@ -29,6 +29,14 @@ Em QUALQUER servidor o visitante tem a escolha do servidor dele:
 ════════════════════════════════════════════════════════════════════
  COMO ATUALIZAR OS SERVIDORES 1 E 2 COM O CÓDIGO DAQUI (espelho)
 ════════════════════════════════════════════════════════════════════
+🤖 ESPELHO AUTOMÁTICO (26/07): existe uma GitHub Action
+(.github/workflows/espelho.yml) que replica TODO push do main daqui
+pros repos dos Servidores 1 e 2 sozinha — os 3 Renders publicam juntos.
+Pra ela funcionar, o dono precisa criar UMA vez o secret MIRROR_TOKEN
+(passo a passo no topo do próprio arquivo espelho.yml). Enquanto o
+secret não existir, a Action falha com aviso e o espelho é manual
+(comandos abaixo).
+
 O fluxo antigo era o contrário (New-repository → espelho aqui). AGORA
 A FONTE É ESTE REPO. Para levar o código daqui para os outros dois:
 
