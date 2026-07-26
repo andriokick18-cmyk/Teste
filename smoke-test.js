@@ -809,6 +809,24 @@ async function testAuthWatchdogPush() {
     const dmM2 = await get("/api/diamonds");
     check("🎁 missão paga UMA vez só (reabrir não duplica)", (dmM2.json?.saldo?.bonus || 0) === (dmM.json?.saldo?.bonus || 0), `antes=${dmM.json?.saldo?.bonus} depois=${dmM2.json?.saldo?.bonus}`);
 
+    // ═══ 🗄️ v69: BACKUP ENTRE IRMÃOS — rota de recepção blindada ═══
+    const zlibB = require("zlib");
+    const _peerTokB = crypto.createHmac("sha256", "smoke-enc-key-1234567890").update("h2b-peer-financeiro-v1").digest("hex");
+    const _gzB = zlibB.gzipSync(JSON.stringify({ v: 1, ts: 1, serverId: 1, files: { "financeiro.json": "{\"pagamentos\":[]}" } }));
+    const rawPost = (p, buf, hdrs) => new Promise((resolve, reject) => {
+      const r = http.request(BASE + p, { method: "POST", headers: { ...hdrs, "Content-Length": buf.length } }, (res) => {
+        let b = ""; res.on("data", (c) => (b += c)); res.on("end", () => { let j = null; try { j = JSON.parse(b); } catch {} resolve({ status: res.statusCode, json: j, body: b }); });
+      }); r.on("error", reject); r.write(buf); r.end();
+    });
+    const br403 = await rawPost("/api/servers/backup-receive", _gzB, { "x-backup-from": "1" });
+    check("🗄️ backup-receive SEM token → 403 (dados nunca ficam públicos)", br403.status === 403, `status=${br403.status}`);
+    const brOk = await rawPost("/api/servers/backup-receive", _gzB, { "x-peer-fin": _peerTokB, "x-backup-from": "1", "x-backup-stamp": "2026-07-26", "Content-Type": "application/gzip" });
+    check("🗄️ backup do irmão é aceito e confirma os bytes", brOk.json?.ok === true && brOk.json?.bytes === _gzB.length, brOk.body.slice(0, 100));
+    check("🗄️ blob gzip gravado no disco (backups_peers/srv1)", fs.existsSync(path.join(DATA, "backups_peers", "srv1", "2026-07-26.json.gz")));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    const bst = await get("/api/admin/backup-peers");
+    check("🗄️ admin vê o backup recebido na visão de status", bst.json?.ok === true && (bst.json?.recebidos || []).some((r) => r.de === "srv1"), bst.body.slice(0, 140));
+
     const disk = fs.readdirSync(path.join(DATA, "cvs"));
     check("PDFs válidos gravados no disco", disk.includes("cliente@test.com_1002.pdf") && disk.includes("cliente@test.com_1004.pdf"),
       disk.join(", "));

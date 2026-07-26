@@ -138,6 +138,26 @@ processo e reinicia — quem acessa durante o loop vê 502.
 Vale para os 3 servidores — se der 502 "às vezes", abrir EVENTS do
 serviço e procurar a mensagem de memória.
 
+CASO 3 — DISCO /data MORREU (backup entre irmãos, v69)
+------------------------------------------------
+Todo dia às 04h (BRT) cada servidor manda um pacote gzip dos arquivos
+críticos (usuários com tokens cifrados, financeiro, pedidos, códigos,
+avaliações, histórico, admin_settings) pros 2 irmãos, guardado em
+/data/backups_peers/srvN/AAAA-MM-DD.json.gz (2 dias de retenção).
+Admin → GET /api/admin/backup-peers mostra o status; POST
+/api/admin/backup-peers/run dispara na hora.
+RESTAURAR (ex.: disco do Servidor 3 morreu):
+  1. No Render do Servidor 1 OU 2 → Shell:
+       ls /data/backups_peers/srv3/            ← escolha o mais novo
+  2. Baixe o arquivo (base64 no shell ou rota admin) e descompacte
+     localmente:  gunzip -c srv3.json.gz > pacote.json
+     O JSON tem {files:{"users.json":"...", "financeiro.json":"..."}}
+     — grave cada chave num arquivo com o MESMO nome.
+  3. No serviço novo do Servidor 3 (disco novo, MESMA DATA_ENC_KEY!):
+     suba os arquivos pro /data (shell/scp) e reinicie. A MESMA
+     DATA_ENC_KEY é obrigatória — sem ela os tokens Gmail não abrem.
+  4. Confira: login, saldos 💎, Conferência e Visão do Dono.
+
 COMO LER O PROBLEMA SOZINHO
 ------------------------------------------------
 Render → serviço → EVENTS: diz POR QUE caiu (memória, crash, deploy).

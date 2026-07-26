@@ -2329,6 +2329,66 @@ setInterval(()=>{ try{persist(path.join(DATA_DIR,"backup.json"),{ts:new Date().t
 // visitar uma página que ninguém visita. Agora roda sozinho, todo dia, sem
 // precisar de ninguém clicar em nada, e fica visível/restaurável também no
 // painel principal (ver aba Configurações em admin.html).
+// ══ v69 — BACKUP ENTRE IRMÃOS (edição mestra, 26/07/2026) ═════════════════
+// O backup completo abaixo mora NO MESMO disco dos dados — protege contra
+// erro/corrupção, NÃO contra o disco morrer. Agora que o banco guarda
+// DINHEIRO (saldos 💎, caixa, doações), cada servidor manda 1x/dia (04h BRT)
+// um pacote gzip dos arquivos críticos pros 2 irmãos, pelo canal autenticado
+// que já existe (_peerFinToken, o mesmo do Faturamento Global). Disco de um
+// morre → a cópia de ontem está nos outros dois (/data/backups_peers/srvN/).
+// users.json viaja como está NO DISCO (tokens já cifrados com DATA_ENC_KEY)
+// — o irmão só GUARDA o blob, nunca abre. Restauração: README_SERVIDORES
+// (Caso 3). Fail-open: sem chave/irmão fora = loga e segue.
+const BACKUP_PEERS_DIR=path.join(DATA_DIR,"backups_peers");
+const BACKUP_PEERS_RETENCAO=2;            // cópias guardadas POR irmão
+const BACKUP_PEERS_MAX=85*1024*1024;      // teto do pacote (85MB)
+let _peerBackupInfo={ultimoEnvio:null,resultados:[]};
+function _bundleBackupPeers(){
+  const alvos=[USERS_FILE,FINANCEIRO_FILE,PEDIDOS_FILE,ADMIN_SETTINGS_FILE,CODES_FILE,REVIEWS_FILE,TRIAL_USED_FILE,HIST_FILE];
+  const files={};
+  for(const f of alvos){
+    try{
+      if(!fs.existsSync(f))continue;
+      const st=fs.statSync(f);
+      if(st.size>60*1024*1024){console.warn(`[backup-peers] ${path.basename(f)} grande demais (${Math.round(st.size/1048576)}MB) — fora do pacote de hoje`);continue;}
+      files[path.basename(f)]=fs.readFileSync(f,"utf8");
+    }catch(e){}
+  }
+  return zlib.gzipSync(JSON.stringify({v:1,ts:Date.now(),serverId:SERVER_ID,files}));
+}
+async function enviarBackupPeers(motivo){
+  const tok=_peerFinToken();
+  if(!tok)return{ok:false,error:"sem DATA_ENC_KEY (recurso desligado)"};
+  if(process.env.TEST_LOGIN_TOKEN)return{ok:false,error:"desligado no ambiente de teste"};
+  const buf=_bundleBackupPeers();
+  if(buf.length>BACKUP_PEERS_MAX)return{ok:false,error:`pacote acima do teto (${Math.round(buf.length/1048576)}MB)`};
+  const stamp=new Date().toISOString().slice(0,10);
+  const resultados=[];
+  for(const sv of _getServersConfig()){
+    if(sv.id===SERVER_ID||!sv.url)continue;
+    try{
+      const hurl=new URL(sv.url);
+      const r=await new Promise((rs,rj)=>{
+        const rq=https.request({hostname:hurl.hostname,port:hurl.port||443,path:"/api/servers/backup-receive",method:"POST",headers:{"x-peer-fin":tok,"x-backup-from":String(SERVER_ID),"x-backup-stamp":stamp,"Content-Type":"application/gzip","Content-Length":buf.length}},resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>rs({status:resp.statusCode}));});
+        rq.on("error",rj);rq.setTimeout(120000,()=>{rq.destroy();rj(new Error("timeout"));});rq.write(buf);rq.end();
+      });
+      resultados.push({peer:sv.id,ok:r.status===200,status:r.status});
+      console.log(`[backup-peers] ${r.status===200?"✅":"⛔"} pacote (${Math.round(buf.length/1024)}KB) → Servidor ${sv.id} — HTTP ${r.status} (${motivo})`);
+    }catch(e){resultados.push({peer:sv.id,ok:false,error:e.message});console.warn(`[backup-peers] ⛔ Servidor ${sv.id}: ${e.message}`);}
+  }
+  _peerBackupInfo={ultimoEnvio:Date.now(),motivo,bytes:buf.length,resultados};
+  return{ok:resultados.some(x=>x.ok),bytes:buf.length,resultados};
+}
+let _peerBackupDia=null;
+setInterval(()=>{ // 04h BRT, uma vez por dia (horário calmo)
+  try{
+    if(process.env.TEST_LOGIN_TOKEN)return;
+    const brt=new Date(Date.now()-3*3600000);
+    const dia=brt.toISOString().slice(0,10);
+    if(brt.getUTCHours()===4&&_peerBackupDia!==dia){_peerBackupDia=dia;enviarBackupPeers("agendado 04h").catch(()=>{});}
+  }catch(e){}
+},10*60*1000);
+
 const BACKUP_DIR = path.join(DATA_DIR, "backups");
 const BACKUP_RETENCAO = 3; // 11/07: era 20 — com history/auto_jobs/logs de 30MB+ cada, 20 dias de cópias ENCHERAM o disco do Render (ENOSPC real em produção). 3 dias cobre recuperação sem afogar o disco.
 // Arquivos que NÃO entram no backup: efêmeros/regeneráveis ou redundantes.
@@ -14078,6 +14138,52 @@ Responda APENAS em JSON (sem markdown):
     const b=crypto.createHash("sha256").update(tok).digest();
     if(!crypto.timingSafeEqual(a,b))return json(res,403,{error:"não autorizado"});
     return json(res,200,{ok:true,id:_resolveServerId(req),entradas:_entradasResumo()});
+  }
+  // v69: recebe o backup diário de um servidor IRMÃO (mesmo token e mesma
+  // comparação timing-safe do financeiro). Só GUARDA o blob gzip — nunca abre.
+  if(pathname==="/api/servers/backup-receive"&&req.method==="POST"){
+    const tok=_peerFinToken();
+    if(!tok)return json(res,403,{error:"desativado (sem DATA_ENC_KEY)"});
+    const got=String(req.headers["x-peer-fin"]||"");
+    const a=crypto.createHash("sha256").update(got).digest();
+    const b=crypto.createHash("sha256").update(tok).digest();
+    if(!crypto.timingSafeEqual(a,b))return json(res,403,{error:"não autorizado"});
+    const fromId=parseInt(req.headers["x-backup-from"],10)||0;
+    if(![1,2,3].includes(fromId))return json(res,400,{error:"origem inválida"});
+    const stamp=(String(req.headers["x-backup-stamp"]||"").replace(/[^0-9A-Za-z_-]/g,"").slice(0,40))||new Date().toISOString().slice(0,10);
+    const buf=await new Promise((rs)=>{const ch=[];let tot=0;let morto=false;
+      req.on("data",c=>{tot+=c.length;if(tot>BACKUP_PEERS_MAX){morto=true;req.destroy();rs(null);return;}ch.push(c);});
+      req.on("end",()=>{if(!morto)rs(Buffer.concat(ch));});
+      req.on("error",()=>rs(null));});
+    if(!buf||!buf.length)return json(res,413,{error:"corpo vazio ou acima do teto"});
+    try{
+      const dir=path.join(BACKUP_PEERS_DIR,"srv"+fromId);
+      fs.mkdirSync(dir,{recursive:true});
+      fs.writeFileSync(path.join(dir,stamp+".json.gz"),buf);
+      const _fls=fs.readdirSync(dir).sort();
+      const _exc=_fls.length-BACKUP_PEERS_RETENCAO;
+      if(_exc>0)for(const v of _fls.slice(0,_exc)){try{fs.unlinkSync(path.join(dir,v));}catch{}}
+      console.log(`[backup-peers] 📦 recebido do Servidor ${fromId}: ${stamp}.json.gz (${Math.round(buf.length/1024)}KB)`);
+      return json(res,200,{ok:true,bytes:buf.length});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  // v69: visão e disparo manual do backup entre irmãos (admin)
+  if(pathname==="/api/admin/backup-peers"&&req.method==="GET"){
+    const s=getSess(req);const adm=s?.user_email?getUser(s.user_email):null;
+    if(!(adm?.isAdmin||isAdminEmail(s?.user_email||"")))return json(res,403,{error:"Só admin."});
+    const recebidos=[];
+    try{
+      if(fs.existsSync(BACKUP_PEERS_DIR))for(const d of fs.readdirSync(BACKUP_PEERS_DIR)){
+        const dir=path.join(BACKUP_PEERS_DIR,d);
+        for(const f of fs.readdirSync(dir)){const st=fs.statSync(path.join(dir,f));recebidos.push({de:d,arquivo:f,bytes:st.size,em:st.mtimeMs});}
+      }
+    }catch(e){}
+    return json(res,200,{ok:true,envio:_peerBackupInfo,recebidos});
+  }
+  if(pathname==="/api/admin/backup-peers/run"&&req.method==="POST"){
+    const s=getSess(req);const adm=s?.user_email?getUser(s.user_email):null;
+    if(!(adm?.isAdmin||isAdminEmail(s?.user_email||"")))return json(res,403,{error:"Só admin."});
+    return json(res,200,await enviarBackupPeers("manual (admin)"));
   }
   if(pathname==="/api/servers"&&req.method==="GET"){
     const _selfId=_resolveServerId(req);
