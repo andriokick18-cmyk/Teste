@@ -151,6 +151,9 @@ function _oauthBase(req){
     const norm=x=>{try{return new URL(x).host.toLowerCase();}catch(e){return "";}};
     const ok=new Set([norm(APP_URL)]);
     if(process.env.RENDER_EXTERNAL_URL) ok.add(norm(process.env.RENDER_EXTERNAL_URL));
+    // Cinto e suspensório: o Render também define RENDER_EXTERNAL_HOSTNAME
+    // (só o host, sem protocolo) — cobre o caso de a _URL vir vazia/mudada.
+    if(process.env.RENDER_EXTERNAL_HOSTNAME) ok.add(String(process.env.RENDER_EXTERNAL_HOSTNAME).toLowerCase().trim());
     try{ for(const sv of _getServersConfig()){ if(sv&&sv.url){ const h=norm(sv.url); if(h){ ok.add(h); ok.add("www."+h); } } } }catch(e){}
     ok.delete("");
     if(!ok.has(host)) return APP_URL;
