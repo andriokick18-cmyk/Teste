@@ -4756,6 +4756,42 @@ function translateGmailErrorMsg(msg, toEmailCtx) {
 // Cache em disco (positivo E negativo) — a mesma empresa NUNCA é pesquisada
 // duas vezes, e um teto diário global segura o custo. Fail-open: sem chave
 // Gemini, timeout ou resposta ruim = segue o fluxo antigo (pula a vaga).
+// ══ 🎁 v68 — MISSÕES/RECOMPENSAS EM DIAMANTES (edição mestra, 26/07) ══════
+// Fecha o ciclo da economia: o usuário GANHA 💎 de brinde usando o app —
+// prova o gostinho da moeda de graça, engaja (mais candidaturas) e cria o
+// desejo de completar pro plano. 💎 de missão é BÔNUS: intransferível e
+// gasto primeiro na troca (regra 13c). Cada missão paga UMA vez por conta.
+// Retroativo por desenho: /api/missions confere as condições reais a cada
+// abertura — usuário antigo que JÁ cumpriu recebe na hora (cura o passado).
+const MISSOES=[
+  {id:"primeiro_envio",emoji:"🚀",titulo:"Primeira candidatura",desc:"Envie sua 1ª candidatura (manual ou robô)",bonus:2},
+  {id:"perfil_completo",emoji:"📋",titulo:"Perfil completo",desc:"Salve seu perfil de e-mail e suba um currículo PDF",bonus:3},
+  {id:"envios_100",emoji:"💯",titulo:"100 candidaturas",desc:"Alcance 100 candidaturas enviadas",bonus:5},
+  {id:"envios_1000",emoji:"🏆",titulo:"1.000 candidaturas",desc:"Alcance 1.000 candidaturas enviadas",bonus:10},
+  {id:"avaliacao",emoji:"⭐",titulo:"Avaliação publicada",desc:"Tenha sua avaliação do H2BApply aprovada e publicada",bonus:3},
+];
+function grantMissao(email,id){
+  const m=MISSOES.find(x=>x.id===id);if(!m)return false;
+  const u=getUser(email);if(!u)return false;
+  const done=u.missoes||{};if(done[id])return false; // uma vez por conta
+  done[id]=Date.now();
+  setUser(email,{missoes:done});
+  creditDiamonds(email,{bonus:m.bonus},{tipo:"missao",nota:`${m.emoji} ${m.titulo}`});
+  addLog(email,{status:"sistema",jobTitle:`🎁 Missão cumprida: ${m.emoji} ${m.titulo} — +${m.bonus} 💎 de brinde`,company:"Recompensas"});
+  ;(async()=>{try{await pushToUser(email,{type:"generic",title:"🎁 Missão cumprida!",body:`${m.emoji} ${m.titulo}: +${m.bonus} 💎 de brinde. Junte diamantes e troque por planos!`,icon:"/icon-192.png"});}catch(e){}})();
+  console.log(`[missoes] 🎁 ${email}: ${id} (+${m.bonus} 💎 bônus)`);
+  return true;
+}
+// Envio conta candidatura real (auto/manual) — nunca "reply".
+function checkMissoesEnvio(email){
+  try{
+    const n=(getHist(email)||[]).filter(x=>x.type!=="reply").length;
+    if(n>=1)grantMissao(email,"primeiro_envio");
+    if(n>=100)grantMissao(email,"envios_100");
+    if(n>=1000)grantMissao(email,"envios_1000");
+  }catch(e){}
+}
+
 async function _recoverEmailViaGemini(badEmail, cand){
   try{
     badEmail=String(badEmail||"").toLowerCase().trim();
@@ -5235,6 +5271,7 @@ async function _doAutoSendInner(email) {
       addHist(email, histEntry);
       indexApp(email, histEntry);
       invalidateUserStatsCache(email);
+      checkMissoesEnvio(email); // 🎁 v68: missões de envio (1ª/100/1000)
 
       if (gmBody?.id && accessToken && !GMAIL_SEND_ONLY) { // v55: ler headers exige gmail.readonly — pulado no modo só-envio
         const mid = gmBody.id;
@@ -10600,6 +10637,24 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
     }catch(e){return json(res,500,{error:e.message});}
   }
   // GET /api/pedidos — lista todos os pedidos (admin) ou só do usuário
+  // 🎁 GET /api/missions — lista as missões com progresso E confere as
+  // condições reais na hora (retroativo: usuário antigo que já cumpriu
+  // recebe os 💎 ao abrir a tela — migração automática, regra da casa).
+  if(pathname==="/api/missions"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p0=getUser(s.user_email);if(!p0)return json(res,401,{error:"Conta não encontrada."});
+    const h=getHist(s.user_email)||[];
+    const nEnvios=h.filter(x=>x.type!=="reply").length;
+    if(nEnvios>=1)grantMissao(s.user_email,"primeiro_envio");
+    if(nEnvios>=100)grantMissao(s.user_email,"envios_100");
+    if(nEnvios>=1000)grantMissao(s.user_email,"envios_1000");
+    if((p0.profiles||[]).length>0&&(p0.cvs||[]).length>0)grantMissao(s.user_email,"perfil_completo");
+    if((DB_REVIEWS||[]).some(r=>String(r.email||"").toLowerCase()===s.user_email&&r.status==="approved"))grantMissao(s.user_email,"avaliacao");
+    const done=(getUser(s.user_email)||{}).missoes||{};
+    return json(res,200,{ok:true,progresso:{envios:nEnvios},
+      missoes:MISSOES.map(m=>({id:m.id,emoji:m.emoji,titulo:m.titulo,desc:m.desc,bonus:m.bonus,done:!!done[m.id],at:done[m.id]||null}))});
+  }
+
   // ══════════════════════ 💎 ROTAS DE DIAMANTES (v64) ══════════════════════
   // GET /api/diamonds — saldo, extrato e tabela de preços dos planos em 💎.
   if(pathname==="/api/diamonds"&&req.method==="GET"){
@@ -11580,6 +11635,7 @@ const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filte
           caseNum: d.caseNum || ""
         };
         addHist(s.user_email, histEntry);
+        checkMissoesEnvio(s.user_email); // 🎁 v68: missões de envio (1ª/100/1000)
         // v18-FIX: libera a reserva do limite AQUI — o histórico real (addHist)
         // já reflete este envio a partir de agora, então countManualToday() já
         // conta com ele; manter a reserva depois disso contaria em dobro.
@@ -15096,6 +15152,7 @@ APRENDIZADO: [padrão detectado, conciso, acionável, max 200 chars]`;
       rev.reviewedAt=new Date().toISOString();
       rev.reviewedBy=s.user_email;
       persist(REVIEWS_FILE, DB_REVIEWS);
+      if(d.status==="approved"&&rev.email)grantMissao(rev.email,"avaliacao"); // 🎁 v68
       return json(res,200,{ok:true});
     }catch(e){return json(res,500,{error:e.message});}
   }

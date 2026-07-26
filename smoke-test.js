@@ -797,6 +797,18 @@ async function testAuthWatchdogPush() {
     const dmC = await get("/api/diamonds");
     check("💎 comprador recebeu os 30 💎 reais da transferência", dmC.json?.saldo?.real === 30, JSON.stringify(dmC.json?.saldo));
 
+    // ═══ 🎁 v68: MISSÕES — recompensas em 💎 bônus (retroativas) ═══
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "cliente@test.com" });
+    const ms1 = await get("/api/missions");
+    const msPerfil = (ms1.json?.missoes || []).find((m) => m.id === "perfil_completo");
+    check("🎁 /api/missions lista as 5 missões com progresso", ms1.json?.ok === true && (ms1.json?.missoes || []).length === 5, ms1.body.slice(0, 140));
+    check("🎁 perfil completo (fixture tem perfil+CV) é premiado RETROATIVAMENTE", msPerfil?.done === true, JSON.stringify(msPerfil));
+    const dmM = await get("/api/diamonds");
+    check("🎁 missão creditou 💎 BÔNUS (intransferível, gasto primeiro)", (dmM.json?.saldo?.bonus || 0) >= 3 && (dmM.json?.ledger || []).some((l) => l.tipo === "missao"), JSON.stringify(dmM.json?.saldo));
+    await get("/api/missions"); // reabrir a tela não pode pagar de novo
+    const dmM2 = await get("/api/diamonds");
+    check("🎁 missão paga UMA vez só (reabrir não duplica)", (dmM2.json?.saldo?.bonus || 0) === (dmM.json?.saldo?.bonus || 0), `antes=${dmM.json?.saldo?.bonus} depois=${dmM2.json?.saldo?.bonus}`);
+
     const disk = fs.readdirSync(path.join(DATA, "cvs"));
     check("PDFs válidos gravados no disco", disk.includes("cliente@test.com_1002.pdf") && disk.includes("cliente@test.com_1004.pdf"),
       disk.join(", "));

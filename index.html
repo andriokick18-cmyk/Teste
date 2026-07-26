@@ -4220,6 +4220,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               <button class="btn btn-primary" style="flex-shrink:0" onclick="transferDiamantes()"><i class="ti ti-gift"></i> Doar 💎</button>
             </div>
           </div>
+          <div id="diam-missoes" style="margin-bottom:14px"></div>
           <div id="diam-extrato" style="margin-bottom:14px"></div>
         </div>
 
@@ -18463,6 +18464,37 @@ async function loadDiamonds(){
     }
     renderDiamTroca(d);renderDiamExtrato(d);
   }catch(e){}
+  loadMissoes(); // 🎁 v68: recompensas (retroativo — quem já cumpriu recebe na hora)
+}
+async function loadMissoes(){
+  const box=g('#diam-missoes'); if(!box)return;
+  try{
+    const r=await fetch('/api/missions',{credentials:'include'});
+    const d=await r.json(); if(!d.ok)return;
+    const n=(d.progresso&&d.progresso.envios)||0;
+    const prog=m=>{
+      if(m.id==='envios_100'&&!m.done)return `${Math.min(n,100)}/100`;
+      if(m.id==='envios_1000'&&!m.done)return `${Math.min(n,1000)}/1000`;
+      return '';
+    };
+    const feitas=d.missoes.filter(m=>m.done).length;
+    box.innerHTML=`<div style="background:var(--surface);border:2px solid var(--border2);border-radius:var(--rl);overflow:hidden">
+      <div style="background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(251,191,36,.07));padding:12px 16px;border-bottom:1px solid var(--border)">
+        <div style="font-size:14px;font-weight:800">🎁 Recompensas <span style="font-size:11px;color:var(--t3);font-weight:700">${feitas}/${d.missoes.length}</span></div>
+        <div style="font-size:11px;color:var(--t3)">Use o app e ganhe 💎 de brinde — junte e troque por planos</div>
+      </div>
+      <div style="padding:6px 16px 10px">
+        ${d.missoes.map(m=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:20px;flex-shrink:0;${m.done?'':'filter:grayscale(1);opacity:.6'}">${m.emoji}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:12.5px;font-weight:700;color:var(--text)">${esc(m.titulo)} ${prog(m)?`<span style="font-size:10px;color:var(--t3);font-weight:700">· ${prog(m)}</span>`:''}</div>
+            <div style="font-size:10.5px;color:var(--t3)">${esc(m.desc)}</div>
+          </div>
+          <div style="flex-shrink:0;font-size:12px;font-weight:800;${m.done?'color:var(--green)':'color:#d97706'}">${m.done?'✓ +'+m.bonus+' 💎':'+'+m.bonus+' 💎'}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }catch(e){}
 }
 function renderDiamTroca(d){
   const box=g('#diam-troca'); if(!box)return;
@@ -18513,7 +18545,7 @@ function renderDiamExtrato(d){
   const box=g('#diam-extrato'); if(!box)return;
   const led=d.ledger||[];
   if(!led.length){box.innerHTML='';return;}
-  const LBL={doacao:'\u{1F49A} Doação confirmada',troca:'\u{1F501} Troca por plano',transfer_in:'\u{1F381} Recebido de amigo',transfer_out:'\u{1F381} Doado para amigo',admin:'\u{1F6E0} Ajuste do admin',estorno:'\u26D4 Estorno'};
+  const LBL={doacao:'\u{1F49A} Doação confirmada',troca:'\u{1F501} Troca por plano',transfer_in:'\u{1F381} Recebido de amigo',transfer_out:'\u{1F381} Doado para amigo',admin:'\u{1F6E0} Ajuste do admin',estorno:'\u26D4 Estorno',missao:'\u{1F381} Miss\u00e3o cumprida'};
   box.innerHTML=`<div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden">
     <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:800">\u{1F4DC} Extrato de diamantes</div>
     ${led.slice(0,12).map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border);font-size:12px">
