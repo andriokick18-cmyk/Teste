@@ -129,6 +129,35 @@ const OAUTH_SCOPES = GMAIL_SEND_ONLY
 if(GMAIL_SEND_ONLY) console.log("[oauth] ✉️ MODO SÓ-ENVIO ligado: escopo único gmail.send — aba Respostas desativada neste servidor.");
 const REDIRECT_URI        = APP_URL + "/oauth/callback";
 const REDIRECT_URI_SENDER = APP_URL + "/oauth/add-sender/callback";
+// ── v61: redirect_uri pelo HOST da requisição (com allowlist) ──────────────
+// BUG REAL (25/07, prints do dono): login do Servidor 3 travava "pra sempre"
+// na volta do Google — a env APP_URL apontava pra applyh2b.com (DNS ainda no
+// parking da Namecheap, endereço morto) e o Google devolvia o usuário pra lá,
+// mesmo quem entrou pelo h2b-server-3.onrender.com. Raiz: o redirect_uri era
+// SEMPRE o APP_URL, ignorando por qual endereço a pessoa estava navegando.
+// Agora o servidor monta o redirect_uri pelo host da requisição, DESDE QUE
+// seja um host confiável: o do APP_URL, o RENDER_EXTERNAL_URL (o Render
+// define sozinho em todo serviço) ou um host da lista de servidores (+www).
+// Host desconhecido cai no APP_URL (comportamento antigo) — nunca se confia
+// cegamente no header Host (anti open-redirect/host-poisoning). O start e o
+// callback acontecem no MESMO host (o Google devolve exatamente pra onde o
+// start apontou), então derivar de novo no callback dá o valor idêntico que
+// a troca do code exige. Lembrete operacional: cada host usado precisa estar
+// nos Authorized redirect URIs do Google Console (…/oauth/callback).
+function _oauthBase(req){
+  try{
+    const host=String((req.headers&&req.headers.host)||"").toLowerCase().split(",")[0].trim();
+    if(!host) return APP_URL;
+    const norm=x=>{try{return new URL(x).host.toLowerCase();}catch(e){return "";}};
+    const ok=new Set([norm(APP_URL)]);
+    if(process.env.RENDER_EXTERNAL_URL) ok.add(norm(process.env.RENDER_EXTERNAL_URL));
+    try{ for(const sv of _getServersConfig()){ if(sv&&sv.url){ const h=norm(sv.url); if(h){ ok.add(h); ok.add("www."+h); } } } }catch(e){}
+    ok.delete("");
+    if(!ok.has(host)) return APP_URL;
+    const proto=(host.startsWith("localhost")||host.startsWith("127."))?"http":"https";
+    return proto+"://"+host;
+  }catch(e){ return APP_URL; }
+}
 // ── Fase 1 · Módulo 1: configuração extraída para src/config.js ──────────
 const { MAX_SENDER_EMAILS_FREE, MAX_SENDER_EMAILS_VIP, MAX_SENDER_EMAILS_ADMIN,
         MAX_RESUMES, MAX_COVERS,
@@ -8917,7 +8946,7 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
   // força consent para o Google emitir um refresh_token NOVO neste login.
   const _rtUsable=_hasRt&&!_hintUser?.rtInvalid;
   const _promptVal=(_rtUsable&&_hasNewScopes)?"select_account":"consent select_account";
-  const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI,response_type:"code",scope:OAUTH_SCOPES,access_type:"offline",prompt:_promptVal,state:st});res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();}
+  const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:_oauthBase(req)+"/oauth/callback",response_type:"code",scope:OAUTH_SCOPES,access_type:"offline",prompt:_promptVal,state:st});res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();}
 
   if(pathname==="/oauth/callback"){
     const code=u.searchParams.get("code"),error=u.searchParams.get("error");
@@ -8933,7 +8962,7 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
       const ownerEmail2=pending2.ownerEmail;
       delete sessions["__sender__"+_st];
       try{
-        const tb2=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:REDIRECT_URI,grant_type:"authorization_code"}).toString();
+        const tb2=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:_oauthBase(req)+"/oauth/callback",grant_type:"authorization_code"}).toString();
         const{body:tk2}=await httpsReq({hostname:"oauth2.googleapis.com",path:"/token",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(tb2)}},tb2);
         if(tk2.error)return fail2(tk2.error_description||tk2.error);
         if(!tk2.access_token)return fail2("Token não recebido.");
@@ -8981,7 +9010,7 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
       if(Date.now()-pendingLogin.ts>600_000){return fail("Sessão de login expirada. Tente entrar novamente.");}
     }
     try{
-      const tb=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:REDIRECT_URI,grant_type:"authorization_code"}).toString();
+      const tb=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:_oauthBase(req)+"/oauth/callback",grant_type:"authorization_code"}).toString();
       const{body:tk}=await httpsReq({hostname:"oauth2.googleapis.com",path:"/token",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(tb)}},tb);
       if(tk.error)return fail(tk.error_description||tk.error);if(!tk.access_token)return fail("Token não recebido.");
       const{body:ui}=await httpsReq({hostname:"www.googleapis.com",path:"/oauth2/v2/userinfo",method:"GET",headers:{"Authorization":"Bearer "+tk.access_token}});
@@ -9147,7 +9176,7 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
     // Salva o state com o email do dono para vincular no callback
     sessions["__sender__"+st]={ownerEmail:s.user_email,created:Date.now()};
     persistSessions(); // grava no disco (ver ajuste em persistSessions: __sender__ agora sobrevive a restart)
-    const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:REDIRECT_URI,response_type:"code",scope:OAUTH_SCOPES,access_type:"offline",prompt:"consent select_account",state:st});
+    const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:_oauthBase(req)+"/oauth/callback",response_type:"code",scope:OAUTH_SCOPES,access_type:"offline",prompt:"consent select_account",state:st});
     res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();
   }
 
