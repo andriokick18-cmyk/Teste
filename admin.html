@@ -10155,8 +10155,10 @@ function preCheckBanner(pc){
   </div>`;
 }
 function renderPedidoCard(pd){
-  const planCls={vip:'pv2-plan-vip',vipro:'pv2-plan-vipro',doublepro:'pv2-plan-doublepro'}[pd.plano]||'pv2-plan-vip';
-  const plano=PLAN_PRICES[pd.plano]||{name:pd.plano,desc:''};
+  // 💎 v65: pedido de DOAÇÃO tem rótulo/ação próprios (credita 💎, não plano)
+  const _ehDoa=pd.tipo==='doacao'||pd.plano==='doacao';
+  const planCls=_ehDoa?'pv2-plan-doublepro':({vip:'pv2-plan-vip',vipro:'pv2-plan-vipro',doublepro:'pv2-plan-doublepro'}[pd.plano]||'pv2-plan-vip');
+  const plano=_ehDoa?{name:'💎 Doação',desc:`${pd.diamantes||'?'} diamantes a creditar`}:(PLAN_PRICES[pd.plano]||{name:pd.plano,desc:''});
   const statusCls={pendente:'is-pendente',ativo:'is-ativo',cancelado:'is-cancelado',pago:'is-pago'}[pd.status]||'';
   const dt=pd.createdAt?new Date(pd.createdAt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):'–';
   const _agoMs=Date.now()-(pd.createdAt||0);
@@ -10171,6 +10173,7 @@ function renderPedidoCard(pd){
   const _pdT=_tsPed(pd.ativadoEm)||_tsPed(pd.pagoEm)||pd.createdAt||0;
   const _dupDe=(typeof _pedTodos!=='undefined'?_pedTodos:[]).find(x=>x&&x.id!==pd.id&&x.userEmail===pd.userEmail
     &&x.plano===pd.plano&&['pago','ativo'].includes(x.status)
+    &&(!_ehDoa||Math.abs((x.valorTotal||0)-(pd.valorTotal||0))<0.01) // doação: só duplicado se MESMO valor
     &&Math.abs((_tsPed(x.ativadoEm)||_tsPed(x.pagoEm)||x.createdAt||0)-_pdT)<=3*86400_000);
   const dupBanner=(_dupDe&&pd.status!=='cancelado')?`<div style="background:rgba(239,68,68,.14);border:1.5px solid rgba(239,68,68,.4);border-radius:8px;padding:6px 10px;margin:0 0 6px;font-size:11px;font-weight:800;color:#f87171">⚠️ POSSÍVEL DUPLICADO do pedido #${(_dupDe.id||'').slice(-8).toUpperCase()} — mesmo cliente, mesmo plano, ≤3 dias. Se for o mesmo pagamento, CANCELE um deles (cancelar limpa o caixa e estorna os dias sozinho).</div>`:'';
   // ⚡ Robô liberou o plano provisoriamente (comprovante conferiu) — o admin
@@ -10180,10 +10183,10 @@ function renderPedidoCard(pd){
   const wppNum=(pd.userWhatsapp||'').replace(/\D/g,'');
   const wppBase=wppNum?`https://wa.me/${wppNum.startsWith('55')?wppNum:'55'+wppNum}`:'';
   const wppMsg=wppBase?`${wppBase}?text=${encodeURIComponent('Olá '+(pd.userName||'')+'! Aqui é o suporte do H2BApply. Seu pedido de '+plano.name+' foi recebido.')}`:'' ;
-  const periodo=pd.dias===365?'1 ano':pd.dias===90?'3 meses':pd.dias===60?'2 meses':'1 mês';
+  const periodo=_ehDoa?`${pd.diamantes||'?'} 💎`:(pd.dias===365?'1 ano':pd.dias===90?'3 meses':pd.dias===60?'2 meses':'1 mês');
   const idCurto=(pd.id||'').slice(-8).toUpperCase();
   const acoesPendente=pd.status==='pendente'||pd.status==='pago'?`
-    <button class="pv2-btn pv2-btn-ativar" onclick="aprovarPedido('${pd.id}')"><i class="ti ti-check"></i> Ativar plano</button>
+    <button class="pv2-btn pv2-btn-ativar" onclick="aprovarPedido('${pd.id}')"><i class="ti ti-check"></i> ${_ehDoa?'Creditar 💎':'Ativar plano'}</button>
     ${wppMsg?`<a href="${wppMsg}" target="_blank" rel="noopener noreferrer" class="pv2-btn pv2-btn-wpp"><i class="ti ti-brand-whatsapp"></i> Contatar</a>`:''}
     <button class="pv2-btn pv2-btn-ghost" onclick="marcarPago('${pd.id}')"><i class="ti ti-cash"></i> Pago</button>
     <button class="pv2-btn pv2-btn-cancel" onclick="cancelarPedido('${pd.id}')"><i class="ti ti-x"></i> Cancelar</button>
@@ -10343,7 +10346,7 @@ function renderPagamentosFeed(){
 // vivo a partir desses mesmos lançamentos, então uma edição aqui já soma
 // certo lá — não precisa de nenhum passo extra.
 function buildPagamentoRow(pd){
-  const planoOriginal=PLAN_PRICES[pd.plano]||{name:pd.plano||'?',desc:''};
+  const planoOriginal=(pd.tipo==='doacao'||pd.plano==='doacao')?{name:'💎 Doação',desc:`${pd.diamantes||'?'} diamantes`}:(PLAN_PRICES[pd.plano]||{name:pd.plano||'?',desc:''});
   const finEntry=(finGetData().pagamentos||[]).find(x=>x.pedidoId===pd.id);
   const planoAtualKey=finEntry&&finEntry.plano!==undefined&&finEntry.plano!==''?finEntry.plano:pd.plano;
   const planoAtual=PLAN_PRICES[planoAtualKey]||{name:planoAtualKey||'?',desc:''};
@@ -10660,6 +10663,21 @@ async function adminSendNotifToUser(email){
 }
 
 // Render tab Compras/Plano no modal
+// 💎 v65: ajuste manual de diamantes do cliente (real = transferível, bonus = brinde).
+// Negativo remove; o servidor trava saldo negativo e grava a trilha no extrato.
+async function admDiamAjuste(email,tipo){
+  const inp=document.getElementById('adm-diam-qtd');
+  const qtd=parseInt(inp?.value,10)||0;
+  if(!qtd){toast('Digite a quantidade (negativa pra tirar)','r');return;}
+  if(!confirm(`${qtd>0?'Dar':'Tirar'} ${Math.abs(qtd)} 💎 ${tipo==='real'?'REAIS':'de BRINDE'} ${qtd>0?'para':'de'} ${email}?`))return;
+  try{
+    const body={email,nota:'Ajuste manual pelo painel'};body[tipo]=qtd;
+    const r=await fetch('/api/admin/diamonds',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(d.ok){toast(`💎 Saldo atualizado: ${d.saldo.real} reais + ${d.saldo.bonus} brinde`,'g');if(inp)inp.value='';openUser(email,'compras');}
+    else toast('Erro: '+(d.error||'?'),'r');
+  }catch(e){toast('Erro: '+e.message,'r');}
+}
 function renderModalCompras(d,u){
   const el=document.getElementById('modal-tab-compras');
   if(!el)return;
@@ -10703,6 +10721,22 @@ function renderModalCompras(d,u){
           <button class="btn btn-danger btn-sm" onclick="adminRevokeVip('${esc(email)}')"><i class="ti ti-ban"></i>Revogar</button>
         </div>
       </div>
+      <!-- 💎 v65: saldo de diamantes + ajuste manual (API /api/admin/diamonds) -->
+      <div style="background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(99,102,241,.08));border:1.5px solid rgba(139,92,246,.3);border-radius:12px;padding:14px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:800;color:var(--t3);text-transform:uppercase;margin-bottom:8px">💎 Diamantes</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div><div style="font-size:20px;font-weight:800;color:#a78bfa">${((user.diamonds&&user.diamonds.real)||0).toLocaleString('pt-BR')}</div><div style="font-size:10px;color:var(--t3)">REAIS (doação · transferíveis)</div></div>
+          <div><div style="font-size:20px;font-weight:800;color:#fbbf24">${((user.diamonds&&user.diamonds.bonus)||0).toLocaleString('pt-BR')}</div><div style="font-size:10px;color:var(--t3)">BÔNUS (brinde · intransferíveis)</div></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <input type="number" id="adm-diam-qtd" placeholder="Qtd (neg. tira)" style="width:110px;background:var(--glass);border:1px solid var(--border2);border-radius:8px;padding:7px 9px;font-size:12px;color:var(--text);font-family:inherit">
+          <button class="btn btn-purple btn-sm" onclick="admDiamAjuste('${esc(email)}','real')"><i class="ti ti-diamond"></i> 💎 Real</button>
+          <button class="btn btn-amber btn-sm" onclick="admDiamAjuste('${esc(email)}','bonus')"><i class="ti ti-gift"></i> 💎 Brinde</button>
+        </div>
+        ${Array.isArray(user.diamondLedger)&&user.diamondLedger.length?`<div style="margin-top:10px;max-height:130px;overflow-y:auto">
+          ${user.diamondLedger.slice(0,8).map(l=>`<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border)"><span style="color:var(--t3)">${new Date(l.ts).toLocaleDateString('pt-BR')} · ${esc(l.tipo||'')}${l.para?' → '+esc(l.para):''}${l.de?' ← '+esc(l.de):''}</span><strong style="color:${(l.qtd||0)>=0?'var(--green)':'var(--red)'}">${(l.qtd||0)>=0?'+':''}${l.qtd||0} 💎</strong></div>`).join('')}
+        </div>`:''}
+      </div>
       <!-- Contato direto -->
       ${(user.phone||user.whatsapp)?`<div style="background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.25);border-radius:10px;padding:12px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
         <i class="ti ti-brand-whatsapp" style="font-size:24px;color:#25d366;flex-shrink:0"></i>
@@ -10716,7 +10750,7 @@ function renderModalCompras(d,u){
       <div style="font-size:12px;font-weight:800;color:var(--t3);text-transform:uppercase;margin-bottom:8px">🛒 Pedidos de plano (${peds.length})</div>
       ${peds.length?peds.map(pd=>{
         const sl=PED_STATUS_LABELS[pd.status]||{label:pd.status,cls:'b-gray'};
-        const planoNm=PLAN_PRICES[pd.plano]?.name||pd.plano;
+        const planoNm=(pd.tipo==='doacao'||pd.plano==='doacao')?`💎 Doação (${pd.diamantes||'?'} 💎)`:(PLAN_PRICES[pd.plano]?.name||pd.plano);
         const dt=pd.createdAt?new Date(pd.createdAt).toLocaleDateString('pt-BR'):'–';
         return`<div style="background:var(--glass);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px">
           <div style="flex:1">
@@ -14106,8 +14140,8 @@ function clearEventsCache(){
       <div id="maprov-comp-img" style="text-align:center"></div>
     </div>
 
-    <!-- Dias bônus -->
-    <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.06)">
+    <!-- Dias bônus (some quando o pedido é DOAÇÃO — bônus de dias não se aplica a 💎) -->
+    <div id="maprov-bonus-sec" style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.06)">
       <div style="font-size:10px;font-weight:800;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">🎁 Dias Bônus (além do plano contratado)</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
         <button class="maprov-bonus-btn" onclick="maprovSelecionarBonus(0,this)" style="background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.15);border-radius:10px;padding:10px 4px;font-size:13px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit;transition:all .14s">+0<div style="font-size:9px;font-weight:400;color:rgba(255,255,255,.4);margin-top:2px">padrão</div></button>
@@ -14212,9 +14246,14 @@ async function abrirModalAprovacao(pedidoId){
     // Preencher subtítulo
     document.getElementById('maprov-subtitle').textContent = `Pedido #${(pd.id||'').slice(-8).toUpperCase()} — ${new Date(pd.createdAt||0).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})}`;
 
-    // Preencher resumo
-    const planoInfo = PLAN_PRICES_MAPROV[pd.plano]||{name:pd.plano,prices:{}};
-    const periodo = pd.dias===365?'1 ano':pd.dias===90?'90 dias':pd.dias===60?'60 dias':'30 dias';
+    // Preencher resumo (💎 v65: doação mostra os diamantes, não plano/período)
+    const _ehDoa=pd.tipo==='doacao'||pd.plano==='doacao';
+    const planoInfo = _ehDoa?{name:'💎 Doação',prices:{}}:(PLAN_PRICES_MAPROV[pd.plano]||{name:pd.plano,prices:{}});
+    const periodo = _ehDoa?`${pd.diamantes||'?'} 💎`:(pd.dias===365?'1 ano':pd.dias===90?'90 dias':pd.dias===60?'60 dias':'30 dias');
+    const _bonusSec=document.getElementById('maprov-bonus-sec');
+    if(_bonusSec)_bonusSec.style.display=_ehDoa?'none':'';
+    const _precalcEl=document.getElementById('maprov-precalc');
+    if(_precalcEl&&_ehDoa)_precalcEl.innerHTML=`<div style="background:rgba(139,92,246,.1);border:1.5px solid rgba(139,92,246,.35);border-radius:10px;padding:12px;text-align:center;font-size:13px;color:#c4b5fd">Ao confirmar, <strong style="color:#fff">${pd.diamantes||'?'} 💎 REAIS</strong> caem na conta de <strong style="color:#fff">${(pd.userEmail||'')}</strong> na hora (R$ ${(pd.valorTotal||0).toFixed(2)} ÷ 1,50). Diamante real pode ser doado a outro usuário e trocado por plano.</div>`;
     const wppNum = (pd.userWhatsapp||'').replace(/\D/g,'');
     document.getElementById('maprov-resumo').innerHTML = `
       <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;margin-bottom:10px">
@@ -14351,6 +14390,8 @@ function maprovCalcExpiry(){
 }
 function maprovRenderPrecalc(){
   const el=document.getElementById('maprov-precalc'); if(!el) return;
+  // 💎 v65: em doação o precálculo de dias não se aplica (o aviso fixo dos 💎 já está lá)
+  const _pdP=_maprovPedidoData; if(_pdP&&(_pdP.tipo==='doacao'||_pdP.plano==='doacao')) return;
   const c=maprovCalcExpiry(); if(!c){el.innerHTML='';return;}
   const pd=_maprovPedidoData;
   const pagoStr = pd.pagoEm ? maprovFmtData(c.pago) : '⚠️ não informada';

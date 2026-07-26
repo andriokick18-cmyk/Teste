@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v35"; // v35 (26/07): index.html mudou (v64: 💎 sistema de diamantes — aba Planos vira doação PIX → 💎 → troca por plano; compra direta não existe mais). Regra 6c: bump junto.
+const CACHE_NAME = "h2bapply-v36"; // v36 (26/07): index.html e admin.html mudaram (v65: admin entende doações — cards/aprovação/cliente com 💎, ajuste manual; drawer do usuário mostra saldo 💎). Regra 6c: bump junto.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

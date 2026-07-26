@@ -6656,7 +6656,11 @@ function renderDrawer(){
   updateThemeUI();
   const da=g("#d-av");if(da){if(U.picture)da.innerHTML=`<img alt="" referrerpolicy="no-referrer" src="${esc(U.picture)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;else da.textContent=(U.name||"?")[0].toUpperCase();}
   if(g("#d-name"))g("#d-name").textContent=U.name;if(g("#d-email"))g("#d-email").textContent=U.email;
-  const dp=g("#d-plan");if(dp)dp.innerHTML=planBadgeHTML();
+  // 💎 v65: saldo de diamantes sempre à vista no drawer (toca → aba Planos)
+  const dp=g("#d-plan");if(dp){
+    const _dTot=((U.diamonds&&U.diamonds.real)||0)+((U.diamonds&&U.diamonds.bonus)||0);
+    dp.innerHTML=planBadgeHTML()+(_dTot>0?` <span onclick="closeDrawer();sv('plans')" style="background:rgba(139,92,246,.25);border:1px solid rgba(196,181,253,.4);border-radius:20px;padding:2px 9px;font-size:10.5px;font-weight:800;color:#e9d5ff;cursor:pointer">💎 ${_dTot.toLocaleString('pt-BR')}</span>`:"");
+  }
 }
 
 // ═══════════════════════════════════════════
