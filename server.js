@@ -488,6 +488,41 @@ function _vipSnapshot(u){
 // VIP. Preços em R$ — mudar aqui exige avisar o Andrio antes (dinheiro real).
 const PLANO_PRECO_TAB={vip:{30:100,60:190,90:270,365:960},vipro:{30:150,60:285,90:405,365:1440},doublepro:{30:250,60:475,90:675,365:2400}};
 
+// ══════════════════════ 💎 DIAMANTES (v64 — ORDEM DO DONO, 26/07/2026) ═════
+// Não existe mais COMPRA de plano. O caminho do dinheiro agora é:
+//   1. DOAÇÃO via PIX (mesmo fluxo de comprovante/pedido de sempre) →
+//      admin confirma → credita DIAMANTES REAIS (1 💎 = R$ 1,50);
+//   2. Plano é TROCADO por diamantes NA HORA, sem aprovação (o dinheiro já
+//      foi conferido na doação);
+//   3. 💎 REAL (de doação/transferência) pode ser doado a outro usuário do
+//      mesmo servidor; 💎 BÔNUS (brinde do admin) é pessoal e intransferível.
+// Na troca gasta-se o BÔNUS primeiro (o real, transferível, fica por último).
+// Preço em 💎 deriva SEMPRE da tabela oficial PLANO_PRECO_TAB (nunca
+// hardcoded em outro lugar — regra da casa de preço dinâmico).
+const DIAMOND_PRICE_BRL=Math.max(0.01,parseFloat(process.env.DIAMOND_PRICE_BRL||"1.5")||1.5);
+function planoPrecoDiamantes(plano,dias){const t=(PLANO_PRECO_TAB[plano]||{})[dias];return t?Math.round(t/DIAMOND_PRICE_BRL):null;}
+function _diamSaldo(u){const d=(u&&u.diamonds)||{};return{real:Math.max(0,parseInt(d.real,10)||0),bonus:Math.max(0,parseInt(d.bonus,10)||0)};}
+function _diamLedgerPush(u,entry){const l=Array.isArray(u&&u.diamondLedger)?u.diamondLedger:[];return[{ts:Date.now(),...entry},...l].slice(0,300);}
+function creditDiamonds(email,{real=0,bonus=0},meta){
+  const u=getUser(email);if(!u)return null;
+  const s0=_diamSaldo(u);
+  const novo={real:s0.real+Math.max(0,parseInt(real,10)||0),bonus:s0.bonus+Math.max(0,parseInt(bonus,10)||0)};
+  setUser(email,{diamonds:novo,diamondLedger:_diamLedgerPush(u,{tipo:(meta&&meta.tipo)||"credito",qtd:(novo.real-s0.real)+(novo.bonus-s0.bonus),real:novo.real-s0.real,bonus:novo.bonus-s0.bonus,saldoReal:novo.real,saldoBonus:novo.bonus,...(meta||{})})});
+  return novo;
+}
+// Débito de troca: gasta BÔNUS primeiro, depois REAL. Retorna saldo novo ou
+// null se insuficiente (nunca deixa negativo).
+function debitDiamonds(email,qtd,meta){
+  const u=getUser(email);if(!u)return null;
+  qtd=Math.max(0,parseInt(qtd,10)||0);
+  const s0=_diamSaldo(u);
+  if(s0.real+s0.bonus<qtd)return null;
+  const deBonus=Math.min(s0.bonus,qtd),deReal=qtd-deBonus;
+  const novo={real:s0.real-deReal,bonus:s0.bonus-deBonus};
+  setUser(email,{diamonds:novo,diamondLedger:_diamLedgerPush(u,{tipo:(meta&&meta.tipo)||"debito",qtd:-qtd,real:-deReal,bonus:-deBonus,saldoReal:novo.real,saldoBonus:novo.bonus,...(meta||{})})});
+  return novo;
+}
+
 // ══════════════════════════════════════════════════════════════════════════
 // 💰 CONTABILIDADE CANÔNICA — UMA função, UM número (dono, 15/07/2026)
 // O painel mostrava 4 receitas diferentes pro MESMO caixa:
@@ -1618,7 +1653,10 @@ const setUser    = (e,d) => {
   // de uma edição — infinitamente mais raro que travar todo mundo a cada
   // clique. Fica síncrono só o que É dinheiro/acesso: token OAuth, VIP,
   // admin, plano.
-  const isCritical = !!(d.refresh_token || d.cached_access_token || d.vip || d.isAdmin || d.plan);
+  // v64: diamonds É dinheiro (saldo comprado com doação PIX) — entra no ramo
+  // síncrono junto de token/vip/admin/plan. Operações de diamante são raras
+  // (doação/troca/transferência), então o custo do write síncrono é ok.
+  const isCritical = !!(d.refresh_token || d.cached_access_token || d.vip || d.isAdmin || d.plan || d.diamonds);
   if (isCritical) {
     persist(USERS_FILE, DB_USERS);
   } else {
@@ -10245,6 +10283,16 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
           targetEmail=te;
         }
       }
+      // ── 💎 v64: pedido de DOAÇÃO (dono, 26/07 — não existe mais compra de
+      // plano). tipo:"doacao" + valorTotal → diamantes = floor(valor / 1,50).
+      // O resto do fluxo (comprovante, pré-check IA, aprovação, caixa) é o
+      // MESMO dos pedidos de sempre — só o que a aprovação credita muda.
+      const _ehDoacao=String(d.tipo||d.plano||"").toLowerCase()==="doacao";
+      if(_ehDoacao){
+        const _v=parseFloat(d.valorTotal)||0;
+        if(_v<DIAMOND_PRICE_BRL)return json(res,400,{error:`Valor mínimo da doação: R$ ${DIAMOND_PRICE_BRL.toFixed(2).replace(".",",")} (1 💎).`});
+        if(_v>50000)return json(res,400,{error:"Valor máximo por doação: R$ 50.000."});
+      }
       // ── DEDUP (#3): se o próprio usuário já tem um pedido EM ANÁLISE, não cria
       // outro — devolve o pendente existente. Regularização do admin EM NOME de
       // outro usuário (targetEmail != quem chamou) passa direto, sem dedup.
@@ -10261,7 +10309,10 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         // criar outro. Renovação de verdade (dias depois) passa normal, e o
         // admin (Regularizar) não passa por aqui.
         const _tsP=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
-        const jaRecente=DB_PEDIDOS.find(x=>x.userEmail===targetEmail
+        // v64: doação repetida em dias seguidos é LEGÍTIMA (a pessoa pode doar
+        // de novo quando quiser) — o dedup de "mesmo plano em 3 dias" só vale
+        // pra pedidos de plano; a anti-fraude da doação é o hash do comprovante.
+        const jaRecente=_ehDoacao?null:DB_PEDIDOS.find(x=>x.userEmail===targetEmail
           &&["pago","ativo"].includes(String(x.status||"").toLowerCase())
           &&String(x.plano||"")===String(d.plano||"")
           &&(Date.now()-(_tsP(x.ativadoEm)||_tsP(x.pagoEm)||x.createdAt||0))<=3*86400_000);
@@ -10282,8 +10333,10 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         userCity:d.userCity||"",
         userState:d.userState||"",
         userAddress:d.userAddress||"",
-        plano:d.plano||"vipro",          // vip | vipro | doublepro
-        dias:parseInt(d.dias)||30,        // 30 | 60 | 90 | 365
+        plano:_ehDoacao?"doacao":(d.plano||"vipro"), // vip | vipro | doublepro | doacao (v64)
+        dias:_ehDoacao?0:(parseInt(d.dias)||30),      // 30 | 60 | 90 | 365 (doação: 0)
+        tipo:_ehDoacao?"doacao":"plano",              // v64: doacao credita 💎, plano credita dias
+        diamantes:_ehDoacao?Math.floor((parseFloat(d.valorTotal)||0)/DIAMOND_PRICE_BRL):0,
         valorTotal:parseFloat(d.valorTotal)||0,
         desconto:parseFloat(d.desconto)||0,
         comprovante:(()=>{
@@ -10338,7 +10391,7 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
             if(dup) dupAlerta=`Comprovante IDÊNTICO ao pedido #${(dup.id||"").slice(-8).toUpperCase()} de ${dup.userEmail||"?"}`;
           }catch(eH){ console.warn("[precheck] hash:",eH.message); }
           const prompt=`Você é o auditor de comprovantes do H2BApply. Leia a IMAGEM do comprovante de pagamento (PIX ou transferência bancária brasileira) e confira.
-ESPERADO: plano ${pedido.plano.toUpperCase()} ${pedido.dias} dias${precoEsp?` = R$ ${precoEsp.toFixed(2)}`:""}. Valor que o cliente informou: R$ ${(pedido.valorTotal||0).toFixed(2)}.
+ESPERADO: ${pedido.tipo==="doacao"?`DOAÇÃO de R$ ${(pedido.valorTotal||0).toFixed(2)} (vira ${pedido.diamantes||0} diamantes)`:`plano ${pedido.plano.toUpperCase()} ${pedido.dias} dias${precoEsp?` = R$ ${precoEsp.toFixed(2)}`:""}`}. Valor que o cliente informou: R$ ${(pedido.valorTotal||0).toFixed(2)}.
 Da imagem, leia: o VALOR pago, a DATA/HORA, e se parece um comprovante REAL de PIX/transferência (e não um print qualquer ou editado).
 Responda SÓ JSON, sem markdown: {"veredito":"CONFERE"|"DIVERGENCIA"|"ILEGIVEL","valorLido":número ou null,"dataLida":"texto" ou null,"bateComEsperado":true|false,"resumo":"frase curta em pt-BR","alertas":["..."]}
 Regras: "CONFERE" só se o valor lido bater com o esperado (ou com o valor informado) E parecer comprovante real. Se não conseguir ler o valor, "ILEGIVEL". Se ler mas não bater, "DIVERGENCIA". Seja rigoroso: dinheiro está em jogo.`;
@@ -10375,7 +10428,7 @@ Regras: "CONFERE" só se o valor lido bater com o esperado (ou com o valor infor
         try{
           const admins=[...ADMIN_EMAILS];
           for(const ae of admins){
-            await pushToUser(ae,{type:"new_order",title:"💳 Novo pedido de plano!",body:`${pedido.userName||pedido.userEmail} solicitou ${pedido.plano} por ${pedido.dias} dias — R$${pedido.valorTotal}`,icon:"/icon-192.png"}).catch(()=>{});
+            await pushToUser(ae,{type:"new_order",title:pedido.tipo==="doacao"?"💎 Nova doação recebida!":"💳 Novo pedido de plano!",body:pedido.tipo==="doacao"?`${pedido.userName||pedido.userEmail} doou R$${pedido.valorTotal} (${pedido.diamantes} 💎) — confira o comprovante`:`${pedido.userName||pedido.userEmail} solicitou ${pedido.plano} por ${pedido.dias} dias — R$${pedido.valorTotal}`,icon:"/icon-192.png"}).catch(()=>{});
           }
         }catch(e){console.warn("[pedido] push err:",e.message);}
         // Email para admins
@@ -10464,6 +10517,105 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
     }catch(e){return json(res,500,{error:e.message});}
   }
   // GET /api/pedidos — lista todos os pedidos (admin) ou só do usuário
+  // ══════════════════════ 💎 ROTAS DE DIAMANTES (v64) ══════════════════════
+  // GET /api/diamonds — saldo, extrato e tabela de preços dos planos em 💎.
+  if(pathname==="/api/diamonds"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!p)return json(res,401,{error:"Conta não encontrada."});
+    const tabela=[];
+    for(const[pl,combos]of Object.entries(PLANO_PRECO_TAB))
+      for(const dk of Object.keys(combos))
+        tabela.push({plano:pl,dias:parseInt(dk,10),brl:combos[dk],diamantes:planoPrecoDiamantes(pl,parseInt(dk,10))});
+    return json(res,200,{ok:true,price:DIAMOND_PRICE_BRL,saldo:_diamSaldo(p),
+      ledger:(Array.isArray(p.diamondLedger)?p.diamondLedger:[]).slice(0,60),planos:tabela});
+  }
+  // POST /api/diamonds/trocar {plano,dias} — troca 💎 por plano, ativação NA
+  // HORA (o dinheiro já foi conferido na doação; não lança caixa de novo).
+  if(pathname==="/api/diamonds/trocar"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    try{
+      const b=JSON.parse(await readBody(req));
+      const planoKey={vip:"vip",vipro:"vipro",doublepro:"doublepro"}[String(b.plano||"").toLowerCase()];
+      const dias=parseInt(b.dias,10)||0;
+      const preco=planoKey?planoPrecoDiamantes(planoKey,dias):null;
+      if(!preco)return json(res,400,{error:"Plano/período inválido."});
+      const p=getUser(s.user_email);if(!p)return json(res,401,{error:"Conta não encontrada."});
+      const s0=_diamSaldo(p);
+      if(s0.real+s0.bonus<preco)return json(res,402,{error:`Saldo insuficiente: você tem ${s0.real+s0.bonus} 💎 e o ${planoKey.toUpperCase()} ${dias} dias custa ${preco} 💎.`,saldo:s0,preco});
+      const novo=debitDiamonds(s.user_email,preco,{tipo:"troca",plano:planoKey,dias});
+      if(!novo)return json(res,402,{error:"Saldo insuficiente."});
+      // Mesmas regras de empilhamento da ativação por pedido (uma regra só):
+      // trial/provisório não empilham; renovação soma sobre a expiração atual.
+      const now=Date.now(),DAY=86400_000;
+      const tgt=getUser(s.user_email)||{};
+      const _ehTrial=["trial","auto-provisorio"].includes(String(tgt.vip?.source||""));
+      const _mStack=(tgt.vip?.manualExpires||0)>now&&!_ehTrial;
+      const _aStack=(tgt.vip?.autoExpires||0)>now&&!_ehTrial;
+      const isAuto=["vipro","doublepro"].includes(planoKey);
+      const manualExpires=Math.max(now,(_mStack?tgt.vip.manualExpires:now)+dias*DAY);
+      const autoExpires=isAuto?Math.max(now,(_aStack?tgt.vip.autoExpires:now)+dias*DAY):(tgt.vip?.autoExpires||0);
+      setUser(s.user_email,{plan:planoKey,vip:{...(tgt.vip||{}),active:true,plan:planoKey,source:"payment",
+        manualExpires,autoExpires,activatedAt:now,activatedBy:"Troca por diamantes",
+        note:`💎 Troca: ${preco} diamantes → ${planoKey} ${dias}d`,days:dias,autoDays:isAuto?dias:0}});
+      addCredito(s.user_email,{dias,tipo:"pago",origem:"diamantes",motivo:`Troca de ${preco} 💎 — ${planoKey} ${dias}d`,dadoPor:"Sistema (💎)"});
+      addLog(s.user_email,{status:"sistema",jobTitle:`💎 Plano ${planoKey.toUpperCase()} ativado por ${preco} diamantes (${dias}d)`,company:"Troca de diamantes"});
+      trackJourney(s.user_email,'plan_activated',{detail:`Troca 💎: ${planoKey} ${dias}d por ${preco}`});
+      ;(async()=>{try{await pushToUser(s.user_email,{type:"plan_activated",title:"🎉 Plano ativado!",body:`Troca feita: ${preco} 💎 → ${planoKey.toUpperCase()} por ${dias} dias. Bom envio!`,icon:"/icon-192.png"});}catch(e){}})();
+      console.log(`[diamonds] 💎 troca: ${s.user_email} ${preco}💎 → ${planoKey} ${dias}d`);
+      return json(res,200,{ok:true,plano:planoKey,dias,preco,saldo:novo});
+    }catch(e){return json(res,400,{error:"Dados inválidos: "+e.message});}
+  }
+  // POST /api/diamonds/transfer {para,qtd} — doar 💎 REAIS a outro usuário
+  // DESTE servidor. Bônus é intransferível (regra do dono: "se estiver com
+  // diamantes reais"). Rate limit anti-abuso.
+  if(pathname==="/api/diamonds/transfer"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    if(rateLimit(s.user_email+"_diamtx",10,600_000))return json(res,429,{error:"Muitas transferências seguidas. Aguarde alguns minutos."});
+    try{
+      const b=JSON.parse(await readBody(req));
+      const para=String(b.para||"").toLowerCase().trim();
+      const qtd=parseInt(b.qtd,10)||0;
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(para))return json(res,400,{error:"E-mail do destinatário inválido."});
+      if(para===s.user_email)return json(res,400,{error:"Você não pode doar diamantes para si mesmo."});
+      if(qtd<1)return json(res,400,{error:"Quantidade mínima: 1 💎."});
+      const de=getUser(s.user_email),dest=getUser(para);
+      if(!de)return json(res,401,{error:"Conta não encontrada."});
+      if(!dest)return json(res,404,{error:"Esse e-mail não tem conta NESTE servidor. Confira com a pessoa o e-mail e o servidor que ela usa."});
+      const s0=_diamSaldo(de);
+      if(s0.real<qtd)return json(res,402,{error:`Você tem ${s0.real} 💎 REAIS (só diamante de doação pode ser doado — o de brinde não). Faltam ${qtd-s0.real}.`,saldo:s0});
+      // Débito SÓ do real (não usa debitDiamonds, que gastaria bônus primeiro)
+      const novoDe={real:s0.real-qtd,bonus:s0.bonus};
+      setUser(s.user_email,{diamonds:novoDe,diamondLedger:_diamLedgerPush(de,{tipo:"transfer_out",qtd:-qtd,real:-qtd,bonus:0,saldoReal:novoDe.real,saldoBonus:novoDe.bonus,para})});
+      creditDiamonds(para,{real:qtd},{tipo:"transfer_in",de:s.user_email});
+      addLog(s.user_email,{status:"sistema",jobTitle:`💎 Você doou ${qtd} diamantes para ${para}`,company:"Transferência de diamantes"});
+      addLog(para,{status:"sistema",jobTitle:`💎 Você recebeu ${qtd} diamantes de ${s.user_email}`,company:"Transferência de diamantes"});
+      ;(async()=>{try{await pushToUser(para,{type:"generic",title:"💎 Você recebeu diamantes!",body:`${de.name||s.user_email} te doou ${qtd} 💎. Troque por planos na aba Planos!`,icon:"/icon-192.png"});}catch(e){}})();
+      console.log(`[diamonds] 💎 transferência: ${s.user_email} → ${para} (${qtd})`);
+      return json(res,200,{ok:true,saldo:novoDe});
+    }catch(e){return json(res,400,{error:"Dados inválidos: "+e.message});}
+  }
+  // POST /api/admin/diamonds {email,real,bonus,nota} — ajuste manual do admin
+  // (negativo remove; nunca deixa saldo negativo). Tudo com trilha no extrato.
+  if(pathname==="/api/admin/diamonds"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const adm=getUser(s.user_email);
+    if(!(adm?.isAdmin||isAdminEmail(s.user_email)))return json(res,403,{error:"Só admin."});
+    try{
+      const b=JSON.parse(await readBody(req));
+      const email=String(b.email||"").toLowerCase().trim();
+      const real=parseInt(b.real,10)||0,bonus=parseInt(b.bonus,10)||0;
+      const u0=getUser(email);
+      if(!u0)return json(res,404,{error:"Usuário não encontrado neste servidor."});
+      if(!real&&!bonus)return json(res,400,{error:"Informe real e/ou bonus (negativo remove)."});
+      const s0=_diamSaldo(u0);
+      const novo={real:Math.max(0,s0.real+real),bonus:Math.max(0,s0.bonus+bonus)};
+      setUser(email,{diamonds:novo,diamondLedger:_diamLedgerPush(u0,{tipo:"admin",qtd:(novo.real-s0.real)+(novo.bonus-s0.bonus),real:novo.real-s0.real,bonus:novo.bonus-s0.bonus,saldoReal:novo.real,saldoBonus:novo.bonus,por:s.user_email,nota:String(b.nota||"").slice(0,140)})});
+      addLog(email,{status:"sistema",jobTitle:`💎 Ajuste do admin: ${real>=0?"+":""}${real} reais, ${bonus>=0?"+":""}${bonus} bônus`,company:"Diamantes (admin)"});
+      console.log(`[diamonds] 💎 admin ${s.user_email}: ${email} real ${real>=0?"+":""}${real}, bonus ${bonus>=0?"+":""}${bonus}`);
+      return json(res,200,{ok:true,saldo:novo});
+    }catch(e){return json(res,400,{error:"Dados inválidos: "+e.message});}
+  }
+
   if(pathname==="/api/pedidos"&&req.method==="GET"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
     const p=getUser(s.user_email);
@@ -10573,9 +10725,12 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
         if(!d.confirmarDuplicado){
           const _3d=3*86400_000,_agr=Date.now();
           const _ts=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
+          // v64: doações repetidas são normais — só acusa duplicado de doação
+          // quando o VALOR também é idêntico (mesmo pagamento aprovado 2x).
           const _dup=DB_PEDIDOS.find(x=>x&&x.id!==pd.id&&x.userEmail===pd.userEmail
             &&["pago","ativo"].includes(String(x.status||"").toLowerCase())
             &&String(x.plano||"")===String(pd.plano||"")
+            &&(pd.tipo!=="doacao"||Math.abs((x.valorTotal||0)-(pd.valorTotal||0))<0.01)
             &&(_agr-(_ts(x.ativadoEm)||_ts(x.pagoEm)||_ts(x.criadoEm)))<=_3d);
           if(_dup){
             console.log(`[pedido] ⚠️ possível duplicado: ${pd.id} × ${_dup.id} (${pd.userEmail})`);
@@ -10603,6 +10758,38 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
       if(d.status==="ativo"&&!pd.ativadoEm){
         pd.ativadoPor=s.user_email;
         pd.ativadoEm=Date.now();
+        // ── 💎 v64: aprovar DOAÇÃO credita DIAMANTES REAIS (não ativa plano).
+        // O caixa recebe a entrada igual a qualquer pedido (o dinheiro entrou
+        // AQUI — a troca por plano depois NÃO lança caixa de novo, senão a
+        // mesma grana contaria 2x na Visão do Dono).
+        if(pd.tipo==="doacao"||pd.plano==="doacao"){
+          const qtd=Math.max(1,parseInt(pd.diamantes,10)||Math.floor((pd.valorTotal||0)/DIAMOND_PRICE_BRL));
+          creditDiamonds(pd.userEmail,{real:qtd},{tipo:"doacao",pedidoId:pd.id,por:pd._ativadoEditor||s.user_email,nota:`Doação R$${(pd.valorTotal||0).toFixed(2)}`});
+          pd.diamantesCreditados=qtd;
+          if(!DB_FINANCEIRO.pagamentos)DB_FINANCEIRO.pagamentos=[];
+          if(!DB_FINANCEIRO.pagamentos.some(x=>x.pedidoId===pd.id)){
+            DB_FINANCEIRO.pagamentos.unshift({
+              id:"fin_"+Date.now().toString(36),email:pd.userEmail,
+              nome:pd.userName||pd.userEmail,plano:"doacao",
+              dias:0,valor:pd.valorTotal||0,desconto:0,
+              nota:`💎 Doação #${pd.id.slice(-8).toUpperCase()} → ${qtd} diamantes`,
+              data:new Date().toISOString(),
+              dataPagamento:pd.pagoEm?new Date(pd.pagoEm).toISOString():new Date().toISOString(),
+              pedidoId:pd.id,source:"pedido_automatico",
+              ativadoPor:pd._ativadoEditor||"Admin",ativadoPorEmail:s.user_email,
+              recebidoPor:(["andrio","diego"].includes((d.recebidoPor||"").toLowerCase()))
+                ?(d.recebidoPor||"").toLowerCase()
+                :(pd._ativadoEditor==="Diego"?"diego":"andrio"),
+              whatsapp:pd.userWhatsapp||""
+            });
+            persistFinanceiro();
+            console.log("[financeiro] 💎 doação registrada:",pd.userEmail,"R$",pd.valorTotal,"→",qtd,"💎");
+          }
+          addLog(pd.userEmail,{status:"sistema",jobTitle:`💎 Doação confirmada: +${qtd} diamantes (R$${(pd.valorTotal||0).toFixed(2)})`,company:"Pedido #"+pd.id.slice(-8).toUpperCase()});
+          persistPedidos();
+          ;(async()=>{try{await pushToUser(pd.userEmail,{type:"plan_activated",title:"💎 Diamantes creditados!",body:`Sua doação foi confirmada: +${qtd} 💎 na conta. Troque por planos na aba Planos!`,icon:"/icon-192.png"});}catch(e){}})();
+          return json(res,200,{ok:true,pedido:(()=>{const{comprovante,..._l}=pd;return _l;})(),diamantes:qtd});
+        }
         const planoKey={vip:"vip",vipro:"vipro",doublepro:"doublepro"}[pd.plano]||"vipro";
         // v18-FIX: pd.dias vem do CLIENTE (preenchido na criação do pedido, antes
         // de qualquer revisão humana) — antes disso, só passava por um clamp
@@ -10824,6 +11011,24 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
           persistFinanceiro();
           console.log(`[financeiro] pedido ${pd.id} cancelado — ${_pagsAuto.length} entrada(s) automática(s) removida(s) do caixa`);
         }
+        // ── 💎 v64: estorno de DIAMANTES da doação cancelada ─────────────
+        // Doação aprovada e depois cancelada (fraude/engano) → remove os 💎
+        // que ela creditou. Se o usuário já GASTOU parte, remove o que der
+        // (nunca deixa saldo negativo) e o log acusa a diferença pro admin
+        // cobrar por fora. Bônus não é tocado (não veio desta doação).
+        if((pd.tipo==="doacao"||pd.plano==="doacao")&&pd.ativadoEm&&(pd.diamantesCreditados||0)>0){
+          const uD=getUser(pd.userEmail);
+          if(uD){
+            const sD=_diamSaldo(uD);
+            const alvo=pd.diamantesCreditados||0;
+            const tira=Math.min(sD.real,alvo);
+            const novoD={real:sD.real-tira,bonus:sD.bonus};
+            setUser(pd.userEmail,{diamonds:novoD,diamondLedger:_diamLedgerPush(uD,{tipo:"estorno",qtd:-tira,real:-tira,bonus:0,saldoReal:novoD.real,saldoBonus:novoD.bonus,pedidoId:pd.id,por:s.user_email,nota:`Doação #${pd.id.slice(-8).toUpperCase()} cancelada`})});
+            addLog(pd.userEmail,{status:"sistema",jobTitle:`⛔ Doação cancelada — ${tira} 💎 estornados${tira<alvo?` (faltaram ${alvo-tira} 💎 já gastos)`:""}`,company:"Pedido #"+pd.id.slice(-8).toUpperCase()});
+            if(tira<alvo)console.warn(`[diamonds] ⚠️ estorno parcial: ${pd.userEmail} devia devolver ${alvo} 💎 mas só tinha ${tira} reais no saldo (pedido ${pd.id})`);
+            else console.log(`[diamonds] estorno ok: ${pd.userEmail} -${tira} 💎 (pedido ${pd.id} cancelado)`);
+          }
+        }
         // ── Estorno de DIAS (dono, 18/07/2026): os dias SEGUEM o pedido ──
         // A ativação credita pd.diasTotal a partir da data do pagamento (ou
         // empilha na renovação). Cancelou o pedido, estorna exatamente o que
@@ -11003,7 +11208,7 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
     const autoJob=getAutoJob(s.user_email);
     const stats=getAutoStats(s.user_email);
     const now2=Date.now();
-    return json(res,200,{connected:true,sendOnly:GMAIL_SEND_ONLY,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",whatsapp:p.whatsapp||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",rankName:p.rankName||"",appAvatarId:p.appAvatarId||"",h2bProfile:p.h2bProfile||{},serverId:_resolveServerId(req),publicProfile:p.publicProfile||{},age:p.age||0,isAdmin:!!p.isAdmin,plan:planKey,totalSent,totalManual,totalAutoHist,totalReplies,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p),source:p.vip.source||"trial"}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[],senderEmails:(p.senderEmails||[]).map(s=>({email:s.email,label:s.label||"",active:s.active!==false,tokenExpired:!!s.tokenExpired,blocked:!!s.blocked,addedAt:s.addedAt})),senderMax:getMaxSenders(p),adminSettings:isAdminVip(p)?{intervalSecs:(p.adminSettings?.intervalSecs||180),senderLimits:(p.adminSettings?.senderLimits||{}),maxSenders:getMaxSenders(p)}:null});
+    return json(res,200,{connected:true,sendOnly:GMAIL_SEND_ONLY,diamonds:_diamSaldo(p),diamondPrice:DIAMOND_PRICE_BRL,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",whatsapp:p.whatsapp||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",rankName:p.rankName||"",appAvatarId:p.appAvatarId||"",h2bProfile:p.h2bProfile||{},serverId:_resolveServerId(req),publicProfile:p.publicProfile||{},age:p.age||0,isAdmin:!!p.isAdmin,plan:planKey,totalSent,totalManual,totalAutoHist,totalReplies,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p),source:p.vip.source||"trial"}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[],senderEmails:(p.senderEmails||[]).map(s=>({email:s.email,label:s.label||"",active:s.active!==false,tokenExpired:!!s.tokenExpired,blocked:!!s.blocked,addedAt:s.addedAt})),senderMax:getMaxSenders(p),adminSettings:isAdminVip(p)?{intervalSecs:(p.adminSettings?.intervalSecs||180),senderLimits:(p.adminSettings?.senderLimits||{}),maxSenders:getMaxSenders(p)}:null});
   }
 
   if(pathname==="/api/onboard"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});setUser(s.user_email,{onboarded:true});return json(res,200,{ok:true});}
@@ -16059,6 +16264,10 @@ function autoAtivarProvisorio(pedidoId){
   try{
     const pd=DB_PEDIDOS.find(p=>p.id===pedidoId);
     if(!pd) return false;
+    // v64: doação NUNCA ativa provisório — diamante provisório poderia ser
+    // transferido/gasto antes da confirmação humana. Doação só credita com
+    // o admin aprovando (o pré-check da IA continua mastigando o veredito).
+    if(pd.tipo==="doacao"||pd.plano==="doacao") return false;
     if(pd.status!=="pendente"||pd.ativadoEm||pd.autoAtivado) return false;
     const u=getUser(pd.userEmail); if(!u) return false;
     const now=Date.now(), DAY=86400_000;

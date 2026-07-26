@@ -4147,11 +4147,13 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <div id="meus-pagamentos" style="display:none;margin-bottom:14px"></div>
 
         <!-- Header -->
+        <!-- 💎 v64 (ordem do dono, 26/07): NÃO EXISTE MAIS COMPRA DE PLANO.
+             Doação PIX → 💎 diamantes (1 💎 = R$1,50) → troca por plano na hora. -->
         <div style="background:linear-gradient(160deg,#0f172a,#1e3a8a,#2563eb,#7c3aed);color:#fff;border-radius:var(--rl);padding:24px 20px;text-align:center;margin-bottom:16px">
-          <div style="font-size:44px;margin-bottom:8px">🚀</div>
-          <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800">Contratar Plano</div>
-          <div style="font-size:13px;opacity:.8;margin-top:6px">Escolha seu plano, preencha os dados e envie o comprovante</div>
-          <div style="font-size:11px;opacity:.6;margin-top:4px">Ativação em até 24h após confirmação • Suporte via WhatsApp</div>
+          <div style="font-size:44px;margin-bottom:8px">💎</div>
+          <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800">Diamantes & Planos</div>
+          <div style="font-size:13px;opacity:.8;margin-top:6px">Doe via PIX, ganhe diamantes e troque por planos quando quiser</div>
+          <div style="font-size:11px;opacity:.6;margin-top:4px">Doação confirmada em até 24h • Troca por plano ativa NA HORA</div>
         </div>
 
         <!-- ETAPAS -->
@@ -4160,116 +4162,64 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <div style="background:var(--surface);border:2px solid var(--border2);border-radius:var(--rl);overflow:hidden;margin-bottom:14px">
             <div style="background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(59,130,246,.08));padding:12px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">
               <div style="width:28px;height:28px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0">1</div>
-              <div style="font-size:14px;font-weight:800">Escolha o plano</div>
+              <div style="font-size:14px;font-weight:800">Doar e ganhar diamantes</div>
             </div>
             <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
-              <!-- Planos -->
-              <div id="plan-cards" style="display:flex;flex-direction:column;gap:8px">
-                <!-- VIP Manual -->
-                <label style="cursor:pointer">
-                  <input type="radio" name="plan-choice" value="vip" id="pch-vip" onchange="updatePlanCalc()" style="display:none">
-                  <div class="plan-option" id="popt-vip" onclick="document.getElementById('pch-vip').click()">
-                    <div style="display:flex;align-items:center;gap:10px">
-                      <div style="width:20px;height:20px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0" id="popt-vip-check"></div>
-                      <div style="flex:1">
-                        <div style="font-size:14px;font-weight:800">⭐ VIP Manual</div>
-                        <div style="font-size:11px;color:var(--t2)">200 candidaturas manuais/dia · você envia quando quiser</div>
-                      </div>
-                      <div style="text-align:right;flex-shrink:0">
-                        <div style="font-size:16px;font-weight:800;color:var(--blue)">R$ 100<span style="font-size:10px;font-weight:400;color:var(--t3)">/mês</span></div>
-                      </div>
-                    </div>
-                  </div>
-                </label>
-                <!-- VIPro -->
-                <label style="cursor:pointer">
-                  <input type="radio" name="plan-choice" value="vipro" id="pch-vipro" onchange="updatePlanCalc()" style="display:none">
-                  <div class="plan-option" id="popt-vipro" onclick="document.getElementById('pch-vipro').click()">
-                    <div style="display:flex;align-items:center;gap:10px">
-                      <div style="width:20px;height:20px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;flex-shrink:0" id="popt-vipro-check"></div>
-                      <div style="flex:1">
-                        <div style="font-size:14px;font-weight:800;color:var(--purple)">🤖 VIPro <span style="background:var(--purple);color:#fff;font-size:9px;padding:2px 6px;border-radius:8px;margin-left:4px">MAIS POPULAR</span></div>
-                        <div style="font-size:11px;color:var(--t2)">200 manual + <strong>200 automático</strong>/dia = 400 total · automático 24h</div>
-                      </div>
-                      <div style="text-align:right;flex-shrink:0">
-                        <div style="font-size:16px;font-weight:800;color:var(--purple)">R$ 150<span style="font-size:10px;font-weight:400;color:var(--t3)">/mês</span></div>
-                      </div>
-                    </div>
-                  </div>
-                </label>
-                <!-- DoublePro -->
-                <label style="cursor:pointer">
-                  <input type="radio" name="plan-choice" value="doublepro" id="pch-doublepro" onchange="updatePlanCalc()" style="display:none">
-                  <div class="plan-option" id="popt-doublepro" onclick="document.getElementById('pch-doublepro').click()" style="border-color:rgba(250,204,21,.3)">
-                    <div style="display:flex;align-items:center;gap:10px">
-                      <div style="width:20px;height:20px;border-radius:50%;border:2px solid rgba(250,204,21,.5);display:flex;align-items:center;justify-content:center;flex-shrink:0" id="popt-doublepro-check"></div>
-                      <div style="flex:1">
-                        <div style="font-size:14px;font-weight:800;color:#d97706">💎 DoublePro</div>
-                        <div style="font-size:11px;color:var(--t2)">400 manual + <strong>400 automático</strong>/dia · 2 Gmails = máximo poder</div>
-                      </div>
-                      <div style="text-align:right;flex-shrink:0">
-                        <div style="font-size:16px;font-weight:800;color:#d97706">R$ 250<span style="font-size:10px;font-weight:400;color:var(--t3)">/mês</span></div>
-                      </div>
-                    </div>
-                  </div>
-                </label>
+              <!-- 💎 v64: DOAÇÃO — packs de diamantes (não existe mais compra de plano) -->
+              <div style="font-size:12.5px;color:var(--t2);line-height:1.65;background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
+                Você <strong>doa</strong> qualquer valor via PIX e recebe <strong>💎 diamantes</strong> na sua conta (<strong>1 💎 = R$ 1,50</strong>). Com diamantes você <strong>troca por planos</strong> quando quiser — e pode até <strong>doar 💎 para um amigo</strong>.
               </div>
-
-              <!-- Período -->
-              <div style="margin-top:8px">
-                <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px">📅 Por quanto tempo?</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" id="period-cards">
-                  <label style="cursor:pointer">
-                    <input type="radio" name="period-choice" value="30" id="per-30" onchange="updatePlanCalc()" style="display:none" checked>
-                    <div class="period-option" id="pperiod-30" onclick="document.getElementById('per-30').click()" style="background:var(--surface);border:1.5px solid var(--blue);border-radius:10px;padding:10px 12px;text-align:center">
-                      <div style="font-size:13px;font-weight:800">30 dias</div>
-                      <div style="font-size:10px;color:var(--t3)">1 mês</div>
-                    </div>
-                  </label>
-                  <label style="cursor:pointer">
-                    <input type="radio" name="period-choice" value="60" id="per-60" onchange="updatePlanCalc()" style="display:none">
-                    <div class="period-option" id="pperiod-60" onclick="document.getElementById('per-60').click()" style="background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center">
-                      <div style="font-size:13px;font-weight:800">60 dias</div>
-                      <div style="font-size:10px;color:var(--green);font-weight:700">-5% desconto</div>
-                    </div>
-                  </label>
-                  <label style="cursor:pointer">
-                    <input type="radio" name="period-choice" value="90" id="per-90" onchange="updatePlanCalc()" style="display:none">
-                    <div class="period-option" id="pperiod-90" onclick="document.getElementById('per-90').click()" style="background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center">
-                      <div style="font-size:13px;font-weight:800">90 dias</div>
-                      <div style="font-size:10px;color:var(--green);font-weight:700">-10% desconto</div>
-                    </div>
-                  </label>
-                  <label style="cursor:pointer">
-                    <input type="radio" name="period-choice" value="365" id="per-365" onchange="updatePlanCalc()" style="display:none">
-                    <div class="period-option" id="pperiod-365" onclick="document.getElementById('per-365').click()" style="background:linear-gradient(135deg,rgba(16,185,129,.08),rgba(5,150,105,.04));border:1.5px solid rgba(16,185,129,.4);border-radius:10px;padding:10px 12px;text-align:center">
-                      <div style="font-size:13px;font-weight:800;color:var(--green)">1 ano 🏆</div>
-                      <div style="font-size:10px;color:var(--green);font-weight:800">-20% desconto</div>
-                    </div>
-                  </label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" id="diam-packs">
+                <div class="plan-option" onclick="setDiamQty(67)" id="dpack-67" style="text-align:center;padding:12px;cursor:pointer">
+                  <div style="font-size:16px;font-weight:800">67 💎</div>
+                  <div style="font-size:11px;color:var(--t3)">R$ 100,50 · dá o ⭐ VIP 30d</div>
+                </div>
+                <div class="plan-option" onclick="setDiamQty(100)" id="dpack-100" style="text-align:center;padding:12px;cursor:pointer;border-color:var(--purple)">
+                  <div style="font-size:16px;font-weight:800;color:var(--purple)">100 💎 <span style="background:var(--purple);color:#fff;font-size:9px;padding:2px 6px;border-radius:8px">POPULAR</span></div>
+                  <div style="font-size:11px;color:var(--t3)">R$ 150,00 · dá o 🤖 VIPro 30d</div>
+                </div>
+                <div class="plan-option" onclick="setDiamQty(167)" id="dpack-167" style="text-align:center;padding:12px;cursor:pointer">
+                  <div style="font-size:16px;font-weight:800;color:#d97706">167 💎</div>
+                  <div style="font-size:11px;color:var(--t3)">R$ 250,50 · dá o 💎 DoublePro 30d</div>
+                </div>
+                <div class="plan-option" onclick="var i=document.getElementById('diam-qty');if(i)i.focus()" id="dpack-custom" style="text-align:center;padding:12px;cursor:pointer">
+                  <div style="font-size:16px;font-weight:800">✏️ Outro valor</div>
+                  <div style="font-size:11px;color:var(--t3)">quantos 💎 você quiser</div>
                 </div>
               </div>
-
-              <!-- Calculadora de preço -->
+              <div>
+                <label style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:5px">Quantidade de diamantes</label>
+                <input class="input" id="diam-qty" type="number" min="1" step="1" inputmode="numeric" placeholder="Ex.: 100" oninput="updatePlanCalc()">
+              </div>
               <div id="plan-calc" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.07));border:1.5px solid rgba(99,102,241,.25);border-radius:12px;padding:14px;margin-top:4px">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                  <div>
-                    <div style="font-size:12px;color:var(--t2)" id="calc-desc">VIPro · 30 dias</div>
-                    <div style="font-size:10px;color:var(--t3)" id="calc-saving"></div>
-                  </div>
-                  <div style="text-align:right">
-                    <div style="font-size:11px;color:var(--t3)" id="calc-original"></div>
-                    <div style="font-size:24px;font-weight:800;color:var(--green)" id="calc-total">R$ 150</div>
-                  </div>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <div style="font-size:12px;color:var(--t2)" id="calc-desc">Escolha um pacote ou digite a quantidade</div>
+                  <div style="font-size:24px;font-weight:800;color:var(--green)" id="calc-total">—</div>
                 </div>
-                <div style="font-size:10px;color:var(--t3);text-align:center" id="calc-note">Pague 1 vez · ativo por 30 dias · cancele quando quiser</div>
+                <div style="font-size:10px;color:var(--t3);text-align:center;margin-top:6px" id="calc-note">1 💎 = R$ 1,50 · os diamantes caem na conta quando o admin confirmar o comprovante</div>
               </div>
 
               <button class="btn btn-primary w100" style="margin-top:8px" onclick="goToPlanStep2()">
-                Continuar → Preencher dados <i class="ti ti-arrow-right"></i>
+                Continuar → Doar via PIX <i class="ti ti-arrow-right"></i>
               </button>
             </div>
           </div>
+
+          <!-- 💎 Saldo + troca por plano + doar pra amigo + extrato (v64).
+               DENTRO do plan-step-1 de propósito: quando o passo 2 abre,
+               tudo isso some junto (goToPlanStep2 só esconde o step-1). -->
+          <div id="diam-saldo-card" style="margin-bottom:14px"></div>
+          <div id="diam-troca" style="margin-bottom:14px"></div>
+          <div id="diam-transfer-card" style="background:var(--surface);border:2px solid var(--border2);border-radius:var(--rl);padding:14px 16px;margin-bottom:14px">
+            <div style="font-size:14px;font-weight:800;margin-bottom:4px">🎁 Doar diamantes para um amigo</div>
+            <div style="font-size:11.5px;color:var(--t3);line-height:1.6;margin-bottom:10px">Só <strong>💎 reais</strong> (que vieram de doação) podem ser doados — diamante de brinde é pessoal. A pessoa precisa ter conta <strong>neste servidor</strong>.</div>
+            <input class="input" id="diam-tx-email" type="email" inputmode="email" placeholder="email.do.amigo@gmail.com" style="margin-bottom:8px">
+            <div style="display:flex;gap:8px">
+              <input class="input" id="diam-tx-qtd" type="number" min="1" step="1" inputmode="numeric" placeholder="Qtd 💎" style="flex:1">
+              <button class="btn btn-primary" style="flex-shrink:0" onclick="transferDiamantes()"><i class="ti ti-gift"></i> Doar 💎</button>
+            </div>
+          </div>
+          <div id="diam-extrato" style="margin-bottom:14px"></div>
         </div>
 
         <!-- PASSO 2: Dados pessoais + pagamento -->
@@ -4364,7 +4314,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
           <!-- Botão final -->
           <button class="btn btn-primary w100" style="padding:16px;font-size:16px;font-weight:800;border-radius:14px" id="plan-submit-btn" onclick="submitPlanOrder()">
-            <i class="ti ti-send"></i> Enviar pedido de ativação
+            <i class="ti ti-send"></i> Enviar doação
           </button>
           <div id="plan-submit-status" style="margin-top:10px;display:none"></div>
         </div>
@@ -5921,7 +5871,6 @@ const toB64 = f => new Promise((res,rej)=>{const r=new FileReader();r.onload=()=
 const PIX = "00020126360014br.gov.bcb.pix0114+55539814534965204000053039865802BR5916ANDRIO KICKHOFEL6009Sao Paulo62290525REC6A01509D25E099580108226304BB33";
 
 let U={connected:false,email:"",name:"",picture:"",isAdmin:false,plan:"free",vip:null,todaySentManual:0,manualLimit:20,manualRemaining:20,todaySentAuto:0,autoLimit:10,autoRemaining:10,autoEnabled:true,autoJob:null,autoStats:{sent:0,failed:0},onboarded:false};
-let _lastGaPlanSelected=null; // evita reenviar o mesmo evento select_plan repetidamente
 let CFG={name:"",country:"Brazil",phone:"",city:"",language:"pt-BR",subject:"",body:""};
 let DOCS=[],activeResIdx=null,activeCovIdx=null;
 // v27: EMPREGADORES BLOQUEADOS (enviados + fila do robô) — fonte única pro
@@ -6056,7 +6005,8 @@ async function checkStatus(){
     if(d.connected){
       U={connected:true,email:d.email,name:d.name||d.email,picture:d.picture||"",isAdmin:!!d.isAdmin,plan:d.plan||"free",vip:d.vip||null,todaySentManual:d.todaySentManual||0,manualLimit:d.manualLimit||20,manualRemaining:(d.manualRemaining??20),todaySentAuto:d.todaySentAuto||0,autoLimit:d.autoLimit||10,autoRemaining:(d.autoRemaining??10),autoEnabled:true,autoJob:d.autoJob||null,autoStats:d.autoStats||{sent:0,failed:0},onboarded:!!d.onboarded,profiles:d.profiles||[],senderEmails:d.senderEmails||[],senderMax:d.senderMax||1,adminSettings:d.adminSettings||null,totalSent:d.totalSent||0,totalManual:d.totalManual||0,totalAutoHist:d.totalAutoHist||0,totalReplies:d.totalReplies||0,
   // Novos campos
-  whatsapp:d.whatsapp||"",rankName:d.rankName||"",appAvatarId:d.appAvatarId||"",h2bProfile:d.h2bProfile||{},phone:d.phone||"",serverId:d.serverId||1,publicProfile:d.publicProfile||{}};
+  whatsapp:d.whatsapp||"",rankName:d.rankName||"",appAvatarId:d.appAvatarId||"",h2bProfile:d.h2bProfile||{},phone:d.phone||"",serverId:d.serverId||1,publicProfile:d.publicProfile||{},
+  diamonds:d.diamonds||{real:0,bonus:0},diamondPrice:d.diamondPrice||1.5};
       try{updateServerBadges();}catch(e){}
       // v55 — MODO SÓ-ENVIO (Servidor 3): este servidor só pede o escopo de
       // ENVIAR do Gmail — não lê caixa de entrada de ninguém. A aba Respostas
@@ -6722,7 +6672,7 @@ function sv(v,...args){
   // Sincronizar bn-profile: nunca fica "active" (abre drawer, não view)
   setTimeout(()=>{g("#bn-profile")?.classList.remove("active");},50);
   VIEWS.forEach(id=>{const ve=g("#v-"+id);if(ve)ve.classList.toggle("gone",id!==v);const si=g("#si-"+id);if(si)si.classList.toggle("active",id===v);const bn=g("#bn-"+id);if(bn)bn.classList.toggle("active",id===v);});
-  if(v==="plans"){setTimeout(()=>updatePlanCalc&&updatePlanCalc(),100);}if(v==="hist")renderHist();if(v==="saved")renderSaved();if(v==="profile"){loadProfile();loadTplView();setTimeout(()=>{_loadSoundPref();renderSoundSelector();},100);}
+  if(v==="plans"){setTimeout(()=>updatePlanCalc&&updatePlanCalc(),100);try{loadDiamonds();}catch(e){}}if(v==="hist")renderHist();if(v==="saved")renderSaved();if(v==="profile"){loadProfile();loadTplView();setTimeout(()=>{_loadSoundPref();renderSoundSelector();},100);}
   if(v==="respostas"){loadInbox();setTimeout(()=>{_renderInboxNotifTabBtn();},100);}
   if(v==="auto"){loadAutoView();if(U.autoJob?.active)startAutoPolling();}
   if(v==="logs"){logSkip=0;logTotal=0;logDone=false;loadLogs();}
@@ -18423,14 +18373,8 @@ console.debug("[v19] Language system (PT/EN/ES) loaded");
 
 
 // ══════════════════════════════════════════════════════════
-//  SISTEMA DE CONTRATAR PLANO
+//  💎 SISTEMA DE DIAMANTES (v64 — não existe mais compra de plano)
 // ══════════════════════════════════════════════════════════
-const PLAN_PRICES_USER = {
-  vip:       { month: 100, name: '⭐ VIP Manual',  desc: '200 manual/dia' },
-  vipro:     { month: 150, name: '🤖 VIPro',       desc: '200 manual + 200 auto/dia' },
-  doublepro: { month: 250, name: '💎 DoublePro',   desc: '400 manual + 400 auto/dia (2 Gmails)' },
-};
-const DISCOUNTS = { 30: 0, 60: 5, 90: 10, 365: 20 };
 // v43 (ordem do dono, 23/07/2026): InfinitePay REMOVIDA — todo pagamento é
 // Pix pro PicPay do Andrio (chave 53981453496), em qualquer plano/período.
 // 2026-07: consolidado numa chave só (telefone do Andrio) — antes o combo
@@ -18442,118 +18386,146 @@ const PIX_CODE = '00020126360014br.gov.bcb.pix0114+55539814534965204000053039865
 let _planComp64 = null; // base64 do comprovante
 let _planCompType = 'image/jpeg';
 
+// 💎 v64: a calculadora do passo 1 agora é da DOAÇÃO (qtd 💎 → valor R$).
 function updatePlanCalc() {
-  // Nada vem pré-selecionado: plano é null até o usuário clicar.
-  const plan = document.querySelector('input[name="plan-choice"]:checked')?.value || null;
-  const dias = parseInt(document.querySelector('input[name="period-choice"]:checked')?.value || 30);
-  if(plan && plan!==_lastGaPlanSelected){_lastGaPlanSelected=plan;gaEvent('select_plan',{plan,dias});}
+  const qty=Math.max(0,parseInt(g('#diam-qty')?.value,10)||0);
+  [67,100,167].forEach(q=>{const el=g('#dpack-'+q);if(el)el.className='plan-option'+(q===qty?' selected':'');});
+  const total=qty*(U.diamondPrice||1.5);
+  const cDesc=g('#calc-desc'),cTotal=g('#calc-total');
+  if(!qty){if(cDesc)cDesc.textContent='Escolha um pacote ou digite a quantidade';if(cTotal)cTotal.textContent='—';return;}
+  if(cDesc)cDesc.textContent=qty+' \u{1F48E} · doação única';
+  if(cTotal)cTotal.textContent='R$ '+total.toFixed(2).replace('.',',');
+}
+function setDiamQty(q){const i=g('#diam-qty');if(i)i.value=q;updatePlanCalc();}
 
-  // Visual dos cards: marca só o escolhido; se nenhum, todos ficam vazios.
-  ['vip','vipro','doublepro'].forEach(p => {
-    const el = g('#popt-' + p);
-    const chk = g('#popt-' + p + '-check');
-    const inp = g('#pch-' + p);
-    if(el) el.className = 'plan-option' + (p === plan ? ' selected' : '');
-    if(el && p === plan) { el.style.borderColor = 'var(--purple)'; el.style.background = 'var(--purplel)'; }
-    else if(el) { el.style.borderColor = ''; el.style.background = ''; }
-    if(chk) chk.innerHTML = (inp && inp.checked) ? '<i class="ti ti-check" style="font-size:11px;color:#fff"></i>' : '';
-  });
-  [30, 60, 90, 365].forEach(d => {
-    const el = g('#pperiod-' + d);
-    if(el) { el.style.borderColor = d === dias ? 'var(--blue)' : ''; el.style.background = d === dias ? 'var(--sf2)' : ''; }
-  });
-
-  const cDesc = g('#calc-desc');
-  const cOrig = g('#calc-original');
-  const cTotal = g('#calc-total');
-  const cSave = g('#calc-saving');
-  const cNote = g('#calc-note');
-
-  // Nenhum plano escolhido ainda → mostra orientação, não um preço.
-  if(!plan) {
-    if(cDesc) cDesc.textContent = 'Selecione um plano acima';
-    if(cTotal) cTotal.textContent = '—';
-    if(cOrig) cOrig.textContent = '';
-    if(cSave) cSave.textContent = '';
-    if(cNote) cNote.textContent = 'Escolha um dos planos para ver o valor.';
-    return;
-  }
-
-  const price = PLAN_PRICES_USER[plan];
-  if(!price) return;
-  const disc = DISCOUNTS[dias] || 0;
-  const monthsF = dias === 365 ? 12 : dias / 30;
-  const original = price.month * monthsF;
-  const total = original * (1 - disc / 100);
-
-  if(cDesc) cDesc.textContent = price.name + ' · ' + (dias === 365 ? '1 ano' : dias + ' dias');
-  if(cTotal) cTotal.textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
-  if(disc > 0) {
-    if(cOrig) { cOrig.textContent = 'De R$ ' + original.toFixed(2).replace('.', ','); cOrig.style.textDecoration = 'line-through'; }
-    if(cSave) cSave.textContent = '🎉 Economia de R$ ' + (original - total).toFixed(2).replace('.', ',') + ' (' + disc + '% off)';
-  } else {
-    if(cOrig) { cOrig.textContent = ''; }
-    if(cSave) cSave.textContent = '';
-  }
-  if(cNote) cNote.textContent = 'Pague 1 vez · ativo por ' + dias + ' dias' + (dias === 365 ? ' — melhor custo-benefício!' : '');
+// ── 💎 v64: saldo, troca por plano, transferência e extrato ────────────────
+let _diamData=null;
+async function loadDiamonds(){
+  try{
+    const r=await fetch('/api/diamonds',{credentials:'include'});
+    const d=await r.json(); if(!d.ok)return;
+    _diamData=d; U.diamonds=d.saldo; U.diamondPrice=d.price;
+    const sc=g('#diam-saldo-card');
+    if(sc){
+      const tot=d.saldo.real+d.saldo.bonus;
+      sc.innerHTML=`<div style="background:linear-gradient(135deg,#0f172a,#312e81);border-radius:var(--rl);padding:16px;display:flex;align-items:center;gap:12px;color:#fff">
+        <div style="font-size:34px">\u{1F48E}</div>
+        <div style="flex:1">
+          <div style="font-size:12px;opacity:.75">Seus diamantes</div>
+          <div style="font-size:24px;font-weight:800">${tot.toLocaleString('pt-BR')}</div>
+          <div style="font-size:10.5px;opacity:.7">${d.saldo.real.toLocaleString('pt-BR')} reais (podem ser doados) · ${d.saldo.bonus.toLocaleString('pt-BR')} de brinde</div>
+        </div>
+      </div>`;
+    }
+    renderDiamTroca(d);renderDiamExtrato(d);
+  }catch(e){}
+}
+function renderDiamTroca(d){
+  const box=g('#diam-troca'); if(!box)return;
+  const tot=d.saldo.real+d.saldo.bonus;
+  const NOME={vip:'\u2B50 VIP Manual',vipro:'\u{1F916} VIPro',doublepro:'\u{1F48E} DoublePro'};
+  const DESC={vip:'200 candidaturas manuais/dia',vipro:'200 manual + 200 automático/dia',doublepro:'400 manual + 400 automático/dia · 2 Gmails'};
+  const por={};(d.planos||[]).forEach(p=>{(por[p.plano]=por[p.plano]||[]).push(p);});
+  box.innerHTML=`<div style="background:var(--surface);border:2px solid var(--border2);border-radius:var(--rl);overflow:hidden">
+    <div style="background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(59,130,246,.08));padding:12px 16px;border-bottom:1px solid var(--border)">
+      <div style="font-size:14px;font-weight:800">\u{1F501} Trocar diamantes por plano</div>
+      <div style="font-size:11px;color:var(--t3)">Ativa NA HORA — sem espera, sem aprovação</div>
+    </div>
+    <div style="padding:12px 16px;display:flex;flex-direction:column;gap:12px">
+      ${['vip','vipro','doublepro'].map(pl=>`<div>
+        <div style="font-size:13px;font-weight:800;margin-bottom:2px">${NOME[pl]}</div>
+        <div style="font-size:10.5px;color:var(--t3);margin-bottom:6px">${DESC[pl]}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          ${(por[pl]||[]).map(c=>{const da=tot>=c.diamantes;return`<button class="btn ${da?'btn-primary':'btn-secondary'}" style="justify-content:center;font-size:12px;padding:9px 6px${da?'':';opacity:.55'}" onclick="trocarPlano('${pl}',${c.dias},${c.diamantes})">${c.dias===365?'1 ano':c.dias+'d'} · ${c.diamantes} \u{1F48E}</button>`;}).join('')}
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+async function trocarPlano(plano,dias,preco){
+  const tot=((U.diamonds&&U.diamonds.real)||0)+((U.diamonds&&U.diamonds.bonus)||0);
+  if(tot<preco){toast(`Faltam ${preco-tot} \u{1F48E} — doe para completar!`,'r');return;}
+  if(!confirm(`Trocar ${preco} \u{1F48E} pelo ${plano.toUpperCase()} por ${dias===365?'1 ano':dias+' dias'}? Ativa na hora.`))return;
+  try{
+    const r=await fetch('/api/diamonds/trocar',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({plano,dias})});
+    const d=await r.json();
+    if(d.ok){gaEvent('purchase',{plan:plano,dias,diamonds:preco});toast(`\u{1F389} ${plano.toUpperCase()} ativado por ${preco} \u{1F48E}!`,'g');setTimeout(()=>location.reload(),1200);}
+    else toast('\u26A0\uFE0F '+(d.error||'Não foi possível trocar'),'r');
+  }catch(e){toast('Erro: '+e.message,'r');}
+}
+async function transferDiamantes(){
+  const para=(g('#diam-tx-email')?.value||'').trim().toLowerCase();
+  const qtd=parseInt(g('#diam-tx-qtd')?.value,10)||0;
+  if(!para||qtd<1){toast('Preencha o e-mail do amigo e a quantidade','r');return;}
+  if(!confirm(`Doar ${qtd} \u{1F48E} para ${para}? Essa ação não pode ser desfeita.`))return;
+  try{
+    const r=await fetch('/api/diamonds/transfer',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({para,qtd})});
+    const d=await r.json();
+    if(d.ok){toast(`\u{1F381} ${qtd} \u{1F48E} doados para ${para}!`,'g');const q=g('#diam-tx-qtd');if(q)q.value='';loadDiamonds();}
+    else toast('\u26A0\uFE0F '+(d.error||'Não foi possível doar'),'r');
+  }catch(e){toast('Erro: '+e.message,'r');}
+}
+function renderDiamExtrato(d){
+  const box=g('#diam-extrato'); if(!box)return;
+  const led=d.ledger||[];
+  if(!led.length){box.innerHTML='';return;}
+  const LBL={doacao:'\u{1F49A} Doação confirmada',troca:'\u{1F501} Troca por plano',transfer_in:'\u{1F381} Recebido de amigo',transfer_out:'\u{1F381} Doado para amigo',admin:'\u{1F6E0} Ajuste do admin',estorno:'\u26D4 Estorno'};
+  box.innerHTML=`<div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden">
+    <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:800">\u{1F4DC} Extrato de diamantes</div>
+    ${led.slice(0,12).map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border);font-size:12px">
+      <div style="flex:1;min-width:0"><div style="font-weight:700">${LBL[e.tipo]||esc(e.tipo||'')}</div><div style="font-size:10.5px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.nota||e.para||e.de||(e.plano?e.plano+' '+e.dias+'d':''))} · ${new Date(e.ts).toLocaleDateString('pt-BR')}</div></div>
+      <div style="font-weight:800;color:${(e.qtd||0)>=0?'var(--green)':'var(--red)'};flex-shrink:0">${(e.qtd||0)>=0?'+':''}${e.qtd||0} \u{1F48E}</div>
+    </div>`).join('')}
+  </div>`;
 }
 
 function goToPlanStep2() {
-  const plan = document.querySelector('input[name="plan-choice"]:checked')?.value || null;
-  if(!plan){ toast('Selecione um plano para continuar', 'r'); return; }
-  const dias = parseInt(document.querySelector('input[name="period-choice"]:checked')?.value || 30);
-  const price = PLAN_PRICES_USER[plan];
-  const disc = DISCOUNTS[dias] || 0;
-  const monthsF = dias === 365 ? 12 : dias / 30;
-  const original = price.month * monthsF;
-  const total = (original * (1 - disc / 100)).toFixed(2);
-  gaEvent('checkout_step2',{plan,dias,value:parseFloat(total),currency:'BRL'});
+  // 💎 v64: o "pedido" agora é uma DOAÇÃO (qtd de diamantes → R$).
+  const qty=Math.max(0,parseInt(g('#diam-qty')?.value,10)||0);
+  if(!qty){ toast('Escolha quantos \u{1F48E} você quer doar','r'); return; }
+  const total=(qty*(U.diamondPrice||1.5)).toFixed(2);
+  window._diamQtyPedido=qty;
+  gaEvent('checkout_step2',{plan:'doacao',dias:0,value:parseFloat(total),currency:'BRL'});
 
-  // Pré-preencher nome do usuário
-  const nameInp = g('#plan-form-name');
-  if(nameInp && !nameInp.value) nameInp.value = U.name || '';
-  const wppInp = g('#plan-form-wpp');
-  if(wppInp && !wppInp.value) wppInp.value = U.phone || '';
+  const nameInp=g('#plan-form-name');
+  if(nameInp && !nameInp.value) nameInp.value=U.name||'';
+  const wppInp=g('#plan-form-wpp');
+  if(wppInp && !wppInp.value) wppInp.value=U.phone||'';
 
-  // Resumo
-  const sc = g('#plan-summary-content');
-  if(sc) sc.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px">
-    <div><strong>${price.name}</strong> · ${dias === 365 ? '1 ano' : dias + ' dias'}</div>
-    <div style="font-weight:800;color:var(--green);font-size:18px">R$ ${total.replace('.', ',')}</div>
-  </div>${disc > 0 ? `<div style="font-size:11px;color:var(--green);margin-top:4px">✅ ${disc}% de desconto aplicado</div>` : ''}`;
+  const sc=g('#plan-summary-content');
+  if(sc) sc.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px">
+    <div><strong>\u{1F48E} Doação</strong> · ${qty} diamantes</div>
+    <div style="font-weight:800;color:var(--green);font-size:18px">R$ ${total.replace('.',',')}</div>
+  </div><div style="font-size:11px;color:var(--t3);margin-top:4px">Os diamantes caem na sua conta quando o admin confirmar o comprovante.</div>`;
 
-  // v43 (ordem do dono, 23/07/2026): pagamento ÚNICO — Pix pro PicPay do
-  // Andrio (chave 53981453496), em TODO plano e TODO período. InfinitePay
-  // removida por completo. Menos etapas: paga → manda o comprovante → o
-  // robô confere e libera provisório → admin confirma.
-  const payEl = g('#plan-payment-links');
-  if(payEl) {
-    const periodoLbl = dias === 365 ? '1 ano (melhor preço!)' : dias === 90 ? '3 meses' : dias === 60 ? '2 meses' : '30 dias';
-    payEl.innerHTML = `<div style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.35);border-radius:12px;padding:14px">
+  // Pagamento único — Pix pro PicPay do Andrio (v43), agora como DOAÇÃO.
+  const payEl=g('#plan-payment-links');
+  if(payEl){
+    payEl.innerHTML=`<div style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.35);border-radius:12px;padding:14px">
       <div style="font-size:13px;font-weight:800;color:var(--green);margin-bottom:10px;display:flex;align-items:center;gap:6px">
-        📱 Pagar via Pix (PicPay) — ${periodoLbl}${disc > 0 ? ` · ${disc}% off` : ''}
+        \u{1F4F1} Doar via Pix (PicPay) — ${qty} \u{1F48E}
       </div>
       <div style="background:rgba(0,0,0,.2);border-radius:8px;padding:10px;margin-bottom:10px">
         <div style="font-size:11px;color:var(--t3);margin-bottom:4px">Chave Pix (telefone) — PicPay:</div>
         <div style="font-size:16px;font-weight:800;color:var(--green);letter-spacing:.5px;word-break:break-all">${PIX_KEY}</div>
         <div style="font-size:11px;color:var(--t3);margin-top:4px">Titular: <strong style="color:var(--text)">${PIX_NAME}</strong></div>
       </div>
-      <button class="btn btn-success w100" onclick="navigator.clipboard.writeText('${PIX_KEY}');toast('Chave Pix copiada ✓','g')" style="margin-bottom:10px;font-size:14px;padding:12px">
+      <button class="btn btn-success w100" onclick="navigator.clipboard.writeText('${PIX_KEY}');toast('Chave Pix copiada \u2713','g')" style="margin-bottom:10px;font-size:14px;padding:12px">
         <i class="ti ti-copy"></i> Copiar chave Pix
       </button>
       <div style="background:rgba(16,185,129,.12);border-radius:8px;padding:10px;text-align:center">
-        <div style="font-size:20px;font-weight:800;color:var(--green)">R$ ${total.replace('.', ',')}</div>
-        <div style="font-size:11px;color:var(--t3);margin-top:2px">${periodoLbl} · Pagamento único</div>
+        <div style="font-size:20px;font-weight:800;color:var(--green)">R$ ${total.replace('.',',')}</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:2px">${qty} \u{1F48E} · Doação única</div>
       </div>
       <div style="font-size:11px;color:var(--t3);margin-top:8px;text-align:center">
-        Pague por QUALQUER banco ou pelo app do PicPay usando a chave acima. Depois envie o comprovante abaixo — se o valor conferir, o robô libera seu plano na hora.
+        Doe por QUALQUER banco ou pelo app do PicPay usando a chave acima. Depois envie o comprovante abaixo — assim que o admin confirmar, seus diamantes caem na conta.
       </div>
     </div>`;
   }
 
   g('#plan-step-1').style.display = 'none';
   g('#plan-step-2').style.display = 'block';
-  g('#plan-roi-calc').style.display = 'none';
+  const _roi=g('#plan-roi-calc'); if(_roi)_roi.style.display = 'none';
   // Trava a data de pagamento em até hoje (não dá pra escolher data futura)
   try { const _pe = g('#plan-form-pago-em'); if(_pe){ _pe.max = new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10); } } catch(e){}
   window.scrollTo(0, 0);
@@ -18562,7 +18534,7 @@ function goToPlanStep2() {
 function goToPlanStep1() {
   g('#plan-step-1').style.display = 'block';
   g('#plan-step-2').style.display = 'none';
-  g('#plan-roi-calc').style.display = '';
+  const _roi=g('#plan-roi-calc'); if(_roi)_roi.style.display = '';
 }
 
 function handleComprovante(ev) {
@@ -18592,72 +18564,68 @@ function handleComprovante(ev) {
 }
 
 async function submitPlanOrder() {
-  const plan = document.querySelector('input[name="plan-choice"]:checked')?.value || 'vipro';
-  const dias = parseInt(document.querySelector('input[name="period-choice"]:checked')?.value || 30);
+  // 💎 v64: envia pedido de DOAÇÃO (tipo:"doacao") — o servidor calcula os
+  // diamantes pelo valor (1 💎 = R$1,50) e o admin credita ao aprovar.
+  const qty=Math.max(0,parseInt(window._diamQtyPedido,10)||0);
   const name = g('#plan-form-name')?.value.trim() || '';
   const wpp = g('#plan-form-wpp')?.value.trim() || '';
   const phone = g('#plan-form-phone')?.value.trim() || '';
   const city = g('#plan-form-city')?.value.trim() || '';
   const state = g('#plan-form-state')?.value.trim() || '';
-  const address = g('#plan-form-address')?.value.trim() || '';
   const nota = g('#plan-form-nota')?.value.trim() || '';
   const statusEl = g('#plan-submit-status');
   const btn = g('#plan-submit-btn');
 
+  if(!qty) { toast('Volte e escolha quantos \u{1F48E} você quer doar', 'r'); return; }
   if(!name) { toast('Preencha seu nome', 'r'); return; }
   if(!wpp) { toast('Preencha o WhatsApp', 'r'); return; }
   if(!city) { toast('Preencha a cidade', 'r'); return; }
-  if(!_planComp64) { toast('Adicione o comprovante de pagamento', 'r'); g('#comp-drop-area').style.borderColor = 'var(--red)'; return; }
+  if(!_planComp64) { toast('Adicione o comprovante da doação', 'r'); g('#comp-drop-area').style.borderColor = 'var(--red)'; return; }
 
   const pagoEmVal = g('#plan-form-pago-em')?.value;
-  if(!pagoEmVal) { toast('Informe a data em que você pagou (a mesma do comprovante)', 'r'); g('#plan-form-pago-em')?.focus(); return; }
+  if(!pagoEmVal) { toast('Informe a data em que você doou (a mesma do comprovante)', 'r'); g('#plan-form-pago-em')?.focus(); return; }
   const pagoEmTs = new Date(pagoEmVal + 'T12:00:00').getTime();
-  if(isNaN(pagoEmTs)) { toast('Data de pagamento inválida', 'r'); return; }
-  if(pagoEmTs > Date.now() + 86400000) { toast('A data de pagamento não pode ser no futuro', 'r'); return; }
+  if(isNaN(pagoEmTs)) { toast('Data inválida', 'r'); return; }
+  if(pagoEmTs > Date.now() + 86400000) { toast('A data não pode ser no futuro', 'r'); return; }
 
-  const price = PLAN_PRICES_USER[plan];
-  const disc = DISCOUNTS[dias] || 0;
-  const monthsF = dias === 365 ? 12 : dias / 30;
-  const total = parseFloat((price.month * monthsF * (1 - disc / 100)).toFixed(2));
+  const total = parseFloat((qty*(U.diamondPrice||1.5)).toFixed(2));
 
   if(btn) { btn.disabled = true; btn.innerHTML = '<span class="spin spin-sm"></span> Enviando...'; }
-  if(statusEl) { statusEl.style.display = 'block'; statusEl.innerHTML = '<div style="font-size:12px;color:var(--t3)">Enviando pedido...</div>'; }
+  if(statusEl) { statusEl.style.display = 'block'; statusEl.innerHTML = '<div style="font-size:12px;color:var(--t3)">Enviando doação...</div>'; }
 
   try {
     const r = await fetch('/api/pedido', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plano: plan, dias, valorTotal: total, desconto: disc, userName: name, userWhatsapp: wpp, userPhone: phone, userCity: city, userState: state, userAddress: address, nota, comprovante: _planComp64, comprovanteType: _planCompType, pagoEm: pagoEmTs }),
+      body: JSON.stringify({ tipo: 'doacao', valorTotal: total, userName: name, userWhatsapp: wpp, userPhone: phone, userCity: city, userState: state, nota, comprovante: _planComp64, comprovanteType: _planCompType, pagoEm: pagoEmTs }),
     });
     const d = await r.json();
     if(d.ok) {
       g('#plan-step-2').style.display = 'none';
       g('#plan-step-done').style.display = 'block';
-      g('#plan-roi-calc').style.display = 'none';
+      const _roi2=g('#plan-roi-calc'); if(_roi2)_roi2.style.display = 'none';
       const dTitle = g('#plan-done-title'), dMsg = g('#plan-done-msg');
       if(d.duplicado) {
-        // Servidor NÃO criou pedido novo (já existe pendente ou aprovado há
-        // pouco) — dizer a verdade em vez de "Pedido enviado!"
         if(dTitle) dTitle.textContent = 'Você já tem um pedido!';
         if(dMsg) dMsg.innerHTML = esc(d.message || 'Você já tem um pedido em análise.') + '<br><strong>Para dúvidas, entre em contato:</strong>';
-        toast('ℹ️ ' + (d.message || 'Você já tem um pedido em análise.'), 'au');
+        toast('\u2139\uFE0F ' + (d.message || 'Você já tem um pedido em análise.'), 'au');
       } else {
-        gaEvent('purchase_order_submitted',{plan,dias,value:total,currency:'BRL'});
-        if(dTitle) dTitle.textContent = 'Pedido enviado!';
-        if(dMsg) dMsg.innerHTML = 'Recebemos seu pedido e comprovante.<br>Se o robô validar seu comprovante, o plano ativa <strong>em instantes</strong> — e a confirmação final da equipe sai em <strong>até 24h</strong>. Acompanhe na tela inicial.<br><strong>Para dúvidas, entre em contato:</strong>';
-        toast('✅ Pedido enviado! Em breve será ativado.', 'g');
+        gaEvent('purchase_order_submitted',{plan:'doacao',dias:0,value:total,currency:'BRL'});
+        if(dTitle) dTitle.textContent = 'Doação enviada! \u{1F48E}';
+        if(dMsg) dMsg.innerHTML = 'Recebemos sua doação e o comprovante.<br>Assim que o admin confirmar, seus <strong>' + qty + ' \u{1F48E}</strong> caem na conta e você pode trocar por planos na hora. Avisamos por notificação!<br><strong>Para dúvidas, entre em contato:</strong>';
+        toast('\u2705 Doação enviada! Aguarde a confirmação.', 'g');
       }
-      renderPushAsk('plan-push-ask','Quer saber NA HORA em que seu plano for ativado? Ative as notificações — avisamos assim que a equipe (ou o robô) confirmar.');
-      _pendingOrderCache=undefined; // força recheck — o card "em análise" já aparece na próxima Home
-      _mpLoaded=false; // 🧾 Meus pagamentos recarrega com o pedido novo
+      renderPushAsk('plan-push-ask','Quer saber NA HORA em que seus diamantes forem creditados? Ative as notificações.');
+      _pendingOrderCache=undefined;
+      _mpLoaded=false;
 
     } else {
       if(statusEl) statusEl.innerHTML = '<div style="font-size:12px;color:var(--red)">Erro: ' + esc(d.error||'?') + '</div>';
-      if(btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar pedido de ativação'; }
+      if(btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar doação'; }
     }
   } catch(e) {
     if(statusEl) statusEl.innerHTML = '<div style="font-size:12px;color:var(--red)">Erro: ' + esc(e.message) + '</div>';
-    if(btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar pedido de ativação'; }
+    if(btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar doação'; }
   }
 }
 

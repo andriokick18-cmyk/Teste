@@ -751,6 +751,50 @@ async function testAuthWatchdogPush() {
     const st4 = await get("/api/status");
     check("cancelamento também estorna os dias de VIP do comprador", st4.json?.vip?.active !== true, JSON.stringify({ plan: st4.json?.plan, vip: !!st4.json?.vip?.active }));
 
+    // ═══ 💎 v64: SISTEMA DE DIAMANTES — o novo caminho do dinheiro ═══
+    // Doação PIX → admin aprova → 💎 REAIS; troca por plano ativa NA HORA
+    // (sem lançar caixa de novo); só 💎 real transfere; bônus é gasto primeiro.
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "doador@test.com", name: "Doador" });
+    const dp1 = await req2("POST", "/api/pedido", { tipo: "doacao", valorTotal: 150, userName: "Doador", userWhatsapp: "53 9 9999-9999", userCity: "Pelotas" });
+    const dpId = dp1.json?.pedidoId || dp1.json?.pedido?.id;
+    check("💎 doação criada (R$150 → pedido tipo doacao)", dp1.json?.ok === true && !!dpId, dp1.body.slice(0, 140));
+    const dmAntes = await get("/api/diamonds");
+    check("💎 saldo começa zerado", dmAntes.json?.ok === true && dmAntes.json?.saldo?.real === 0 && dmAntes.json?.saldo?.bonus === 0, dp1.body.slice(0, 100));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    const dpAct = await req2("PATCH", "/api/pedido/" + dpId, { status: "ativo" });
+    check("💎 aprovação da doação credita 100 💎 REAIS (R$150 ÷ 1,50)", dpAct.json?.ok === true && dpAct.json?.diamantes === 100, dpAct.body.slice(0, 140));
+    const finD = await get("/api/admin/financeiro");
+    check("💎 doação aprovada lançou R$150 no livro-caixa", (finD.json?.pagamentos || []).some((x) => x.pedidoId === dpId && x.valor === 150));
+    // bônus do admin: 20 💎 de brinde (intransferíveis, gastos primeiro)
+    const admB = await req2("POST", "/api/admin/diamonds", { email: "doador@test.com", bonus: 20, nota: "brinde smoke" });
+    check("💎 admin credita 20 💎 de brinde", admB.json?.ok === true && admB.json?.saldo?.bonus === 20, admB.body.slice(0, 100));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "doador@test.com" });
+    const dm1 = await get("/api/diamonds");
+    check("💎 saldo do doador: 100 reais + 20 bônus", dm1.json?.saldo?.real === 100 && dm1.json?.saldo?.bonus === 20, JSON.stringify(dm1.json?.saldo));
+    // transferir 30 💎 → só do REAL (bônus fica intocado)
+    const tx1 = await req2("POST", "/api/diamonds/transfer", { para: "comprador@test.com", qtd: 30 });
+    check("💎 transferência de 30 💎 sai SÓ do saldo real (bônus intacto)", tx1.json?.ok === true && tx1.json?.saldo?.real === 70 && tx1.json?.saldo?.bonus === 20, tx1.body.slice(0, 120));
+    const txMuito = await req2("POST", "/api/diamonds/transfer", { para: "comprador@test.com", qtd: 999 });
+    check("💎 transferir mais do que tem de REAL é barrado (402)", txMuito.status === 402, `status=${txMuito.status}`);
+    // troca por plano: VIP 30d = 67 💎 (100/1,50) — gasta os 20 de bônus PRIMEIRO
+    const tr1 = await req2("POST", "/api/diamonds/trocar", { plano: "vip", dias: 30 });
+    check("💎 troca por VIP 30d custa 67 💎 e ativa na hora", tr1.json?.ok === true && tr1.json?.preco === 67 && tr1.json?.saldo?.bonus === 0 && tr1.json?.saldo?.real === 23, tr1.body.slice(0, 140));
+    const stD = await get("/api/status");
+    check("💎 doador está VIP ativo depois da troca", stD.json?.plan === "vip" && stD.json?.vip?.active === true, JSON.stringify({ plan: stD.json?.plan, vip: !!stD.json?.vip?.active }));
+    // a TROCA não pode lançar caixa de novo (o dinheiro entrou na doação)
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com" });
+    const finD3 = await get("/api/admin/financeiro");
+    const entradasDoador = (finD3.json?.pagamentos || []).filter((x) => x.email === "doador@test.com");
+    check("💎 troca por plano NÃO duplica o caixa (só a doação conta)", entradasDoador.length === 1, JSON.stringify(entradasDoador.map((x) => x.valor)));
+    // saldo insuficiente é recusado com 402
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "doador@test.com" });
+    const tr2 = await req2("POST", "/api/diamonds/trocar", { plano: "doublepro", dias: 365 });
+    check("💎 troca sem saldo suficiente → 402", tr2.status === 402, `status=${tr2.status}`);
+    // quem recebeu a transferência pode gastar (30 💎 reais no comprador)
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "comprador@test.com" });
+    const dmC = await get("/api/diamonds");
+    check("💎 comprador recebeu os 30 💎 reais da transferência", dmC.json?.saldo?.real === 30, JSON.stringify(dmC.json?.saldo));
+
     const disk = fs.readdirSync(path.join(DATA, "cvs"));
     check("PDFs válidos gravados no disco", disk.includes("cliente@test.com_1002.pdf") && disk.includes("cliente@test.com_1004.pdf"),
       disk.join(", "));

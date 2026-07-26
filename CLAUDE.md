@@ -72,6 +72,15 @@
 13b. **Pagamento**: comprovante que CONFERE (pré-check IA) ativa o plano
     NA HORA, mas PROVISÓRIO (3 dias) e o pedido segue pendente — o admin
     confirma SEMPRE; nunca fica plano ativo dias sem confirmação humana.
+13c. **💎 DIAMANTES (dono, 26/07/2026 — substitui a compra de plano)**: NÃO
+    existe mais compra direta. Doação PIX (mesmo fluxo de comprovante; SEM
+    ativação provisória — admin confirma SEMPRE) credita DIAMANTES REAIS
+    (1 💎 = R$ 1,50; env DIAMOND_PRICE_BRL). Plano é TROCADO por 💎 NA HORA,
+    sem aprovação e SEM lançar caixa de novo (o dinheiro entrou na doação).
+    💎 real pode ser doado a outro usuário DO MESMO servidor; 💎 bônus
+    (brinde do admin) é intransferível e é gasto PRIMEIRO na troca. Preço em
+    💎 deriva SEMPRE de PLANO_PRECO_TAB (nunca hardcoded em 2º lugar).
+    Cancelou doação aprovada → estorna os 💎 (parcial se já gastou, com log).
     Aba 🧾 Conferência lista TODOS os pagamentos desde a 1ª compra (valor
     ao lado do nome, comprovante clicável, valor editável com trilha que
     corrige o caixa junto). Código de 30 dias (YouTube do Diego) vale
