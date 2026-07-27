@@ -113,6 +113,25 @@
     descoberta automática de novos bounces por leitura de inbox. PROIBIDO
     reintroduzir gmail.readonly/gmail.modify, a aba Respostas, ou qualquer
     leitura de caixa de entrada sem ordem EXPRESSA e NOVA do dono.
+13e. **🎯 RESPOSTAS CERTAS — exceção isolada e ADMIN-ONLY ao 13d (dono,
+    27/07/2026)**: essa foi a ordem EXPRESSA e NOVA que o 13d previa. Aba
+    só-admin (painel /admin) onde a IA lê em tempo real as caixas de
+    entrada QUE O PRÓPRIO ADMIN conectou (separado do login normal) e
+    classifica cada resposta nova: entrevista/pergunta real aparece num
+    ranking (topo = e-mail enviado, baixo = resposta já traduzida, conta
+    usada); automático/rejeição/spam a IA ignora sozinha. Botão 👎 quando
+    a IA erra vira treino (DB_REPLY_FEEDBACK, por admin — NUNCA se mistura
+    com o DB_AI_KB do IA Chat, que é visto por TODOS os usuários). Varre
+    sozinha o dia todo (setInterval). Isso NÃO reabre leitura de inbox
+    pros usuários comuns nem pro CLIENT_ID público de envio — usa um
+    CLIENT_ID/SECRET SEPARADO (ADMIN_REPLY_CLIENT_ID/SECRET), de um
+    projeto Google Cloud próprio, em modo "Testing" com só e-mails de
+    admin como test user (nunca passa por verificação pública, nunca
+    aparece pra usuário comum). Sem essas envs configuradas, a aba fica
+    100% inerte (banner de setup, zero chamada ao Google) — ver passo a
+    passo em README_SERVIDORES.txt. O 13d continua valendo por inteiro
+    pros 3 servidores e pros usuários comuns; esta é a ÚNICA exceção, e é
+    só do admin lendo a própria caixa.
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 
@@ -174,5 +193,11 @@
   papel de notificação dele já foi substituído pela aba Notícias; o bot da
   planilha randomizada hiberna por ordem do dono).
 - `TEST_LOGIN_TOKEN`: NUNCA definir em produção (é só do npm test).
+- `ADMIN_REPLY_CLIENT_ID`/`ADMIN_REPLY_CLIENT_SECRET` no Render (os 3
+  servidores): pendente de criação pelo dono — projeto Google Cloud
+  SEPARADO do OAuth público, OAuth consent screen em modo "Testing",
+  e-mails de admin como test users, escopo gmail.readonly. Sem isso a
+  aba 🎯 Respostas Certas fica inerte (banner de setup). Passo a passo em
+  README_SERVIDORES.txt.
 - Fila futura: gateway de pagamento (aguarda chaves), Play Store (TWA),
   espanhol/inglês, consolidar telas financeiras do admin.

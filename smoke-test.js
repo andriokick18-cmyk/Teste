@@ -855,6 +855,42 @@ async function testAuthWatchdogPush() {
       _srvSrc.includes('blocked:true,blockedReason:errType') && _srvSrc.includes("automático CONTINUA pelas outras contas"),
       "lógica de isolamento por sender não encontrada");
 
+    // ═══ 🎯 v74: RESPOSTAS CERTAS (admin-only, exceção isolada ao 13d) ═══
+    // Sem ADMIN_REPLY_CLIENT_ID/SECRET nas envs de teste, a feature tem que
+    // ficar 100% INERTE (nunca chama o Google) mas as rotas continuam
+    // respondendo direito pro admin — é o comportamento "banner de setup".
+    check("🎯 client OAuth de Respostas Certas é ISOLADO do CLIENT_ID público (nunca reaproveita)",
+      _srvSrc.includes("ADMIN_REPLY_CLIENT_ID") && _srvSrc.includes("ADMIN_REPLY_CLIENT_SECRET") && _srvSrc.includes('ADMIN_REPLY_SCOPES = "openid email profile https://www.googleapis.com/auth/gmail.readonly"'),
+      "consts ADMIN_REPLY_CLIENT_ID/SECRET/SCOPES não encontrados");
+    check("🎯 rota OAuth de leitura é isolada da rota de login público (/oauth/admin-reply/*, nunca /oauth/callback)",
+      _srvSrc.includes('"/oauth/admin-reply/start"') && _srvSrc.includes('"/oauth/admin-reply/callback"'));
+    check("🎯 feedback do 👎 fica ISOLADO do DB_AI_KB (nunca vaza resposta privada pro IA Chat de outros usuários)",
+      _srvSrc.includes("DB_REPLY_FEEDBACK") && !/DB_AI_KB\.entries\.(unshift|push)\(.*replyBody/.test(_srvSrc),
+      "DB_REPLY_FEEDBACK não encontrado ou parece misturado com DB_AI_KB");
+    const _rcBlockStart = _srvSrc.indexOf("RESPOSTAS CERTAS (admin-only) — OAuth de LEITURA isolado");
+    const _rcBlockEnd = _srvSrc.indexOf("Admin: Central de Incidentes", _rcBlockStart);
+    const _rcBlock = _rcBlockStart !== -1 && _rcBlockEnd !== -1 ? _srvSrc.slice(_rcBlockStart, _rcBlockEnd) : "";
+    const _rcIsAdminCount = (_rcBlock.match(/isAdminVip\(p\)/g) || []).length;
+    check("🎯 todas as rotas /api/admin/reply-triage/* checam isAdminVip antes de responder",
+      _rcBlock && _rcIsAdminCount >= 5, `bloco encontrado=${!!_rcBlock}, isAdminVip(p) contado=${_rcIsAdminCount} (esperado >=5)`);
+
+    const rcStatus = await get("/api/admin/reply-triage/status");
+    check("🎯 /api/admin/reply-triage/status responde ok pro admin (sessão de teste tem isAdmin:true)",
+      rcStatus.status === 200 && rcStatus.json?.ok === true, rcStatus.body.slice(0, 160));
+    check("🎯 sem ADMIN_REPLY_CLIENT_ID/SECRET no ambiente de teste → configured:false (banner de setup, NUNCA chama o Google)",
+      rcStatus.json?.configured === false, JSON.stringify(rcStatus.json));
+    check("🎯 nenhuma conta conectada no fixture → accounts:[]",
+      Array.isArray(rcStatus.json?.accounts) && rcStatus.json.accounts.length === 0);
+
+    const rcList = await get("/api/admin/reply-triage/list");
+    check("🎯 /api/admin/reply-triage/list responde ok e vazio (nada foi classificado ainda)",
+      rcList.status === 200 && rcList.json?.ok === true && Array.isArray(rcList.json?.entries) && rcList.json.entries.length === 0,
+      rcList.body.slice(0, 160));
+
+    const rcScan = await req2("POST", "/api/admin/reply-triage/scan-now", {});
+    check("🎯 scan-now recusa educadamente (não configurado no ambiente de teste) — nunca tenta chamar o Google sem client isolado",
+      rcScan.status === 503 && /não configurado/i.test(rcScan.json?.error || ""), rcScan.body.slice(0, 160));
+
     // Ponta a ponta: /api/status expõe o campo primaryWarmup de verdade (o
     // fixture cliente@test.com não tem created_at → fail-open correto: sem
     // dado de quando a conta nasceu, NUNCA bloqueia por falta de informação
@@ -862,6 +898,12 @@ async function testAuthWatchdogPush() {
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "cliente@test.com" });
     const stW = await get("/api/status");
     check("🌱 /api/status expõe primaryWarmup (fail-open: sem created_at no fixture → sem teto, nunca bloqueia à toa)", stW.json?.primaryWarmup && stW.json.primaryWarmup.cap === null, JSON.stringify(stW.json?.primaryWarmup));
+
+    // 🎯 usuário comum (não-admin) NUNCA acessa Respostas Certas — é dado
+    // privado do admin (respostas de e-mail de outra pessoa).
+    const rcAsUser = await get("/api/admin/reply-triage/status");
+    check("🎯 usuário comum recebe 403 em Respostas Certas (aba é admin-only de verdade, não só escondida no menu)",
+      rcAsUser.status === 403, rcAsUser.body.slice(0, 120));
 
     const disk = fs.readdirSync(path.join(DATA, "cvs"));
     check("PDFs válidos gravados no disco", disk.includes("cliente@test.com_1002.pdf") && disk.includes("cliente@test.com_1004.pdf"),

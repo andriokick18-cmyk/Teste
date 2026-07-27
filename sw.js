@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v43"; // v43 (27/07): index.html mudou (v73: selo de aquecimento de conta Gmail nova no Perfil — proteção anti-bloqueio pelo Google). Regra 6c: bump junto.
+const CACHE_NAME = "h2bapply-v44"; // v44 (27/07): admin.html ganhou a aba 🎯 Respostas Certas (v74). admin.html não é cacheado pelo SW (ver nota do topo) — bump só por convenção de entrega do projeto (regra 6c).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

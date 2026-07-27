@@ -169,6 +169,55 @@ RESTAURAR — jeito manual (ex.: disco do Servidor 3 morreu):
      DATA_ENC_KEY é obrigatória — sem ela os tokens Gmail não abrem.
   4. Confira: login, saldos 💎, Conferência e Visão do Dono.
 
+CASO 4 — CONFIGURAR "🎯 RESPOSTAS CERTAS" (v74, admin-only, 27/07/2026)
+------------------------------------------------
+O QUE É: aba só-admin (painel /admin) onde a IA lê as caixas de entrada
+que O PRÓPRIO ADMIN conectar e classifica cada resposta (entrevista real?
+pergunta? ignora automático/rejeição). Continua funcionando mesmo sem
+configurar nada — só fica com um banner "não configurado" na aba.
+
+POR QUE UM CLIENT OAUTH SEPARADO: o app público (GOOGLE_CLIENT_ID) pede
+só gmail.send (regra 13d do CLAUDE.md — é o que destrava a verificação
+rápida do Google, sem CASA, pros 3 servidores). Ler a caixa de entrada
+exige gmail.readonly, que É escopo restrito e exigiria CASA se pedido
+pelo MESMO client público. Solução: um projeto Google Cloud TOTALMENTE
+separado, mantido em modo "Testing" (nunca publicado) — nesse modo o
+Google permite até 100 "test users" nomeados autorizarem QUALQUER escopo,
+inclusive restrito, SEM verificação nenhuma. Como só 2-3 admins vão usar,
+isso resolve pra sempre sem nunca precisar submeter esse client pra
+revisão do Google.
+
+PASSO A PASSO (fazer 1x, vale pros 3 servidores — mesmo Client ID/Secret):
+  1. console.cloud.google.com → crie um projeto NOVO (ex.: "h2bapply-admin-reply"),
+     diferente do projeto usado pelo GOOGLE_CLIENT_ID público.
+  2. APIs & Services → Library → ative "Gmail API" nesse projeto.
+  3. APIs & Services → OAuth consent screen:
+     - User Type: External
+     - Publishing status: deixe em "Testing" (NUNCA clique em "Publish app")
+     - Scopes: adicione .../auth/gmail.readonly
+     - Test users: adicione o e-mail de CADA admin que vai usar a aba
+       (ex.: andrio.usa2026@gmail.com e o Gmail do Diego)
+  4. APIs & Services → Credentials → Create Credentials → OAuth client ID
+     - Application type: Web application
+     - Authorized redirect URIs: adicione, pra CADA um dos 3 servidores:
+       https://<host-do-servidor>/oauth/admin-reply/callback
+       (ex.: https://h2bapply.com/oauth/admin-reply/callback,
+       https://h2b-teste.onrender.com/oauth/admin-reply/callback,
+       https://h2b-server-3.onrender.com/oauth/admin-reply/callback — e
+       troque pelo domínio certo quando o DNS do Servidor 3 for corrigido)
+  5. Copie o Client ID e Client Secret gerados.
+  6. Render → cada um dos 3 serviços → Environment: adicione
+     ADMIN_REPLY_CLIENT_ID e ADMIN_REPLY_CLIENT_SECRET com os MESMOS
+     valores nos 3 (é o mesmo projeto Google, só client único).
+  7. Redeploy. Na aba 🎯 Respostas Certas, clique "Conectar Gmail" — só
+     os e-mails cadastrados como test user no passo 3 conseguem logar
+     (qualquer outro e-mail recebe erro do Google "app não verificado /
+     acesso negado" — é o esperado, é a proteção funcionando).
+
+SEM RISCO PROS USUÁRIOS COMUNS: essas envs não tocam em GOOGLE_CLIENT_ID/
+SECRET nem em OAUTH_SCOPES — o login normal e o envio automático de todo
+mundo continuam exatamente como estão (só gmail.send, regra 13d).
+
 COMO LER O PROBLEMA SOZINHO
 ------------------------------------------------
 Render → serviço → EVENTS: diz POR QUE caiu (memória, crash, deploy).
