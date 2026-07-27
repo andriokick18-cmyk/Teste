@@ -65,9 +65,15 @@ admin-3.html, index-1.html, mod-dol-monitor.js, removidos de propósito).
   APP_URL               https://h2bapply.com
                                           https://h2b-teste.onrender.com
                                                                https://applyh2b.com
-  GMAIL_SEND_ONLY       (vazio)           (vazio)              1
   GOOGLE_CLIENT_ID/     projeto OAuth     projeto OAuth        projeto OAuth
-  GOOGLE_CLIENT_SECRET  próprio           próprio (ou o do 1)  PRÓPRIO (só-envio)
+  GOOGLE_CLIENT_SECRET  próprio           próprio (ou o do 1)  próprio
+
+⚠️ v72 (ordem do dono, 26/07): SÓ-ENVIO agora é a arquitetura PERMANENTE e
+UNIVERSAL dos 3 servidores — não é mais env por servidor. O app pede ao
+Google SOMENTE o escopo gmail.send (hardcoded em server.js); nunca lê,
+abre ou guarda a caixa de entrada de ninguém. A aba Respostas foi
+REMOVIDA do site nos 3. A env GMAIL_SEND_ONLY pode ser apagada do Render
+dos 3 serviços — não é mais lida pelo código.
 
 IGUAIS NOS TRÊS (cada um com seus valores):
   ADMIN_EMAIL / ADMIN_EMAIL_2 / ADMIN_EMAILS_EXTRA

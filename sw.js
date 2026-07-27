@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v41"; // v41 (26/07): index.html mudou (v71: tour de primeiro acesso ensina o mundo novo — slide 💎 diamantes/recompensas, respostas válido no só-envio, missões no slide final). Regra 6c: bump junto.
+const CACHE_NAME = "h2bapply-v42"; // v42 (26/07): index.html mudou (v72: aba Respostas REMOVIDA de vez — ordem do dono, só-envio permanente e universal, escopo gmail.send apenas). Regra 6c: bump junto.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
@@ -179,7 +179,7 @@ self.addEventListener("push", (e) => {
     badge: data.badge || "/icon-192.png",
     tag: data.tag || "h2b-notif",
     data: {
-      url: data.url || "/?tab=respostas",
+      url: data.url || "/",
       sound: data.sound || "aviao",
       appId: data.appId || null,
     },
@@ -195,7 +195,10 @@ self.addEventListener("notificationclick", (e) => {
   e.notification.close();
 
   const notifData = e.notification.data || {};
-  const targetUrl = notifData.url || "/?tab=respostas";
+  // v72: sem aba Respostas, o destino padrão de push é a Home (cada push
+  // real — diamante creditado, missão cumprida, plano ativado — já manda
+  // sua própria url específica; isto é só o fallback genérico).
+  const targetUrl = notifData.url || "/";
   const sound = notifData.sound || "aviao";
   const appId = notifData.appId || null;
 

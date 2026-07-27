@@ -90,6 +90,19 @@
     ao lado do nome, comprovante clicável, valor editável com trilha que
     corrige o caixa junto). Código de 30 dias (YouTube do Diego) vale
     R$147 como pagamento; os demais códigos são cortesia (R$0).
+13d. **📧 SÓ-ENVIO PERMANENTE (dono, 26/07/2026 — substitui o toggle do
+    v55)**: o app SÓ ENVIA e-mail pela API do Google — NUNCA mais pede
+    escopo de leitura (gmail.readonly/modify), em NENHUM dos 3 servidores.
+    GMAIL_SEND_ONLY é hardcoded `true` em server.js (não é mais env por
+    servidor). A aba Respostas foi REMOVIDA do site — não existe mais em
+    lugar nenhum. Nenhuma rotina do servidor lê/abre a caixa de entrada de
+    ninguém (bounce-scan no boot e o polling de push por resposta foram
+    desligados de propósito — dependiam do escopo de leitura). Se um
+    e-mail bounça, o sistema só descobre por dado JÁ conhecido
+    (DB_INVALID_EMAILS histórico + ajuste manual do admin) — não há mais
+    descoberta automática de novos bounces por leitura de inbox. PROIBIDO
+    reintroduzir gmail.readonly/gmail.modify, a aba Respostas, ou qualquer
+    leitura de caixa de entrada sem ordem EXPRESSA e NOVA do dono.
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 

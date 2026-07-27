@@ -88,7 +88,7 @@ window.addEventListener("load",()=>{ setTimeout(()=>{
 document.addEventListener("keydown",e=>{
   if(["INPUT","TEXTAREA","SELECT"].includes(document.activeElement.tagName))return;
   if(e.ctrlKey||e.metaKey||e.altKey)return;
-  const map={"1":"jobs","2":"profile","3":"respostas","4":"hist","5":"saved"};
+  const map={"1":"jobs","2":"profile","3":"plans","4":"hist","5":"saved"}; // v72: "respostas" removida (aba não existe mais)
   if(map[e.key] && typeof sv==="function"){sv(map[e.key]);T("Aba: "+map[e.key]);}
   if(e.key==="/"){e.preventDefault();const s=$$("input[type='search'],input[placeholder*='uscar'],input[placeholder*='earch']").find(i=>i.offsetParent);if(s)s.focus();}
   if(e.key.toLowerCase()==="t"){toggleTheme();}

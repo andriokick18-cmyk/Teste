@@ -2259,7 +2259,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <div class="ln-feat"><i class="ti ti-robot"></i> Envio automático 24/7</div>
           <div class="ln-feat"><i class="ti ti-shield-check"></i> Anti-duplicata</div>
           <div class="ln-feat"><i class="ti ti-trending-up"></i> Ranking ao vivo</div>
-          <div class="ln-feat"><i class="ti ti-mail-opened"></i> Respostas em tempo real</div>
+          <div class="ln-feat"><i class="ti ti-lock"></i> Só envia — nunca lê seu Gmail</div>
         </div>
         <button class="ln-login-btn" onclick="openAuthGate('email','login')">
           <i class="ti ti-login" style="font-size:18px"></i> Já tenho conta — Entrar
@@ -2376,9 +2376,9 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <div class="ln-benefit-desc">Compete com outros candidatos e veja em tempo real quantas candidaturas foram enviadas hoje.</div>
         </div>
         <div class="ln-benefit-card">
-          <div class="ln-benefit-icon" style="background:rgba(245,158,11,.15);color:#f59e0b">📬</div>
-          <div class="ln-benefit-title">Respostas dos empregadores</div>
-          <div class="ln-benefit-desc">Veja as respostas diretamente no app, com tradução automática para o português.</div>
+          <div class="ln-benefit-icon" style="background:rgba(245,158,11,.15);color:#f59e0b">💎</div>
+          <div class="ln-benefit-title">Diamantes & Recompensas</div>
+          <div class="ln-benefit-desc">Doe via PIX, ganhe diamantes e troque por planos na hora — ou ganhe diamantes de graça usando o app.</div>
         </div>
         <div class="ln-benefit-card">
           <div class="ln-benefit-icon" style="background:rgba(6,182,212,.15);color:#06b6d4">📋</div>
@@ -2420,8 +2420,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <div class="ln-step-arrow">→</div>
         <div class="ln-step">
           <div class="ln-step-ico" style="background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.3)"><i class="ti ti-mail-opened" style="font-size:28px;color:#10b981"></i></div>
-          <div class="ln-step-title">4. Receba respostas</div>
-          <div class="ln-step-desc">Empresas americanas entram em contato direto com você.</div>
+          <div class="ln-step-title">4. Empresa te responde</div>
+          <div class="ln-step-desc">A resposta cai direto na caixa de entrada do seu próprio Gmail.</div>
         </div>
       </div>
     </div>
@@ -2678,7 +2678,6 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <button class="sb-item active" id="si-home" onclick="sv('home')"><i class="ti ti-home-2"></i>Início</button>
         <button class="sb-item" id="sb-auto-btn" onclick="openAutoModal()"><i class="ti ti-robot"></i>Envio Automático<span id="sb-auto-dot" style="display:none;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid var(--surface);animation:pulseDot 2s infinite;flex-shrink:0;margin-left:auto"></span></button>
         <button class="sb-item" id="si-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i>Envio Manual<span class="sb-badge sb-badge-b" id="sib-jobs" style="display:none"></span></button>
-        <button class="sb-item" id="si-respostas" onclick="sv('respostas')"><i class="ti ti-mail-opened"></i>Respostas<span class="sb-badge" id="sib-respostas" style="display:none;background:var(--green);color:#fff"></span></button>
         <button class="sb-item" id="si-ranking" onclick="sv('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
         <button class="sb-item" id="si-plans" onclick="sv('plans')"><i class="ti ti-diamond"></i>Planos</button>
       </div>
@@ -2746,10 +2745,6 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
                   <div id="home-avatar" style="width:40px;height:40px;border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,.35);background:linear-gradient(135deg,rgba(99,102,241,.4),rgba(124,58,237,.3));display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0">?</div>
                   <div class="home-greeting" id="home-greeting" style="font-size:13px;color:rgba(255,255,255,.75);font-weight:600">Bom dia,</div>
-                  <button onclick="sv('respostas')" style="margin-left:auto;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;position:relative">
-                    <i class="ti ti-bell" style="font-size:17px;color:#fff"></i>
-                    <span id="home-badge-resp" style="display:none;position:absolute;top:1px;right:1px;background:#ef4444;color:#fff;font-size:9px;font-weight:800;padding:1px 4px;border-radius:99px;min-width:14px;text-align:center;border:1.5px solid #0f172a"></span>
-                  </button>
                 </div>
                 <div class="home-name" id="home-name" style="font-size:24px;font-weight:900;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:9px">–</div>
                 <div class="home-plan-row" id="home-plan-row" style="margin-bottom:11px"></div>
@@ -2845,11 +2840,6 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 <div class="home-stat-val" style="color:var(--purple);font-size:26px;font-weight:900" id="home-stat-auto">–</div>
                 <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-top:4px">Envio Automático</div>
               </div>
-              <div class="home-stat-card" onclick="sv('respostas')" style="cursor:pointer;border-radius:16px;padding:18px 6px 15px;text-align:center;background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 14px rgba(15,23,42,.05)">
-                <div style="font-size:22px;line-height:1;margin-bottom:8px">📬</div>
-                <div class="home-stat-val" style="color:var(--green);font-size:26px;font-weight:900" id="home-stat-replies">–</div>
-                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-top:4px">Respostas</div>
-              </div>
               <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer;border-radius:16px;padding:18px 6px 15px;text-align:center;background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 14px rgba(15,23,42,.05)">
                 <div style="font-size:22px;line-height:1;margin-bottom:8px">🎯</div>
                 <div class="home-stat-val" style="color:#ef4444;font-size:26px;font-weight:900" id="home-stat-total">–</div>
@@ -2874,13 +2864,6 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               <button onclick="sv('pesquisa')" class="home-shortcut" style="border:1.5px solid rgba(8,145,178,.3);border-radius:16px;padding:15px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 14px rgba(8,145,178,.10)" onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 10px 24px rgba(8,145,178,.22)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(8,145,178,.10)'">
                 <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#0891b2,#06b6d4);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 16px rgba(8,145,178,.4)">🔍</div>
                 <div style="font-size:11.5px;font-weight:800;color:#0891b2;line-height:1.2;text-align:center">Pesquisar<br>Vagas</div>
-              </button>
-
-              <!-- Respostas -->
-              <button onclick="sv('respostas')" class="home-shortcut" style="border:1.5px solid rgba(16,185,129,.32);border-radius:16px;padding:15px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-family:inherit;transition:all .15s;position:relative;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 14px rgba(16,185,129,.10)" onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 10px 24px rgba(16,185,129,.22)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(16,185,129,.10)'">
-                <span id="home-badge-resp2" style="display:none;position:absolute;top:8px;right:8px;background:#ef4444;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:99px;min-width:16px;text-align:center;box-shadow:0 2px 6px rgba(239,68,68,.5)"></span>
-                <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#059669,#10b981);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 16px rgba(16,185,129,.4)">📬</div>
-                <div style="font-size:11.5px;font-weight:800;color:#059669;line-height:1.2;text-align:center">Ver<br>Respostas</div>
               </button>
 
               <!-- Enviadas (novo — layout do print) -->
@@ -2915,19 +2898,6 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               </button>
 
             </div>
-            </div>
-          </div>
-
-          <!-- ══ ÚLTIMAS RESPOSTAS — card claro (layout do print) ══ -->
-          <div style="padding:14px 14px 0">
-            <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:20px;padding:16px;box-shadow:0 4px 18px rgba(15,23,42,.06)">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-                <div style="font-size:12px;font-weight:800;color:var(--t2);text-transform:uppercase;letter-spacing:.07em">Últimas Respostas</div>
-                <button onclick="sv('respostas')" style="font-size:12px;font-weight:700;color:var(--blue);background:none;border:none;cursor:pointer;font-family:inherit">Ver todas</button>
-              </div>
-              <div class="home-quick-replies" id="home-quick-replies" style="margin:0;border-radius:14px">
-                <div style="padding:18px;text-align:center;color:var(--t3);font-size:13px"><span class="spin spin-sm"></span></div>
-              </div>
             </div>
           </div>
 
@@ -3076,143 +3046,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         </div>
       </div>
 
-      <!-- ══ RESPOSTAS ══ -->
-      <div class="view gone" id="v-respostas">
-        <!-- Header -->
-        <div style="background:linear-gradient(135deg,#050d1f,#1e3a8a);color:#fff;padding:12px 16px 10px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px">
-          <div>
-            <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px"><i class="ti ti-mail-opened"></i> Respostas</div>
-            <div style="font-size:11px;opacity:.7;margin-top:1px" id="inbox-subtitle">Gmail conectado</div>
-          </div>
-          <div style="display:flex;gap:6px;align-items:center">
-            <button onclick="showTextStats()" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);padding:6px 10px" title="Qual dos meus textos recebe mais resposta?"><i class="ti ti-chart-bar"></i></button>
-            <button onclick="showInboxOptions()" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);padding:6px 10px" title="Mais opções"><i class="ti ti-dots-vertical"></i></button>
-            <button onclick="loadInbox(true)" id="inbox-refresh-btn" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);flex-shrink:0"><i class="ti ti-refresh"></i></button>
-          </div>
-        </div>
+      <!-- v72: aba Respostas REMOVIDA (ordem do dono, 26/07) — o app só ENVIA e-mails, nunca lê caixa de entrada de ninguém. -->
 
-        <!-- Stats bar -->
-        <div style="display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
-          <div style="flex:1;padding:8px 6px;text-align:center;border-right:1px solid var(--border);cursor:pointer" onclick="setInboxMainTab('replies')" title="Ver respostas de enviados">
-            <div style="font-size:17px;font-weight:800;color:var(--green);line-height:1" id="inbox-stat-replies">–</div>
-            <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Respostas</div>
-          </div>
-          <div style="flex:1;padding:8px 6px;text-align:center;border-right:1px solid var(--border);cursor:pointer" onclick="setInboxMainTab('all')">
-            <div style="font-size:17px;font-weight:800;color:var(--blue);line-height:1" id="inbox-stat-total">–</div>
-            <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Total</div>
-          </div>
-          <div style="flex:1;padding:8px 6px;text-align:center;cursor:pointer" onclick="setInboxFilter('unread')">
-            <div style="font-size:17px;font-weight:800;color:var(--red);line-height:1" id="inbox-stat-unread">–</div>
-            <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Não lidas</div>
-          </div>
-          <div style="flex:1;padding:8px 6px;text-align:center;cursor:pointer" onclick="setInboxFilter('starred')">
-            <div style="font-size:17px;font-weight:800;color:var(--amber);line-height:1" id="inbox-stat-starred">–</div>
-            <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Favoritos</div>
-          </div>
-        </div>
-
-        <!-- Main Tabs -->
-        <div class="inbox-tabs" id="inbox-main-tabs" style="display:flex;align-items:stretch">
-          <button class="inbox-tab inbox-tab-replies active" id="imtab-replies" onclick="setInboxMainTab('replies')" style="color:var(--green);font-weight:700;flex:1">
-            <i class="ti ti-arrow-back-up" style="font-size:14px;color:var(--green)"></i> Respostas
-            <span class="inbox-tab-badge badge-green" id="imtab-replies-badge" style="display:none"></span>
-          </button>
-          <button class="inbox-tab inbox-tab-all" id="imtab-all" onclick="setInboxMainTab('all')" style="flex:1">
-            <i class="ti ti-inbox" style="font-size:14px"></i> Todos
-            <span class="inbox-tab-badge badge-blue" id="imtab-all-badge" style="display:none"></span>
-          </button>
-          <button class="inbox-tab" id="imtab-pipeline" onclick="setInboxMainTab('pipeline')" style="flex:1">
-            <i class="ti ti-layout-kanban" style="font-size:14px"></i> Pipeline
-          </button>
-          <!-- Botão Notificações inline na aba -->
-          <button id="inbox-notif-tab-btn" onclick="toggleInboxNotifPanel()" style="display:flex;align-items:center;gap:5px;padding:6px 11px;border:none;background:none;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--t3);flex-shrink:0;font-family:inherit;margin-bottom:-1.5px;transition:all .18s;position:relative" title="Configurar notificações">
-            <div id="inbox-notif-tab-icon-wrap" style="width:30px;height:30px;border-radius:50%;background:var(--sf3);border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;transition:all .18s;flex-shrink:0;position:relative">
-              <i class="ti ti-bell" id="inbox-notif-tab-icon" style="font-size:16px;transition:color .18s"></i>
-              <span id="inbox-notif-tab-dot" style="position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;background:var(--red);display:none;border:2px solid #fff;flex-shrink:0"></span>
-            </div>
-            <span id="inbox-notif-tab-label" style="font-size:10px;font-weight:700;line-height:1.1;max-width:32px;text-align:left">Notif</span>
-          </button>
-        </div>
-
-        <!-- Painel de Notificações inline (oculto por padrão) -->
-        <div id="inbox-notif-panel" style="display:none;background:var(--sf2);border-bottom:1.5px solid var(--border);padding:12px 14px;flex-shrink:0">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">
-            <div>
-              <div style="font-size:13px;font-weight:700;margin-bottom:2px">🛫 Alerta de nova resposta</div>
-              <div style="font-size:11px;color:var(--t2);line-height:1.5">Som + aviso quando uma empresa te responder</div>
-            </div>
-            <button id="inbox-notif-toggle-btn" onclick="toggleNotificationsInbox()" style="flex-shrink:0;width:52px;height:28px;border-radius:14px;border:none;cursor:pointer;position:relative;transition:background .2s;background:var(--border2)">
-              <div id="inbox-notif-toggle-dot" style="width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"></div>
-            </button>
-          </div>
-          <div id="inbox-notif-status-msg" style="font-size:11px;color:var(--t3);margin-bottom:10px"></div>
-          <!-- Seletor de sons inline -->
-          <div id="inbox-sound-selector-wrap"></div>
-        </div>
-
-        <!-- Busca + Filtros rápidos -->
-        <div style="background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
-          <div style="padding:7px 12px 0">
-            <div style="position:relative">
-              <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:14px;pointer-events:none"></i>
-              <input class="input" id="inbox-search" type="text" placeholder="Buscar empresa, assunto..." style="padding-left:32px;font-size:13px;padding-top:8px;padding-bottom:8px" oninput="renderInbox()" autocomplete="off" inputmode="search">
-            </div>
-          </div>
-          <div style="display:flex;gap:5px;padding:6px 12px 7px;overflow-x:auto">
-            <button class="resp-filter-btn on" id="ibf-all"      onclick="setInboxFilter('all')">Todas</button>
-            <button class="resp-filter-btn"    id="ibf-unread"   onclick="setInboxFilter('unread')">🔴 Não lidas</button>
-            <button class="resp-filter-btn"    id="ibf-starred"  onclick="setInboxFilter('starred')">⭐ Favoritos</button>
-            <button class="resp-filter-btn"    id="ibf-new"      onclick="setInboxFilter('new')">🆕 Esta semana</button>
-          </div>
-        </div>
-
-        <!-- Bulk actions bar (aparece quando há itens) -->
-        <div class="inbox-bulk-bar gone" id="inbox-bulk-bar">
-          <span style="font-size:12px;font-weight:700;color:var(--blue);flex:1" id="inbox-bulk-count">0 mensagens</span>
-          <button onclick="inboxMarkAllRead()"><i class="ti ti-checks"></i> Marcar todas lidas</button>
-          <button onclick="inboxViewAll()"><i class="ti ti-eye"></i> Ver todas</button>
-        </div>
-
-        <!-- Notificação push banner (aparece só se não solicitou permissão) -->
-        <div id="inbox-notif-banner" style="display:none;background:linear-gradient(135deg,#1e3a8a,#1a56db);color:#fff;padding:9px 14px;flex-shrink:0;align-items:center;gap:8px">
-          <i class="ti ti-bell-ringing" style="font-size:16px;flex-shrink:0"></i>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:700">Ativar notificações</div>
-            <div style="font-size:10px;opacity:.8">Seja avisado quando receberem respostas, mesmo com o app fechado</div>
-          </div>
-          <button onclick="requestPushPermission()" style="background:#fff;color:#1a56db;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">Ativar</button>
-          <button onclick="dismissNotifBanner()" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:6px;padding:5px 8px;cursor:pointer;font-size:14px;font-family:inherit"><i class="ti ti-x"></i></button>
-        </div>
-
-        <!-- Lista -->
-        <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch" id="inbox-list">
-          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;gap:12px;color:var(--t3)">
-            <span class="spin spin-lg"></span>
-            <div style="font-size:13px;font-weight:600">Carregando sua caixa de entrada...</div>
-          </div>
-        </div>
-        <!-- Pipeline view -->
-        <div style="flex:1;overflow-x:auto;overflow-y:hidden;display:none;padding:12px;gap:10px;min-height:0" id="pipeline-view">
-          <div style="display:flex;gap:10px;height:100%;min-width:max-content">
-            <div class="pipeline-col" id="pipe-responded">
-              <div class="pipeline-col-hdr" style="background:var(--bluel);color:var(--blue)">💬 Respondeu <span class="pipeline-cnt" id="pipe-cnt-responded">0</span></div>
-              <div class="pipeline-cards" id="pipe-cards-responded"></div>
-            </div>
-            <div class="pipeline-col" id="pipe-positive">
-              <div class="pipeline-col-hdr" style="background:var(--greenl);color:var(--green)">🟢 Interesse <span class="pipeline-cnt" id="pipe-cnt-positive">0</span></div>
-              <div class="pipeline-cards" id="pipe-cards-positive"></div>
-            </div>
-            <div class="pipeline-col" id="pipe-interview">
-              <div class="pipeline-col-hdr" style="background:var(--purplel);color:var(--purple)">📅 Entrevista <span class="pipeline-cnt" id="pipe-cnt-interview">0</span></div>
-              <div class="pipeline-cards" id="pipe-cards-interview"></div>
-            </div>
-            <div class="pipeline-col" id="pipe-offer">
-              <div class="pipeline-col-hdr" style="background:linear-gradient(135deg,#fef9c3,#fef08a);color:#854d0e">🎉 Oferta <span class="pipeline-cnt" id="pipe-cnt-offer">0</span></div>
-              <div class="pipeline-cards" id="pipe-cards-offer"></div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- LOGS -->
       <div class="view gone" id="v-logs">
@@ -4411,7 +4246,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 <span style="font-size:16px">3️⃣</span><span>Envio Automático</span>
               </div>
               <div onclick="document.getElementById('tut-step4').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border-radius:8px;border:1px solid #bbf7d0">
-                <span style="font-size:16px">4️⃣</span><span>Ver Respostas</span>
+                <span style="font-size:16px">4️⃣</span><span>Resposta da empresa</span>
               </div>
               <div onclick="document.getElementById('tut-step5').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border-radius:8px;border:1px solid #bbf7d0">
                 <span style="font-size:16px">5️⃣</span><span>Planos e VIP</span>
@@ -4561,31 +4396,29 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             </div>
           </div>
 
-          <!-- PASSO 4: RESPOSTAS -->
+          <!-- PASSO 4: QUANDO A EMPRESA RESPONDE (v72: não existe mais aba Respostas — o app só ENVIA; a resposta chega direto no Gmail do usuário) -->
           <div id="tut-step4" style="background:#fff;border:2px solid #059669;border-radius:16px;overflow:hidden">
             <div style="background:linear-gradient(135deg,#064e3b,#059669);padding:14px 16px;display:flex;align-items:center;gap:10px">
               <span style="background:rgba(255,255,255,.25);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;flex-shrink:0">4</span>
               <div>
-                <div style="color:#fff;font-size:15px;font-weight:800">Ver e Responder Empresas</div>
-                <div style="color:rgba(255,255,255,.8);font-size:11px">Quando uma empresa te responde</div>
+                <div style="color:#fff;font-size:15px;font-weight:800">Quando a empresa te responder</div>
+                <div style="color:rgba(255,255,255,.8);font-size:11px">A resposta cai direto no SEU Gmail</div>
               </div>
-              <button onclick="sv('respostas')" style="margin-left:auto;background:rgba(255,255,255,.2);border:1.5px solid rgba(255,255,255,.4);color:#fff;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit">Ver Respostas →</button>
             </div>
             <div style="padding:16px;display:flex;flex-direction:column;gap:12px;font-size:13px;color:#374151">
 
               <div style="display:flex;gap:10px;align-items:flex-start">
-                <div style="width:28px;height:28px;border-radius:8px;background:#d1fae5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">🔔</div>
-                <div><strong style="color:#065f46">Como saber quando receber resposta</strong><br>Ative as <strong>notificações push</strong> na aba de Notificações. Quando uma empresa americanas responder seu e-mail, você recebe um alerta no celular imediatamente — mesmo com o app fechado.</div>
+                <div style="width:28px;height:28px;border-radius:8px;background:#d1fae5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">📬</div>
+                <div><strong style="color:#065f46">Onde a resposta aparece</strong><br>O H2BApply NÃO lê nem guarda sua caixa de entrada — cada candidatura sai do <strong>seu próprio Gmail</strong>, e é lá que a resposta da empresa chega. Fique de olho na caixa de entrada (e na pasta de spam, às vezes cai lá).</div>
               </div>
 
               <div style="display:flex;gap:10px;align-items:flex-start">
                 <div style="width:28px;height:28px;border-radius:8px;background:#d1fae5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">💬</div>
                 <div><strong style="color:#065f46">Como responder uma empresa</strong><br>
                   <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;font-size:12px">
-                    <div style="display:flex;gap:6px"><span style="background:#059669;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">1</span><span>Vá na aba <strong>"Respostas"</strong></span></div>
-                    <div style="display:flex;gap:6px"><span style="background:#059669;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">2</span><span>Toque no e-mail da empresa</span></div>
-                    <div style="display:flex;gap:6px"><span style="background:#059669;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">3</span><span>Leia a mensagem e toque em <strong>"Responder"</strong></span></div>
-                    <div style="display:flex;gap:6px"><span style="background:#059669;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">4</span><span>Digite sua resposta em inglês e envie</span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#059669;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">1</span><span>Abra o e-mail da empresa direto no seu Gmail</span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#059669;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">2</span><span>Toque em <strong>"Responder"</strong></span></div>
+                    <div style="display:flex;gap:6px"><span style="background:#059669;color:#fff;border-radius:50%;width:16px;height:16px;min-width:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800">3</span><span>Digite sua resposta em inglês e envie — é um e-mail seu, como qualquer outro</span></div>
                   </div>
                 </div>
               </div>
@@ -4662,7 +4495,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
               <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
                 <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i>Recebi um e-mail em inglês. O que faço?</summary>
-                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Vá na aba <strong>Respostas</strong>, clique no e-mail e leia. Se a empresa perguntar se você está disponível, responda: <em>"Yes, I am available to start on the requested date."</em> Se pedir documentos, entre em contato com um despachante de vistos.</div>
+                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Abra o e-mail direto no seu Gmail e leia. Se a empresa perguntar se você está disponível, responda: <em>"Yes, I am available to start on the requested date."</em> Se pedir documentos, entre em contato com um despachante de vistos.</div>
               </details>
 
               <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
@@ -4898,7 +4731,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       </div>
     </div><!-- /main-area -->
   </div><!-- /app-body --><!-- Bottom Nav -->
-  <!-- ══ BOTTOM NAV — 5 botões: Manual | Currículos | AUTO (central) | Respostas | Menu ══ -->
+  <!-- ══ BOTTOM NAV — 5 botões: Manual | Currículos | AUTO (central) | Planos | Menu ══ -->
   <nav class="bottom-nav" id="bottom-nav">
     <!-- 1: Manual -->
     <button class="bn" id="bn-jobs" onclick="sv('jobs')">
@@ -4918,11 +4751,10 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       </div>
       <span>Automático</span>
     </button>
-    <!-- 4: Respostas -->
-    <button class="bn" id="bn-respostas" onclick="sv('respostas')" style="position:relative">
-      <i class="ti ti-mail-opened"></i>
-      <span>Respostas</span>
-      <span id="bnd-respostas" style="display:none;position:absolute;top:6px;right:calc(50% - 18px);background:#ef4444;color:#fff;font-size:9px;font-weight:800;padding:1px 5px;border-radius:10px;min-width:16px;text-align:center"></span>
+    <!-- 4: Planos (diamantes) -->
+    <button class="bn" id="bn-plans" onclick="sv('plans')">
+      <i class="ti ti-diamond"></i>
+      <span>Planos</span>
     </button>
     <!-- 5: Avatar — abre drawer -->
     <button class="bn bn-profile" id="bn-profile" onclick="openDrawer()">
@@ -6494,7 +6326,6 @@ function showApp(){
     curView=v;
     VIEWS.forEach(id=>{const ve=g("#v-"+id);if(ve)ve.classList.toggle("gone",id!==v);const si=g("#si-"+id);if(si)si.classList.toggle("active",id===v);const bn=g("#bn-"+id);if(bn)bn.classList.toggle("active",id===v);});
     if(v==="home")renderHome();
-    if(v==="respostas")loadInbox();
     if(v!=="jobs")closeMobDetail();closeDrawer();
   });
 }
@@ -6668,7 +6499,7 @@ function renderDrawer(){
 // ═══════════════════════════════════════════
 //  NAVIGATION
 // ═══════════════════════════════════════════
-const VIEWS=["home","jobs","saved","hist","respostas","logs","profile","auto","plans","ranking","pesquisa","notificacoes","redeem","tutorial","iaChat","sugestoes","settings","noticias"];
+const VIEWS=["home","jobs","saved","hist","logs","profile","auto","plans","ranking","pesquisa","notificacoes","redeem","tutorial","iaChat","sugestoes","settings","noticias"];
 function sv(v,...args){
   // ── "auto" abre modal em vez da view ──
   if(v==="auto"){if(typeof openAutoModal==="function"){openAutoModal();return;}}
@@ -6679,7 +6510,7 @@ function sv(v,...args){
   setTimeout(()=>{g("#bn-profile")?.classList.remove("active");},50);
   VIEWS.forEach(id=>{const ve=g("#v-"+id);if(ve)ve.classList.toggle("gone",id!==v);const si=g("#si-"+id);if(si)si.classList.toggle("active",id===v);const bn=g("#bn-"+id);if(bn)bn.classList.toggle("active",id===v);});
   if(v==="plans"){setTimeout(()=>updatePlanCalc&&updatePlanCalc(),100);try{loadDiamonds();}catch(e){}}if(v==="hist")renderHist();if(v==="saved")renderSaved();if(v==="profile"){loadProfile();loadTplView();setTimeout(()=>{_loadSoundPref();renderSoundSelector();},100);}
-  if(v==="respostas"){loadInbox();setTimeout(()=>{_renderInboxNotifTabBtn();},100);}
+
   if(v==="auto"){loadAutoView();if(U.autoJob?.active)startAutoPolling();}
   if(v==="logs"){logSkip=0;logTotal=0;logDone=false;loadLogs();}
   if(v==="plans")renderPlanStatusCard();
@@ -11846,14 +11677,14 @@ async function requestPushPermission(){
     dismissNotifBanner();
     _renderNotifToggle();
     playPlaneSound();
-    toast("🔔 Notificações ativadas! Você será avisado de novas respostas.","g");
+    toast("🔔 Notificações ativadas! Você será avisado de diamantes, missões e novidades do plano.","g");
     // v36-FIX: registra a INSCRIÇÃO no servidor JÁ — sem isso a permissão
     // ficava concedida mas o servidor só ganhava a subscription na PRÓXIMA
     // visita (o timer de 4s pós-load já tinha passado), e os robôs
     // (renovação, robô parado, plano ativado) falavam com o vazio até lá.
     try{if(typeof _registerPushSubscription==="function")await _registerPushSubscription();}catch{}
     // Testa notificação imediatamente
-    try{new Notification("✅ H2BApply",{body:"Notificações ativadas! Você será avisado de novas respostas.",icon:"/icon-192.png",tag:"h2b-test"});}catch{}
+    try{new Notification("✅ H2BApply",{body:"Notificações ativadas! Você será avisado de diamantes, missões e novidades.",icon:"/icon-192.png",tag:"h2b-test"});}catch{}
   }else if(p==="denied"){
     toast("Permissão negada. Ative manualmente nas configurações do navegador.","r");
   }
@@ -13314,7 +13145,7 @@ async function toggleNotifications() {
     }
     _notifEnabled = true; try { localStorage.setItem("h2b-notif", "1"); } catch {}
     playPlaneSound(); toast("🛫 Notificações ativadas!", "g");
-    try { new Notification("✅ H2BApply", { body: "Notificações ativadas! Você será avisado de novas respostas.", icon: "/icon-192.png", tag: "h2b-test" }); } catch {}
+    try { new Notification("✅ H2BApply", { body: "Notificações ativadas! Você será avisado de diamantes, missões e novidades.", icon: "/icon-192.png", tag: "h2b-test" }); } catch {}
     dismissNotifBanner();
     // Registra Web Push VAPID para notificações com app fechado
     _registerPushSubscription().catch(() => {});
@@ -13334,7 +13165,7 @@ async function toggleNotificationsInbox() {
     }
     _notifEnabled = true; try { localStorage.setItem("h2b-notif", "1"); } catch {}
     playPlaneSound(); toast("🛫 Notificações ativadas!", "g");
-    try { new Notification("✅ H2BApply", { body: "Você será avisado de novas respostas!", icon: "/icon-192.png", tag: "h2b-test" }); } catch {}
+    try { new Notification("✅ H2BApply", { body: "Você será avisado de diamantes, missões e novidades!", icon: "/icon-192.png", tag: "h2b-test" }); } catch {}
     dismissNotifBanner();
     _registerPushSubscription().catch(() => {});
   } else {
@@ -13405,7 +13236,7 @@ async function _autoPushSetup() {
       _renderNotifToggle();
       dismissNotifBanner();
       // Pequena confirmação visual, não intrusiva
-      toast("🛫 Notificações ativadas! Você será avisado de novas respostas.", "g");
+      toast("🛫 Notificações ativadas! Você será avisado de diamantes, missões e novidades do plano.", "g");
       await _registerPushSubscription().catch(() => {});
     } else {
       // Usuário negou — respeita a decisão, não volta a perguntar
@@ -14975,7 +14806,7 @@ console.debug('[H2BApply Patch] ✅ Login, ranking, demo animações aplicadas')
         <div style="font-size:13px;text-align:left;display:flex;flex-direction:column;gap:6px">
           <div style="display:flex;align-items:center;gap:8px"><i class="ti ti-search" style="color:var(--blue)"></i> Busque vagas por categoria</div>
           <div style="display:flex;align-items:center;gap:8px"><i class="ti ti-robot" style="color:var(--purple)"></i> Ligue o Envio Automático</div>
-          <div style="display:flex;align-items:center;gap:8px"><i class="ti ti-mail-opened" style="color:var(--green)"></i> Acompanhe as respostas</div>
+          <div style="display:flex;align-items:center;gap:8px"><i class="ti ti-mail-opened" style="color:var(--green)"></i> Fique de olho no seu Gmail pelas respostas</div>
         </div>
       </div>
       <button onclick="finishOnboarding()" class="btn btn-primary w100" style="padding:14px;font-size:15px;background:linear-gradient(135deg,#2563eb,#7c3aed)">
@@ -15283,7 +15114,7 @@ function _showWelcome(){
   close.textContent="×";
   close.onclick=function(){b.remove();try{localStorage.setItem("h2b_ok","1");}catch(e){}};
   b.appendChild(close);
-  var steps=["Vá em <strong>Perfil → Perfis de Email</strong> e configure seu currículo","Acesse <strong>Envio Manual</strong> para escolher vagas e candidatar","Ative o <strong>Envio Automático</strong> para candidaturas 24h no piloto automático","Acompanhe as <strong>Respostas</strong> quando empresas americanas te responderem"];
+  var steps=["Vá em <strong>Perfil → Perfis de Email</strong> e configure seu currículo","Acesse <strong>Envio Manual</strong> para escolher vagas e candidatar","Ative o <strong>Envio Automático</strong> para candidaturas 24h no piloto automático","As respostas caem direto no <strong>seu próprio Gmail</strong> — fique de olho por lá"];
   var inner=document.createElement("div");
   inner.innerHTML="<div style='font-size:15px;font-weight:800;margin-bottom:10px'>🚀 Bem-vindo ao H2BApply!</div><div style='display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.55'>"+
     steps.map(function(s,i){return "<div style='display:flex;gap:8px'><span style='background:rgba(255,255,255,.25);border-radius:50%;width:20px;height:20px;min-width:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800'>"+(i+1)+"</span><span>"+s+"</span></div>";}).join("")+
@@ -15516,7 +15347,7 @@ async function showTextStats(){
       <div class="tour-slide"><div class="tour-emoji">🔍</div><div class="tour-title">Filtre do seu jeito</div><div class="tour-text">Toque no botão <b>Filtros</b> pra achar exatamente o que quer:<br><br>🏷️ <b>Cargo</b> (Cook, Landscaper...)<br>📍 <b>Vários estados</b> ao mesmo tempo<br>💰 <b>Salário mínimo</b> por hora<br>📅 <b>Mês que a vaga começa</b><br>↕️ <b>Ordenar</b> por maior salário<br><br>Os filtros ativos viram <b>etiquetas</b> — toque no ✕ de qualquer uma pra remover.</div></div>
       <div class="tour-slide"><div class="tour-emoji">🤖</div><div class="tour-title">Passo 3 — Envio automático</div><div class="tour-text">Na aba <b>Automático</b> (planos VIP), o robô envia por você <b>24 horas por dia</b>:<br><br>1️⃣ Escolha a fonte de vagas<br>2️⃣ Ajuste os filtros (os mesmos do manual)<br>3️⃣ Escolha seu perfil<br>4️⃣ Toque em <b>Iniciar</b><br><br>🛡️ O robô envia em <b>ritmo humano</b> (um a cada 5-6 min) pra proteger seu Gmail, e você acompanha tudo em tempo real.</div></div>
       <div class="tour-slide"><div class="tour-emoji">💎</div><div class="tour-title">Diamantes, planos e recompensas</div><div class="tour-text">Aqui <b>não existe compra</b>: você <b>doa via PIX</b>, recebe <b>💎 diamantes</b> e <b>troca por planos</b> quando quiser — a troca ativa <b>na hora</b>.<br><br>🎁 E dá pra ganhar 💎 <b>de graça</b> nas <b>Recompensas</b> (aba Planos): primeira candidatura, perfil completo, marcos de envios…<br><br>Diamante de doação pode até ser <b>doado a um amigo</b>. Seu saldo fica sempre à vista no ☰ Menu.</div></div>
-      <div class="tour-slide"><div class="tour-emoji">📬</div><div class="tour-title">Quando a empresa responder…</div><div class="tour-text">A resposta chega <b>direto na caixa de entrada do SEU Gmail</b> — a conversa é sua com a empresa, do seu próprio e-mail.<br><br>💡 Fique de olho no Gmail (e na aba <b>Respostas</b>, nos servidores em que ela está disponível).<br><br>📊 Em <b>Enviadas</b> você vê o histórico completo de todas as candidaturas.</div></div>
+      <div class="tour-slide"><div class="tour-emoji">📬</div><div class="tour-title">Quando a empresa responder…</div><div class="tour-text">A resposta chega <b>direto na caixa de entrada do SEU Gmail</b> — a conversa é sua com a empresa, do seu próprio e-mail. O H2BApply nunca lê nem guarda sua caixa de entrada.<br><br>💡 Fique de olho no Gmail (e na pasta de spam, às vezes cai lá).<br><br>📊 Em <b>Enviadas</b> você vê o histórico completo de todas as candidaturas.</div></div>
       <div class="tour-slide"><div class="tour-emoji">🚀</div><div class="tour-title">Pronto pra começar!</div><div class="tour-text">Ordem que funciona:<br><br>1️⃣ <b>Criar perfil</b> (currículo + seus textos) <span style="color:#d97706;font-weight:700">+3 💎</span><br>2️⃣ <b>Testar um envio manual</b> <span style="color:#d97706;font-weight:700">+2 💎</span><br>3️⃣ <b>Ligar o automático</b> e deixar trabalhar<br><br>Este tutorial fica pra sempre em <b>☰ Menu → Tutorial</b> · <span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="closeTour();sv('tutorial')">ver o guia completo →</span></div>
         <div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-primary" style="flex:1" onclick="closeTour();sv('profile');setTimeout(function(){if(typeof switchProfileTab==='function')switchProfileTab('profiles')},150)">👤 Criar meu perfil</button><button class="btn btn-secondary" style="flex:1" onclick="closeTour();sv('jobs')">🔎 Ver vagas</button></div>
       </div>
@@ -16333,6 +16164,7 @@ function showAutoPreview(){
 
 // ── Follow-up automático ─────────────────────────────
 function checkFollowUpReminders(){
+  return; // v72: dependia de ler a caixa de entrada (INBOX_EMAILS) pra saber quem NÃO respondeu — sem esse escopo, o sinal não existe mais (respondeu ou não, o app não pode saber). Desligado de propósito, não removido, pra manter o histórico de por que existia.
   if(!HIST||!HIST.length)return;
   const sevenDaysAgo=Date.now()-7*86400_000;
   const noResponse=HIST.filter(h=>{
@@ -17611,7 +17443,7 @@ function applyLang(){
   _si('bn-home','span',t('home'));
   _si('bn-jobs','span',t('manual'));
   _si('bn-pesquisa','span',t('search'));
-  _si('bn-respostas','span',t('responses'));
+  _si('bn-plans','span',t('plans'));
   _si('bn-ranking','span',t('ranking'));
 
   // ── SIDEBAR ──

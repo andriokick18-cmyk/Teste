@@ -536,16 +536,18 @@ async function testAuthWatchdogPush() {
       _gmailCbs.length === 2 && _gmailCbs.every((f) => f === "persistDebounced"),
       `encontrados: ${_gmailCbs.join(", ") || "nenhum"}`);
 
-    // v55: MODO SÓ-ENVIO (estratégia do Servidor 3 pra verificação Google) —
-    // os DOIS pontos de OAuth usam a constante OAUTH_SCOPES (nunca escopo
-    // solto hardcoded), e o ramo só-envio pede APENAS gmail.send (nada de
-    // readonly/modify — é o coração da estratégia; regressão aqui faria o
-    // Servidor 3 pedir escopos não declarados no Google e quebrar o login).
+    // v72: SÓ-ENVIO PERMANENTE E UNIVERSAL nos 3 servidores (ordem do dono,
+    // 26/07/2026 — "não precisa mais pedir autenticação pro Google pra ler
+    // respostas, apenas enviar e-mails"). GMAIL_SEND_ONLY não é mais um
+    // toggle por env; é uma constante hardcoded true, e OAUTH_SCOPES pede
+    // SOMENTE gmail.send — nunca readonly/modify. Regressão aqui faria
+    // QUALQUER servidor voltar a pedir escopo de leitura ao Google.
     const _scopeUses = (_srvSrc.match(/scope:OAUTH_SCOPES/g) || []).length;
-    const _sendOnlyDef = (_srvSrc.match(/GMAIL_SEND_ONLY\s*\n?\s*\?\s*"([^"]+)"/) || [])[1] || "";
-    check("✉️ OAuth usa OAUTH_SCOPES nos 2 pontos e o modo só-envio pede APENAS gmail.send",
-      _scopeUses === 2 && _sendOnlyDef.includes("gmail.send") && !_sendOnlyDef.includes("readonly") && !_sendOnlyDef.includes("modify"),
-      `usos=${_scopeUses} | ramo só-envio="${_sendOnlyDef.slice(0, 90)}"`);
+    const _sendOnlyConst = (_srvSrc.match(/const GMAIL_SEND_ONLY\s*=\s*(true|false)\s*;/) || [])[1] || "";
+    const _scopesLine = (_srvSrc.match(/const OAUTH_SCOPES\s*=\s*"([^"]+)"/) || [])[1] || "";
+    check("✉️ OAuth usa OAUTH_SCOPES nos 2 pontos, GMAIL_SEND_ONLY=true fixo, escopo é SÓ gmail.send (nunca readonly/modify)",
+      _scopeUses === 2 && _sendOnlyConst === "true" && _scopesLine.includes("gmail.send") && !_scopesLine.includes("readonly") && !_scopesLine.includes("modify"),
+      `usos=${_scopeUses} | GMAIL_SEND_ONLY=${_sendOnlyConst} | escopos="${_scopesLine.slice(0, 90)}"`);
 
     // ═══ v46: CÓDIGOS PROMO — personalizado honrado + Membro YouTube R$147 ═══
     // Bug real: o campo "Código personalizado" do admin era IGNORADO pelo

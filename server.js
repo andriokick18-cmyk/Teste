@@ -115,18 +115,18 @@ const SERVER_ID     = parseInt(process.env.SERVER_ID || "1", 10) || 1;
 if(!process.env.SERVER_ID){
   console.warn("⚠️⚠️⚠️ [servers] Env SERVER_ID NÃO DEFINIDA — assumindo 1 (produção). DEFINA no Render: 1 = h2bapply.com, 2 = h2b-teste, 3 = applyh2b.com — senão a trava de 'lotado' pode bloquear os cadastros deste servidor! ⚠️⚠️⚠️");
 }
-// ── v55 — MODO SÓ-ENVIO (dono, 25/07/2026, estratégia do Servidor 3) ────────
-// GMAIL_SEND_ONLY=1 no Render → o servidor pede ao Google APENAS o escopo
-// gmail.send (nada de readonly/modify): mínimo contato com o Gmail do
-// usuário, exatamente o que o processo de verificação do Google favorece.
-// Com o modo ligado: a aba Respostas some do site, /api/inbox devolve
-// desativado e nenhuma rotina lê caixa de entrada. Servidores 1 e 2
-// continuam completos (sem a env) até o dono decidir migrá-los.
-const GMAIL_SEND_ONLY = String(process.env.GMAIL_SEND_ONLY||"").trim()==="1";
-const OAUTH_SCOPES = GMAIL_SEND_ONLY
-  ? "openid email profile https://www.googleapis.com/auth/gmail.send"
-  : "openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.modify";
-if(GMAIL_SEND_ONLY) console.log("[oauth] ✉️ MODO SÓ-ENVIO ligado: escopo único gmail.send — aba Respostas desativada neste servidor.");
+// ── v72 — SÓ-ENVIO PERMANENTE E UNIVERSAL (ordem do dono, 26/07/2026) ──────
+// Antes era um toggle por servidor (GMAIL_SEND_ONLY=1, só no Servidor 3).
+// Agora é a arquitetura DEFINITIVA dos 3: o app pede ao Google SOMENTE o
+// escopo gmail.send — nunca readonly, nunca modify. Ele NUNCA lê, abre ou
+// guarda a caixa de entrada de ninguém; só manda a candidatura que o
+// próprio usuário escreveu. A aba Respostas foi removida do site (v72) —
+// não existe mais em nenhum servidor. GMAIL_SEND_ONLY permanece como
+// nome interno (usado em ~15 pontos do código) só por compatibilidade —
+// não é mais configurável por env; é sempre true.
+const GMAIL_SEND_ONLY = true;
+const OAUTH_SCOPES = "openid email profile https://www.googleapis.com/auth/gmail.send";
+console.log("[oauth] ✉️ Modo só-envio (permanente, v72): escopo único gmail.send — nunca lê caixa de entrada. Aba Respostas removida.");
 const REDIRECT_URI        = APP_URL + "/oauth/callback";
 const REDIRECT_URI_SENDER = APP_URL + "/oauth/add-sender/callback";
 // ── v61: redirect_uri pelo HOST da requisição (com allowlist) ──────────────
@@ -2792,76 +2792,10 @@ async function pushToUser(userEmail, payload) {
   }
 }
 
-// Polling de inbox no servidor — verifica novas respostas a cada 2 min para usuários
-// com push ativo e auto-send em andamento ou VIP
-const pushPollState = new Map(); // email → { lastUnread }
-async function serverPushPoll() {
-  if (!PUSH_ENABLED) return;
-  const usersWithPush = Object.keys(DB_PUSH).filter(e => (DB_PUSH[e]||[]).length > 0);
-  for (const email of usersWithPush) {
-    const u = getUser(email); if (!u) continue;
-    // Pega sessão ativa para buscar inbox
-    const sessArr = Object.values(sessions).filter(s => s.user_email === email && s.access_token);
-    const sess = sessArr[0]; const sessId = sess ? Object.keys(sessions).find(k => sessions[k] === sess) : null;
-    if (!sessId) continue; // sem sessão ativa = não pode checar inbox
-    try {
-      const emails = await gmailFetchInbox(sessId, 50);
-      // FIX: desconta emails que o usuário já marcou como lidos pelo app (persiste entre sessões)
-      const dbUsr = getUser(email) || {};
-      const pReadSet = new Set(dbUsr.readEmailIds || []);
-      const unread = emails.filter(e => !e.isRead && !pReadSet.has(e.id)).length;
-      const prev = pushPollState.get(email) ?? -1;
-      if (prev >= 0 && unread > prev) {
-        const diff = unread - prev;
-        // v13: tenta vincular a resposta mais recente não-lida à vaga original
-        const newestUnread = emails.find(e => !e.isRead);
-        let linkedHint = "";
-        let linkedAppId = "";
-        if(newestUnread){
-          const match = matchAppToEmail(email, {
-            threadId: newestUnread.threadId, inReplyTo: newestUnread.inReplyTo,
-            references: newestUnread.references, from: newestUnread.from
-          });
-          if(match?.app){
-            linkedAppId = match.app.appId;
-            const co = (match.app.company || match.app.jobSnapshot?.company || "").trim();
-            if(co) linkedHint = co;
-          }
-        }
-        const baseTitle = `✈️ H2BApply — ${diff} nova${diff > 1 ? "s" : ""} resposta${diff > 1 ? "s" : ""}!`;
-        const payload = {
-          type: "new_reply",
-          title: linkedHint ? `✈️ ${linkedHint} respondeu!` : baseTitle,
-          body: linkedHint
-            ? `Você recebeu uma resposta para a vaga em ${linkedHint}.`
-            : `Você recebeu ${diff} nova${diff > 1 ? "s" : ""} resposta${diff > 1 ? "s" : ""}. Toque para abrir.`,
-          icon: "/icon-192.png",
-          badge: "/icon-192.png",
-          tag: "h2b-inbox",
-          url: linkedAppId ? `/?tab=respostas&app=${linkedAppId}` : "/?tab=respostas",
-          appId: linkedAppId || null,
-          timestamp: Date.now(),
-        };
-        console.log(`[push-poll] ${email}: ${diff} nova(s) resp${linkedHint?` (${linkedHint})`:""} → push`);
-        await pushToUser(email, payload);
-      }
-      pushPollState.set(email, unread);
-    } catch(e) {
-      // FIX: se token expirado, tenta refresh silencioso antes de desistir
-      if(e.message==="TOKEN_EXPIRED"||e.message.includes("TOKEN_EXPIRED")||e.message.includes("Sessão expirada")){
-        const sessArr=Object.entries(sessions).filter(([,s])=>s.user_email===email&&s.access_token);
-        if(sessArr.length){
-          const [sid]=sessArr[0];
-          try{ await refreshToken(sid); }catch(re){ console.warn(`[push-poll] refresh falhou para ${email}:`,re.message); }
-        }
-      } else {
-        console.warn(`[push-poll] erro para ${email}:`,e.message);
-      }
-    }
-  }
-}
-// Executa poll a cada 2 minutos
-setInterval(serverPushPoll, 2 * 60 * 1000);
+// v72: o polling de inbox (verificava novas respostas a cada 2 min pra
+// disparar push) foi DESLIGADO — exigia gmail.readonly, que o app não pede
+// mais (ordem do dono: só enviar, nunca ler a caixa de entrada de ninguém).
+// A aba Respostas que esse push abria também foi removida do site.
 
 
 // Verifica se manual VIP está ativo
@@ -7652,7 +7586,6 @@ const server=http.createServer(async(req,res)=>{
     <ul>
       <li>Enviar emails de candidatura para empregadores americanos em seu nome</li>
       <li>Gerenciar seu histórico de candidaturas e evitar envios duplicados</li>
-      ${GMAIL_SEND_ONLY?"":"<li>Exibir respostas de empregadores no app</li>"}
       <li>Melhorar a experiência do usuário no aplicativo</li>
     </ul>
 
@@ -7660,11 +7593,10 @@ const server=http.createServer(async(req,res)=>{
     <p>O H2BApply solicita acesso ao seu Gmail <strong>exclusivamente</strong> para:</p>
     <ul>
       <li>Enviar emails de candidatura H-2B/H-2A para empregadores nos EUA (escopo <code>gmail.send</code>)</li>
-      ${GMAIL_SEND_ONLY?"":"<li>Ler respostas dos empregadores para exibição no app</li>"}
     </ul>
-    ${GMAIL_SEND_ONLY?"<p><strong>Este serviço NÃO lê, NÃO armazena e NÃO tem acesso à sua caixa de entrada.</strong> A única permissão solicitada é a de enviar as candidaturas que você mesmo escolher e autorizar.</p>":""}
+    <p><strong>Este serviço NÃO lê, NÃO armazena e NÃO tem acesso à sua caixa de entrada.</strong> A única permissão solicitada é a de enviar as candidaturas que você mesmo escolher e autorizar.</p>
     <p><strong>Nunca lemos, armazenamos ou compartilhamos o conteúdo de seus emails pessoais.</strong> O acesso é restrito às funcionalidades descritas acima e está em conformidade com a <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank">Política de Dados de Usuário do Google API</a>, incluindo os requisitos de Uso Limitado.</p>
-    <p style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;font-size:13.5px"><em>Google API Limited Use Disclosure (English):</em> H2BApply's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank">Google API Services User Data Policy</a>, including the Limited Use requirements. ${GMAIL_SEND_ONLY?"This application only requests the <code>gmail.send</code> scope, used exclusively to send job application emails that the user explicitly composes and authorizes. It does not read, store, or access the user's inbox in any way.":"Gmail data is used solely to send job application emails authorized by the user and to display employer replies inside the app."} We do not use Google user data for advertising, we do not sell it, and no humans read it except with explicit user consent or for security purposes as permitted by the policy.</p>
+    <p style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;font-size:13.5px"><em>Google API Limited Use Disclosure (English):</em> H2BApply's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank">Google API Services User Data Policy</a>, including the Limited Use requirements. This application only requests the <code>gmail.send</code> scope, used exclusively to send job application emails that the user explicitly composes and authorizes. It does not read, store, or access the user's inbox in any way. We do not use Google user data for advertising, we do not sell it, and no humans read it except with explicit user consent or for security purposes as permitted by the policy.</p>
 
     <h2>4. Compartilhamento de dados</h2>
     <p>Não vendemos, alugamos ou compartilhamos seus dados pessoais com terceiros, exceto:</p>
@@ -17180,41 +17112,14 @@ RESPONDA APENAS com array JSON:
     }catch(e){ console.warn("[gemini-boot] erro:",e.message); }
   }, 30000); // 30s após boot — depois do reactivate e cache
 
-  // ── Startup Bounce Scan — verifica inbox de todos os usuários com token ──
-  // Roda 20s após boot para dar tempo do reactivate e cache carregarem.
-  // Para cada usuário com refresh_token, renova token e escaneia inbox por bounces.
-  // Bounces encontrados → registrados em DB_INVALID_EMAILS → removidos das planilhas.
-  setTimeout(async()=>{
-    const usersWithToken = Object.values(DB_USERS).filter(u=>u&&u.email&&u.refresh_token);
-    if(!usersWithToken.length){ console.log("[bounce-scan] nenhum usuário com token, pulando"); return; }
-    console.log(`[bounce-scan] 🔍 Iniciando scan de bounces para ${usersWithToken.length} usuário(s)...`);
-    let totalBounces=0, totalUsers=0;
-    for(const u of usersWithToken){
-      try{
-        // Renova token diretamente via refresh_token (sem precisar de sessão ativa)
-        const freshToken = await refreshTokenForUser(u.email).catch(()=>null);
-        if(!freshToken){ console.log(`[bounce-scan] ${u.email}: token inválido, pulando`); continue; }
-        // Cria sessão temporária para gmailFetchInbox
-        const _tmpSid = "__bounce_scan__"+u.email;
-        sessions[_tmpSid] = {access_token:freshToken, user_email:u.email, expires_at:Date.now()+3500_000};
-        try{
-          // Busca apenas as últimas 50 mensagens para não sobrecarregar
-          const emails = await gmailFetchInbox(_tmpSid, 50);
-          // gmailFetchInbox já processa bounces internamente e chama processBounce()
-          totalBounces += (emails._bouncesProcessed||0);
-          totalUsers++;
-          console.log(`[bounce-scan] ✅ ${u.email}: ${emails.length} mensagens verificadas`);
-        }finally{
-          delete sessions[_tmpSid]; // limpa sessão temporária
-        }
-        // Pausa 2s entre usuários para não sobrecarregar Gmail API
-        await new Promise(r=>setTimeout(r,2000));
-      }catch(e){
-        console.warn(`[bounce-scan] ${u.email}: ${e.message}`);
-      }
-    }
-    console.log(`[bounce-scan] ✅ Concluído: ${totalUsers} usuários verificados | ${Object.keys(DB_INVALID_EMAILS).length} emails inválidos na base`);
-  }, 20000); // 20s após boot
+  // v72: Startup Bounce Scan DESLIGADO — lia a inbox de todo usuário com
+  // token (gmail.readonly) procurando bounce. Sem esse escopo (ordem do
+  // dono: só ENVIAR, nunca ler caixa de entrada), o scan nunca teria o que
+  // ler — rodar mesmo assim só gastaria refresh_token de todo usuário à toa
+  // a cada boot. DB_INVALID_EMAILS e isEmailInvalid() continuam de pé (dado
+  // histórico + entradas manuais do admin seguem valendo pro robô pular
+  // e-mails já conhecidos como mortos), só a DESCOBERTA de novos bounces
+  // por leitura de inbox parou.
 
   // ── Auto-Enriquecimento DOL — Motor Autônomo ─────────────────────────
   // REGRAS:
