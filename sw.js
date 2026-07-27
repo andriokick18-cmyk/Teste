@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v42"; // v42 (26/07): index.html mudou (v72: aba Respostas REMOVIDA de vez — ordem do dono, só-envio permanente e universal, escopo gmail.send apenas). Regra 6c: bump junto.
+const CACHE_NAME = "h2bapply-v43"; // v43 (27/07): index.html mudou (v73: selo de aquecimento de conta Gmail nova no Perfil — proteção anti-bloqueio pelo Google). Regra 6c: bump junto.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

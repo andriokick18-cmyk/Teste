@@ -205,7 +205,7 @@ console.log(`[boot] Push VAPID: ${PUSH_ENABLED?"✅ configurado":"⚠️  desati
 // Admins podem configurar intervalo menor.
 // adminIntervalSecs: número de segundos entre envios (mín 30s para admins)
 // calcSmartInterval: corpo em src/engine/core.js (Fase 1 · Módulo 6)
-const { createCalcSmartInterval, nowBRT: _nowBRTMod, todayStrBRT: _todayStrBRTMod, toLocaleBRT: _toLocaleBRTMod, calcStreak: _calcStreakMod, last7Days: _last7DaysMod } = require("./mod-engine-core.js");
+const { createCalcSmartInterval, nowBRT: _nowBRTMod, todayStrBRT: _todayStrBRTMod, toLocaleBRT: _toLocaleBRTMod, calcStreak: _calcStreakMod, last7Days: _last7DaysMod, warmupCapForSender } = require("./mod-engine-core.js");
 // 🔒 Integridade de vagas — 1 vaga = 1 ETA Case Number único (KB-076).
 // Mesmo módulo usado pelo build-sheets.js standalone, pra nunca divergir a
 // regra de dedupe/merge entre o cron oficial e o bot de coleta do admin.
@@ -4981,6 +4981,19 @@ async function _doAutoSendInner(email) {
     }
   } catch(e) {
     console.warn("[auto] round-robin erro:", e.message);
+    // ── 🛡️ v73: todas as contas disponíveis bateram o teto de AQUECIMENTO de
+    // hoje — NÃO é erro, é a proteção funcionando. Devolve a vaga à fila e
+    // tenta de novo daqui a algumas horas (o teto some sozinho à meia-noite;
+    // se ainda estiver dentro do aquecimento, só vai esperar de novo).
+    if (e.message === "WARMUP_CAP_REACHED") {
+      queue.unshift(target);
+      const retryMs = 3 * 3600_000;
+      setAutoJob(email, { ...job, queue, status:"waiting_warmup", nextSendAt:Date.now()+retryMs });
+      addLog(email, { status:"pausado", jobTitle:"🌱 Aquecendo sua conta Gmail", company:"Sua(s) conta(s) Gmail atingiram o limite de segurança de hoje — protege a conta de ser marcada como spam pelo Google enquanto ela é nova aqui. Volta a enviar sozinho em algumas horas (ou amanhã).", error:"warmup" });
+      console.log(`[auto] 🌱 ${email} — todas as contas em aquecimento bateram o teto de hoje, retomando em 3h`);
+      autoTimers.set(email, setTimeout(() => scheduleAuto(email), retryMs));
+      return;
+    }
     // Usuário SELECIONOU e-mails específicos e nenhum está disponível:
     // NÃO cair no principal (pode estar bloqueado — foi excluído de propósito).
     if (Array.isArray(job.senders) && job.senders.length &&
@@ -5385,8 +5398,34 @@ async function _doAutoSendInner(email) {
         return;
       }
 
+      // 🛡️ v73: suspensão/bloqueio de uma conta EXTRA (não a principal), com
+      // OUTRAS contas saudáveis ainda disponíveis → isola só a conta doente
+      // (blocked:true, o round-robin já a exclui sozinho) e SEGUE enviando
+      // pelas demais, em vez de parar TODO o automático por causa de 1 conta.
+      // Continua pausando tudo se: for a conta PRINCIPAL, for erro de auth
+      // (afeta a sessão como um todo), ou não sobrar mais nenhuma conta sã.
+      if (isSuspended && _autoSenderEmail && _autoSenderEmail !== email) {
+        // A conta principal sempre continua no pool do round-robin como
+        // fallback (getSenderToken monta [principal, ...extrasOk] sempre) —
+        // isolando só o extra doente, o motor segue sozinho pelo que restou.
+        const uForBlock = getUser(email);
+        const updSenders=(uForBlock?.senderEmails||[]).map(s2=>s2.email===_autoSenderEmail?{...s2,blocked:true,blockedReason:errType,blockedAt:Date.now()}:s2);
+        setUser(email,{senderEmails:updSenders});
+        addLog(email,{...logEntry,status:"pausado",error:`⛔ A conta ${_autoSenderEmail} foi ${errType==="suspended"?"suspensa pelo Google":"desativada pra envio"} — ela foi ISOLADA (não é mais usada) e o automático CONTINUA pelas outras contas. ${errFriendly}`});
+        trackJourney(email,'auto_fail',{ok:false,error:errFriendly,detail:`Sender ${_autoSenderEmail} isolado — auto continua`});
+        console.warn(`[auto] ⛔ Sender ${_autoSenderEmail} suspenso — isolado, automático de ${email} CONTINUA pelos demais`);
+        // Devolve a vaga à fila (não foi enviada) e agenda o próximo ciclo normalmente
+        const curJob0=getAutoJob(email);
+        if(curJob0){ const restoredQ0=[target,...(curJob0.queue||[])]; setAutoJob(email,{...curJob0,queue:restoredQ0}); }
+        const interval0=calcSmartInterval(email);
+        setAutoJob(email,{...getAutoJob(email),status:"waiting_interval",nextSendAt:Date.now()+interval0});
+        autoTimers.set(email, setTimeout(() => scheduleAuto(email), interval0));
+        return;
+      }
+
       if (isAuth || isSuspended) {
-        // Problema de autenticação: pausa o automático e avisa claramente
+        // Problema de autenticação (ou suspensão sem mais nenhuma conta saudável
+        // pra isolar e seguir): pausa o automático inteiro e avisa claramente
         const curJob = getAutoJob(email);
         if (curJob) {
           // Devolve vaga à fila para quando o usuário logar de novo
@@ -5775,6 +5814,14 @@ async function getSenderToken(ownerEmail, requestedSender, allowedSenders) {
   if (requestedSender && requestedSender !== ownerEmail) {
     const s = extras.find(x => x.email === requestedSender);
     if (!s) throw new Error("Email de envio não encontrado ou removido.");
+    // 🛡️ v73: mesma proteção de aquecimento do round-robin, aplicada quando
+    // o usuário escolhe ESTA conta específica na tela de envio manual.
+    const _wCap = warmupCapForSender(s.addedAt);
+    if (_wCap !== null) {
+      const _today = todayStr();
+      const _sentToday = getHist(ownerEmail).filter(h => h.dateStr === _today && h.senderEmail === s.email).length;
+      if (_sentToday >= _wCap) throw new Error("WARMUP_CAP_REACHED");
+    }
     if (s.access_token && s.token_expiry && Date.now() < s.token_expiry - 120_000) {
       return { token: s.access_token, senderEmail: s.email };
     }
@@ -5807,12 +5854,26 @@ async function getSenderToken(ownerEmail, requestedSender, allowedSenders) {
     // Principal representado como objeto sintético para uniformidade
     const extrasOk = extras.filter(s => !s.tokenExpired && !s.blocked);
     let pool = [
-      { email: ownerEmail, isPrincipal: true },  // email principal sempre no pool
+      { email: ownerEmail, isPrincipal: true, addedAt: p?.created_at },  // email principal sempre no pool
       ...extrasOk.map(s => ({ ...s, isPrincipal: false }))
     ];
     // Seleção do usuário: só os e-mails escolhidos participam do rodízio
     if (allowed) pool = pool.filter(c => allowed.includes(String(c.email).toLowerCase()));
     if (!pool.length) throw new Error("Nenhum dos e-mails selecionados está disponível para envio. Reconecte-os em Configurações.");
+
+    // ── 🛡️ v73: AQUECIMENTO — conta Gmail recém-conectada manda pouco nos
+    // primeiros dias (proteção real contra o Google marcar como bot; ver
+    // warmupCapForSender). Cada conta tem seu PRÓPRIO relógio (addedAt).
+    // Se sobrar pelo menos 1 conta dentro do limite de hoje, usa só essas —
+    // as em aquecimento ficam de fora deste envio (não pulam a fila, só
+    // esperam o próximo ciclo/dia). Só usa uma conta JÁ no teto se for a
+    // ÚNICA disponível (sem alternativa, mantém o fluxo antigo intacto).
+    const withinWarmup = pool.filter(c => {
+      const cap = warmupCapForSender(c.addedAt);
+      return cap === null || (countBySender[c.email] || 0) < cap;
+    });
+    if (withinWarmup.length) pool = withinWarmup;
+    else throw new Error("WARMUP_CAP_REACHED");
 
     // Ordena por menor contagem hoje → alterna naturalmente 1,2,1,2...
     pool.sort((a, b) => (countBySender[a.email] || 0) - (countBySender[b.email] || 0));
@@ -11390,7 +11451,9 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
     const autoJob=getAutoJob(s.user_email);
     const stats=getAutoStats(s.user_email);
     const now2=Date.now();
-    return json(res,200,{connected:true,sendOnly:GMAIL_SEND_ONLY,diamonds:_diamSaldo(p),diamondPrice:DIAMOND_PRICE_BRL,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",whatsapp:p.whatsapp||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",rankName:p.rankName||"",appAvatarId:p.appAvatarId||"",h2bProfile:p.h2bProfile||{},serverId:_resolveServerId(req),publicProfile:p.publicProfile||{},age:p.age||0,isAdmin:!!p.isAdmin,plan:planKey,totalSent,totalManual,totalAutoHist,totalReplies,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p),source:p.vip.source||"trial"}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[],senderEmails:(p.senderEmails||[]).map(s=>({email:s.email,label:s.label||"",active:s.active!==false,tokenExpired:!!s.tokenExpired,blocked:!!s.blocked,addedAt:s.addedAt})),senderMax:getMaxSenders(p),adminSettings:isAdminVip(p)?{intervalSecs:(p.adminSettings?.intervalSecs||180),senderLimits:(p.adminSettings?.senderLimits||{}),maxSenders:getMaxSenders(p)}:null});
+    // 🛡️ v73: status de AQUECIMENTO por conta (transparência — sem isso, o
+    // usuário acha que travou/bugou quando na verdade é a proteção rodando).
+    return json(res,200,{connected:true,sendOnly:GMAIL_SEND_ONLY,diamonds:_diamSaldo(p),diamondPrice:DIAMOND_PRICE_BRL,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",whatsapp:p.whatsapp||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",rankName:p.rankName||"",appAvatarId:p.appAvatarId||"",h2bProfile:p.h2bProfile||{},serverId:_resolveServerId(req),publicProfile:p.publicProfile||{},age:p.age||0,isAdmin:!!p.isAdmin,plan:planKey,totalSent,totalManual,totalAutoHist,totalReplies,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p),source:p.vip.source||"trial"}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[],senderEmails:(p.senderEmails||[]).map(sm=>({email:sm.email,label:sm.label||"",active:sm.active!==false,tokenExpired:!!sm.tokenExpired,blocked:!!sm.blocked,blockedReason:sm.blockedReason||null,addedAt:sm.addedAt,warmupCap:warmupCapForSender(sm.addedAt),sentToday:h.filter(x=>x.dateStr===todayStr()&&x.senderEmail===sm.email).length})),senderMax:getMaxSenders(p),primaryWarmup:{cap:warmupCapForSender(p.created_at),sentToday:h.filter(x=>x.dateStr===todayStr()&&(x.senderEmail===s.user_email||!x.senderEmail)).length},adminSettings:isAdminVip(p)?{intervalSecs:(p.adminSettings?.intervalSecs||180),senderLimits:(p.adminSettings?.senderLimits||{}),maxSenders:getMaxSenders(p)}:null});
   }
 
   if(pathname==="/api/onboard"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});setUser(s.user_email,{onboarded:true});return json(res,200,{ok:true});}
@@ -11617,6 +11680,12 @@ const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filte
             r=gb2;
           }else{r=await gmailSendWithThread(sid,{to:toEmail,subject:d.subject,text:d.message,fromName:d.fromName||p.name||s.user_name||"H2BApply",attachments,threadHeaders,threadId:isReply?(d.threadId||null):null});}
         }catch(e2){
+          // 🛡️ v73: a conta ESCOLHIDA pelo usuário está em aquecimento — cair
+          // pro principal sem checar ele também poderia furar a proteção da
+          // OUTRA conta. Mais simples e mais seguro: avisar, não redirecionar.
+          if(e2.message==="WARMUP_CAP_REACHED"){
+            return json(res,429,{error:"Essa conta Gmail atingiu o limite de segurança de hoje (proteção contra bloqueio pelo Google — ela é nova aqui e ainda está em aquecimento). Tente outra conta ou volte em algumas horas.",warmup:true});
+          }
           console.warn("[send] Sender extra falhou, usando principal:",e2.message);
           actualSenderEmail=s.user_email;
           r=await gmailSendWithThread(sid,{to:toEmail,subject:d.subject,text:d.message,fromName:d.fromName||p.name||s.user_name||"H2BApply",attachments,threadHeaders,threadId:isReply?(d.threadId||null):null});
@@ -11641,6 +11710,15 @@ const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filte
             r=await gmailSendWithThread(sid,{to:toEmail,subject:d.subject,text:d.message,fromName:d.fromName||p.name||s.user_name||"H2BApply",attachments,threadHeaders,threadId:isReply?(d.threadId||null):null});
           }
         }catch(e3){
+          // 🛡️ v73: WARMUP_CAP_REACHED aqui significa que TODAS as contas do
+          // pool (incluindo a principal) já bateram o teto de segurança de
+          // hoje — cair pra "usar o principal mesmo assim" bypassaria a
+          // proteção justo na conta que mais precisa dela. Avisa em vez de
+          // enviar (diferente de token expirado/rede, que seguem caindo pro
+          // principal normalmente).
+          if(e3.message==="WARMUP_CAP_REACHED"){
+            return json(res,429,{error:"Sua(s) conta(s) Gmail atingiram o limite de segurança de hoje (proteção contra bloqueio pelo Google — a conta é nova aqui e ainda está em aquecimento). Volta a liberar em algumas horas ou amanhã.",warmup:true});
+          }
           console.warn("[send/manual] Round-robin falhou, usando principal:",e3.message);
           actualSenderEmail=s.user_email;
           r=await gmailSendWithThread(sid,{to:toEmail,subject:d.subject,text:d.message,fromName:d.fromName||p.name||s.user_name||"H2BApply",attachments,threadHeaders,threadId:isReply?(d.threadId||null):null});

@@ -8239,18 +8239,31 @@ function _renderProfileSenderSection(){
     if(senders.length===0){
       listEl.innerHTML='<div style="font-size:12px;color:var(--t3);padding:4px 0">Nenhum Gmail extra conectado ainda.</div>';
     } else {
-      listEl.innerHTML=senders.map(s=>`
+      listEl.innerHTML=senders.map(s=>{
+        // 🛡️ v73: status real da conta — bloqueada (suspensão do Google
+        // detectada) tem prioridade sobre token expirado/aquecimento.
+        const _statusLine=s.blocked
+          ?`⛔ Bloqueada — ${s.blockedReason==="suspended"?"o Google suspendeu esta conta":"envio desativado nesta conta"}. Reconecte pra tentar de novo.`
+          :(s.tokenExpired||s.active===false)?"⚠️ Precisa reconectar"
+          :"✅ Conectado";
+        const _statusColor=s.blocked?"var(--red)":(s.tokenExpired||s.active===false)?"var(--red)":"var(--green)";
+        // Selo de aquecimento (proteção anti-bloqueio p/ conta recém-conectada)
+        const _warmupBadge=(!s.blocked&&!s.tokenExpired&&s.active!==false&&s.warmupCap!=null)
+          ?`<div style="font-size:9.5px;color:#d97706;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:6px;padding:2px 6px;margin-top:3px;display:inline-block">🌱 Aquecendo — ${s.sentToday||0}/${s.warmupCap} hoje (proteção anti-bloqueio)</div>`
+          :"";
+        return`
         <div style="display:flex;align-items:center;gap:8px;background:var(--sf2);border:1px solid var(--border);border-radius:8px;padding:9px 12px">
           <i class="ti ti-mail" style="color:var(--blue);font-size:14px"></i>
           <div style="flex:1;min-width:0">
             <div style="font-size:12px;font-weight:700;color:var(--t1);word-break:break-all">${esc(s.email)}</div>
-            <div style="font-size:10px;color:${(s.tokenExpired||s.active===false)?"var(--red)":"var(--green)"}">${(s.tokenExpired||s.active===false)?"⚠️ Precisa reconectar":"✅ Conectado"}</div>
+            <div style="font-size:10px;color:${_statusColor}">${_statusLine}</div>
+            ${_warmupBadge}
           </div>
-          ${(s.tokenExpired||s.active===false)?`<button onclick="location.href='/oauth/add-sender?reauth=1'" style="background:var(--blue);border:none;cursor:pointer;color:#fff;padding:5px 10px;border-radius:7px;font-size:11px;font-weight:800" title="Reconectar este Gmail"><i class="ti ti-refresh"></i> Reconectar</button>`:""}
+          ${(s.tokenExpired||s.active===false||s.blocked)?`<button onclick="location.href='/oauth/add-sender?reauth=1'" style="background:var(--blue);border:none;cursor:pointer;color:#fff;padding:5px 10px;border-radius:7px;font-size:11px;font-weight:800" title="Reconectar este Gmail"><i class="ti ti-refresh"></i> Reconectar</button>`:""}
           <button onclick="_removeSenderEmail('${esc(s.email)}')" style="background:none;border:none;cursor:pointer;color:var(--red);padding:4px" title="Remover">
             <i class="ti ti-trash" style="font-size:14px"></i>
           </button>
-        </div>`).join("");
+        </div>`;}).join("");
     }
   }
 

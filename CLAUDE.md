@@ -69,6 +69,16 @@
     mesmos filtros; fila esperta (empregador menos contatado primeiro);
     vaga morta é pulada sem gastar limite; planilhas se atualizam sozinhas
     (status/datas/salário) — sempre educados com o DOL (backoff em 403).
+13a. **🌱 Aquecimento de Gmail (dono, 27/07/2026 — "gente sendo bloqueada
+    pelo Google")**: toda conta Gmail nova (principal ou extra) manda
+    pouco nos primeiros dias e ganha volume aos poucos (dias 1-3: 15/dia
+    · 4-7: 40/dia · 8-14: 100/dia · 15+: limite cheio do plano) — cada
+    conta tem seu PRÓPRIO relógio (created_at do usuário / addedAt do
+    extra). Sem dado de quando a conta nasceu, NUNCA bloqueia por falta
+    de informação (fail-open). Uma conta SUSPENSA pelo Google é ISOLADA
+    (blocked:true) e o automático CONTINUA pelas outras — nunca pausa
+    tudo por causa de 1 conta doente. Selo visível no Perfil (🌱
+    Aquecendo X/Y hoje) — nunca esconder esse throttling do usuário.
 13b. **Pagamento**: comprovante que CONFERE (pré-check IA) ativa o plano
     NA HORA, mas PROVISÓRIO (3 dias) e o pedido segue pendente — o admin
     confirma SEMPRE; nunca fica plano ativo dias sem confirmação humana.

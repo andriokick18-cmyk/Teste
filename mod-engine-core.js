@@ -97,4 +97,33 @@ function last7Days(h) {
   return r;
 }
 
-module.exports = { createCalcSmartInterval, nowBRT, todayStrBRT, toLocaleBRT, calcStreak, last7Days };
+// ── 🛡️ v73 — AQUECIMENTO DE CONTA GMAIL NOVA (ordem do dono, 27/07/2026:
+// "tem gente sendo bloqueada pelo Google, tem algo que possamos fazer?") ──
+// Padrão consagrado de QUALQUER ferramenta séria de e-mail em volume
+// (Instantly, Lemlist, Smartlead...): uma conta Gmail RECÉM-CONECTADA que
+// de repente manda centenas de e-mails por dia é o sinal nº1 que o
+// detector de abuso do Google procura — o pulo de 0 pra "muito" é o que
+// denuncia bot, não o volume em si. A defesa: toda conta nova entra
+// devagar e ganha volume aos poucos, por CONTA (cada Gmail tem seu
+// próprio relógio de aquecimento, a partir do dia em que foi conectada
+// — addedAt do sender extra, ou created_at da conta pro e-mail principal).
+// Depois de ~2 semanas de histórico limpo, a conta destrava o limite
+// cheio do plano — o aquecimento é só nos primeiros dias, não um teto
+// permanente.
+function daysSince(tsOrIso) {
+  if (!tsOrIso) return Infinity; // sem data conhecida = trata como já aquecida (nunca bloqueia por falta de dado)
+  const t = typeof tsOrIso === "number" ? tsOrIso : Date.parse(tsOrIso);
+  if (isNaN(t)) return Infinity;
+  return Math.floor((Date.now() - t) / 86400_000);
+}
+// Retorna o teto de envios de HOJE pra essa conta, ou null se já não tem
+// mais teto de aquecimento (conta "graduada" — vale o limite do plano).
+function warmupCapForSender(addedAtTsOrIso) {
+  const d = daysSince(addedAtTsOrIso);
+  if (d <= 2) return 15;   // dias 1-3: bem devagar, é o período mais sensível
+  if (d <= 6) return 40;   // dias 4-7
+  if (d <= 13) return 100; // dias 8-14
+  return null;             // dia 15+: sem teto extra, vale o limite do plano
+}
+
+module.exports = { createCalcSmartInterval, nowBRT, todayStrBRT, toLocaleBRT, calcStreak, last7Days, daysSince, warmupCapForSender };

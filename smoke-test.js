@@ -835,6 +835,34 @@ async function testAuthWatchdogPush() {
     const _restOk = fs.existsSync(path.join(_restDir, "financeiro.json")) && fs.readFileSync(path.join(_restDir, "financeiro.json"), "utf8") === '{"pagamentos":[]}';
     check("🗄️ DRILL de restauração: 1 comando devolve os arquivos do pacote intactos", _restOk);
 
+    // ═══ 🛡️ v73: AQUECIMENTO DE CONTA GMAIL NOVA (proteção anti-bloqueio) ═══
+    // Pedido real do dono: "tem gente sendo bloqueada pelo Google". A defesa:
+    // conta recém-conectada manda pouco nos primeiros dias, ganha volume aos
+    // poucos — e uma conta suspensa isolada não trava as outras contas saudáveis.
+    const { warmupCapForSender: _warmupFn, daysSince: _daysSinceFn } = require("./mod-engine-core.js");
+    check("🌱 aquecimento: conta de HOJE (dia 0) tem teto de 15/dia", _warmupFn(new Date().toISOString()) === 15, `cap=${_warmupFn(new Date().toISOString())}`);
+    check("🌱 aquecimento: conta de 4 dias tem teto de 40/dia", _warmupFn(Date.now() - 4 * 86400_000) === 40, `cap=${_warmupFn(Date.now() - 4 * 86400_000)}`);
+    check("🌱 aquecimento: conta de 10 dias tem teto de 100/dia", _warmupFn(Date.now() - 10 * 86400_000) === 100, `cap=${_warmupFn(Date.now() - 10 * 86400_000)}`);
+    check("🌱 aquecimento: conta de 20 dias já GRADUOU (sem teto extra, null)", _warmupFn(Date.now() - 20 * 86400_000) === null, `cap=${_warmupFn(Date.now() - 20 * 86400_000)}`);
+    check("🌱 aquecimento: sem data conhecida (addedAt ausente) NUNCA bloqueia por falta de dado", _warmupFn(undefined) === null && _daysSinceFn(undefined) === Infinity);
+
+    // Estrutural (mesmo padrão da checagem de escopo OAuth): confirma que as
+    // 2 defesas centrais existem no código-fonte — regressão aqui é séria
+    // (usuário real ficando bloqueado pelo Google de novo).
+    check("🛡️ getSenderToken FILTRA o pool pelo teto de aquecimento (não só ordena)", _srvSrc.includes("warmupCapForSender(c.addedAt)") && _srvSrc.includes("WARMUP_CAP_REACHED"),
+      "trecho warmupCapForSender/WARMUP_CAP_REACHED não encontrado");
+    check("🛡️ conta suspensa (não-principal) é ISOLADA (blocked:true) e o automático CONTINUA pelas outras — não pausa tudo à toa",
+      _srvSrc.includes('blocked:true,blockedReason:errType') && _srvSrc.includes("automático CONTINUA pelas outras contas"),
+      "lógica de isolamento por sender não encontrada");
+
+    // Ponta a ponta: /api/status expõe o campo primaryWarmup de verdade (o
+    // fixture cliente@test.com não tem created_at → fail-open correto: sem
+    // dado de quando a conta nasceu, NUNCA bloqueia por falta de informação
+    // — comportamento de segurança, não um bug).
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "cliente@test.com" });
+    const stW = await get("/api/status");
+    check("🌱 /api/status expõe primaryWarmup (fail-open: sem created_at no fixture → sem teto, nunca bloqueia à toa)", stW.json?.primaryWarmup && stW.json.primaryWarmup.cap === null, JSON.stringify(stW.json?.primaryWarmup));
+
     const disk = fs.readdirSync(path.join(DATA, "cvs"));
     check("PDFs válidos gravados no disco", disk.includes("cliente@test.com_1002.pdf") && disk.includes("cliente@test.com_1004.pdf"),
       disk.join(", "));
