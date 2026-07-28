@@ -846,14 +846,28 @@ async function testAuthWatchdogPush() {
     check("🌱 aquecimento: conta de 20 dias já GRADUOU (sem teto extra, null)", _warmupFn(Date.now() - 20 * 86400_000) === null, `cap=${_warmupFn(Date.now() - 20 * 86400_000)}`);
     check("🌱 aquecimento: sem data conhecida (addedAt ausente) NUNCA bloqueia por falta de dado", _warmupFn(undefined) === null && _daysSinceFn(undefined) === Infinity);
 
-    // Estrutural (mesmo padrão da checagem de escopo OAuth): confirma que as
-    // 2 defesas centrais existem no código-fonte — regressão aqui é séria
+    // Estrutural (mesmo padrão da checagem de escopo OAuth): confirma que a
+    // defesa central existe no código-fonte — regressão aqui é séria
     // (usuário real ficando bloqueado pelo Google de novo).
-    check("🛡️ getSenderToken FILTRA o pool pelo teto de aquecimento (não só ordena)", _srvSrc.includes("warmupCapForSender(c.addedAt)") && _srvSrc.includes("WARMUP_CAP_REACHED"),
-      "trecho warmupCapForSender/WARMUP_CAP_REACHED não encontrado");
+    check("🛡️ getSenderToken PREFERE o pool dentro do teto de aquecimento (round-robin ainda evita conta em risco quando tem opção)",
+      _srvSrc.includes("warmupCapForSender(c.addedAt)") && _srvSrc.includes("const withinWarmup"),
+      "trecho warmupCapForSender/withinWarmup não encontrado");
     check("🛡️ conta suspensa (não-principal) é ISOLADA (blocked:true) e o automático CONTINUA pelas outras — não pausa tudo à toa",
       _srvSrc.includes('blocked:true,blockedReason:errType') && _srvSrc.includes("automático CONTINUA pelas outras contas"),
       "lógica de isolamento por sender não encontrada");
+
+    // ═══ 🛡️ v76: aquecimento NUNCA mais pausa o automático (ordem do dono,
+    // 27/07, cliente pago vendo "waiting_warmup" travado: "eu quero nao nunca
+    // pare o automático") ═══ — o teto por conta virou preferência de
+    // rodízio, não bloqueio: se TODAS as contas já bateram o teto de hoje,
+    // usa a menos carregada mesmo assim e segue no intervalo normal, em vez
+    // de pausar até amanhã.
+    check("🛡️ round-robin não lança mais WARMUP_CAP_REACHED quando todas as contas estão no teto (usa o pool inteiro em vez de travar)",
+      !_srvSrc.includes("else throw new Error(\"WARMUP_CAP_REACHED\")"),
+      "ainda existe um throw incondicional de WARMUP_CAP_REACHED no round-robin");
+    check("🛡️ status waiting_warmup (pausa de até 3h esperando o teto zerar) foi REMOVIDO do motor automático",
+      !_srvSrc.includes('status:"waiting_warmup"'),
+      "status waiting_warmup ainda sendo atribuído — automático ainda pode pausar por aquecimento");
 
     // ═══ 🛡️ v75: rate limit do Google NÃO pausa mais o automático ═══
     // Ordem do dono (27/07): "automático só deve parar se o Google bloquear,

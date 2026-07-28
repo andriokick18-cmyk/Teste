@@ -5015,19 +5015,9 @@ async function _doAutoSendInner(email) {
     }
   } catch(e) {
     console.warn("[auto] round-robin erro:", e.message);
-    // ── 🛡️ v73: todas as contas disponíveis bateram o teto de AQUECIMENTO de
-    // hoje — NÃO é erro, é a proteção funcionando. Devolve a vaga à fila e
-    // tenta de novo daqui a algumas horas (o teto some sozinho à meia-noite;
-    // se ainda estiver dentro do aquecimento, só vai esperar de novo).
-    if (e.message === "WARMUP_CAP_REACHED") {
-      queue.unshift(target);
-      const retryMs = 3 * 3600_000;
-      setAutoJob(email, { ...job, queue, status:"waiting_warmup", nextSendAt:Date.now()+retryMs });
-      addLog(email, { status:"pausado", jobTitle:"🌱 Aquecendo sua conta Gmail", company:"Sua(s) conta(s) Gmail atingiram o limite de segurança de hoje — protege a conta de ser marcada como spam pelo Google enquanto ela é nova aqui. Volta a enviar sozinho em algumas horas (ou amanhã).", error:"warmup" });
-      console.log(`[auto] 🌱 ${email} — todas as contas em aquecimento bateram o teto de hoje, retomando em 3h`);
-      autoTimers.set(email, setTimeout(() => scheduleAuto(email), retryMs));
-      return;
-    }
+    // v76: WARMUP_CAP_REACHED não é mais lançado pelo round-robin (getSenderToken
+    // usa a conta mesmo em aquecimento quando não sobra alternativa — ver ali) —
+    // automático nunca mais pausa esperando o teto diário zerar.
     // Usuário SELECIONOU e-mails específicos e nenhum está disponível:
     // NÃO cair no principal (pode estar bloqueado — foi excluído de propósito).
     if (Array.isArray(job.senders) && job.senders.length &&
@@ -5899,19 +5889,22 @@ async function getSenderToken(ownerEmail, requestedSender, allowedSenders) {
     if (allowed) pool = pool.filter(c => allowed.includes(String(c.email).toLowerCase()));
     if (!pool.length) throw new Error("Nenhum dos e-mails selecionados está disponível para envio. Reconecte-os em Configurações.");
 
-    // ── 🛡️ v73: AQUECIMENTO — conta Gmail recém-conectada manda pouco nos
-    // primeiros dias (proteção real contra o Google marcar como bot; ver
+    // ── 🛡️ v73/v76: AQUECIMENTO — conta Gmail recém-conectada manda pouco
+    // nos primeiros dias (proteção real contra o Google marcar como bot; ver
     // warmupCapForSender). Cada conta tem seu PRÓPRIO relógio (addedAt).
-    // Se sobrar pelo menos 1 conta dentro do limite de hoje, usa só essas —
-    // as em aquecimento ficam de fora deste envio (não pulam a fila, só
-    // esperam o próximo ciclo/dia). Só usa uma conta JÁ no teto se for a
-    // ÚNICA disponível (sem alternativa, mantém o fluxo antigo intacto).
+    // Se sobrar pelo menos 1 conta dentro do limite de hoje, PREFERE essas
+    // (fica menos exposta) — mas v76 (ordem do dono, 27/07: "eu quero que
+    // nunca pare o automático") tirou o STOP: se TODAS as contas já bateram
+    // o teto de hoje, o robô não pausa mais esperando amanhã — usa a MENOS
+    // carregada mesmo assim e continua no intervalo humanizado normal. O
+    // intervalo (5-6min) já é a proteção real contra rajada repentina; o
+    // teto por conta virou só uma preferência de rodízio, não um bloqueio.
     const withinWarmup = pool.filter(c => {
       const cap = warmupCapForSender(c.addedAt);
       return cap === null || (countBySender[c.email] || 0) < cap;
     });
     if (withinWarmup.length) pool = withinWarmup;
-    else throw new Error("WARMUP_CAP_REACHED");
+    // else: mantém o pool inteiro (nenhuma conta some da fila por aquecimento)
 
     // Ordena por menor contagem hoje → alterna naturalmente 1,2,1,2...
     pool.sort((a, b) => (countBySender[a.email] || 0) - (countBySender[b.email] || 0));
@@ -12071,15 +12064,9 @@ const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filte
             r=await gmailSendWithThread(sid,{to:toEmail,subject:d.subject,text:d.message,fromName:d.fromName||p.name||s.user_name||"H2BApply",attachments,threadHeaders,threadId:isReply?(d.threadId||null):null});
           }
         }catch(e3){
-          // 🛡️ v73: WARMUP_CAP_REACHED aqui significa que TODAS as contas do
-          // pool (incluindo a principal) já bateram o teto de segurança de
-          // hoje — cair pra "usar o principal mesmo assim" bypassaria a
-          // proteção justo na conta que mais precisa dela. Avisa em vez de
-          // enviar (diferente de token expirado/rede, que seguem caindo pro
-          // principal normalmente).
-          if(e3.message==="WARMUP_CAP_REACHED"){
-            return json(res,429,{error:"Sua(s) conta(s) Gmail atingiram o limite de segurança de hoje (proteção contra bloqueio pelo Google — a conta é nova aqui e ainda está em aquecimento). Volta a liberar em algumas horas ou amanhã.",warmup:true});
-          }
+          // v76: WARMUP_CAP_REACHED não é mais lançado pelo round-robin (ver
+          // getSenderToken) — envio manual sem sender específico nunca mais
+          // é recusado por aquecimento, só cai pro principal em erro real.
           console.warn("[send/manual] Round-robin falhou, usando principal:",e3.message);
           actualSenderEmail=s.user_email;
           r=await gmailSendWithThread(sid,{to:toEmail,subject:d.subject,text:d.message,fromName:d.fromName||p.name||s.user_name||"H2BApply",attachments,threadHeaders,threadId:isReply?(d.threadId||null):null});
