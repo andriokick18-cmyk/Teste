@@ -794,6 +794,94 @@ async function testAuthWatchdogPush() {
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "doador@test.com" });
     const tr2 = await req2("POST", "/api/diamonds/trocar", { plano: "doublepro", dias: 365 });
     check("💎 troca sem saldo suficiente → 402", tr2.status === 402, `status=${tr2.status}`);
+
+    // ═══ 💎 v77 (dono, 28/07: "usuário comprou 250 reais em diamantes e
+    // ativou o DoublePro, mas não aparece lá que ele está com o doublepro")
+    // ═══════════════════════════════════════════════════════════════════
+    // CAUSA RAIZ ACHADA: doação creditava 💎 com Math.floor(valorTotal÷1,5),
+    // mas planoPrecoDiamantes() cobra o preço do plano com Math.round(). Pra
+    // planos cujo preço em R$ não é múltiplo exato de 1,5 (DoublePro 30d =
+    // R$250 = 166,67💎 "cru"), doar EXATAMENTE o valor de tabela do plano
+    // creditava 166💎 (floor) mas o plano custava 167💎 (round) — 1💎 curto,
+    // sem nenhum aviso claro, e o admin não tinha como enxergar isso na
+    // hora (daí "não sei se tá funcionando"). Corrigido: doação agora usa a
+    // MESMA regra (round) que o preço do plano — doar o valor de tabela de
+    // qualquer plano sempre cobre EXATAMENTE aquele plano, nunca mais falta
+    // 1💎 por causa de arredondamento diferente dos 2 lados da mesma conta.
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "doadorround@test.com", name: "Doador Round" });
+    const dpR1 = await req2("POST", "/api/pedido", { tipo: "doacao", valorTotal: 250, userName: "Doador Round", userWhatsapp: "53 9 9999-9999", userCity: "Pelotas" });
+    const dpRId = dpR1.json?.pedidoId || dpR1.json?.pedido?.id;
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    const dpRAct = await req2("PATCH", "/api/pedido/" + dpRId, { status: "ativo" });
+    check("💎 v77: doar EXATAMENTE o preço de tabela do DoublePro 30d (R$250) credita 167💎 (round), não mais 166 (floor)",
+      dpRAct.json?.ok === true && dpRAct.json?.diamantes === 167, dpRAct.body.slice(0, 140));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "doadorround@test.com" });
+    const trDPR = await req2("POST", "/api/diamonds/trocar", { plano: "doublepro", dias: 30 });
+    check("💎 v77: com o crédito corrigido, dá EXATAMENTE pra trocar por DoublePro 30d (sem faltar 1💎)",
+      trDPR.json?.ok === true && trDPR.json?.preco === 167 && trDPR.json?.saldo?.real === 0, trDPR.body.slice(0, 160));
+
+    // ═══ GUARDA PONTA A PONTA da troca por DoublePro vista pelo lado do
+    // ADMIN, não só pelo /api/status do próprio usuário (que já era testado
+    // acima só pro plano vip). Cobre as 2 rotas que o painel admin realmente
+    // usa (renderUsersTable via /api/admin/users e o polling de refreshAll
+    // via /api/admin/live) — se getPlan()/isVipActive() divergirem entre o
+    // que o usuário vê e o que o admin vê, esta guarda pega. ═══
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    const dpTop = await req2("POST", "/api/admin/diamonds", { email: "doador@test.com", real: 300, nota: "top-up smoke doublepro" });
+    check("💎 v77: top-up admin credita 300 💎 reais pro teste de DoublePro", dpTop.json?.ok === true && dpTop.json?.saldo?.real === 323, dpTop.body.slice(0, 140));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "doador@test.com" });
+    const trDP = await req2("POST", "/api/diamonds/trocar", { plano: "doublepro", dias: 30 });
+    check("💎 v77: troca por DoublePro 30d custa 167 💎 e responde ok", trDP.json?.ok === true && trDP.json?.preco === 167 && trDP.json?.saldo?.real === 156, trDP.body.slice(0, 160));
+    const stDP = await get("/api/status");
+    check("💎 v77: /api/status (usuário) mostra plan=doublepro e vip ativo", stDP.json?.plan === "doublepro" && stDP.json?.vip?.active === true, JSON.stringify({ plan: stDP.json?.plan, vip: !!stDP.json?.vip?.active }));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    const adUsers = await get("/api/admin/users");
+    const doadorNaListaUsers = (adUsers.json?.users || []).find((u) => u.email === "doador@test.com");
+    check("💎 v77: /api/admin/users (Todos Usuários) MOSTRA doublepro pro admin — o gap que o dono reportou",
+      doadorNaListaUsers?.plan === "doublepro" && doadorNaListaUsers?.vip?.active === true,
+      JSON.stringify({ plan: doadorNaListaUsers?.plan, vipActive: doadorNaListaUsers?.vip?.active, autoExpires: doadorNaListaUsers?.vip?.autoExpires }));
+    const adLive = await get("/api/admin/live");
+    const doadorNaListaLive = (adLive.json?.users || []).find((u) => u.email === "doador@test.com");
+    check("💎 v77: /api/admin/live (Visão Geral/VIP & Planos) TAMBÉM mostra doublepro",
+      doadorNaListaLive?.plan === "doublepro", JSON.stringify({ plan: doadorNaListaLive?.plan }));
+
+    // ═══ 💎 v77: PAINEL COMPLETO DE DIAMANTES (ranking + extrato por usuário
+    // + agregados) — ordem do dono: "quero ver quem tem mais diamantes, o
+    // que qualquer usuário comprou, como foi usado, 20+ informações" ═══
+    const dOver = await get("/api/admin/diamonds/overview");
+    check("💎 v77: overview responde ok com os campos principais (totals/ranking/topDoadores/atividadeRecente)",
+      dOver.json?.ok === true && dOver.json?.totals && Array.isArray(dOver.json?.ranking) && Array.isArray(dOver.json?.topDoadores) && Array.isArray(dOver.json?.atividadeRecente),
+      dOver.body.slice(0, 200));
+    check("💎 v77: ranking vem ordenado do MAIOR saldo pro menor",
+      dOver.json.ranking.every((r, i, arr) => i === 0 || arr[i - 1].total >= r.total), JSON.stringify(dOver.json.ranking.slice(0, 5)));
+    const doadorNoRanking = (dOver.json?.ranking || []).find((r) => r.email === "doador@test.com");
+    check("💎 v77: doador@test.com aparece no ranking com o plano doublepro e saldo correto (156💎 real)",
+      doadorNoRanking?.plano === "doublepro" && doadorNoRanking?.real === 156, JSON.stringify(doadorNoRanking));
+    check("💎 v77: totals.usuariosComSaldo + usuariosSemSaldo bate com o total de usuários do servidor",
+      dOver.json.totals.usuariosComSaldo + dOver.json.totals.usuariosSemSaldo === dOver.json.totals.usuariosTotal,
+      JSON.stringify(dOver.json.totals));
+    check("💎 v77: trocasPorPlano contabilizou as trocas de VIP e DoublePro feitas neste teste",
+      dOver.json?.trocasPorPlano?.vip?.count >= 1 && dOver.json?.trocasPorPlano?.doublepro?.count >= 2,
+      JSON.stringify(dOver.json?.trocasPorPlano));
+    const doadorNoTop = (dOver.json?.topDoadores || []).find((r) => r.email === "doador@test.com");
+    check("💎 v77: topDoadores lista doador@test.com com os 100💎 reais da doação original",
+      doadorNoTop?.realDoado === 100, JSON.stringify(doadorNoTop));
+
+    const dUserFicha = await get("/api/admin/diamonds/user/doador@test.com");
+    check("💎 v77: ficha individual (/api/admin/diamonds/user/:email) mostra saldo, plano e extrato completo",
+      dUserFicha.json?.ok === true && dUserFicha.json?.plano === "doublepro" && dUserFicha.json?.saldo?.real === 156 && Array.isArray(dUserFicha.json?.ledger) && dUserFicha.json.ledger.length >= 5,
+      dUserFicha.body.slice(0, 200));
+    const dUser404 = await get("/api/admin/diamonds/user/naoexiste@test.com");
+    check("💎 v77: ficha de e-mail inexistente → 404 (não quebra, não inventa)", dUser404.status === 404);
+
+    // não-admin NUNCA vê o painel de diamantes de todo mundo (dado financeiro sensível)
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "cliente@test.com" });
+    const dOverAsUser = await get("/api/admin/diamonds/overview");
+    check("💎 v77: usuário comum recebe 403 no overview de diamantes (painel é admin-only)", dOverAsUser.status === 403);
+    const dUserFichaAsUser = await get("/api/admin/diamonds/user/doador@test.com");
+    check("💎 v77: usuário comum recebe 403 na ficha de diamantes de outra pessoa", dUserFichaAsUser.status === 403);
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+
     // quem recebeu a transferência pode gastar (30 💎 reais no comprador)
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "comprador@test.com" });
     const dmC = await get("/api/diamonds");

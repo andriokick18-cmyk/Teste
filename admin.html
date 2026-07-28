@@ -271,6 +271,7 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
       <button class="sb-item" onclick="showView('conferencia')"><i class="ti ti-receipt-2" style="color:#a78bfa"></i>🧾 Conferência</button>
       <button class="sb-item" onclick="showView('pagantes');loadPagantes()"><i class="ti ti-cash" style="color:#34d399"></i>Pagantes &amp; Dias VIP<span class="sb-badge sb-badge-a" id="sb-venc" style="display:none">!</span></button>
       <button class="sb-item" onclick="showView('vip');loadVipList();loadFinanceiro()"><i class="ti ti-diamond"></i>VIP & Planos</button>
+      <button class="sb-item" onclick="showView('diamantes');loadDiamondsOverview()"><i class="ti ti-diamonds" style="color:#60a5fa"></i>💎 Diamantes</button>
       <div class="sb-label">Operação</div>
       <button class="sb-item" onclick="showView('dashboard')"><i class="ti ti-dashboard"></i>Visão Geral<span class="sb-badge sb-badge-r" id="sb-alerts" style="display:none">0</span></button>
       <!-- IA Admin removido do menu a pedido do dono (não utilizado) -->
@@ -1158,6 +1159,54 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
               <div class="form-group"><label class="form-label">Email</label><input class="form-inp" id="clear-email" placeholder="user@gmail.com"></div>
               <button class="btn btn-danger" style="justify-content:center" onclick="clearSent()"><i class="ti ti-refresh"></i> Limpar enviados (permite reenviar)</button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 💎 v77 (ordem do dono, 28/07/2026): painel completo de diamantes —
+           ranking, extrato por usuário, 20+ métricas agregadas. -->
+      <div class="view" id="view-diamantes">
+        <div class="section-hdr">
+          <i class="ti ti-diamonds" style="color:#60a5fa"></i>
+          <div>
+            <div class="section-title">💎 Diamantes</div>
+            <div class="section-sub">Quem tem, quem não tem, o que cada um comprou/trocou e como foi usado — tudo num só lugar.</div>
+          </div>
+          <div class="section-actions">
+            <input class="form-inp" id="dm-search-email" placeholder="Buscar por e-mail…" style="width:220px" onkeydown="if(event.key==='Enter')dmSearchUser()">
+            <button class="btn btn-ghost btn-sm" onclick="dmSearchUser()"><i class="ti ti-search"></i> Ver ficha</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadDiamondsOverview()"><i class="ti ti-refresh"></i></button>
+          </div>
+        </div>
+
+        <div id="dm-stats-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:20px"><div class="empty-state">Carregando…</div></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="dm-breakdown-row">
+          <div>
+            <div class="section-title" style="font-size:13px;margin-bottom:8px">📊 Plano atual (efetivo agora)</div>
+            <div id="dm-plano-atual" style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:12px"></div>
+          </div>
+          <div>
+            <div class="section-title" style="font-size:13px;margin-bottom:8px">🔄 Trocas por plano (histórico)</div>
+            <div id="dm-trocas-plano" style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:12px"></div>
+          </div>
+        </div>
+
+        <div id="dm-ficha-wrap" style="display:none;margin-bottom:20px">
+          <div class="section-title" style="font-size:13px;margin-bottom:8px">🔎 Ficha do usuário</div>
+          <div id="dm-ficha" style="background:var(--glass);border:1px solid rgba(96,165,250,.3);border-radius:12px;padding:14px"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start">
+          <div>
+            <div class="section-title" style="font-size:13px;margin-bottom:8px">🏆 Ranking — quem tem mais 💎</div>
+            <div id="dm-ranking" style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;max-height:520px;overflow-y:auto"><div class="empty-state">Carregando…</div></div>
+          </div>
+          <div>
+            <div class="section-title" style="font-size:13px;margin-bottom:8px">💚 Top doadores (R$ real, histórico)</div>
+            <div id="dm-doadores" style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;max-height:250px;overflow-y:auto;margin-bottom:16px"><div class="empty-state">Carregando…</div></div>
+            <div class="section-title" style="font-size:13px;margin-bottom:8px">📜 Atividade recente (todo mundo)</div>
+            <div id="dm-atividade" style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;max-height:260px;overflow-y:auto"><div class="empty-state">Carregando…</div></div>
           </div>
         </div>
       </div>
@@ -3998,7 +4047,7 @@ function showView(name) {
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
   const v = document.getElementById('view-'+name);
   if(v) v.classList.add('active');
-  const titles={dashboard:'Visão Geral','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'💳 Confirmação de Pagamentos',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',pagantes:'💳 Pagantes',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas',robos:'🤖 Robôs',auditoria:'🕓 Auditoria & Contas Duplicadas',conferencia:'🧾 Conferência de Pagamentos','respostas-certas':'🎯 Respostas Certas'};
+  const titles={dashboard:'Visão Geral','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'💳 Confirmação de Pagamentos',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',pagantes:'💳 Pagantes',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas',robos:'🤖 Robôs',auditoria:'🕓 Auditoria & Contas Duplicadas',conferencia:'🧾 Conferência de Pagamentos','respostas-certas':'🎯 Respostas Certas',diamantes:'💎 Diamantes'};
   setText('view-title', titles[name]||name);
   if(name==='robo-contabil' && typeof rcCheckGeminiStatus==='function') setTimeout(rcCheckGeminiStatus,300);
   if(name==='incidentes'){
@@ -8347,6 +8396,142 @@ async function loadVipList(){
       <button class="btn btn-ghost btn-xs" style="flex-shrink:0;padding:4px 7px" title="Corrigir dias deste VIP" onclick="event.stopPropagation();rcEditDays('${esc(u.email)}',${manDaysVal},${autDaysVal})">✏️</button>
     </div>`;
   }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// 💎 v77 — PAINEL COMPLETO DE DIAMANTES (admin)
+// ══════════════════════════════════════════════════════════
+const _dmPlanoLabel={free:'🆓 Free',vip:'⭐ VIP',vipro:'⭐🤖 VIPro',doublepro:'🚀💎 DoublePro'};
+const _dmTipoLabel={doacao:'💚 Doação (R$)',troca:'🔄 Troca por plano',transfer_out:'🎁 Doou pra amigo',transfer_in:'🎁 Recebeu de amigo',admin:'🛠 Ajuste do admin',estorno:'⛔ Estorno',missao:'🎁 Missão cumprida',credito:'➕ Crédito'};
+function _dmStatTile(label,value,sub,color){
+  return `<div style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:12px 14px">
+    <div style="font-size:10.5px;color:var(--t3);font-weight:700;text-transform:uppercase;margin-bottom:4px">${esc(label)}</div>
+    <div style="font-size:20px;font-weight:800;color:${color||'#fff'}">${value}</div>
+    ${sub?`<div style="font-size:10px;color:var(--t3);margin-top:2px">${esc(sub)}</div>`:''}
+  </div>`;
+}
+function _dmFmtBRL(v){ return 'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+async function loadDiamondsOverview(){
+  const grid=document.getElementById('dm-stats-grid');
+  try{
+    const r=await fetch('/api/admin/diamonds/overview',{credentials:'include'});
+    const d=await r.json();
+    if(!d.ok){ grid.innerHTML=`<div class="empty-state" style="color:var(--red)">${esc(d.error||'Erro')}</div>`; return; }
+    const t=d.totals||{};
+    grid.innerHTML=[
+      _dmStatTile('💎 Em circulação (total)', (t.totalDiamantesEmCirculacao||0).toLocaleString('pt-BR'), `${t.totalRealEmCirculacao||0} reais + ${t.totalBonusEmCirculacao||0} bônus`, '#60a5fa'),
+      _dmStatTile('👥 Usuários com saldo', t.usuariosComSaldo||0, `de ${t.usuariosTotal||0} no total`, '#34d399'),
+      _dmStatTile('🚫 Usuários sem saldo', t.usuariosSemSaldo||0, 'nunca doaram/ganharam'),
+      _dmStatTile('💚 Total já doado (R$)', _dmFmtBRL(t.totalReaisDoados), `${t.totalPedidosDoacaoAprovados||0} doação(ões) aprovada(s)`, '#34d399'),
+      _dmStatTile('🎟 Ticket médio da doação', _dmFmtBRL(t.ticketMedioDoacao)),
+      _dmStatTile('🔄 Gasto em trocas por plano', (t.totalGastoEmTrocasPorPlano||0).toLocaleString('pt-BR')+' 💎'),
+      _dmStatTile('🎁 Doado entre usuários', (t.totalTransferidoEntreUsuarios||0).toLocaleString('pt-BR')+' 💎'),
+      _dmStatTile('⛔ Estornado', (t.totalEstornado||0).toLocaleString('pt-BR')+' 💎'),
+      _dmStatTile('🎁 Bônus de missões', (t.totalBonusDeMissoes||0).toLocaleString('pt-BR')+' 💎'),
+      _dmStatTile('🛠 Ajustes do admin', `${t.ajustesAdmin?.count||0}`, `líquido ${t.ajustesAdmin?.qtdLiquida>=0?'+':''}${t.ajustesAdmin?.qtdLiquida||0} 💎`),
+      _dmStatTile('📊 Média por usuário c/ saldo', (t.mediaSaldoPorUsuarioComSaldo||0)+' 💎'),
+      _dmStatTile('👑 Maior saldo individual', (t.maiorSaldoIndividual||0).toLocaleString('pt-BR')+' 💎'),
+      _dmStatTile('💵 Preço do diamante', _dmFmtBRL(d.priceReaisPerDiamond)),
+    ].join('');
+
+    const pc=d.planoAtualCount||{};
+    const planoAtualEl=document.getElementById('dm-plano-atual');
+    if(planoAtualEl) planoAtualEl.innerHTML=Object.entries(_dmPlanoLabel).map(([k,lbl])=>
+      `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px"><span>${lbl}</span><strong>${pc[k]||0}</strong></div>`
+    ).join('');
+
+    const tp=d.trocasPorPlano||{};
+    const trocasEl=document.getElementById('dm-trocas-plano');
+    if(trocasEl) trocasEl.innerHTML=Object.entries(_dmPlanoLabel).filter(([k])=>k!=='free').map(([k,lbl])=>
+      `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12.5px"><span>${lbl}</span><strong>${tp[k]?.count||0}x · ${tp[k]?.diamantes||0} 💎</strong></div>`
+    ).join('');
+
+    const rankEl=document.getElementById('dm-ranking');
+    const rk=d.ranking||[];
+    rankEl.innerHTML=!rk.length?'<div class="empty-state">Ninguém tem diamantes ainda</div>':rk.map((u,i)=>`
+      <div onclick="dmOpenUser('${esc(u.email)}')" style="display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12.5px">
+        <span style="width:22px;text-align:center;font-weight:800;color:${i===0?'#fbbf24':i===1?'#cbd5e1':i===2?'#d97706':'var(--t3)'}">${i+1}º</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.name)}</div>
+          <div style="font-size:10.5px;color:var(--t3);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.email)}</div>
+        </div>
+        <span style="font-size:10px;color:var(--t3)">${_dmPlanoLabel[u.plano]||u.plano}</span>
+        <strong style="min-width:70px;text-align:right;color:#60a5fa">${u.total} 💎</strong>
+      </div>`).join('');
+
+    const doadEl=document.getElementById('dm-doadores');
+    const tds=d.topDoadores||[];
+    doadEl.innerHTML=!tds.length?'<div class="empty-state" style="font-size:11px">Nenhuma doação ainda</div>':tds.map((u,i)=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 14px;border-bottom:1px solid var(--border);font-size:12px">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${i+1}º ${esc(u.name)}</span>
+        <strong style="color:#34d399;flex-shrink:0;margin-left:8px">${u.realDoado} 💎</strong>
+      </div>`).join('');
+
+    const atEl=document.getElementById('dm-atividade');
+    const at=d.atividadeRecente||[];
+    atEl.innerHTML=!at.length?'<div class="empty-state" style="font-size:11px">Nada ainda</div>':at.map(e=>`
+      <div style="padding:7px 14px;border-bottom:1px solid var(--border);font-size:11.5px">
+        <div style="display:flex;justify-content:space-between"><span>${_dmTipoLabel[e.tipo]||esc(e.tipo||'')}</span><strong style="color:${(e.qtd||0)>=0?'var(--green)':'var(--red)'}">${(e.qtd||0)>=0?'+':''}${e.qtd||0} 💎</strong></div>
+        <div style="color:var(--t3);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.name||e.email||'')} · ${new Date(e.ts).toLocaleString('pt-BR')}</div>
+      </div>`).join('');
+  }catch(e){ grid.innerHTML=`<div class="empty-state" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
+}
+
+function dmSearchUser(){
+  const email=(document.getElementById('dm-search-email')?.value||'').trim().toLowerCase();
+  if(!email){toast('Digite um e-mail','r');return;}
+  dmOpenUser(email);
+}
+
+async function dmOpenUser(email){
+  const wrap=document.getElementById('dm-ficha-wrap');
+  const el=document.getElementById('dm-ficha');
+  wrap.style.display='block';
+  el.innerHTML='<div class="empty-state">Carregando…</div>';
+  wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
+  try{
+    const r=await fetch('/api/admin/diamonds/user/'+encodeURIComponent(email),{credentials:'include'});
+    const d=await r.json();
+    if(!d.ok){ el.innerHTML=`<div class="empty-state" style="color:var(--red)">${esc(d.error||'Usuário não encontrado')}</div>`; return; }
+    const led=d.ledger||[];
+    el.innerHTML=`
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:14px;font-weight:800;color:#fff">${esc(d.name)}</div>
+          <div style="font-size:11.5px;color:var(--t3);font-family:monospace">${esc(d.email)}</div>
+        </div>
+        <span class="badge b-purple">${_dmPlanoLabel[d.plano]||d.plano}</span>
+        <strong style="color:#60a5fa;font-size:15px">${d.saldo.real} 💎 real + ${d.saldo.bonus} 💎 bônus</strong>
+        <button class="btn btn-ghost btn-xs" onclick="dmAdjustPrompt('${esc(d.email)}')"><i class="ti ti-adjustments"></i> Ajustar</button>
+      </div>
+      ${d.vip?`<div style="font-size:11.5px;color:var(--t3);margin-bottom:10px">Plano ativo: ${esc(d.vip.plan||'')} · fonte: ${esc(d.vip.source||'-')} · ${d.vip.note?esc(d.vip.note):''}</div>`:''}
+      <div style="font-size:11px;font-weight:800;color:var(--t3);text-transform:uppercase;margin:10px 0 6px">Extrato completo (${led.length} lançamento${led.length===1?'':'s'})</div>
+      <div style="max-height:300px;overflow-y:auto;border:1px solid var(--border2);border-radius:9px">
+        ${!led.length?'<div class="empty-state" style="font-size:11px">Nenhum lançamento ainda</div>':led.map(e=>`
+          <div style="display:flex;justify-content:space-between;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:11.5px">
+            <div style="flex:1;min-width:0">
+              <div>${_dmTipoLabel[e.tipo]||esc(e.tipo||'')}${e.plano?` — ${esc(e.plano)} ${e.dias||''}d`:''}${e.para?` → ${esc(e.para)}`:''}${e.de?` ← ${esc(e.de)}`:''}${e.nota?` · ${esc(e.nota)}`:''}</div>
+              <div style="color:var(--t3);font-size:10px">${new Date(e.ts).toLocaleString('pt-BR')} · saldo depois: ${e.saldoReal||0} real + ${e.saldoBonus||0} bônus</div>
+            </div>
+            <strong style="color:${(e.qtd||0)>=0?'var(--green)':'var(--red)'};flex-shrink:0">${(e.qtd||0)>=0?'+':''}${e.qtd||0} 💎</strong>
+          </div>`).join('')}
+      </div>`;
+  }catch(e){ el.innerHTML=`<div class="empty-state" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
+}
+
+async function dmAdjustPrompt(email){
+  const real=prompt(`Ajustar 💎 REAIS de ${email} (negativo remove, 0 = não mexe):`,'0');
+  if(real===null)return;
+  const bonus=prompt(`Ajustar 💎 BÔNUS de ${email} (negativo remove, 0 = não mexe):`,'0');
+  if(bonus===null)return;
+  const nota=prompt('Motivo (fica registrado no extrato):','')||'';
+  try{
+    const r=await fetch('/api/admin/diamonds',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,real:parseInt(real,10)||0,bonus:parseInt(bonus,10)||0,nota})});
+    const d=await r.json();
+    if(d.ok){toast('💎 Ajustado','ok');dmOpenUser(email);loadDiamondsOverview();}
+    else toast(d.error||'Erro','r');
+  }catch(e){toast(e.message,'r');}
 }
 
 // ══════════════════════════════════════════════════════════

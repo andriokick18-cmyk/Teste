@@ -149,6 +149,27 @@
     passo em README_SERVIDORES.txt. O 13d continua valendo por inteiro
     pros 3 servidores e pros usuários comuns; esta é a ÚNICA exceção, e é
     só do admin lendo a própria caixa.
+13f. **💎 Arredondamento de diamantes — REGRA ÚNICA (dono, 28/07/2026, bug
+    real: "comprou 250 reais, ativou DoublePro, mas não aparece que ele
+    tem")**: causa raiz achada — doação creditava 💎 com `Math.floor`
+    enquanto o preço de cada plano em 💎 usa `Math.round`
+    (`planoPrecoDiamantes`). Pra planos cujo preço em R$ não é múltiplo
+    exato de `DIAMOND_PRICE_BRL`, doar EXATAMENTE o valor de tabela do
+    plano deixava o usuário 1💎 curto, sem aviso claro — parecia "não
+    funciona". Corrigido para `Math.round` nos dois lados. PROIBIDO
+    usar `Math.floor`/`Math.ceil` em qualquer conversão nova de R$↔💎 —
+    é SEMPRE `Math.round`, os dois lados da mesma conta (crédito e
+    preço) TÊM que usar a mesma função de arredondamento, senão volta o
+    mesmo bug de "faltou 1💎" pra quem doou o valor certinho.
+13g. **💎 Painel completo de Diamantes (dono, 28/07/2026)**: aba admin
+    "💎 Diamantes" (`/api/admin/diamonds/overview` +
+    `/api/admin/diamonds/user/:email`) — ranking de quem tem mais/menos/
+    zero 💎, extrato COMPLETO por usuário (o que comprou/trocou/recebeu,
+    quando, saldo depois de cada lançamento), 20+ métricas agregadas
+    (circulação total, total doado em R$, gasto por plano, top
+    doadores, atividade recente de todo mundo). Fonte única: o mesmo
+    `diamondLedger` por usuário que já existia desde o v64 — nenhuma
+    segunda verdade nova. Admin-only, dado financeiro sensível.
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 

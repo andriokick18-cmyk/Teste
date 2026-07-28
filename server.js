@@ -10919,7 +10919,17 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         plano:_ehDoacao?"doacao":(d.plano||"vipro"), // vip | vipro | doublepro | doacao (v64)
         dias:_ehDoacao?0:(parseInt(d.dias)||30),      // 30 | 60 | 90 | 365 (doação: 0)
         tipo:_ehDoacao?"doacao":"plano",              // v64: doacao credita 💎, plano credita dias
-        diamantes:_ehDoacao?Math.floor((parseFloat(d.valorTotal)||0)/DIAMOND_PRICE_BRL):0,
+        // v77 (dono, 28/07: "usuário comprou R$250, não aparece que ele tem o
+        // DoublePro"): ERA Math.floor aqui mas planoPrecoDiamantes() usa
+        // Math.round — pra planos cujo preço em R$ não é múltiplo exato de
+        // DIAMOND_PRICE_BRL (ex.: DoublePro 30d = R$250 = 166,67💎), doar
+        // EXATAMENTE o preço de tabela em R$ arredondava o crédito PRA BAIXO
+        // (166💎) mas o preço do plano exigia o arredondamento normal
+        // (167💎) — 1💎 curto, na cara, sem nenhuma explicação clara pro
+        // usuário nem pro admin. Usar a MESMA regra (round) nos dois lados
+        // garante que doar o valor de tabela de qualquer plano sempre cobre
+        // exatamente aquele plano.
+        diamantes:_ehDoacao?Math.round((parseFloat(d.valorTotal)||0)/DIAMOND_PRICE_BRL):0,
         valorTotal:parseFloat(d.valorTotal)||0,
         desconto:parseFloat(d.desconto)||0,
         comprovante:(()=>{
@@ -11217,6 +11227,117 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
     }catch(e){return json(res,400,{error:"Dados inválidos: "+e.message});}
   }
 
+  // ══════════════════════════════════════════════════════════
+  //  💎 v77 — PAINEL COMPLETO DE DIAMANTES (ordem do dono, 28/07/2026:
+  //  "quero um ranking de diamantes... quem tem mais... o que qualquer
+  //  usuário comprou com os diamantes, como foi usado, 20+ informações")
+  // ══════════════════════════════════════════════════════════
+  if(pathname==="/api/admin/diamonds/overview"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const adm=getUser(s.user_email);
+    if(!(adm?.isAdmin||isAdminEmail(s.user_email)))return json(res,403,{error:"Só admin."});
+    try{
+      const users=Object.values(DB_USERS);
+      let totalReal=0,totalBonus=0,totalRealHistCredit=0,totalBonusHistCredit=0;
+      let totalGastoTrocas=0,totalTransferido=0,totalEstornado=0,totalBonusMissao=0;
+      let totalAjustesAdminQtd=0,ajustesAdminCount=0;
+      const trocasPorPlano={vip:{count:0,diamantes:0},vipro:{count:0,diamantes:0},doublepro:{count:0,diamantes:0}};
+      const planoAtualCount={free:0,vip:0,vipro:0,doublepro:0};
+      const ranking=[];
+      const doadoresMap={}; // email -> total real de doações (lifetime)
+      const atividade=[]; // feed unificado de todos os ledgers
+      let comSaldo=0,semSaldo=0;
+      for(const u of users){
+        const sal=_diamSaldo(u);
+        totalReal+=sal.real; totalBonus+=sal.bonus;
+        if(sal.real+sal.bonus>0)comSaldo++; else semSaldo++;
+        const plano=getPlan(u);
+        planoAtualCount[plano]=(planoAtualCount[plano]||0)+1;
+        if(sal.real+sal.bonus>0||((u.diamondLedger||[]).length>0)){
+          ranking.push({email:u.email,name:u.name||u.email,real:sal.real,bonus:sal.bonus,total:sal.real+sal.bonus,plano});
+        }
+        const led=Array.isArray(u.diamondLedger)?u.diamondLedger:[];
+        for(const e of led){
+          atividade.push({...e,email:u.email,name:u.name||u.email});
+          const qtd=parseInt(e.qtd,10)||0;
+          if(e.tipo==="doacao"&&qtd>0){
+            totalRealHistCredit+=qtd;
+            doadoresMap[u.email]=(doadoresMap[u.email]||0)+qtd;
+          }
+          else if(e.tipo==="missao"&&qtd>0) totalBonusMissao+=qtd;
+          else if(e.tipo==="admin"){ ajustesAdminCount++; totalAjustesAdminQtd+=qtd; }
+          else if(e.tipo==="troca"&&qtd<0){
+            totalGastoTrocas+=-qtd;
+            if(e.plano&&trocasPorPlano[e.plano]){trocasPorPlano[e.plano].count++;trocasPorPlano[e.plano].diamantes+=-qtd;}
+          }
+          else if(e.tipo==="transfer_out"&&qtd<0) totalTransferido+=-qtd;
+          else if(e.tipo==="estorno"&&qtd<0) totalEstornado+=-qtd;
+          else if(e.tipo==="credito"&&qtd>0) totalBonusHistCredit+=qtd;
+        }
+      }
+      ranking.sort((a,b)=>b.total-a.total);
+      atividade.sort((a,b)=>(b.ts||0)-(a.ts||0));
+      const topDoadores=Object.entries(doadoresMap).map(([email,qtd])=>{
+        const u=users.find(x=>x.email===email);
+        return{email,name:u?.name||email,realDoado:qtd};
+      }).sort((a,b)=>b.realDoado-a.realDoado).slice(0,15);
+      // Pedidos de DOAÇÃO aprovados — fonte única do R$ que virou 💎 (mesma
+      // base que a Conferência usa, nunca uma segunda verdade separada)
+      const pedidosDoacao=(DB_PEDIDOS||[]).filter(pd=>(pd.tipo==="doacao"||pd.plano==="doacao")&&pd.status==="ativo");
+      const totalReaisDoados=pedidosDoacao.reduce((a,pd)=>a+(pd.valorTotal||0),0);
+      const rankingTop=ranking.slice(0,20);
+      const semSaldoLista=ranking.filter(r=>r.total===0).length; // dentro de quem já teve ledger
+      return json(res,200,{
+        ok:true,
+        priceReaisPerDiamond:DIAMOND_PRICE_BRL,
+        totals:{
+          usuariosComSaldo:comSaldo,
+          usuariosSemSaldo:semSaldo,
+          usuariosTotal:users.length,
+          totalRealEmCirculacao:totalReal,
+          totalBonusEmCirculacao:totalBonus,
+          totalDiamantesEmCirculacao:totalReal+totalBonus,
+          totalRealHistoricoCreditadoViaDoacao:totalRealHistCredit,
+          totalBonusHistoricoCreditado:totalBonusHistCredit+totalBonusMissao,
+          totalGastoEmTrocasPorPlano:totalGastoTrocas,
+          totalTransferidoEntreUsuarios:totalTransferido,
+          totalEstornado:totalEstornado,
+          totalBonusDeMissoes:totalBonusMissao,
+          ajustesAdmin:{count:ajustesAdminCount,qtdLiquida:totalAjustesAdminQtd},
+          totalReaisDoados,
+          totalPedidosDoacaoAprovados:pedidosDoacao.length,
+          ticketMedioDoacao:pedidosDoacao.length?Math.round((totalReaisDoados/pedidosDoacao.length)*100)/100:0,
+          mediaSaldoPorUsuarioComSaldo:comSaldo?Math.round(((totalReal+totalBonus)/comSaldo)*10)/10:0,
+          maiorSaldoIndividual:rankingTop[0]?.total||0,
+          usuariosSemSaldoComHistorico:semSaldoLista,
+        },
+        trocasPorPlano,
+        planoAtualCount,
+        ranking:rankingTop,
+        topDoadores,
+        atividadeRecente:atividade.slice(0,40),
+      });
+    }catch(e){return json(res,500,{error:"Erro: "+e.message});}
+  }
+
+  // GET /api/admin/diamonds/user/:email — ficha completa de diamantes de UM
+  // usuário: saldo, plano efetivo, e o extrato INTEIRO (até 300 lançamentos).
+  if(/^\/api\/admin\/diamonds\/user\/[^/]+$/.test(pathname)&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const adm=getUser(s.user_email);
+    if(!(adm?.isAdmin||isAdminEmail(s.user_email)))return json(res,403,{error:"Só admin."});
+    const email=decodeURIComponent(pathname.split("/").pop()).toLowerCase().trim();
+    const u=getUser(email);
+    if(!u)return json(res,404,{error:"Usuário não encontrado neste servidor."});
+    return json(res,200,{
+      ok:true,email:u.email,name:u.name||u.email,
+      saldo:_diamSaldo(u),
+      plano:getPlan(u),
+      vip:u.vip?{active:isVipActive(u),plan:u.vip.plan,manualExpires:u.vip.manualExpires||0,autoExpires:u.vip.autoExpires||0,source:u.vip.source||null,note:u.vip.note||null}:null,
+      ledger:Array.isArray(u.diamondLedger)?u.diamondLedger:[],
+    });
+  }
+
   if(pathname==="/api/pedidos"&&req.method==="GET"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
     const p=getUser(s.user_email);
@@ -11364,7 +11485,9 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
         // AQUI — a troca por plano depois NÃO lança caixa de novo, senão a
         // mesma grana contaria 2x na Visão do Dono).
         if(pd.tipo==="doacao"||pd.plano==="doacao"){
-          const qtd=Math.max(1,parseInt(pd.diamantes,10)||Math.floor((pd.valorTotal||0)/DIAMOND_PRICE_BRL));
+          // v77: mesma correção do floor→round da criação do pedido (fallback
+          // só entra se pd.diamantes não foi salvo — pedidos antigos).
+          const qtd=Math.max(1,parseInt(pd.diamantes,10)||Math.round((pd.valorTotal||0)/DIAMOND_PRICE_BRL));
           creditDiamonds(pd.userEmail,{real:qtd},{tipo:"doacao",pedidoId:pd.id,por:pd._ativadoEditor||s.user_email,nota:`Doação R$${(pd.valorTotal||0).toFixed(2)}`});
           pd.diamantesCreditados=qtd;
           if(!DB_FINANCEIRO.pagamentos)DB_FINANCEIRO.pagamentos=[];
