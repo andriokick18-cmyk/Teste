@@ -855,6 +855,20 @@ async function testAuthWatchdogPush() {
       _srvSrc.includes('blocked:true,blockedReason:errType') && _srvSrc.includes("automático CONTINUA pelas outras contas"),
       "lógica de isolamento por sender não encontrada");
 
+    // ═══ 🛡️ v75: rate limit do Google NÃO pausa mais o automático ═══
+    // Ordem do dono (27/07): "automático só deve parar se o Google bloquear,
+    // se não bloquear vai enviar sempre". Rate limit (429) é só o Google
+    // pedindo pra desacelerar, não um bloqueio de verdade — antes disso
+    // pausava a fila por até 12h ("O Google pediu uma pausa"); agora só
+    // segue no intervalo humanizado normal, sem nunca atribuir o status
+    // waiting_rate_limit de novo (suspensão/desativação de conta continua
+    // pausando de verdade — isso É bloqueio real).
+    check("🛡️ rate limit do Google não pausa mais a fila (só segue no intervalo normal)",
+      _srvSrc.includes("Seguindo no ritmo normal — não é um bloqueio") && !_srvSrc.includes('status:"waiting_rate_limit"') && !_srvSrc.includes("status:'waiting_rate_limit'"),
+      "mensagem nova não encontrada, ou status waiting_rate_limit ainda sendo atribuído em algum lugar");
+    check("🛡️ bloqueio de verdade (conta suspensa/desativada) continua pausando — só o rate limit parou de pausar",
+      _srvSrc.includes('errType === "suspended" || errType === "send_disabled"'));
+
     // ═══ 🎯 v74: RESPOSTAS CERTAS (admin-only, exceção isolada ao 13d) ═══
     // Sem ADMIN_REPLY_CLIENT_ID/SECRET nas envs de teste, a feature tem que
     // ficar 100% INERTE (nunca chama o Google) mas as rotas continuam

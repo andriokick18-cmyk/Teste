@@ -5412,28 +5412,27 @@ async function _doAutoSendInner(email) {
       const isSkippable = errType === "invalid_email" || errType === "rejected" || errType === "quota";
 
       if (isRateLimit) {
-        // Rate limit: respeita o Retry-After e devolve vaga à fila
-        let retryAfterMs = 60 * 60 * 1000; // 1h fallback
-        const retryMatch = errMsg.match(/Retry after ([0-9T:.Z+-]+)/i);
-        if (retryMatch) {
-          try {
-            const retryTs = new Date(retryMatch[1]).getTime();
-            const waitMs = retryTs - Date.now();
-            if (waitMs > 0 && waitMs < 12 * 3600_000) retryAfterMs = waitMs + 60_000;
-          } catch(_) {}
-        }
-        const retryAtStr = new Date(Date.now() + retryAfterMs).toLocaleTimeString("pt-BR", {timeZone:"America/Sao_Paulo"});
-        const waitMin = Math.round(retryAfterMs / 60000);
+        // 🛡️ v75 (ordem do dono, 27/07/2026: "automático só deve parar se o
+        // Google bloquear, se não bloquear vai enviar sempre"): rate limit
+        // (userRateLimitExceeded/429) NÃO é um bloqueio — é só o Google
+        // pedindo pra desacelerar um pouco, e se resolve sozinho rápido.
+        // Antes isso pausava a fila por até 12h (Retry-After do Google, ou
+        // 1h de fallback) e mostrava "O Google pediu uma pausa" — pra quem
+        // pagou por automático rodando o dia todo isso parecia travado.
+        // Agora só devolve a vaga pra fila e segue no intervalo humanizado
+        // normal (5-6min) — nunca para de verdade por isto. Só bloqueio de
+        // verdade (suspensão/desativação da conta, mais abaixo) pausa.
         const curJob = getAutoJob(email);
         if (curJob) {
-          // Devolve a vaga para frente da fila — não perde
           const restoredQ = [target, ...(curJob.queue||[])];
-          setAutoJob(email, { ...curJob, queue: restoredQ, status:"waiting_rate_limit", nextSendAt:Date.now()+retryAfterMs });
+          setAutoJob(email, { ...curJob, queue: restoredQ });
         }
-        addLog(email, { ...logEntry, status:"pausado", error: errFriendly + ` Retomando às ${retryAtStr} BRT (${waitMin}min).` });
-        trackJourney(email,'auto_fail',{ok:false,error:errFriendly,detail:`Rate limit → ${target?.company||"?"}`});
-        console.warn(`[auto] ⏳ Rate limit ${email} — pausando ${waitMin}min`);
-        autoTimers.set(email, setTimeout(() => scheduleAuto(email), retryAfterMs));
+        addLog(email, { ...logEntry, status:"sistema", error: errFriendly + " Seguindo no ritmo normal — não é um bloqueio." });
+        trackJourney(email,'auto_fail',{ok:false,error:errFriendly,detail:`Rate limit → ${target?.company||"?"} (seguiu sem pausar)`});
+        const interval=calcSmartInterval(email);
+        console.warn(`[auto] ⏳ Rate limit ${email} — não é bloqueio, seguindo no intervalo normal (${Math.round(interval/60000)}min)`);
+        setAutoJob(email,{...getAutoJob(email),status:"waiting_interval",nextSendAt:Date.now()+interval});
+        autoTimers.set(email, setTimeout(() => scheduleAuto(email), interval));
         return;
       }
 
