@@ -4783,7 +4783,11 @@ async function doAutoSend(email) {
     await _doAutoSendInner(email);
   } catch(unexpectedErr) {
     // FIX-BUG12: captura exceções não tratadas — sempre reagenda
-    console.error(`[auto] ERRO INESPERADO ${email}:`, unexpectedErr?.message||unexpectedErr);
+    // v76b: loga o STACK completo (antes só a .message) — sem isso, um erro
+    // recorrente tipo "Maximum call stack size exceeded" (RangeError de
+    // recursão/estouro de pilha) fica sem pista NENHUMA de qual função
+    // causou, mesmo olhando os logs do Render.
+    console.error(`[auto] ERRO INESPERADO ${email}:`, unexpectedErr?.stack||unexpectedErr?.message||unexpectedErr);
     const curJob = getAutoJob(email);
     if (curJob?.active && curJob?.queue?.length > 0) {
       addLog(email, { status:"sistema", jobTitle:"⚠️ Erro interno recuperado", company:String(unexpectedErr?.message||"erro").slice(0,200) });
