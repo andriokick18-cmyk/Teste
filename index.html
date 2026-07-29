@@ -4046,6 +4046,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                DENTRO do plan-step-1 de propósito: quando o passo 2 abre,
                tudo isso some junto (goToPlanStep2 só esconde o step-1). -->
           <div id="diam-saldo-card" style="margin-bottom:14px"></div>
+          <div id="diam-upgrade" style="margin-bottom:14px"></div>
           <div id="diam-troca" style="margin-bottom:14px"></div>
           <div id="diam-transfer-card" style="background:var(--surface);border:2px solid var(--border2);border-radius:var(--rl);padding:14px 16px;margin-bottom:14px">
             <div style="font-size:14px;font-weight:800;margin-bottom:4px">🎁 Doar diamantes para um amigo</div>
@@ -18309,7 +18310,7 @@ async function loadDiamonds(){
         </div>
       </div>`;
     }
-    renderDiamTroca(d);renderDiamExtrato(d);
+    renderDiamUpgrade(d);renderDiamTroca(d);renderDiamExtrato(d);
   }catch(e){}
   loadMissoes(); // 🎁 v68: recompensas (retroativo — quem já cumpriu recebe na hora)
 }
@@ -18342,6 +18343,44 @@ async function loadMissoes(){
       </div>
     </div>`;
   }catch(e){}
+}
+// v80 (ordem do dono, 29/07): quem JÁ TEM plano pago ativo vê aqui a opção
+// de UPGRADE — paga só a diferença em 💎 (mesmo período que já assinou),
+// os dias continuam exatamente os mesmos (nunca reinicia/soma).
+function renderDiamUpgrade(d){
+  const box=g('#diam-upgrade'); if(!box)return;
+  const ORDEM=['vip','vipro','doublepro'];
+  const planoAtual=U.plan||'free';
+  const idxAtual=ORDEM.indexOf(planoAtual);
+  const vipAtivo=U.vip&&((U.vip.manualExpires&&U.vip.manualExpires>Date.now())||(U.vip.autoExpires&&U.vip.autoExpires>Date.now()));
+  if(idxAtual<0||idxAtual>=ORDEM.length-1||!vipAtivo){box.innerHTML='';return;}
+  const dias=U.vip?.days||30;
+  const NOME={vip:'⭐ VIP Manual',vipro:'\u{1F916} VIPro',doublepro:'\u{1F48E} DoublePro'};
+  const preco=pl=>{const row=(d.planos||[]).find(p=>p.plano===pl&&p.dias===dias);return row?row.diamantes:null;};
+  const precoAtual=preco(planoAtual);
+  const opcoes=ORDEM.slice(idxAtual+1).map(pl=>({plano:pl,diferenca:preco(pl)!=null&&precoAtual!=null?preco(pl)-precoAtual:null})).filter(o=>o.diferenca!=null&&o.diferenca>0);
+  if(!opcoes.length){box.innerHTML='';return;}
+  box.innerHTML=`<div style="background:var(--surface);border:2px solid rgba(99,102,241,.35);border-radius:var(--rl);overflow:hidden">
+    <div style="background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(59,130,246,.1));padding:12px 16px;border-bottom:1px solid var(--border)">
+      <div style="font-size:14px;font-weight:800">⬆️ Upgrade de plano</div>
+      <div style="font-size:11px;color:var(--t3)">Você já é ${NOME[planoAtual]||planoAtual.toUpperCase()} — suba de tier pagando só a diferença</div>
+    </div>
+    <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+      ${opcoes.map(o=>`<button class="btn btn-primary" style="justify-content:space-between;padding:12px 14px" onclick="upgradePlano('${o.plano}',${o.diferenca})">
+        <span>Upgrade para ${NOME[o.plano]}</span><strong>${o.diferenca} \u{1F48E}</strong>
+      </button>`).join('')}
+      <div style="font-size:10.5px;color:var(--t3);line-height:1.5;margin-top:2px">⚠️ Seus dias continuam os MESMOS de quando você assinou — o upgrade não reinicia nem soma dias, só troca o plano.</div>
+    </div>
+  </div>`;
+}
+async function upgradePlano(novoPlano,diferenca){
+  if(!confirm(`Fazer upgrade para ${novoPlano.toUpperCase()} por ${diferenca} \u{1F48E}?\n\nSeus dias continuam os MESMOS de quando você assinou (não reiniciam, não somam).`))return;
+  try{
+    const r=await fetch('/api/plans/upgrade',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({novoPlano})});
+    const d=await r.json();
+    if(d.ok){gaEvent('upgrade',{plan:novoPlano,diamonds:diferenca});toast(`⬆️ Upgrade feito! Agora você é ${novoPlano.toUpperCase()}.`,'g');setTimeout(()=>location.reload(),1200);}
+    else toast('⚠️ '+(d.error||'Não foi possível fazer o upgrade'),'r');
+  }catch(e){toast('Erro: '+e.message,'r');}
 }
 function renderDiamTroca(d){
   const box=g('#diam-troca'); if(!box)return;
@@ -18392,7 +18431,7 @@ function renderDiamExtrato(d){
   const box=g('#diam-extrato'); if(!box)return;
   const led=d.ledger||[];
   if(!led.length){box.innerHTML='';return;}
-  const LBL={doacao:'\u{1F49A} Doação confirmada',troca:'\u{1F501} Troca por plano',transfer_in:'\u{1F381} Recebido de amigo',transfer_out:'\u{1F381} Doado para amigo',admin:'\u{1F6E0} Ajuste do admin',estorno:'\u26D4 Estorno',missao:'\u{1F381} Miss\u00e3o cumprida',correcao:'\u270F\uFE0F Corre\u00e7\u00e3o de valor'};
+  const LBL={doacao:'\u{1F49A} Doação confirmada',troca:'\u{1F501} Troca por plano',transfer_in:'\u{1F381} Recebido de amigo',transfer_out:'\u{1F381} Doado para amigo',admin:'\u{1F6E0} Ajuste do admin',estorno:'\u26D4 Estorno',missao:'\u{1F381} Miss\u00e3o cumprida',correcao:'\u270F\uFE0F Corre\u00e7\u00e3o de valor',upgrade:'\u2B06\uFE0F Upgrade de plano'};
   box.innerHTML=`<div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden">
     <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:800">\u{1F4DC} Extrato de diamantes</div>
     ${led.slice(0,12).map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border);font-size:12px">

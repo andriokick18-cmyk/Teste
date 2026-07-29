@@ -11229,6 +11229,55 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
       return json(res,200,{ok:true,plano:planoKey,dias,preco,saldo:novo});
     }catch(e){return json(res,400,{error:"Dados inválidos: "+e.message});}
   }
+  // POST /api/plans/upgrade {novoPlano} — v80 (ordem do dono, 29/07/2026):
+  // upgrade de tier PRA QUEM JÁ TEM plano pago ativo. Paga só a DIFERENÇA
+  // de diamantes entre o plano atual e o novo (mesmo período/dias da
+  // assinatura atual) — NUNCA reinicia nem soma dias. Quem tinha 20 dias
+  // restantes continua com 20 dias restantes, só que num tier melhor.
+  // Exceção única: se o upgrade destrava AUTOMÁTICO pela 1ª vez (vinha de
+  // VIP só-manual), o automático passa a valer até a MESMA data que o
+  // manual já tinha — nunca estende o prazo geral, só habilita a parte
+  // nova até quando a assinatura já ia até.
+  if(pathname==="/api/plans/upgrade"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    try{
+      const b=JSON.parse(await readBody(req));
+      const novoPlano=String(b.novoPlano||"").toLowerCase();
+      if(!["vipro","doublepro"].includes(novoPlano))return json(res,400,{error:"Plano de destino inválido."});
+      const p=getUser(s.user_email);if(!p)return json(res,401,{error:"Conta não encontrada."});
+      const now=Date.now();
+      const _ehTrial=["trial","auto-provisorio"].includes(String(p.vip?.source||""));
+      if(!isVipActive(p)||_ehTrial)return json(res,400,{error:"Upgrade é só pra quem já tem um plano PAGO ativo. Sem plano ativo, troque diamantes pelo plano direto (abaixo)."});
+      const ORDEM=["vip","vipro","doublepro"];
+      const planoAtual=p.plan||"free";
+      const idxAtual=ORDEM.indexOf(planoAtual),idxNovo=ORDEM.indexOf(novoPlano);
+      if(idxAtual<0||idxNovo<=idxAtual)return json(res,400,{error:`Só dá pra fazer upgrade pra um plano SUPERIOR ao atual (você está em ${planoAtual.toUpperCase()}).`});
+      const dias=parseInt(p.vip?.days,10)||30;
+      const precoAtual=planoPrecoDiamantes(planoAtual,dias);
+      const precoNovo=planoPrecoDiamantes(novoPlano,dias);
+      if(precoAtual==null||precoNovo==null)return json(res,400,{error:`Não existe combinação de ${dias} dias pra esse upgrade — fale com o suporte.`});
+      const diferenca=precoNovo-precoAtual;
+      if(diferenca<=0)return json(res,400,{error:"Upgrade inválido para essa combinação de planos."});
+      const s0=_diamSaldo(p);
+      if(s0.real+s0.bonus<diferenca)return json(res,402,{error:`Saldo insuficiente pro upgrade: você tem ${s0.real+s0.bonus} 💎 e falta pagar ${diferenca} 💎 de diferença (${planoAtual.toUpperCase()}→${novoPlano.toUpperCase()}, ${dias}d). Faltam ${diferenca-(s0.real+s0.bonus)} 💎.`,saldo:s0,diferenca});
+      const novoSaldo=debitDiamonds(s.user_email,diferenca,{tipo:"upgrade",planoDe:planoAtual,planoPara:novoPlano,dias});
+      if(!novoSaldo)return json(res,402,{error:"Saldo insuficiente."});
+      // v80 (regra 13j): relê FRESCO — debitDiamonds acima já mudou o
+      // usuário (diamonds/diamondLedger); nunca reaproveitar o `p` de cima.
+      const pFresh=getUser(s.user_email)||p;
+      const vipFresh=pFresh.vip||{};
+      const novoVip={...vipFresh,plan:novoPlano};
+      // Destrava automático pela 1ª vez → mesma data do manual, NUNCA estende.
+      if(!(vipFresh.autoExpires>now)) novoVip.autoExpires=vipFresh.manualExpires||now;
+      novoVip.note=`⬆️ Upgrade: ${planoAtual.toUpperCase()} → ${novoPlano.toUpperCase()} (${diferenca} 💎) — dias preservados, não reiniciaram`;
+      setUser(s.user_email,{plan:novoPlano,vip:novoVip});
+      addLog(s.user_email,{status:"sistema",jobTitle:`⬆️ Upgrade de plano: ${planoAtual.toUpperCase()} → ${novoPlano.toUpperCase()}`,company:`Custou ${diferenca} 💎 — seus dias continuam os mesmos de quando você assinou (não reiniciaram).`});
+      trackJourney(s.user_email,'plan_upgraded',{detail:`${planoAtual}→${novoPlano} por ${diferenca}💎, dias preservados`});
+      ;(async()=>{try{await pushToUser(s.user_email,{type:"plan_activated",title:"⬆️ Upgrade feito!",body:`Agora você é ${novoPlano.toUpperCase()}. Seus dias continuam os mesmos de antes — não reiniciaram.`,icon:"/icon-192.png"});}catch(e){}})();
+      console.log(`[upgrade] ⬆️ ${s.user_email}: ${planoAtual}→${novoPlano} por ${diferenca}💎 (dias preservados, período=${dias}d)`);
+      return json(res,200,{ok:true,planoAnterior:planoAtual,planoNovo:novoPlano,diferenca,saldo:novoSaldo});
+    }catch(e){return json(res,400,{error:"Dados inválidos: "+e.message});}
+  }
   // POST /api/diamonds/transfer {para,qtd} — doar 💎 REAIS a outro usuário
   // DESTE servidor. Bônus é intransferível (regra do dono: "se estiver com
   // diamantes reais"). Rate limit anti-abuso.

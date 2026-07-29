@@ -889,6 +889,62 @@ async function testAuthWatchdogPush() {
       JSON.stringify({ manualLimit: stEsdras.json?.manualLimit, autoLimit: stEsdras.json?.autoLimit }));
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
 
+    // ═══ ⬆️ v80 (ordem do dono, 29/07): UPGRADE DE PLANO — quem já tem plano
+    // pago ativo paga só a DIFERENÇA em 💎 (mesmo período) pra subir de tier
+    // — NUNCA reinicia nem soma dias. Cobre exatamente os 3 requisitos do
+    // dono: (1) desconta os diamantes certos, (2) dias continuam os mesmos,
+    // (3) nunca duplica o caixa (upgrade é 100% em diamantes). ═══
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "upgradeuser@test.com", name: "Upgrade User" });
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    const upTop = await req2("POST", "/api/admin/diamonds", { email: "upgradeuser@test.com", real: 300, nota: "top-up smoke upgrade" });
+    check("⬆️ v80: top-up credita 300💎 pro teste de upgrade", upTop.json?.ok === true, upTop.body.slice(0, 120));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "upgradeuser@test.com" });
+    // Começa no VIP 30d (67💎) — plano mais barato, só manual, SEM automático ainda.
+    const upBuyVip = await req2("POST", "/api/diamonds/trocar", { plano: "vip", dias: 30 });
+    check("⬆️ v80: compra VIP 30d (67💎) pra começar o teste de upgrade", upBuyVip.json?.ok === true && upBuyVip.json?.preco === 67, upBuyVip.body.slice(0, 140));
+    const stVipAntes = await get("/api/status");
+    const manualExpiresAntes = stVipAntes.json?.vip?.manualExpires;
+    check("⬆️ v80: VIP 30d ativo, SÓ manual (sem automático ainda)", stVipAntes.json?.plan === "vip" && manualExpiresAntes > Date.now() && !(stVipAntes.json?.vip?.autoExpires > Date.now()), JSON.stringify(stVipAntes.json?.vip));
+    // Upgrade pra VIPRO — diferença: 100💎(vipro/30d) - 67💎(vip/30d) = 33💎
+    const upgVipro = await req2("POST", "/api/plans/upgrade", { novoPlano: "vipro" });
+    check("⬆️ v80: upgrade VIP→VIPRO cobra EXATAMENTE a diferença (33💎), não o preço cheio (100💎)", upgVipro.json?.ok === true && upgVipro.json?.diferenca === 33, upgVipro.body.slice(0, 160));
+    const stVipro = await get("/api/status");
+    check("⬆️ v80: upgrade NÃO mexeu no manualExpires — dias continuam EXATAMENTE os mesmos de antes", stVipro.json?.vip?.manualExpires === manualExpiresAntes, JSON.stringify({ antes: manualExpiresAntes, depois: stVipro.json?.vip?.manualExpires }));
+    check("⬆️ v80: automático foi destravado pela 1ª vez, mas até a MESMA data do manual (nunca ganhou +30d novos)", stVipro.json?.vip?.autoExpires === manualExpiresAntes, JSON.stringify({ manualExpiresAntes, autoExpiresDepois: stVipro.json?.vip?.autoExpires }));
+    check("⬆️ v80: plano e limites viraram VIPRO de verdade (200 manual + 200 auto)", stVipro.json?.plan === "vipro" && stVipro.json?.manualLimit === 200 && stVipro.json?.autoLimit === 200, JSON.stringify({ plan: stVipro.json?.plan, manualLimit: stVipro.json?.manualLimit, autoLimit: stVipro.json?.autoLimit }));
+    // Upgrade de novo, VIPRO→DOUBLEPRO — diferença: 167💎(doublepro/30d) - 100💎(vipro/30d) = 67💎
+    const upgDouble = await req2("POST", "/api/plans/upgrade", { novoPlano: "doublepro" });
+    check("⬆️ v80: upgrade VIPRO→DOUBLEPRO cobra EXATAMENTE a diferença (67💎)", upgDouble.json?.ok === true && upgDouble.json?.diferenca === 67, upgDouble.body.slice(0, 160));
+    const stDouble2 = await get("/api/status");
+    check("⬆️ v80: 2º upgrade TAMBÉM não mexeu nos dias — manualExpires e autoExpires continuam os mesmos do início", stDouble2.json?.vip?.manualExpires === manualExpiresAntes && stDouble2.json?.vip?.autoExpires === manualExpiresAntes, JSON.stringify(stDouble2.json?.vip));
+    check("⬆️ v80: agora com DoublePro de verdade — 400 manual + 400 automático (não ficou preso em 200/200)", stDouble2.json?.plan === "doublepro" && stDouble2.json?.manualLimit === 400 && stDouble2.json?.autoLimit === 400, JSON.stringify({ plan: stDouble2.json?.plan, manualLimit: stDouble2.json?.manualLimit, autoLimit: stDouble2.json?.autoLimit }));
+    // Saldo final: 300 - 67(compra vip) - 33(upgrade vipro) - 67(upgrade doublepro) = 133
+    const dmUpFinal = await get("/api/diamonds");
+    check("⬆️ v80: saldo final bate exatamente com as 3 cobranças (300-67-33-67=133💎) — nada cobrado a mais ou a menos", dmUpFinal.json?.saldo?.real === 133, JSON.stringify(dmUpFinal.json?.saldo));
+    // Downgrade/mesmo-tier tem que ser recusado
+    const upSame = await req2("POST", "/api/plans/upgrade", { novoPlano: "doublepro" });
+    check("⬆️ v80: 'upgrade' pro MESMO tier que já tem é recusado (400)", upSame.status === 400, `status=${upSame.status}`);
+    const upDowngrade = await req2("POST", "/api/plans/upgrade", { novoPlano: "vipro" });
+    check("⬆️ v80: 'upgrade' pra um tier INFERIOR é recusado (400) — upgrade não é downgrade disfarçado", upDowngrade.status === 400, `status=${upDowngrade.status}`);
+    // Sem plano pago ativo não pode "upgradar"
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "semplano@test.com", name: "Sem Plano" });
+    const upSemPlano = await req2("POST", "/api/plans/upgrade", { novoPlano: "vipro" });
+    check("⬆️ v80: quem não tem plano pago ativo não consegue 'upgrade' (tem que comprar direto)", upSemPlano.status === 400, `status=${upSemPlano.status}`);
+    // Saldo insuficiente pro upgrade → 402, educado
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "pobreupgrade@test.com", name: "Pobre Upgrade" });
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    const upPobreVip = await req2("POST", "/api/admin/set-plan", { email: "pobreupgrade@test.com", plan: "vip" }); // usa o admin (sem gastar diamante) só pra ter um VIP ativo
+    check("⬆️ v80: (setup) admin ativou VIP pro teste de saldo insuficiente", upPobreVip.json?.ok === true, upPobreVip.body.slice(0, 140));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "pobreupgrade@test.com" });
+    const upPobre = await req2("POST", "/api/plans/upgrade", { novoPlano: "vipro" });
+    check("⬆️ v80: upgrade sem 💎 suficiente → 402 (nunca ativa de graça)", upPobre.status === 402, upPobre.body.slice(0, 160));
+    // Financeiro (caixa) NUNCA recebe entrada nova por causa do upgrade —
+    // upgrade é 100% em diamantes, dinheiro já entrou quando os 💎 foram doados.
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    const finUpgrade = await get("/api/admin/financeiro");
+    const entradasUpgradeUser = (finUpgrade.json?.pagamentos || []).filter((x) => x.email === "upgradeuser@test.com");
+    check("⬆️ v80: upgrade NUNCA lança entrada no caixa (100% diamantes — dinheiro já contou na doação original)", entradasUpgradeUser.length === 0, JSON.stringify(entradasUpgradeUser));
+
     // ═══ GUARDA PONTA A PONTA da troca por DoublePro vista pelo lado do
     // ADMIN, não só pelo /api/status do próprio usuário (que já era testado
     // acima só pro plano vip). Cobre as 2 rotas que o painel admin realmente

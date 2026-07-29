@@ -207,6 +207,19 @@
     reusar essa variável DEPOIS — sempre reler (`getUser`) depois de
     qualquer helper que possa ter mudado o mesmo dado, ou não guardar
     snapshot nenhum. Sem teste algum cobria essa rota antes disso.
+13k. **⬆️ Upgrade de plano (dono, 29/07/2026)**: quem já tem plano PAGO
+    ativo pode subir de tier (VIP→VIPro→DoublePro) pagando só a
+    DIFERENÇA em 💎 entre o plano atual e o novo, no MESMO período
+    (`vip.days`) que já tinha assinado — `/api/plans/upgrade`. Regra
+    inegociável: **os dias NUNCA reiniciam nem somam** — quem tinha 20
+    dias restantes continua com exatamente 20 dias restantes, só que
+    num tier melhor. Única exceção: se o upgrade destrava automático
+    pela 1ª vez (vinha de VIP só-manual), o automático passa a valer até
+    a MESMA data que o manual já tinha (nunca ganha um +30d novo). Upgrade
+    é 100% pago em diamantes — NUNCA lança entrada nova no livro-caixa
+    (a mesma regra "troca não duplica o caixa" do v64 vale aqui). Downgrade
+    e "upgrade" pro mesmo tier são recusados (400). Sem plano pago ativo
+    (ou saldo insuficiente) também é recusado, nunca ativa de graça.
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 

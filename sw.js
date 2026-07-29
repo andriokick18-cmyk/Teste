@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v47"; // v47 (29/07): sidebar do index.html ganhou o item "Meu Perfil" (acesso direto à edição de dados pessoais, antes só indireto).
+const CACHE_NAME = "h2bapply-v48"; // v48 (29/07): aba Planos ganhou "⬆️ Upgrade de plano" (v80) — paga só a diferença em 💎, dias nunca reiniciam.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
