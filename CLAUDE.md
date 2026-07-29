@@ -192,6 +192,21 @@
     catch sempre devolvendo uma resposta JSON de erro — nunca deixar um
     caminho onde a exceção pode escapar sem que `json(res,...)` seja
     chamado.
+13j. **⚠️ Classe de bug real (Diego, 29/07/2026, áudio: "ativei DoublePro
+    pro Esdras várias vezes e não entra, volta pro VipPro"): snapshot de
+    ANTES de uma função auxiliar reaproveitado DEPOIS dela apaga o que
+    ela acabou de gravar.** `/api/admin/set-plan` lia `tgt=getUser(email)`,
+    chamava `addManualVipDays`/`addAutoVipDays` (que leem e gravam
+    `vip.manualExpires`/`autoExpires` atualizados de verdade) e DEPOIS
+    fazia `setUser(email,{vip:{...tgt.vip, ...}})` usando o `tgt` ANTIGO
+    — sobrescrevendo o vip inteiro com o snapshot de antes, apagando os
+    dias que as duas funções tinham acabado de gravar (no caso de um
+    usuário novo, `tgt.vip` nem existia — o resultado virava `plan:free`
+    na cara). Regra geral: se uma função auxiliar já lê+grava o mesmo
+    registro, PROIBIDO guardar esse registro numa variável ANTES dela e
+    reusar essa variável DEPOIS — sempre reler (`getUser`) depois de
+    qualquer helper que possa ter mudado o mesmo dado, ou não guardar
+    snapshot nenhum. Sem teste algum cobria essa rota antes disso.
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 

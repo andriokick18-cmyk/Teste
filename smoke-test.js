@@ -848,6 +848,40 @@ async function testAuthWatchdogPush() {
     const dmAfterDown = await get("/api/admin/diamonds/user/doadorround@test.com");
     check("💎 v77b: saldo nunca fica negativo — foi a 0, não a -100", dmAfterDown.json?.saldo?.real === 0, JSON.stringify(dmAfterDown.json?.saldo));
 
+    // ═══ 🛡️ v79 (Diego, 29/07 — áudio no WhatsApp: "ativei DoublePro pro
+    // Esdras várias vezes e não entra, volta pro VipPro") ═══
+    // CAUSA RAIZ: /api/admin/set-plan chamava addManualVipDays/addAutoVipDays
+    // (que leem e gravam manualExpires/autoExpires atualizados) e DEPOIS
+    // sobrescrevia o vip inteiro com um snapshot tirado ANTES dessas duas
+    // chamadas — apagando silenciosamente os +30 dias que tinham acabado de
+    // ser gravados. Corrigido: relê o usuário DEPOIS de addManualVipDays/
+    // addAutoVipDays antes do setUser final. Este teste reproduz o cenário
+    // exato: usuário com VipPro real e válido, admin faz upgrade pra
+    // DoublePro — o autoExpires TEM que refletir os +30 dias novos, não
+    // ficar travado na data antiga.
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "esdras@test.com", name: "Esdras" });
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    const setVipro = await req2("POST", "/api/admin/set-plan", { email: "esdras@test.com", plan: "vipro" });
+    check("🛡️ v79: set-plan ativa VipPro pra Esdras (estado inicial, igual o caso real)", setVipro.json?.ok === true, setVipro.body.slice(0, 140));
+    const liveBefore = await get("/api/admin/live");
+    const esdrasBefore = (liveBefore.json?.users || []).find((u) => u.email === "esdras@test.com");
+    const autoExpiresAntes = esdrasBefore?.vip?.autoExpires || 0;
+    check("🛡️ v79: Esdras está com VipPro ativo e autoExpires no futuro (~30d)", esdrasBefore?.plan === "vipro" && autoExpiresAntes > Date.now() + 25 * 86400_000, JSON.stringify({ plan: esdrasBefore?.plan, autoExpires: autoExpiresAntes }));
+    // upgrade pra DoublePro — igual o Diego tentou fazer várias vezes
+    const setDouble = await req2("POST", "/api/admin/set-plan", { email: "esdras@test.com", plan: "doublepro" });
+    check("🛡️ v79: set-plan aceita o upgrade pra DoublePro", setDouble.json?.ok === true, setDouble.body.slice(0, 140));
+    const liveAfter = await get("/api/admin/live");
+    const esdrasAfter = (liveAfter.json?.users || []).find((u) => u.email === "esdras@test.com");
+    check("🛡️ v79: DoublePro aparece pro admin logo depois de ativar (não volta pro VipPro)", esdrasAfter?.plan === "doublepro", JSON.stringify({ plan: esdrasAfter?.plan }));
+    check("🛡️ v79: autoExpires foi EXTENDIDO pelos +30d novos, não ficou travado na data antiga do VipPro",
+      esdrasAfter?.vip?.autoExpires > autoExpiresAntes + 25 * 86400_000,
+      JSON.stringify({ antes: autoExpiresAntes, depois: esdrasAfter?.vip?.autoExpires, diffDias: Math.round(((esdrasAfter?.vip?.autoExpires || 0) - autoExpiresAntes) / 86400_000) }));
+    // confirma pelo lado do PRÓPRIO usuário também (mesma checagem dupla do v77)
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "esdras@test.com" });
+    const stEsdras = await get("/api/status");
+    check("🛡️ v79: /api/status do próprio Esdras também mostra DoublePro (nunca diverge do que o admin vê)", stEsdras.json?.plan === "doublepro" && stEsdras.json?.vip?.active === true, JSON.stringify({ plan: stEsdras.json?.plan }));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+
     // ═══ GUARDA PONTA A PONTA da troca por DoublePro vista pelo lado do
     // ADMIN, não só pelo /api/status do próprio usuário (que já era testado
     // acima só pro plano vip). Cobre as 2 rotas que o painel admin realmente

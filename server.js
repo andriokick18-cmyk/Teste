@@ -10767,7 +10767,15 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
       const tgt=getUser(email);if(!tgt)return json(res,404,{error:"Usuário não encontrado"});
       const _audBefore=_vipSnapshot(tgt); // v19: snapshot pra reversão
       if(plan!=='free'){addManualVipDays(email,30);if(['vipro','doublepro','pro'].includes(plan))addAutoVipDays(email,30);}
-      setUser(email,{plan,vip:{...(tgt.vip||{}),active:plan!=='free',plan,source:'admin',activatedBy:s.user_email}});
+      // v79 (bug real: "ativei DoublePro pro Esdras várias vezes e não entra,
+      // volta pro VipPro" — Diego, 29/07): addManualVipDays/addAutoVipDays
+      // ACIMA já leem e gravam manualExpires/autoExpires atualizados — mas
+      // o setUser abaixo usava `tgt.vip`, o snapshot de ANTES dessas duas
+      // chamadas, sobrescrevendo o vip inteiro e apagando silenciosamente
+      // os +30 dias que acabaram de ser gravados. Precisa reler o usuário
+      // DEPOIS das duas funções pra não desfazer o próprio trabalho delas.
+      const tgtFresh=getUser(email)||tgt;
+      setUser(email,{plan,vip:{...(tgtFresh.vip||{}),active:plan!=='free',plan,source:'admin',activatedBy:s.user_email}});
       logAdminAction(s.user_email,"set_plan",email,_audBefore,_vipSnapshot(getUser(email)),`Plano → ${plan}${plan!=='free'?" (+30d)":""}`);
       // 11/07 (caso Cleiton): plano foi ativado 3x e sumia após cada restart porque
       // o persist falhava em silêncio com o disco cheio. Agora VERIFICA a gravação
