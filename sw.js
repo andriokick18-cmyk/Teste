@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v45"; // v45 (28/07): admin.html ganhou a aba 💎 Diamantes (v77). admin.html não é cacheado pelo SW (ver nota do topo) — bump só por convenção de entrega do projeto (regra 6c).
+const CACHE_NAME = "h2bapply-v46"; // v46 (29/07): index.html/admin.html ganharam o label "Correção de valor" no extrato de diamantes (v77b). Bump por convenção de entrega (regra 6c).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

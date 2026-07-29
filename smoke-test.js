@@ -820,6 +820,34 @@ async function testAuthWatchdogPush() {
     check("💎 v77: com o crédito corrigido, dá EXATAMENTE pra trocar por DoublePro 30d (sem faltar 1💎)",
       trDPR.json?.ok === true && trDPR.json?.preco === 167 && trDPR.json?.saldo?.real === 0, trDPR.body.slice(0, 160));
 
+    // ═══ 💎 v77b (achado revisando o v77): corrigir o VALOR de uma doação
+    // JÁ APROVADA atualizava o caixa mas nunca reajustava os diamantes já
+    // creditados — mesma classe de bug do arredondamento (13f), só que
+    // pelo caminho de CORREÇÃO manual em vez da aprovação original. Testa
+    // as 2 rotas que corrigem valor (ambas usadas pelo admin.html): PATCH
+    // /api/pedido/:id {corrigirValor} (Conferência) e POST
+    // /api/admin/pedido-set-valor (tela de Pedidos). ═══
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    // doadorround está com saldo 0 (gastou os 167💎 no DoublePro) — corrige
+    // o valor da doação pra CIMA (R$250→R$300, precisa de 200💎) e credita
+    // a diferença (33💎) sem precisar de saldo prévio (crédito nunca falha).
+    const corrPatch = await req2("PATCH", "/api/pedido/" + dpRId, { corrigirValor: 300 });
+    check("💎 v77b: corrigirValor (Conferência) recalcula e credita a diferença de diamantes (+33💎)",
+      corrPatch.json?.ok === true && corrPatch.json?.diamCorrecao?.aplicado === 33 && corrPatch.json?.diamCorrecao?.faltou === 0,
+      corrPatch.body.slice(0, 200));
+    const dmAfterUp = await get("/api/admin/diamonds/user/doadorround@test.com");
+    check("💎 v77b: saldo do doadorround refletiu o +33💎 da correção pra cima", dmAfterUp.json?.saldo?.real === 33, JSON.stringify(dmAfterUp.json?.saldo));
+    // corrige pra BAIXO agora (R$300→R$100, precisa só de 67💎) — tem que
+    // remover 133💎, mas só sobram 33💎 no saldo (o resto já foi gasto no
+    // DoublePro) — remove o que der (33) e ACUSA o que faltou (100), nunca
+    // deixa saldo negativo.
+    const corrPost = await req2("POST", "/api/admin/pedido-set-valor", { pedidoId: dpRId, valor: 100 });
+    check("💎 v77b: pedido-set-valor remove o que der do saldo quando a correção pra baixo não cabe mais (33 removidos, 100 acusados como já gastos)",
+      corrPost.json?.ok === true && corrPost.json?.diamCorrecao?.aplicado === -33 && corrPost.json?.diamCorrecao?.faltou === 100,
+      corrPost.body.slice(0, 200));
+    const dmAfterDown = await get("/api/admin/diamonds/user/doadorround@test.com");
+    check("💎 v77b: saldo nunca fica negativo — foi a 0, não a -100", dmAfterDown.json?.saldo?.real === 0, JSON.stringify(dmAfterDown.json?.saldo));
+
     // ═══ GUARDA PONTA A PONTA da troca por DoublePro vista pelo lado do
     // ADMIN, não só pelo /api/status do próprio usuário (que já era testado
     // acima só pro plano vip). Cobre as 2 rotas que o painel admin realmente
@@ -956,6 +984,19 @@ async function testAuthWatchdogPush() {
     check("🛡️ status waiting_warmup (pausa de até 3h esperando o teto zerar) foi REMOVIDO do motor automático",
       !_srvSrc.includes('status:"waiting_warmup"'),
       "status waiting_warmup ainda sendo atribuído — automático ainda pode pausar por aquecimento");
+
+    // ═══ 🛡️ v77c: BUG REAL achado revisando o v77b — /api/admin/pedido-set-valor
+    // referenciava uma variável `body` que NUNCA existia no escopo (faltava
+    // o readBody/JSON.parse). Sem try/catch ao redor, o ReferenceError
+    // acontecia DENTRO do callback assíncrono do request handler e nunca
+    // virava resposta HTTP — a requisição ficava PENDURADA PRA SEMPRE (o
+    // admin via a tela girando; o smoke-test, que não tinha cobertura pra
+    // essa rota antes do v77b, travou o processo inteiro por +40min até eu
+    // achar). Guarda estrutural: confirma que a rota lê o body de verdade e
+    // nunca mais referencia uma variável `body` não declarada.
+    check("🛡️ /api/admin/pedido-set-valor lê o body de verdade (JSON.parse(await readBody)) — nunca mais trava a requisição pra sempre",
+      !_srvSrc.includes("const {pedidoId,valor}=body;") && /pedido-set-valor[\s\S]{0,1200}?JSON\.parse\(await readBody\(req\)\)/.test(_srvSrc),
+      "rota pedido-set-valor não encontrada lendo o body via readBody logo depois do pathname check, ou o padrão quebrado antigo voltou");
 
     // ═══ 🛡️ v75: rate limit do Google NÃO pausa mais o automático ═══
     // Ordem do dono (27/07): "automático só deve parar se o Google bloquear,

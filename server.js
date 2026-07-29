@@ -554,6 +554,34 @@ function debitDiamonds(email,qtd,meta){
   setUser(email,{diamonds:novo,diamondLedger:_diamLedgerPush(u,{tipo:(meta&&meta.tipo)||"debito",qtd:-qtd,real:-deReal,bonus:-deBonus,saldoReal:novo.real,saldoBonus:novo.bonus,...(meta||{})})});
   return novo;
 }
+// v77b (achado revisando o v77): corrigir o valor (R$) de uma DOAÇÃO já
+// aprovada atualizava o caixa mas NUNCA reajustava os diamantes já
+// creditados — o usuário ficava travado no valor de 💎 do valor ERRADO
+// antigo pra sempre, mesmo depois do admin corrigir o R$ certo. Mesma
+// classe de bug do 13f (arredondamento): duas verdades sobre o mesmo
+// dinheiro que podiam divergir. Chamada pelas 2 rotas que corrigem valor
+// de pedido (PATCH /api/pedido/:id corrigirValor E POST
+// /api/admin/pedido-set-valor) — uma função só, nunca duplicada.
+// Credita mais se corrigiu pra cima (nunca falha); remove o que der do
+// saldo REAL (nunca deixa negativo) se corrigiu pra baixo e a pessoa já
+// gastou — mesmo princípio do estorno de doação cancelada.
+function reconciliarDiamantesCorrecao(pd,valorAntes,adminEmail){
+  if(!((pd.tipo==="doacao"||pd.plano==="doacao")&&pd.ativadoEm&&(pd.diamantesCreditados||0)>0))return null;
+  const alvoNovo=Math.round(pd.valorTotal/DIAMOND_PRICE_BRL);
+  const diff=alvoNovo-(pd.diamantesCreditados||0); // >0 = precisa creditar mais; <0 = precisa remover
+  if(diff===0)return null;
+  const uD=getUser(pd.userEmail);
+  if(!uD)return null;
+  const sD=_diamSaldo(uD);
+  const aplicado=diff>0?diff:-Math.min(sD.real,-diff);
+  const faltou=diff<0?(-diff+aplicado):0; // quanto deveria ter sido removido e não coube no saldo
+  const novoD={real:sD.real+aplicado,bonus:sD.bonus};
+  setUser(pd.userEmail,{diamonds:novoD,diamondLedger:_diamLedgerPush(uD,{tipo:"correcao",qtd:aplicado,real:aplicado,bonus:0,saldoReal:novoD.real,saldoBonus:novoD.bonus,pedidoId:pd.id,por:adminEmail,nota:`Correção de valor: R$${valorAntes}→R$${pd.valorTotal} — diamantes ${aplicado>=0?"+":""}${aplicado}`})});
+  pd.diamantesCreditados=(pd.diamantesCreditados||0)+aplicado;
+  addLog(pd.userEmail,{status:"sistema",jobTitle:`💎 Valor da doação corrigido — ${aplicado>=0?"+":""}${aplicado} 💎${faltou>0?` (faltaram ${faltou} 💎 já gastos — cobrar por fora)`:""}`,company:"Pedido #"+pd.id.slice(-8).toUpperCase()});
+  console.log(`[diamonds] 💎 correção por valor: ${pd.userEmail} ${aplicado>=0?"+":""}${aplicado} 💎 (pedido ${pd.id}, R$${valorAntes}→R$${pd.valorTotal})${faltou>0?` — faltaram ${faltou}💎 já gastos`:""}`);
+  return{aplicado,faltou,saldoNovo:novoD};
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // 💰 CONTABILIDADE CANÔNICA — UMA função, UM número (dono, 15/07/2026)
@@ -8266,7 +8294,20 @@ ul li{margin-bottom:6px}
   if(pathname==="/api/admin/pedido-set-valor"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado"});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Não autorizado"});
-    const {pedidoId,valor}=body;
+    // v77c (bug real achado revisando o v77b): faltava ler e parsear o body
+    // da requisição — a rota referenciava uma variável `body` que NUNCA
+    // existiu neste escopo (nem readBody nem JSON.parse eram chamados).
+    // Toda vez que essa rota era chamada, estourava ReferenceError DEPOIS
+    // do handler já ter começado a rodar de forma assíncrona, sem try/catch
+    // ao redor — a exceção nunca virava resposta HTTP, então a requisição
+    // ficava pendurada pra sempre (o admin via a tela girando sem fim; o
+    // smoke-test, que nunca tinha cobertura pra essa rota, travava direto
+    // nela). Corrigido: lê e parseia o body de verdade, com try/catch.
+    let pedidoId,valor;
+    try{
+      const d=JSON.parse(await readBody(req));
+      pedidoId=d.pedidoId; valor=d.valor;
+    }catch(e){ return json(res,400,{error:"Dados inválidos: "+e.message}); }
     if(!pedidoId||!valor)return json(res,400,{error:"pedidoId e valor obrigatórios"});
     const pd=DB_PEDIDOS.find(x=>x.id===pedidoId);
     if(!pd)return json(res,404,{error:"Pedido não encontrado"});
@@ -8290,8 +8331,12 @@ ul li{margin-bottom:6px}
         if(!persistFinanceiro()){ finP.valor=finAntes; finSyncOk=false; console.error(`[pedido-set-valor] pedido ${pedidoId} salvo, mas SINCRONIZAÇÃO com financeiro falhou — valores podem divergir até nova tentativa.`); }
       }
     }catch(e){ finSyncOk=false; console.error('[pedido-set-valor] erro ao sincronizar financeiro:',e.message); }
+    // 💎 v77b: se for uma DOAÇÃO já aprovada, reconcilia os diamantes já
+    // creditados com o valor corrigido (ver reconciliarDiamantesCorrecao) —
+    // senão o usuário ficava travado no 💎 do valor ERRADO antigo pra sempre.
+    const diamCorrecao=reconciliarDiamantesCorrecao(pd,vAntes,s.user_email);
     console.log(`[pedido] valor corrigido: ${pedidoId} R$${vAntes}→R$${pd.valorTotal} por ${s.user_email}`);
-    return json(res,200,{ok:true,valorAntes:vAntes,valorNovo:pd.valorTotal,finSyncOk});
+    return json(res,200,{ok:true,valorAntes:vAntes,valorNovo:pd.valorTotal,finSyncOk,diamCorrecao});
   }
 
   // ════ BOT DE ENRIQUECIMENTO DE PLANILHAS ════════════════════
@@ -11422,8 +11467,12 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
           persistFinanceiro();
         }
         persistPedidos();
+        // 💎 v77b: mesma reconciliação da rota /api/admin/pedido-set-valor —
+        // corrigir o valor de uma DOAÇÃO já aprovada tem que reajustar os
+        // diamantes já creditados junto (ver reconciliarDiamantesCorrecao).
+        const diamCorrecao=reconciliarDiamantesCorrecao(pd,antes,s.user_email);
         console.log(`[conferencia] valor do pedido ${pd.id}: R$${antes} → R$${nv} (${s.user_email})`);
-        return json(res,200,{ok:true,pedido:pd,caixaCorrigido:!!_pgC});
+        return json(res,200,{ok:true,pedido:pd,caixaCorrigido:!!_pgC,diamCorrecao});
       }
 
       // Validar senha de editor ao ativar

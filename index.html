@@ -18391,7 +18391,7 @@ function renderDiamExtrato(d){
   const box=g('#diam-extrato'); if(!box)return;
   const led=d.ledger||[];
   if(!led.length){box.innerHTML='';return;}
-  const LBL={doacao:'\u{1F49A} Doação confirmada',troca:'\u{1F501} Troca por plano',transfer_in:'\u{1F381} Recebido de amigo',transfer_out:'\u{1F381} Doado para amigo',admin:'\u{1F6E0} Ajuste do admin',estorno:'\u26D4 Estorno',missao:'\u{1F381} Miss\u00e3o cumprida'};
+  const LBL={doacao:'\u{1F49A} Doação confirmada',troca:'\u{1F501} Troca por plano',transfer_in:'\u{1F381} Recebido de amigo',transfer_out:'\u{1F381} Doado para amigo',admin:'\u{1F6E0} Ajuste do admin',estorno:'\u26D4 Estorno',missao:'\u{1F381} Miss\u00e3o cumprida',correcao:'\u270F\uFE0F Corre\u00e7\u00e3o de valor'};
   box.innerHTML=`<div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden">
     <div style="padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:800">\u{1F4DC} Extrato de diamantes</div>
     ${led.slice(0,12).map(e=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 16px;border-bottom:1px solid var(--border);font-size:12px">

@@ -170,6 +170,28 @@
     doadores, atividade recente de todo mundo). Fonte única: o mesmo
     `diamondLedger` por usuário que já existia desde o v64 — nenhuma
     segunda verdade nova. Admin-only, dado financeiro sensível.
+13h. **💎 Corrigir valor de doação REAJUSTA os diamantes (29/07/2026)**:
+    achado revisando o v77 — corrigir o R$ de uma doação já aprovada
+    (`corrigirValor` na Conferência OU `/api/admin/pedido-set-valor` nos
+    Pedidos) atualizava o caixa mas nunca os 💎 já creditados. As duas
+    rotas agora chamam `reconciliarDiamantesCorrecao()` (função única,
+    nunca duplicada) — credita a diferença pra cima sempre; pra baixo,
+    remove o que der do saldo real (nunca negativo) e ACUSA no log
+    quanto já foi gasto e não pôde ser recuperado.
+13i. **⚠️ Classe de bug real (29/07/2026): rota sem try/catch que referencia
+    variável inexistente TRAVA A REQUISIÇÃO PRA SEMPRE, não dá erro.**
+    Achado no `/api/admin/pedido-set-valor` (referenciava um `body` que
+    nunca foi lido/parseado — nem `readBody`, nem `JSON.parse`). Sem
+    try/catch ao redor, a exceção estoura DENTRO do callback assíncrono
+    do request handler; os handlers globais `uncaughtException`/
+    `unhandledRejection` só logam (não têm acesso a `res`), então a
+    resposta HTTP NUNCA sai — o admin via a tela girando pra sempre, sem
+    erro nenhum pra reportar. Toda rota nova PRECISA: (1) ler o body só
+    via `JSON.parse(await readBody(req))`, nunca reaproveitar uma
+    variável de outro escopo; (2) ter try/catch cobrindo isso, com o
+    catch sempre devolvendo uma resposta JSON de erro — nunca deixar um
+    caminho onde a exceção pode escapar sem que `json(res,...)` seja
+    chamado.
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 
