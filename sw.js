@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v46"; // v46 (29/07): index.html/admin.html ganharam o label "Correção de valor" no extrato de diamantes (v77b). Bump por convenção de entrega (regra 6c).
+const CACHE_NAME = "h2bapply-v47"; // v47 (29/07): sidebar do index.html ganhou o item "Meu Perfil" (acesso direto à edição de dados pessoais, antes só indireto).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
