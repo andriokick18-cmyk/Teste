@@ -880,6 +880,13 @@ async function testAuthWatchdogPush() {
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "esdras@test.com" });
     const stEsdras = await get("/api/status");
     check("🛡️ v79: /api/status do próprio Esdras também mostra DoublePro (nunca diverge do que o admin vê)", stEsdras.json?.plan === "doublepro" && stEsdras.json?.vip?.active === true, JSON.stringify({ plan: stEsdras.json?.plan }));
+    // 🚨 ordem do dono (29/07, direto após o caso Esdras): "se a pessoa
+    // comprou DoublePro tem que ter EXATAMENTE 400 manual + 400 auto — não
+    // pode ficar com o limite de VipPro (200/200)". Antes desse fix, esse
+    // usuário ficava com plan:"free" (0 de tudo) — pior ainda que 200/200.
+    check("🚨 v79: Esdras com DoublePro tem EXATAMENTE 400 manual + 400 automático (não 200/200 do VipPro)",
+      stEsdras.json?.manualLimit === 400 && stEsdras.json?.autoLimit === 400,
+      JSON.stringify({ manualLimit: stEsdras.json?.manualLimit, autoLimit: stEsdras.json?.autoLimit }));
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
 
     // ═══ GUARDA PONTA A PONTA da troca por DoublePro vista pelo lado do
@@ -896,6 +903,9 @@ async function testAuthWatchdogPush() {
     check("💎 v77: troca por DoublePro 30d custa 167 💎 e responde ok", trDP.json?.ok === true && trDP.json?.preco === 167 && trDP.json?.saldo?.real === 156, trDP.body.slice(0, 160));
     const stDP = await get("/api/status");
     check("💎 v77: /api/status (usuário) mostra plan=doublepro e vip ativo", stDP.json?.plan === "doublepro" && stDP.json?.vip?.active === true, JSON.stringify({ plan: stDP.json?.plan, vip: !!stDP.json?.vip?.active }));
+    check("🚨 v77: quem trocou 💎 por DoublePro tem EXATAMENTE 400 manual + 400 automático (mesma régua do v79 pro caminho de diamantes)",
+      stDP.json?.manualLimit === 400 && stDP.json?.autoLimit === 400,
+      JSON.stringify({ manualLimit: stDP.json?.manualLimit, autoLimit: stDP.json?.autoLimit }));
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
     const adUsers = await get("/api/admin/users");
     const doadorNaListaUsers = (adUsers.json?.users || []).find((u) => u.email === "doador@test.com");
