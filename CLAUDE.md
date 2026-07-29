@@ -220,6 +220,23 @@
     (a mesma regra "troca não duplica o caixa" do v64 vale aqui). Downgrade
     e "upgrade" pro mesmo tier são recusados (400). Sem plano pago ativo
     (ou saldo insuficiente) também é recusado, nunca ativa de graça.
+13l. **💎 Diamante infinito pra admin/DM (dono, 29/07/2026 — "eu e o Diego
+    temos limite infinito")**: toda conta admin (`isAdminVip` — dono, Diego
+    e os demais e-mails de `ADMIN_EMAILS_EXTRA`) pode testar troca/upgrade
+    de plano SEM gastar diamante de verdade — `debitDiamonds` (função
+    única usada por troca E upgrade) nunca desconta do saldo real do
+    admin e NUNCA gera lançamento no extrato dele; por isso nenhum
+    agregado do painel 💎 Diamantes (`totalGastoEmTrocasPorPlano` etc.)
+    é afetado por teste de admin. Diferente disso: se o admin DOAR
+    diamantes pra um usuário de verdade (`/api/diamonds/transfer`), a
+    doação NUNCA sai do saldo do admin (poço infinito, nunca bloqueia
+    por saldo insuficiente) mas CONTA de verdade — o destinatário recebe
+    💎 REAIS de verdade (pode gastar/repassar) e o extrato mostra a
+    doação atribuída certinho ao e-mail do admin, entrando nos agregados
+    do site (`totalTransferidoEntreUsuarios`) igual qualquer doação real.
+    Isso não é um poder novo — admin já podia creditar qualquer saldo pra
+    qualquer usuário via `/api/admin/diamonds`; a doação por transferência
+    só dá o mesmo resultado com a cara de "doação entre pessoas" no extrato.
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 

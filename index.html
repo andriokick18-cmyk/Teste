@@ -18297,7 +18297,7 @@ async function loadDiamonds(){
   try{
     const r=await fetch('/api/diamonds',{credentials:'include'});
     const d=await r.json(); if(!d.ok)return;
-    _diamData=d; U.diamonds=d.saldo; U.diamondPrice=d.price;
+    _diamData=d; U.diamonds=d.saldo; U.diamondPrice=d.price; U.diamantesInfinitos=!!d.diamantesInfinitos;
     const sc=g('#diam-saldo-card');
     if(sc){
       const tot=d.saldo.real+d.saldo.bonus;
@@ -18305,8 +18305,8 @@ async function loadDiamonds(){
         <div style="font-size:34px">\u{1F48E}</div>
         <div style="flex:1">
           <div style="font-size:12px;opacity:.75">Seus diamantes</div>
-          <div style="font-size:24px;font-weight:800">${tot.toLocaleString('pt-BR')}</div>
-          <div style="font-size:10.5px;opacity:.7">${d.saldo.real.toLocaleString('pt-BR')} reais (podem ser doados) · ${d.saldo.bonus.toLocaleString('pt-BR')} de brinde</div>
+          <div style="font-size:24px;font-weight:800">${U.diamantesInfinitos?'♾️':tot.toLocaleString('pt-BR')}</div>
+          <div style="font-size:10.5px;opacity:.7">${U.diamantesInfinitos?'\u{1F6E1}️ Conta admin: diamantes infinitos pra teste — nunca conta como gasto real; doações pra outros usuários continuam contando normal':`${d.saldo.real.toLocaleString('pt-BR')} reais (podem ser doados) · ${d.saldo.bonus.toLocaleString('pt-BR')} de brinde`}</div>
         </div>
       </div>`;
     }
@@ -18350,7 +18350,12 @@ async function loadMissoes(){
 function renderDiamUpgrade(d){
   const box=g('#diam-upgrade'); if(!box)return;
   const ORDEM=['vip','vipro','doublepro'];
-  const planoAtual=U.plan||'free';
+  // v81: admin/DM tem plano efetivo SEMPRE máximo (getPlan() do servidor
+  // sempre devolve doublepro pra admin, pra ter os limites de envio máximos)
+  // — isso esconderia o card de upgrade pra sempre. Pra admin, usa o plano
+  // BRUTO gravado (o que ele realmente "comprou" testando com diamante
+  // infinito), igual um usuário comum, senão nunca dá pra testar o upgrade.
+  const planoAtual=(U.isAdmin?(U.vip?.plan||'free'):(U.plan||'free'));
   const idxAtual=ORDEM.indexOf(planoAtual);
   const vipAtivo=U.vip&&((U.vip.manualExpires&&U.vip.manualExpires>Date.now())||(U.vip.autoExpires&&U.vip.autoExpires>Date.now()));
   if(idxAtual<0||idxAtual>=ORDEM.length-1||!vipAtivo){box.innerHTML='';return;}
@@ -18363,7 +18368,7 @@ function renderDiamUpgrade(d){
   box.innerHTML=`<div style="background:var(--surface);border:2px solid rgba(99,102,241,.35);border-radius:var(--rl);overflow:hidden">
     <div style="background:linear-gradient(135deg,rgba(99,102,241,.15),rgba(59,130,246,.1));padding:12px 16px;border-bottom:1px solid var(--border)">
       <div style="font-size:14px;font-weight:800">⬆️ Upgrade de plano</div>
-      <div style="font-size:11px;color:var(--t3)">Você já é ${NOME[planoAtual]||planoAtual.toUpperCase()} — suba de tier pagando só a diferença</div>
+      <div style="font-size:11px;color:var(--t3)">Você já é ${NOME[planoAtual]||planoAtual.toUpperCase()} — suba de tier pagando só a diferença${U.isAdmin?' · 🛡️ conta admin: grátis, só teste':''}</div>
     </div>
     <div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">
       ${opcoes.map(o=>`<button class="btn btn-primary" style="justify-content:space-between;padding:12px 14px" onclick="upgradePlano('${o.plano}',${o.diferenca})">
@@ -18391,14 +18396,14 @@ function renderDiamTroca(d){
   box.innerHTML=`<div style="background:var(--surface);border:2px solid var(--border2);border-radius:var(--rl);overflow:hidden">
     <div style="background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(59,130,246,.08));padding:12px 16px;border-bottom:1px solid var(--border)">
       <div style="font-size:14px;font-weight:800">\u{1F501} Trocar diamantes por plano</div>
-      <div style="font-size:11px;color:var(--t3)">Ativa NA HORA — sem espera, sem aprovação</div>
+      <div style="font-size:11px;color:var(--t3)">Ativa NA HORA — sem espera, sem aprovação${U.isAdmin?' · 🛡️ conta admin: grátis, só teste':''}</div>
     </div>
     <div style="padding:12px 16px;display:flex;flex-direction:column;gap:12px">
       ${['vip','vipro','doublepro'].map(pl=>`<div>
         <div style="font-size:13px;font-weight:800;margin-bottom:2px">${NOME[pl]}</div>
         <div style="font-size:10.5px;color:var(--t3);margin-bottom:6px">${DESC[pl]}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          ${(por[pl]||[]).map(c=>{const da=tot>=c.diamantes;return`<button class="btn ${da?'btn-primary':'btn-secondary'}" style="justify-content:center;font-size:12px;padding:9px 6px${da?'':';opacity:.55'}" onclick="trocarPlano('${pl}',${c.dias},${c.diamantes})">${c.dias===365?'1 ano':c.dias+'d'} · ${c.diamantes} \u{1F48E}</button>`;}).join('')}
+          ${(por[pl]||[]).map(c=>{const da=U.isAdmin||tot>=c.diamantes;return`<button class="btn ${da?'btn-primary':'btn-secondary'}" style="justify-content:center;font-size:12px;padding:9px 6px${da?'':';opacity:.55'}" onclick="trocarPlano('${pl}',${c.dias},${c.diamantes})">${c.dias===365?'1 ano':c.dias+'d'} · ${c.diamantes} \u{1F48E}</button>`;}).join('')}
         </div>
       </div>`).join('')}
     </div>
@@ -18406,7 +18411,7 @@ function renderDiamTroca(d){
 }
 async function trocarPlano(plano,dias,preco){
   const tot=((U.diamonds&&U.diamonds.real)||0)+((U.diamonds&&U.diamonds.bonus)||0);
-  if(tot<preco){toast(`Faltam ${preco-tot} \u{1F48E} — doe para completar!`,'r');return;}
+  if(!U.isAdmin&&tot<preco){toast(`Faltam ${preco-tot} \u{1F48E} — doe para completar!`,'r');return;}
   if(!confirm(`Trocar ${preco} \u{1F48E} pelo ${plano.toUpperCase()} por ${dias===365?'1 ano':dias+' dias'}? Ativa na hora.`))return;
   try{
     const r=await fetch('/api/diamonds/trocar',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({plano,dias})});

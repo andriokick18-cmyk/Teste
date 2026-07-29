@@ -544,8 +544,15 @@ function creditDiamonds(email,{real=0,bonus=0},meta){
 }
 // Débito de troca: gasta BÔNUS primeiro, depois REAL. Retorna saldo novo ou
 // null se insuficiente (nunca deixa negativo).
+// v81 (dono, 29/07/2026 — "eu e o Diego temos limite infinito"): conta
+// admin/DM NUNCA gasta diamante de verdade em troca/upgrade — é só pra
+// TESTAR a funcionalidade, sem afetar caixa nem estatística nenhuma do
+// site. Um único ponto de bypass (aqui, na função que TODA troca/upgrade
+// chama) em vez de checar isAdminVip espalhado — nunca sai do saldo real,
+// nunca gera lançamento no extrato, nunca soma em agregado nenhum.
 function debitDiamonds(email,qtd,meta){
   const u=getUser(email);if(!u)return null;
+  if(isAdminVip(u))return _diamSaldo(u);
   qtd=Math.max(0,parseInt(qtd,10)||0);
   const s0=_diamSaldo(u);
   if(s0.real+s0.bonus<qtd)return null;
@@ -11190,7 +11197,7 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
     for(const[pl,combos]of Object.entries(PLANO_PRECO_TAB))
       for(const dk of Object.keys(combos))
         tabela.push({plano:pl,dias:parseInt(dk,10),brl:combos[dk],diamantes:planoPrecoDiamantes(pl,parseInt(dk,10))});
-    return json(res,200,{ok:true,price:DIAMOND_PRICE_BRL,saldo:_diamSaldo(p),
+    return json(res,200,{ok:true,price:DIAMOND_PRICE_BRL,saldo:_diamSaldo(p),diamantesInfinitos:isAdminVip(p),
       ledger:(Array.isArray(p.diamondLedger)?p.diamondLedger:[]).slice(0,60),planos:tabela});
   }
   // POST /api/diamonds/trocar {plano,dias} — troca 💎 por plano, ativação NA
@@ -11205,7 +11212,8 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
       if(!preco)return json(res,400,{error:"Plano/período inválido."});
       const p=getUser(s.user_email);if(!p)return json(res,401,{error:"Conta não encontrada."});
       const s0=_diamSaldo(p);
-      if(s0.real+s0.bonus<preco)return json(res,402,{error:`Saldo insuficiente: você tem ${s0.real+s0.bonus} 💎 e o ${planoKey.toUpperCase()} ${dias} dias custa ${preco} 💎.`,saldo:s0,preco});
+      // v81: admin/DM tem diamante infinito — pula a checagem de saldo (debitDiamonds já não desconta nada dele).
+      if(!isAdminVip(p)&&s0.real+s0.bonus<preco)return json(res,402,{error:`Saldo insuficiente: você tem ${s0.real+s0.bonus} 💎 e o ${planoKey.toUpperCase()} ${dias} dias custa ${preco} 💎.`,saldo:s0,preco});
       const novo=debitDiamonds(s.user_email,preco,{tipo:"troca",plano:planoKey,dias});
       if(!novo)return json(res,402,{error:"Saldo insuficiente."});
       // Mesmas regras de empilhamento da ativação por pedido (uma regra só):
@@ -11259,7 +11267,8 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
       const diferenca=precoNovo-precoAtual;
       if(diferenca<=0)return json(res,400,{error:"Upgrade inválido para essa combinação de planos."});
       const s0=_diamSaldo(p);
-      if(s0.real+s0.bonus<diferenca)return json(res,402,{error:`Saldo insuficiente pro upgrade: você tem ${s0.real+s0.bonus} 💎 e falta pagar ${diferenca} 💎 de diferença (${planoAtual.toUpperCase()}→${novoPlano.toUpperCase()}, ${dias}d). Faltam ${diferenca-(s0.real+s0.bonus)} 💎.`,saldo:s0,diferenca});
+      // v81: admin/DM tem diamante infinito — pula a checagem de saldo (debitDiamonds já não desconta nada dele).
+      if(!isAdminVip(p)&&s0.real+s0.bonus<diferenca)return json(res,402,{error:`Saldo insuficiente pro upgrade: você tem ${s0.real+s0.bonus} 💎 e falta pagar ${diferenca} 💎 de diferença (${planoAtual.toUpperCase()}→${novoPlano.toUpperCase()}, ${dias}d). Faltam ${diferenca-(s0.real+s0.bonus)} 💎.`,saldo:s0,diferenca});
       const novoSaldo=debitDiamonds(s.user_email,diferenca,{tipo:"upgrade",planoDe:planoAtual,planoPara:novoPlano,dias});
       if(!novoSaldo)return json(res,402,{error:"Saldo insuficiente."});
       // v80 (regra 13j): relê FRESCO — debitDiamonds acima já mudou o
@@ -11295,10 +11304,18 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
       if(!de)return json(res,401,{error:"Conta não encontrada."});
       if(!dest)return json(res,404,{error:"Esse e-mail não tem conta NESTE servidor. Confira com a pessoa o e-mail e o servidor que ela usa."});
       const s0=_diamSaldo(de);
-      if(s0.real<qtd)return json(res,402,{error:`Você tem ${s0.real} 💎 REAIS (só diamante de doação pode ser doado — o de brinde não). Faltam ${qtd-s0.real}.`,saldo:s0});
+      // v81 (dono, 29/07/2026): admin/DM (eu e o Diego) tem diamante infinito
+      // — pode doar pra qualquer usuário sem ter saldo real, e a doação NUNCA
+      // sai do saldo dele (não tem de onde tirar — é o "poço infinito"). Mas
+      // ISSO AQUI, diferente da troca/upgrade acima, CONTA de verdade: o
+      // destinatário recebe 💎 REAIS de verdade (pode gastar/repassar), e o
+      // extrato mostra a doação certinho ("recebeu de admin@..."), entrando
+      // nos agregados do site — só o lado do admin que não desconta nada.
+      const _admDe=isAdminVip(de);
+      if(!_admDe&&s0.real<qtd)return json(res,402,{error:`Você tem ${s0.real} 💎 REAIS (só diamante de doação pode ser doado — o de brinde não). Faltam ${qtd-s0.real}.`,saldo:s0});
       // Débito SÓ do real (não usa debitDiamonds, que gastaria bônus primeiro)
-      const novoDe={real:s0.real-qtd,bonus:s0.bonus};
-      setUser(s.user_email,{diamonds:novoDe,diamondLedger:_diamLedgerPush(de,{tipo:"transfer_out",qtd:-qtd,real:-qtd,bonus:0,saldoReal:novoDe.real,saldoBonus:novoDe.bonus,para})});
+      const novoDe=_admDe?{real:s0.real,bonus:s0.bonus}:{real:s0.real-qtd,bonus:s0.bonus};
+      setUser(s.user_email,{diamonds:novoDe,diamondLedger:_diamLedgerPush(de,{tipo:"transfer_out",qtd:-qtd,real:_admDe?0:-qtd,bonus:0,saldoReal:novoDe.real,saldoBonus:novoDe.bonus,para,...(_admDe?{origemInfinita:true}:{})})});
       creditDiamonds(para,{real:qtd},{tipo:"transfer_in",de:s.user_email});
       addLog(s.user_email,{status:"sistema",jobTitle:`💎 Você doou ${qtd} diamantes para ${para}`,company:"Transferência de diamantes"});
       addLog(para,{status:"sistema",jobTitle:`💎 Você recebeu ${qtd} diamantes de ${s.user_email}`,company:"Transferência de diamantes"});

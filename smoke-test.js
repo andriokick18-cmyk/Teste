@@ -945,6 +945,59 @@ async function testAuthWatchdogPush() {
     const entradasUpgradeUser = (finUpgrade.json?.pagamentos || []).filter((x) => x.email === "upgradeuser@test.com");
     check("⬆️ v80: upgrade NUNCA lança entrada no caixa (100% diamantes — dinheiro já contou na doação original)", entradasUpgradeUser.length === 0, JSON.stringify(entradasUpgradeUser));
 
+    // ═══ 💎 v81 (ordem do dono, 29/07/2026 — "eu e o Diego temos limite
+    // infinito"): admin/DM pode testar troca/upgrade de plano GRÁTIS (só pra
+    // testar a funcionalidade) — nunca desconta diamante de verdade, nunca
+    // gera lançamento, nunca conta em nenhum agregado do site. MAS se o
+    // admin DOAR diamantes pra um usuário de verdade, isso CONTA normal —
+    // o destinatário recebe 💎 real de verdade e aparece no extrato como
+    // doação do admin, sem descontar nada do admin (poço infinito). ═══
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    const dmSaldoAntes = await get("/api/diamonds");
+    check("💎 v81: admin começa com saldo 0 (nunca comprou nada de verdade)", dmSaldoAntes.json?.saldo?.real === 0 && dmSaldoAntes.json?.saldo?.bonus === 0, JSON.stringify(dmSaldoAntes.json?.saldo));
+    check("💎 v81: /api/diamonds avisa 'diamantesInfinitos:true' pra conta admin", dmSaldoAntes.json?.diamantesInfinitos === true, JSON.stringify(dmSaldoAntes.json));
+    const overviewAntes = await get("/api/admin/diamonds/overview");
+    const gastoTrocaAntes = overviewAntes.json?.totals?.totalGastoEmTrocasPorPlano || 0;
+    const transferAntes = overviewAntes.json?.totals?.totalTransferidoEntreUsuarios || 0;
+    // Admin "compra" VIP 30d SEM ter diamante nenhum — tem que funcionar (é teste).
+    const dmBuyVip = await req2("POST", "/api/diamonds/trocar", { plano: "vip", dias: 30 });
+    check("💎 v81: admin com 0💎 consegue trocar por VIP mesmo assim (diamante infinito de teste)", dmBuyVip.json?.ok === true, dmBuyVip.body.slice(0, 160));
+    check("💎 v81: saldo do admin continua EXATAMENTE 0 depois da troca — não gastou de verdade", dmBuyVip.json?.saldo?.real === 0 && dmBuyVip.json?.saldo?.bonus === 0, JSON.stringify(dmBuyVip.json?.saldo));
+    const stDmVip = await get("/api/status");
+    check("💎 v81: plano BRUTO do admin virou vip de verdade (vip.plan/manualExpires gravados)", stDmVip.json?.vip?.plan === "vip" && stDmVip.json?.vip?.manualExpires > Date.now(), JSON.stringify(stDmVip.json?.vip));
+    const dmManualExpiresAntes = stDmVip.json?.vip?.manualExpires;
+    const dmLedgerAposTroca = await get("/api/diamonds");
+    check("💎 v81: NENHUM lançamento 'troca' no extrato do admin — teste não conta em lugar nenhum", !(dmLedgerAposTroca.json?.ledger || []).some((e) => e.tipo === "troca"), JSON.stringify(dmLedgerAposTroca.json?.ledger));
+    // Upgrade também grátis, com os dias intocados (mesma regra do usuário normal)
+    const dmUpgVipro = await req2("POST", "/api/plans/upgrade", { novoPlano: "vipro" });
+    check("💎 v81: admin faz upgrade VIP→VIPRO de graça (0💎 cobrados de verdade)", dmUpgVipro.json?.ok === true, dmUpgVipro.body.slice(0, 160));
+    const stDmVipro = await get("/api/status");
+    check("💎 v81: upgrade do admin também preserva os dias (manualExpires intocado)", stDmVipro.json?.vip?.manualExpires === dmManualExpiresAntes && stDmVipro.json?.vip?.plan === "vipro", JSON.stringify(stDmVipro.json?.vip));
+    const dmSaldoAposUpgrade = await get("/api/diamonds");
+    check("💎 v81: saldo do admin AINDA é 0 depois do upgrade também — e nenhum lançamento 'upgrade' no extrato", dmSaldoAposUpgrade.json?.saldo?.real === 0 && !(dmSaldoAposUpgrade.json?.ledger || []).some((e) => e.tipo === "upgrade"), JSON.stringify(dmSaldoAposUpgrade.json));
+    const overviewDepoisTroca = await get("/api/admin/diamonds/overview");
+    check("💎 v81: troca/upgrade de teste do admin NÃO mexeu nos agregados do site (totalGastoEmTrocasPorPlano igual antes e depois)", (overviewDepoisTroca.json?.totals?.totalGastoEmTrocasPorPlano || 0) === gastoTrocaAntes, JSON.stringify({ antes: gastoTrocaAntes, depois: overviewDepoisTroca.json?.totals?.totalGastoEmTrocasPorPlano }));
+
+    // Doação do admin pra usuário de verdade — ISSO conta.
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "receberadmin@test.com", name: "Recebe Doacao Admin" });
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    const dmDoa = await req2("POST", "/api/diamonds/transfer", { para: "receberadmin@test.com", qtd: 15 });
+    check("💎 v81: admin doa 15💎 pra usuário real MESMO com saldo 0 (poço infinito, nunca bloqueia)", dmDoa.json?.ok === true, dmDoa.body.slice(0, 160));
+    check("💎 v81: saldo do admin continua 0 depois de doar — a doação NUNCA sai do saldo dele", dmDoa.json?.saldo?.real === 0, JSON.stringify(dmDoa.json?.saldo));
+    const dmLedgerAposDoacao = await get("/api/diamonds");
+    const dmTransferOut = (dmLedgerAposDoacao.json?.ledger || []).find((e) => e.tipo === "transfer_out" && e.para === "receberadmin@test.com");
+    check("💎 v81: extrato do PRÓPRIO admin registra a doação pra auditoria (qtd certa), mas com real:0 (não descontou de verdade)", !!dmTransferOut && dmTransferOut.qtd === -15 && dmTransferOut.real === 0, JSON.stringify(dmTransferOut));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "receberadmin@test.com" });
+    const dmRecebeu = await get("/api/diamonds");
+    check("💎 v81: destinatário recebeu 15💎 REAIS de verdade (pode gastar/repassar)", dmRecebeu.json?.saldo?.real === 15, JSON.stringify(dmRecebeu.json?.saldo));
+    const dmTransferIn = (dmRecebeu.json?.ledger || []).find((e) => e.tipo === "transfer_in");
+    check("💎 v81: extrato do destinatário mostra a doação atribuída CERTINHO ao e-mail do admin", dmTransferIn?.de === "smoke@test.com" && dmTransferIn?.qtd === 15, JSON.stringify(dmTransferIn));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    const overviewDepoisDoacao = await get("/api/admin/diamonds/overview");
+    check("💎 v81: doação do admin CONTA nos agregados do site (totalTransferidoEntreUsuarios subiu exatamente 15) — diferente da troca/upgrade de teste, essa é real",
+      (overviewDepoisDoacao.json?.totals?.totalTransferidoEntreUsuarios || 0) === transferAntes + 15,
+      JSON.stringify({ antes: transferAntes, depois: overviewDepoisDoacao.json?.totals?.totalTransferidoEntreUsuarios }));
+
     // ═══ GUARDA PONTA A PONTA da troca por DoublePro vista pelo lado do
     // ADMIN, não só pelo /api/status do próprio usuário (que já era testado
     // acima só pro plano vip). Cobre as 2 rotas que o painel admin realmente
