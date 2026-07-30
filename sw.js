@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v49"; // v49 (29/07): admin/DM tem diamante infinito pra teste (v81) — troca/upgrade grátis sem contar, doação pra usuário real continua contando normal.
+const CACHE_NAME = "h2bapply-v50"; // v50 (29/07): match de vaga (v82) — cada vaga ganha nota de encaixe com o perfil (busca manual + fila automática), badge ⭐ nos cards e novo sort "melhor pra você".
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

@@ -4223,7 +4223,7 @@ const CAT_OCC_LABELS = {
   ski:"Ski Resort Winter Mountain",other:"Seasonal Worker",
 };
 
-function searchSheet(arr, q, state, category, skip, top, sort) {
+function searchSheet(arr, q, state, category, skip, top, sort, matchCtx) {
   let list = arr;
   if (q && q.trim()) {
     // ── v62 (bug real, print do dono 26/07: "Marthas vineyard" não achava nada
@@ -4323,6 +4323,12 @@ function searchSheet(arr, q, state, category, skip, top, sort) {
   }
   else if (sort==="start") {
     list=[...list].sort((a,b)=>String(a.d||"9999").localeCompare(String(b.d||"9999")));
+  }
+  // 🎯 match → vaga com melhor encaixe no perfil do candidato primeiro
+  // (v82). Só ativa se o chamador passou um contexto — sem perfil,
+  // cai no comportamento estável de sempre (nunca quebra quem não logou).
+  else if (sort==="match" && matchCtx) {
+    list=[...list].sort((a,b)=>(computeJobMatchScore(_matchSignalFromRow(b),matchCtx)?.score||0)-(computeJobMatchScore(_matchSignalFromRow(a),matchCtx)?.score||0));
   }
   // sort="asc", "random", "" → ordem estável para paginação correta
   return { total:list.length, items:list.slice(skip,skip+top) };
@@ -4541,6 +4547,59 @@ function jobVisaType(target, sheet){
   return null;
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// 🎯 MATCH DE VAGA (dono, 29/07/2026: "IA sugerindo as vagas com mais chance
+// pra cada um" — prioridade #1 da casa é brasileiro conseguir emprego).
+// Pontua 0-100 o encaixe de UMA vaga com o perfil do candidato — heurística
+// local, instantânea, sem chamada de IA externa (dá pra rodar em toda busca
+// e em toda fila automática sem custo). Sempre devolve o "porquê" (nunca
+// caixa preta). Duas fontes de vaga (linha crua da planilha `r.*` e o objeto
+// já mapeado `{category,state,...}` usado na fila) convergem pro MESMO
+// formato de sinal antes de pontuar — uma função de pontuação só, nunca
+// duplicada por formato de vaga.
+// ══════════════════════════════════════════════════════════════════════════
+function _matchSignalFromRow(r){return{category:r.k||"other",state:r.s||"",workers:r.wk||0,text:`${r.desc||""} ${r.req||""}`,visa:r.visa||""};}
+function _matchSignalFromJob(j){return{category:j.category||"other",state:j.state||"",workers:j.workers||0,text:`${j.desc||""} ${j.req||""}`,visa:j.visa||""};}
+function computeJobMatchScore(sig,ctx){
+  if(!ctx)return null;
+  const vt=jobVisaType({visa:sig.visa})||"h2b";
+  const profile=ctx.profileByVisa?ctx.profileByVisa[vt]:null;
+  const h2bProfile=ctx.h2bProfile;
+  let score=50;const why=[];
+  if(h2bProfile?.preferredArea&&sig.category&&h2bProfile.preferredArea===sig.category){score+=20;why.push("categoria que você prefere");}
+  if(profile){
+    if(Array.isArray(profile.categories)&&profile.categories.length&&profile.categories.includes(sig.category)){score+=15;why.push("dentro do que seu perfil mira");}
+    if(profile.state&&sig.state&&profile.state===sig.state){score+=15;why.push("estado do seu perfil");}
+  }
+  const txt=(sig.text||"").toLowerCase().trim();
+  if(txt){
+    const pedeExperiencia=/experience required|experienced worker|prior experience|returning worker/.test(txt);
+    const aceitaIniciante=/no experience|entry.?level|will train|on.the.job training/.test(txt);
+    const temExperiencia=!!(h2bProfile?.experiencedH2B||(h2bProfile?.h2bSeasons||0)>0);
+    if(temExperiencia&&pedeExperiencia){score+=10;why.push("pede experiência e você já tem");}
+    if(!temExperiencia&&aceitaIniciante){score+=10;why.push("aceita quem está começando");}
+    if(!temExperiencia&&pedeExperiencia){score-=10;why.push("pede experiência que você ainda não tem");}
+    const pedeIngles=/fluent english|advanced english|strong english|excellent english/.test(txt);
+    const inglesOpcional=/english not required|no english required|english is not necessary/.test(txt);
+    const nivel=h2bProfile?.englishLevel||"basic";
+    if((nivel==="none"||nivel==="basic")&&inglesOpcional){score+=8;why.push("não exige inglês avançado");}
+    if((nivel==="none"||nivel==="basic")&&pedeIngles){score-=12;why.push("pede inglês avançado");}
+    if(nivel==="advanced"&&pedeIngles){score+=5;why.push("seu inglês avançado é diferencial aqui");}
+  }
+  if((sig.workers||0)>=10)score+=5;
+  return{score:Math.max(0,Math.min(100,Math.round(score))),why};
+}
+// Monta o contexto de match (h2bProfile + 1 perfil por tipo de visto) a
+// partir do usuário logado — usado na busca manual E na fila automática,
+// nunca duas verdades separadas sobre "qual perfil vale pra essa vaga".
+function buildMatchCtx(u){
+  if(!u)return null;
+  const profiles=(u.profiles||[]).filter(pr=>pr.active!==false);
+  const profileByVisa={};
+  for(const pr of profiles){const vt=pr.visaType||"h2b";if(!profileByVisa[vt])profileByVisa[vt]=pr;}
+  return{h2bProfile:u.h2bProfile||null,profileByVisa};
+}
+
 // ── Seleção de perfil — v19: PERFIL POR TIPO DE VISTO (dono, 15/07/2026) ────
 // Cada usuário pode ter até 2 perfis: 1 H-2B e 1 H-2A (cliente real reclamou:
 // tinha perfis separados, a consolidação juntou tudo e o texto de H-2B saiu
@@ -4616,7 +4675,11 @@ function getGlobalContactCounts(){
 // (0 → 1-2 → 3-5 → 6-15 → 16+), embaralhando DENTRO de cada faixa — mantém
 // a proteção original (usuários simultâneos não batem nos mesmos alvos) e
 // ainda prioriza os empregadores mais frescos.
-function orderQueueSmart(queue){
+// v82: com matchCtx, DENTRO de cada faixa as vagas com melhor encaixe no
+// perfil do candidato flutuam pra cima (jitter aleatório de ±10 pontos
+// preserva a proteção original — usuários com perfil parecido não convergem
+// todos pro EXATO mesmo empregador no topo da fila).
+function orderQueueSmart(queue,matchCtx){
   try{
     const counts=getGlobalContactCounts();
     const buckets=new Map();
@@ -4627,7 +4690,17 @@ function orderQueueSmart(queue){
       buckets.get(b).push(it);
     }
     const out=[];
-    for(const b of [...buckets.keys()].sort((x,y)=>x-y))out.push(...shuffleArray(buckets.get(b)));
+    for(const b of [...buckets.keys()].sort((x,y)=>x-y)){
+      const arr=buckets.get(b);
+      if(matchCtx){
+        out.push(...arr
+          .map(it=>({it,key:(computeJobMatchScore(_matchSignalFromJob(it),matchCtx)?.score||50)+(Math.random()*20-10)}))
+          .sort((x,y)=>y.key-x.key)
+          .map(x=>x.it));
+      } else {
+        out.push(...shuffleArray(arr));
+      }
+    }
     return out;
   }catch(e){console.warn("[fila-esperta] falhou — usando shuffle:",e.message);return shuffleArray(queue);}
 }
@@ -4714,7 +4787,7 @@ function tryAutoRefill(email,job){
       if(fresh.length>=cap)break;
     }
     if(!fresh.length)return 0;
-    const ordered=orderQueueSmart(fresh);
+    const ordered=orderQueueSmart(fresh,buildMatchCtx(u2));
     setAutoJob(email,{...job,queue:ordered,originalCount:(job.originalCount||0)+ordered.length,
       filteredCount:ordered.length,refills:(job.refills||0)+1,lastRefillAt:Date.now(),
       status:"refilled",active:true,finishedAt:null});
@@ -9235,7 +9308,14 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
       if(jobStatus==="active")src=src.filter(j=>j.active);if(jobStatus==="inactive")src=src.filter(j=>!j.active);
       if(beginDate)src=src.filter(j=>j.start>=beginDate);
       if(_minWageJobs>0){const _pw=w=>{if(!w)return 0;const m=String(w).replace(/[$,/hrday\s]/gi,"");return parseFloat(m)||0;};src=src.filter(j=>_pw(j.wage)>=_minWageJobs);}
-      return json(res,200,{jobs:src.slice(skip,skip+top),total:src.length,skip,from_cache:true});
+      // 🎯 v82: mesmo score de match do /api/sheet-meta, pro fallback local não ficar sem.
+      const _sJobsMatch=getSess(req);
+      const _mCtxJobs=_sJobsMatch?.user_email?buildMatchCtx(getUser(_sJobsMatch.user_email)):null;
+      const _page=src.slice(skip,skip+top).map(j=>{
+        const _m=_mCtxJobs?computeJobMatchScore(_matchSignalFromJob(j),_mCtxJobs):null;
+        return{...j,matchScore:_m?_m.score:null,matchWhy:_m?_m.why:null};
+      });
+      return json(res,200,{jobs:_page,total:src.length,skip,from_cache:true});
     }
   }
 
@@ -9348,8 +9428,13 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         return m&&_months.has(parseInt(m[1],10));
       });
     }
+    // 🎯 v82: contexto de match (perfil H2B + perfil por visto) do usuário
+    // logado — null pra visitante sem sessão/perfil, cai sempre no
+    // comportamento de sempre (sem score, sort=match vira ordem estável).
+    const _sMatch=getSess(req);
+    const matchCtx=_sMatch?.user_email?buildMatchCtx(getUser(_sMatch.user_email)):null;
     // searchSheet faz q/state/category + paginação no array já pré-filtrado
-    const{total,items}=searchSheet(preFiltered,q,state,category,skip,top,sort);
+    const{total,items}=searchSheet(preFiltered,q,state,category,skip,top,sort,matchCtx);
     let filtered=items; // já paginado corretamente
     // total já é o total filtrado (pré-filtro + searchSheet)
     return json(res,200,{jobs:filtered.map(r=>{
@@ -9359,6 +9444,7 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
       const cat=r.k||"other";
       const occupation=r.t||catTitles[cat]||"Seasonal Worker";
       const emailVal=(r.e||"").toLowerCase().trim();
+      const _m=matchCtx?computeJobMatchScore(_matchSignalFromRow(r),matchCtx):null;
       return{
         id:r.c, caseNum:r.c,
         company:r.n||"–", state:r.s||"–", city:r.ci||"",
@@ -9380,7 +9466,8 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
         hours:r.hrs||null, schedule:r.sched||null,
         fullTime:r.ft||null,
         url:r.c&&r.c.startsWith("H-")?`https://seasonaljobs.dol.gov/jobs/${r.c}`:(r.url||null),
-        fromSheet:true
+        fromSheet:true,
+        matchScore:_m?_m.score:null, matchWhy:_m?_m.why:null
       };
     }),total,remainingTotal:baseArr.length,skip,sheet});
   }
@@ -13142,7 +13229,10 @@ const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filte
       // primeiro (mais chance de resposta; menos spam coletivo nos populares).
       // Dentro de cada faixa continua embaralhado — usuários simultâneos não
       // batem nos mesmos alvos (proteção original preservada).
-      queue = orderQueueSmart(queue);
+      // v82: dentro de cada faixa, prioriza (com jitter) as vagas com melhor
+      // match pro perfil do candidato — "IA sugerindo as vagas com mais
+      // chance pra cada um" (ordem do dono, 29/07/2026).
+      queue = orderQueueSmart(queue,buildMatchCtx(p));
       // ── v23 AVISO DE VISTO: fila tem vagas de um tipo que o usuário não tem
       // perfil — o envio segue (regra do dono: nunca trava), mas ele fica
       // SABENDO que essas vagas sairão com o texto do outro perfil.
@@ -13313,6 +13403,10 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
     // que vem por aí e calcula o horário estimado de término (menos tela
     // vazia, mais informação, pedido do dono 26/07).
     const queuePreview=j&&j.active?(j.queue||[]).slice(0,4).map(q=>({company:q.company||"",title:q.title||"",to:q.to||"",state:q.state||""})):[];
+    // 🎯 v82: categorias da fila NA ORDEM REAL de envio — confirma pro
+    // próprio usuário (e pro smoke test) que a fila esperta está mesmo
+    // priorizando o que combina com o perfil, não só uma promessa no ar.
+    const queueCategories=j&&j.active?(j.queue||[]).slice(0,30).map(q=>q.category||"other"):[];
     const _ivSecs=(isAdminVip(p)&&p.adminSettings?.intervalSecs)||330; // usuário comum: ~5,5min (média 5-6)
     // v67b (bug real, print do dono 26/07: card "35 enviados" × "73 hoje"):
     // autoStats é um Map EM MEMÓRIA — zera a cada restart/deploy do servidor,
@@ -13324,7 +13418,7 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
       const _sentReal=h.filter(x=>x.type==="auto"&&Date.parse(x.sentAt||0)>=j.startedAt).length;
       if(_sentReal>(stats.sent||0))stats.sent=_sentReal;
     }
-    return json(res,200,{job:j?{active:j.active,status:j.status,queueSize:j.queue?.length||0,originalCount:j.originalCount,filteredCount:j.filteredCount,startedAt:j.startedAt,lastSentAt:j.lastSentAt,nextSendAt:j.nextSendAt,currentJob:j.currentJob,source:j.source,category:j.category,}:null,todayAuto:countAutoToday(h),autoLimit:getAutoLimit(p),stats,recentLogs:logs,logStats,todayStats,autoQueueIds:autoQueueIds,queuePreview,intervalSecs:_ivSecs});}
+    return json(res,200,{job:j?{active:j.active,status:j.status,queueSize:j.queue?.length||0,originalCount:j.originalCount,filteredCount:j.filteredCount,startedAt:j.startedAt,lastSentAt:j.lastSentAt,nextSendAt:j.nextSendAt,currentJob:j.currentJob,source:j.source,category:j.category,}:null,todayAuto:countAutoToday(h),autoLimit:getAutoLimit(p),stats,recentLogs:logs,logStats,todayStats,autoQueueIds:autoQueueIds,queuePreview,queueCategories,intervalSecs:_ivSecs});}
 
   // ── INBOX: Respostas recebidas no Gmail ───────────────────
   // ── v23-STATS: qual dos MEUS textos recebe mais resposta? ─────────────────

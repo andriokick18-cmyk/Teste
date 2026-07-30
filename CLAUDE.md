@@ -237,6 +237,25 @@
     Isso não é um poder novo — admin já podia creditar qualquer saldo pra
     qualquer usuário via `/api/admin/diamonds`; a doação por transferência
     só dá o mesmo resultado com a cara de "doação entre pessoas" no extrato.
+13m. **🎯 Match de vaga (dono, 29/07/2026 — "IA sugerindo as vagas com mais
+    chance pra cada um", prioridade #1 da casa)**: toda vaga ganha uma nota
+    0-100 (`computeJobMatchScore`, server.js) de encaixe com o perfil do
+    candidato — categoria preferida (`h2bProfile.preferredArea`), estado e
+    categorias do perfil de vaga (`profiles[].state/.categories`), e o
+    texto da vaga batendo com experiência (`experiencedH2B`/`h2bSeasons`) e
+    nível de inglês (`englishLevel`). Heurística local, NUNCA IA externa —
+    roda instantâneo em toda busca manual (`/api/sheet-meta`, `/api/jobs`)
+    e em toda fila automática (`orderQueueSmart`). Sempre devolve o
+    "porquê" (`matchWhy`) — proibido virar caixa preta. NUNCA bloqueia:
+    sem perfil preenchido a nota fica neutra (50), sem sessão a nota some
+    (null) — a vaga continua 100% visível e candidatável do jeito de
+    sempre. Na fila automática, o score só reordena DENTRO da mesma faixa
+    de "quanto o app já contatou esse empregador" (regra 13, fila esperta)
+    com jitter aleatório — nunca substitui essa proteção contra usuários
+    simultâneos baterem no mesmo empregador. Uma função de pontuação só
+    (`computeJobMatchScore` + `_matchSignalFromRow`/`_matchSignalFromJob`
+    convergindo os 2 formatos de vaga pro mesmo sinal) — nunca duplicada
+    por endpoint.
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 

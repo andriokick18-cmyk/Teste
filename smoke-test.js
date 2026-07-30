@@ -998,6 +998,50 @@ async function testAuthWatchdogPush() {
       (overviewDepoisDoacao.json?.totals?.totalTransferidoEntreUsuarios || 0) === transferAntes + 15,
       JSON.stringify({ antes: transferAntes, depois: overviewDepoisDoacao.json?.totals?.totalTransferidoEntreUsuarios }));
 
+    // ═══ 🎯 v82 (ordem do dono, 29/07/2026 — "IA sugerindo as vagas com mais
+    // chance pra cada um", prioridade #1 da casa): MATCH DE VAGA. Pontua cada
+    // vaga pelo encaixe com o perfil do candidato (categoria preferida,
+    // estado do perfil, texto batendo com experiência/inglês) — na busca
+    // manual (/api/sheet-meta) E na fila automática (/api/auto/start). ═══
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "matchtest@test.com", name: "Match Test" });
+    // Sem preferência ainda: pega a categoria do 1º resultado de uma planilha real.
+    const smBase = await get("/api/sheet-meta?sheet=jan2026&top=5");
+    const _jobsBase = smBase.json?.jobs || [];
+    check("🎯 v82: /api/sheet-meta expõe matchScore pra usuário logado (nunca null pra quem tem sessão)", _jobsBase.length > 0 && _jobsBase.every((j) => j.matchScore != null), JSON.stringify(_jobsBase.map((j) => j.matchScore)));
+    const _alvo = _jobsBase[0];
+    const _scoreAntes = _alvo?.matchScore;
+    // Preferência de categoria = a categoria EXATA do próprio job alvo — depois confere que o MESMO job subiu de nota.
+    await req2("POST", "/api/settings", { h2bProfile: { preferredArea: _alvo.category, englishLevel: "basic", experiencedH2B: false, h2bSeasons: 0, usaTrips: false, hasDriverLicense: false, availability: "immediate" } });
+    const smDepois = await get("/api/sheet-meta?sheet=jan2026&top=5");
+    const _alvoDepois = (smDepois.json?.jobs || []).find((j) => j.id === _alvo.id);
+    check("🎯 v82: setar preferredArea igual à categoria da vaga AUMENTA o matchScore dessa vaga específica (mesma vaga, antes x depois)",
+      _alvoDepois && _alvoDepois.matchScore > _scoreAntes,
+      JSON.stringify({ antes: _scoreAntes, depois: _alvoDepois?.matchScore, categoria: _alvo.category }));
+    check("🎯 v82: matchWhy explica o motivo (nunca uma caixa preta)", Array.isArray(_alvoDepois?.matchWhy) && _alvoDepois.matchWhy.some((w) => w.includes("categoria")), JSON.stringify(_alvoDepois?.matchWhy));
+    // sort=match: a página inteira vem em ordem NÃO-crescente de matchScore.
+    const smMatchSort = await get("/api/sheet-meta?sheet=jan2026&top=25&sort=match");
+    const _scores = (smMatchSort.json?.jobs || []).map((j) => j.matchScore);
+    let _ordenado = true;
+    for (let i = 0; i < _scores.length - 1; i++) if (_scores[i] < _scores[i + 1]) _ordenado = false;
+    check("🎯 v82: sort=match devolve a página em ordem decrescente de matchScore", _scores.length > 1 && _ordenado, JSON.stringify(_scores));
+
+    // Fila automática: 10 vagas de uma categoria "preferida" + 10 de outra,
+    // todas com empregador NOVO (contagem global 0 → mesma faixa da fila
+    // esperta) — só o match score decide a ordem dentro da faixa.
+    const pdfB64Match = Buffer.from("%PDF-1.4 " + "match ".repeat(300)).toString("base64");
+    const upMatch = await req2("POST", "/api/cv/upload", { base64: pdfB64Match, name: "Curriculo_Match.pdf", cvType: "resume" });
+    const _queueMatch = [];
+    for (let i = 0; i < 10; i++) _queueMatch.push({ to: `pref-${i}@matchtest-fila.com`, title: "Vaga Preferida", company: "Empresa Pref", category: "landscape", state: "FL" });
+    for (let i = 0; i < 10; i++) _queueMatch.push({ to: `outra-${i}@matchtest-fila.com`, title: "Vaga Outra", company: "Empresa Outra", category: "construction", state: "TX" });
+    await req2("POST", "/api/settings", { h2bProfile: { preferredArea: "landscape", englishLevel: "basic", experiencedH2B: false, h2bSeasons: 0, usaTrips: false, hasDriverLicense: false, availability: "immediate" } });
+    const asMatch = await req2("POST", "/api/auto/start", { queue: _queueMatch, resumeIdx: upMatch.json?.cv?.idx, subjects: ["x"], emailBodies: ["y"] });
+    check("🎯 v82: (setup) fila sintética de 20 vagas iniciou ok", asMatch.json?.ok === true, asMatch.body.slice(0, 160));
+    const stMatch = await get("/api/auto/status");
+    const _cats = stMatch.json?.queueCategories || [];
+    check("🎯 v82: fila esperta prioriza a categoria do perfil (landscape) — mesma faixa de contato (0), só o match decide, sem sobreposição possível (score 60-80 vs 40-60)",
+      _cats.length >= 20 && _cats.slice(0, 10).every((c) => c === "landscape"),
+      JSON.stringify(_cats));
+
     // ═══ GUARDA PONTA A PONTA da troca por DoublePro vista pelo lado do
     // ADMIN, não só pelo /api/status do próprio usuário (que já era testado
     // acima só pro plano vip). Cobre as 2 rotas que o painel admin realmente
