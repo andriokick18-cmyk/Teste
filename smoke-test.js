@@ -634,6 +634,16 @@ async function testAuthWatchdogPush() {
       fg.json?.ok === true && (fg.json?.servidores || []).length === 3 &&
       fg.json.servidores.some((x) => x.self && x.ok) && fg.json?.global?.total >= 147 && fg.json?.peerAuth === true,
       JSON.stringify({ total: fg.json?.global?.total, n: (fg.json?.servidores || []).length }).slice(0, 120));
+    // v83 (consolidação de telas financeiras): dono-resumo e a entrada "self"
+    // do Faturamento Global agora vêm da MESMA função (computeEntradasJanelas)
+    // — nunca mais 2 cálculos que podem divergir (mesma classe de bug do v77b,
+    // só que no caixa em vez de diamantes). Guarda de regressão: os 2 números
+    // (calculados no MESMO instante) têm que bater EXATAMENTE.
+    const drCheck = await get("/api/admin/dono-resumo");
+    const _fgSelf = (fg.json?.servidores || []).find((x) => x.self);
+    check("💰 v83: dono-resumo e Faturamento Global (self) usam a MESMA fonte — total/hoje idênticos, nunca divergem",
+      drCheck.json?.entradas?.total === _fgSelf?.entradas?.total && drCheck.json?.entradas?.hoje === _fgSelf?.entradas?.hoje && drCheck.json?.pagantes === _fgSelf?.entradas?.pagantes,
+      JSON.stringify({ dono: drCheck.json?.entradas, global: _fgSelf?.entradas }));
     // v60: servidores antigos (1/2, intocados por ordem do dono) entram na
     // soma pelo TOTAL INFORMADO manualmente — salvo nas configurações.
     const _fgBase = fg.json?.global?.total || 0;

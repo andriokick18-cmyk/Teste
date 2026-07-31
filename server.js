@@ -663,6 +663,42 @@ function computeFinanceCanonico(){
   let valorPedidos=0;for(const e in pedBy)for(const x of pedBy[e])valorPedidos+=x.valor;
   return {receitaTotal,receitaMes,receitaAvulsa,qtdPagantes,novosMes,vencendo7,vencendo7Valor,vencidos,trials,gift,giftDias,porPlano,porPlanoQtd,topPagantes,finBy,pedBy,avulsas,monthStart,valorPedidos};
 }
+// 💰 v83 (dono, 29/07/2026 — fila futura "consolidar telas financeiras do
+// admin"): a Visão do Dono (1ª tela que o admin vê, regra 15) e o resumo
+// usado no Faturamento Global/rota peer (/api/servers/financeiro)
+// reimplementavam CADA UM sua própria cópia do cálculo de janelas
+// hoje/7d/30d/total — a MESMA classe de bug do v77b (2 verdades sobre o
+// mesmo dinheiro que podem divergir), só que no caixa em vez de diamantes.
+// Uma função só agora, com a MESMA correção que computeFinanceCanonico já
+// aplica pras outras telas: se o pedido foi corrigido depois (Conferência/
+// pedido-set-valor) e por algum motivo o lançamento cru do caixa ainda não
+// reflete isso, o valor do PEDIDO vence — nunca duas fontes divergentes.
+function computeEntradasJanelas(){
+  const now=Date.now(),DAY=86400_000;
+  const hojeISO=new Date(now-3*3600_000).toISOString().slice(0,10);
+  const _ts=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
+  const _pedById={};for(const ped of (DB_PEDIDOS||[])){if(ped&&ped.id)_pedById[ped.id]=ped;}
+  const pags=(DB_FINANCEIRO.pagamentos||[]).filter(p=>!isAdminEmail(p.email));
+  let hoje=0,dias7=0,dias30=0,total=0,n30=0;
+  for(const p of pags){
+    const t=_ts(p.dataPagamento||p.data);
+    let v=parseFloat(p.valor)||0;
+    const _ped=p.pedidoId?_pedById[p.pedidoId]:null;
+    if(_ped&&(parseFloat(_ped.valorTotal)||0)>0&&(parseFloat(_ped.valorTotal)||0)!==v)v=parseFloat(_ped.valorTotal)||0;
+    total+=v;
+    if(t>=now-7*DAY)dias7+=v;
+    if(t>=now-30*DAY){dias30+=v;n30++;}
+    if(t&&new Date(t-3*3600_000).toISOString().slice(0,10)===hojeISO)hoje+=v;
+  }
+  let pagantes=0;
+  for(const[em,u2]of Object.entries(DB_USERS)){
+    if(isAdminEmail(em))continue;
+    if(!u2?.vip?.active||u2.vip.source==="trial"||u2.vip.source==="code")continue;
+    const exp=Math.max(u2.vip.manualExpires||0,u2.vip.autoExpires||0);
+    if(exp>now)pagantes++;
+  }
+  return {hoje,dias7,dias30,total,n30,pagantes};
+}
 // ── MONITOR ETA ──────────────────────────────────────────────────────────
 // Registro permanente de TODAS as vagas por ETA Case Number: status, grupo,
 // histórico completo, agenda de consultas. Alimentado pelas planilhas +
@@ -13795,30 +13831,23 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
       // -3h com a de agora deslocada -3h (todayStrBRT é DD/MM — não serve aqui)
       const hojeISO=new Date(now-3*3600_000).toISOString().slice(0,10);
       const _ts=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
-      // v53 (ordem do dono): conta de admin nunca conta como dinheiro — nem
-      // nas entradas, nem nos pedidos na mesa, nem em pagantes/renovações.
-      const pags=(DB_FINANCEIRO.pagamentos||[]).filter(p=>!isAdminEmail(p.email));
-      const val=p=>parseFloat(p.valor)||0;
-      let eHoje=0,e7=0,e30=0,eTotal=0,n30=0;
-      for(const p of pags){
-        const t=_ts(p.dataPagamento||p.data);const v=val(p);
-        eTotal+=v;
-        if(t>=now-7*DAY)e7+=v;
-        if(t>=now-30*DAY){e30+=v;n30++;}
-        if(t&&new Date(t-3*3600_000).toISOString().slice(0,10)===hojeISO)eHoje+=v;
-      }
+      // v83: janelas hoje/7d/30d/total agora vêm da MESMA fonte única do
+      // Faturamento Global (computeEntradasJanelas) — nunca mais 2 cálculos
+      // separados que podem divergir (mesma classe de bug do v77b, no caixa).
+      const janelas=computeEntradasJanelas();
       let g30=0;for(const g of (DB_FINANCEIRO.gastos||[])){const t=_ts(g.dataPagamento||g.data);if(t>=now-30*DAY)g30+=parseFloat(g.valor)||0;}
       // Pedidos esperando decisão = dinheiro parado na mesa
       const pend=DB_PEDIDOS.filter(x=>["pendente","pago"].includes(String(x.status||"").toLowerCase())&&!isAdminEmail(x.userEmail));
       const pendValor=pend.reduce((a,x)=>a+(parseFloat(x.valorTotal)||0),0);
-      // Pagantes ativos + vencendo (renovação = receita da semana que vem)
-      let pagantes=0;const vencendo=[];
+      // Vencendo em 7 dias (renovação = receita da semana que vem) — a
+      // CONTAGEM de pagantes já vem de janelas.pagantes (fonte única);
+      // esta lista só monta o detalhe (quem, plano, quantos dias faltam).
+      const vencendo=[];
       for(const[em,u2]of Object.entries(DB_USERS)){
         if(isAdminEmail(em))continue; // v53: admin não é pagante
         if(!u2?.vip?.active||u2.vip.source==="trial"||u2.vip.source==="code")continue;
         const exp=Math.max(u2.vip.manualExpires||0,u2.vip.autoExpires||0);
         if(exp<=now)continue;
-        pagantes++;
         if(exp<=now+7*DAY)vencendo.push({email:em,nome:u2.name||em,plano:u2.vip.plan||u2.plan||"vip",diasRestantes:Math.max(0,Math.ceil((exp-now)/DAY))});
       }
       vencendo.sort((a,b)=>a.diasRestantes-b.diasRestantes);
@@ -13831,10 +13860,10 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
         if(c&&new Date(c-3*3600_000).toISOString().slice(0,10)===hojeISO)novosHoje++;
       }
       return json(res,200,{ok:true,
-        entradas:{hoje:eHoje,dias7:e7,dias30:e30,total:eTotal,ticketMedio30:n30?Math.round(e30/n30):0},
-        gastos30:g30,liquido30:e30-g30,
+        entradas:{hoje:janelas.hoje,dias7:janelas.dias7,dias30:janelas.dias30,total:janelas.total,ticketMedio30:janelas.n30?Math.round(janelas.dias30/janelas.n30):0},
+        gastos30:g30,liquido30:janelas.dias30-g30,
         pendentes:{qtd:pend.length,valor:pendValor},
-        pagantes,vencendo7d:vencendo.slice(0,8),vencendoQtd:vencendo.length,
+        pagantes:janelas.pagantes,vencendo7d:vencendo.slice(0,8),vencendoQtd:vencendo.length,
         novos:{hoje:novosHoje,dias7:novos7,total:totalUsers}});
     }
     // ── Admin: PAGANTES — visão única "quem pagou + dias de VIP" (calculada no servidor = fonte única) ──
@@ -16994,28 +17023,9 @@ async function _fetchPeerJson(baseUrl,apiPath,extraHeaders){
 // admin NUNCA soma). Usado pela Visão do Dono local e servido aos servidores
 // irmãos pela rota /api/servers/financeiro (autenticada por token derivado da
 // DATA_ENC_KEY, que os 3 servidores compartilham — nenhuma env nova).
-function _entradasResumo(){
-  const now=Date.now(),DAY=86400_000;
-  const hojeISO=new Date(now-3*3600_000).toISOString().slice(0,10);
-  const _ts=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
-  const pags=(DB_FINANCEIRO.pagamentos||[]).filter(p=>!isAdminEmail(p.email));
-  let hoje=0,dias7=0,dias30=0,total=0,n30=0;
-  for(const p of pags){
-    const t=_ts(p.dataPagamento||p.data);const v=parseFloat(p.valor)||0;
-    total+=v;
-    if(t>=now-7*DAY)dias7+=v;
-    if(t>=now-30*DAY){dias30+=v;n30++;}
-    if(t&&new Date(t-3*3600_000).toISOString().slice(0,10)===hojeISO)hoje+=v;
-  }
-  let pagantes=0;
-  for(const[em,u2]of Object.entries(DB_USERS)){
-    if(isAdminEmail(em))continue;
-    if(!u2?.vip?.active||u2.vip.source==="trial"||u2.vip.source==="code")continue;
-    const exp=Math.max(u2.vip.manualExpires||0,u2.vip.autoExpires||0);
-    if(exp>now)pagantes++;
-  }
-  return {hoje,dias7,dias30,total,n30,pagantes};
-}
+// v83: era uma cópia inteira do cálculo de computeEntradasJanelas() — agora
+// só delega (fonte única, sem correção de pedido duplicada/desatualizada).
+function _entradasResumo(){ return computeEntradasJanelas(); }
 // Token de autenticação entre servidores irmãos: HMAC da DATA_ENC_KEY (os 3
 // compartilham a mesma). Sem a chave → recurso desligado (fail closed).
 function _peerFinToken(){

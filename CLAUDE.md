@@ -256,6 +256,19 @@
     (`computeJobMatchScore` + `_matchSignalFromRow`/`_matchSignalFromJob`
     convergindo os 2 formatos de vaga pro mesmo sinal) — nunca duplicada
     por endpoint.
+13n. **💰 Janelas de entradas — fonte única (dono, 29/07/2026 — fila futura
+    "consolidar telas financeiras do admin")**: achado revisando a régua —
+    Visão do Dono (`/api/admin/dono-resumo`) e o resumo usado no
+    Faturamento Global/rota peer (`_entradasResumo`, `/api/servers/
+    financeiro`) reimplementavam CADA UM sua própria cópia do cálculo
+    hoje/7d/30d/total (mesma classe de risco do bug real do v77b — 2
+    verdades sobre o mesmo dinheiro que podem divergir, só que no caixa em
+    vez de diamantes). Unificado em `computeEntradasJanelas()` — fonte
+    única, com a MESMA correção que `computeFinanceCanonico` já aplica pras
+    outras telas (pedido corrigido depois vence sobre o lançamento cru do
+    caixa, se algum dia divergirem). PROIBIDO reintroduzir um 2º cálculo
+    dessas janelas em qualquer tela nova — sempre chamar
+    `computeEntradasJanelas()`.
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 
