@@ -240,6 +240,16 @@ async function testAuthWatchdogPush() {
     check("GET / responde 200 com a página", home.status === 200 && home.body.length > 10_000,
       `status=${home.status} bytes=${home.body.length}`);
 
+    // v85: guia "Como usar o app" — página servida pelo próprio site (acesso
+    // do usuário pelo atalho da Home + menu). Guarda o acesso: se a rota
+    // sumir ou o arquivo quebrar, o teste acusa antes do deploy.
+    const guiaUso = await get("/como-usar");
+    check("📖 GET /como-usar serve o guia de uso do app (200, com as fotos das telas)",
+      guiaUso.status === 200 && /Como Usar o H2BApply/.test(guiaUso.body) && guiaUso.body.includes("data:image/jpeg;base64,"),
+      `status=${guiaUso.status} bytes=${guiaUso.body.length}`);
+    const guiaHome = home.body.includes("/como-usar");
+    check("📖 index.html tem acesso ao guia (/como-usar) na Home/menu — usuário consegue chegar nele", guiaHome, "link /como-usar não encontrado no index.html");
+
     // v42: GUARDA ESTRUTURAL — nenhuma <div class="view" id="v-X"> pode ficar
     // aninhada dentro de outra. Bug real de produção (23/07/2026): faltou um
     // </div> no fechamento de #v-home, e TODAS as views seguintes (jobs,

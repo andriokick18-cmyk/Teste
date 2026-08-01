@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v51"; // v51 (29/07): correção de segurança (v84) — código de cortesia (nunca pago) não dá mais direito a upgrade de plano descontando preço não pago.
+const CACHE_NAME = "h2bapply-v52"; // v52 (01/08): guia "Como usar o app" (v85) — página /como-usar com fotos de cada tela + atalho na Home e no menu.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

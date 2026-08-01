@@ -7855,6 +7855,10 @@ const server=http.createServer(async(req,res)=>{
   // mesmo se alguém linkar a URL por fora.
   if(pathname==="/admin"||pathname==="/admin.html"){res.setHeader("X-Robots-Tag","noindex, nofollow");return serveHtml("admin.html");}
   if(pathname==="/guia"||pathname==="/guia.html")return serveHtml("guia.html");
+  // v85: guia de COMO USAR o app (passo a passo com prints reais de cada tela)
+  // — separado do /guia (que explica o VISTO). Acesso pelo atalho da Home e
+  // pelo menu; página própria pra poder compartilhar por link/WhatsApp.
+  if(pathname==="/como-usar"||pathname==="/como-usar.html")return serveHtml("como-usar.html");
   if(pathname==="/h2bapply-funciona"||pathname==="/h2bapply-funciona.html")return serveHtml("h2bapply-funciona.html"); // SEO: página "H2BApply funciona?" (como funciona, confiança, preços, FAQ)
   if(pathname==="/h2b-e-golpe"||pathname==="/h2b-e-golpe.html")return serveHtml("h2b-e-golpe.html"); // SEO/confiança: página "H2B é golpe?" — golpes comuns, regra federal anti-taxa-de-recrutamento, como verificar vaga real
   if(pathname==="/quanto-ganha-h2b"||pathname==="/quanto-ganha-h2b.html")return serveHtml("quanto-ganha-h2b.html"); // SEO: página "quanto ganha quem trabalha H2B/H2A" — médias reais calculadas ao vivo via /api/public-wage-stats
