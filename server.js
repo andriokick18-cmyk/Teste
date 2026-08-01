@@ -9307,6 +9307,124 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
     return json(res,200,{ok:true,sheets:out,latestH2b:_latestKey});
   }
 
+  // ══════════════════ 📥 DOWNLOAD DE PLANILHAS (admin) — v87 ══════════════════
+  // Ordem do dono (01/08): "quero baixar TODAS as vagas de uma planilha num
+  // documento pesquisável, que abre fácil no celular e no computador, e eu
+  // filtro por qualquer campo (email, empresa, estado...)". Admin-only.
+  // Duas formas do MESMO dado: HTML pesquisável (abre no navegador, busca ao
+  // vivo, cada vaga desenhada como no site) e CSV (abre no Excel/Sheets com
+  // filtro de coluna). Fonte única: getSheet(key) — o mesmo dado que o site usa.
+  const _sheetExportList=()=>{
+    const labelMap={jan2026:{name:"Janeiro 2026 (H-2B)",emoji:"☀️"},jul2025:{name:"Julho 2025 (H-2B)",emoji:"❄️"},"h2a-jun2026":{name:"H-2A Agricultura (Jun 2026)",emoji:"🌾"},jul2026:{name:"Julho 2026 (H-2B)",emoji:"🆕"}};
+    const seen=new Set(),out=[];
+    const add=(key,name,emoji)=>{
+      if(seen.has(key))return;seen.add(key);
+      const rows=getSheet(key)||[];if(!rows.length)return;
+      const withEmail=rows.filter(r=>r.e&&String(r.e).includes("@")).length;
+      out.push({key,name,emoji,count:rows.length,withEmail});
+    };
+    for(const [k,m] of Object.entries(labelMap)) add(k,m.name,m.emoji);
+    for(const [k,meta] of Object.entries(DB_SHEETS_META||{})){
+      if(seen.has(k)||meta?.published!==true)continue;
+      const visa=(meta.visaType||"H-2B").toUpperCase().includes("H-2A")?"🌾":"📋";
+      add(k,meta.name||k,meta.emoji||visa);
+    }
+    return out;
+  };
+  if(pathname==="/api/admin/sheets-download-list"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{ return json(res,200,{ok:true,sheets:_sheetExportList()}); }
+    catch(e){ return json(res,500,{error:"Erro: "+e.message}); }
+  }
+  if(pathname==="/api/admin/sheet-download"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    try{
+      const key=String(u.searchParams.get("sheet")||"").trim();
+      const format=(u.searchParams.get("format")||"html").toLowerCase();
+      const rows=getSheet(key)||[];
+      if(!rows.length)return json(res,404,{error:"Planilha vazia ou inexistente."});
+      const meta=_sheetExportList().find(x=>x.key===key)||{name:key,emoji:"📋"};
+      const nomeArq=`H2BApply_${String(meta.name||key).replace(/[^a-zA-Z0-9]+/g,"_").replace(/^_+|_+$/g,"")}`;
+      // Colunas (rótulo → valor por linha). Ordem pensada pro candidato.
+      const dolUrl=c=>c&&String(c).startsWith("H-")?`https://seasonaljobs.dol.gov/jobs/${c}`:"";
+      const salario=r=>r.w?`$${r.w}/${r.wunit||"h"}`:"";
+      const COLS=[
+        ["Nº do Caso (ETA)",r=>r.c||""],
+        ["Empresa",r=>r.n||""],
+        ["Cargo",r=>r.t||""],
+        ["Estado",r=>r.s||""],
+        ["Cidade",r=>r.ci||""],
+        ["Email",r=>r.e||""],
+        ["Telefone",r=>r.ph||""],
+        ["Telefone 2",r=>r.ph2||""],
+        ["Salário",salario],
+        ["Vagas",r=>r.wk||""],
+        ["Início",r=>r.d||""],
+        ["Fim",r=>r.de||""],
+        ["Categoria",r=>r.k||""],
+        ["Visto",r=>r.visa||""],
+        ["Status DOL",r=>r.st||""],
+        ["Grupo",r=>r.g||""],
+        ["Link Oficial DOL",r=>dolUrl(r.c)],
+      ];
+      if(format==="csv"){
+        const csvEsc=v=>{const s2=String(v==null?"":v);return /[",\n;]/.test(s2)?'"'+s2.replace(/"/g,'""')+'"':s2;};
+        const linhas=[COLS.map(c=>csvEsc(c[0])).join(",")];
+        for(const r of rows)linhas.push(COLS.map(c=>csvEsc(c[1](r))).join(","));
+        const csv="﻿"+linhas.join("\r\n"); // BOM p/ Excel abrir acentos certo
+        res.writeHead(200,{"Content-Type":"text/csv; charset=utf-8","Content-Disposition":`attachment; filename="${nomeArq}.csv"`,"Cache-Control":"no-store"});
+        return res.end(csv);
+      }
+      // HTML pesquisável (default)
+      const esc=v=>String(v==null?"":v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+      const cards=rows.map(r=>{
+        const campos=COLS.filter(c=>c[0]!=="Empresa"&&c[0]!=="Cargo"&&String(c[1](r)).trim()!=="").map(c=>{
+          const val=c[1](r);
+          const isLink=c[0]==="Link Oficial DOL";
+          const isMail=c[0]==="Email";
+          const disp=isLink?`<a href="${esc(val)}" target="_blank" rel="noopener">abrir no site do governo →</a>`:isMail?`<a href="mailto:${esc(val)}">${esc(val)}</a>`:esc(val);
+          return `<div class="f"><span class="fl">${esc(c[0])}</span><span class="fv">${disp}</span></div>`;
+        }).join("");
+        const busca=esc(COLS.map(c=>c[1](r)).join(" ")).toLowerCase();
+        return `<article class="vg" data-b="${busca}"><h2>${esc(r.t||"(cargo não informado)")}</h2><div class="co">${esc(r.n||"")}</div>${campos}</article>`;
+      }).join("");
+      const doc=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(meta.name||key)} — Vagas H2BApply</title><style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#0f172a;--soft:#64748b;--line:#e5e8ec;--green:#059669;--blue:#2563eb}
+@media(prefers-color-scheme:dark){:root{--bg:#0b1220;--card:#131c2e;--ink:#e8eef7;--soft:#93a2b8;--line:#243149;--green:#34d399;--blue:#60a5fa}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.5}
+header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--line);padding:14px 16px;z-index:9}
+h1{font-size:17px;margin:0 0 3px}.sub{font-size:12.5px;color:var(--soft)}
+.search{width:100%;margin-top:10px;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;font-size:16px;background:var(--bg);color:var(--ink)}
+.count{font-size:12px;color:var(--soft);margin-top:6px}
+main{max-width:820px;margin:0 auto;padding:14px 16px 60px;display:flex;flex-direction:column;gap:12px}
+.vg{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.vg h2{font-size:15px;margin:0 0 2px}.co{font-size:13px;color:var(--soft);margin-bottom:8px}
+.f{display:flex;gap:10px;padding:3px 0;font-size:13px;border-top:1px solid var(--line)}
+.f:first-of-type{border-top:none}.fl{color:var(--soft);min-width:120px;flex-shrink:0}.fv{word-break:break-word}
+.fv a{color:var(--blue);text-decoration:none}
+.empty{text-align:center;color:var(--soft);padding:40px 0;display:none}
+</style></head><body>
+<header>
+<h1>${esc(meta.emoji||"")} ${esc(meta.name||key)}</h1>
+<div class="sub">${rows.length.toLocaleString("pt-BR")} vagas · ${meta.withEmail!=null?meta.withEmail.toLocaleString("pt-BR")+" com email":""} · baixado do H2BApply</div>
+<input class="search" id="q" type="search" placeholder="🔎 Pesquisar por email, empresa, estado, cargo..." oninput="filtrar()" autocomplete="off">
+<div class="count" id="cnt"></div>
+</header>
+<main id="lista">${cards}<div class="empty" id="vazio">Nenhuma vaga encontrada para essa pesquisa.</div></main>
+<script>
+var VG=[].slice.call(document.querySelectorAll('.vg'));var CNT=document.getElementById('cnt');var VZ=document.getElementById('vazio');
+function filtrar(){var q=(document.getElementById('q').value||'').toLowerCase().trim();var n=0;
+for(var i=0;i<VG.length;i++){var ok=!q||VG[i].getAttribute('data-b').indexOf(q)>=0;VG[i].style.display=ok?'':'none';if(ok)n++;}
+CNT.textContent=(q?n+' de '+VG.length:VG.length)+' vagas';VZ.style.display=n?'none':'block';}
+filtrar();
+</script></body></html>`;
+      res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Content-Disposition":`attachment; filename="${nomeArq}.html"`,"Cache-Control":"no-store"});
+      return res.end(doc);
+    }catch(e){ return json(res,500,{error:"Erro ao gerar o arquivo: "+e.message}); }
+  }
+
   // ── /api/my-availability?sheet=X ─────────────────────────
   // Disponibilidade da planilha PARA ESTE USUÁRIO, por categoria — alimenta
   // os chips do wizard do automático (antes mostravam totais globais).

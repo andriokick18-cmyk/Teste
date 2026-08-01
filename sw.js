@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v53"; // v53 (01/08): site abre em português por padrão (v86) — idioma não segue mais o navegador; strings "Stats/Seasonal Jobs/Free" traduzidas.
+const CACHE_NAME = "h2bapply-v54"; // v54 (01/08): aba admin "📥 Baixar Planilhas" (v87) — baixa todas as vagas de uma planilha em HTML pesquisável ou CSV.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

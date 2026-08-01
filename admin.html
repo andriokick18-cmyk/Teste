@@ -296,6 +296,7 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
       </button>
 
       <button class="sb-item" onclick="showView('codes')"><i class="ti ti-ticket"></i>Códigos Promo</button>
+      <button class="sb-item" onclick="showView('download');loadSheetDownloads()" style="background:linear-gradient(135deg,rgba(37,99,235,.14),rgba(37,99,235,.06));border:1px solid rgba(37,99,235,.3);color:#60a5fa;font-weight:800"><i class="ti ti-download" style="color:#60a5fa"></i>📥 Baixar Planilhas</button>
       <button class="sb-item" onclick="showView('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
       <button class="sb-item" onclick="showView('notificacoes')"><i class="ti ti-bell"></i>Notificações</button>
       <button class="sb-item" onclick="showView('sugestoes');loadSugestoes()"><i class="ti ti-bulb"></i>Sugestões<span class="sb-badge sb-badge-a" id="sb-sugestoes" style="display:none">0</span></button>
@@ -1237,6 +1238,20 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
             <div class="tbl-wrap"><div id="codes-list"><div class="empty-state">Carregando...</div></div></div>
           </div>
         </div>
+      </div>
+
+      <!-- 📥 DOWNLOAD DE PLANILHAS (v87) -->
+      <div class="view" id="view-download">
+        <div class="section-hdr"><i class="ti ti-download" style="color:#60a5fa"></i><div class="section-title">📥 Baixar Planilhas de Vagas</div><div class="section-actions"><button class="btn btn-ghost btn-sm" onclick="loadSheetDownloads()"><i class="ti ti-refresh"></i></button></div></div>
+        <div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:14px 16px;margin-bottom:14px;font-size:13px;color:var(--t2);line-height:1.6">
+          Baixe <b>todas as vagas</b> de uma planilha num arquivo que abre no celular ou no computador. Duas opções por planilha:
+          <div style="margin-top:8px;display:flex;flex-direction:column;gap:5px">
+            <div>📄 <b>HTML (pesquisável)</b> — abre no navegador; tem uma caixa de busca que filtra ao vivo (digite um email, empresa ou estado e só as vagas daquilo aparecem). Cada vaga vem desenhada como no site.</div>
+            <div>📊 <b>CSV (Excel/Sheets)</b> — abre no Excel ou Google Sheets com filtro de coluna; ideal pra planilha de verdade.</div>
+          </div>
+          <div style="margin-top:8px;color:var(--t3);font-size:12px">⚠️ Planilha recém-saída do governo pode vir sem email/salário ainda (status "Pending Processing") — a coluna "com email" abaixo mostra quantas já têm contato.</div>
+        </div>
+        <div id="download-list"><div class="empty-state">Carregando planilhas...</div></div>
       </div>
 
       <!-- RANKING -->
@@ -6968,6 +6983,34 @@ async function sendAdminMsg(){
 // ══════════════════════════════════════════════════════════
 //  CODES
 // ══════════════════════════════════════════════════════════
+// 📥 v87: lista as planilhas disponíveis com botões de download (HTML/CSV)
+async function loadSheetDownloads(){
+  const el=document.getElementById('download-list');
+  if(!el) return;
+  el.innerHTML='<div class="empty-state">Carregando planilhas...</div>';
+  try{
+    const r=await fetch('/api/admin/sheets-download-list',{credentials:'include'});
+    const d=await r.json();
+    if(!d.ok||!d.sheets?.length){el.innerHTML='<div class="empty-state"><i class="ti ti-download"></i>Nenhuma planilha disponível</div>';return;}
+    el.innerHTML=`<div style="display:flex;flex-direction:column;gap:12px">${
+      d.sheets.map(s=>{
+        const semEmail=(s.withEmail||0)===0;
+        return `<div style="background:var(--glass);border:1px solid var(--border2);border-radius:var(--rl);padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <div style="font-size:30px;flex-shrink:0">${esc(s.emoji||'📋')}</div>
+          <div style="flex:1;min-width:180px">
+            <div style="font-size:15px;font-weight:800;color:var(--text)">${esc(s.name||s.key)}</div>
+            <div style="font-size:12px;color:var(--t3)">${(s.count||0).toLocaleString('pt-BR')} vagas · <span style="color:${semEmail?'var(--red)':'var(--green)'};font-weight:700">${(s.withEmail||0).toLocaleString('pt-BR')} com email</span>${semEmail?' — ainda sem contatos (Pending Processing)':''}</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0">
+            <a class="btn btn-primary btn-sm" href="/api/admin/sheet-download?sheet=${encodeURIComponent(s.key)}&format=html" style="text-decoration:none" download><i class="ti ti-file-text"></i> HTML pesquisável</a>
+            <a class="btn btn-ghost btn-sm" href="/api/admin/sheet-download?sheet=${encodeURIComponent(s.key)}&format=csv" style="text-decoration:none" download><i class="ti ti-table"></i> CSV (Excel)</a>
+          </div>
+        </div>`;
+      }).join('')
+    }</div>`;
+  }catch(e){el.innerHTML='<div class="empty-state">Erro ao carregar: '+esc(e.message)+'</div>';}
+}
+
 async function loadCodes(){
   const el=document.getElementById('codes-list');
   if(!el) return;

@@ -714,6 +714,26 @@ async function testAuthWatchdogPush() {
     check("🗂️ vagas da planilha coletada abrem no Manual (/api/sheet-meta)",
       Array.isArray(sm2.json?.jobs) && sm2.json.jobs.length > 0, sm2.body.slice(0, 140));
 
+    // v87: 📥 DOWNLOAD DE PLANILHAS (admin) — baixa todas as vagas num arquivo
+    // pesquisável (HTML) ou CSV. Guarda: admin lista e baixa; não-admin é
+    // barrado; o HTML tem a caixa de busca e cada vaga; o CSV tem cabeçalho.
+    const dlList = await get("/api/admin/sheets-download-list");
+    check("📥 v87: admin lista as planilhas pra download (com contagem de email por planilha)",
+      dlList.json?.ok === true && (dlList.json?.sheets || []).some((s) => s.key === "teste2099" && typeof s.withEmail === "number"), dlList.body.slice(0, 160));
+    const dlHtml = await get("/api/admin/sheet-download?sheet=teste2099&format=html");
+    check("📥 v87: download HTML traz TODAS as vagas + caixa de busca ao vivo (attachment)",
+      dlHtml.status === 200 && /Content-Disposition/i.test(Object.keys(dlHtml.headers).join(" ") ? "Content-Disposition" : "") && dlHtml.body.includes('id="q"') && (dlHtml.body.match(/class="vg"/g) || []).length === 14 && (dlHtml.headers["content-disposition"] || "").includes("attachment"),
+      `status=${dlHtml.status} vagas=${(dlHtml.body.match(/class="vg"/g) || []).length}`);
+    const dlCsv = await get("/api/admin/sheet-download?sheet=teste2099&format=csv");
+    check("📥 v87: download CSV abre no Excel (cabeçalho + 14 linhas + BOM UTF-8)",
+      dlCsv.status === 200 && dlCsv.body.charCodeAt(0) === 0xFEFF && /Empresa/.test(dlCsv.body) && dlCsv.body.trim().split("\n").length === 15 && (dlCsv.headers["content-disposition"] || "").includes(".csv"),
+      `status=${dlCsv.status} linhas=${dlCsv.body.trim().split("\n").length}`);
+    // não-admin NÃO pode baixar (dado de empregador é só do dono)
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "curioso@test.com", name: "Curioso" });
+    const dlDenied = await get("/api/admin/sheet-download?sheet=teste2099&format=csv");
+    check("📥 v87: usuário comum NÃO consegue baixar a planilha (403) — export é admin-only", dlDenied.status === 403, `status=${dlDenied.status}`);
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", name: "Smoke", isAdmin: true });
+
     // v49/v50: 🌾 Robô "Vagas Novas H-2A" — ponta a ponta com o feed falso (o
     // caminho /h2a/ serve 14 vagas H-300 novas + 1 duplicada + 1 sem e-mail).
     // ENTRA ativa nova, SAI inativa (regra do dono: "planilha sempre completa").
