@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v50"; // v50 (29/07): match de vaga (v82) — cada vaga ganha nota de encaixe com o perfil (busca manual + fila automática), badge ⭐ nos cards e novo sort "melhor pra você".
+const CACHE_NAME = "h2bapply-v51"; // v51 (29/07): correção de segurança (v84) — código de cortesia (nunca pago) não dá mais direito a upgrade de plano descontando preço não pago.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

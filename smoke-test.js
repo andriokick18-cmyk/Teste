@@ -565,6 +565,14 @@ async function testAuthWatchdogPush() {
     const rd = await req2("POST", "/api/redeem-code", { code: ytCode });
     check("🎬 membro YouTube resgata o código (30d manual + 30d auto)",
       rd.json?.ok === true && rd.json?.manualDays === 30 && rd.json?.autoDays === 30, rd.body.slice(0, 140));
+    // 🔒 v84 (achado em auditoria de segurança): código resgatado é
+    // vip.source==="code" (cortesia, NUNCA pagamento — regra 13c) mas tinha
+    // plan="vipro" real e manualExpires/autoExpires no futuro — /api/plans/
+    // upgrade só excluía "trial"/"auto-provisorio" da checagem de "plano
+    // pago", deixando passar. Sem o fix, dava pra virar DoublePro pagando só
+    // a DIFERENÇA de diamantes sobre um plano que nunca custou nada.
+    const upgCode = await req2("POST", "/api/plans/upgrade", { novoPlano: "doublepro" });
+    check("🔒 v84: quem só tem plano de CÓDIGO (cortesia, nunca pago) NÃO consegue upgrade — nunca desconta preço de plano nunca pago", upgCode.status === 400, upgCode.body.slice(0, 160));
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", name: "Smoke", isAdmin: true });
     const cfYt = await get("/api/admin/conferencia");
     const ytRow = (cfYt.json?.rows || []).find((r) => r.tipo === "codigo" && r.code === ytCode && r.email === "ytmember@test.com");

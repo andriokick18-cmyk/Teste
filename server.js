@@ -11377,7 +11377,15 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
       if(!["vipro","doublepro"].includes(novoPlano))return json(res,400,{error:"Plano de destino inválido."});
       const p=getUser(s.user_email);if(!p)return json(res,401,{error:"Conta não encontrada."});
       const now=Date.now();
-      const _ehTrial=["trial","auto-provisorio"].includes(String(p.vip?.source||""));
+      // 🔒 v84 (achado em auditoria de segurança, 29/07/2026): "code" (código
+      // resgatado — trial/cortesia, NUNCA gera pagamento real, regra 13c/KB)
+      // faltava nesta lista. Sem isso, quem resgatasse um código grátis de
+      // VIP/VIPro podia chamar upgrade e pagar só a DIFERENÇA de diamantes
+      // pra virar DoublePro — descontando o preço todo de um plano que nunca
+      // foi pago. Mesma convenção usada em TODO o resto do financeiro
+      // (computeEntradasJanelas, dono-resumo): trial E code NUNCA contam
+      // como plano pago.
+      const _ehTrial=["trial","auto-provisorio","code"].includes(String(p.vip?.source||""));
       if(!isVipActive(p)||_ehTrial)return json(res,400,{error:"Upgrade é só pra quem já tem um plano PAGO ativo. Sem plano ativo, troque diamantes pelo plano direto (abaixo)."});
       const ORDEM=["vip","vipro","doublepro"];
       const planoAtual=p.plan||"free";

@@ -18365,7 +18365,11 @@ function renderDiamUpgrade(d){
   const planoAtual=(U.isAdmin?(U.vip?.plan||'free'):(U.plan||'free'));
   const idxAtual=ORDEM.indexOf(planoAtual);
   const vipAtivo=U.vip&&((U.vip.manualExpires&&U.vip.manualExpires>Date.now())||(U.vip.autoExpires&&U.vip.autoExpires>Date.now()));
-  if(idxAtual<0||idxAtual>=ORDEM.length-1||!vipAtivo){box.innerHTML='';return;}
+  // v84: trial e código resgatado (cortesia, nunca pago — regra 13c) não dão
+  // direito a upgrade — o servidor já recusa (400), isso só evita mostrar um
+  // botão que sempre daria erro pra quem não é admin testando.
+  const _semDireito=!U.isAdmin&&["trial","code"].includes(U.vip?.source||"");
+  if(idxAtual<0||idxAtual>=ORDEM.length-1||!vipAtivo||_semDireito){box.innerHTML='';return;}
   const dias=U.vip?.days||30;
   const NOME={vip:'⭐ VIP Manual',vipro:'\u{1F916} VIPro',doublepro:'\u{1F48E} DoublePro'};
   const preco=pl=>{const row=(d.planos||[]).find(p=>p.plano===pl&&p.dias===dias);return row?row.diamantes:null;};

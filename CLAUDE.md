@@ -220,6 +220,16 @@
     (a mesma regra "troca não duplica o caixa" do v64 vale aqui). Downgrade
     e "upgrade" pro mesmo tier são recusados (400). Sem plano pago ativo
     (ou saldo insuficiente) também é recusado, nunca ativa de graça.
+    **🔒 v84 (auditoria de segurança, 29/07/2026)**: "plano PAGO" tinha
+    esquecido `vip.source==="code"` na lista de exclusão (só excluía
+    trial/auto-provisorio) — quem resgatasse um código de cortesia
+    (R$0, nunca gera pagamento — regra 13c) conseguia chamar upgrade e
+    pagar só a DIFERENÇA de diamantes pra virar DoublePro, descontando
+    o preço inteiro de um plano nunca pago. Provado com reversão real do
+    fix (o teste falhou mostrando a cobrança de 67💎 em vez de recusar).
+    Corrigido: `code` entra na mesma lista de exclusão que TODO o resto
+    do financeiro já usa (`computeEntradasJanelas`, dono-resumo) —
+    trial E code NUNCA contam como plano pago, em lugar nenhum.
 13l. **💎 Diamante infinito pra admin/DM (dono, 29/07/2026 — "eu e o Diego
     temos limite infinito")**: toda conta admin (`isAdminVip` — dono, Diego
     e os demais e-mails de `ADMIN_EMAILS_EXTRA`) pode testar troca/upgrade
