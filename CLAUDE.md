@@ -107,6 +107,13 @@
     💎 real pode ser doado a outro usuário DO MESMO servidor; 💎 bônus
     (brinde do admin) é intransferível e é gasto PRIMEIRO na troca. Preço em
     💎 deriva SEMPRE de PLANO_PRECO_TAB (nunca hardcoded em 2º lugar).
+    **🎁 Missões (dono, 31/07/2026, vendo o painel real — "isso aqui é
+    muito importante")**: 💎 de missão/tarefa é BÔNUS, pago 1 ÚNICA VEZ
+    por conta (`u.missoes` nunca é apagado — nem reset de enviados
+    re-paga) e NUNCA pode ser doado a ninguém — só serve pra troca/
+    upgrade de plano. A rota de transferência debita SÓ do saldo real
+    (nunca do bônus) e recusa com 402 quem só tem bônus — guarda de
+    regressão v84b no smoke test prova o cenário exato.
     Cancelou doação aprovada → estorna os 💎 (parcial se já gastou, com log).
     LINGUAGEM (v66): NENHUM texto visível do site fala em compra/pagamento/
     contratar/renovar — sempre doação, diamantes, troca e recompensas.

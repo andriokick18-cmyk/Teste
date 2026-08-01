@@ -1141,6 +1141,15 @@ async function testAuthWatchdogPush() {
     await get("/api/missions"); // reabrir a tela não pode pagar de novo
     const dmM2 = await get("/api/diamonds");
     check("🎁 missão paga UMA vez só (reabrir não duplica)", (dmM2.json?.saldo?.bonus || 0) === (dmM.json?.saldo?.bonus || 0), `antes=${dmM.json?.saldo?.bonus} depois=${dmM2.json?.saldo?.bonus}`);
+    // 🔒 v84b (ordem do dono, 31/07 vendo o painel real: 408 bônus em
+    // circulação): 💎 de missão é bônus, e bônus NUNCA pode ser doado —
+    // só serve pra troca/upgrade de plano. Este usuário tem SÓ bônus
+    // (0 reais) — a doação tem que ser recusada (402) com o saldo intacto.
+    const _bonusAntes = dmM2.json?.saldo?.bonus || 0;
+    const txBonus = await req2("POST", "/api/diamonds/transfer", { para: "comprador@test.com", qtd: 1 });
+    check("🔒 v84b: usuário SÓ com 💎 de missão (bônus) NÃO consegue doar nem 1 — bônus é intransferível de verdade", txBonus.status === 402, `status=${txBonus.status} body=${txBonus.body.slice(0, 120)}`);
+    const dmM3 = await get("/api/diamonds");
+    check("🔒 v84b: a tentativa de doação recusada não mexeu no saldo de bônus", (dmM3.json?.saldo?.bonus || 0) === _bonusAntes && (dmM3.json?.saldo?.real || 0) === 0, JSON.stringify(dmM3.json?.saldo));
 
     // ═══ 🗄️ v69: BACKUP ENTRE IRMÃOS — rota de recepção blindada ═══
     const zlibB = require("zlib");
