@@ -2924,7 +2924,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <!-- ══ JOBS ══ -->
       <div class="view" id="v-jobs">
         <div class="stabs" id="stabs-row">
-          <button class="stab active" id="stab-seasonal" onclick="setTab('seasonal')"><i class="ti ti-globe"></i>Seasonal Jobs<span class="stab-cnt" id="sc-seasonal" style="display:none"></span></button>
+          <button class="stab active" id="stab-seasonal" onclick="setTab('seasonal')"><i class="ti ti-globe"></i><span id="stab-seasonal-lbl">Vagas ao Vivo</span><span class="stab-cnt" id="sc-seasonal" style="display:none"></span></button>
           <button class="stab stab-sheet-jan" id="stab-jan2026" onclick="setTab('jan2026')" style="margin-top:8px"><i class="ti ti-sun" style="color:#f59e0b"></i><strong>Jan 2026</strong><span class="stab-cnt" id="sc-jan">–</span></button>
           <button class="stab stab-sheet-jul" id="stab-jul2025" onclick="setTab('jul2025')" style="margin-top:8px"><i class="ti ti-snowflake" style="color:#3b82f6"></i><strong>Jul 2025</strong><span class="stab-cnt" id="sc-jul">–</span></button>
           <button class="stab stab-sheet-h2a" id="stab-h2a-jun2026" onclick="setTab('h2a-jun2026')" style="margin-top:8px"><i class="ti ti-plant-2" style="color:#10b981"></i><strong>H-2A Agricultura</strong><span class="stab-cnt" id="sc-h2a">–</span></button>
@@ -3003,7 +3003,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px">
               <i class="ti ti-search" style="font-size:18px"></i> Buscar Vagas
             </div>
-            <div style="font-size:11px;opacity:.7;margin-top:2px">Seasonal Jobs · Jan 2026 · Jul 2025 · Enviadas</div>
+            <div style="font-size:11px;opacity:.7;margin-top:2px">Vagas ao Vivo · Jan 2026 · Jul 2025 · Enviadas</div>
           </div>
           <button id="pesq-clear-btn" onclick="clearPesquisa()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);padding:6px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:none"><i class="ti ti-x"></i> Limpar</button>
         </div>
@@ -5871,11 +5871,14 @@ async function checkStatus(){
       // Só redefine activeResIdx se ainda não foi definido (evita sobrescrever seleção do usuário)
       if(activeResIdx===null) activeResIdx=DOCS.filter(c=>(c.cvType||"resume")==="resume").slice(-1)[0]?.idx||null;
       if(d.readEmailIds?.length)_loadReadStateFromServer(d.readEmailIds);
-      // Restore language from server preference
-      if(d.language && LANG_DICT && LANG_DICT[d.language]){
-        if(_curLang !== d.language){
-          _curLang = d.language;
-          try{localStorage.setItem('h2b_lang',d.language);}catch{}
+      // Restore language from server preference — v86: normaliza 'pt-BR'→'pt'
+      // (a preferência era salva com o código de região e nunca casava com a
+      // chave de 2 letras do dicionário, então nunca era aplicada).
+      if(d.language){
+        const dl=String(d.language).slice(0,2).toLowerCase();
+        if(LANG_DICT[dl] && _curLang!==dl){
+          _curLang = dl;
+          try{localStorage.setItem('h2b_lang',dl);}catch{}
         }
       }
       showApp();syncData();checkAdminMsg();_loadSentIds();
@@ -6363,7 +6366,7 @@ function planBadgeHTML(){
   const now=Date.now();
   const hasManual=v?.manualExpires&&v.manualExpires>now;
   const hasAuto=v?.autoExpires&&v.autoExpires>now;
-  if(!hasManual&&!hasAuto)return`<span class="tag tgr" style="font-size:10px">Free</span>`;
+  if(!hasManual&&!hasAuto)return`<span class="tag tgr" style="font-size:10px">Grátis</span>`;
   const ml=hasManual?daysLeft(v.manualExpires):-1;
   const al=hasAuto?daysLeft(v.autoExpires):-1;
   const urgent=d=>d>=0&&d<=5;
@@ -16836,7 +16839,7 @@ console.debug("[v14+] Onboarding, FAQ, Preview Auto, Follow-up, Score carregados
 
   function _buildModalHTML(item){
     const SRC_META = {
-      seasonal: { label:"Seasonal Jobs (API)", icon:"ti-world", color:"var(--blue)" },
+      seasonal: { label:"Vagas ao Vivo (API)", icon:"ti-world", color:"var(--blue)" },
       jan2026:  { label:"Janeiro 2026 (H-2B)", icon:"ti-sun", color:"#d97706" },
       jul2025:  { label:"Julho 2025 (H-2B)",   icon:"ti-snowflake", color:"#0891b2" },
       hist:     { label:"Candidatura Enviada",  icon:"ti-send", color:"var(--green)" },
@@ -17229,7 +17232,7 @@ const LANG_DICT = {
     "shortcuts":"Atalhos Rápidos","today":"Hoje","account":"Conta","latest_replies":"Últimas Respostas",
     "manual":"Manual","search":"Pesquisar","responses":"Respostas","auto_lbl":"Automático","ranking":"Ranking","profile_lbl":"Perfil",
     "plans_rewards":"Planos & Recompensas","comp_ranking":"Ranking Competitivo","ranking_sub":"Veja sua posição e concorra",
-    "sent_apps":"Candidaturas Enviadas","your_pos":"sua posição","you":"Você","me":"Eu","profiles":"Perfis",
+    "sent_apps":"Candidaturas Enviadas","your_pos":"sua posição","you":"Você","me":"Eu","profiles":"Perfis","stats":"Números","seasonal_jobs":"Vagas ao Vivo",
     // Plans
     "plan_free":"Plano Free","plan_vip":"Plano VIP","plan_pro":"Plano Pro","plan_vipro":"Plano VIPro","plan_doublepro":"Plano DoublePro",
     "choose_plan":"Escolha seu Plano","pay_pix":"Pague via Pix — ativo em até 24h","pay_pix_title":"Pagar via Pix",
@@ -17312,7 +17315,7 @@ const LANG_DICT = {
     "shortcuts":"Quick Access","today":"Today","account":"Account","latest_replies":"Latest Replies",
     "auto_lbl":"Auto","profile_lbl":"Profile",
     "plans_rewards":"Plans & Rewards","comp_ranking":"Competitive Ranking","ranking_sub":"See your position and compete",
-    "sent_apps":"Applications Sent","your_pos":"your position","you":"You","me":"Me","profiles":"Profiles",
+    "sent_apps":"Applications Sent","your_pos":"your position","you":"You","me":"Me","profiles":"Profiles","stats":"Stats","seasonal_jobs":"Seasonal Jobs",
     "plan_free":"Free Plan","plan_vip":"VIP Plan","plan_pro":"Pro Plan","plan_vipro":"VIPro Plan",
     "choose_plan":"Choose your Plan","pay_pix":"Pay via Pix — activated within 24h","pay_pix_title":"Pay via Pix",
     "copy_pix":"Copy Pix","hire_whatsapp":"Hire via WhatsApp",
@@ -17381,7 +17384,7 @@ const LANG_DICT = {
     "shortcuts":"Accesos Rápidos","today":"Hoy","account":"Cuenta","latest_replies":"Últimas Respuestas",
     "auto_lbl":"Automático","profile_lbl":"Perfil",
     "plans_rewards":"Planes & Recompensas","comp_ranking":"Ranking Competitivo","ranking_sub":"Ve tu posición y compite",
-    "sent_apps":"Postulaciones Enviadas","your_pos":"tu posición","you":"Tú","me":"Yo","profiles":"Perfiles",
+    "sent_apps":"Postulaciones Enviadas","your_pos":"tu posición","you":"Tú","me":"Yo","profiles":"Perfiles","stats":"Números","seasonal_jobs":"Empleos en Vivo",
     "plan_free":"Plan Gratuito","plan_vip":"Plan VIP","plan_pro":"Plan Pro","plan_vipro":"Plan VIPro",
     "choose_plan":"Elige tu Plan","pay_pix":"Paga vía Pix — activo en hasta 24h","pay_pix_title":"Pagar vía Pix",
     "copy_pix":"Copiar Pix","hire_whatsapp":"Hablar por WhatsApp",
@@ -17446,10 +17449,16 @@ const LANG_DICT = {
 
 };
 let _curLang = (()=>{
-  // Detect browser language
-  const bl=(navigator.language||'pt').toLowerCase();
-  if(bl.startsWith('es'))return'es';
-  if(bl.startsWith('en'))return'en';
+  // v86 (dono, 01/08 — "site 100% bom pros olhos do usuário"): público é
+  // 100% brasileiro, então o padrão é SEMPRE português. Só sai do PT se a
+  // pessoa TROCOU de propósito pra EN/ES (escolha guardada no aparelho) —
+  // nunca mais cai em inglês só porque o navegador do celular está em inglês.
+  // Normaliza 'pt-BR'→'pt', 'en-US'→'en' etc. (a preferência salva no servidor
+  // era gravada como 'pt-BR' e nunca batia com a chave 'pt' do dicionário).
+  try{
+    const saved=(localStorage.getItem('h2b_lang')||'').slice(0,2).toLowerCase();
+    if(['pt','en','es'].includes(saved))return saved;
+  }catch(e){}
   return'pt';
 })();
 
@@ -17634,7 +17643,8 @@ function applyLang(){
   // Profile subtabs
   _si('ptab-me','span',t('me'));
   _si('ptab-profiles','span',t('profiles'));
-  _si('ptab-stats','span','Stats');
+  _si('ptab-stats','span',t('stats'));
+  _st('stab-seasonal-lbl',t('seasonal_jobs'));
   // Personal data section
   document.querySelectorAll('#ptab-content-me label').forEach(el=>{
     const txt=el.textContent.trim();

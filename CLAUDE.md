@@ -322,6 +322,19 @@
    fazia TODO save reescrever o banco inteiro na hora). Guarda
    determinística no smoke test (não mede tempo — confere se o arquivo em
    disco muda ANTES do debounce disparar).
+6f. **🇧🇷 Português por padrão (dono, 01/08/2026 — "site 100% bom pros
+   olhos do usuário")**: público é 100% brasileiro. O app abre SEMPRE em
+   português — o idioma NUNCA é decidido pelo `navigator.language` (celular
+   em inglês fazia muitos brasileiros caírem no inglês). `_curLang` só sai
+   do PT se a pessoa TROCOU de propósito pra EN/ES (escolha guardada no
+   aparelho + no servidor via `/api/settings`). Normaliza sempre o código
+   de região pra 2 letras (`pt-BR`→`pt`) — antes a preferência salva
+   `pt-BR` nunca casava com a chave `pt` do dicionário e era ignorada.
+   Toda string visível NOVA precisa passar pelo dicionário `LANG_DICT`
+   (via `t('chave')` no `applyLang()`), nunca texto fixo em inglês no
+   markup — senão fica em inglês pra sempre, mesmo em modo PT (foi o caso
+   de "Stats", "Seasonal Jobs" e "Free", corrigidos no v86). Guarda no
+   smoke test trava a detecção por navegador (não deixa reintroduzir).
 
 ## ⚠️ PENDÊNCIAS CONHECIDAS (verificar a cada sessão)
 

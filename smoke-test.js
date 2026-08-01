@@ -337,6 +337,16 @@ async function testAuthWatchdogPush() {
     check("🎨 index.html aponta pra fonte local (não mais CDN)",
       home.body.includes("/vendor/tabler-icons.min.css"));
 
+    // v86 (dono, 01/08): público 100% brasileiro — o site tem que abrir em
+    // PORTUGUÊS por padrão, nunca em inglês só porque o navegador do celular
+    // está em inglês. Guarda: o inicializador de idioma NÃO pode mais decidir
+    // pelo navegador (navigator.language) — só pela escolha salva do usuário,
+    // caindo em 'pt' por padrão. Se alguém reintroduzir a detecção por
+    // navegador, o site volta a abrir em inglês pra muitos brasileiros.
+    const _langInitOk = !home.body.includes("navigator.language||'pt'") && /getItem\('h2b_lang'\)[\s\S]{0,160}return'pt'/.test(home.body);
+    check("🇧🇷 v86: index.html abre em PORTUGUÊS por padrão (idioma não decidido mais pelo navigator.language)",
+      _langInitOk, "inicializador de _curLang não caiu no padrão PT esperado (localStorage → fallback 'pt')");
+
     // v34: páginas privadas proibidas de indexar + CSP deixa o Analytics carregar
     const admPage = await get("/admin");
     check("GET /admin manda X-Robots-Tag noindex (página privada fora do Google)",
