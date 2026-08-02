@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v56"; // v56 (01/08): reestruturação parte 2 (Home) — hero com status real, grade de stats 3 colunas, 3º card "Total" (era "Respostas" que nunca batia).
+const CACHE_NAME = "h2bapply-v57"; // v57 (01/08): reestruturação parte 3 (Vagas) — contador com nome real da planilha (era sempre "Jul 2025"), números pt-BR, selo técnico "cache" removido.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

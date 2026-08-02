@@ -2950,7 +2950,6 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <div class="jlist-panel" id="jlist-panel">
             <div class="jlist-hdr">
               <span class="jcount" id="jcount">Carregando...</span>
-              <span id="jfrom-cache" style="font-size:10px;color:var(--amber);display:none">cache</span>
             </div>
             <div id="jlist"></div>
             <div id="lmore"></div>
@@ -7318,7 +7317,9 @@ async function loadJobs(reset=false){
     var _sj=jobs.filter(function(j){return !_isSentSeasonal(j.id)&&!(typeof empregadorStatus==="function"&&empregadorStatus(j.email));});
     if(!_sj.length&&!JOBS.length){done=true;g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--t3)">Nenhuma vaga encontrada.</div>`;}
     else if(_sj.length){_sj.forEach(function(j){JOBS.push(j);g("#jlist").insertAdjacentHTML("beforeend",mkCard(j));});skip+=d.jobs.length;total=d.total||JOBS.length;if(d.jobs.length<PAGE){done=true;g("#lmore").innerHTML="";}else g("#lmore").innerHTML=`<div style="padding:14px;text-align:center"><button class="btn btn-secondary btn-sm" onclick="loadJobs()">Carregar mais</button></div>`;}
-    const cnt=g("#jcount");if(cnt)cnt.innerHTML=`<strong>${total.toLocaleString()}</strong> vaga${total!==1?"s":""}`;const cc=g("#jfrom-cache");if(cc)cc.style.display=d.from_cache?"":"none";
+    // v90: número no formato pt-BR (16.277, não 16,277) e sem o selo técnico
+    // "cache" — jargão de depuração que não diz nada pro usuário.
+    const cnt=g("#jcount");if(cnt)cnt.innerHTML=`<strong>${total.toLocaleString("pt-BR")}</strong> vaga${total!==1?"s":""}`;
     const sib=g("#sib-jobs");if(sib){sib.style.display="";sib.textContent=total>999?"999+":String(total);}
   }catch(e){g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--red)">Erro. <span style="cursor:pointer;text-decoration:underline" onclick="loadJobs()">Tentar novamente</span></div>`;}
   finally{loading=false;} // FIX: always libera lock
@@ -7376,10 +7377,12 @@ async function loadSheetMeta(reset=false){
       const sentInSheet=HIST.filter(h=>h.sheetSource===tab||h.source===tab).length;
       const inAutoQueue=[..._autoQueueIds].length;
       const remaining=Math.max(0,sTotal-sentInSheet);
-      const sheetLabel=tab==="jan2026"?"❄️ Jan 2026 (inverno)":"☀️ Jul 2025 (verão)";
+      // v90: nome REAL da planilha ativa (antes: ternário fixo que mostrava
+      // "Jul 2025" pra qualquer outra planilha, e com as estações invertidas)
+      const sheetLabel=_sheetLabelFor(tab);
       const wageFilter=fWage>0?` · <span style="font-size:11px;color:var(--green);font-weight:700">💰 ≥$${fWage}/h</span>`:"";
       const stateFilter=fState?` · <span style="font-size:11px;color:var(--blue)">📍 ${fState}</span>`:"";
-      cnt.innerHTML=`<strong>${remaining.toLocaleString()}</strong> restantes · <span style="font-size:11px;color:var(--t3)">${sentInSheet>0?`<span style="color:var(--green)">✅ ${sentInSheet} enviadas</span> de ${sTotal.toLocaleString()}`:sTotal.toLocaleString()+` vagas`}</span> · <span style="font-size:11px;color:var(--blue)">${sheetLabel}</span>${wageFilter}${stateFilter}`;
+      cnt.innerHTML=`<strong>${remaining.toLocaleString("pt-BR")}</strong> restantes · <span style="font-size:11px;color:var(--t3)">${sentInSheet>0?`<span style="color:var(--green)">✅ ${sentInSheet} enviadas</span> de ${sTotal.toLocaleString("pt-BR")}`:sTotal.toLocaleString("pt-BR")+` vagas`}</span> · <span style="font-size:11px;color:var(--blue)">${sheetLabel}</span>${wageFilter}${stateFilter}`;
     }
     const sib=g("#sib-jobs");if(sib){sib.style.display="";sib.textContent=sTotal>999?"999+":String(sTotal);}
   }catch(e){g("#lmore").innerHTML=`<div style="padding:14px;text-align:center;font-size:13px;color:var(--red)">Erro. <span style="cursor:pointer;text-decoration:underline" onclick="loadSheetMeta()">Tentar novamente</span></div>`;}
@@ -7402,14 +7405,14 @@ async function loadSheetMeta(reset=false){
 function updSheetCounter(){
   if(tab==="seasonal"){
     const total=JOBS.length;const sent=HIST.filter(h=>!h.sheetSource).length;
-    const cnt=g("#jcount");if(cnt)cnt.innerHTML=`<strong>${total.toLocaleString()}</strong> vagas`;
+    const cnt=g("#jcount");if(cnt)cnt.innerHTML=`<strong>${total.toLocaleString("pt-BR")}</strong> vagas`;
     return;
   }
   const cnt=g("#jcount");if(!cnt||!sTotal)return;
   const sentInSheet=HIST.filter(h=>h.sheetSource===tab).length;
   const remaining=Math.max(0,sTotal-sentInSheet);
-  const sheetLabel=tab==="jan2026"?"Jan 2026":"Jul 2025";
-  cnt.innerHTML=`<strong>${remaining.toLocaleString()}</strong> restantes · <span style="font-size:11px;color:var(--t3)">${sentInSheet>0?`<span style="color:var(--green)">${sentInSheet} enviadas</span> de ${sTotal.toLocaleString()}`:sTotal.toLocaleString()+` total`}</span> · <span style="font-size:11px;color:var(--blue)">${sheetLabel}</span>`;
+  const sheetLabel=_sheetLabelFor(tab); // v90: nome real da planilha ativa
+  cnt.innerHTML=`<strong>${remaining.toLocaleString("pt-BR")}</strong> restantes · <span style="font-size:11px;color:var(--t3)">${sentInSheet>0?`<span style="color:var(--green)">${sentInSheet} enviadas</span> de ${sTotal.toLocaleString("pt-BR")}`:sTotal.toLocaleString("pt-BR")+` total`}</span> · <span style="font-size:11px;color:var(--blue)">${sheetLabel}</span>`;
 }
 
 function mkSheetCard(j){
@@ -10018,11 +10021,22 @@ function buildAutoDocSlots(){
 // seletores Manual e Automático, mantendo as fixas. Faz QUALQUER planilha nova
 // aparecer sozinha — basta publicar/upar. selectSource/setPesqSrc já funcionam
 // genéricos com qualquer chave.
+// v90 (reestruturação parte 3): mapa chave→nome/emoji de TODAS as planilhas
+// (alimentado pelo /api/sheets-list) — o contador de vagas usa isso pra
+// mostrar o nome CERTO da planilha ativa (antes era um ternário fixo que
+// mostrava "Jul 2025" pra qualquer planilha nova/H-2A/histórica).
+let _sheetNameMap={};
+function _sheetLabelFor(key){
+  const m=_sheetNameMap[key];
+  if(m)return `${m.emoji||'📋'} ${m.name}`;
+  return key==='jan2026'?'☀️ Jan 2026':key==='jul2025'?'❄️ Jul 2025':(key==='h2a-jun2026'||key==='h2ajun2026')?'🌾 H-2A':String(key||'');
+}
 async function loadDynamicSheets(){
   try{
     const r=await fetch('/api/sheets-list',{credentials:'include'});
     const d=await r.json();
     if(!d.ok||!Array.isArray(d.sheets))return;
+    d.sheets.forEach(s=>{_sheetNameMap[s.key]={name:s.name,emoji:s.emoji};});
     // Contagem PESSOAL nos botões fixos do Automático (jan/jul/h2a):
     // mostra o que AINDA dá pra enviar (desconta o que o usuário já enviou),
     // em vez do total bruto da planilha que confundia ("já enviei 2.200, por
