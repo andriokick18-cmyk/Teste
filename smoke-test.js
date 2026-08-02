@@ -347,6 +347,19 @@ async function testAuthWatchdogPush() {
     check("🇧🇷 v86: index.html abre em PORTUGUÊS por padrão (idioma não decidido mais pelo navigator.language)",
       _langInitOk, "inicializador de _curLang não caiu no padrão PT esperado (localStorage → fallback 'pt')");
 
+    // v95 (reestruturação parte 8): o wizard de ativação NUNCA cobre o
+    // caminho do dinheiro — no checkout de doação (#plan-step-2 visível) o
+    // card E o pill somem por completo (o card tampava o passo 4 do
+    // comprovante obrigatório; o pill minimizado tampava o botão "Enviar
+    // doação"). Guarda: o código do wizard precisa checar plan-step-2 e
+    // esconder os dois.
+    const extrasJs = await get("/h2b-extras-user.js");
+    const _wizDoacaoOk = extrasJs.status === 200 &&
+      /doacaoAberta[\s\S]{0,200}plan-step-2/.test(extrasJs.body) &&
+      /if\(doacaoAberta\)\{card\.style\.display="none";pill\.style\.display="none";return;\}/.test(extrasJs.body);
+    check("💎 v95: wizard de ativação some por completo (card+pill) durante o checkout de doação",
+      _wizDoacaoOk, `status=${extrasJs.status} — lógica doacaoAberta/plan-step-2 não encontrada no h2b-extras-user.js`);
+
     // v34: páginas privadas proibidas de indexar + CSP deixa o Analytics carregar
     const admPage = await get("/admin");
     check("GET /admin manda X-Robots-Tag noindex (página privada fora do Google)",

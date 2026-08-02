@@ -383,6 +383,12 @@ async function checkActivation(){
     // formulário com o card (aparecia POR CIMA do editor, atrapalhando a
     // própria ação que ele promove). Só o pill discreto fica.
     const editorAberto=(()=>{try{const ov=document.getElementById("profile-editor-overlay");return ov&&!ov.classList.contains("gone");}catch(e){return false;}})();
+    // v95 (reestruturação parte 8): no CHECKOUT DE DOAÇÃO o wizard SOME por
+    // completo — o card cobria o passo 4 (comprovante *obrigatório*) e até o
+    // pill minimizado tampava o botão "Enviar doação". Dinheiro nunca é
+    // coberto; quando o checkout fecha, o próximo tick (45s) traz de volta.
+    const doacaoAberta=(()=>{try{const s2=document.getElementById("plan-step-2");return s2&&s2.style.display!=="none";}catch(e){return false;}})();
+    if(doacaoAberta){card.style.display="none";pill.style.display="none";return;}
     const minimized=LS("wizMin")||editorAberto;
     card.style.display=minimized?"none":"block";
     pill.style.display=minimized?"block":"none";
@@ -404,6 +410,16 @@ setTimeout(()=>{try{
   const ov=document.getElementById("profile-editor-overlay");
   if(ov&&window.MutationObserver){
     new MutationObserver(()=>{ if(!ov.classList.contains("gone")&&card.style.display==="block"){card.style.display="none";pill.style.display="block";} }).observe(ov,{attributes:true,attributeFilter:["class"]});
+  }
+  // v95: reação instantânea quando o checkout de doação abre/fecha (o
+  // goToPlanStep2/goToPlanStep1 trocam style.display do #plan-step-2).
+  // Aberto → some tudo (card E pill); fechado → revalida na hora.
+  const s2=document.getElementById("plan-step-2");
+  if(s2&&window.MutationObserver){
+    new MutationObserver(()=>{
+      if(s2.style.display!=="none"){card.style.display="none";pill.style.display="none";}
+      else if(!wDone)checkActivation();
+    }).observe(s2,{attributes:true,attributeFilter:["style"]});
   }
 }catch(e){}},3000);
 
