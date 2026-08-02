@@ -3014,7 +3014,16 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <button class="stab stab-sheet-h2a" id="stab-h2a-jun2026" onclick="setTab('h2a-jun2026')" style="margin-top:8px"><i class="ti ti-plant-2" style="color:#10b981"></i><strong>H-2A Agricultura</strong><span class="stab-cnt" id="sc-h2a">–</span></button>
         </div>
         <div class="search-bar">
-          <div class="search-wrap"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="Cargo, empresa, cidade, estado..." oninput="onSearch()" autocomplete="off" inputmode="search"></div>
+          <!-- v114: busca + seletores SUGESTIVOS de estado e cidade (datalist:
+               digita "mass" → MASSACHUSETTS; "marth" → Martha's Vineyard).
+               As listas vêm de /api/lugares — só lugar que TEM vaga. -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <div class="search-wrap" style="flex:2;min-width:170px"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="Cargo, empresa..." oninput="onSearch()" autocomplete="off" inputmode="search"></div>
+            <input class="search-inp" list="dl-estados" id="q-estado" placeholder="📍 Estado…" autocomplete="off" style="flex:1;min-width:110px;border:1.5px solid var(--border2);border-radius:12px;padding:0 10px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--text)" onchange="qEstadoPick(this.value)">
+            <input class="search-inp" list="dl-cidades" id="q-cidade" placeholder="🏙️ Cidade…" autocomplete="off" style="flex:1;min-width:110px;border:1.5px solid var(--border2);border-radius:12px;padding:0 10px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--text)" onchange="qCidadePick(this.value)">
+            <datalist id="dl-estados"></datalist>
+            <datalist id="dl-cidades"></datalist>
+          </div>
           <div class="filters-row" id="filters-row" style="overflow:visible">
             <button class="fbtn" id="btn-master-filters" onclick="openMasterFilters()" style="font-weight:800;color:#7c3aed;border:1.5px solid rgba(124,58,237,.4);background:rgba(124,58,237,.1);white-space:nowrap">
               <i class="ti ti-adjustments-horizontal"></i> Filtros
@@ -6667,7 +6676,7 @@ function sv(v,...args){
   // Sincronizar bn-profile: nunca fica "active" (abre drawer, não view)
   setTimeout(()=>{g("#bn-profile")?.classList.remove("active");},50);
   VIEWS.forEach(id=>{const ve=g("#v-"+id);if(ve)ve.classList.toggle("gone",id!==v);const si=g("#si-"+id);if(si)si.classList.toggle("active",id===v);const bn=g("#bn-"+id);if(bn)bn.classList.toggle("active",id===v);});
-  if(v==="plans"){setTimeout(()=>updatePlanCalc&&updatePlanCalc(),100);try{loadDiamonds();}catch(e){}}if(v==="hist")renderHist();if(v==="saved")renderSaved();if(v==="profile"){loadProfile();loadTplView();setTimeout(()=>{_loadSoundPref();renderSoundSelector();},100);}
+  if(v==="jobs"){setTimeout(loadLugares,400);}if(v==="plans"){setTimeout(()=>updatePlanCalc&&updatePlanCalc(),100);try{loadDiamonds();}catch(e){}}if(v==="hist")renderHist();if(v==="saved")renderSaved();if(v==="profile"){loadProfile();loadTplView();setTimeout(()=>{_loadSoundPref();renderSoundSelector();},100);}
 
   if(v==="auto"){loadAutoView();if(U.autoJob?.active)startAutoPolling();}
   if(v==="logs"){logSkip=0;logTotal=0;logDone=false;loadLogs();}
@@ -6943,6 +6952,7 @@ function setTab(t){
   fGrupos=[];fEtaStatus="";
   tab=t;fCat="all";
   fTitles=[];_titlesTax=null;
+  setTimeout(loadLugares,250); // v114: recarrega sugestões de estado/cidade da planilha nova
   _masterFiltersSyncBadge();
   // FIX: resetar filtros que não existem nas planilhas para não contaminar os resultados
   if(t!=="seasonal"){fWage=0;fWorkers=0;const fw=g("#f-wage");if(fw)fw.value="";const wk=g("#f-workers");if(wk)wk.value="";const fc=g("#f-city");if(fc)fc.value="";}
@@ -7441,6 +7451,40 @@ function onSearch(){clearTimeout(stmr);stmr=setTimeout(()=>{const q=g("#q").valu
 function applyF(){fState=g("#f-state")?.value||"";fWage=parseFloat(g("#f-wage")?.value||0);fWorkers=parseInt(g("#f-workers")?.value||0);fBeginMonths=[..._mfBeginMonths];fSort=g("#mf-sort")?.value||fSort;_masterFiltersSyncBadge();renderJobsFilterChips();if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];g("#jlist").innerHTML="";loadSheetMeta(true);}}
 function setType(t){fType=t;["all","agri","nonag"].forEach(k=>g("#ft-"+k)?.classList.remove("on"));const m={all:"ft-all",agricultural:"ft-agri","non-agricultural":"ft-nonag"};g("#"+m[t])?.classList.add("on");_masterFiltersSyncBadge();if(tab==="seasonal")loadJobs(true);}
 function setStat(s){fStat=s;g("#fs-all")?.classList.toggle("on",s==="all");g("#fs-active")?.classList.toggle("on",s==="active");_masterFiltersSyncBadge();if(tab==="seasonal")loadJobs(true);}
+/* v114: seletores sugestivos de lugar ao lado da busca. As listas vêm de
+   /api/lugares (estados/cidades REAIS da planilha atual + regiões
+   turísticas). Escolheu estado → vira chip de estado (mfAddState, mesmo
+   fluxo do modal); escolheu cidade/região → preenche #f-city e aplica. */
+let _lugaresTab=null;
+async function loadLugares(){
+  try{
+    if(_lugaresTab===tab)return;
+    const d=await fetch("/api/lugares?sheet="+encodeURIComponent(tab),{credentials:"include"}).then(r=>r.json());
+    if(!d.ok)return;
+    _lugaresTab=tab;
+    const de=g("#dl-estados");if(de)de.innerHTML=(d.estados||[]).map(e=>`<option value="${esc(e.n)}">${e.q} vagas</option>`).join("");
+    const dc=g("#dl-cidades");if(dc)dc.innerHTML=
+      (d.regioes||[]).map(r=>`<option value="${esc(r)}">região</option>`).join("")+
+      (d.cidades||[]).map(c=>`<option value="${esc(c.n)}">${esc(c.e||"")} · ${c.q} vaga${c.q>1?"s":""}</option>`).join("");
+  }catch(e){}
+}
+function qEstadoPick(v){
+  v=String(v||"").trim();if(!v)return;
+  // aceita parcial: "mass" → MASSACHUSETTS (primeira opção que contém)
+  const op=[...(g("#dl-estados")?.options||[])].map(o=>o.value);
+  const alvo=op.find(o=>o.toLowerCase()===v.toLowerCase())||op.find(o=>o.toLowerCase().includes(v.toLowerCase()));
+  if(!alvo){toast("Estado não encontrado nesta planilha","r");return;}
+  const el=g("#q-estado");if(el)el.value="";
+  if(typeof mfAddState==="function")mfAddState(alvo);else{const fs2=g("#f-state");if(fs2)fs2.value=alvo;}
+  applyF();
+  toast("📍 "+alvo+" filtrado","g");
+}
+function qCidadePick(v){
+  v=String(v||"").trim();
+  const fc=g("#f-city");if(fc)fc.value=v;
+  applyF();
+  if(v)toast("🏙️ Filtrando por "+v,"g");
+}
 function setSort(s){fSort=s;const _mf=g("#mf-sort");if(_mf&&[..._mf.options].some(o=>o.value===s))_mf.value=s;["rand:random","match:match","wage:wage","start:start","desc:desc"].forEach(p=>{const[i,v]=p.split(":");g("#so-"+i)?.classList.toggle("on",s===v);});if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}
 
 const PAGE=25;

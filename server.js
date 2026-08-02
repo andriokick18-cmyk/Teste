@@ -12989,6 +12989,37 @@ const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filte
   // ok:false e o front fica no inglês em silêncio — nunca bloqueia.
   // Regra 13i: body só via JSON.parse(await readBody), try/catch sempre
   // devolvendo JSON.
+  // ── v114: 🗺️ /api/lugares — estados e cidades REAIS da planilha (pra
+  // os seletores sugestivos do lado da busca). Deriva dos dados: só
+  // sugere lugar que TEM vaga. Regiões turísticas entram na lista de
+  // cidades (a busca já sabe expandi-las — v111b/v113). Cache 5min.
+  if(pathname==="/api/lugares"&&req.method==="GET"){
+    try{
+      const shKey=(u.searchParams.get("sheet")||"seasonal").slice(0,40);
+      global._lugaresCache=global._lugaresCache||{};
+      const hit=global._lugaresCache[shKey];
+      if(hit&&Date.now()-hit.at<300000)return json(res,200,hit.data);
+      let rows;
+      if(shKey==="seasonal")rows=getAllSheets().filter(r=>r.e&&r.e.includes("@"));
+      else{const sh=getSheet(shKey);rows=Array.isArray(sh)?sh:[];}
+      const est={},cid={};
+      for(const r of rows){
+        const s=String(r.s||"").toUpperCase().trim();
+        const c=String(r.ci||"").trim();
+        if(s&&s!=="–")est[s]=(est[s]||0)+1;
+        if(c&&c!=="–")cid[c+"|"+s]=(cid[c+"|"+s]||0)+1;
+      }
+      const data={
+        ok:true,
+        estados:Object.entries(est).sort((a,b)=>b[1]-a[1]).map(([n,q])=>({n,q})),
+        cidades:Object.entries(cid).sort((a,b)=>b[1]-a[1]).slice(0,1500).map(([k,q])=>{const[n,e]=k.split("|");return{n,e,q};}),
+        regioes:["Martha's Vineyard","Cape Cod","Nantucket","Florida Keys","Outer Banks","Hamptons","Lake Tahoe","Jackson Hole","Mackinac","Smoky Mountains","Wisconsin Dells","Myrtle Beach","Hilton Head","Gulf Shores","Ocean City","Branson","Aspen","Vail","Yellowstone","Poconos","Adirondacks","Door County","Destin"],
+      };
+      global._lugaresCache[shKey]={at:Date.now(),data};
+      return json(res,200,data);
+    }catch(e){return json(res,500,{ok:false,error:e.message});}
+  }
+
   if(pathname==="/api/traduzir-vaga"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
     try{

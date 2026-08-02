@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v77"; // v77 (02/08): filtro de CIDADE do modal Filtros entende região + apóstrofo/acento (Martha´s Vineyard → Edgartown/Oak Bluffs/Tisbury) e o campo ganhou destaque roxo com exemplo.
+const CACHE_NAME = "h2bapply-v78"; // v78 (02/08): seletores SUGESTIVOS de Estado e Cidade ao lado da busca de vagas (datalist com lugares reais da planilha + regiões) — digitou "mass", aparece MASSACHUSETTS.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
