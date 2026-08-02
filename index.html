@@ -429,12 +429,13 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 /* Sidebar */
 .sidebar{display:none}
 @media(min-width:768px){
-  .sidebar{display:flex;flex-direction:column;width:220px;min-width:220px;background:#ffffff;border-right:1px solid rgba(99,102,241,.12);overflow-y:auto;flex-shrink:0;padding:6px 5px}
+  /* v103: +48px de largura — o chat IA agora mora fixo na sidebar (dono, 02/08) */
+  .sidebar{display:flex;flex-direction:column;width:268px;min-width:268px;background:#ffffff;border-right:1px solid rgba(99,102,241,.12);overflow-y:auto;flex-shrink:0;padding:6px 5px}
   .bottom-nav{display:none}
   .main-area{flex:1;overflow:hidden;display:flex;flex-direction:column;min-width:0}
 }
 @media(min-width:1200px){
-  .sidebar{width:240px;min-width:240px}
+  .sidebar{width:290px;min-width:290px}
   .app-hdr{height:56px}
   .view-scroll{padding:20px 24px}
 }
@@ -443,6 +444,26 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .sb-lbl{font-size:10px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;padding:0 5px;margin-bottom:2px}
 .sb-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:11px;font-size:13px;color:var(--t2);cursor:pointer;transition:all .13s;border:none;background:none;width:100%;font-family:inherit;font-weight:600;position:relative}
 .sb-item:hover{background:var(--sf2);color:var(--text);transform:translateX(2px)}
+/* v103: MENU em destaque roxo (era "Ver tudo") */
+.sb-item-menu{background:linear-gradient(135deg,rgba(124,58,237,.14),rgba(99,102,241,.10))!important;border:1.5px solid rgba(124,58,237,.38)!important;color:#7c3aed!important;font-weight:800!important;letter-spacing:.05em}
+.sb-item-menu i{color:#7c3aed!important}
+.sb-item-menu:hover{background:linear-gradient(135deg,rgba(124,58,237,.22),rgba(99,102,241,.16))!important}
+[data-theme="dark"] .sb-item-menu{color:#c4b5fd!important;border-color:rgba(167,139,250,.4)!important}
+[data-theme="dark"] .sb-item-menu i{color:#c4b5fd!important}
+/* v103: 🤖 chat IA fixo na sidebar (substitui o botão flutuante) */
+#ia-side{display:flex;flex-direction:column;flex:1;min-height:290px;margin:8px 3px 4px;border:1.5px solid var(--border2);border-radius:14px;background:var(--surface);overflow:hidden;position:relative}
+.ia-side-hdr{background:linear-gradient(135deg,#0c4a6e,#0891b2);color:#fff;padding:8px 10px;font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:6px;flex-shrink:0}
+.ia-side-hdr button{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:7px;width:24px;height:24px;cursor:pointer;font-size:11px;flex-shrink:0}
+#iaf-msgs{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px;display:flex;flex-direction:column;gap:8px;min-height:120px}
+.ia-side-in{display:flex;gap:6px;padding:7px 8px;border-top:1px solid var(--border);flex-shrink:0}
+.ia-side-in input{flex:1;min-width:0;height:34px;border-radius:9px;border:1.5px solid var(--border2);background:var(--sf2);padding:0 10px;font-size:12.5px;font-family:inherit;color:var(--text)}
+.ia-side-in button{height:34px;padding:0 11px;border:none;border-radius:9px;background:var(--blue);color:#fff;cursor:pointer;flex-shrink:0}
+.iaf-bub{max-width:88%;padding:8px 12px;border-radius:14px;font-size:12.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.iaf-user{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+.iaf-bot{align-self:flex-start;background:var(--sf2);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px}
+/* v103: balão-convite rotativo (50+ frases) — aparece por cima do chat sem atrapalhar */
+#ia-side-balloon{display:none;position:absolute;top:36px;left:8px;right:8px;z-index:6;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:12px;border-bottom-left-radius:4px;padding:9px 12px;font-size:12px;font-weight:700;line-height:1.5;box-shadow:0 8px 24px rgba(79,70,229,.4);animation:hxUp .3s ease;cursor:pointer}
+#ia-side-balloon.show{display:block}
 .sb-item.active{background:rgba(99,102,241,.12);color:#4f46e5;font-weight:800}
 .sb-item.active i{color:#4f46e5!important}
 [data-theme="dark"] .sb-item.active{background:rgba(129,140,248,.16);color:#a5b4fc}
@@ -2131,7 +2152,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 /* Sidebar desktop — simplificada */
 @media(min-width:768px){
   .bottom-nav{display:none}
-  .sidebar{display:flex;flex-direction:column;width:220px;min-width:220px}
+  .sidebar{display:flex;flex-direction:column;width:268px;min-width:268px}
   /* sb-profile card */
   .sb-profile{padding:8px 6px 4px}
 }
@@ -2721,12 +2742,30 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <button class="sb-item" id="si-noticias" onclick="sv('noticias');loadNoticias()"><i class="ti ti-news"></i>Notícias H-2B<span class="sb-badge" id="sib-noticias" style="display:none;background:var(--red);color:#fff">NOVA</span></button>
         <button class="sb-item" id="si-hist" onclick="sv('hist')"><i class="ti ti-history"></i>Enviadas<span class="sb-badge sb-badge-g" id="sib-hist" style="display:none"></span></button>
         <button class="sb-item" id="si-notificacoes" onclick="sv('notificacoes')"><i class="ti ti-bell"></i>Notificações<span class="sb-badge" id="sib-notificacoes" style="display:none;background:#7c3aed;color:#fff"></span></button>
-        <button class="sb-item" onclick="openDrawer()"><i class="ti ti-dots-circle-horizontal"></i>Ver tudo</button>
+        <!-- v103: "Ver tudo" virou MENU com destaque roxo (pedido do dono) -->
+        <button class="sb-item sb-item-menu" id="si-menu" onclick="openDrawer()"><i class="ti ti-layout-grid"></i>MENU</button>
       </div>
 
       <div class="sb-sec" id="sb-admin-sec" style="display:none">
         <div class="sb-lbl">Admin</div>
         <button class="sb-item" onclick="location.href='/admin'"><i class="ti ti-shield"></i>Painel Admin</button>
+      </div>
+
+      <!-- v103: 🤖 CHAT IA SEMPRE ABERTO — mora fixo aqui, abaixo das abas
+           (abaixo de Painel Admin pro admin, abaixo de MENU pro usuário
+           comum). Substitui o botão flutuante por ordem do dono (02/08).
+           Mesmos ids/lógica do chat de sempre (iaf-*) — nada duplicado. -->
+      <div id="ia-side">
+        <div id="ia-side-balloon"></div>
+        <div class="ia-side-hdr">
+          <span>🤖 Assistente H2B</span>
+          <button onclick="sv('iaChat')" aria-label="Abrir em tela cheia" title="Abrir em tela cheia"><i class="ti ti-arrows-maximize"></i></button>
+        </div>
+        <div id="iaf-msgs"></div>
+        <div class="ia-side-in">
+          <input id="iaf-input" placeholder="Pergunte qualquer coisa…" onkeydown="if(event.key==='Enter')iaFloatSend()">
+          <button aria-label="Enviar mensagem" title="Enviar mensagem" id="iaf-send" onclick="iaFloatSend()"><i class="ti ti-send"></i></button>
+        </div>
       </div>
 
       <!-- RODAPÉ: modo escuro + cartão do usuário (layout do print) -->
@@ -15390,45 +15429,14 @@ setTimeout(async()=>{
   }catch(e){}
 },4000);
 </script>
-<!-- ══ 🤖 IA FLUTUANTE (v25, pedido do dono): assistente sempre à mão ══
-     Botão fixo que abre um painel de chat MINIMIZÁVEL por cima de qualquer
-     tela — pergunta sobre H-2B, experiências reais da equipe e uso do app
-     sem sair do que estava fazendo. Mesmo backend do IA Chat (/api/gemini). -->
-<style>
-#ia-fab{position:fixed;right:14px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:900;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#0891b2,#6366f1);color:#fff;border:none;box-shadow:0 6px 20px rgba(8,145,178,.45);font-size:24px;cursor:pointer;display:none;align-items:center;justify-content:center;transition:transform .15s}
-#ia-fab:active{transform:scale(.92)}
-#ia-float{position:fixed;right:10px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:901;width:min(370px,calc(100vw - 20px));max-height:min(540px,72dvh);background:var(--surface);border:1.5px solid var(--border2);border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.28);display:none;flex-direction:column;overflow:hidden}
-#ia-float.open{display:flex}
-.iaf-bub{max-width:85%;padding:8px 12px;border-radius:14px;font-size:12.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
-.iaf-user{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:4px}
-.iaf-bot{align-self:flex-start;background:var(--sf2);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px}
-</style>
-<button id="ia-fab" onclick="iaFloatToggle()" title="Assistente IA — tire qualquer dúvida sobre H-2B e o app">🤖</button>
-<div id="ia-float">
-  <div style="background:linear-gradient(135deg,#0c4a6e,#0891b2);color:#fff;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0">
-    <div style="min-width:0">
-      <div style="font-size:13px;font-weight:800;display:flex;align-items:center;gap:6px">🤖 Assistente H2B</div>
-      <div style="font-size:10px;opacity:.8">Dúvidas de H-2B, experiências reais e uso do app</div>
-    </div>
-    <div style="display:flex;gap:4px;flex-shrink:0">
-      <button onclick="closeTour&&closeTour();iaFloatToggle();sv('iaChat')" title="Abrir em tela cheia" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:7px;width:26px;height:26px;cursor:pointer;font-size:12px"><i class="ti ti-arrows-maximize"></i></button>
-      <button onclick="iaFloatToggle()" title="Minimizar" style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:7px;width:26px;height:26px;cursor:pointer;font-size:14px;font-weight:800">—</button>
-    </div>
-  </div>
-  <div id="iaf-msgs" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:180px"></div>
-  <div style="display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0">
-    <input id="iaf-input" placeholder="Pergunte qualquer coisa…" style="flex:1;height:38px;border-radius:10px;border:1.5px solid var(--border2);background:var(--sf2);padding:0 12px;font-size:13px;font-family:inherit;color:var(--text)" onkeydown="if(event.key==='Enter')iaFloatSend()">
-    <button aria-label="Enviar mensagem" title="Enviar mensagem" id="iaf-send" onclick="iaFloatSend()" class="btn btn-primary" style="height:38px;padding:0 14px"><i class="ti ti-send"></i></button>
-  </div>
-</div>
+<!-- ══ 🤖 CHAT IA NA SIDEBAR (v103, pedido do dono — substitui a janela
+     flutuante do v25): o painel #ia-side mora FIXO na sidebar, sempre
+     aberto em tempo real. Mesmo backend do IA Chat (/api/gemini) e mesma
+     lógica iaf-* de sempre — só mudou de casa. No celular (sem sidebar),
+     o acesso é pelo MENU ☰ e pela aba IA Chat. -->
 <script>
 let _iafMsgs=[],_iafBusy=false;
 try{_iafMsgs=JSON.parse(sessionStorage.getItem("h2b_iaf")||"[]");}catch(e){}
-function iaFloatToggle(){
-  const p=g("#ia-float");if(!p)return;
-  p.classList.toggle("open");
-  if(p.classList.contains("open")){_iafRender();setTimeout(()=>g("#iaf-input")?.focus(),150);}
-}
 function _iafRender(){
   const box=g("#iaf-msgs");if(!box)return;
   if(!_iafMsgs.length){
@@ -15455,8 +15463,90 @@ async function iaFloatSend(){
   try{sessionStorage.setItem("h2b_iaf",JSON.stringify(_iafMsgs));}catch(e){}
   _iafBusy=false;_iafRender();
 }
-// FAB aparece só logado (checa a cada troca de estado, leve)
-setInterval(()=>{const f=g("#ia-fab");if(!f)return;const want=(typeof U!=="undefined"&&U.connected)?"flex":"none";if(f.style.display!==want)f.style.display=want;},1500);
+// v103: pinta a saudação assim que a página carrega (o chat está sempre visível)
+setTimeout(_iafRender,800);
+
+/* ═══ v103: BALÕES-CONVITE DO CHAT (pedido do dono: "50+ mensagens em
+   balão que aparecem pro usuário sem atrapalhar") ═══
+   A cada ~2min, se a pessoa nunca usou o chat e não está digitando nele,
+   um balão roxo aparece por 8s em cima do painel com uma frase aleatória.
+   Clicar no balão foca o campo de pergunta. Some sozinho. */
+const _IA_BALLOONS=[
+  "💬 Tire suas dúvidas sobre o programa aqui!",
+  "🇺🇸 Tire suas dúvidas sobre o visto H-2B aqui!",
+  "🌾 Dúvidas sobre o visto H-2A? Pergunte aqui!",
+  "🤖 Eu te ajudo em TUDO sobre o app — pergunte!",
+  "📄 Não sabe montar o currículo? Me pergunta!",
+  "✉️ Recebeu e-mail de empresa em inglês? Eu traduzo!",
+  "📝 Te ajudo a escrever a resposta em inglês!",
+  "❓ Qual a diferença entre H-2B e H-2A? Pergunta!",
+  "💼 Quer saber quais vagas combinam com você?",
+  "🗓️ Dúvida sobre as temporadas de inverno e verão?",
+  "💰 Quanto ganha um trabalhador H-2B? Pergunte!",
+  "🏨 Housekeeping, cozinha, paisagismo… conheço tudo!",
+  "🎤 Vai fazer entrevista? Eu te ajudo a treinar!",
+  "🛂 Dúvidas sobre a entrevista no consulado?",
+  "📋 O que é o ETA Case Number? Eu explico!",
+  "🚀 Como funciona o Envio Automático? Pergunta!",
+  "🔍 Como achar vagas com e-mail? Eu te mostro!",
+  "💎 Dúvidas sobre diamantes e planos? Pergunte!",
+  "🎁 Como ganhar diamantes de graça? Eu conto!",
+  "📊 Quer entender seu painel de números? Pergunta!",
+  "🌱 O que é o aquecimento do Gmail? Eu explico!",
+  "📧 Posso usar 2 contas de Gmail? Pergunte!",
+  "⏰ Qual o melhor horário pra enviar candidatura?",
+  "🏆 Como subir no ranking? Eu te dou dicas!",
+  "🗽 Sonha em trabalhar nos EUA? Começa por aqui!",
+  "❄️ Temporada de inverno: quando se candidatar?",
+  "☀️ Temporada de verão: quando abrem as vagas?",
+  "📅 Quando sai a nova planilha do DOL? Pergunta!",
+  "🧾 O que a empresa paga pra você? Eu explico!",
+  "🏠 Quem paga a moradia no H-2B? Pergunte!",
+  "✈️ Quem paga a passagem? Tire a dúvida aqui!",
+  "👷 Precisa de experiência pra ir? Pergunta!",
+  "🗣️ Precisa falar inglês? Eu te conto a real!",
+  "📖 Não entendeu uma vaga? Cola o texto aqui!",
+  "🔤 Te ajudo com o inglês do seu e-mail!",
+  "💪 Já mandou candidatura hoje? Posso ajudar!",
+  "🎯 O que é a nota de match da vaga? Eu explico!",
+  "📈 Quantos e-mails por dia é o ideal? Pergunta!",
+  "🚫 E-mail voltou (bounce)? Eu explico o que é!",
+  "🕐 Empresa não respondeu? Veja o que fazer!",
+  "📞 Empresa pediu seu WhatsApp? Te ajudo a responder!",
+  "🎉 Recebeu uma resposta? Cola aqui que eu traduzo!",
+  "📆 O que significa a data de início da vaga?",
+  "🌎 Quais estados têm mais vagas? Pergunte!",
+  "🦀 Seafood no Maryland? Conheço as vagas!",
+  "⛳ Golf course, hotel, parque… qual combina com você?",
+  "📚 Primeira vez no H-2B? Começa perguntando aqui!",
+  "🔁 Pode voltar todo ano? Eu explico como funciona!",
+  "👨‍👩‍👧 Pode levar a família? Tire a dúvida!",
+  "🪪 O que é o I-94? Eu explico rapidinho!",
+  "⚖️ Seus direitos como trabalhador H-2B — pergunte!",
+  "🏦 Como abrir conta bancária nos EUA? Pergunta!",
+  "🧳 O que levar na mala? Dicas de quem já foi!",
+  "❤️ Tô aqui 24h pra te ajudar — é só perguntar!",
+];
+let _iaBalloonTimer=null;
+function _iaBalloonTick(){
+  try{
+    const b=g("#ia-side-balloon");if(!b)return;
+    // só faz sentido com a sidebar visível (layout de computador)
+    const side=g("#ia-side");if(!side||side.offsetParent===null)return;
+    if(typeof U==="undefined"||!U.connected)return;
+    if(_iafMsgs.length)return;               // já usa o chat — convite cumprido
+    if(document.activeElement===g("#iaf-input"))return; // está digitando
+    b.textContent=_IA_BALLOONS[Math.floor(Math.random()*_IA_BALLOONS.length)];
+    b.classList.add("show");
+    setTimeout(()=>b.classList.remove("show"),8000);
+  }catch(e){}
+}
+document.addEventListener("DOMContentLoaded",()=>{
+  const b=g("#ia-side-balloon");
+  if(b)b.onclick=()=>{b.classList.remove("show");g("#iaf-input")?.focus();};
+  setTimeout(_iaBalloonTick,20000);                      // 1º convite: 20s
+  _iaBalloonTimer=setInterval(_iaBalloonTick,120000);    // depois: a cada 2min
+});
 </script>
 <!-- ══ 📊 DESEMPENHO DOS MEUS TEXTOS (v23) ══ -->
 <div class="overlay gone" id="text-stats-overlay" onclick="if(event.target===this)g('#text-stats-overlay').classList.add('gone')">

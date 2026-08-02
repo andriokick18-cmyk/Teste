@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v68"; // v68 (02/08): reestruturação parte 12 (consistência global) — 30 botões só-ícone ganharam aria-label/title PT (acessibilidade: leitor de tela e tooltip); varreduras de inglês esquecido e classes CSS órfãs passaram limpas.
+const CACHE_NAME = "h2bapply-v69"; // v69 (02/08): 🤖 chat IA mora FIXO na sidebar (fim do botão flutuante, ordem do dono) + "Ver tudo" virou MENU roxo + sidebar +48px + 54 balões-convite rotativos.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

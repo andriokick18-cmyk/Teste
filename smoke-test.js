@@ -347,6 +347,18 @@ async function testAuthWatchdogPush() {
     check("🇧🇷 v86: index.html abre em PORTUGUÊS por padrão (idioma não decidido mais pelo navigator.language)",
       _langInitOk, "inicializador de _curLang não caiu no padrão PT esperado (localStorage → fallback 'pt')");
 
+    // v103: 🤖 chat IA mora FIXO na sidebar (ordem do dono, 02/08 — revoga a
+    // janela flutuante do v25). Guarda: painel #ia-side existe, o botão
+    // flutuante #ia-fab NÃO existe mais, "Ver tudo" virou MENU roxo, e o
+    // convite rotativo tem 50+ frases (pedido literal do dono).
+    const _iaSideOk = home.body.includes('id="ia-side"') &&
+      !home.body.includes('id="ia-fab"') &&
+      home.body.includes('sb-item-menu') && home.body.includes(">MENU<") &&
+      home.body.includes("_IA_BALLOONS") &&
+      (home.body.match(/\n\s{2}"[^"\n]{10,60}",/g)||[]).length >= 50;
+    check("🤖 v103: chat IA fixo na sidebar (sem botão flutuante, MENU roxo, 50+ balões-convite)",
+      _iaSideOk, "ia-side/MENU/_IA_BALLOONS(50+) não conferem — ou o ia-fab voltou");
+
     // v100: 🖥️ Modo computador — toggle que força o layout desktop no
     // celular/app trocando o <meta viewport> pra largura fixa (igual "site
     // para computador" do Chrome). Preferência do aparelho em localStorage

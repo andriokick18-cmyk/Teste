@@ -61,7 +61,14 @@
 11. **Aba Notícias**: anúncios do DOL desde jan/2026 traduzidos
     automaticamente + pesquisa diária da IA na internet (máx 2/dia, só
     novidade real, sempre com fonte e link).
-12. **IA Gemini sempre à mão**: janela flutuante minimizável em toda tela;
+12. **IA Gemini sempre à mão (dono, 02/08/2026 — substitui a janela
+    flutuante do v25)**: o chat mora FIXO e SEMPRE ABERTO na sidebar
+    (#ia-side, abaixo das abas — abaixo de Painel Admin pro admin, abaixo
+    de MENU pro usuário comum). O botão flutuante 🤖 foi REMOVIDO de vez
+    (ordem expressa). No celular (sem sidebar) o acesso é pelo MENU ☰ e
+    pela aba IA Chat. Balões-convite rotativos (54 frases, ~2min, só pra
+    quem nunca usou o chat, nunca enquanto digita) chamam pro chat sem
+    atrapalhar. "Ver tudo" na sidebar virou MENU com destaque roxo;
     cérebro treinável pelo painel admin (experiências de Andrio, Diego,
     Eudes e clientes); preços/regras SEMPRE dinâmicos da fonte oficial do
     código (nunca hardcoded no prompt).
