@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v66"; // v66 (02/08): 🖥️ Modo computador — toggle no menu ☰ que força o layout de computador no celular/app (viewport 1100px), com preferência salva no aparelho.
+const CACHE_NAME = "h2bapply-v67"; // v67 (02/08): 🖥️ Modo computador em DESTAQUE — seletor grande 📱/🖥️ no topo do menu ☰ (o botão no rodapé estava escondido, feedback do dono); drawer fica aberto pra comparar os modos ao vivo.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

@@ -172,7 +172,7 @@ a{color:inherit;text-decoration:none}
 [data-theme="dark"] ::-webkit-scrollbar-track{background:transparent}
 
 /* ══ THEME TOGGLE BUTTON ══ */
-#theme-toggle-btn,#desktop-toggle-btn{
+#theme-toggle-btn{
   display:flex;align-items:center;gap:7px;
   padding:9px 14px;
   border-radius:var(--r);
@@ -184,8 +184,15 @@ a{color:inherit;text-decoration:none}
   width:100%;
   transition:background .15s,color .15s;
 }
-#theme-toggle-btn:hover,#desktop-toggle-btn:hover{background:var(--sf3)}
-#theme-toggle-btn i,#desktop-toggle-btn i{font-size:17px}
+#theme-toggle-btn:hover{background:var(--sf3)}
+#theme-toggle-btn i{font-size:17px}
+/* v101: seletor GRANDE 📱/🖥️ no topo do drawer (dono: o botão no rodapé
+   estava escondido demais — o usuário tem que VER e testar os dois modos) */
+.mode-sel-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:var(--sf2);border:2px solid var(--border2);border-radius:14px;padding:14px 8px;font-size:12.5px;font-weight:800;color:var(--text);cursor:pointer;font-family:inherit;transition:all .12s}
+.mode-sel-btn i{font-size:24px}
+.mode-sel-btn:active{transform:scale(.97)}
+.mode-sel-btn.active{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-color:transparent;color:#fff;box-shadow:0 6px 18px rgba(99,102,241,.35)}
+.mode-sel-btn.active i{color:#fff}
 
 /* ══ USA THEMED BACKGROUND ══ */
 .usa-bg{position:relative}
@@ -5600,6 +5607,12 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <!-- v99: atalho Currículos no drawer (mesma queixa do dono: "não acham o editor") — e fecha a linha órfã do grid de 5 -->
         <button onclick="closeDrawer();sv('profile');setTimeout(()=>{if(typeof switchProfileTab==='function')switchProfileTab('profiles')},120)" class="d-quick-btn"><i class="ti ti-file-cv" style="color:#7c3aed"></i><span>Currículos</span></button>
       </div>
+      <!-- v101: seletor de modo GRANDE — o drawer fica aberto de propósito pra pessoa alternar e comparar -->
+      <div style="font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin:14px 0 8px">Como prefere ver o app?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button id="mode-cel-btn" class="mode-sel-btn active" onclick="setDesktopMode(false)"><i class="ti ti-device-mobile"></i><span>Modo celular</span></button>
+        <button id="mode-pc-btn" class="mode-sel-btn" onclick="setDesktopMode(true)"><i class="ti ti-device-desktop"></i><span>Modo computador</span></button>
+      </div>
     </div>
     <div style="height:1px;background:var(--border);margin:0 12px"></div>
     <!-- Lista principal -->
@@ -5674,13 +5687,6 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <button id="theme-toggle-btn" onclick="toggleTheme()">
           <i class="ti ti-moon-stars" id="theme-icon"></i>
           <span id="theme-label">Modo escuro</span>
-        </button>
-      </div>
-      <!-- v100: 🖥️ MODO COMPUTADOR — força o layout de computador no celular/app (igual "site para computador" do Chrome) -->
-      <div style="padding:4px 10px 4px">
-        <button id="desktop-toggle-btn" onclick="toggleDesktopMode()">
-          <i class="ti ti-device-desktop" id="desktop-mode-icon"></i>
-          <span id="desktop-mode-label">Modo computador</span>
         </button>
       </div>
     </div>
@@ -6540,17 +6546,19 @@ function _applyDesktopMode(){
   var on=localStorage.getItem('h2b_desktop')==='1';
   var m=document.querySelector('meta[name="viewport"]');
   if(m)m.setAttribute('content',on?'width=1100':'width=device-width,initial-scale=1,viewport-fit=cover');
-  var lb=document.getElementById('desktop-mode-label');
-  var ic=document.getElementById('desktop-mode-icon');
-  if(lb)lb.textContent=on?'Modo celular':'Modo computador';
-  if(ic)ic.className='ti '+(on?'ti-device-mobile':'ti-device-desktop');
+  var bc=document.getElementById('mode-cel-btn');
+  var bp=document.getElementById('mode-pc-btn');
+  if(bc)bc.classList.toggle('active',!on);
+  if(bp)bp.classList.toggle('active',on);
 }
-function toggleDesktopMode(){
-  var on=localStorage.getItem('h2b_desktop')==='1';
-  localStorage.setItem('h2b_desktop',on?'0':'1');
+// v101: seleção direta (não mais toggle cego) — o drawer fica ABERTO de
+// propósito: a pessoa alterna 📱/🖥️ quantas vezes quiser e compara ao vivo.
+function setDesktopMode(on){
+  var cur=localStorage.getItem('h2b_desktop')==='1';
+  if(cur===!!on){return;}
+  localStorage.setItem('h2b_desktop',on?'1':'0');
   _applyDesktopMode();
-  try{toast(on?'📱 Voltando ao modo celular':'🖥️ Modo computador ativado','g');}catch(e){}
-  try{closeDrawer();}catch(e){}
+  try{toast(on?'🖥️ Modo computador ativado':'📱 Modo celular ativado','g');}catch(e){}
 }
 
 // Initialize UI after DOM ready
