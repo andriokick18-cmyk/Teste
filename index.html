@@ -15139,6 +15139,16 @@ function showTip(el,html){
 // Banner boas-vindas (1ª vez)
 function _showWelcome(){
   try{if(localStorage.getItem("h2b_ok"))return;}catch(e){}
+  // v88 (reestruturação parte 1 — Home): o checklist de "primeiros passos"
+  // só faz sentido pra quem AINDA não começou. Usuário ESTABELECIDO (já tem
+  // perfil ativo E já enviou pelo menos 1 candidatura) tem a Home limpa —
+  // sem esse card repetindo o que o Tour e o guia "Como usar" já explicam.
+  // Quem ainda não enviou (mesmo com perfil) continua vendo o guia rápido.
+  try{
+    var _profs=((typeof UPROFILES!=="undefined"&&UPROFILES.length)?UPROFILES:((U&&U.profiles)||[])).filter(function(p){return p&&p.active!==false;});
+    var _estabelecido=_profs.length>0 && (U&&(U.totalSent||0)>0);
+    if(_estabelecido){try{localStorage.setItem("h2b_ok","1");}catch(e){} return;}
+  }catch(e){}
   var hdr=document.querySelector(".home-header");
   if(!hdr||document.getElementById("h2b-welcome"))return;
   var b=document.createElement("div");

@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v54"; // v54 (01/08): aba admin "📥 Baixar Planilhas" (v87) — baixa todas as vagas de uma planilha em HTML pesquisável ou CSV.
+const CACHE_NAME = "h2bapply-v55"; // v55 (01/08): reestruturação parte 1 (Home) — card de boas-vindas só aparece pra quem ainda não configurou; usuário estabelecido tem a Home limpa.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
