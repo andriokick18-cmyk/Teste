@@ -338,8 +338,8 @@ card.innerHTML=`<button id="hxw-min" title="Minimizar">—</button>
 <p>Seu robô de candidaturas ainda <b>não pode trabalhar</b> — falta o Perfil de Currículo. Leva 3 minutos e destrava tudo (manual e automático).</p>
 <div id="hxw-prog"><div style="width:0%"></div></div>
 <div class="hxw-step" id="hxw-s1"><span class="st">1</span><span>Anexar seu currículo (PDF)</span></div>
-<div class="hxw-step" id="hxw-s2"><span class="st">2</span><span>Escolher o assunto do e-mail (temos modelos prontos)</span></div>
-<div class="hxw-step" id="hxw-s3"><span class="st">3</span><span>Escolher o corpo do e-mail (modelos prontos em inglês)</span></div>
+<div class="hxw-step" id="hxw-s2"><span class="st">2</span><span>Escrever 3 assuntos de e-mail (do seu jeito)</span></div>
+<div class="hxw-step" id="hxw-s3"><span class="st">3</span><span>Escrever 3 textos de e-mail (em inglês)</span></div>
 <button id="hxw-cta">✨ Criar meu perfil agora</button>`;
 document.body.appendChild(card);
 const pill=document.createElement("button"); pill.id="hxw-pill"; pill.textContent="🚀 Ativar robô";
@@ -378,7 +378,12 @@ async function checkActivation(){
       return;
     }
     paint(st);
-    const minimized=LS("wizMin");
+    // v93 (reestruturação parte 6): se o EDITOR DE PERFIL já está aberto, o
+    // usuário está fazendo exatamente o que o wizard pede — não cobrir o
+    // formulário com o card (aparecia POR CIMA do editor, atrapalhando a
+    // própria ação que ele promove). Só o pill discreto fica.
+    const editorAberto=(()=>{try{const ov=document.getElementById("profile-editor-overlay");return ov&&!ov.classList.contains("gone");}catch(e){return false;}})();
+    const minimized=LS("wizMin")||editorAberto;
     card.style.display=minimized?"none":"block";
     pill.style.display=minimized?"block":"none";
   }catch(e){}
@@ -393,6 +398,14 @@ card.querySelector("#hxw-cta").onclick=()=>{
 };
 card.querySelector("#hxw-min").onclick=()=>{LS("wizMin",true);card.style.display="none";pill.style.display="block";};
 pill.onclick=()=>{LS("wizMin",false);pill.style.display="none";card.style.display="block";};
+// v93: esconde o card NA HORA em que o editor de perfil abre (o intervalo de
+// 45s demoraria — o card ficava na frente do formulário até lá).
+setTimeout(()=>{try{
+  const ov=document.getElementById("profile-editor-overlay");
+  if(ov&&window.MutationObserver){
+    new MutationObserver(()=>{ if(!ov.classList.contains("gone")&&card.style.display==="block"){card.style.display="none";pill.style.display="block";} }).observe(ov,{attributes:true,attributeFilter:["class"]});
+  }
+}catch(e){}},3000);
 
 // Início: espera login, checa, e repete a cada 45s enquanto incompleto
 if(!LS("wizDone")){
