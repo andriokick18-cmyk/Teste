@@ -3094,6 +3094,10 @@ const deleteCv = (e,i) => {
 let SHEET_JAN = [], SHEET_JUL = [], SHEET_H2A = [];
 let SHEET_EXTRAS = {}; // { "jul2026": [...vagas] } — planilhas extras carregadas via admin
 const SHEETS_DIR = path.join(DATA_DIR, "sheets");
+// v112: 🇧🇷 cache de traduções das "Funções da vaga" — cada descrição é
+// traduzida UMA vez (Gemini) e vale pra todos os usuários pra sempre.
+const TRAD_FILE = path.join(DATA_DIR, "traducoes_vagas.json");
+let DB_TRAD = {}; try{ DB_TRAD = JSON.parse(fs.readFileSync(TRAD_FILE,"utf8"))||{}; }catch{}
 const SHEETS_META_FILE = path.join(DATA_DIR, "sheets_meta.json");
 let DB_SHEETS_META = {}; // { "jul2026": { name, file, uploaded, count, enriched, enrichedAt } }
 
@@ -12955,6 +12959,40 @@ const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filte
   }
 
   if(pathname==="/api/warmup"){res.writeHead(200,{"Content-Type":"application/json"});return res.end(JSON.stringify({ok:true,ts:Date.now()}));}
+
+  // ── v112: 🇧🇷 tradução automática das FUNÇÕES DA VAGA (dono, 02/08:
+  // "deve ser traduzido automático para o português"). Cache em disco por
+  // vaga (1 tradução serve todos os usuários). Sem GEMINI_API_KEY →
+  // ok:false e o front fica no inglês em silêncio — nunca bloqueia.
+  // Regra 13i: body só via JSON.parse(await readBody), try/catch sempre
+  // devolvendo JSON.
+  if(pathname==="/api/traduzir-vaga"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const caseNum=String(d.case||"").slice(0,40);
+      const texto=String(d.text||"").slice(0,6000).trim();
+      if(!texto)return json(res,400,{ok:false,error:"sem texto"});
+      const tKey=caseNum||crypto.createHash("sha1").update(texto).digest("hex").slice(0,16);
+      if(DB_TRAD[tKey]?.pt)return json(res,200,{ok:true,pt:DB_TRAD[tKey].pt,cache:true});
+      const gk=getGeminiKey();if(!gk)return json(res,200,{ok:false,error:"sem-gemini"});
+      const prompt=`Traduza para português do Brasil o texto abaixo (descrição de uma vaga de trabalho H-2B/H-2A nos EUA). Tradução fiel, natural e completa — sem resumir, sem inventar nada, sem comentários. Responda SÓ com a tradução.\n\n${texto}`;
+      let pt="";
+      for(const model of ["gemini-2.0-flash","gemini-2.5-flash-lite","gemini-2.5-flash"]){
+        try{
+          const gu=new URL(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gk}`);
+          const body=JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.15,maxOutputTokens:2000}});
+          const r=await new Promise((rs,rj)=>{const rq=https.request({hostname:gu.hostname,path:gu.pathname+gu.search,method:"POST",headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(body)}},resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{try{rs(JSON.parse(Buffer.concat(ch).toString()));}catch{rj(new Error("parse"));}});});rq.on("error",rj);rq.setTimeout(20000,()=>{rq.destroy();rj(new Error("timeout"));});rq.write(body);rq.end();});
+          pt=(r?.candidates?.[0]?.content?.parts?.[0]?.text||"").trim();
+          if(pt)break;
+        }catch(e){/* tenta o próximo modelo */}
+      }
+      if(!pt)return json(res,200,{ok:false,error:"gemini-indisponivel"});
+      DB_TRAD[tKey]={pt:pt.slice(0,8000),at:Date.now()};
+      try{fs.writeFileSync(TRAD_FILE,JSON.stringify(DB_TRAD));}catch(e){}
+      return json(res,200,{ok:true,pt:DB_TRAD[tKey].pt});
+    }catch(e){return json(res,500,{ok:false,error:e.message});}
+  }
 
   if(pathname==="/api/history"&&req.method==="GET"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});

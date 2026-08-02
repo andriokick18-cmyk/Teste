@@ -7774,6 +7774,7 @@ function mkDetailHTML(j){
     <div class="info-grid">
       <div class="info-box"><div class="info-lbl">Salário</div><div class="info-val">${esc(j.wage&&j.wage!=="–"?j.wage:"A combinar")}</div></div>
       ${_local?`<div class="info-box"><div class="info-lbl">Local</div><div class="info-val">${esc(_local)}</div></div>`:""}
+      ${_local?`<div class="info-box" style="grid-column:1/-1;padding:0;border-color:rgba(52,211,153,.4)"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([j.company,j.addr,j.city,j.state].filter(x=>x&&x!=="–").join(", "))}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:9px;padding:12px 14px;color:#34d399;font-weight:800;font-size:13.5px;text-decoration:none"><i class="ti ti-map-pin-filled" style="font-size:18px"></i>Ver localização no Google Maps<i class="ti ti-external-link" style="margin-left:auto;font-size:14px;opacity:.7"></i></a></div>`:""}
       ${_nWk>0?`<div class="info-box"><div class="info-lbl">Vagas</div><div class="info-val">${_nWk} ${_nWk>1?"vagas":"vaga"}</div></div>`:""}
       ${_periodo?`<div class="info-box"><div class="info-lbl">Período</div><div class="info-val" style="font-size:12px">${esc(_periodo)}</div></div>`:""}
       ${j.phone?`<div class="info-box"><div class="info-lbl">📞 Telefone</div><div class="info-val" style="font-size:12px"><a href="tel:${esc(j.phone)}" style="color:var(--blue)">${esc(j.phone)}</a></div></div>`:""}
@@ -7788,7 +7789,7 @@ function mkDetailHTML(j){
       ${j.caseNum?`<div class="info-box"><div class="info-lbl">🔑 Nº do Caso (ETA)</div><div class="info-val" style="font-size:11px;font-family:monospace">${esc(j.caseNum)}</div></div>`:""}
       ${j.website?`<div class="info-box"><div class="info-lbl">🌐 Site empresa</div><div class="info-val"><a href="${esc(j.website)}" target="_blank" rel="noopener noreferrer" style="color:var(--blue);font-size:11px">${esc(j.website)}</a></div></div>`:""}
       ${j.url?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">🔗 Vaga oficial DOL</div><div class="info-val"><a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" style="color:#818cf8;font-size:12px;display:flex;align-items:center;gap:4px;font-weight:700"><i class="ti ti-external-link"></i>${esc(j.url)}</a></div></div>`:""}
-      ${j.desc?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">📋 Funções da vaga</div><div class="info-val" style="font-size:11px;line-height:1.6;white-space:pre-wrap;max-height:200px;overflow-y:auto;background:rgba(0,0,0,.2);border-radius:8px;padding:8px">${esc(j.desc)}</div></div>`:""}
+      ${j.desc?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">📋 Funções da vaga <span class="vaga-desc-status" style="font-weight:400;text-transform:none"></span></div><div class="info-val vaga-desc-txt" data-case="${esc(j.caseNum||j.id||"")}" style="font-size:12px;line-height:1.7;white-space:pre-wrap;background:rgba(0,0,0,.2);border-radius:8px;padding:10px">${esc(j.desc)}</div></div>`:""}
     </div>
     <div class="jd-acts">
       ${j.hasEmail?`<button class="btn btn-primary" onclick="openModal('${j.id}')"><i class="ti ti-send"></i> Candidatar-se</button>`:`<div style="font-size:13px;color:var(--t3);padding:9px 13px;background:var(--sf2);border-radius:var(--r);border:1.5px solid var(--border)"><i class="ti ti-alert-triangle"></i> Sem e-mail direto</div>`}
@@ -7798,10 +7799,44 @@ function mkDetailHTML(j){
   </div>`;
 }
 
+/* v112: 🇧🇷 tradução automática das Funções da Vaga — o servidor traduz 1x
+   por vaga (cache compartilhado) e o front troca o texto quando chega, com
+   "Ver original em inglês" embaixo. Sem Gemini/erro → fica no inglês em
+   silêncio. */
+const _tradCache={};
+async function _traduzirDescRun(){
+  const els=[...document.querySelectorAll(".vaga-desc-txt:not([data-pt])")];
+  if(!els.length)return;
+  const cs=els[0].getAttribute("data-case")||"";
+  const en=els[0].textContent||"";
+  if(!en.trim())return;
+  els.forEach(e2=>e2.setAttribute("data-pt","1"));
+  const setSt=t=>document.querySelectorAll(".vaga-desc-status").forEach(s=>s.textContent=t);
+  try{
+    let pt=_tradCache[cs||en.slice(0,60)];
+    if(!pt){
+      setSt("· 🇧🇷 traduzindo…");
+      const r=await fetch("/api/traduzir-vaga",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({case:cs,text:en})});
+      const d=await r.json();
+      if(!d.ok){setSt("");return;}
+      pt=d.pt;_tradCache[cs||en.slice(0,60)]=pt;
+    }
+    setSt("· traduzido 🇧🇷");
+    document.querySelectorAll(".vaga-desc-txt").forEach(e2=>{
+      if((e2.getAttribute("data-case")||"")!==cs)return;
+      e2.textContent=pt;
+      const det=document.createElement("details");det.style.marginTop="8px";
+      const sum=document.createElement("summary");sum.textContent="Ver original em inglês";sum.style.cssText="cursor:pointer;font-size:11px;color:var(--t3);font-weight:700";
+      const ori=document.createElement("div");ori.textContent=en;ori.style.cssText="white-space:pre-wrap;margin-top:6px;font-size:11px;color:var(--t3)";
+      det.appendChild(sum);det.appendChild(ori);e2.appendChild(det);
+    });
+  }catch(e){setSt("");}
+}
 function showDetail(html){
   const dc=g("#jd-content");const de=g("#jd-empty");
   if(dc&&de){de.classList.add("gone");dc.style.display="block";dc.innerHTML=html;}
   const mc=g("#mob-detail-content");if(mc)mc.innerHTML=html;
+  setTimeout(_traduzirDescRun,80); // v112: dispara a tradução da descrição
   g("#mob-detail")?.classList.add("show");
 }
 function closeMobDetail(){g("#mob-detail")?.classList.remove("show");}
@@ -17176,7 +17211,7 @@ console.debug("[v14+] Onboarding, FAQ, Preview Auto, Follow-up, Score carregados
       ${item.soc||item.socTitle ? `<div class="info-box"><div class="info-lbl">🏷️ Classificação SOC</div><div class="info-val" style="font-size:11px">${_e((item.soc||"")+" "+(item.socTitle||"")).trim()}</div></div>` : ""}
       ${item.caseNum ? `<div class="info-box"><div class="info-lbl">🔑 ETA Case #</div><div class="info-val" style="font-size:11px;font-family:monospace">${_e(item.caseNum)}</div></div>` : ""}
       ${dolUrl ? `<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">🔗 Vaga oficial DOL</div><div class="info-val"><a href="${_e(dolUrl)}" target="_blank" rel="noopener noreferrer" style="color:#818cf8;font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px"><i class="ti ti-external-link" style="font-size:12px"></i>${_e(dolUrl.replace("https://",""))}</a></div></div>` : ""}
-      ${item.desc && !item.desc.includes("Status DOL") ? `<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">📋 Funções da vaga</div><div class="info-val" style="font-size:11px;line-height:1.6;white-space:pre-wrap;max-height:160px;overflow-y:auto;background:rgba(0,0,0,.04);border-radius:8px;padding:8px;margin-top:4px">${_e(item.desc)}</div></div>` : ""}
+      ${item.desc && !item.desc.includes("Status DOL") ? `<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">📋 Funções da vaga</div><div class="info-val" style="font-size:11px;line-height:1.6;white-space:pre-wrap;background:rgba(0,0,0,.04);border-radius:8px;padding:8px;margin-top:4px">${_e(item.desc)}</div></div>` : ""}
     `;
 
     // Botões de ação

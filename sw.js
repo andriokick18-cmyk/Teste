@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v75"; // v75 (02/08): busca de vagas — atalhos de 1 toque (🎯 Melhor pra mim, 💰 Maior salário, 🗓️ Começa logo) na barra, sincronizados com o modal de Filtros (etapa 1 do v111).
+const CACHE_NAME = "h2bapply-v76"; // v76 (02/08): detalhe da vaga — Funções até o fim da página (sem caixinha de rolagem), tradução automática pro PT (cache no servidor) e botão 📍 Google Maps.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
