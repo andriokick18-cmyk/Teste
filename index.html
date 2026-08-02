@@ -7293,7 +7293,7 @@ function renderJobsFilterChips(){
   if(fGrupos.length)chips.push(_chip(`💎 Grupo ${fGrupos.join(",")}`,"mfClearJobsDim('grupos')","#d97706"));
   if(fEtaStatus)chips.push(_chip(`📶 ${esc(fEtaStatus.slice(0,22))}`,"mfClearJobsDim('status')","#d97706"));
   if(fBeginMonths.length)chips.push(_chip(`📅 Início: ${fBeginMonths.map(m=>_MF_MONTH_LABELS[m-1]).join(", ")}`,"mfClearJobsDim('months')","var(--blue)"));
-  if(fSort&&fSort!=="random"&&tab!=="seasonal")chips.push(_chip(`↕️ ${fSort==="wage"?"Maior salário":fSort==="start"?"Começa cedo":"Recentes"}`,"mfClearJobsDim('sort')","var(--purple)"));
+  if(fSort&&fSort!=="random"&&tab!=="seasonal")chips.push(_chip(`↕️ ${fSort==="wage"?"Maior salário":fSort==="start"?"Começa cedo":fSort==="match"?"🎯 Melhor pra mim":"Recentes"}`,"mfClearJobsDim('sort')","var(--purple)"));
   if(!chips.length){box.style.display="none";box.innerHTML="";return;}
   box.style.display="flex";
   box.innerHTML=chips.join("")+`<button onclick="mfClearJobsDim('all')" style="background:none;border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--t3);cursor:pointer;font-family:inherit">Limpar tudo</button>`;

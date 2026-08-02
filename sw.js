@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v78"; // v78 (02/08): seletores SUGESTIVOS de Estado e Cidade ao lado da busca de vagas (datalist com lugares reais da planilha + regiões) — digitou "mass", aparece MASSACHUSETTS.
+const CACHE_NAME = "h2bapply-v79"; // v79 (02/08): chip de ordenação mostra "🎯 Melhor pra mim" certo (mostrava "Recentes") — achado na varredura pós-v114.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
