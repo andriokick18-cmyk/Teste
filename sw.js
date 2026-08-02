@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v67"; // v67 (02/08): 🖥️ Modo computador em DESTAQUE — seletor grande 📱/🖥️ no topo do menu ☰ (o botão no rodapé estava escondido, feedback do dono); drawer fica aberto pra comparar os modos ao vivo.
+const CACHE_NAME = "h2bapply-v68"; // v68 (02/08): reestruturação parte 12 (consistência global) — 30 botões só-ícone ganharam aria-label/title PT (acessibilidade: leitor de tela e tooltip); varreduras de inglês esquecido e classes CSS órfãs passaram limpas.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

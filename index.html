@@ -3117,7 +3117,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               <option value="other">📋 Outros</option>
             </select>
             <button class="btn btn-secondary btn-sm" onclick="exportLogs()"><i class="ti ti-download"></i> CSV</button>
-            <button class="btn btn-danger btn-sm" onclick="clearLogs()"><i class="ti ti-trash"></i></button>
+            <button aria-label="Limpar logs" title="Limpar logs" class="btn btn-danger btn-sm" onclick="clearLogs()"><i class="ti ti-trash"></i></button>
           </div>
           <!-- Stats row -->
           <div class="stats-row" id="log-stats-row" style="grid-template-columns:repeat(5,1fr)">
@@ -3206,7 +3206,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <!-- ══ MINI PROFILE MODAL ══ -->
       <div id="rank-profile-overlay" class="overlay gone" onclick="if(event.target===this)closeRankProfile()">
         <div class="rank-profile-modal">
-          <button class="rp-close" onclick="closeRankProfile()"><i class="ti ti-x"></i></button>
+          <button aria-label="Fechar" title="Fechar" class="rp-close" onclick="closeRankProfile()"><i class="ti ti-x"></i></button>
           <div class="rp-header">
             <div class="rp-av" id="rp-av"></div>
             <div class="rp-online-dot" id="rp-online-dot"></div>
@@ -3905,7 +3905,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               <div style="font-size:16px;font-weight:800">🚀 Confirmar Envio Automático</div>
               <div style="font-size:12px;color:var(--t3);margin-top:2px" id="pf-subtitle">–</div>
             </div>
-            <button onclick="closePreflight()" style="background:none;border:none;cursor:pointer;color:var(--t3);padding:4px"><i class="ti ti-x" style="font-size:18px"></i></button>
+            <button aria-label="Fechar" title="Fechar" onclick="closePreflight()" style="background:none;border:none;cursor:pointer;color:var(--t3);padding:4px"><i class="ti ti-x" style="font-size:18px"></i></button>
           </div>
           <div class="mbody" style="padding:16px 16px 8px;overflow-y:auto;max-height:70dvh">
 
@@ -4586,7 +4586,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px">📰 Notícias do DOL</div>
             <div style="font-size:11px;opacity:.75;margin-top:1px">Anúncios oficiais do governo americano, traduzidos</div>
           </div>
-          <button onclick="loadNoticias(true)" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25)"><i class="ti ti-refresh"></i></button>
+          <button aria-label="Atualizar notícias" title="Atualizar notícias" onclick="loadNoticias(true)" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25)"><i class="ti ti-refresh"></i></button>
         </div>
         <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px" id="noticias-list">
           <div style="text-align:center;padding:30px"><span class="spin"></span></div>
@@ -4651,7 +4651,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <textarea id="ia-input" class="input" rows="2"
               placeholder="Pergunte sobre H-2B, vistos, como usar o app, emails em inglês..."
               style="flex:1;min-height:42px;max-height:100px;font-size:13px;resize:none;border-radius:12px;padding:9px 13px;line-height:1.5;background:#f5f7ff"></textarea>
-            <button id="ia-send-btn" onclick="sendIaMessage()"
+            <button aria-label="Enviar mensagem" title="Enviar mensagem" id="ia-send-btn" onclick="sendIaMessage()"
               style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#0891b2,#06b6d4);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(8,145,178,.3)">
               <i class="ti ti-send" style="font-size:16px"></i>
             </button>
@@ -4820,7 +4820,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <!-- Data + fechar -->
         <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
           <span style="font-size:10px;color:var(--t4)" id="ed-date">–</span>
-          <button onclick="closeEmailDetail()" style="width:28px;height:28px;border-radius:50%;background:var(--sf3);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--t2)"><i class="ti ti-x" style="font-size:14px"></i></button>
+          <button aria-label="Fechar" title="Fechar" onclick="closeEmailDetail()" style="width:28px;height:28px;border-radius:50%;background:var(--sf3);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--t2)"><i class="ti ti-x" style="font-size:14px"></i></button>
         </div>
       </div>
       <!-- e-mail remetente pequeno + botão traduzir na mesma linha -->
@@ -4874,7 +4874,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <input class="input gone" id="ed-reply-subject" type="text" style="margin-bottom:5px;font-size:12px;height:32px" placeholder="Assunto da resposta">
       <div style="display:flex;gap:6px;align-items:flex-end">
         <textarea class="input" id="ed-reply-body" rows="2" style="min-height:40px;max-height:100px;font-size:13px;resize:none;flex:1;border-radius:20px;padding:9px 14px;background:#fff;border-color:var(--border);line-height:1.5" placeholder="Escreva sua resposta em inglês..."></textarea>
-        <button style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(37,99,235,.3)" onclick="sendEmailReply()" id="ed-send-btn"><i class="ti ti-send" style="font-size:15px"></i></button>
+        <button aria-label="Enviar resposta" title="Enviar resposta" style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(37,99,235,.3)" onclick="sendEmailReply()" id="ed-send-btn"><i class="ti ti-send" style="font-size:15px"></i></button>
         <button style="width:38px;height:38px;border-radius:50%;background:#fff;color:var(--t2);border:1.5px solid var(--border2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0" onclick="copyEmailReply()" title="Copiar"><i class="ti ti-copy" style="font-size:14px"></i></button>
       </div>
       <div id="ed-send-status" style="display:none;margin-top:5px;font-size:12px;color:var(--green);font-weight:700;text-align:center;padding:5px;background:var(--greenl);border-radius:8px;border:1px solid var(--greenb)"></div>
@@ -4889,7 +4889,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <div style="width:36px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 12px"></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div style="font-size:15px;font-weight:800">Escolher Modelo</div>
-        <button onclick="closeTplPicker()" style="background:none;border:none;cursor:pointer;color:var(--t3);padding:4px"><i class="ti ti-x" style="font-size:18px"></i></button>
+        <button aria-label="Fechar" title="Fechar" onclick="closeTplPicker()" style="background:none;border:none;cursor:pointer;color:var(--t3);padding:4px"><i class="ti ti-x" style="font-size:18px"></i></button>
       </div>
       <input class="input" id="picker-search" style="height:34px;font-size:13px;margin-bottom:10px" placeholder="🔍 Buscar..." oninput="renderPickerList()">
       <div style="display:flex;gap:5px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch;scrollbar-width:none">
@@ -4923,7 +4923,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
     <div class="mhandle"></div>
     <div style="padding:14px 16px 10px;flex-shrink:0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
       <div style="font-size:16px;font-weight:800">🔍 Filtros</div>
-      <button onclick="closeMasterFilters()" style="background:none;border:none;cursor:pointer;color:var(--t3);padding:4px"><i class="ti ti-x" style="font-size:18px"></i></button>
+      <button aria-label="Fechar" title="Fechar" onclick="closeMasterFilters()" style="background:none;border:none;cursor:pointer;color:var(--t3);padding:4px"><i class="ti ti-x" style="font-size:18px"></i></button>
     </div>
     <div style="overflow-y:auto;flex:1;padding:14px 16px 8px;display:flex;flex-direction:column;gap:18px">
 
@@ -5051,7 +5051,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <div class="mttl" id="pe-title" style="color:#fff">Novo Perfil</div>
         <div class="msub" style="color:rgba(255,255,255,.75)">Este perfil será usado nos envios manuais e automáticos</div>
       </div>
-      <button class="mx" onclick="closeProfileEditor()" style="color:rgba(255,255,255,.8)"><i class="ti ti-x"></i></button>
+      <button aria-label="Fechar" title="Fechar" class="mx" onclick="closeProfileEditor()" style="color:rgba(255,255,255,.8)"><i class="ti ti-x"></i></button>
     </div>
 
     <!-- Explicação rápida -->
@@ -5394,7 +5394,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <button class="btn btn-primary" style="flex:3;min-width:140px" id="pe-save-btn" onclick="saveProfileFromEditor()">
           <i class="ti ti-check"></i> Salvar Perfil
         </button>
-        <button class="btn btn-danger btn-sm" id="pe-del-btn" style="display:none" onclick="deleteProfile(editingProfileId)">
+        <button aria-label="Excluir perfil" title="Excluir perfil" class="btn btn-danger btn-sm" id="pe-del-btn" style="display:none" onclick="deleteProfile(editingProfileId)">
           <i class="ti ti-trash"></i>
         </button>
       </div>
@@ -5408,7 +5408,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
     <div class="mhandle"></div>
     <div class="mhdr">
       <div><div class="mttl" id="m-title">Enviar Candidatura</div><div class="msub" id="m-sub">–</div></div>
-      <button class="mx" onclick="closeModal()"><i class="ti ti-x"></i></button>
+      <button aria-label="Fechar" title="Fechar" class="mx" onclick="closeModal()"><i class="ti ti-x"></i></button>
     </div>
     <div class="mbody">
       <!-- Info da vaga -->
@@ -5557,7 +5557,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <div style="font-size:17px;font-weight:800;color:var(--text);line-height:1.3;margin-bottom:3px" id="hd-title">–</div>
         <div style="font-size:13px;color:var(--t2);font-weight:600;display:flex;align-items:center;gap:5px"><i class="ti ti-building" style="font-size:12px"></i><span id="hd-company">–</span></div>
       </div>
-      <button onclick="closeHistDetail()" style="background:var(--sf2);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--t2)"><i class="ti ti-x" style="font-size:16px"></i></button>
+      <button aria-label="Fechar" title="Fechar" onclick="closeHistDetail()" style="background:var(--sf2);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--t2)"><i class="ti ti-x" style="font-size:16px"></i></button>
     </div>
     <!-- Body scrollável -->
     <div id="hd-body" style="flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:10px"></div>
@@ -5572,7 +5572,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <div style="font-size:17px;font-weight:800;color:var(--text);line-height:1.3;margin-bottom:3px" id="ld-title">–</div>
         <div style="font-size:13px;color:var(--t2);font-weight:600;display:flex;align-items:center;gap:5px"><i class="ti ti-building" style="font-size:12px"></i><span id="ld-company">–</span></div>
       </div>
-      <button onclick="closeLogDetail()" style="background:var(--sf2);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--t2)"><i class="ti ti-x" style="font-size:16px"></i></button>
+      <button aria-label="Fechar" title="Fechar" onclick="closeLogDetail()" style="background:var(--sf2);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--t2)"><i class="ti ti-x" style="font-size:16px"></i></button>
     </div>
     <div id="ld-body" style="flex:1;overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:10px"></div>
   </div>
@@ -5581,7 +5581,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 <div class="drawer" id="drawer">
   <!-- Cabeçalho gradiente com foto e plano -->
   <div style="padding:20px 16px 14px;background:linear-gradient(135deg,#4f46e5,#7c3aed);position:relative;flex-shrink:0">
-    <button onclick="closeDrawer()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.2);border:none;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff"><i class="ti ti-x" style="font-size:15px"></i></button>
+    <button aria-label="Fechar menu" title="Fechar menu" onclick="closeDrawer()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.2);border:none;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff"><i class="ti ti-x" style="font-size:15px"></i></button>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
       <div id="d-av" style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;color:#fff;border:2.5px solid rgba(255,255,255,.4);flex-shrink:0">?</div>
       <div style="flex:1;min-width:0">
@@ -5696,7 +5696,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 <!-- Terms / Privacy -->
 <div class="overlay gone" id="del-acc-m" onclick="if(event.target===this)closeDeleteAccountModal()">
   <div class="modal" style="max-width:420px"><div class="mhandle"></div>
-    <div class="mhdr"><div class="mttl" style="color:var(--red)">⚠️ Deletar conta?</div><button class="mx" onclick="closeDeleteAccountModal()"><i class="ti ti-x"></i></button></div>
+    <div class="mhdr"><div class="mttl" style="color:var(--red)">⚠️ Deletar conta?</div><button aria-label="Fechar" title="Fechar" class="mx" onclick="closeDeleteAccountModal()"><i class="ti ti-x"></i></button></div>
     <div class="mbody" style="font-size:13px;color:var(--t2);line-height:1.65">
       <p>Sua conta vai <strong>sumir do ranking e de qualquer lugar público</strong> agora mesmo.</p><br>
       <p>Seus dados, histórico e VIP <strong>ficam guardados</strong> — nada é apagado de verdade.</p><br>
@@ -5711,7 +5711,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
 <div class="overlay gone" id="terms-m" onclick="if(event.target===this)this.classList.add('gone')">
   <div class="modal" style="max-width:440px"><div class="mhandle"></div>
-    <div class="mhdr"><div class="mttl">Termos de Uso</div><button class="mx" onclick="g('#terms-m').classList.add('gone')"><i class="ti ti-x"></i></button></div>
+    <div class="mhdr"><div class="mttl">Termos de Uso</div><button aria-label="Fechar" title="Fechar" class="mx" onclick="g('#terms-m').classList.add('gone')"><i class="ti ti-x"></i></button></div>
     <div class="mbody" style="font-size:13px;color:var(--t2);line-height:1.7">
       <p><strong>H2BApply</strong> facilita candidaturas H-2B/H-2A via Gmail.</p><br>
       <p><strong>Planos:</strong> Free (20 manual + 10 auto/dia); VIP, VIPro e DoublePro são trocados por 💎 diamantes (você doa via PIX, ganha diamantes e troca — sem compra).</p><br>
@@ -5721,7 +5721,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 </div>
 <div class="overlay gone" id="priv-m" onclick="if(event.target===this)this.classList.add('gone')">
   <div class="modal" style="max-width:440px"><div class="mhandle"></div>
-    <div class="mhdr"><div class="mttl">Privacidade</div><button class="mx" onclick="g('#priv-m').classList.add('gone')"><i class="ti ti-x"></i></button></div>
+    <div class="mhdr"><div class="mttl">Privacidade</div><button aria-label="Fechar" title="Fechar" class="mx" onclick="g('#priv-m').classList.add('gone')"><i class="ti ti-x"></i></button></div>
     <div class="mbody" style="font-size:13px;color:var(--t2);line-height:1.7">
       <p><strong>Dados:</strong> Nome, e-mail, foto do Google, currículo e histórico.</p><br>
       <p><strong>Não vendemos dados.</strong> Exclusão: WhatsApp +55 53 98145-3496.</p>
@@ -7713,7 +7713,7 @@ function mkDetailHTML(j){
     </div>
     <div class="jd-acts">
       ${j.hasEmail?`<button class="btn btn-primary" onclick="openModal('${j.id}')"><i class="ti ti-send"></i> Candidatar-se</button>`:`<div style="font-size:13px;color:var(--t3);padding:9px 13px;background:var(--sf2);border-radius:var(--r);border:1.5px solid var(--border)"><i class="ti ti-alert-triangle"></i> Sem e-mail direto</div>`}
-      <button class="btn btn-secondary" onclick="toggleSave('${j.id}')"><i class="ti ti-bookmark${SAVED.has(j.id)?"-filled":""}"></i></button>
+      <button aria-label="Salvar vaga" title="Salvar vaga" class="btn btn-secondary" onclick="toggleSave('${j.id}')"><i class="ti ti-bookmark${SAVED.has(j.id)?"-filled":""}"></i></button>
       ${j.url?`<a class="btn btn-secondary" href="https://${j.url.replace(/^https?:\/\//,"")}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i></a>`:""}
     </div>
   </div>`;
@@ -8246,7 +8246,7 @@ function renderDocs(){
       <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name)}</div><div style="font-size:11px;color:var(--t3)">${isR?"Resume":"Cover"} · ${fmt(c.size)} · ${new Date(c.date).toLocaleDateString("pt-BR")}${isA?` · <strong style="color:${isR?"var(--green)":"var(--purple)"}">Padrão</strong>`:""}</div></div>
       <div style="display:flex;gap:4px;flex-shrink:0">
         ${!isA?`<button class="btn btn-secondary btn-xs" onclick="setDefDoc(${c.idx},'${c.cvType||"resume"}')"><i class="ti ti-star"></i></button>`:`<span class="btn btn-success btn-xs" style="pointer-events:none"><i class="ti ti-check"></i></span>`}
-        <button class="btn btn-danger btn-xs" onclick="delDoc(${c.idx})"><i class="ti ti-trash"></i></button>
+        <button aria-label="Excluir arquivo" title="Excluir arquivo" class="btn btn-danger btn-xs" onclick="delDoc(${c.idx})"><i class="ti ti-trash"></i></button>
       </div>
     </div>`;}).join("");
 }
@@ -8931,7 +8931,7 @@ function peRenderSubjects(){
   list.innerHTML=peSubjects.map((s,i)=>`
     <div style="display:flex;gap:6px;align-items:center">
       <input class="input" style="flex:1;font-size:13px" value="${esc(s)}" oninput="peSubjects[${i}]=this.value;peUpdateSubjPreview()" placeholder="Assunto do e-mail. Use {vaga}, {empresa}, {nome}">
-      <button onclick="peRemoveSubject(${i})" style="background:var(--redb);color:var(--red);border:1px solid var(--redb);border-radius:6px;padding:5px 8px;cursor:pointer;font-size:13px;flex-shrink:0"><i class="ti ti-trash"></i></button>
+      <button aria-label="Remover assunto" title="Remover assunto" onclick="peRemoveSubject(${i})" style="background:var(--redb);color:var(--red);border:1px solid var(--redb);border-radius:6px;padding:5px 8px;cursor:pointer;font-size:13px;flex-shrink:0"><i class="ti ti-trash"></i></button>
     </div>`).join("");
   peUpdateSubjPreview();
   // Indicador de mínimo
@@ -8978,7 +8978,7 @@ function peRenderBodies(){
           <span style="width:20px;height:20px;background:var(--blue);color:#fff;border-radius:50%;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center">${i+1}</span>
           <span style="font-size:12px;font-weight:700;color:var(--t2)">Versão ${i+1}</span>
         </div>
-        <button onclick="peRemoveBody(${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:13px"><i class="ti ti-trash"></i></button>
+        <button aria-label="Remover texto" title="Remover texto" onclick="peRemoveBody(${i})" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:13px"><i class="ti ti-trash"></i></button>
       </div>
       <textarea class="input" rows="4" style="font-size:12px;resize:vertical;font-family:monospace" oninput="peBodies[${i}]=this.value" placeholder="Corpo do e-mail. Use {nome}, {vaga}, {empresa}, {pais}, {telefone}">${esc(b)}</textarea>
     </div>`).join("");
@@ -9461,7 +9461,7 @@ function openChangeLinkedJobModal(){
   ol.innerHTML=`<div style="background:var(--sf);border-radius:16px 16px 0 0;width:100%;max-width:540px;max-height:70dvh;display:flex;flex-direction:column;overflow:hidden">
     <div style="padding:12px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
       <div style="font-size:15px;font-weight:800">Trocar vaga vinculada</div>
-      <button onclick="this.closest('[data-chg]').remove()" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:20px"><i class="ti ti-x"></i></button>
+      <button aria-label="Fechar" title="Fechar" onclick="this.closest('[data-chg]').remove()" style="background:none;border:none;cursor:pointer;color:var(--t3);font-size:20px"><i class="ti ti-x"></i></button>
     </div>
     <div style="overflow-y:auto;padding:8px 12px 16px;display:flex;flex-direction:column;gap:6px">
       ${items.map((h,i)=>`<button onclick="window._chgJob('${email.id}',${HIST.length-1-i})" style="text-align:left;background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:9px 12px;cursor:pointer;width:100%">
@@ -9847,7 +9847,7 @@ function renderSaved(){
   const el=g("#saved-list");if(!el)return;
   const jobs=JOBS.filter(j=>SAVED.has(j.id));
   if(!SAVED.size){el.innerHTML='<div class="empty-state"><i class="ti ti-bookmark"></i><div style="font-size:14px;font-weight:600;color:var(--t2)">Nenhuma vaga salva</div></div>';return;}
-  el.innerHTML=`<div style="font-size:18px;font-weight:800;margin-bottom:14px">Vagas Salvas</div>`+(jobs.length?jobs.map(j=>`<div class="hcard" style="cursor:pointer" onclick="sv('jobs');setTimeout(()=>selJob2('${j.id}'),300)"><div style="display:flex;justify-content:space-between;gap:8px"><div class="hcard-job">${esc(j.title)}</div><button class="btn btn-danger btn-xs" onclick="event.stopPropagation();toggleSave('${j.id}');renderSaved()"><i class="ti ti-trash"></i></button></div><div style="font-size:12px;color:var(--t2);margin-top:3px">${esc(j.company)} · ${esc(j.state)}</div></div>`).join(""):`<div style="font-size:13px;color:var(--t3)">Salve vagas clicando no 🔖.</div>`);
+  el.innerHTML=`<div style="font-size:18px;font-weight:800;margin-bottom:14px">Vagas Salvas</div>`+(jobs.length?jobs.map(j=>`<div class="hcard" style="cursor:pointer" onclick="sv('jobs');setTimeout(()=>selJob2('${j.id}'),300)"><div style="display:flex;justify-content:space-between;gap:8px"><div class="hcard-job">${esc(j.title)}</div><button aria-label="Remover dos salvos" title="Remover dos salvos" class="btn btn-danger btn-xs" onclick="event.stopPropagation();toggleSave('${j.id}');renderSaved()"><i class="ti ti-trash"></i></button></div><div style="font-size:12px;color:var(--t2);margin-top:3px">${esc(j.company)} · ${esc(j.state)}</div></div>`).join(""):`<div style="font-size:13px;color:var(--t3)">Salve vagas clicando no 🔖.</div>`);
 }
 function updSavedBadge(){const n=SAVED.size;const b=g("#sib-saved");if(b){b.style.display=n?"":"none";b.textContent=String(n);}}
 
@@ -11297,7 +11297,7 @@ function closeDrawer(){g("#dov").classList.remove("show");g("#drawer").classList
     }
   },{passive:false});
 })();
-function showBanner(t,html,action){const b=g("#banner");if(!b)return;const cm={blue:"al-blue",amber:"al-amber",green:"al-green",red:"al-red"};b.className=`banner ${cm[t]||"al-blue"}`;const actionBtn=action?`<button onclick="${action}" style="margin-left:8px;background:rgba(26,86,219,.15);border:1.5px solid var(--blueb);color:var(--blue);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">${action.includes("profile")?"Configurar →":"Ver →"}</button>`:"";b.innerHTML=`<i class="ti ti-info-circle" style="font-size:15px;flex-shrink:0"></i><span style="flex:1">${html}</span>${actionBtn}<button onclick="this.parentElement.classList.add('gone')" style="margin-left:6px;background:none;border:none;cursor:pointer;opacity:.6;font-size:18px;padding:0 2px;flex-shrink:0"><i class="ti ti-x"></i></button>`;b.classList.remove("gone");}
+function showBanner(t,html,action){const b=g("#banner");if(!b)return;const cm={blue:"al-blue",amber:"al-amber",green:"al-green",red:"al-red"};b.className=`banner ${cm[t]||"al-blue"}`;const actionBtn=action?`<button onclick="${action}" style="margin-left:8px;background:rgba(26,86,219,.15);border:1.5px solid var(--blueb);color:var(--blue);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">${action.includes("profile")?"Configurar →":"Ver →"}</button>`:"";b.innerHTML=`<i class="ti ti-info-circle" style="font-size:15px;flex-shrink:0"></i><span style="flex:1">${html}</span>${actionBtn}<button aria-label="Fechar" title="Fechar" onclick="this.parentElement.classList.add('gone')" style="margin-left:6px;background:none;border:none;cursor:pointer;opacity:.6;font-size:18px;padding:0 2px;flex-shrink:0"><i class="ti ti-x"></i></button>`;b.classList.remove("gone");}
 function toast(msg,type=""){const w=g("#tw");const el=document.createElement("div");el.className="t"+(type?" "+type:"");el.textContent=msg;w.appendChild(el);requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add("show")));setTimeout(()=>{el.classList.remove("show");setTimeout(()=>el.remove(),300);},2800);}
 
 // ═══════════════════════════════════════════
@@ -11869,7 +11869,7 @@ function openQuickReplyModal(emailId){
         <div class="mttl">✈️ Resposta Rápida</div>
         <div class="msub">${esc(company)} — <span style="background:${cl.bg};color:${cl.color};border:1px solid ${cl.border};border-radius:10px;padding:1px 8px;font-size:10px;font-weight:700">${cl.label}</span></div>
       </div>
-      <button class="mx" onclick="document.getElementById('quick-reply-overlay').remove()"><i class="ti ti-x"></i></button>
+      <button aria-label="Fechar" title="Fechar" class="mx" onclick="document.getElementById('quick-reply-overlay').remove()"><i class="ti ti-x"></i></button>
     </div>
     <div class="mbody">
       <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px">Escolha um template:</div>
@@ -12330,7 +12330,7 @@ function openLinkedJobModal(emailId){
           <div class="mttl"><i class="ti ti-briefcase" style="color:#fbbf24"></i> Vaga vinculada</div>
           <div class="msub">${esc(_matchTypeLabel(linked.matchType))}</div>
         </div>
-        <button class="mx" onclick="closeLinkedJobModal()"><i class="ti ti-x"></i></button>
+        <button aria-label="Fechar" title="Fechar" class="mx" onclick="closeLinkedJobModal()"><i class="ti ti-x"></i></button>
       </div>
       <div class="mbody">
         <div style="font-size:18px;font-weight:800;color:#fff;line-height:1.3;margin-bottom:4px">${esc(job)}</div>
@@ -15418,7 +15418,7 @@ setTimeout(async()=>{
   <div id="iaf-msgs" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:180px"></div>
   <div style="display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0">
     <input id="iaf-input" placeholder="Pergunte qualquer coisa…" style="flex:1;height:38px;border-radius:10px;border:1.5px solid var(--border2);background:var(--sf2);padding:0 12px;font-size:13px;font-family:inherit;color:var(--text)" onkeydown="if(event.key==='Enter')iaFloatSend()">
-    <button id="iaf-send" onclick="iaFloatSend()" class="btn btn-primary" style="height:38px;padding:0 14px"><i class="ti ti-send"></i></button>
+    <button aria-label="Enviar mensagem" title="Enviar mensagem" id="iaf-send" onclick="iaFloatSend()" class="btn btn-primary" style="height:38px;padding:0 14px"><i class="ti ti-send"></i></button>
   </div>
 </div>
 <script>
@@ -15824,7 +15824,7 @@ function renderDocsTab(){
         <div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)}</div>
         <div style="font-size:10px;color:var(--t3)">${c.size?Math.round(c.size/1024)+"KB ·":""} ${c.date?new Date(c.date).toLocaleDateString("pt-BR"):""}</div>
       </div>
-      <button onclick="deleteDocFile(${c.idx},'${esc(c.name).replace(/'/g,"\\'")}','${type}')" 
+      <button aria-label="Excluir arquivo" title="Excluir arquivo" onclick="deleteDocFile(${c.idx},'${esc(c.name).replace(/'/g,"\\'")}','${type}')" 
         style="background:var(--redl);border:1px solid var(--redb);color:var(--red);border-radius:6px;padding:5px 8px;cursor:pointer;font-size:12px;flex-shrink:0">
         <i class="ti ti-trash"></i>
       </button>
@@ -17064,7 +17064,7 @@ console.debug("[v14+] Onboarding, FAQ, Preview Auto, Follow-up, Score carregados
           <div class="mhandle"></div>
           <div class="mhdr" style="padding-bottom:10px">
             <div style="flex:1"></div>
-            <button class="mx" onclick="closePesqJobModal()"><i class="ti ti-x"></i></button>
+            <button aria-label="Fechar" title="Fechar" class="mx" onclick="closePesqJobModal()"><i class="ti ti-x"></i></button>
           </div>
           <div class="mbody" id="pesq-job-modal-body" style="padding-top:0"></div>
         </div>`;
