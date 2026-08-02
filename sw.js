@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v64"; // v64 (02/08): reestruturação parte 10 (Ranking/Notícias/IA Chat) — rodapé do IA Chat dizia "Gemini 1.5 Flash" (modelo desatualizado; o servidor rotaciona 2.5/2.0) → "Google Gemini" genérico.
+const CACHE_NAME = "h2bapply-v65"; // v65 (02/08): reestruturação parte 11 (Menu ☰) — atalho Currículos no grid do drawer (mesma queixa do dono; fecha a linha órfã de 5 botões).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

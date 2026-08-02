@@ -5597,6 +5597,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <button onclick="closeDrawer();sv('hist')" class="d-quick-btn"><i class="ti ti-history" style="color:#059669"></i><span>Enviadas</span></button>
         <button onclick="closeDrawer();sv('saved')" class="d-quick-btn"><i class="ti ti-bookmark" style="color:#e11d48"></i><span>Salvas</span></button>
         <button onclick="closeDrawer();sv('noticias');loadNoticias()" class="d-quick-btn"><i class="ti ti-news" style="color:#1e40af"></i><span>Notícias H-2B</span><span id="noticias-new-badge" style="display:none;background:var(--red);color:#fff;font-size:9px;font-weight:800;padding:1px 6px;border-radius:99px;margin-left:4px">NOVA</span></button>
+        <!-- v99: atalho Currículos no drawer (mesma queixa do dono: "não acham o editor") — e fecha a linha órfã do grid de 5 -->
+        <button onclick="closeDrawer();sv('profile');setTimeout(()=>{if(typeof switchProfileTab==='function')switchProfileTab('profiles')},120)" class="d-quick-btn"><i class="ti ti-file-cv" style="color:#7c3aed"></i><span>Currículos</span></button>
       </div>
     </div>
     <div style="height:1px;background:var(--border);margin:0 12px"></div>
