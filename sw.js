@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v65"; // v65 (02/08): reestruturação parte 11 (Menu ☰) — atalho Currículos no grid do drawer (mesma queixa do dono; fecha a linha órfã de 5 botões).
+const CACHE_NAME = "h2bapply-v66"; // v66 (02/08): 🖥️ Modo computador — toggle no menu ☰ que força o layout de computador no celular/app (viewport 1100px), com preferência salva no aparelho.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

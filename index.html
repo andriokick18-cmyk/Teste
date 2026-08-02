@@ -172,7 +172,7 @@ a{color:inherit;text-decoration:none}
 [data-theme="dark"] ::-webkit-scrollbar-track{background:transparent}
 
 /* ══ THEME TOGGLE BUTTON ══ */
-#theme-toggle-btn{
+#theme-toggle-btn,#desktop-toggle-btn{
   display:flex;align-items:center;gap:7px;
   padding:9px 14px;
   border-radius:var(--r);
@@ -184,8 +184,8 @@ a{color:inherit;text-decoration:none}
   width:100%;
   transition:background .15s,color .15s;
 }
-#theme-toggle-btn:hover{background:var(--sf3)}
-#theme-toggle-btn i{font-size:17px}
+#theme-toggle-btn:hover,#desktop-toggle-btn:hover{background:var(--sf3)}
+#theme-toggle-btn i,#desktop-toggle-btn i{font-size:17px}
 
 /* ══ USA THEMED BACKGROUND ══ */
 .usa-bg{position:relative}
@@ -5676,6 +5676,13 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <span id="theme-label">Modo escuro</span>
         </button>
       </div>
+      <!-- v100: 🖥️ MODO COMPUTADOR — força o layout de computador no celular/app (igual "site para computador" do Chrome) -->
+      <div style="padding:4px 10px 4px">
+        <button id="desktop-toggle-btn" onclick="toggleDesktopMode()">
+          <i class="ti ti-device-desktop" id="desktop-mode-icon"></i>
+          <span id="desktop-mode-label">Modo computador</span>
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -6522,8 +6529,32 @@ function updateThemeUI(){
   if(meta) meta.content = isDark ? '#0d0f1a' : '#4f46e5';
 }
 
+/* ═══ v100: 🖥️ MODO COMPUTADOR (pedido do dono, 02/08) ═══
+   O layout de computador (sidebar) sempre foi automático em telas >=768px,
+   mas no celular/app instalado não havia como forçar — igual ao "site para
+   computador" do navegador. O toggle troca o <meta viewport> para largura
+   fixa de 1100px: todas as @media de desktop passam a valer e o navegador
+   reduz a página pra caber na tela. Preferência do APARELHO (localStorage,
+   como tema e fonte) — nunca decide sozinho, só quando a pessoa toca. */
+function _applyDesktopMode(){
+  var on=localStorage.getItem('h2b_desktop')==='1';
+  var m=document.querySelector('meta[name="viewport"]');
+  if(m)m.setAttribute('content',on?'width=1100':'width=device-width,initial-scale=1,viewport-fit=cover');
+  var lb=document.getElementById('desktop-mode-label');
+  var ic=document.getElementById('desktop-mode-icon');
+  if(lb)lb.textContent=on?'Modo celular':'Modo computador';
+  if(ic)ic.className='ti '+(on?'ti-device-mobile':'ti-device-desktop');
+}
+function toggleDesktopMode(){
+  var on=localStorage.getItem('h2b_desktop')==='1';
+  localStorage.setItem('h2b_desktop',on?'0':'1');
+  _applyDesktopMode();
+  try{toast(on?'📱 Voltando ao modo celular':'🖥️ Modo computador ativado','g');}catch(e){}
+  try{closeDrawer();}catch(e){}
+}
+
 // Initialize UI after DOM ready
-document.addEventListener('DOMContentLoaded', updateThemeUI);
+document.addEventListener('DOMContentLoaded', function(){updateThemeUI();_applyDesktopMode();});
 
 function renderDrawer(){
   updateThemeUI();

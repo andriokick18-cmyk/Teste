@@ -347,6 +347,17 @@ async function testAuthWatchdogPush() {
     check("🇧🇷 v86: index.html abre em PORTUGUÊS por padrão (idioma não decidido mais pelo navigator.language)",
       _langInitOk, "inicializador de _curLang não caiu no padrão PT esperado (localStorage → fallback 'pt')");
 
+    // v100: 🖥️ Modo computador — toggle que força o layout desktop no
+    // celular/app trocando o <meta viewport> pra largura fixa (igual "site
+    // para computador" do Chrome). Preferência do aparelho em localStorage
+    // (h2b_desktop). Guarda: função + persistência + troca do viewport.
+    const _dmOk = home.body.includes("toggleDesktopMode") &&
+      home.body.includes("h2b_desktop") &&
+      /meta\[name="viewport"\]'\)/.test(home.body) &&
+      home.body.includes("'width=1100'");
+    check("🖥️ v100: Modo computador (toggle no drawer troca o viewport e persiste no aparelho)",
+      _dmOk, "lógica toggleDesktopMode/h2b_desktop/width=1100 não encontrada no index.html");
+
     // v95 (reestruturação parte 8): o wizard de ativação NUNCA cobre o
     // caminho do dinheiro — no checkout de doação (#plan-step-2 visível) o
     // card E o pill somem por completo (o card tampava o passo 4 do
