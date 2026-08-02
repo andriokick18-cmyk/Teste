@@ -4259,6 +4259,38 @@ const CAT_OCC_LABELS = {
   ski:"Ski Resort Winter Mountain",other:"Seasonal Worker",
 };
 
+// ── v111b (dono, 02/08, print: "quero pesquisar Martha's Vineyard, Tisbury,
+// Oak Bluffs, Edgartown…"): REGIÕES TURÍSTICAS DOS EUA → cidades-membro.
+// A planilha só guarda a CIDADE de cada vaga; a região (ilha/costa/vale) é
+// conhecimento nosso. Pesquisar o nome da região acha vaga em QUALQUER
+// cidade dela. Chaves e valores já em forma normalizada (sem acento,
+// apóstrofo ou maiúscula — mesmo _norm da busca). Cobre as regiões que
+// mais empregam H-2B; adicionar aqui é 1 linha por região.
+const REGIOES_EUA={
+ "marthas vineyard":["edgartown","oak bluffs","tisbury","vineyard haven","west tisbury","chilmark","aquinnah","marthas vineyard"],
+ "cape cod":["barnstable","hyannis","falmouth","provincetown","chatham","dennis","yarmouth","sandwich","brewster","orleans","truro","wellfleet","eastham","harwich","mashpee","bourne","woods hole","cape cod"],
+ "nantucket":["nantucket","siasconset"],
+ "florida keys":["key west","key largo","islamorada","marathon","big pine key","duck key","tavernier","florida keys"],
+ "outer banks":["nags head","kill devil hills","kitty hawk","corolla","manteo","hatteras","avon","rodanthe","ocracoke","outer banks"],
+ "hamptons":["southampton","east hampton","montauk","sag harbor","westhampton","bridgehampton","amagansett","hamptons"],
+ "lake tahoe":["south lake tahoe","tahoe city","stateline","incline village","truckee","kings beach","lake tahoe"],
+ "jackson hole":["jackson","teton village","wilson","moose","jackson hole"],
+ "mackinac":["mackinac island","mackinaw city","st ignace","mackinac"],
+ "smoky mountains":["gatlinburg","pigeon forge","sevierville","townsend","smoky mountains"],
+ "wisconsin dells":["wisconsin dells","lake delton","baraboo"],
+ "myrtle beach":["myrtle beach","north myrtle beach","surfside beach","murrells inlet","pawleys island"],
+ "hilton head":["hilton head island","hilton head","bluffton"],
+ "gulf shores":["gulf shores","orange beach","foley","fort morgan"],
+ "ocean city":["ocean city","berlin","west ocean city"],
+ "branson":["branson","hollister","ridgedale"],
+ "aspen":["aspen","snowmass village","snowmass","basalt","carbondale"],
+ "vail":["vail","avon","edwards","beaver creek","eagle"],
+ "yellowstone":["west yellowstone","gardiner","cooke city","yellowstone national park","yellowstone"],
+ "poconos":["stroudsburg","east stroudsburg","tannersville","mount pocono","pocono manor","poconos"],
+ "adirondacks":["lake placid","lake george","saranac lake","bolton landing","adirondack"],
+ "door county":["sturgeon bay","fish creek","ephraim","sister bay","egg harbor","door county"],
+ "destin":["destin","miramar beach","santa rosa beach","fort walton beach","seaside","watercolor","rosemary beach"],
+};
 function searchSheet(arr, q, state, category, skip, top, sort, matchCtx) {
   let list = arr;
   if (q && q.trim()) {
@@ -4290,8 +4322,15 @@ function searchSheet(arr, q, state, category, skip, top, sort, matchCtx) {
         }
       }
     }
+    // v111b: a busca é uma REGIÃO conhecida? ("marthas vineyard", "cape cod",
+    // "keys"…) — então vaga em qualquer cidade-membro conta como match DIRETO.
+    let _regCities=null;
+    for(const[reg,cities] of Object.entries(REGIOES_EUA)){
+      if(ql===reg||ql.includes(reg)||(ql.length>=4&&reg.startsWith(ql))){_regCities=cities;break;}
+    }
     // (1) Match direto: TODAS as palavras, em qualquer campo (cidade incluída)
-    let direct=toks.length?list.filter(r=>{const h=_hay(r);return toks.every(t=>h.includes(t));}):[];
+    //     OU cidade dentro da região pesquisada (v111b)
+    let direct=toks.length?list.filter(r=>{const h=_hay(r);return toks.every(t=>h.includes(t))||(_regCities&&_regCities.some(c=>h.includes(c)));}):[];
     // Relevância: título que contém a busca inteira vem primeiro (espírito do
     // antigo tier1), o resto mantém a ordem estável (paginação correta).
     if(direct.length>1){
