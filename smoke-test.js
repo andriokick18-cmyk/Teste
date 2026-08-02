@@ -347,6 +347,19 @@ async function testAuthWatchdogPush() {
     check("🇧🇷 v86: index.html abre em PORTUGUÊS por padrão (idioma não decidido mais pelo navigator.language)",
       _langInitOk, "inicializador de _curLang não caiu no padrão PT esperado (localStorage → fallback 'pt')");
 
+    // v106: telas financeiras do admin CONSOLIDADAS (fila do dono) — menu de
+    // dinheiro com 2 itens (Visão do Dono + Pedidos) e régua 💰 no topo de
+    // cada tela financeira (_renderMoneyNav/MONEY_VIEWS). Guarda: a régua
+    // existe, cobre as 6 telas, e os 4 itens removidos NÃO voltaram pro menu
+    // (a régua é o único lugar com showView('diamantes') fora do menu).
+    const _admBody = admPage.body;
+    const _mnOk = _admBody.includes("_renderMoneyNav") && _admBody.includes("MONEY_VIEWS") &&
+      ["'dono'","'pedidos'","'conferencia'","'pagantes'","'vip'","'diamantes'"].every(k=>_admBody.includes(`[${k}`)) &&
+      !/class="sb-item"[^>]*onclick="showView\('conferencia'\)/.test(_admBody) &&
+      !/class="sb-item"[^>]*onclick="showView\('diamantes'\)/.test(_admBody);
+    check("💰 v106: régua Dinheiro consolida as 6 telas financeiras (menu enxuto: só Visão do Dono + Pedidos)",
+      _mnOk, "_renderMoneyNav/MONEY_VIEWS ausentes ou os itens removidos voltaram pra sidebar do admin");
+
     // v103: 🤖 chat IA mora FIXO na sidebar (ordem do dono, 02/08 — revoga a
     // janela flutuante do v25). Guarda: painel #ia-side existe, o botão
     // flutuante #ia-fab NÃO existe mais, "Ver tudo" virou MENU roxo, e o

@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v71"; // v71 (02/08): modos de tela renomeados a pedido do dono — "PC"→"Tela cheia" e "Celular"→"Tela pequena" (seletor da sidebar, cartões do menu ☰ e toasts).
+const CACHE_NAME = "h2bapply-v72"; // v72 (02/08): telas financeiras do admin consolidadas (fila do dono) — menu de dinheiro com 2 itens + régua 💰 no topo das 6 telas (admin.html).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
