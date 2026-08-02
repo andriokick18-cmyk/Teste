@@ -3226,11 +3226,12 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                   <div id="prof-plan-badges" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px"></div>
                 </div>
               </div>
-              <!-- Stats rápidos -->
+              <!-- Stats rápidos — v92: Manual/Auto/Total (o 3º era "Respostas",
+                   impossível de contar num app só-envio; ficava sempre 0) -->
               <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
                 <div style="background:rgba(0,0,0,.25);border-radius:10px;padding:8px;text-align:center">
                   <div style="font-size:18px;font-weight:900;color:#fff" id="prof-stat-sent">0</div>
-                  <div style="font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.04em">Enviados</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.04em">Manual</div>
                 </div>
                 <div style="background:rgba(0,0,0,.25);border-radius:10px;padding:8px;text-align:center">
                   <div style="font-size:18px;font-weight:900;color:#a78bfa" id="prof-stat-auto">0</div>
@@ -3238,7 +3239,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 </div>
                 <div style="background:rgba(0,0,0,.25);border-radius:10px;padding:8px;text-align:center">
                   <div style="font-size:18px;font-weight:900;color:#34d399" id="prof-stat-replies">0</div>
-                  <div style="font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.04em">Respostas</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.04em">Total</div>
                 </div>
               </div>
             </div>
@@ -3557,9 +3558,12 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 <div style="font-size:28px;font-weight:800;color:var(--blue)" id="pstat-total-stats">–</div>
                 <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Total enviados</div>
               </div>
+              <!-- v92: "Respostas"/"Taxa resposta" eram cards MORTOS (app é
+                   só-envio, nunca conta resposta — ficavam em 0 pra sempre).
+                   Substituídos por métricas reais: empresas e estados. -->
               <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:14px;text-align:center">
                 <div style="font-size:28px;font-weight:800;color:var(--green)" id="pstat-responses">–</div>
-                <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Respostas</div>
+                <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">🏢 Empresas</div>
               </div>
               <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:14px;text-align:center">
                 <div style="font-size:28px;font-weight:800;color:var(--amber)" id="pstat-streak">–</div>
@@ -3567,7 +3571,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               </div>
               <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:14px;text-align:center">
                 <div style="font-size:28px;font-weight:800;color:var(--purple)" id="pstat-rate">–</div>
-                <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">Taxa resposta</div>
+                <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;margin-top:2px">🗺️ Estados</div>
               </div>
             </div>
             <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);padding:14px;margin-bottom:12px">
@@ -8199,12 +8203,10 @@ function updDocBadge(){const n=DOCS.length;const b=g("#sib-docs");if(b){b.style.
 // ═══════════════════════════════════════════
 function loadProfile(){
   g("#cfg-name").value=CFG.name||U.name||"";g("#cfg-country").value=CFG.country||"Brazil";g("#cfg-phone").value=CFG.phone||"";g("#cfg-city").value=CFG.city||"";g("#cfg-lang").value=CFG.language||"pt-BR";
-  // Mini-stats do perfil (aba Eu)
+  // v92: removidas 3 escritas em ids que não existiam mais no HTML
+  // (#pstat-total/#pstat-auto/#pstat-replies) — código morto silencioso.
   const _total=U.totalSent||HIST.length||0;
-  const _ps=g("#pstat-total");if(_ps)_ps.textContent=_total.toLocaleString("pt-BR");
-  const _pa=g("#pstat-auto");if(_pa)_pa.textContent=(U.totalAutoHist||0).toLocaleString("pt-BR");
-  const _pr=g("#pstat-replies");if(_pr)_pr.textContent=(U.totalReplies||INBOX_EMAILS.filter(e=>e.isReply).length||0).toLocaleString("pt-BR");
-  // Stats tab (aba Stats)
+  // Stats tab (aba Números)
   const _pst=g("#pstat-total-stats");if(_pst)_pst.textContent=_total>0?_total.toLocaleString("pt-BR"):"–";
   // Novos campos
   const wEl=g("#cfg-whatsapp");if(wEl)wEl.value=U.whatsapp||"";
@@ -8237,10 +8239,13 @@ function loadProfile(){
   // Novos IDs do hero do perfil redesenhado
   const _pnl=g("#prof-name-lbl");if(_pnl)_pnl.textContent=U.name||"–";
   const _pel=g("#prof-email-lbl");if(_pel)_pel.textContent=U.email||"–";
-  // Stats rápidos
-  const _pss=g("#prof-stat-sent");if(_pss)_pss.textContent=(U.totalSent||0).toLocaleString();
-  const _psa=g("#prof-stat-auto");if(_psa)_psa.textContent=(U.totalAutoSent||0).toLocaleString();
-  const _psr=g("#prof-stat-replies");if(_psr)_psr.textContent=(U.totalReplies||0).toLocaleString();
+  // Stats rápidos — v92: Manual/Auto/Total. Antes: o card Auto lia
+  // U.totalAutoSent (campo que NÃO EXISTE — o certo é totalAutoHist) e
+  // ficava sempre em 0; e o 3º card era "Respostas" (U.totalReplies),
+  // impossível de contar num app só-envio.
+  const _pss=g("#prof-stat-sent");if(_pss)_pss.textContent=(U.totalManual||0).toLocaleString("pt-BR");
+  const _psa=g("#prof-stat-auto");if(_psa)_psa.textContent=(U.totalAutoHist||0).toLocaleString("pt-BR");
+  const _psr=g("#prof-stat-replies");if(_psr)_psr.textContent=(U.totalSent||0).toLocaleString("pt-BR");
   // Badges do plano
   const _pb=g("#prof-plan-badges");
   if(_pb){const pl=U.plan||"free";const planColors={free:"rgba(255,255,255,.15)",vip:"rgba(167,139,250,.4)",vipro:"rgba(99,102,241,.4)",doublepro:"rgba(250,204,21,.35)",pro:"rgba(6,182,212,.4)"};const planLabels={free:"Free",vip:"⭐ VIP",vipro:"⭐🤖 VIPro",doublepro:"🚀 DoublePro",pro:"🤖 Pro"};_pb.innerHTML=`<span style="background:${planColors[pl]||"rgba(255,255,255,.15)"};border:1px solid rgba(255,255,255,.25);border-radius:99px;padding:2px 10px;font-size:10px;font-weight:700;color:#fff">${planLabels[pl]||pl}</span>`+(U.vip?.manualExpires&&U.vip.manualExpires>Date.now()?`<span style="background:rgba(52,211,153,.25);border:1px solid rgba(52,211,153,.4);border-radius:99px;padding:2px 10px;font-size:10px;font-weight:700;color:#6ee7b7">${Math.ceil((U.vip.manualExpires-Date.now())/86400000)}d restantes</span>`:"");}
@@ -15801,14 +15806,18 @@ async function uploadCvFromDocs(input, cvType){
 
 // ── Stats Tab Rendering ──
 async function renderStatsTab(){
-  const r=g("#pstat-total"),resp=g("#pstat-responses"),str=g("#pstat-streak"),rate=g("#pstat-rate");
+  // v92: o id era "#pstat-total" (fantasma — o card real é #pstat-total-stats),
+  // então o total nunca era preenchido por aqui; e os cards de resposta
+  // liam INBOX_EMAILS (morto no app só-envio). Agora: total no id certo,
+  // e os 2 cards mostram empresas contactadas e estados alcançados (dados
+  // reais do /api/my-stats).
+  const r=g("#pstat-total-stats"),resp=g("#pstat-responses"),str=g("#pstat-streak"),rate=g("#pstat-rate");
   try{
     const res=await fetch("/api/my-stats",{credentials:"include"});const d=await res.json();
-    if(r)r.textContent=d.totalSent||0;
-    if(resp)resp.textContent=d.totalFailed!==undefined?(INBOX_EMAILS.filter(e=>e.isReply).length||"–"):"–";
+    if(r)r.textContent=(d.totalSent||0).toLocaleString("pt-BR");
+    if(resp)resp.textContent=(d.empresasUnicas||0).toLocaleString("pt-BR");
     if(str)str.textContent=d.streak||0;
-    const tot=d.totalSent||0;const rep=INBOX_EMAILS.filter(e=>e.isReply).length||0;
-    if(rate)rate.textContent=tot>0?Math.round((rep/tot)*100)+"%":"0%";
+    if(rate)rate.textContent=(d.estadosUnicos||0).toLocaleString("pt-BR");
     // Gráfico
     if(d.sentLast7&&d.sentLast7.length){
       const max=Math.max(...d.sentLast7.map(x=>x.count),1);
@@ -15832,12 +15841,15 @@ async function renderStatsTab(){
 
 // ── Share Stats ──
 function shareStats(){
-  const total=g("#pstat-total")?.textContent||"0";
+  // v92: o id era "#pstat-total" (fantasma) — compartilhava sempre "0
+  // candidaturas"; e o link era o domínio MORTO do Railway — quem divulgava
+  // o app mandava link quebrado. Agora: total real + o domínio deste servidor.
+  const total=g("#pstat-total-stats")?.textContent||"0";
   const streak=g("#pstat-streak")?.textContent||"0";
   const text=`✈️ Já enviei ${total} candidaturas para vagas H-2B/H-2A nos EUA pelo H2BApply!
 🔥 Streak: ${streak} dias
 
-Acesse: https://facil-h2b.up.railway.app`;
+Acesse: ${location.origin}`;
   if(navigator.share){navigator.share({title:"Meu resultado no H2BApply",text});}
   else{navigator.clipboard.writeText(text).then(()=>toast("Copiado para a área de transferência ✓","g"));}
 }
@@ -17333,7 +17345,7 @@ const LANG_DICT = {
     "tap_to_enable":"Toque no botão para ativar","new_profile":"Criar Novo Perfil",
     "email_profiles":"Perfis de Currículo","profiles_desc":"Cada perfil define o assunto, o corpo do e-mail e o currículo a usar. O sistema escolhe o perfil certo para cada vaga automaticamente.",
     "no_profiles":"Nenhum perfil criado","no_profiles_sub":"Crie seu primeiro perfil para começar a enviar",
-    "total_sent":"Total enviados","streak":"Streak dias","response_rate":"Taxa resposta",
+    "total_sent":"Total enviados","streak":"Streak dias","companies_lbl":"🏢 Empresas","states_lbl":"🗺️ Estados",
     "last_7days":"Últimos 7 dias","top_states":"Top Estados","share_stats":"Compartilhar resultado",
     // Auto
     "auto_hero_sub":"Configure uma vez. O sistema envia enquanto você trabalha.",
@@ -17409,7 +17421,7 @@ const LANG_DICT = {
     "tap_to_enable":"Tap the button to enable","new_profile":"Create New Profile",
     "email_profiles":"Email Profiles","profiles_desc":"Each profile defines the subject, email body and resume to use. The system automatically picks the right profile for each job.",
     "no_profiles":"No profiles created","no_profiles_sub":"Create your first profile to start sending",
-    "total_sent":"Total sent","streak":"Streak days","response_rate":"Response rate",
+    "total_sent":"Total sent","streak":"Streak days","companies_lbl":"🏢 Companies","states_lbl":"🗺️ States",
     "last_7days":"Last 7 days","top_states":"Top States","share_stats":"Share results",
     "auto_hero_sub":"Set up once. The system sends while you work.",
     "auto_free":"10 FREE sends/day for everyone!",
@@ -17478,7 +17490,7 @@ const LANG_DICT = {
     "tap_to_enable":"Toca el botón para activar","new_profile":"Crear Nuevo Perfil",
     "email_profiles":"Perfiles de Email","profiles_desc":"Cada perfil define el asunto, el cuerpo del email y el currículum a usar. El sistema elige automáticamente el perfil correcto para cada empleo.",
     "no_profiles":"Sin perfiles creados","no_profiles_sub":"Crea tu primer perfil para empezar a enviar",
-    "total_sent":"Total enviados","streak":"Días streak","response_rate":"Tasa respuesta",
+    "total_sent":"Total enviados","streak":"Días streak","companies_lbl":"🏢 Empresas","states_lbl":"🗺️ Estados",
     "last_7days":"Últimos 7 días","top_states":"Top Estados","share_stats":"Compartir resultado",
     "auto_hero_sub":"Configura una vez. El sistema envía mientras trabajas.",
     "auto_free":"¡10 envíos GRATIS/día para todos!",
@@ -17763,10 +17775,10 @@ function applyLang(){
   // Stats tab
   document.querySelectorAll('#ptab-content-stats [style*="text-transform:uppercase"]').forEach(el=>{
     const txt=el.textContent.trim();
-    if(txt.match(/Total enviados|Total sent|Total enviados/)) el.textContent=t('total_sent');
-    else if(txt.match(/Respostas|Responses|Respuestas/)) el.textContent=t('responses');
+    if(txt.match(/Total enviados|Total sent/)) el.textContent=t('total_sent');
+    else if(txt.match(/Empresas|Companies/)) el.textContent=t('companies_lbl');
     else if(txt.match(/Streak/)) el.textContent='🔥 '+t('streak');
-    else if(txt.match(/Taxa resposta|Response rate|Tasa respuesta/)) el.textContent=t('response_rate');
+    else if(txt.match(/Estados|States/)) el.textContent=t('states_lbl');
   });
   document.querySelectorAll('#ptab-content-stats [style*="font-size:12px;font-weight:700"]').forEach(el=>{
     const txt=el.textContent.trim();

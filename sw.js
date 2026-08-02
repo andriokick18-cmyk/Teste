@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v58"; // v58 (01/08): reestruturação parte 4 (detalhe da vaga) — sem campos "–", sem duplicação de descrição/nº do caso, datas dd/mm/aaaa, rótulos pt.
+const CACHE_NAME = "h2bapply-v59"; // v59 (01/08): reestruturação parte 5 (Perfil) — card Auto consertado (ficava 0), cards mortos de "Respostas" viram Empresas/Estados reais, compartilhar com total real e link certo.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

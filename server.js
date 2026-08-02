@@ -9752,6 +9752,11 @@ filtrar();
     const totalDup=logs.filter(l=>l.status==="duplicado").length;
     const byState={};h.forEach(x=>{if(x.state&&x.type!=="reply"){byState[x.state]=(byState[x.state]||0)+1;}});
     const topStates=Object.entries(byState).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    // v92 (reestruturação parte 5): métricas REAIS pro lugar dos cards mortos
+    // "Respostas"/"Taxa resposta" (app é só-envio — nunca teria como contar
+    // resposta de verdade; ficavam eternamente em 0 desanimando o usuário).
+    const empresasUnicas=new Set(h.filter(x=>x.type!=="reply"&&x.to).map(x=>String(x.to).toLowerCase())).size;
+    const estadosUnicos=Object.keys(byState).length;
     const streak=calcStreak(h);const sentLast7=last7Days(h);
     const autoJob=getAutoJob(s.user_email);
     return json(res,200,{
@@ -9759,6 +9764,7 @@ filtrar();
       todayManual,todayAuto,
       totalFailed,totalDup,
       topStates,streak,sentLast7,
+      empresasUnicas,estadosUnicos,
       autoQueueSize: autoJob?.active ? (autoJob.queue||[]).length : 0
     });
   }
