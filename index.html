@@ -5669,6 +5669,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <button id="mode-cel-btn" class="mode-sel-btn" onclick="setScreenMode('cel')"><i class="ti ti-device-mobile"></i><span>Tela pequena</span></button>
         <button id="mode-pc-btn" class="mode-sel-btn" onclick="setScreenMode('pc')"><i class="ti ti-device-desktop"></i><span>Tela cheia</span></button>
       </div>
+      <div style="font-size:10.5px;color:var(--t3);margin-top:6px;line-height:1.5">💡 Dica: no celular, <b>vire deitado</b> que a Tela cheia fica perfeita. A escolha fica salva neste aparelho.</div>
     </div>
     <div style="height:1px;background:var(--border);margin:0 12px"></div>
     <!-- Lista principal -->
@@ -6623,6 +6624,7 @@ function setScreenMode(mode){
   localStorage.setItem('h2b_screen_mode',mode);
   localStorage.setItem('h2b_desktop',mode==='pc'?'1':'0'); // compat legado
   _applyDesktopMode();
+  try{gaEvent('screen_mode',{mode:mode});}catch(e){} // v107: medir adoção pra decidir padrão com dado
   try{toast(mode==='pc'?'🖥️ Modo tela cheia ativado':mode==='cel'?'📱 Modo tela pequena ativado':'✨ Automático — o app decide pelo tamanho da tela','g');}catch(e){}
 }
 
@@ -15656,6 +15658,7 @@ async function showTextStats(){
       <div class="tour-slide"><div class="tour-emoji">🤖</div><div class="tour-title">Passo 3 — Envio automático</div><div class="tour-text">Na aba <b>Automático</b> (planos VIP), o robô envia por você <b>24 horas por dia</b>:<br><br>1️⃣ Escolha a fonte de vagas<br>2️⃣ Ajuste os filtros (os mesmos do manual)<br>3️⃣ Escolha seu perfil<br>4️⃣ Toque em <b>Iniciar</b><br><br>🛡️ O robô envia em <b>ritmo humano</b> (um a cada 5-6 min) pra proteger seu Gmail, e você acompanha tudo em tempo real.</div></div>
       <div class="tour-slide"><div class="tour-emoji">💎</div><div class="tour-title">Diamantes, planos e recompensas</div><div class="tour-text">Aqui <b>não existe compra</b>: você <b>doa via PIX</b>, recebe <b>💎 diamantes</b> e <b>troca por planos</b> quando quiser — a troca ativa <b>na hora</b>.<br><br>🎁 E dá pra ganhar 💎 <b>de graça</b> nas <b>Recompensas</b> (aba Planos): primeira candidatura, perfil completo, marcos de envios…<br><br>Diamante de doação pode até ser <b>doado a um amigo</b>. Seu saldo fica sempre à vista no ☰ Menu.</div></div>
       <div class="tour-slide"><div class="tour-emoji">📬</div><div class="tour-title">Quando a empresa responder…</div><div class="tour-text">A resposta chega <b>direto na caixa de entrada do SEU Gmail</b> — a conversa é sua com a empresa, do seu próprio e-mail. O H2BApply nunca lê nem guarda sua caixa de entrada.<br><br>💡 Fique de olho no Gmail (e na pasta de spam, às vezes cai lá).<br><br>📊 Em <b>Enviadas</b> você vê o histórico completo de todas as candidaturas.</div></div>
+      <div class="tour-slide"><div class="tour-emoji">🖥️</div><div class="tour-title">Escolha como ver o app</div><div class="tour-text">No <b>☰ Menu</b> você escolhe o <b>modo de tela</b>:<br><br>✨ <b>Auto</b> — o app decide pelo tamanho da tela<br>📱 <b>Tela pequena</b> — visual de celular<br>🖥️ <b>Tela cheia</b> — visual de computador, com o <b>🤖 Assistente H2B sempre aberto</b> na lateral<br><br>💡 Dica: <b>vire o celular deitado</b> que a Tela cheia fica perfeita. Teste os dois — a escolha fica salva neste aparelho.</div></div>
       <div class="tour-slide"><div class="tour-emoji">🚀</div><div class="tour-title">Pronto pra começar!</div><div class="tour-text">Ordem que funciona:<br><br>1️⃣ <b>Criar perfil</b> (currículo + seus textos) <span style="color:#d97706;font-weight:700">+3 💎</span><br>2️⃣ <b>Testar um envio manual</b> <span style="color:#d97706;font-weight:700">+2 💎</span><br>3️⃣ <b>Ligar o automático</b> e deixar trabalhar<br><br>Este guia fica pra sempre no <b>☰ Menu → Como usar o app</b> (e no atalho 📖 Como Usar da tela inicial) · <span style="color:var(--blue);cursor:pointer;font-weight:700" onclick="window.open('/como-usar','_blank')">ver o guia completo com fotos →</span></div>
         <div style="display:flex;gap:8px;margin-top:14px"><button class="btn btn-primary" style="flex:1" onclick="closeTour();sv('profile');setTimeout(function(){if(typeof switchProfileTab==='function')switchProfileTab('profiles')},150)">👤 Criar meu perfil</button><button class="btn btn-secondary" style="flex:1" onclick="closeTour();sv('jobs')">🔎 Ver vagas</button></div>
       </div>

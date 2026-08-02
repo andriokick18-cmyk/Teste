@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v72"; // v72 (02/08): telas financeiras do admin consolidadas (fila do dono) — menu de dinheiro com 2 itens + régua 💰 no topo das 6 telas (admin.html).
+const CACHE_NAME = "h2bapply-v73"; // v73 (02/08): descoberta dos modos de tela — slide novo no tour, dica "vire deitado" no seletor do ☰ e gaEvent screen_mode pra medir adoção.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
