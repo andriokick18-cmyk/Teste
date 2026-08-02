@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v79"; // v79 (02/08): chip de ordenação mostra "🎯 Melhor pra mim" certo (mostrava "Recentes") — achado na varredura pós-v114.
+const CACHE_NAME = "h2bapply-v80"; // v80 (02/08): setSort redesenha os chips na hora (o chip de ordenação só aparecia no próximo applyF) — achado no teste E2E de verdade.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

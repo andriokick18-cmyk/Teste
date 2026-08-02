@@ -7485,7 +7485,7 @@ function qCidadePick(v){
   applyF();
   if(v)toast("🏙️ Filtrando por "+v,"g");
 }
-function setSort(s){fSort=s;const _mf=g("#mf-sort");if(_mf&&[..._mf.options].some(o=>o.value===s))_mf.value=s;["rand:random","match:match","wage:wage","start:start","desc:desc"].forEach(p=>{const[i,v]=p.split(":");g("#so-"+i)?.classList.toggle("on",s===v);});if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}
+function setSort(s){fSort=s;const _mf=g("#mf-sort");if(_mf&&[..._mf.options].some(o=>o.value===s))_mf.value=s;["rand:random","match:match","wage:wage","start:start","desc:desc"].forEach(p=>{const[i,v]=p.split(":");g("#so-"+i)?.classList.toggle("on",s===v);});renderJobsFilterChips();if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}
 
 const PAGE=25;
 async function loadJobs(reset=false){
