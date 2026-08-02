@@ -590,6 +590,17 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .stab:hover{color:var(--text)}
 .stab.active{color:var(--blue);border-bottom-color:var(--blue)}
 .stab-cnt{font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;background:var(--sf3);color:var(--t3);border:1px solid var(--border);min-width:18px;text-align:center}
+/* v96: subtabs do Perfil em CARDS GRANDES — a régua fininha de antes escondia
+   o caminho pro editor de Currículos (reclamação real do dono com print). */
+#profile-subtabs{background:var(--surface);border-bottom:1.5px solid var(--border);display:flex;gap:8px;padding:10px 12px}
+#profile-subtabs .stab{flex:1;flex-direction:column;gap:5px;padding:13px 6px;margin-bottom:0;border:2px solid var(--border2);border-radius:14px;background:var(--sf2);font-weight:800}
+#profile-subtabs .stab i{font-size:22px}
+#profile-subtabs .stab span{font-size:12.5px;font-weight:800;line-height:1.1}
+#profile-subtabs .stab.active{background:linear-gradient(135deg,#4f46e5,#7c3aed)!important;border-color:transparent!important;color:#fff!important;box-shadow:0 6px 18px rgba(99,102,241,.35)}
+#profile-subtabs .stab.active i,#profile-subtabs .stab.active span{color:#fff!important}
+#profile-subtabs #ptab-admin i,#profile-subtabs #ptab-admin span{color:#f59e0b}
+#profile-subtabs #ptab-admin.active{background:linear-gradient(135deg,#f59e0b,#f97316)!important}
+#profile-subtabs #ptab-admin.active i,#profile-subtabs #ptab-admin.active span{color:#fff!important}
 .stab.active .stab-cnt{background:var(--bluel);color:var(--blue);border-color:var(--blueb)}
 /* Sheet tab special badges */
 .stab-sheet-jan{position:relative}
@@ -2680,6 +2691,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <div class="sb-sec" style="margin-top:6px">
         <button class="sb-item active" id="si-home" onclick="sv('home')"><i class="ti ti-home-2"></i>Início</button>
         <button class="sb-item" id="si-profile" onclick="sv('profile')"><i class="ti ti-user"></i>Meu Perfil</button>
+        <!-- v96: acesso DIRETO ao editor de perfis H2B/H2A (dono: "a pessoa não acha o botão de editar currículos") -->
+        <button class="sb-item" id="si-cvs" onclick="sv('profile');setTimeout(()=>{if(typeof switchProfileTab==='function')switchProfileTab('profiles')},120)"><i class="ti ti-file-cv"></i>Currículos</button>
         <button class="sb-item" id="sb-auto-btn" onclick="openAutoModal()"><i class="ti ti-robot"></i>Envio Automático<span id="sb-auto-dot" style="display:none;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid var(--surface);animation:pulseDot 2s infinite;flex-shrink:0;margin-left:auto"></span></button>
         <button class="sb-item" id="si-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i>Envio Manual<span class="sb-badge sb-badge-b" id="sib-jobs" style="display:none"></span></button>
         <button class="sb-item" id="si-ranking" onclick="sv('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
@@ -3204,13 +3217,12 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
       <!-- ══ PROFILE ══ -->
       <div class="view gone" id="v-profile" style="display:flex;flex-direction:column;overflow:hidden">
-        <!-- ── Subtabs ── -->
-        <div style="background:var(--surface);border-bottom:1.5px solid var(--border);display:flex;flex-shrink:0">
-          <button class="stab active" id="ptab-me"       onclick="switchProfileTab('me')"       style="flex:1;font-size:13px;padding:10px 6px;justify-content:center"><i class="ti ti-user" style="font-size:15px"></i><br><span style="font-size:10px">Eu</span></button>
-
-          <button class="stab"        id="ptab-profiles" onclick="switchProfileTab('profiles')" style="flex:1;font-size:13px;padding:10px 6px;justify-content:center;position:relative"><i class="ti ti-user-circle" style="font-size:15px"></i><br><span style="font-size:10px">Currículos</span><span id="ptab-profiles-cnt" style="position:absolute;top:6px;right:8px;background:var(--blue);color:#fff;border-radius:20px;font-size:9px;font-weight:800;padding:1px 5px;display:none"></span></button>
-          <button class="stab"        id="ptab-stats"    onclick="switchProfileTab('stats')"    style="flex:1;font-size:13px;padding:10px 6px;justify-content:center"><i class="ti ti-chart-bar" style="font-size:15px"></i><br><span style="font-size:10px">Stats</span></button>
-          <button class="stab" id="ptab-admin" onclick="switchProfileTab('admin')" style="flex:1;font-size:13px;padding:10px 6px;justify-content:center;display:none"><i class="ti ti-shield" style="font-size:15px;color:#f59e0b"></i><br><span style="font-size:10px;color:#f59e0b">Admin</span></button>
+        <!-- ── Subtabs (v96: cards grandes — usuário não achava "Currículos" na régua fininha) ── -->
+        <div id="profile-subtabs" style="flex-shrink:0">
+          <button class="stab active" id="ptab-me"       onclick="switchProfileTab('me')"><i class="ti ti-user"></i><span>Eu</span></button>
+          <button class="stab"        id="ptab-profiles" onclick="switchProfileTab('profiles')" style="position:relative"><i class="ti ti-file-cv"></i><span>Currículos</span><span id="ptab-profiles-cnt" style="position:absolute;top:7px;right:9px;background:var(--blue);color:#fff;border-radius:20px;font-size:10px;font-weight:800;padding:1px 6px;display:none"></span></button>
+          <button class="stab"        id="ptab-stats"    onclick="switchProfileTab('stats')"><i class="ti ti-chart-bar"></i><span>Números</span></button>
+          <button class="stab" id="ptab-admin" onclick="switchProfileTab('admin')" style="display:none"><i class="ti ti-shield"></i><span>Admin</span></button>
         </div>
         <div id="profile-tab-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch">
 
@@ -9536,7 +9548,12 @@ function openHistDetail(key,showDates=false){
   const isAuto=gr.entries.some(e=>e.type==="auto");
 
   // Info grid — exibe TODOS os campos coletados da planilha DOL
-  const _dolUrl = gr.url ? `https://${(gr.url||"").replace(/^https?:\/\//,"")}` : (gr.caseNum?`https://seasonaljobs.dol.gov/jobs/${esc(gr.caseNum)}`:"");
+  // v97: /api/history usa caseNum:h.caseNum||h.jobId de propósito (anti-
+  // duplicata da planilha precisa) — mas jobId interno ("a_17...", id de vaga
+  // avulsa) NÃO é um ETA Case Number. Só mostra/linka caso REAL (H-xxx),
+  // senão o modal exibia "j1" como nº de caso e linkava um DOL quebrado.
+  const _realCase=(gr.caseNum&&/^H-/i.test(String(gr.caseNum)))?String(gr.caseNum):"";
+  const _dolUrl = gr.url ? `https://${(gr.url||"").replace(/^https?:\/\//,"")}` : (_realCase?`https://seasonaljobs.dol.gov/jobs/${esc(_realCase)}`:"");
   const infoItems=[
     gr.email||gr.to?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl"><i class="ti ti-mail" style="font-size:10px"></i> E-mail da empresa</div><div class="info-val" style="font-size:12px"><a href="mailto:${esc(gr.email||gr.to)}" style="color:var(--blue);text-decoration:none">${esc(gr.email||gr.to||"–")}</a></div></div>`:"",
     gr.phone?`<div class="info-box"><div class="info-lbl"><i class="ti ti-phone" style="font-size:10px"></i> Telefone</div><div class="info-val" style="font-size:12px"><a href="tel:${esc(gr.phone)}" style="color:var(--green);text-decoration:none">${esc(gr.phone)}</a></div></div>`:"",
@@ -9546,7 +9563,7 @@ function openHistDetail(key,showDates=false){
     gr.start||gr.end?`<div class="info-box" style="${gr.start&&gr.end?'':''}" ><div class="info-lbl"><i class="ti ti-calendar" style="font-size:10px"></i> Período</div><div class="info-val" style="font-size:12px">${gr.start&&gr.end?esc(gr.start)+" → "+esc(gr.end):esc(gr.start||gr.end)}</div></div>`:"",
     gr.visa?`<div class="info-box"><div class="info-lbl"><i class="ti ti-id-badge" style="font-size:10px"></i> Visto</div><div class="info-val"><span class="tag ${gr.visa==="H-2A"?"ta":"tb"}" style="font-size:11px">${esc(gr.visa)}</span></div></div>`:"",
     gr.soc?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl"><i class="ti ti-briefcase" style="font-size:10px"></i> Ocupação SOC</div><div class="info-val" style="font-size:11px">${esc(gr.soc)}</div></div>`:"",
-    gr.caseNum?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl"><i class="ti ti-hash" style="font-size:10px"></i> ETA Case Number</div><div class="info-val" style="font-size:11px;font-family:monospace;color:var(--blue)">${esc(gr.caseNum)}</div></div>`:"",
+    _realCase?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl"><i class="ti ti-hash" style="font-size:10px"></i> Nº do Caso (ETA)</div><div class="info-val" style="font-size:11px;font-family:monospace;color:var(--blue)">${esc(_realCase)}</div></div>`:"",
   ].filter(Boolean).join("");
 
   // Datas de envio
@@ -9575,7 +9592,7 @@ function openHistDetail(key,showDates=false){
     ${gr.desc?`<details style="margin-bottom:8px"><summary style="font-size:12px;font-weight:700;color:var(--t2);cursor:pointer;padding:8px;background:var(--sf2);border-radius:8px;border:1px solid var(--border)"><i class="ti ti-file-text" style="font-size:11px"></i> Descrição da vaga</summary><div style="font-size:12px;color:var(--t2);line-height:1.7;margin-top:6px;white-space:pre-wrap;max-height:200px;overflow-y:auto;padding:10px;background:var(--sf2);border-radius:0 0 8px 8px;border:1px solid var(--border);border-top:none">${esc(gr.desc)}</div></details>`:""}
     <div style="display:flex;flex-direction:column;gap:6px">
       ${_dolUrl?`<a class="btn btn-secondary btn-sm" href="${_dolUrl}" target="_blank" rel="noopener"><i class="ti ti-external-link"></i> Ver vaga em SeasonalJobs.gov</a>`:""}
-      ${gr.caseNum?`<button class="btn btn-secondary btn-sm" onclick="fetchHistJobDOL('${esc(gr.caseNum)}',this)"><i class="ti ti-refresh"></i> Atualizar dados do DOL</button>`:""}
+      ${_realCase?`<button class="btn btn-secondary btn-sm" onclick="fetchHistJobDOL('${esc(_realCase)}',this)"><i class="ti ti-refresh"></i> Atualizar dados do DOL</button>`:""}
     </div>
     <div id="hd-dol-extra" style="margin-top:4px"></div>
   `;
@@ -17582,6 +17599,7 @@ function applyLang(){
   _sbItem('si-notificacoes',t('notifications'));
   _sbItem('si-plans',t('plans'));
   _sbItem('si-profile',t('profile'));
+  _sbItem('si-cvs',t('profiles'));
 
   // ── HOME ──
   _st('home-auto-title',t('auto_title'));

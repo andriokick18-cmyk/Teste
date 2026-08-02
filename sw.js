@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v62"; // v62 (02/08): reestruturação parte 8 (Planos/Doação) — wizard de ativação se minimiza sozinho durante o checkout de doação (cobria o passo do comprovante obrigatório).
+const CACHE_NAME = "h2bapply-v63"; // v63 (02/08): subtabs do Perfil em cards grandes + item Currículos na sidebar (dono não achava o editor) + parte 9 Enviadas (nº de caso ETA falso removido do detalhe).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
