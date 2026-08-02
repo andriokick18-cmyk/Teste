@@ -363,14 +363,17 @@ async function testAuthWatchdogPush() {
     // celular/app trocando o <meta viewport> pra largura fixa (igual "site
     // para computador" do Chrome). Preferência do aparelho em localStorage
     // (h2b_desktop). Guarda: função + persistência + troca do viewport.
-    const _dmOk = home.body.includes("setDesktopMode") &&
-      home.body.includes("h2b_desktop") &&
+    const _dmOk = home.body.includes("setScreenMode") &&
+      home.body.includes("h2b_screen_mode") &&
       /meta\[name="viewport"\]'\)/.test(home.body) &&
       home.body.includes("'width=1100'") &&
+      home.body.includes("force-cel") &&
+      home.body.includes('id="mode-auto-btn"') &&
       home.body.includes('id="mode-pc-btn"') &&
-      home.body.includes('id="mode-cel-btn"');
-    check("🖥️ v100/v101: Modo computador (seletor GRANDE 📱/🖥️ no drawer troca o viewport e persiste no aparelho)",
-      _dmOk, "lógica setDesktopMode/h2b_desktop/width=1100 ou os botões mode-cel/mode-pc não encontrados no index.html");
+      home.body.includes('id="mode-cel-btn"') &&
+      home.body.includes('id="sb-mode-pc"');
+    check("🖥️ v104: 3 modos de tela (Auto/Celular/PC) no drawer E na sidebar — viewport pro celular, force-cel pro PC",
+      _dmOk, "lógica setScreenMode/h2b_screen_mode/force-cel ou os botões dos 2 seletores não encontrados no index.html");
 
     // v95 (reestruturação parte 8): o wizard de ativação NUNCA cobre o
     // caminho do dinheiro — no checkout de doação (#plan-step-2 visível) o

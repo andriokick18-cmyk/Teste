@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v69"; // v69 (02/08): 🤖 chat IA mora FIXO na sidebar (fim do botão flutuante, ordem do dono) + "Ver tudo" virou MENU roxo + sidebar +48px + 54 balões-convite rotativos.
+const CACHE_NAME = "h2bapply-v70"; // v70 (02/08): chat da sidebar compacto (metade) + 3 MODOS DE TELA (Auto/Celular/PC) visíveis na sidebar E no menu ☰ — inclusive modo celular forçado no PC (force-cel).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

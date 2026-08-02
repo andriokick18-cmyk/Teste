@@ -451,10 +451,11 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 [data-theme="dark"] .sb-item-menu{color:#c4b5fd!important;border-color:rgba(167,139,250,.4)!important}
 [data-theme="dark"] .sb-item-menu i{color:#c4b5fd!important}
 /* v103: 🤖 chat IA fixo na sidebar (substitui o botão flutuante) */
-#ia-side{display:flex;flex-direction:column;flex:1;min-height:290px;margin:8px 3px 4px;border:1.5px solid var(--border2);border-radius:14px;background:var(--surface);overflow:hidden;position:relative}
+/* v104: altura FIXA compacta (dono: "ficou muito esticado — diminui pela metade") */
+#ia-side{display:flex;flex-direction:column;flex:0 0 auto;margin:8px 3px 4px;border:1.5px solid var(--border2);border-radius:14px;background:var(--surface);overflow:hidden;position:relative}
 .ia-side-hdr{background:linear-gradient(135deg,#0c4a6e,#0891b2);color:#fff;padding:8px 10px;font-size:12.5px;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:6px;flex-shrink:0}
 .ia-side-hdr button{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:7px;width:24px;height:24px;cursor:pointer;font-size:11px;flex-shrink:0}
-#iaf-msgs{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px;display:flex;flex-direction:column;gap:8px;min-height:120px}
+#iaf-msgs{height:150px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px;display:flex;flex-direction:column;gap:8px}
 .ia-side-in{display:flex;gap:6px;padding:7px 8px;border-top:1px solid var(--border);flex-shrink:0}
 .ia-side-in input{flex:1;min-width:0;height:34px;border-radius:9px;border:1.5px solid var(--border2);background:var(--sf2);padding:0 10px;font-size:12.5px;font-family:inherit;color:var(--text)}
 .ia-side-in button{height:34px;padding:0 11px;border:none;border-radius:9px;background:var(--blue);color:#fff;cursor:pointer;flex-shrink:0}
@@ -464,6 +465,10 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 /* v103: balão-convite rotativo (50+ frases) — aparece por cima do chat sem atrapalhar */
 #ia-side-balloon{display:none;position:absolute;top:36px;left:8px;right:8px;z-index:6;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:12px;border-bottom-left-radius:4px;padding:9px 12px;font-size:12px;font-weight:700;line-height:1.5;box-shadow:0 8px 24px rgba(79,70,229,.4);animation:hxUp .3s ease;cursor:pointer}
 #ia-side-balloon.show{display:block}
+/* v104: seletor compacto de modo de tela na sidebar */
+.sbm-btn{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:3px;background:var(--sf2);border:1.5px solid var(--border2);border-radius:9px;padding:7px 4px;font-size:10.5px;font-weight:800;color:var(--t2);cursor:pointer;font-family:inherit;transition:all .12s;white-space:nowrap}
+.sbm-btn.active{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-color:transparent;color:#fff;box-shadow:0 3px 10px rgba(99,102,241,.35)}
+.sbm-btn:not(.active):hover{background:var(--sf3)}
 .sb-item.active{background:rgba(99,102,241,.12);color:#4f46e5;font-weight:800}
 .sb-item.active i{color:#4f46e5!important}
 [data-theme="dark"] .sb-item.active{background:rgba(129,140,248,.16);color:#a5b4fc}
@@ -2765,6 +2770,17 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <div class="ia-side-in">
           <input id="iaf-input" placeholder="Pergunte qualquer coisa…" onkeydown="if(event.key==='Enter')iaFloatSend()">
           <button aria-label="Enviar mensagem" title="Enviar mensagem" id="iaf-send" onclick="iaFloatSend()"><i class="ti ti-send"></i></button>
+        </div>
+      </div>
+
+      <!-- v104: MODO DE TELA sempre visível na sidebar (dono: "precisa
+           aparecer, tanto no apk quanto no pc — a pessoa escolhe como usar") -->
+      <div style="padding:2px 3px 0">
+        <div style="font-size:9.5px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin:0 6px 4px">🖥️ Modo de tela</div>
+        <div style="display:flex;gap:5px">
+          <button id="sb-mode-auto" class="sbm-btn" onclick="setScreenMode('auto')" title="O app decide pelo tamanho da tela">✨ Auto</button>
+          <button id="sb-mode-cel" class="sbm-btn" onclick="setScreenMode('cel')" title="Forçar visual de celular">📱 Celular</button>
+          <button id="sb-mode-pc" class="sbm-btn" onclick="setScreenMode('pc')" title="Forçar visual de computador">🖥️ PC</button>
         </div>
       </div>
 
@@ -5646,11 +5662,12 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <!-- v99: atalho Currículos no drawer (mesma queixa do dono: "não acham o editor") — e fecha a linha órfã do grid de 5 -->
         <button onclick="closeDrawer();sv('profile');setTimeout(()=>{if(typeof switchProfileTab==='function')switchProfileTab('profiles')},120)" class="d-quick-btn"><i class="ti ti-file-cv" style="color:#7c3aed"></i><span>Currículos</span></button>
       </div>
-      <!-- v101: seletor de modo GRANDE — o drawer fica aberto de propósito pra pessoa alternar e comparar -->
+      <!-- v101/v104: seletor de modo GRANDE (agora com Auto) — o drawer fica aberto de propósito pra pessoa alternar e comparar -->
       <div style="font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin:14px 0 8px">Como prefere ver o app?</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button id="mode-cel-btn" class="mode-sel-btn active" onclick="setDesktopMode(false)"><i class="ti ti-device-mobile"></i><span>Modo celular</span></button>
-        <button id="mode-pc-btn" class="mode-sel-btn" onclick="setDesktopMode(true)"><i class="ti ti-device-desktop"></i><span>Modo computador</span></button>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px">
+        <button id="mode-auto-btn" class="mode-sel-btn active" onclick="setScreenMode('auto')"><i class="ti ti-sparkles"></i><span>Auto</span></button>
+        <button id="mode-cel-btn" class="mode-sel-btn" onclick="setScreenMode('cel')"><i class="ti ti-device-mobile"></i><span>Celular</span></button>
+        <button id="mode-pc-btn" class="mode-sel-btn" onclick="setScreenMode('pc')"><i class="ti ti-device-desktop"></i><span>PC</span></button>
       </div>
     </div>
     <div style="height:1px;background:var(--border);margin:0 12px"></div>
@@ -6581,23 +6598,32 @@ function updateThemeUI(){
    fixa de 1100px: todas as @media de desktop passam a valer e o navegador
    reduz a página pra caber na tela. Preferência do APARELHO (localStorage,
    como tema e fonte) — nunca decide sozinho, só quando a pessoa toca. */
-function _applyDesktopMode(){
-  var on=localStorage.getItem('h2b_desktop')==='1';
-  var m=document.querySelector('meta[name="viewport"]');
-  if(m)m.setAttribute('content',on?'width=1100':'width=device-width,initial-scale=1,viewport-fit=cover');
-  var bc=document.getElementById('mode-cel-btn');
-  var bp=document.getElementById('mode-pc-btn');
-  if(bc)bc.classList.toggle('active',!on);
-  if(bp)bp.classList.toggle('active',on);
+/* v104: 3 modos de tela — 'auto' (o app decide pelo tamanho, padrão),
+   'pc' (força layout de computador: viewport 1100px — funciona no
+   celular/APK) e 'cel' (força visual de celular MESMO no PC, via classe
+   force-cel no <html> — viewport é ignorado por navegador de desktop,
+   então lá a força é por CSS). Preferência do aparelho (localStorage). */
+function _screenMode(){
+  var m=localStorage.getItem('h2b_screen_mode');
+  if(!m)m=localStorage.getItem('h2b_desktop')==='1'?'pc':'auto'; // migra o legado v100
+  return ['auto','pc','cel'].indexOf(m)>=0?m:'auto';
 }
-// v101: seleção direta (não mais toggle cego) — o drawer fica ABERTO de
-// propósito: a pessoa alterna 📱/🖥️ quantas vezes quiser e compara ao vivo.
-function setDesktopMode(on){
-  var cur=localStorage.getItem('h2b_desktop')==='1';
-  if(cur===!!on){return;}
-  localStorage.setItem('h2b_desktop',on?'1':'0');
+function _applyDesktopMode(){
+  var mode=_screenMode();
+  var mv=document.querySelector('meta[name="viewport"]');
+  if(mv)mv.setAttribute('content',mode==='pc'?'width=1100':'width=device-width,initial-scale=1,viewport-fit=cover');
+  document.documentElement.classList.toggle('force-cel',mode==='cel');
+  [['auto','mode-auto-btn','sb-mode-auto'],['cel','mode-cel-btn','sb-mode-cel'],['pc','mode-pc-btn','sb-mode-pc']].forEach(function(x){
+    var d=document.getElementById(x[1]);if(d)d.classList.toggle('active',mode===x[0]);
+    var s=document.getElementById(x[2]);if(s)s.classList.toggle('active',mode===x[0]);
+  });
+}
+function setScreenMode(mode){
+  if(_screenMode()===mode)return;
+  localStorage.setItem('h2b_screen_mode',mode);
+  localStorage.setItem('h2b_desktop',mode==='pc'?'1':'0'); // compat legado
   _applyDesktopMode();
-  try{toast(on?'🖥️ Modo computador ativado':'📱 Modo celular ativado','g');}catch(e){}
+  try{toast(mode==='pc'?'🖥️ Modo computador ativado':mode==='cel'?'📱 Modo celular ativado':'✨ Automático — o app decide pelo tamanho da tela','g');}catch(e){}
 }
 
 // Initialize UI after DOM ready
@@ -15434,6 +15460,21 @@ setTimeout(async()=>{
      aberto em tempo real. Mesmo backend do IA Chat (/api/gemini) e mesma
      lógica iaf-* de sempre — só mudou de casa. No celular (sem sidebar),
      o acesso é pelo MENU ☰ e pela aba IA Chat. -->
+<style>
+/* v104: MODO CELULAR FORÇADO NO PC (html.force-cel) — precisa vir DEPOIS
+   de todas as @media de desktop pra vencer o cascade (mob-detail usa
+   !important lá em cima). Num celular a classe é inofensiva (as regras
+   mobile já valem naturalmente abaixo de 768px). */
+html.force-cel .sidebar{display:none!important}
+html.force-cel .bottom-nav{display:flex!important}
+html.force-cel .main-area{max-width:520px;margin:0 auto;width:100%;border-left:1.5px solid var(--border);border-right:1.5px solid var(--border)}
+html.force-cel .jobs-view{flex-direction:column!important}
+html.force-cel .jlist-panel{width:100%!important;min-width:0!important;border-right:none!important;flex:1!important}
+html.force-cel .jdetail{display:none!important}
+html.force-cel .mob-detail.show{display:flex!important}
+html.force-cel .plans-grid{grid-template-columns:1fr!important}
+html.force-cel .view-scroll{padding:14px 12px}
+</style>
 <script>
 let _iafMsgs=[],_iafBusy=false;
 try{_iafMsgs=JSON.parse(sessionStorage.getItem("h2b_iaf")||"[]");}catch(e){}
