@@ -4295,6 +4295,19 @@ const REGIOES_EUA={
  "door county":["sturgeon bay","fish creek","ephraim","sister bay","egg harbor","door county"],
  "destin":["destin","miramar beach","santa rosa beach","fort walton beach","seaside","watercolor","rosemary beach"],
 };
+// v113: helpers de busca por lugar — mesma normalização do searchSheet
+// (apóstrofo/acento/caixa) + expansão de região, reutilizáveis pelo filtro
+// de CIDADE do modal (sheet-meta e jobs). Fonte única, nunca duplicar.
+function _normBusca(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/["'‘’`´]/g,"").replace(/\s+/g," ").trim();}
+function _cityMatchFn(filtro){
+  const ql=_normBusca(filtro);
+  if(!ql)return null;
+  let cities=null;
+  for(const[reg,cs] of Object.entries(REGIOES_EUA)){
+    if(ql===reg||ql.includes(reg)||(ql.length>=4&&reg.startsWith(ql))){cities=cs;break;}
+  }
+  return ci=>{const c=_normBusca(ci);if(!c)return false;return c.includes(ql)||(cities&&cities.some(x=>c.includes(x)));};
+}
 function searchSheet(arr, q, state, category, skip, top, sort, matchCtx) {
   let list = arr;
   if (q && q.trim()) {
@@ -9585,7 +9598,7 @@ filtrar();
     if(filterJobStatus==="active") preFiltered=preFiltered.filter(r=>{const st=(r.st||"").toUpperCase();return !st.includes("WITHDRAWN")&&!st.includes("DENIED")&&!st.includes("EXPIRED");});
     if(filterJobStatus==="inactive") preFiltered=preFiltered.filter(r=>{const st=(r.st||"").toUpperCase();return st.includes("WITHDRAWN")||st.includes("DENIED")||st.includes("EXPIRED");});
     if(filterCompany) preFiltered=preFiltered.filter(r=>(r.n||"").toLowerCase().includes(filterCompany));
-    if(filterCity) preFiltered=preFiltered.filter(r=>(r.ci||"").toLowerCase().includes(filterCity));
+    if(filterCity){const _cm=_cityMatchFn(filterCity);if(_cm)preFiltered=preFiltered.filter(r=>_cm(r.ci));} // v113: cidade com região+normalização
     // ── 💎 FILTROS DOUBLE PRO: Grupo de Randomização (A–H) e Status DOL ──
     // Gate no SERVIDOR: quem não é DoublePro/admin tem os parâmetros ignorados
     // (o front nunca decide plano). Grupo vem da coluna oficial r.g com fallback
@@ -9723,7 +9736,7 @@ filtrar();
     if(state)filtered=filtered.filter(r=>(r.s||"").toUpperCase()===state);
     if(category&&category!=="all"){const cats=category.split(",").map(c=>c.trim());filtered=filtered.filter(r=>cats.includes(r.k||"other"));}
     if(hasEmail==="yes")filtered=filtered.filter(r=>r.e&&String(r.e).includes("@"));
-    if(filterCityCount)filtered=filtered.filter(r=>(r.ci||"").toLowerCase().includes(filterCityCount));
+    if(filterCityCount){const _cm2=_cityMatchFn(filterCityCount);if(_cm2)filtered=filtered.filter(r=>_cm2(r.ci));} // v113
     const total=filtered.length;
     // Parse wage consistente com /api/sheet-meta
     const parseW=w=>{if(!w)return 0;const m=String(w).match(/[0-9.]+/);return m?parseFloat(m[0]):0;};

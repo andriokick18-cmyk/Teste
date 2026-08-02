@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v76"; // v76 (02/08): detalhe da vaga — Funções até o fim da página (sem caixinha de rolagem), tradução automática pro PT (cache no servidor) e botão 📍 Google Maps.
+const CACHE_NAME = "h2bapply-v77"; // v77 (02/08): filtro de CIDADE do modal Filtros entende região + apóstrofo/acento (Martha´s Vineyard → Edgartown/Oak Bluffs/Tisbury) e o campo ganhou destaque roxo com exemplo.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
