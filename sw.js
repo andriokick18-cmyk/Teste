@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v57"; // v57 (01/08): reestruturação parte 3 (Vagas) — contador com nome real da planilha (era sempre "Jul 2025"), números pt-BR, selo técnico "cache" removido.
+const CACHE_NAME = "h2bapply-v58"; // v58 (01/08): reestruturação parte 4 (detalhe da vaga) — sem campos "–", sem duplicação de descrição/nº do caso, datas dd/mm/aaaa, rótulos pt.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

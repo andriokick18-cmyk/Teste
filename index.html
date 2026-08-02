@@ -7614,7 +7614,15 @@ function selJob2(id){
   showDetail(mkDetailHTML(j));
 }
 
+// v91 (reestruturação parte 4): data ISO → dd/mm/aaaa pro público brasileiro
+function _fmtDataBR(v){const m=String(v||"").match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[3]}/${m[2]}/${m[1]}`:String(v||"");}
 function mkDetailHTML(j){
+  // v91: campo sem dado NÃO vira traço feio ("–, TENNESSEE", "– → –",
+  // "null posição(ões)") — ou mostra o dado de verdade, ou a caixa some.
+  const _local=[j.city,j.state].filter(x=>x&&x!=="–").join(", ");
+  const _temIni=j.start&&j.start!=="–", _temFim=j.end&&j.end!=="–";
+  const _periodo=_temIni||_temFim?`${_temIni?_fmtDataBR(j.start):"A definir"} → ${_temFim?_fmtDataBR(j.end):"A definir"}`:"";
+  const _nWk=parseInt(j.workers,10)||0;
   return`<div class="jd-content">
     <div class="jd-title">${esc(j.title)}</div>
     <div class="jd-co"><i class="ti ti-building"></i>${esc(j.company)}</div>
@@ -7626,9 +7634,9 @@ function mkDetailHTML(j){
     ${j.matchScore!=null?`<div class="alert ${j.matchScore>=70?"al-green":j.matchScore>=40?"al-amber":"al-red"}" style="margin-top:8px"><i class="ti ti-target-arrow"></i><strong>${j.matchScore}% de encaixe com seu perfil</strong>${(j.matchWhy||[]).length?`<div style="font-size:11.5px;margin-top:3px;opacity:.85">${esc(j.matchWhy.join(" · "))}</div>`:""}</div>`:""}
     <div class="info-grid">
       <div class="info-box"><div class="info-lbl">Salário</div><div class="info-val">${esc(j.wage&&j.wage!=="–"?j.wage:"A combinar")}</div></div>
-      <div class="info-box"><div class="info-lbl">Local</div><div class="info-val">${esc(j.city)}, ${esc(j.state)}</div></div>
-      <div class="info-box"><div class="info-lbl">Vagas</div><div class="info-val">${j.workers} posição(ões)</div></div>
-      <div class="info-box"><div class="info-lbl">Período</div><div class="info-val" style="font-size:12px">${esc(j.start)} → ${esc(j.end)}</div></div>
+      ${_local?`<div class="info-box"><div class="info-lbl">Local</div><div class="info-val">${esc(_local)}</div></div>`:""}
+      ${_nWk>0?`<div class="info-box"><div class="info-lbl">Vagas</div><div class="info-val">${_nWk} ${_nWk>1?"vagas":"vaga"}</div></div>`:""}
+      ${_periodo?`<div class="info-box"><div class="info-lbl">Período</div><div class="info-val" style="font-size:12px">${esc(_periodo)}</div></div>`:""}
       ${j.phone?`<div class="info-box"><div class="info-lbl">📞 Telefone</div><div class="info-val" style="font-size:12px"><a href="tel:${esc(j.phone)}" style="color:var(--blue)">${esc(j.phone)}</a></div></div>`:""}
       ${j.email&&j.hasEmail?`<div class="info-box"><div class="info-lbl">📧 Email</div><div class="info-val" style="font-size:11px;word-break:break-all"><a href="mailto:${esc(j.email)}" style="color:var(--green)">${esc(j.email)}</a></div></div>`:""}
       ${j.hours?`<div class="info-box"><div class="info-lbl">⏰ Horas/semana</div><div class="info-val">${esc(j.hours)}h</div></div>`:""}
@@ -7638,13 +7646,11 @@ function mkDetailHTML(j){
       ${j.addr?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">📍 Endereço do worksite</div><div class="info-val" style="font-size:12px">${esc(j.addr)}${j.zip?" — "+esc(j.zip):""}</div></div>`:""}
       ${j.soc||j.socTitle?`<div class="info-box"><div class="info-lbl">🏷️ Classificação SOC</div><div class="info-val" style="font-size:11px">${esc(j.soc||"")} ${esc(j.socTitle||"")}</div></div>`:""}
       ${j.req?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">⚠️ Requisitos especiais</div><div class="info-val" style="font-size:11px;line-height:1.5">${esc(j.req)}</div></div>`:""}
-      ${j.caseNum?`<div class="info-box"><div class="info-lbl">🔑 ETA Case #</div><div class="info-val" style="font-size:11px;font-family:monospace">${esc(j.caseNum)}</div></div>`:""}
+      ${j.caseNum?`<div class="info-box"><div class="info-lbl">🔑 Nº do Caso (ETA)</div><div class="info-val" style="font-size:11px;font-family:monospace">${esc(j.caseNum)}</div></div>`:""}
       ${j.website?`<div class="info-box"><div class="info-lbl">🌐 Site empresa</div><div class="info-val"><a href="${esc(j.website)}" target="_blank" rel="noopener noreferrer" style="color:var(--blue);font-size:11px">${esc(j.website)}</a></div></div>`:""}
       ${j.url?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">🔗 Vaga oficial DOL</div><div class="info-val"><a href="${esc(j.url)}" target="_blank" rel="noopener noreferrer" style="color:#818cf8;font-size:12px;display:flex;align-items:center;gap:4px;font-weight:700"><i class="ti ti-external-link"></i>${esc(j.url)}</a></div></div>`:""}
       ${j.desc?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">📋 Funções da vaga</div><div class="info-val" style="font-size:11px;line-height:1.6;white-space:pre-wrap;max-height:200px;overflow-y:auto;background:rgba(0,0,0,.2);border-radius:8px;padding:8px">${esc(j.desc)}</div></div>`:""}
-      ${j.caseNum?`<div class="info-box" style="grid-column:1/-1"><div class="info-lbl">ETA Case Number</div><div class="info-val" style="font-size:11px;font-family:monospace">${esc(j.caseNum)}</div></div>`:""}
     </div>
-    ${j.desc?`<div class="jd-desc">${esc(j.desc)}</div>`:""}
     <div class="jd-acts">
       ${j.hasEmail?`<button class="btn btn-primary" onclick="openModal('${j.id}')"><i class="ti ti-send"></i> Candidatar-se</button>`:`<div style="font-size:13px;color:var(--t3);padding:9px 13px;background:var(--sf2);border-radius:var(--r);border:1.5px solid var(--border)"><i class="ti ti-alert-triangle"></i> Sem e-mail direto</div>`}
       <button class="btn btn-secondary" onclick="toggleSave('${j.id}')"><i class="ti ti-bookmark${SAVED.has(j.id)?"-filled":""}"></i></button>
