@@ -345,6 +345,19 @@
 
 ## ⚠️ PENDÊNCIAS CONHECIDAS (verificar a cada sessão)
 
+- ✅ REGISTRO (02/08/2026, v95–v108): reestruturação total aos olhos do
+  usuário CONCLUÍDA (12 partes + extras): subtabs do Perfil em cards
+  grandes; Currículos em 3 caminhos (sidebar/drawer/bottom-nav); nº de
+  caso falso removido do detalhe de Enviadas; wizard nunca cobre o
+  checkout de doação; MENU roxo; chat IA fixo na sidebar (regra 12
+  nova) c/ 54 balões; 3 MODOS DE TELA (Auto/Tela pequena/Tela cheia,
+  force-cel pro PC) c/ slide no tour + gaEvent; 30 botões só-ícone com
+  aria-label; telas financeiras do admin consolidadas (régua 💰,
+  _renderMoneyNav); guia /como-usar re-fotografado. Deploys conferidos
+  por hash idêntico nos 3 repos. ATENÇÃO: a rede do sandbox de IA NÃO
+  alcança os domínios de produção (proxy 403) — confirmação visual de
+  produção é sempre do dono.
+
 - 🔴 URGENTE — DNS de applyh2b.com aponta pro parking da Namecheap
   (162.255.119.149, sem HTTPS → ERR_CONNECTION_TIMED_OUT, print do dono
   25/07). Corrigir na Namecheap + Custom Domain no Render — passo a passo
