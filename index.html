@@ -3020,9 +3020,13 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               <i class="ti ti-adjustments-horizontal"></i> Filtros
               <span id="master-filters-badge" style="display:none;background:#7c3aed;color:#fff;border-radius:10px;padding:0 6px;font-size:10px;margin-left:3px;font-weight:800"></span>
             </button>
-            <button class="fbtn on" id="so-rand" onclick="setSort('random')">🔀 Aleatório</button>
-            <button class="fbtn"    id="so-desc" onclick="setSort('desc')">Recentes</button>
-            <button class="fbtn"    id="so-asc"  onclick="setSort('asc')">Antigas</button>
+            <!-- v111: atalhos de 1 toque (nova experiência de busca) — os sorts
+                 match/wage/start já existem no servidor desde o v82 -->
+            <button class="fbtn on" id="so-rand"  onclick="setSort('random')">🔀 Aleatório</button>
+            <button class="fbtn"    id="so-match" onclick="setSort('match')" style="font-weight:800;color:#059669">🎯 Melhor pra mim</button>
+            <button class="fbtn"    id="so-wage"  onclick="setSort('wage')">💰 Maior salário</button>
+            <button class="fbtn"    id="so-start" onclick="setSort('start')">🗓️ Começa logo</button>
+            <button class="fbtn"    id="so-desc"  onclick="setSort('desc')">Recentes</button>
           </div>
         </div>
         <div id="jobs-filter-chips" style="display:none;flex-wrap:wrap;gap:5px;padding:6px 14px 0"></div>
@@ -6944,7 +6948,7 @@ function setTab(t){
   if(t!=="seasonal"){fWage=0;fWorkers=0;const fw=g("#f-wage");if(fw)fw.value="";const wk=g("#f-workers");if(wk)wk.value="";const fc=g("#f-city");if(fc)fc.value="";}
   // v22: planilhas agora suportam ordenação real (random/desc/wage/start via
   // modal de filtros) — só reseta o que a planilha NÃO entende (asc do seasonal)
-  if(t!=="seasonal"&&!["random","desc","wage","start"].includes(fSort)){fSort="random";g("#so-rand")?.classList.add("on");g("#so-desc")?.classList.remove("on");g("#so-asc")?.classList.remove("on");}
+  if(t!=="seasonal"&&!["random","desc","wage","start","match"].includes(fSort)){setSort("random");}
   document.querySelectorAll(".stab").forEach(b=>b.classList.remove("active"));
   g("#stab-"+t)?.classList.add("active");
   g("#jlist").innerHTML="";g("#lmore").innerHTML="";
@@ -7437,7 +7441,7 @@ function onSearch(){clearTimeout(stmr);stmr=setTimeout(()=>{const q=g("#q").valu
 function applyF(){fState=g("#f-state")?.value||"";fWage=parseFloat(g("#f-wage")?.value||0);fWorkers=parseInt(g("#f-workers")?.value||0);fBeginMonths=[..._mfBeginMonths];fSort=g("#mf-sort")?.value||fSort;_masterFiltersSyncBadge();renderJobsFilterChips();if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];g("#jlist").innerHTML="";loadSheetMeta(true);}}
 function setType(t){fType=t;["all","agri","nonag"].forEach(k=>g("#ft-"+k)?.classList.remove("on"));const m={all:"ft-all",agricultural:"ft-agri","non-agricultural":"ft-nonag"};g("#"+m[t])?.classList.add("on");_masterFiltersSyncBadge();if(tab==="seasonal")loadJobs(true);}
 function setStat(s){fStat=s;g("#fs-all")?.classList.toggle("on",s==="all");g("#fs-active")?.classList.toggle("on",s==="active");_masterFiltersSyncBadge();if(tab==="seasonal")loadJobs(true);}
-function setSort(s){fSort=s;g("#so-rand")?.classList.toggle("on",s==="random");g("#so-desc")?.classList.toggle("on",s==="desc");g("#so-asc")?.classList.toggle("on",s==="asc");if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}
+function setSort(s){fSort=s;const _mf=g("#mf-sort");if(_mf&&[..._mf.options].some(o=>o.value===s))_mf.value=s;["rand:random","match:match","wage:wage","start:start","desc:desc"].forEach(p=>{const[i,v]=p.split(":");g("#so-"+i)?.classList.toggle("on",s===v);});if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}
 
 const PAGE=25;
 async function loadJobs(reset=false){
@@ -17836,7 +17840,7 @@ function applyLang(){
   _sText('f-workers','option',0,t('qty_jobs'));
   // Filter buttons
   _sBtnText('ft-all',t('all'));_sBtnText('fs-all',t('all_f'));_sBtnText('fs-active',t('active_f'));
-  _sBtnText('so-rand',t('random'));_sBtnText('so-desc',t('recent'));_sBtnText('so-asc',t('oldest'));
+  _sBtnText('so-rand',t('random'));_sBtnText('so-desc',t('recent'));
   // Job detail empty state
   const jdEmpty=document.getElementById('jd-empty');
   if(jdEmpty){
