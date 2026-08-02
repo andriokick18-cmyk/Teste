@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v73"; // v73 (02/08): descoberta dos modos de tela — slide novo no tour, dica "vire deitado" no seletor do ☰ e gaEvent screen_mode pra medir adoção.
+const CACHE_NAME = "h2bapply-v74"; // v74 (02/08): fim dos botões flutuantes que incomodam — instalar app virou aba "Baixar App" (sidebar + MENU ☰) e o hub ✨ Extras virou item do MENU ☰.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

@@ -13,7 +13,12 @@ const T = (msg,type)=>{ try{ if(typeof toast==="function"){toast(msg,type||"");r
 /* ─── CSS do módulo ─── */
 const css = document.createElement("style");
 css.textContent = `
-#hx-fab{position:fixed;right:14px;bottom:120px;width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;cursor:pointer;z-index:9500;box-shadow:0 6px 22px rgba(99,102,241,.45);font-size:20px;display:flex;align-items:center;justify-content:center;transition:transform .15s}
+/* v110 (dono, 02/08): botão flutuante ✨ REMOVIDO da tela ("não pode ficar
+   sempre incomodando") — o hub Extras mora agora no MENU ☰ (item injetado
+   abaixo). O elemento #hx-fab continua existindo escondido só porque o
+   badge #hx-fab-badge dentro dele é referenciado pelo contador de
+   lembretes — nunca reexibir. Atalho de teclado X continua funcionando. */
+#hx-fab{display:none!important}
 #hx-fab:active{transform:scale(.92)}
 #hx-fab .hx-badge{position:absolute;top:-3px;right:-3px;background:#ef4444;color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:8px;display:none;align-items:center;justify-content:center;padding:0 4px}
 #hx-top{position:fixed;right:14px;bottom:180px;width:40px;height:40px;border-radius:50%;background:rgba(30,41,59,.85);color:#fff;border:none;cursor:pointer;z-index:9490;display:none;align-items:center;justify-content:center;font-size:17px;backdrop-filter:blur(4px)}
@@ -129,6 +134,18 @@ applyFont();
 const fab=document.createElement("button");
 fab.id="hx-fab"; fab.innerHTML="✨<span class='hx-badge' id='hx-fab-badge'></span>"; fab.title="Extras H2BApply (atalho: X)";
 fab.onclick=openPanel; document.body.appendChild(fab);
+// v110: o acesso visível ao hub Extras virou item do MENU ☰ (injetado
+// antes de Configurações). O fab acima fica escondido (CSS) só pelo badge.
+setTimeout(()=>{try{
+  const cfg=document.querySelector('#drawer .d-item[onclick*="settings"]');
+  if(cfg&&!document.getElementById("d-extras-item")){
+    const b=document.createElement("button");
+    b.className="d-item";b.id="d-extras-item";b.style.borderRadius="12px";b.style.marginBottom="4px";
+    b.innerHTML='<div style="width:36px;height:36px;border-radius:10px;background:rgba(139,92,246,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">✨</div><div style="flex:1"><div style="font-size:13px;font-weight:700">Ferramentas Extras</div><div style="font-size:11px;color:var(--t3);font-weight:400">Notas, lembretes, horário EUA, calculadora</div></div><i class="ti ti-chevron-right" style="color:var(--t3);font-size:16px"></i>';
+    b.onclick=()=>{try{closeDrawer();}catch(e){};openPanel();};
+    cfg.parentElement.insertBefore(b,cfg);
+  }
+}catch(e){}},2500);
 
 const panel=document.createElement("div");
 panel.id="hx-panel";

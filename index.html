@@ -2747,6 +2747,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <button class="sb-item" id="si-noticias" onclick="sv('noticias');loadNoticias()"><i class="ti ti-news"></i>Notícias H-2B<span class="sb-badge" id="sib-noticias" style="display:none;background:var(--red);color:#fff">NOVA</span></button>
         <button class="sb-item" id="si-hist" onclick="sv('hist')"><i class="ti ti-history"></i>Enviadas<span class="sb-badge sb-badge-g" id="sib-hist" style="display:none"></span></button>
         <button class="sb-item" id="si-notificacoes" onclick="sv('notificacoes')"><i class="ti ti-bell"></i>Notificações<span class="sb-badge" id="sib-notificacoes" style="display:none;background:#7c3aed;color:#fff"></span></button>
+        <!-- v110: aba fixa de instalar o app (substitui o botão flutuante) -->
+        <button class="sb-item" id="si-app" onclick="installAppClick()"><i class="ti ti-device-mobile-down"></i>Baixar App</button>
         <!-- v103: "Ver tudo" virou MENU com destaque roxo (pedido do dono) -->
         <button class="sb-item sb-item-menu" id="si-menu" onclick="openDrawer()"><i class="ti ti-layout-grid"></i>MENU</button>
       </div>
@@ -5718,6 +5720,12 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
            Sugestões → dentro de Configurações
            Logs do Automático → dentro da aba Automático (botão "Ver logs" já existia)
            Resgatar código → dentro de Planos -->
+      <!-- v110: Baixar App no MENU (substitui o botão flutuante de instalar) -->
+      <button class="d-item" onclick="closeDrawer();installAppClick()" style="border-radius:12px;margin-bottom:4px">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(26,86,219,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">📲</div>
+        <div style="flex:1"><div style="font-size:13px;font-weight:700">Baixar o App</div><div style="font-size:11px;color:var(--t3);font-weight:400">Instale o H2BApply no seu aparelho</div></div>
+        <i class="ti ti-chevron-right" style="color:var(--t3);font-size:16px"></i>
+      </button>
       <button class="d-item" onclick="closeDrawer();sv('settings')" style="border-radius:12px;margin-bottom:4px">
         <div style="width:36px;height:36px;border-radius:10px;background:var(--sf3);display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="ti ti-settings" style="color:var(--t2);font-size:18px"></i></div>
         <div style="flex:1"><div style="font-size:13px;font-weight:700">Configurações</div><div style="font-size:11px;color:var(--t3);font-weight:400">Conta, privacidade e preferências</div></div>
@@ -11468,8 +11476,27 @@ function _createInstallFab(){
     if(outcome==="accepted"){hideInstallFab();toast("Instalando... 🚀","g");}
   });
 }
-function showInstallFab(){_createInstallFab();document.getElementById("pwa-fab")?.classList.add("visible");}
-function hideInstallFab(){document.getElementById("pwa-fab")?.classList.remove("visible");}
+/* v110 (dono, 02/08): botão flutuante de instalar REMOVIDO ("não pode ficar
+   sempre incomodando") — o caminho agora é a aba "Baixar App" na sidebar e
+   no MENU ☰ (installAppClick). showInstallFab virou no-op de propósito:
+   os listeners de beforeinstallprompt/appinstalled continuam capturando o
+   _deferredPrompt, só não pintam mais nada flutuando. */
+function showInstallFab(){}
+function hideInstallFab(){}
+async function installAppClick(){
+  try{
+    if(_deferredPrompt){
+      _deferredPrompt.prompt();
+      const c=await _deferredPrompt.userChoice;
+      if(c&&c.outcome==="accepted")_deferredPrompt=null;
+      return;
+    }
+  }catch(e){}
+  const isIos=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const standalone=window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches;
+  if(standalone||window.navigator.standalone){toast("✅ O app já está instalado neste aparelho!","g");return;}
+  toast(isIos?'📲 No iPhone: botão Compartilhar → "Adicionar à Tela de Início"':'📲 No Chrome: menu ⋮ → "Instalar aplicativo" (ou "Adicionar à tela inicial")',"g");
+}
 function showInstallBanner(){showInstallFab();}
 function hideInstallBanner(){hideInstallFab();}
 
