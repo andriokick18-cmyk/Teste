@@ -2749,7 +2749,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 </div>
                 <div class="home-name" id="home-name" style="font-size:24px;font-weight:900;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:9px">–</div>
                 <div class="home-plan-row" id="home-plan-row" style="margin-bottom:11px"></div>
-                <div style="font-size:12.5px;color:rgba(255,255,255,.78);line-height:1.5">Bem-vindo(a) de volta! Pronto para enviar muitas candidaturas hoje?</div>
+                <div id="home-hero-status" style="font-size:12.5px;color:rgba(255,255,255,.78);line-height:1.5">Bem-vindo(a) de volta! Pronto para enviar muitas candidaturas hoje?</div>
               </div>
             </div>
           </div>
@@ -2828,9 +2828,13 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             </div>
           </div>
 
-          <!-- ══ STATS 4 CARDS — brancos, número grande colorido (layout do print) ══ -->
+          <!-- ══ STATS 3 CARDS — brancos, número grande colorido (layout do print) ══ -->
+          <!-- v89 (reestruturação parte 2): eram 4 colunas com só 3 cards —
+               sobrava uma coluna vazia à direita (resquício de quando um 4º
+               card existia). Corrigido pra repeat(3,1fr) e os cards preenchem
+               a linha inteira, alinhados. -->
           <div style="padding:14px 14px 0">
-            <div class="home-stat-cards" style="grid-template-columns:repeat(4,1fr);gap:11px;display:grid">
+            <div class="home-stat-cards" style="grid-template-columns:repeat(3,1fr);gap:11px;display:grid">
               <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer;border-radius:16px;padding:18px 6px 15px;text-align:center;background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 14px rgba(15,23,42,.05)">
                 <div style="font-size:22px;line-height:1;margin-bottom:8px">📤</div>
                 <div class="home-stat-val" style="color:var(--blue);font-size:26px;font-weight:900" id="home-stat-manual">–</div>
@@ -12589,6 +12593,32 @@ function sendEmailReply(){
 
 // ── Render Home ───────────────────────────────────────────
 // ── Guia inteligente "Próximo passo" na home (aditivo, falha em silêncio) ──
+// v89 (reestruturação parte 2 — Home): o subtítulo do hero era texto fixo
+// ("Pronto para enviar candidaturas hoje?"). Agora mostra o STATUS REAL do
+// usuário — robô trabalhando, quantas já enviou hoje, ou quantos envios
+// ainda tem — informação de verdade em vez de enfeite. Falha em silêncio.
+function renderHeroStatus(){
+  try{
+    const el=g("#home-hero-status");if(!el||!U.connected)return;
+    const auto=U.autoJob;
+    if(auto&&auto.active){
+      const q=auto.queueSize||0;
+      el.innerHTML=`🤖 Seu robô está <b style="color:#fff">trabalhando agora</b>${q?` — ${q} vaga${q>1?'s':''} na fila`:''}.`;
+      return;
+    }
+    const sentToday=(U.todaySentManual||0)+(U.todaySentAuto||0);
+    if(sentToday>0){
+      el.innerHTML=`✅ Você já enviou <b style="color:#fff">${sentToday} candidatura${sentToday>1?'s':''}</b> hoje. Continue assim!`;
+      return;
+    }
+    const rem=(U.manualRemaining!=null?U.manualRemaining:0);
+    if(rem>0){
+      el.innerHTML=`Você tem <b style="color:#fff">${rem} envio${rem>1?'s':''}</b> disponíve${rem>1?'is':'l'} hoje. Bora se candidatar? 🚀`;
+      return;
+    }
+    el.textContent="Bem-vindo(a) de volta! Pronto para enviar muitas candidaturas hoje?";
+  }catch(e){}
+}
 function renderNextStep(){
   const box=g("#home-next-step");if(!box)return;
   if(!U.connected){box.style.display="none";return;}
@@ -12696,6 +12726,7 @@ function renderNoticiaHomeCard(){
 }
 function renderHome(){
   _showWelcome();
+  try{renderHeroStatus();}catch(e){}
   try{renderNextStep();}catch(e){}
   try{renderResetCard();}catch(e){}
   try{renderPendingOrderCard();}catch(e){}
@@ -17240,7 +17271,7 @@ const LANG_DICT = {
     // Home
     "auto_title":"Envio Automático","auto_sub":"Toque para configurar e iniciar",
     "shortcuts":"Atalhos Rápidos","today":"Hoje","account":"Conta","latest_replies":"Últimas Respostas",
-    "manual":"Manual","search":"Pesquisar","responses":"Respostas","auto_lbl":"Automático","ranking":"Ranking","profile_lbl":"Perfil",
+    "manual":"Manual","search":"Pesquisar","responses":"Respostas","auto_lbl":"Automático","total_sends":"Total","ranking":"Ranking","profile_lbl":"Perfil",
     "plans_rewards":"Planos & Recompensas","comp_ranking":"Ranking Competitivo","ranking_sub":"Veja sua posição e concorra",
     "sent_apps":"Candidaturas Enviadas","your_pos":"sua posição","you":"Você","me":"Eu","profiles":"Perfis","stats":"Números","seasonal_jobs":"Vagas ao Vivo",
     // Plans
@@ -17323,7 +17354,7 @@ const LANG_DICT = {
     "notifications":"Notifications","plans":"Plans","profile":"Profile","admin":"Admin Panel","logout":"Logout",
     "auto_title":"Auto Send","auto_sub":"Tap to configure and start",
     "shortcuts":"Quick Access","today":"Today","account":"Account","latest_replies":"Latest Replies",
-    "auto_lbl":"Auto","profile_lbl":"Profile",
+    "auto_lbl":"Auto","total_sends":"Total","profile_lbl":"Profile",
     "plans_rewards":"Plans & Rewards","comp_ranking":"Competitive Ranking","ranking_sub":"See your position and compete",
     "sent_apps":"Applications Sent","your_pos":"your position","you":"You","me":"Me","profiles":"Profiles","stats":"Stats","seasonal_jobs":"Seasonal Jobs",
     "plan_free":"Free Plan","plan_vip":"VIP Plan","plan_pro":"Pro Plan","plan_vipro":"VIPro Plan",
@@ -17392,7 +17423,7 @@ const LANG_DICT = {
     "notifications":"Notificaciones","plans":"Planes","profile":"Perfil","admin":"Panel Admin","logout":"Salir",
     "auto_title":"Envío Automático","auto_sub":"Toca para configurar e iniciar",
     "shortcuts":"Accesos Rápidos","today":"Hoy","account":"Cuenta","latest_replies":"Últimas Respuestas",
-    "auto_lbl":"Automático","profile_lbl":"Perfil",
+    "auto_lbl":"Automático","total_sends":"Total","profile_lbl":"Perfil",
     "plans_rewards":"Planes & Recompensas","comp_ranking":"Ranking Competitivo","ranking_sub":"Ve tu posición y compite",
     "sent_apps":"Postulaciones Enviadas","your_pos":"tu posición","you":"Tú","me":"Yo","profiles":"Perfiles","stats":"Números","seasonal_jobs":"Empleos en Vivo",
     "plan_free":"Plan Gratuito","plan_vip":"Plan VIP","plan_pro":"Plan Pro","plan_vipro":"Plan VIPro",
@@ -17513,9 +17544,12 @@ function applyLang(){
   const sc=document.querySelectorAll('.home-shortcut .home-shortcut-label');
   const scT=[t('manual'),t('search'),t('responses'),t('auto_lbl'),t('ranking'),t('profile')];
   sc.forEach((el,i)=>{if(i<scT.length&&scT[i])el.textContent=scT[i];});
-  // Home stat labels
+  // Home stat labels — v89 (reestruturação parte 2): o 3º card mostra o
+  // TOTAL de envios (U.totalSent), mas o label estava "Respostas" — e o app
+  // é SÓ-ENVIO (regra 13d: nunca lê a caixa de entrada), então nunca teria
+  // como contar respostas de verdade. Label agora bate com o valor: "Total".
   document.querySelectorAll('.home-stat-lbl').forEach((el,i)=>{
-    const labels=[t('manual'),t('auto_lbl'),t('responses')];
+    const labels=[t('manual'),t('auto_lbl'),t('total_sends')];
     if(labels[i])el.textContent=labels[i];
   });
   // Home account card texts
