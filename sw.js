@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v60"; // v60 (01/08): reestruturação parte 6 (Currículos) — wizard não promete mais "modelos prontos" (regra 7), não cobre mais o editor aberto, aba unificada como "Currículos".
+const CACHE_NAME = "h2bapply-v61"; // v61 (01/08): reestruturação parte 7 (Automático) — planilha sem contatos não é mais recomendada ("EM BREVE" no lugar de "MAIS NOVA"), contador honesto por estado.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
