@@ -9503,7 +9503,17 @@ filtrar();
       const _shJobs=_shRows.map(r=>({id:r.c,caseNum:r.c,title:r.t||"Seasonal Worker",company:r.n||"–",city:r.ci||"–",state:r.s||"–",wage:r.w?`$${r.w}/${r.wunit||"h"}`:"–",workers:r.wk||null,start:r.d||"–",end:r.de||"–",email:r.e,phone:r.ph||"",phone2:r.ph2||"",url:r.c&&r.c.startsWith("H-")?`https://seasonaljobs.dol.gov/jobs/${r.c}`:"",desc:r.desc||"",soc:r.soc||"",active:true,visa:r.visa||"H-2B",hasEmail:true,category:r.k||"other",fromSheet:true}));
       let src=_shJobs.length?_shJobs:jobsCache.length?[...jobsCache]:[...FALLBACK_JOBS];
       const{query:q,state,jobType,jobStatus,beginDate}=opts;
-      if(q){const ql=q.toLowerCase();src=src.filter(j=>(j.title||"").toLowerCase().includes(ql)||(j.company||"").toLowerCase().includes(ql)||(j.state||"").toLowerCase().includes(ql)||(j.city||"").toLowerCase().includes(ql)||(j.desc||"").toLowerCase().includes(ql)||(j.phone||"").includes(ql));}
+      // v112b: MESMA régua de busca do searchSheet — normaliza apóstrofo/
+      // acento ("Marthas"=="Martha's") e expande REGIÃO turística em
+      // cidades-membro (v111b). Antes esta aba usava includes cru e ficava
+      // atrás das planilhas.
+      if(q){
+        const _n=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/["'‘’`´]/g,"");
+        const ql=_n(q);
+        let _rc=null;
+        for(const[reg,cities] of Object.entries(REGIOES_EUA)){if(ql===reg||ql.includes(reg)||(ql.length>=4&&reg.startsWith(ql))){_rc=cities;break;}}
+        src=src.filter(j=>{const h=_n([j.title,j.company,j.state,j.city,j.desc,j.phone].filter(Boolean).join(" "));return h.includes(ql)||(_rc&&_rc.some(c=>h.includes(c)));});
+      }
       if(state)src=src.filter(j=>j.state.toUpperCase()===state.toUpperCase());
       if(jobType==="agricultural")src=src.filter(j=>j.visa==="H-2A");if(jobType==="non-agricultural")src=src.filter(j=>j.visa==="H-2B");
       if(jobStatus==="active")src=src.filter(j=>j.active);if(jobStatus==="inactive")src=src.filter(j=>!j.active);
