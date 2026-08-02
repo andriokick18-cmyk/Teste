@@ -466,7 +466,7 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 #ia-side-balloon{display:none;position:absolute;top:36px;left:8px;right:8px;z-index:6;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:12px;border-bottom-left-radius:4px;padding:9px 12px;font-size:12px;font-weight:700;line-height:1.5;box-shadow:0 8px 24px rgba(79,70,229,.4);animation:hxUp .3s ease;cursor:pointer}
 #ia-side-balloon.show{display:block}
 /* v104: seletor compacto de modo de tela na sidebar */
-.sbm-btn{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:3px;background:var(--sf2);border:1.5px solid var(--border2);border-radius:9px;padding:7px 4px;font-size:10.5px;font-weight:800;color:var(--t2);cursor:pointer;font-family:inherit;transition:all .12s;white-space:nowrap}
+.sbm-btn{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:2px;background:var(--sf2);border:1.5px solid var(--border2);border-radius:9px;padding:7px 2px;font-size:9.8px;font-weight:800;color:var(--t2);cursor:pointer;font-family:inherit;transition:all .12s;white-space:nowrap;overflow:hidden}
 .sbm-btn.active{background:linear-gradient(135deg,#4f46e5,#7c3aed);border-color:transparent;color:#fff;box-shadow:0 3px 10px rgba(99,102,241,.35)}
 .sbm-btn:not(.active):hover{background:var(--sf3)}
 .sb-item.active{background:rgba(99,102,241,.12);color:#4f46e5;font-weight:800}
@@ -2779,8 +2779,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <div style="font-size:9.5px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin:0 6px 4px">🖥️ Modo de tela</div>
         <div style="display:flex;gap:5px">
           <button id="sb-mode-auto" class="sbm-btn" onclick="setScreenMode('auto')" title="O app decide pelo tamanho da tela">✨ Auto</button>
-          <button id="sb-mode-cel" class="sbm-btn" onclick="setScreenMode('cel')" title="Forçar visual de celular">📱 Celular</button>
-          <button id="sb-mode-pc" class="sbm-btn" onclick="setScreenMode('pc')" title="Forçar visual de computador">🖥️ PC</button>
+          <button id="sb-mode-cel" class="sbm-btn" onclick="setScreenMode('cel')" title="Modo tela pequena">📱 Pequena</button>
+          <button id="sb-mode-pc" class="sbm-btn" onclick="setScreenMode('pc')" title="Modo tela cheia">🖥️ Cheia</button>
         </div>
       </div>
 
@@ -5666,8 +5666,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <div style="font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin:14px 0 8px">Como prefere ver o app?</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px">
         <button id="mode-auto-btn" class="mode-sel-btn active" onclick="setScreenMode('auto')"><i class="ti ti-sparkles"></i><span>Auto</span></button>
-        <button id="mode-cel-btn" class="mode-sel-btn" onclick="setScreenMode('cel')"><i class="ti ti-device-mobile"></i><span>Celular</span></button>
-        <button id="mode-pc-btn" class="mode-sel-btn" onclick="setScreenMode('pc')"><i class="ti ti-device-desktop"></i><span>PC</span></button>
+        <button id="mode-cel-btn" class="mode-sel-btn" onclick="setScreenMode('cel')"><i class="ti ti-device-mobile"></i><span>Tela pequena</span></button>
+        <button id="mode-pc-btn" class="mode-sel-btn" onclick="setScreenMode('pc')"><i class="ti ti-device-desktop"></i><span>Tela cheia</span></button>
       </div>
     </div>
     <div style="height:1px;background:var(--border);margin:0 12px"></div>
@@ -6623,7 +6623,7 @@ function setScreenMode(mode){
   localStorage.setItem('h2b_screen_mode',mode);
   localStorage.setItem('h2b_desktop',mode==='pc'?'1':'0'); // compat legado
   _applyDesktopMode();
-  try{toast(mode==='pc'?'🖥️ Modo computador ativado':mode==='cel'?'📱 Modo celular ativado':'✨ Automático — o app decide pelo tamanho da tela','g');}catch(e){}
+  try{toast(mode==='pc'?'🖥️ Modo tela cheia ativado':mode==='cel'?'📱 Modo tela pequena ativado':'✨ Automático — o app decide pelo tamanho da tela','g');}catch(e){}
 }
 
 // Initialize UI after DOM ready
