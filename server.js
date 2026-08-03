@@ -9275,7 +9275,10 @@ Accept, Accept-Language, Accept-Encoding: identity, Sec-Fetch-*, Referer — con
     res.writeHead(200,h);return res.end(body);
   }
   // 🔧 FIX CRÍTICO (03/07): extras nunca eram servidos (404) — blindagem não carregava
-  if(pathname==="/h2b-extras-user.js"||pathname==="/h2b-extras-admin.js"){
+  if(pathname==="/h2b-extras-user.js"||pathname==="/h2b-extras-admin.js"||pathname==="/app.js"){
+    // v116: /app.js = todo o JS do corpo do index.html, extraído pra fora
+    // (1,3MB inline eram re-parseados a cada abertura = ~14s de travada em
+    // celular mediano). Mesmo motor de asset: brotli/gzip + ETag/304.
     return sendAsset(req,res,pathname.slice(1),"application/javascript; charset=utf-8","no-cache, must-revalidate"); // V951
   }
   // Ícones PWA — serve PNG se existir, senão gera SVG inline como fallback

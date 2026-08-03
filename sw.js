@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v80"; // v80 (02/08): setSort redesenha os chips na hora (o chip de ordenação só aparecia no próximo applyF) — achado no teste E2E de verdade.
+const CACHE_NAME = "h2bapply-v81"; // v81 (02/08): ⚡ CARREGAMENTO RÁPIDO — 678KB de JS extraídos do index.html pro /app.js (defer + cache/ETag); a página parava ~14s interpretando JS inline em celular mediano.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

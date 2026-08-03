@@ -328,6 +328,9 @@ async function testAuthWatchdogPush() {
       priv.status === 200 && priv.body.includes("Limited Use requirements") && priv.body.includes("gmail.send"),
       `status=${priv.status}`);
     // v40: fonte de ícones é BUILT-IN — nunca mais some por CDN bloqueada
+    const appJs = await get("/app.js");
+    check("⚡ v116: /app.js servido (JS do index extraído — carregamento rápido)", appJs.status===200 && appJs.body.length>100_000, "status="+appJs.status);
+    const frontAll = home.body + appJs.body;
     const tcss = await get("/vendor/tabler-icons.min.css");
     check("🎨 fonte de ícones servida pelo próprio site (CSS)",
       tcss.status === 200 && tcss.body.includes("tabler-icons"), `status=${tcss.status}`);
@@ -343,7 +346,7 @@ async function testAuthWatchdogPush() {
     // pelo navegador (navigator.language) — só pela escolha salva do usuário,
     // caindo em 'pt' por padrão. Se alguém reintroduzir a detecção por
     // navegador, o site volta a abrir em inglês pra muitos brasileiros.
-    const _langInitOk = !home.body.includes("navigator.language||'pt'") && /getItem\('h2b_lang'\)[\s\S]{0,160}return'pt'/.test(home.body);
+    const _langInitOk = !frontAll.includes("navigator.language||'pt'") && /getItem\('h2b_lang'\)[\s\S]{0,160}return'pt'/.test(frontAll);
     check("🇧🇷 v86: index.html abre em PORTUGUÊS por padrão (idioma não decidido mais pelo navigator.language)",
       _langInitOk, "inicializador de _curLang não caiu no padrão PT esperado (localStorage → fallback 'pt')");
 
@@ -351,11 +354,11 @@ async function testAuthWatchdogPush() {
     // janela flutuante do v25). Guarda: painel #ia-side existe, o botão
     // flutuante #ia-fab NÃO existe mais, "Ver tudo" virou MENU roxo, e o
     // convite rotativo tem 50+ frases (pedido literal do dono).
-    const _iaSideOk = home.body.includes('id="ia-side"') &&
-      !home.body.includes('id="ia-fab"') &&
-      home.body.includes('sb-item-menu') && home.body.includes(">MENU<") &&
-      home.body.includes("_IA_BALLOONS") &&
-      (home.body.match(/\n\s{2}"[^"\n]{10,60}",/g)||[]).length >= 50;
+    const _iaSideOk = frontAll.includes('id="ia-side"') &&
+      !frontAll.includes('id="ia-fab"') &&
+      frontAll.includes('sb-item-menu') && frontAll.includes(">MENU<") &&
+      frontAll.includes("_IA_BALLOONS") &&
+      (frontAll.match(/\n\s{2}"[^"\n]{10,60}",/g)||[]).length >= 50;
     check("🤖 v103: chat IA fixo na sidebar (sem botão flutuante, MENU roxo, 50+ balões-convite)",
       _iaSideOk, "ia-side/MENU/_IA_BALLOONS(50+) não conferem — ou o ia-fab voltou");
 
@@ -363,15 +366,15 @@ async function testAuthWatchdogPush() {
     // celular/app trocando o <meta viewport> pra largura fixa (igual "site
     // para computador" do Chrome). Preferência do aparelho em localStorage
     // (h2b_desktop). Guarda: função + persistência + troca do viewport.
-    const _dmOk = home.body.includes("setScreenMode") &&
-      home.body.includes("h2b_screen_mode") &&
-      /meta\[name="viewport"\]'\)/.test(home.body) &&
-      home.body.includes("'width=1100'") &&
-      home.body.includes("force-cel") &&
-      home.body.includes('id="mode-auto-btn"') &&
-      home.body.includes('id="mode-pc-btn"') &&
-      home.body.includes('id="mode-cel-btn"') &&
-      home.body.includes('id="sb-mode-pc"');
+    const _dmOk = frontAll.includes("setScreenMode") &&
+      frontAll.includes("h2b_screen_mode") &&
+      /meta\[name="viewport"\]'\)/.test(frontAll) &&
+      frontAll.includes("'width=1100'") &&
+      frontAll.includes("force-cel") &&
+      frontAll.includes('id="mode-auto-btn"') &&
+      frontAll.includes('id="mode-pc-btn"') &&
+      frontAll.includes('id="mode-cel-btn"') &&
+      frontAll.includes('id="sb-mode-pc"');
     check("🖥️ v104: 3 modos de tela (Auto/Celular/PC) no drawer E na sidebar — viewport pro celular, force-cel pro PC",
       _dmOk, "lógica setScreenMode/h2b_screen_mode/force-cel ou os botões dos 2 seletores não encontrados no index.html");
 
@@ -469,7 +472,10 @@ async function testAuthWatchdogPush() {
     // DEFINIDA no arquivo. Comentários são removidos antes; chamadas
     // protegidas por typeof não contam.
     for (const _file of ["index.html", "admin.html"]) {
-      const _raw = fs.readFileSync(path.join(__dirname, _file), "utf8");
+      // v116: o JS do index.html mora agora no app.js (e o do site também usa
+      // h2b-extras-user.js) — as DEFINIÇÕES podem estar em qualquer um deles.
+      const _extra = _file==="index.html" ? fs.readFileSync(path.join(__dirname,"app.js"),"utf8")+fs.readFileSync(path.join(__dirname,"h2b-extras-user.js"),"utf8") : "";
+      const _raw = fs.readFileSync(path.join(__dirname, _file), "utf8") + _extra;
       // Só comentários de LINHA INTEIRA saem (onde nomes antigos costumam ser
       // citados). Strip de /* */ é perigoso demais em arquivo de 1MB com
       // regex/strings — um "/*" dentro de string engoliria meio arquivo.
