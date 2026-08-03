@@ -15099,9 +15099,11 @@ Responda APENAS em JSON (sem markdown):
   // ── Resgatar código promo (usuário autenticado) ───────────
   if(pathname==="/api/redeem-code"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
-    // 🔒 FIX (varredura total 03/07): anti-brute-force — sem isso, um usuário logado
-    // podia testar códigos VIP ilimitadamente até acertar um válido.
-    if(rateLimit(s.user_email+"_redeem",10,3600_000))return json(res,429,{error:"Muitas tentativas de código. Aguarde 1 hora."});
+    // v115b (ORDEM DO DONO, 02/08, print real: usuário legítimo travado 1h
+    // no "Muitas tentativas"): SEM limite de tentativas no resgate. O
+    // anti-brute-force de 03/07 saiu de cena — mitigação que resta: códigos
+    // aleatórios têm 8 hex (4 bilhões de combinações, chute inviável);
+    // recomendação registrada: código PERSONALIZADO com 6+ caracteres.
     try{
       const d=JSON.parse(await readBody(req));
       const code=(d.code||"").toUpperCase().trim();
@@ -15160,8 +15162,11 @@ Responda APENAS em JSON (sem markdown):
   // Guarda: conhecer o código É a credencial (igual ao resgate local) +
   // rate limit por IP contra brute-force.
   if(pathname==="/api/servers/code-redeem"&&req.method==="POST"){
+    // v115b: o IP aqui é o do SERVIDOR de origem (server→server) — um teto
+    // baixo estrangularia TODOS os resgates cross-server daquele servidor.
+    // Teto altíssimo só como freio de emergência contra loop/script doido.
     const _ip=String(req.headers["x-forwarded-for"]||req.socket.remoteAddress||"?").split(",")[0].trim();
-    if(rateLimit("peercode_"+_ip,30,3600_000))return json(res,429,{ok:false,error:"rate"});
+    if(rateLimit("peercode_"+_ip,2000,3600_000))return json(res,429,{ok:false,error:"rate"});
     try{
       const d=JSON.parse(await readBody(req));
       const code=String(d.code||"").toUpperCase().trim();
