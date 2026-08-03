@@ -15106,7 +15106,22 @@ Responda APENAS em JSON (sem markdown):
       const d=JSON.parse(await readBody(req));
       const code=(d.code||"").toUpperCase().trim();
       if(!code)return json(res,400,{error:"Código obrigatório."});
-      const c=DB_CODES[code];
+      let c=DB_CODES[code];
+      let _codeRemoto=null;
+      if(!c){
+        // v115 (bug real do dono): o código pode ter sido criado em OUTRO
+        // servidor — cada um tem seu DB_CODES. Pergunta aos irmãos; quem
+        // criou o código valida e marca o uso LÁ (fonte única preservada);
+        // aqui só aplicamos os dias. Peer fora do ar = segue pro 404 normal.
+        for(const sv of _getServersConfig()){
+          if(sv.id===_resolveServerId(req)||!sv.url)continue;
+          const r=await _postPeerJson(sv.url,"/api/servers/code-redeem",{code,email:s.user_email});
+          if(r&&r.ok){c={manualDays:r.manualDays||0,autoDays:r.autoDays||0,note:r.note||"",yt:r.yt===true,active:true,usedBy:[],maxUses:1};_codeRemoto=sv.id;console.log(`[codes] ${code} encontrado no Servidor ${sv.id} — resgate remoto ok`);break;}
+          if(r&&r.error==="ja-usado")return json(res,400,{error:"Você já usou este código."});
+          if(r&&r.error==="esgotado")return json(res,400,{error:"Limite de usos deste código atingido."});
+          if(r&&r.error==="cancelado")return json(res,400,{error:"Este código foi cancelado pelo administrador."});
+        }
+      }
       if(!c)return json(res,404,{error:"Código inválido ou não existe."});
       if(!c.active)return json(res,400,{error:"Este código foi cancelado pelo administrador."});
       if(c.usedBy.includes(s.user_email))return json(res,400,{error:"Você já usou este código."});
@@ -15123,9 +15138,11 @@ Responda APENAS em JSON (sem markdown):
         source:'code',usedCode:code,codeNote:c.note||'',
         activatedAt:now,plan:planName,days:c.manualDays||c.autoDays,autoDays:c.autoDays||0};
       setUser(s.user_email,{vip,plan:planName});
-      DB_CODES[code]={...c,usedBy:[...c.usedBy,s.user_email]};
-      persistCodes();
-      console.log(`[codes] ${code} usado por ${s.user_email} manual:${c.manualDays}d auto:${c.autoDays}d`);
+      if(!_codeRemoto){
+        DB_CODES[code]={...c,usedBy:[...c.usedBy,s.user_email]};
+        persistCodes();
+      } // remoto: o servidor de origem já marcou o uso
+      console.log(`[codes] ${code} usado por ${s.user_email} manual:${c.manualDays}d auto:${c.autoDays}d${_codeRemoto?` (origem: Servidor ${_codeRemoto})`:""}`);
       return json(res,200,{ok:true,manualDays:c.manualDays,autoDays:c.autoDays,manualExpiresDate:c.manualDays>0?new Date(manualExpires).toLocaleDateString("pt-BR"):null,autoExpiresDate:c.autoDays>0?new Date(autoExpires).toLocaleDateString("pt-BR"):null});
     }catch(e){return json(res,500,{error:e.message});}
   }
@@ -15134,6 +15151,32 @@ Responda APENAS em JSON (sem markdown):
   // GET /api/servers/self — dados públicos mínimos deste servidor (para peers)
   if(pathname==="/api/servers/self"&&req.method==="GET"){
     return json(res,200,{ok:true,id:_resolveServerId(req),users:_countLocalUsers(),at:Date.now()});
+  }
+  // v115: POST /api/servers/code-redeem — resgate REMOTO de código promo
+  // (bug real do dono, 02/08: código criado no admin de UM servidor "não
+  // existe" quando o usuário resgata em OUTRO — cada servidor tem seu
+  // DB_CODES). O servidor que criou o código continua sendo a fonte única:
+  // ele valida e marca o uso aqui; o servidor do usuário só aplica os dias.
+  // Guarda: conhecer o código É a credencial (igual ao resgate local) +
+  // rate limit por IP contra brute-force.
+  if(pathname==="/api/servers/code-redeem"&&req.method==="POST"){
+    const _ip=String(req.headers["x-forwarded-for"]||req.socket.remoteAddress||"?").split(",")[0].trim();
+    if(rateLimit("peercode_"+_ip,30,3600_000))return json(res,429,{ok:false,error:"rate"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const code=String(d.code||"").toUpperCase().trim();
+      const email=String(d.email||"").toLowerCase().trim();
+      if(!code||!email||!email.includes("@"))return json(res,400,{ok:false,error:"dados"});
+      const c=DB_CODES[code];
+      if(!c)return json(res,404,{ok:false,error:"nao-existe"});
+      if(!c.active)return json(res,400,{ok:false,error:"cancelado"});
+      if((c.usedBy||[]).includes(email))return json(res,400,{ok:false,error:"ja-usado"});
+      if((c.usedBy||[]).length>=(c.maxUses||1))return json(res,400,{ok:false,error:"esgotado"});
+      DB_CODES[code]={...c,usedBy:[...(c.usedBy||[]),email]};
+      persistCodes();
+      console.log(`[codes] ${code} resgatado REMOTAMENTE por ${email} (código criado aqui, usuário em outro servidor)`);
+      return json(res,200,{ok:true,manualDays:c.manualDays||0,autoDays:c.autoDays||0,note:c.note||"",yt:c.yt===true});
+    }catch(e){return json(res,500,{ok:false,error:e.message});}
   }
   // GET /api/servers/has-account?h=<sha256 do e-mail> — checagem de conta única
   // entre servidores. Só recebe HASH (privacidade); rate limit por IP.
@@ -17272,6 +17315,19 @@ async function checkAccountOnPeers(email,selfId){
 
 // Cache de chamadas a peers (10 min) — nunca derruba a resposta se o peer cair
 const _peerCache={};
+// v115: POST simples a um peer (sem cache — usado pra ações, ex.: resgate
+// de código criado em outro servidor). Timeout curto, falha vira null.
+async function _postPeerJson(baseUrl,apiPath,bodyObj){
+  try{
+    const h=new URL(baseUrl);
+    if(h.protocol!=="https:")throw new Error("peer não-https");
+    const body=JSON.stringify(bodyObj||{});
+    const call=httpsReq({hostname:h.hostname,port:h.port||443,path:apiPath,method:"POST",headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(body),"Accept":"application/json","User-Agent":"H2BApply-Server/"+SERVER_ID}},body);
+    const r=await Promise.race([call,new Promise(res2=>setTimeout(()=>res2(null),6000))]);
+    if(r&&r.body&&typeof r.body==="object")return r.body;
+  }catch(e){console.warn("[servers] peer POST",baseUrl,apiPath,"falhou:",e.message);}
+  return null;
+}
 async function _fetchPeerJson(baseUrl,apiPath,extraHeaders){
   const key=baseUrl+apiPath;
   const c=_peerCache[key];
