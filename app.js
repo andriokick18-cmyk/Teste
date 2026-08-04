@@ -815,6 +815,16 @@ function _screenMode(){
   if(!m)m=localStorage.getItem('h2b_desktop')==='1'?'pc':'auto'; // migra o legado v100
   return ['auto','pc','cel'].indexOf(m)>=0?m:'auto';
 }
+// v118: aviso das regras novas pros CONTRATOS ANTIGOS (1x por sessão)
+function _avisoRegrasPlanos(){
+  try{
+    if(!U||!U.planRulesNotice)return;
+    if(sessionStorage.getItem('h2b_prn'))return;
+    sessionStorage.setItem('h2b_prn','1');
+    toast(U.planRulesNotice,'g');
+  }catch(e){}
+}
+setInterval(_avisoRegrasPlanos,7000);
 function _applyDesktopMode(){
   var mode=_screenMode();
   var mv=document.querySelector('meta[name="viewport"]');
@@ -2286,6 +2296,14 @@ async function doSend(){
       sheetSource:(tab!=="seasonal"?tab:undefined),
       senderEmail:chosenSender,
       resumeIdx:(activeResIdx!=null?activeResIdx:undefined),coverIdx:(activeCovIdx!=null?activeCovIdx:undefined)};
+    // v118: 1 envio manual por minuto — bloqueio local instantâneo (o servidor
+    // é quem manda de verdade; isto só evita a viagem à toa e dá contagem viva)
+    if(!U.isAdmin&&window._manualCdUntil&&Date.now()<window._manualCdUntil){
+      const _lf=Math.ceil((window._manualCdUntil-Date.now())/1000);
+      g("#m-sending").style.display="none";g("#m-send").disabled=false;
+      toast(`⏳ Espere ${_lf}s pro próximo envio manual (1 por minuto).`,"r");
+      return;
+    }
     const r=await fetch("/api/send",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(pl)});const d=await r.json();
     // FIX: mostra TODOS os erros de forma visível — esconde spinner e reabilita botão ANTES de mostrar
     if(!d.ok){
@@ -2295,6 +2313,7 @@ async function doSend(){
       // Rola para o topo do modal body para mostrar o aviso
       const modalBd=g("#modal")?.querySelector(".mbody");if(modalBd)modalBd.scrollTop=0;
       // Toast adicional para garantir visibilidade no celular
+      if(typeof d.cooldownLeft==="number")window._manualCdUntil=Date.now()+d.cooldownLeft*1000; // v118
       if(d.alreadySent)toast("⚠️ Você já enviou para esta empresa.","r");
       else if(d.inAutoQueue)toast("🤖 Esta empresa está na fila automática.","r");
       else if(d.duplicate)toast("⚠️ Envio em andamento. Aguarde.","r");
@@ -2304,6 +2323,7 @@ async function doSend(){
     }
     U.todaySentManual=d.todaySent||U.todaySentManual+1;U.manualRemaining=typeof d.remaining==="number"?d.remaining:Math.max(0,(U.manualLimit||20)-U.todaySentManual);U.manualLimit=d.dailyLimit||U.manualLimit;
     rlRecordSend(); // registra o horário do envio p/ detecção de envio muito rápido
+    if(!U.isAdmin)window._manualCdUntil=Date.now()+60000; // v118: 1/min
     closeModal();
     if(j?.id){
       APPLIED.add(j.id);
@@ -11598,7 +11618,7 @@ function renderDiamTroca(d){
   const box=g('#diam-troca'); if(!box)return;
   const tot=d.saldo.real+d.saldo.bonus;
   const NOME={vip:'\u2B50 VIP Manual',vipro:'\u{1F916} VIPro',doublepro:'\u{1F48E} DoublePro'};
-  const DESC={vip:'200 candidaturas manuais/dia',vipro:'200 manual + 200 automático/dia',doublepro:'400 manual + 400 automático/dia · 2 Gmails'};
+  const DESC={vip:'100 candidaturas manuais/dia',vipro:'100 manual + 100 automático/dia',doublepro:'200 manual + 200 automático/dia · 2 Gmails'}; // v118: números NOVOS (contratações a partir de 02/08/2026); quem já tem plano mantém os antigos até vencer
   const por={};(d.planos||[]).forEach(p=>{(por[p.plano]=por[p.plano]||[]).push(p);});
   box.innerHTML=`<div style="background:var(--surface);border:2px solid var(--border2);border-radius:var(--rl);overflow:hidden">
     <div style="background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(59,130,246,.08));padding:12px 16px;border-bottom:1px solid var(--border)">

@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════
    ⏱️ src/engine/core.js — Fase 1 · Módulo 6 (extraído do server.js)
    O núcleo TESTÁVEL do motor de envio:
-   - calcSmartInterval: o intervalo "humanizado" (5-6min c/ jitter) que
+   - calcSmartInterval: o intervalo "humanizado" (6,5-7,5min c/ jitter) que
      protege as contas Gmail dos usuários — a função mais crítica do produto
    - Timezone BRT (UTC-3 fixo): nowBRT, todayStrBRT, toLocaleBRT
    - calcStreak / last7Days: métricas de constância do ranking
@@ -24,8 +24,11 @@ function createCalcSmartInterval({ getUser, isAdminVip }){
         return (secs + (Math.random() * 2 - 1) * jitter) * 1000;
       }
     }
-    const MIN_MS = 5 * 60 * 1000; // 5 minutos
-    const MAX_MS = 6 * 60 * 1000; // 6 minutos
+    // v118 (ORDEM DO DONO, 02/08): ritmo do automático subiu pra ~7min por
+    // envio — gente demais batendo nas mesmas empresas. Vale pra TODOS
+    // (proteção do sistema, não é limite de plano). Admin segue custom.
+    const MIN_MS = 6.5 * 60 * 1000; // 6,5 minutos
+    const MAX_MS = 7.5 * 60 * 1000; // 7,5 minutos (média 7)
     const base = MIN_MS + Math.random() * (MAX_MS - MIN_MS);
 
     // ── Múltiplas contas Gmail conectadas (recurso pago "2 Gmails") ─────────

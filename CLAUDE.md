@@ -294,6 +294,26 @@
     dessas janelas em qualquer tela nova — sempre chamar
     `computeEntradasJanelas()`.
 
+13o. **📋 Novas regras de planos v118 (dono, 02/08/2026 — áudio confirmado
+    por escrito)**: tabela NOVA só pra ativação nova — VIP R$100 = 100
+    manuais/dia (sem automático) · VIPro R$150 = 100 manual + 100 auto ·
+    DoublePro R$250 = 200 manual + 200 auto. **Contrato congelado**: toda
+    ativação (troca 💎, upgrade, set-plan do admin, código) carimba
+    `vip.limits {manual,auto}` na hora; getManualLimit/getAutoLimit
+    preferem esse carimbo enquanto o respectivo lado do VIP está ativo.
+    Quem pagou ANTES não tem `vip.limits` e cai na tabela LEGADA
+    (PLAN_LIMITS: vip 200 · vipro 200/200 · doublepro 400/400) até
+    expirar — **nenhum pagante perde nada, nunca** — e vê o aviso
+    `planRulesNotice` (/api/status → toast 1x por sessão) com a data de
+    garantia e os limites de hoje. Ritmo: automático ~7min/envio
+    (calcSmartInterval 6,5–7,5min; custom de admin continua); manual tem
+    cooldown de 1 minuto (429 + cooldownLeft no /api/send, espelhado no
+    front via _manualCdUntil; admin isento). PROIBIDO mudar limite de
+    plano mexendo só na tabela — mudança nova = tabela nova + carimbo na
+    ativação, mantendo os carimbos antigos intocados (mesma filosofia).
+    Atenção à ordem do histórico: addHist usa unshift — o envio mais
+    recente está no ÍNDICE 0 (o scan do cooldown varre do começo).
+
 ## 🖥️ UX (usuário e admin nunca se perdem)
 
 14. **Site intuitivo e autoexplicativo**: tour em slides no primeiro

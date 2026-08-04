@@ -117,7 +117,22 @@ for (let i = 0; i < 5000; i++) {
     plan: "vip", cvs: [], profiles: [],
   };
 }
+// 📋 v118 (ORDEM DO DONO, 02/08 — novas regras de planos): usuário LEGADO
+// com VipPro pago ANTES da mudança (sem vip.limits carimbado). O contrato
+// dele é o da tabela ANTIGA (200/200) até expirar — nenhum pagante perde
+// nada — e o /api/status precisa AVISAR (planRulesNotice).
+users["legadoplano@test.com"] = {
+  name: "Legado Plano", plan: "vipro", cvs: [], profiles: [],
+  vip: { manualExpires: Date.now() + 20 * 86400_000, autoExpires: Date.now() + 20 * 86400_000, days: 30, source: "pix", active: true },
+};
 fs.writeFileSync(path.join(DATA, "users.json"), JSON.stringify(users, null, 2));
+// ⏳ v118: histórico com 1 envio manual carimbado AGORA — o teste do cooldown
+// (1 manual/minuto) roda LOGO após o boot, enquanto a janela de 60s do
+// fixture ainda está aberta, e tem que levar 429 com cooldownLeft.
+const COOLDOWN_FIX_TS = Date.now();
+fs.writeFileSync(path.join(DATA, "history.json"), JSON.stringify({
+  "cooldown@test.com": [{ to: "empresa@teste-cooldown.com", subject: "x", type: "manual", sentAt: new Date(COOLDOWN_FIX_TS).toISOString(), date: "hoje" }],
+}));
 // PDF órfão no disco (lixo do antigo delete sem unlink) — o sweep deve apagar
 fs.mkdirSync(path.join(DATA, "cvs"), { recursive: true });
 fs.writeFileSync(path.join(DATA, "cvs", "fantasma@test.com_777.pdf"), "%PDF-1.4 orfao");
@@ -378,6 +393,24 @@ async function testAuthWatchdogPush() {
     check("🖥️ v104: 3 modos de tela (Auto/Celular/PC) no drawer E na sidebar — viewport pro celular, force-cel pro PC",
       _dmOk, "lógica setScreenMode/h2b_screen_mode/force-cel ou os botões dos 2 seletores não encontrados no index.html");
 
+    // 📋 v118 (ORDEM DO DONO, 02/08 — novas regras de planos): guarda
+    // estrutural do FRONT. (1) o texto de venda mostra os números NOVOS
+    // (100 manual · 100+100 · 200+200) — nunca mais os antigos; (2) o
+    // cliente tem cooldown de 1min no manual (window._manualCdUntil armado
+    // no sucesso E sincronizado pelo cooldownLeft do 429 do servidor);
+    // (3) o aviso das regras (planRulesNotice) chega ao usuário 1x por
+    // sessão (_avisoRegrasPlanos + sessionStorage h2b_prn).
+    const _v118Front = frontAll.includes("100 candidaturas manuais/dia") &&
+      frontAll.includes("100 manual + 100 automático/dia") &&
+      frontAll.includes("200 manual + 200 automático/dia") &&
+      frontAll.includes("_manualCdUntil") &&
+      frontAll.includes("cooldownLeft") &&
+      frontAll.includes("_avisoRegrasPlanos") &&
+      frontAll.includes("planRulesNotice") &&
+      frontAll.includes("h2b_prn");
+    check("📋 v118: front vende os números novos e aplica cooldown de 1min + aviso de regras (uma vez por sessão)",
+      _v118Front, "textos de venda novos, _manualCdUntil/cooldownLeft ou _avisoRegrasPlanos/h2b_prn não encontrados no front");
+
     // v95 (reestruturação parte 8): o wizard de ativação NUNCA cobre o
     // caminho do dinheiro — no checkout de doação (#plan-step-2 visível) o
     // card E o pill somem por completo (o card tampava o passo 4 do
@@ -530,6 +563,19 @@ async function testAuthWatchdogPush() {
     check("login de teste cria sessão", lg.status === 200 && lg.json?.ok === true, lg.body.slice(0, 100));
     const st2 = await get("/api/status");
     check("sessão vale: /api/status connected:true", st2.json?.connected === true);
+
+    // ═══ ⏳ v118 (ORDEM DO DONO, 02/08): 1 envio MANUAL por minuto ═══
+    // O fixture gravou um envio manual "agora" pro cooldown@test.com — a
+    // tentativa seguinte dentro de 60s TEM que levar 429 com cooldownLeft.
+    // Fica AQUI (primeiro teste autenticado) de propósito: a janela de 60s
+    // do fixture não pode fechar antes do teste rodar.
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "cooldown@test.com", name: "Cooldown" });
+    const _cdElapsed = Date.now() - COOLDOWN_FIX_TS;
+    const cdSend = await req2("POST", "/api/send", { to: "outra@teste-cooldown.com", subject: "Oi", message: "corpo escrito pelo usuário" });
+    check("⏳ v118: 2º envio manual dentro de 60s → 429 com cooldownLeft (regra: 1 por minuto)",
+      cdSend.status === 429 && typeof cdSend.json?.cooldownLeft === "number" && cdSend.json.cooldownLeft >= 1 && cdSend.json.cooldownLeft <= 60,
+      `status=${cdSend.status} elapsedFixture=${_cdElapsed}ms body=${cdSend.body.slice(0, 140)}`);
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", name: "Smoke", isAdmin: true });
 
     // v48: INCIDENTE REAL "vagas sumiram" — o fixture semeou /data com
     // jul2025 TRUNCADO e h2a VAZIO. O boot tem que ter recuperado os dois
@@ -999,12 +1045,12 @@ async function testAuthWatchdogPush() {
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "esdras@test.com" });
     const stEsdras = await get("/api/status");
     check("🛡️ v79: /api/status do próprio Esdras também mostra DoublePro (nunca diverge do que o admin vê)", stEsdras.json?.plan === "doublepro" && stEsdras.json?.vip?.active === true, JSON.stringify({ plan: stEsdras.json?.plan }));
-    // 🚨 ordem do dono (29/07, direto após o caso Esdras): "se a pessoa
-    // comprou DoublePro tem que ter EXATAMENTE 400 manual + 400 auto — não
-    // pode ficar com o limite de VipPro (200/200)". Antes desse fix, esse
-    // usuário ficava com plan:"free" (0 de tudo) — pior ainda que 200/200.
-    check("🚨 v79: Esdras com DoublePro tem EXATAMENTE 400 manual + 400 automático (não 200/200 do VipPro)",
-      stEsdras.json?.manualLimit === 400 && stEsdras.json?.autoLimit === 400,
+    // 🚨 ordem do dono (29/07, direto após o caso Esdras): quem tem DoublePro
+    // tem que ter EXATAMENTE os limites de DoublePro — antes desse fix, esse
+    // usuário ficava com plan:"free" (0 de tudo). v118: ativação NOVA via
+    // set-plan carimba a tabela nova (200 manual + 200 auto).
+    check("🚨 v79+v118: Esdras com DoublePro novo tem EXATAMENTE 200 manual + 200 automático (tabela v118 carimbada na ativação)",
+      stEsdras.json?.manualLimit === 200 && stEsdras.json?.autoLimit === 200,
       JSON.stringify({ manualLimit: stEsdras.json?.manualLimit, autoLimit: stEsdras.json?.autoLimit }));
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
 
@@ -1030,13 +1076,13 @@ async function testAuthWatchdogPush() {
     const stVipro = await get("/api/status");
     check("⬆️ v80: upgrade NÃO mexeu no manualExpires — dias continuam EXATAMENTE os mesmos de antes", stVipro.json?.vip?.manualExpires === manualExpiresAntes, JSON.stringify({ antes: manualExpiresAntes, depois: stVipro.json?.vip?.manualExpires }));
     check("⬆️ v80: automático foi destravado pela 1ª vez, mas até a MESMA data do manual (nunca ganhou +30d novos)", stVipro.json?.vip?.autoExpires === manualExpiresAntes, JSON.stringify({ manualExpiresAntes, autoExpiresDepois: stVipro.json?.vip?.autoExpires }));
-    check("⬆️ v80: plano e limites viraram VIPRO de verdade (200 manual + 200 auto)", stVipro.json?.plan === "vipro" && stVipro.json?.manualLimit === 200 && stVipro.json?.autoLimit === 200, JSON.stringify({ plan: stVipro.json?.plan, manualLimit: stVipro.json?.manualLimit, autoLimit: stVipro.json?.autoLimit }));
+    check("⬆️ v80+v118: plano e limites viraram VIPRO de verdade (tabela nova: 100 manual + 100 auto)", stVipro.json?.plan === "vipro" && stVipro.json?.manualLimit === 100 && stVipro.json?.autoLimit === 100, JSON.stringify({ plan: stVipro.json?.plan, manualLimit: stVipro.json?.manualLimit, autoLimit: stVipro.json?.autoLimit }));
     // Upgrade de novo, VIPRO→DOUBLEPRO — diferença: 167💎(doublepro/30d) - 100💎(vipro/30d) = 67💎
     const upgDouble = await req2("POST", "/api/plans/upgrade", { novoPlano: "doublepro" });
     check("⬆️ v80: upgrade VIPRO→DOUBLEPRO cobra EXATAMENTE a diferença (67💎)", upgDouble.json?.ok === true && upgDouble.json?.diferenca === 67, upgDouble.body.slice(0, 160));
     const stDouble2 = await get("/api/status");
     check("⬆️ v80: 2º upgrade TAMBÉM não mexeu nos dias — manualExpires e autoExpires continuam os mesmos do início", stDouble2.json?.vip?.manualExpires === manualExpiresAntes && stDouble2.json?.vip?.autoExpires === manualExpiresAntes, JSON.stringify(stDouble2.json?.vip));
-    check("⬆️ v80: agora com DoublePro de verdade — 400 manual + 400 automático (não ficou preso em 200/200)", stDouble2.json?.plan === "doublepro" && stDouble2.json?.manualLimit === 400 && stDouble2.json?.autoLimit === 400, JSON.stringify({ plan: stDouble2.json?.plan, manualLimit: stDouble2.json?.manualLimit, autoLimit: stDouble2.json?.autoLimit }));
+    check("⬆️ v80+v118: agora com DoublePro de verdade — tabela nova: 200 manual + 200 automático (não ficou preso nos limites do VipPro)", stDouble2.json?.plan === "doublepro" && stDouble2.json?.manualLimit === 200 && stDouble2.json?.autoLimit === 200, JSON.stringify({ plan: stDouble2.json?.plan, manualLimit: stDouble2.json?.manualLimit, autoLimit: stDouble2.json?.autoLimit }));
     // Saldo final: 300 - 67(compra vip) - 33(upgrade vipro) - 67(upgrade doublepro) = 133
     const dmUpFinal = await get("/api/diamonds");
     check("⬆️ v80: saldo final bate exatamente com as 3 cobranças (300-67-33-67=133💎) — nada cobrado a mais ou a menos", dmUpFinal.json?.saldo?.real === 133, JSON.stringify(dmUpFinal.json?.saldo));
@@ -1057,6 +1103,43 @@ async function testAuthWatchdogPush() {
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "pobreupgrade@test.com" });
     const upPobre = await req2("POST", "/api/plans/upgrade", { novoPlano: "vipro" });
     check("⬆️ v80: upgrade sem 💎 suficiente → 402 (nunca ativa de graça)", upPobre.status === 402, upPobre.body.slice(0, 160));
+
+    // ═══ 📋 v118 (ORDEM DO DONO, 02/08): NOVAS REGRAS DE PLANOS ═══
+    // Tabela nova (vip 100/0 · vipro 100/100 · doublepro 200/200) vale SÓ
+    // pra ativação NOVA (vip.limits carimbado na hora — contrato congelado).
+    // Quem pagou ANTES não tem vip.limits, continua na tabela antiga até
+    // expirar (nenhum pagante perde nada) e é AVISADO via planRulesNotice.
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "legadoplano@test.com" });
+    const stLegado = await get("/api/status");
+    check("📋 v118: usuário LEGADO (VipPro pago antes da mudança, sem vip.limits) MANTÉM 200 manual + 200 auto da tabela antiga",
+      stLegado.json?.plan === "vipro" && stLegado.json?.manualLimit === 200 && stLegado.json?.autoLimit === 200,
+      JSON.stringify({ plan: stLegado.json?.plan, manualLimit: stLegado.json?.manualLimit, autoLimit: stLegado.json?.autoLimit }));
+    check("📋 v118: usuário legado recebe o AVISO das regras novas (planRulesNotice com garantia até a data + limites de hoje)",
+      typeof stLegado.json?.planRulesNotice === "string" && /garantido/.test(stLegado.json.planRulesNotice) && /200/.test(stLegado.json.planRulesNotice),
+      String(stLegado.json?.planRulesNotice).slice(0, 180));
+    // Ativação NOVA de VIP (só manual): carimba 100 manual e NÃO destrava automático
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "vipnovo118@test.com", name: "Vip Novo 118" });
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    await req2("POST", "/api/admin/set-plan", { email: "vipnovo118@test.com", plan: "vip" });
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "vipnovo118@test.com" });
+    const stVipNovo = await get("/api/status");
+    check("📋 v118: VIP novo (R$100) = 100 candidaturas MANUAIS/dia, sem automático destravado",
+      stVipNovo.json?.plan === "vip" && stVipNovo.json?.manualLimit === 100,
+      JSON.stringify({ plan: stVipNovo.json?.plan, manualLimit: stVipNovo.json?.manualLimit, autoLimit: stVipNovo.json?.autoLimit }));
+    check("📋 v118: quem ativou DEPOIS da mudança (vip.limits carimbado) NÃO vê o aviso de regras novas",
+      !stVipNovo.json?.planRulesNotice, String(stVipNovo.json?.planRulesNotice || "null"));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    // ⏱️ v118: intervalo humanizado do automático virou ~7min (6,5–7,5) pra
+    // usuário comum — unit puro na MESMA função que o motor usa em produção.
+    const { createCalcSmartInterval } = require("./mod-engine-core.js");
+    const _calcIv = createCalcSmartInterval({ getUser: () => ({}), isAdminVip: () => false });
+    let _ivDentro = true, _ivMin = Infinity, _ivMax = 0;
+    for (let _k = 0; _k < 300; _k++) { const _v = _calcIv("comum@test.com"); _ivMin = Math.min(_ivMin, _v); _ivMax = Math.max(_ivMax, _v); if (_v < 6.5 * 60_000 || _v > 7.5 * 60_000) _ivDentro = false; }
+    check("⏱️ v118: calcSmartInterval devolve SEMPRE entre 6,5 e 7,5 minutos (média ~7) pra usuário comum",
+      _ivDentro, `min=${Math.round(_ivMin / 1000)}s max=${Math.round(_ivMax / 1000)}s`);
+    const _admIv = createCalcSmartInterval({ getUser: () => ({ isAdmin: true, adminSettings: { intervalSecs: 60 } }), isAdminVip: () => true })("admin@test.com");
+    check("⏱️ v118: intervalo CUSTOM do admin continua respeitado (não foi atropelado pelos 7min)",
+      _admIv >= 45_000 && _admIv <= 75_000, `admIv=${Math.round(_admIv / 1000)}s`);
     // Financeiro (caixa) NUNCA recebe entrada nova por causa do upgrade —
     // upgrade é 100% em diamantes, dinheiro já entrou quando os 💎 foram doados.
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
@@ -1175,8 +1258,8 @@ async function testAuthWatchdogPush() {
     check("💎 v77: troca por DoublePro 30d custa 167 💎 e responde ok", trDP.json?.ok === true && trDP.json?.preco === 167 && trDP.json?.saldo?.real === 156, trDP.body.slice(0, 160));
     const stDP = await get("/api/status");
     check("💎 v77: /api/status (usuário) mostra plan=doublepro e vip ativo", stDP.json?.plan === "doublepro" && stDP.json?.vip?.active === true, JSON.stringify({ plan: stDP.json?.plan, vip: !!stDP.json?.vip?.active }));
-    check("🚨 v77: quem trocou 💎 por DoublePro tem EXATAMENTE 400 manual + 400 automático (mesma régua do v79 pro caminho de diamantes)",
-      stDP.json?.manualLimit === 400 && stDP.json?.autoLimit === 400,
+    check("🚨 v77+v118: quem trocou 💎 por DoublePro AGORA leva a tabela nova carimbada — 200 manual + 200 automático (mesma régua do v79 pro caminho de diamantes)",
+      stDP.json?.manualLimit === 200 && stDP.json?.autoLimit === 200,
       JSON.stringify({ manualLimit: stDP.json?.manualLimit, autoLimit: stDP.json?.autoLimit }));
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
     const adUsers = await get("/api/admin/users");

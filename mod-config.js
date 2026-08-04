@@ -35,6 +35,17 @@ const PUSH_ENABLED      = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
 //   doublepro → 400 manual + 400 auto  /dia (2 contas Gmail)
 //   pro       → 0 manual   + 200 auto  /dia (só auto — legado)
 //   Os limites de manual e auto são INDEPENDENTES — não se misturam.
+// v118 (ORDEM DO DONO, 02/08/2026): tabela NOVA de limites — vale só pra
+// CONTRATAÇÕES a partir da mudança (troca 💎, upgrade, código, set-plan do
+// admin). Quem já tinha plano ativo mantém a tabela antiga até vencer
+// (contrato congelado em vip.limits — ver getManualLimit/getAutoLimit).
+const PLAN_LIMITS_NEW = {
+  free:      { manual: 20,  auto: 10  },
+  vip:       { manual: 100, auto: 0   }, // R$100 — 100 manuais/dia
+  pro:       { manual: 0,   auto: 100 }, // legado
+  vipro:     { manual: 100, auto: 100 }, // R$150 — 100 + 100
+  doublepro: { manual: 200, auto: 200 }, // R$250 — 200 + 200
+};
 const PLAN_LIMITS = {
   free:      { manual: 20,  auto: 10  },
   vip:       { manual: 200, auto: 10  }, // VIP = só manual 200/dia
@@ -48,5 +59,5 @@ module.exports = {
   MAX_RESUMES, MAX_COVERS,
   ADMIN_EMAIL, ADMIN_EMAIL_2, ADMIN_EMAILS_EXTRA, ADMIN_EMAILS, isAdminEmail,
   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, PUSH_ENABLED,
-  PLAN_LIMITS,
+  PLAN_LIMITS, PLAN_LIMITS_NEW,
 };

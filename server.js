@@ -185,7 +185,7 @@ const { MAX_SENDER_EMAILS_FREE, MAX_SENDER_EMAILS_VIP, MAX_SENDER_EMAILS_ADMIN,
         MAX_RESUMES, MAX_COVERS,
         ADMIN_EMAIL, ADMIN_EMAIL_2, ADMIN_EMAILS_EXTRA, ADMIN_EMAILS, isAdminEmail,
         VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, PUSH_ENABLED,
-        PLAN_LIMITS } = require("./mod-config.js");
+        PLAN_LIMITS, PLAN_LIMITS_NEW } = require("./mod-config.js");
 // getMaxSenders retorna o TOTAL de emails (principal + extras)
 const getMaxSenders = (u) => {
   if(u?.isAdmin || isAdminEmail(u?.email||"")) return MAX_SENDER_EMAILS_ADMIN;
@@ -2950,12 +2950,23 @@ function getPlan(u) {
   return 'free';
 }
 
-const getManualLimit = u => PLAN_LIMITS[getPlan(u)]?.manual || 20;
+// v118: CONTRATO CONGELADO — plano ativado a partir da mudança grava
+// vip.limits {manual,auto} (tabela nova) na ativação; plano antigo não tem
+// vip.limits e cai na tabela LEGADA (ninguém que já pagou perde nada).
+function limitesDoPlanoNovo(planKey){
+  const t=PLAN_LIMITS_NEW[planKey]||PLAN_LIMITS_NEW.vip;
+  return { manual:t.manual, auto:t.auto };
+}
+const getManualLimit = u => {
+  if (u?.vip?.limits && typeof u.vip.limits.manual==="number" && isManualVipActive(u)) return u.vip.limits.manual;
+  return PLAN_LIMITS[getPlan(u)]?.manual || 20;
+};
 const getAutoLimit   = u => {
   if (isAdminVip(u)) {
     // Admin: respeita senderLimits se configurado, senão 9999
     return 9999;
   }
+  if (u?.vip?.limits && typeof u.vip.limits.auto==="number" && isAutoVipActive(u)) return u.vip.limits.auto || PLAN_LIMITS.free.auto;
   return PLAN_LIMITS[getPlan(u)]?.auto || 10;
 };
 
@@ -11102,7 +11113,7 @@ filtrar();
       // os +30 dias que acabaram de ser gravados. Precisa reler o usuário
       // DEPOIS das duas funções pra não desfazer o próprio trabalho delas.
       const tgtFresh=getUser(email)||tgt;
-      setUser(email,{plan,vip:{...(tgtFresh.vip||{}),active:plan!=='free',plan,source:'admin',activatedBy:s.user_email}});
+      setUser(email,{plan,vip:{...(tgtFresh.vip||{}),active:plan!=='free',plan,source:'admin',activatedBy:s.user_email,...(plan!=='free'?{limits:limitesDoPlanoNovo(plan)}:{})}});
       logAdminAction(s.user_email,"set_plan",email,_audBefore,_vipSnapshot(getUser(email)),`Plano → ${plan}${plan!=='free'?" (+30d)":""}`);
       // 11/07 (caso Cleiton): plano foi ativado 3x e sumia após cada restart porque
       // o persist falhava em silêncio com o disco cheio. Agora VERIFICA a gravação
@@ -11548,7 +11559,7 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
       const autoExpires=isAuto?Math.max(now,(_aStack?tgt.vip.autoExpires:now)+dias*DAY):(tgt.vip?.autoExpires||0);
       setUser(s.user_email,{plan:planoKey,vip:{...(tgt.vip||{}),active:true,plan:planoKey,source:"payment",
         manualExpires,autoExpires,activatedAt:now,activatedBy:"Troca por diamantes",
-        note:`💎 Troca: ${preco} diamantes → ${planoKey} ${dias}d`,days:dias,autoDays:isAuto?dias:0}});
+        note:`💎 Troca: ${preco} diamantes → ${planoKey} ${dias}d`,days:dias,autoDays:isAuto?dias:0,limits:limitesDoPlanoNovo(planoKey)}});
       addCredito(s.user_email,{dias,tipo:"pago",origem:"diamantes",motivo:`Troca de ${preco} 💎 — ${planoKey} ${dias}d`,dadoPor:"Sistema (💎)"});
       addLog(s.user_email,{status:"sistema",jobTitle:`💎 Plano ${planoKey.toUpperCase()} ativado por ${preco} diamantes (${dias}d)`,company:"Troca de diamantes"});
       trackJourney(s.user_email,'plan_activated',{detail:`Troca 💎: ${planoKey} ${dias}d por ${preco}`});
@@ -11607,6 +11618,7 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
       // Destrava automático pela 1ª vez → mesma data do manual, NUNCA estende.
       if(!(vipFresh.autoExpires>now)) novoVip.autoExpires=vipFresh.manualExpires||now;
       novoVip.note=`⬆️ Upgrade: ${planoAtual.toUpperCase()} → ${novoPlano.toUpperCase()} (${diferenca} 💎) — dias preservados, não reiniciaram`;
+      novoVip.limits=limitesDoPlanoNovo(novoPlano); // v118: upgrade = contrato novo (regras novas)
       setUser(s.user_email,{plan:novoPlano,vip:novoVip});
       addLog(s.user_email,{status:"sistema",jobTitle:`⬆️ Upgrade de plano: ${planoAtual.toUpperCase()} → ${novoPlano.toUpperCase()}`,company:`Custou ${diferenca} 💎 — seus dias continuam os mesmos de quando você assinou (não reiniciaram).`});
       trackJourney(s.user_email,'plan_upgraded',{detail:`${planoAtual}→${novoPlano} por ${diferenca}💎, dias preservados`});
@@ -12385,7 +12397,11 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
     const now2=Date.now();
     // 🛡️ v73: status de AQUECIMENTO por conta (transparência — sem isso, o
     // usuário acha que travou/bugou quando na verdade é a proteção rodando).
-    return json(res,200,{connected:true,sendOnly:GMAIL_SEND_ONLY,diamonds:_diamSaldo(p),diamondPrice:DIAMOND_PRICE_BRL,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",whatsapp:p.whatsapp||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",rankName:p.rankName||"",appAvatarId:p.appAvatarId||"",h2bProfile:p.h2bProfile||{},serverId:_resolveServerId(req),publicProfile:p.publicProfile||{},age:p.age||0,isAdmin:!!p.isAdmin,plan:planKey,totalSent,totalManual,totalAutoHist,totalReplies,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p),source:p.vip.source||"trial"}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[],senderEmails:(p.senderEmails||[]).map(sm=>({email:sm.email,label:sm.label||"",active:sm.active!==false,tokenExpired:!!sm.tokenExpired,blocked:!!sm.blocked,blockedReason:sm.blockedReason||null,addedAt:sm.addedAt,warmupCap:warmupCapForSender(sm.addedAt),sentToday:h.filter(x=>x.dateStr===todayStr()&&x.senderEmail===sm.email).length})),senderMax:getMaxSenders(p),primaryWarmup:{cap:warmupCapForSender(p.created_at),sentToday:h.filter(x=>x.dateStr===todayStr()&&(x.senderEmail===s.user_email||!x.senderEmail)).length},adminSettings:isAdminVip(p)?{intervalSecs:(p.adminSettings?.intervalSecs||180),senderLimits:(p.adminSettings?.senderLimits||{}),maxSenders:getMaxSenders(p)}:null});
+    // v118: aviso pros CONTRATOS ANTIGOS (sem vip.limits): regras mudaram, mas
+    // o plano atual está garantido até vencer com os limites de hoje.
+    const _prNotice=(vipOk&&p.vip&&!p.vip.limits&&!["trial","auto-provisorio"].includes(String(p.vip.source||"")))?
+      `📢 As regras dos planos mudaram! O seu plano atual está garantido até ${new Date(Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0)).toLocaleDateString("pt-BR")} com seus limites de hoje (${manualLimit} manual${autoLimit>10?` / ${autoLimit} automático`:""} por dia). Na renovação valem os limites novos.`:null;
+    return json(res,200,{connected:true,sendOnly:GMAIL_SEND_ONLY,planRulesNotice:_prNotice,diamonds:_diamSaldo(p),diamondPrice:DIAMOND_PRICE_BRL,email:s.user_email,name:p.name||s.user_name,picture:p.picture||s.picture||"",country:p.country||"Brazil",phone:p.phone||"",whatsapp:p.whatsapp||"",cc:p.cc||"",city:p.city||"",language:p.language||"pt-BR",rankName:p.rankName||"",appAvatarId:p.appAvatarId||"",h2bProfile:p.h2bProfile||{},serverId:_resolveServerId(req),publicProfile:p.publicProfile||{},age:p.age||0,isAdmin:!!p.isAdmin,plan:planKey,totalSent,totalManual,totalAutoHist,totalReplies,vip:p.vip?{active:vipOk,expiresAt:p.vip.expiresAt||Math.max(p.vip.manualExpires||0,p.vip.autoExpires||0),activatedAt:p.vip.activatedAt,days:p.vip.days||30,plan:p.vip.plan||"vip",manualExpires:p.vip.manualExpires||0,autoExpires:p.vip.autoExpires||0,manualActive:isManualVipActive(p),autoActive:isAutoVipActive(p),source:p.vip.source||"trial"}:null,todaySentManual:sentManual,manualLimit,manualRemaining:Math.max(0,manualLimit-sentManual),todaySentAuto:sentAuto,autoLimit,autoRemaining:Math.max(0,autoLimit-sentAuto),autoEnabled:true,autoJob:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0,source:autoJob.source,startedAt:autoJob.startedAt,lastSentAt:autoJob.lastSentAt,nextSendAt:autoJob.nextSendAt,currentJob:autoJob.currentJob,originalCount:autoJob.originalCount}:null,autoStats:stats,cvs:(p.cvs||[]).map(c=>({idx:c.idx,name:c.name,size:c.size,date:c.date,cvType:c.cvType||"resume"})),settings:p.settings||{},onboarded:!!p.onboarded,adminMessage:p.adminMessage||null,readEmailIds:p.readEmailIds||[],profiles:p.profiles||[],senderEmails:(p.senderEmails||[]).map(sm=>({email:sm.email,label:sm.label||"",active:sm.active!==false,tokenExpired:!!sm.tokenExpired,blocked:!!sm.blocked,blockedReason:sm.blockedReason||null,addedAt:sm.addedAt,warmupCap:warmupCapForSender(sm.addedAt),sentToday:h.filter(x=>x.dateStr===todayStr()&&x.senderEmail===sm.email).length})),senderMax:getMaxSenders(p),primaryWarmup:{cap:warmupCapForSender(p.created_at),sentToday:h.filter(x=>x.dateStr===todayStr()&&(x.senderEmail===s.user_email||!x.senderEmail)).length},adminSettings:isAdminVip(p)?{intervalSecs:(p.adminSettings?.intervalSecs||180),senderLimits:(p.adminSettings?.senderLimits||{}),maxSenders:getMaxSenders(p)}:null});
   }
 
   if(pathname==="/api/onboard"&&req.method==="POST"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});setUser(s.user_email,{onboarded:true});return json(res,200,{ok:true});}
@@ -12505,6 +12521,24 @@ const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filte
       const _parsedTo = parseEmail(d.to);
       if (!_parsedTo.ok) return json(res,400,{error:`E-mail inválido: ${_parsedTo.reason}`});
       const toEmail = _parsedTo.email;
+      // v118 (ORDEM DO DONO, 02/08): 1 envio MANUAL por minuto — o relógio
+      // conta a partir do envio anterior. Proteção anti-spam às empresas,
+      // vale pra todo mundo (admin isento pra testes). Vem ANTES de token/
+      // limite diário: recusa barata, sem gastar nada.
+      if(!isAdminVip(p)){
+        // addHist usa unshift → o envio mais RECENTE mora no índice 0.
+        const _hArr=getHist(s.user_email)||[];
+        for(let _i=0;_i<_hArr.length;_i++){
+          const _h=_hArr[_i];
+          if(_h.type!=="manual")continue;
+          const _elapsed=Date.now()-new Date(_h.sentAt||0).getTime();
+          if(_elapsed>=0&&_elapsed<60000){
+            const _left=Math.ceil((60000-_elapsed)/1000);
+            return json(res,429,{error:`⏳ Espere ${_left}s pro próximo envio manual (regra: 1 por minuto, protege seu Gmail e as empresas).`,cooldownLeft:_left});
+          }
+          break; // só o manual mais recente importa
+        }
+      }
       // v15-SEC: guarda contra auto-envio
       // v18-FIX: antes só comparava com o email PRINCIPAL — quem tem um Gmail
       // extra conectado (recurso pago, ex. DoublePro) podia "candidatar-se" sem
@@ -13713,7 +13747,7 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
     // próprio usuário (e pro smoke test) que a fila esperta está mesmo
     // priorizando o que combina com o perfil, não só uma promessa no ar.
     const queueCategories=j&&j.active?(j.queue||[]).slice(0,30).map(q=>q.category||"other"):[];
-    const _ivSecs=(isAdminVip(p)&&p.adminSettings?.intervalSecs)||330; // usuário comum: ~5,5min (média 5-6)
+    const _ivSecs=(isAdminVip(p)&&p.adminSettings?.intervalSecs)||420; // v118: usuário comum ~7min (ordem do dono)
     // v67b (bug real, print do dono 26/07: card "35 enviados" × "73 hoje"):
     // autoStats é um Map EM MEMÓRIA — zera a cada restart/deploy do servidor,
     // enquanto a fila continua rodando (DB_AUTO persiste). O card do painel
@@ -15141,7 +15175,8 @@ Responda APENAS em JSON (sem markdown):
       const planName=c.autoDays>0&&c.manualDays>0?'vipro':c.manualDays>0?'vip':c.autoDays>0?'pro':'vip';
       const vip={...(u.vip||{}),active:true,manualExpires,autoExpires,
         source:'code',usedCode:code,codeNote:c.note||'',
-        activatedAt:now,plan:planName,days:c.manualDays||c.autoDays,autoDays:c.autoDays||0};
+        activatedAt:now,plan:planName,days:c.manualDays||c.autoDays,autoDays:c.autoDays||0,
+        limits:limitesDoPlanoNovo(planName)}; // v118: código = contrato novo
       setUser(s.user_email,{vip,plan:planName});
       if(!_codeRemoto){
         DB_CODES[code]={...c,usedBy:[...c.usedBy,s.user_email]};
