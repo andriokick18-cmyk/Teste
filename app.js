@@ -4540,7 +4540,17 @@ async function loadDynamicSheets(){
       const stab=document.getElementById('stab-'+latest.key)||document.querySelector(`#stabs-row [data-src="${latest.key}"]`);
       if(stab){stab.classList.add(selo);stab.style.marginTop='10px';_mkFirst(stab);}
     }
-  }catch(e){ console.warn('[sheets-list]',e.message); }
+  }catch(e){
+    console.warn('[sheets-list]',e.message);
+    // v117 (incidente real, print de usuário 02/08: "não aparece a aba de
+    // inverno 2026 no automático"): se o fetch falha (ex.: app aberto no
+    // exato momento de um deploy/restart do servidor), a planilha dinâmica
+    // sumia do grid e os contadores ficavam em "–" até reabrir o modal.
+    // Agora re-tenta sozinho com recuo (8s, 16s... até 5x) — a aba volta
+    // assim que o servidor responder, sem o usuário fazer nada.
+    window._ldsRetry=(window._ldsRetry||0)+1;
+    if(window._ldsRetry<=5)setTimeout(()=>{try{loadDynamicSheets();}catch(_e){}},8000*window._ldsRetry);
+  }
 }
 
 function selectSource(src){

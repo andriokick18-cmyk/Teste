@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v81"; // v81 (02/08): ⚡ CARREGAMENTO RÁPIDO — 678KB de JS extraídos do index.html pro /app.js (defer + cache/ETag); a página parava ~14s interpretando JS inline em celular mediano.
+const CACHE_NAME = "h2bapply-v82"; // v82 (02/08): planilha dinâmica (Julho 2026) com RETRY automático — se o app abrir durante um deploy/restart, a aba volta sozinha em segundos (incidente real de usuário).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
