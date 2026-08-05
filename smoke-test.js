@@ -411,6 +411,23 @@ async function testAuthWatchdogPush() {
     check("📋 v118: front vende os números novos e aplica cooldown de 1min + aviso de regras (uma vez por sessão)",
       _v118Front, "textos de venda novos, _manualCdUntil/cooldownLeft ou _avisoRegrasPlanos/h2b_prn não encontrados no front");
 
+    // 🔎 v119: SUGESTÕES INSTANTÂNEAS na busca de vagas (padrão Indeed/
+    // LinkedIn — dropdown agrupado, teclado, destaque). Guarda estrutural:
+    // o dropdown existe no HTML, os handlers existem no JS, os rótulos dos
+    // grupos passam pelo dicionário (regra 6f) e o pick de empresa/cargo
+    // dispara a busca NA HORA (sem esperar debounce).
+    const _v119Front = home.body.includes('id="q-sug"') &&
+      home.body.includes('qSugInput()') &&
+      frontAll.includes("function qSugInput") &&
+      frontAll.includes("function qSugPick") &&
+      frontAll.includes("function qSugKey") &&
+      frontAll.includes("_lugaresData") &&
+      frontAll.includes("t('sug_companies')") &&
+      /"sug_companies":"Empresas"/.test(frontAll) &&
+      /"sug_companies":"Companies"/.test(frontAll);
+    check("🔎 v119: sugestões instantâneas da busca — dropdown no HTML, handlers no JS e rótulos no dicionário (PT+EN)",
+      _v119Front, "id=q-sug, qSugInput/Pick/Key, _lugaresData ou chaves sug_* não encontrados");
+
     // v95 (reestruturação parte 8): o wizard de ativação NUNCA cobre o
     // caminho do dinheiro — no checkout de doação (#plan-step-2 visível) o
     // card E o pill somem por completo (o card tampava o passo 4 do
@@ -591,6 +608,16 @@ async function testAuthWatchdogPush() {
     let _julDisk = null; try { _julDisk = JSON.parse(fs.readFileSync(path.join(DATA, "jul2025_compact.json"), "utf8")); } catch {}
     check("🩹 /data/jul2025_compact.json foi regravado são (auto-reparo no boot)",
       Array.isArray(_julDisk) && _julDisk.length > 2000, `linhas no disco: ${Array.isArray(_julDisk) ? _julDisk.length : "ilegível"}`);
+
+    // 🔎 v119: /api/lugares agora também devolve EMPRESAS e CARGOS reais da
+    // planilha (com contagem) — é o índice das sugestões instantâneas da
+    // busca. Sem isso o dropdown ficaria mudo pra empresa/cargo.
+    const lug = await get("/api/lugares?sheet=jul2025");
+    check("🔎 v119: /api/lugares devolve empresas e cargos com contagem (índice das sugestões)",
+      lug.json?.ok === true && Array.isArray(lug.json?.empresas) && lug.json.empresas.length > 50 &&
+      typeof lug.json.empresas[0]?.n === "string" && lug.json.empresas[0]?.q >= 1 &&
+      Array.isArray(lug.json?.cargos) && lug.json.cargos.length > 20 && typeof lug.json.cargos[0]?.n === "string",
+      JSON.stringify({ empresas: lug.json?.empresas?.length, cargos: lug.json?.cargos?.length, ex: lug.json?.empresas?.[0] }));
 
     // Upload de PDF + dedup por nome (re-upload SUBSTITUI, não duplica)
     const pdfB64 = Buffer.from("%PDF-1.4 " + "smoke ".repeat(300)).toString("base64");

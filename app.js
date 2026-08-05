@@ -1650,13 +1650,14 @@ function setStat(s){fStat=s;g("#fs-all")?.classList.toggle("on",s==="all");g("#f
    /api/lugares (estados/cidades REAIS da planilha atual + regiões
    turísticas). Escolheu estado → vira chip de estado (mfAddState, mesmo
    fluxo do modal); escolheu cidade/região → preenche #f-city e aplica. */
-let _lugaresTab=null;
+let _lugaresTab=null,_lugaresData=null;
 async function loadLugares(){
   try{
     if(_lugaresTab===tab)return;
     const d=await fetch("/api/lugares?sheet="+encodeURIComponent(tab),{credentials:"include"}).then(r=>r.json());
     if(!d.ok)return;
     _lugaresTab=tab;
+    _lugaresData=d; // v119: alimenta as sugestões instantâneas da busca (#q-sug)
     const de=g("#dl-estados");if(de)de.innerHTML=(d.estados||[]).map(e=>`<option value="${esc(e.n)}">${e.q} vagas</option>`).join("");
     const dc=g("#dl-cidades");if(dc)dc.innerHTML=
       (d.regioes||[]).map(r=>`<option value="${esc(r)}">região</option>`).join("")+
@@ -1680,6 +1681,82 @@ function qCidadePick(v){
   applyF();
   if(v)toast("🏙️ Filtrando por "+v,"g");
 }
+/* ═══ 🔎 v119: SUGESTÕES INSTANTÂNEAS ao digitar na busca de vagas ═══
+   Padrão de mercado (Indeed/LinkedIn, guias Baymard/UX Mag): dropdown
+   agrupado com rótulos, no máx ~9 itens, trecho digitado em destaque,
+   navegação por setas + Enter, Esc fecha. Dados 100% locais (o índice
+   já veio no /api/lugares — zero requisição por tecla). */
+const _normSug=s=>String(s||"").toLowerCase()
+  .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+  .replace(/["'‘’`´]/g,"").replace(/[^a-z0-9@.\s]+/g," ").replace(/\s+/g," ").trim();
+let _sugIdx=-1,_sugItems=[];
+function _sugHi(nome,ql){
+  const n=_normSug(nome);const i=n.indexOf(ql);
+  if(i<0)return esc(nome);
+  // mapeia o trecho normalizado de volta pro texto original (mesmo tamanho aprox.)
+  return esc(nome.slice(0,i))+"<b>"+esc(nome.slice(i,i+ql.length))+"</b>"+esc(nome.slice(i+ql.length));
+}
+function qSugInput(){
+  const box=g("#q-sug");if(!box)return;
+  const ql=_normSug(g("#q")?.value||"");
+  if(ql.length<2||!_lugaresData){qSugClose();return;}
+  const d=_lugaresData;
+  const pick=(arr,cap)=>{
+    const st=[],inc=[];
+    for(const it of (arr||[])){
+      const n=_normSug(it.n||it);
+      if(n.startsWith(ql))st.push(it);else if(n.includes(ql))inc.push(it);
+      if(st.length>=cap)break;
+    }
+    return st.concat(inc).slice(0,cap);
+  };
+  const grupos=[
+    {lbl:t('sug_companies'),ico:"ti-building",kind:"empresa",itens:pick(d.empresas,3)},
+    {lbl:t('sug_roles'),ico:"ti-briefcase",kind:"cargo",itens:pick(d.cargos,2)},
+    {lbl:t('sug_cities'),ico:"ti-map-pin",kind:"cidade",itens:pick(d.cidades,2)},
+    {lbl:t('sug_regions'),ico:"ti-beach",kind:"cidade",itens:pick((d.regioes||[]).map(r=>({n:r})),1)},
+    {lbl:t('sug_states'),ico:"ti-map",kind:"estado",itens:pick(d.estados,1)},
+  ].filter(gp=>gp.itens.length);
+  _sugItems=[];_sugIdx=-1;
+  if(!grupos.length){qSugClose();return;}
+  let html="";
+  for(const gp of grupos){
+    html+=`<div class="q-sug-grp">${esc(gp.lbl)}</div>`;
+    for(const it of gp.itens){
+      const idx=_sugItems.length;
+      _sugItems.push({kind:gp.kind,v:it.n});
+      const meta=it.q?`${Number(it.q).toLocaleString("pt-BR")} ${t('sug_jobs')}`+(it.e?` · ${esc(it.e)}`:""):(it.e?esc(it.e):"");
+      html+=`<div class="q-sug-it" data-i="${idx}" role="option" onmousedown="event.preventDefault();qSugPick(${idx})"><i class="ti ${gp.ico}"></i><span>${_sugHi(it.n,ql)}</span>${meta?`<span class="q-sug-meta">${meta}</span>`:""}</div>`;
+    }
+  }
+  box.innerHTML=html;box.classList.add("open");
+  g("#q")?.setAttribute("aria-expanded","true");
+}
+function qSugPick(i){
+  const it=_sugItems[i];if(!it)return;
+  qSugClose();
+  if(it.kind==="estado"){const el=g("#q");if(el)el.value="";fQ="";qEstadoPick(it.v);return;}
+  if(it.kind==="cidade"){const el=g("#q");if(el)el.value="";fQ="";qCidadePick(it.v);return;}
+  // empresa/cargo → vira a própria busca, na hora (sem esperar o debounce)
+  const el=g("#q");if(el)el.value=it.v;
+  clearTimeout(stmr);fQ=it.v;
+  if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}
+}
+function qSugKey(ev){
+  const box=g("#q-sug");if(!box||!box.classList.contains("open")){if(ev.key==="Escape")qSugClose();return;}
+  if(ev.key==="ArrowDown"||ev.key==="ArrowUp"){
+    ev.preventDefault();
+    _sugIdx+=(ev.key==="ArrowDown"?1:-1);
+    if(_sugIdx<0)_sugIdx=_sugItems.length-1;
+    if(_sugIdx>=_sugItems.length)_sugIdx=0;
+    [...box.querySelectorAll(".q-sug-it")].forEach(el=>el.classList.toggle("on",+el.dataset.i===_sugIdx));
+    box.querySelector(".q-sug-it.on")?.scrollIntoView({block:"nearest"});
+  }else if(ev.key==="Enter"&&_sugIdx>=0){ev.preventDefault();qSugPick(_sugIdx);}
+  else if(ev.key==="Escape"){qSugClose();}
+}
+function qSugClose(){const box=g("#q-sug");if(box){box.classList.remove("open");box.innerHTML="";}_sugIdx=-1;_sugItems=[];g("#q")?.setAttribute("aria-expanded","false");}
+function qSugBlur(){setTimeout(qSugClose,160);}
+
 function setSort(s){fSort=s;const _mf=g("#mf-sort");if(_mf&&[..._mf.options].some(o=>o.value===s))_mf.value=s;["rand:random","match:match","wage:wage","start:start","desc:desc"].forEach(p=>{const[i,v]=p.split(":");g("#so-"+i)?.classList.toggle("on",s===v);});renderJobsFilterChips();if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}
 
 const PAGE=25;
@@ -10437,6 +10514,8 @@ const LANG_DICT = {
     "roi_calc":"Calculadora de Resultados","roi_if":"Se apenas 1% das empresas responder positivamente:","roi_cta":"Basta 1 empresa confirmar → você está nos EUA ✈️",
     // Jobs
     "all_states":"Todos estados","salary":"Salário","qty_jobs":"Qtd vagas",
+    // v119: sugestões instantâneas da busca
+    "sug_companies":"Empresas","sug_roles":"Cargos","sug_cities":"Cidades","sug_regions":"Regiões","sug_states":"Estados","sug_jobs":"vagas",
     "all":"Todas","all_f":"Todas","active_f":"✅ Ativas","random":"🔀 Aleatório","recent":"Recentes","oldest":"Antigas",
     "select_job":"Selecione uma vaga","select_job_sub":"Clique para ver os detalhes e candidatar-se",
     "back_jobs":"Voltar às vagas","job_search_ph":"Cargo, empresa, estado...",
@@ -10518,6 +10597,7 @@ const LANG_DICT = {
     "reward_ph":"Ex: A1B2C3D4","redeem":"Redeem",
     "roi_calc":"Results Calculator","roi_if":"If only 1% of companies reply positively:","roi_cta":"Just 1 company confirms → you're in the USA ✈️",
     "all_states":"All states","salary":"Salary","qty_jobs":"# Positions",
+    "sug_companies":"Companies","sug_roles":"Job titles","sug_cities":"Cities","sug_regions":"Regions","sug_states":"States","sug_jobs":"jobs",
     "all":"All","all_f":"All","active_f":"✅ Active","random":"🔀 Random","recent":"Recent","oldest":"Oldest",
     "select_job":"Select a job","select_job_sub":"Click to see details and apply",
     "back_jobs":"Back to jobs","job_search_ph":"Position, company, state...",
@@ -10587,6 +10667,7 @@ const LANG_DICT = {
     "reward_ph":"Ej: A1B2C3D4","redeem":"Canjear",
     "roi_calc":"Calculadora de Resultados","roi_if":"Si solo el 1% de las empresas responde positivamente:","roi_cta":"¡Solo 1 empresa confirma → estás en los EUA! ✈️",
     "all_states":"Todos los estados","salary":"Salario","qty_jobs":"# Puestos",
+    "sug_companies":"Empresas","sug_roles":"Puestos","sug_cities":"Ciudades","sug_regions":"Regiones","sug_states":"Estados","sug_jobs":"empleos",
     "all":"Todas","all_f":"Todas","active_f":"✅ Activas","random":"🔀 Aleatorio","recent":"Recientes","oldest":"Antiguas",
     "select_job":"Selecciona un empleo","select_job_sub":"Toca para ver detalles y postularte",
     "back_jobs":"Volver a empleos","job_search_ph":"Cargo, empresa, estado...",

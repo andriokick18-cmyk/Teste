@@ -651,6 +651,15 @@ textarea.input{resize:vertical;min-height:100px;line-height:1.6}
 .search-bar{padding:9px 11px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .search-wrap{position:relative;margin-bottom:7px}
 .search-wrap i{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:16px;pointer-events:none}
+/* 🔎 v119: sugestões instantâneas ao digitar (Empresas/Cargos/Cidades/Regiões/Estados) */
+.q-sug{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--sf);border:1px solid var(--border2);border-radius:12px;box-shadow:0 14px 38px rgba(30,27,75,.16);z-index:90;overflow-y:auto;max-height:min(330px,55vh);padding:4px 0 6px}
+.q-sug.open{display:block}
+.q-sug-grp{padding:7px 13px 3px;font-size:10.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--t3)}
+.q-sug-it{display:flex;align-items:center;gap:9px;padding:9px 13px;font-size:13.5px;cursor:pointer;color:var(--text);line-height:1.25}
+.q-sug-it i{color:var(--t3);font-size:15px;flex:none}
+.q-sug-it b{color:var(--purple)}
+.q-sug-it .q-sug-meta{margin-left:auto;font-size:11px;color:var(--t3);white-space:nowrap;flex:none}
+.q-sug-it:hover,.q-sug-it.on{background:var(--sf3)}
 .search-inp{width:100%;background:var(--sf2);border:1.5px solid var(--border2);border-radius:var(--r);padding:9px 10px 9px 33px;font-size:16px;color:var(--text);outline:none;transition:all .16s;-webkit-appearance:none;font-family:inherit}
 .search-inp:focus{border-color:var(--blue);background:#fff;box-shadow:0 0 0 3px rgba(26,86,219,.1)}
 .filters-row{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:2px}
@@ -3018,7 +3027,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                digita "mass" → MASSACHUSETTS; "marth" → Martha's Vineyard).
                As listas vêm de /api/lugares — só lugar que TEM vaga. -->
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <div class="search-wrap" style="flex:2;min-width:170px"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="Cargo, empresa..." oninput="onSearch()" autocomplete="off" inputmode="search"></div>
+            <div class="search-wrap" style="flex:2;min-width:170px"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="Cargo, empresa..." oninput="onSearch();qSugInput()" onkeydown="qSugKey(event)" onfocus="qSugInput()" onblur="qSugBlur()" autocomplete="off" inputmode="search" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="q-sug"><div id="q-sug" class="q-sug" role="listbox" aria-label="Sugestões de busca"></div></div>
             <input class="search-inp" list="dl-estados" id="q-estado" placeholder="📍 Estado…" autocomplete="off" style="flex:1;min-width:110px;border:1.5px solid var(--border2);border-radius:12px;padding:0 10px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--text)" onchange="qEstadoPick(this.value)">
             <input class="search-inp" list="dl-cidades" id="q-cidade" placeholder="🏙️ Cidade…" autocomplete="off" style="flex:1;min-width:110px;border:1.5px solid var(--border2);border-radius:12px;padding:0 10px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--text)" onchange="qCidadePick(this.value)">
             <datalist id="dl-estados"></datalist>

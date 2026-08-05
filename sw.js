@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v83"; // v83 (02/08): novas regras de planos v118 — VIP 100 manual · VIPro 100+100 · DoublePro 200+200 (só ativação nova; quem já pagou mantém tudo até expirar), automático ~7min/envio, manual 1/min, aviso de transição no app.
+const CACHE_NAME = "h2bapply-v84"; // v84 (05/08): sugestões instantâneas na busca de vagas (v119) — digite 2+ letras e o app sugere empresas, cargos, cidades, regiões e estados da planilha atual, com clique/teclado, no padrão Indeed/LinkedIn.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

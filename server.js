@@ -13039,17 +13039,22 @@ const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filte
       let rows;
       if(shKey==="seasonal")rows=getAllSheets().filter(r=>r.e&&r.e.includes("@"));
       else{const sh=getSheet(shKey);rows=Array.isArray(sh)?sh:[];}
-      const est={},cid={};
+      const est={},cid={},emp={},car={};
       for(const r of rows){
         const s=String(r.s||"").toUpperCase().trim();
         const c=String(r.ci||"").trim();
         if(s&&s!=="–")est[s]=(est[s]||0)+1;
         if(c&&c!=="–")cid[c+"|"+s]=(cid[c+"|"+s]||0)+1;
+        // v119: empresas e cargos alimentam as sugestões instantâneas da busca
+        const n=String(r.n||"").trim();if(n&&n!=="–")emp[n]=(emp[n]||0)+1;
+        const t2=String(r.t||"").trim();if(t2&&t2!=="–")car[t2]=(car[t2]||0)+1;
       }
       const data={
         ok:true,
         estados:Object.entries(est).sort((a,b)=>b[1]-a[1]).map(([n,q])=>({n,q})),
         cidades:Object.entries(cid).sort((a,b)=>b[1]-a[1]).slice(0,1500).map(([k,q])=>{const[n,e]=k.split("|");return{n,e,q};}),
+        empresas:Object.entries(emp).sort((a,b)=>b[1]-a[1]).slice(0,800).map(([n,q])=>({n,q})),
+        cargos:Object.entries(car).sort((a,b)=>b[1]-a[1]).slice(0,400).map(([n,q])=>({n,q})),
         regioes:["Martha's Vineyard","Cape Cod","Nantucket","Florida Keys","Outer Banks","Hamptons","Lake Tahoe","Jackson Hole","Mackinac","Smoky Mountains","Wisconsin Dells","Myrtle Beach","Hilton Head","Gulf Shores","Ocean City","Branson","Aspen","Vail","Yellowstone","Poconos","Adirondacks","Door County","Destin"],
       };
       global._lugaresCache[shKey]={at:Date.now(),data};
