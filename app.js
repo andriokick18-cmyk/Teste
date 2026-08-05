@@ -2328,6 +2328,7 @@ function applyModalProfileById(pid,updateSlots){
 }
 
 function buildCvSlots(){
+  manualCdSync(); // v120: o pill do cooldown acompanha toda abertura do modal de envio
   // Deduplica por idx
   const seen=new Set();
   const dedup=arr=>arr.filter(c=>{if(seen.has(c.idx))return false;seen.add(c.idx);return true;});
@@ -2345,6 +2346,48 @@ function buildCvSlots(){
 
 function closeModal(){g("#modal").classList.add("gone");curJob=null;_currentModalJob=null;const ms=g("#m-sending");const mb=g("#m-send");if(ms)ms.style.display="none";if(mb)mb.disabled=false;} // FIX: reseta estado do botão ao fechar
 
+/* ═══ ⏱️ v120 (ORDEM DO DONO, 05/08): cooldown do MANUAL é editável ═══
+   O 1 min entre envios manuais continua sendo o PADRÃO, mas o usuário vê
+   um botão no modal de envio e pode desligar — aceitando por escrito que
+   o Gmail dele tem MUITA chance de ser bloqueado pra sempre se enviar
+   rápido demais. Religar é 1 clique. O AUTOMÁTICO não tem escolha:
+   7 minutos sempre (proteção do sistema, não é preferência). */
+function manualCdSync(){
+  const el=g("#m-cd-pill");if(!el)return;
+  const off=U&&U.manualCdOff===true;
+  el.innerHTML=off
+    ?`⚠️ ${esc(t('cd_off_lbl'))} · <u>${esc(t('cd_reactivate'))}</u>`
+    :`⏱️ ${esc(t('cd_on_lbl'))} · <u>${esc(t('cd_change'))}</u>`;
+  el.style.color=off?"var(--amber)":"var(--t3)";
+}
+async function _manualCdSave(off){
+  try{
+    const r=await fetch("/api/settings",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({manualCdOff:off})});
+    const d=await r.json();if(!d.ok&&!r.ok)throw new Error(d.error||"erro");
+    U.manualCdOff=off;if(off)window._manualCdUntil=0;
+    manualCdSync();
+    toast(off?t('cd_toast_off'):t('cd_toast_on'),off?"r":"g");
+  }catch(e){toast("❌ "+(e.message||"Erro ao salvar"),"r");}
+}
+function manualCdModal(){
+  if(U&&U.manualCdOff===true){_manualCdSave(false);return;}
+  const ov=document.createElement("div");
+  ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)";
+  ov.innerHTML=`<div style="background:var(--sf);border-radius:18px;padding:22px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="font-size:17px;font-weight:800;margin-bottom:8px">⚠️ ${esc(t('cd_modal_title'))}</div>
+    <div style="font-size:13.5px;color:var(--t2);line-height:1.5;margin-bottom:12px">${esc(t('cd_modal_body'))}</div>
+    <label style="display:flex;gap:9px;align-items:flex-start;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:14px">
+      <input type="checkbox" id="cd-agree" style="margin-top:2px;width:17px;height:17px;flex:none" onchange="g('#cd-off-btn').disabled=!this.checked">
+      <span>${esc(t('cd_modal_agree'))}</span>
+    </label>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="this.closest('div[style*=fixed]').remove()">${esc(t('cd_modal_keep'))}</button>
+      <button class="btn" id="cd-off-btn" disabled style="background:var(--red);color:#fff" onclick="this.closest('div[style*=fixed]').remove();_manualCdSave(true)">${esc(t('cd_modal_off'))}</button>
+    </div>
+  </div>`;
+  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
 async function doSend(){
   const j=curJob;
   const to=(g("#m-to")?.value||"").trim()||(j&&j.email)||"";
@@ -2375,7 +2418,7 @@ async function doSend(){
       resumeIdx:(activeResIdx!=null?activeResIdx:undefined),coverIdx:(activeCovIdx!=null?activeCovIdx:undefined)};
     // v118: 1 envio manual por minuto — bloqueio local instantâneo (o servidor
     // é quem manda de verdade; isto só evita a viagem à toa e dá contagem viva)
-    if(!U.isAdmin&&window._manualCdUntil&&Date.now()<window._manualCdUntil){
+    if(!U.isAdmin&&U.manualCdOff!==true&&window._manualCdUntil&&Date.now()<window._manualCdUntil){
       const _lf=Math.ceil((window._manualCdUntil-Date.now())/1000);
       g("#m-sending").style.display="none";g("#m-send").disabled=false;
       toast(`⏳ Espere ${_lf}s pro próximo envio manual (1 por minuto).`,"r");
@@ -2400,7 +2443,7 @@ async function doSend(){
     }
     U.todaySentManual=d.todaySent||U.todaySentManual+1;U.manualRemaining=typeof d.remaining==="number"?d.remaining:Math.max(0,(U.manualLimit||20)-U.todaySentManual);U.manualLimit=d.dailyLimit||U.manualLimit;
     rlRecordSend(); // registra o horário do envio p/ detecção de envio muito rápido
-    if(!U.isAdmin)window._manualCdUntil=Date.now()+60000; // v118: 1/min
+    if(!U.isAdmin&&U.manualCdOff!==true)window._manualCdUntil=Date.now()+60000; // v118: 1/min (v120: respeita a escolha do usuário)
     closeModal();
     if(j?.id){
       APPLIED.add(j.id);
@@ -10516,6 +10559,14 @@ const LANG_DICT = {
     "all_states":"Todos estados","salary":"Salário","qty_jobs":"Qtd vagas",
     // v119: sugestões instantâneas da busca
     "sug_companies":"Empresas","sug_roles":"Cargos","sug_cities":"Cidades","sug_regions":"Regiões","sug_states":"Estados","sug_jobs":"vagas",
+    // v120: cooldown do manual editável
+    "cd_on_lbl":"Proteção: 1 min entre envios manuais","cd_change":"alterar",
+    "cd_off_lbl":"Proteção de 1 min DESLIGADA","cd_reactivate":"reativar",
+    "cd_modal_title":"Desligar a proteção de 1 minuto?",
+    "cd_modal_body":"O intervalo de 1 minuto entre envios manuais protege a sua conta. Enviar muitos e-mails rápido demais faz o Google marcar sua conta como spam — e o seu Gmail tem MUITA chance de ser BLOQUEADO PARA SEMPRE. O envio automático não muda: continua 1 a cada 7 minutos.",
+    "cd_modal_agree":"Entendo o risco: meu Gmail pode ser bloqueado para sempre, e a responsabilidade é minha.",
+    "cd_modal_keep":"Manter proteção","cd_modal_off":"Desligar mesmo assim",
+    "cd_toast_off":"⚠️ Proteção de 1 min desligada — cuidado com o ritmo!","cd_toast_on":"✅ Proteção de 1 min reativada",
     "all":"Todas","all_f":"Todas","active_f":"✅ Ativas","random":"🔀 Aleatório","recent":"Recentes","oldest":"Antigas",
     "select_job":"Selecione uma vaga","select_job_sub":"Clique para ver os detalhes e candidatar-se",
     "back_jobs":"Voltar às vagas","job_search_ph":"Cargo, empresa, estado...",
@@ -10598,6 +10649,13 @@ const LANG_DICT = {
     "roi_calc":"Results Calculator","roi_if":"If only 1% of companies reply positively:","roi_cta":"Just 1 company confirms → you're in the USA ✈️",
     "all_states":"All states","salary":"Salary","qty_jobs":"# Positions",
     "sug_companies":"Companies","sug_roles":"Job titles","sug_cities":"Cities","sug_regions":"Regions","sug_states":"States","sug_jobs":"jobs",
+    "cd_on_lbl":"Protection: 1 min between manual sends","cd_change":"change",
+    "cd_off_lbl":"1-min protection is OFF","cd_reactivate":"turn back on",
+    "cd_modal_title":"Turn off the 1-minute protection?",
+    "cd_modal_body":"The 1-minute gap between manual sends protects your account. Sending too many emails too fast makes Google flag your account as spam — your Gmail has a HIGH chance of being BLOCKED FOREVER. Auto-send doesn't change: still 1 every 7 minutes.",
+    "cd_modal_agree":"I understand the risk: my Gmail can be blocked forever, and the responsibility is mine.",
+    "cd_modal_keep":"Keep protection","cd_modal_off":"Turn off anyway",
+    "cd_toast_off":"⚠️ 1-min protection turned off — watch your pace!","cd_toast_on":"✅ 1-min protection back on",
     "all":"All","all_f":"All","active_f":"✅ Active","random":"🔀 Random","recent":"Recent","oldest":"Oldest",
     "select_job":"Select a job","select_job_sub":"Click to see details and apply",
     "back_jobs":"Back to jobs","job_search_ph":"Position, company, state...",
@@ -10668,6 +10726,13 @@ const LANG_DICT = {
     "roi_calc":"Calculadora de Resultados","roi_if":"Si solo el 1% de las empresas responde positivamente:","roi_cta":"¡Solo 1 empresa confirma → estás en los EUA! ✈️",
     "all_states":"Todos los estados","salary":"Salario","qty_jobs":"# Puestos",
     "sug_companies":"Empresas","sug_roles":"Puestos","sug_cities":"Ciudades","sug_regions":"Regiones","sug_states":"Estados","sug_jobs":"empleos",
+    "cd_on_lbl":"Protección: 1 min entre envíos manuales","cd_change":"cambiar",
+    "cd_off_lbl":"Protección de 1 min APAGADA","cd_reactivate":"reactivar",
+    "cd_modal_title":"¿Apagar la protección de 1 minuto?",
+    "cd_modal_body":"El intervalo de 1 minuto entre envíos manuales protege tu cuenta. Enviar demasiados correos muy rápido hace que Google marque tu cuenta como spam — tu Gmail tiene MUCHA probabilidad de ser BLOQUEADO PARA SIEMPRE. El envío automático no cambia: sigue 1 cada 7 minutos.",
+    "cd_modal_agree":"Entiendo el riesgo: mi Gmail puede ser bloqueado para siempre, y la responsabilidad es mía.",
+    "cd_modal_keep":"Mantener protección","cd_modal_off":"Apagar de todos modos",
+    "cd_toast_off":"⚠️ Protección de 1 min apagada — ¡cuidado con el ritmo!","cd_toast_on":"✅ Protección de 1 min reactivada",
     "all":"Todas","all_f":"Todas","active_f":"✅ Activas","random":"🔀 Aleatorio","recent":"Recientes","oldest":"Antiguas",
     "select_job":"Selecciona un empleo","select_job_sub":"Toca para ver detalles y postularte",
     "back_jobs":"Volver a empleos","job_search_ph":"Cargo, empresa, estado...",

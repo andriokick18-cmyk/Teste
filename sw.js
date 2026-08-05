@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v84"; // v84 (05/08): sugestões instantâneas na busca de vagas (v119) — digite 2+ letras e o app sugere empresas, cargos, cidades, regiões e estados da planilha atual, com clique/teclado, no padrão Indeed/LinkedIn.
+const CACHE_NAME = "h2bapply-v85"; // v85 (05/08): cooldown do envio manual editável (v120) — 1 min continua padrão, mas o usuário pode desligar no modal de envio aceitando o risco de bloqueio do Gmail; automático segue 7min fixo.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

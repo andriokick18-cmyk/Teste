@@ -411,6 +411,18 @@ async function testAuthWatchdogPush() {
     check("📋 v118: front vende os números novos e aplica cooldown de 1min + aviso de regras (uma vez por sessão)",
       _v118Front, "textos de venda novos, _manualCdUntil/cooldownLeft ou _avisoRegrasPlanos/h2b_prn não encontrados no front");
 
+    // ⏱️ v120: o botão de editar o cooldown existe no modal de envio, o
+    // opt-out exige aceite explícito (checkbox trava o botão) e as strings
+    // novas estão no dicionário PT+EN (regra 6f).
+    const _v120Front = home.body.includes('id="m-cd-pill"') &&
+      frontAll.includes("function manualCdModal") &&
+      frontAll.includes("manualCdOff") &&
+      frontAll.includes("cd-agree") &&
+      /"cd_modal_agree":"Entendo o risco/.test(frontAll) &&
+      /"cd_modal_agree":"I understand the risk/.test(frontAll);
+    check("⏱️ v120: pill do cooldown no modal de envio + aceite de risco obrigatório + dicionário PT/EN",
+      _v120Front, "m-cd-pill, manualCdModal, cd-agree ou chaves cd_* não encontrados no front");
+
     // 🔎 v119: SUGESTÕES INSTANTÂNEAS na busca de vagas (padrão Indeed/
     // LinkedIn — dropdown agrupado, teclado, destaque). Guarda estrutural:
     // o dropdown existe no HTML, os handlers existem no JS, os rótulos dos
@@ -592,6 +604,25 @@ async function testAuthWatchdogPush() {
     check("⏳ v118: 2º envio manual dentro de 60s → 429 com cooldownLeft (regra: 1 por minuto)",
       cdSend.status === 429 && typeof cdSend.json?.cooldownLeft === "number" && cdSend.json.cooldownLeft >= 1 && cdSend.json.cooldownLeft <= 60,
       `status=${cdSend.status} elapsedFixture=${_cdElapsed}ms body=${cdSend.body.slice(0, 140)}`);
+
+    // ⏱️ v120 (ORDEM DO DONO, 05/08): o usuário pode DESLIGAR o cooldown do
+    // manual (com aceite de risco). Depois do opt-out, a MESMA janela de 60s
+    // não dá mais 429 de cooldown — a requisição passa e esbarra na etapa
+    // SEGUINTE (anti-duplicado, 409), prova de que o cooldown foi pulado de
+    // verdade e nada mais mudou. Religar traz o 429 de volta na hora.
+    const cdOff = await req2("POST", "/api/settings", { manualCdOff: true });
+    const stCd = await get("/api/status");
+    check("⏱️ v120: opt-out do cooldown salva e aparece no /api/status (manualCdOff:true)",
+      cdOff.json?.ok === true && stCd.json?.manualCdOff === true, `settings=${cdOff.status} status.manualCdOff=${stCd.json?.manualCdOff}`);
+    const cdSend2 = await req2("POST", "/api/send", { to: "empresa@teste-cooldown.com", subject: "Oi", message: "corpo escrito pelo usuário" });
+    check("⏱️ v120: cooldown DESLIGADO → dentro dos mesmos 60s NÃO há mais 429 de cooldown (esbarra no anti-duplicado, etapa seguinte)",
+      cdSend2.status === 409 && cdSend2.json?.alreadySent === true && cdSend2.json?.cooldownLeft === undefined,
+      `status=${cdSend2.status} body=${cdSend2.body.slice(0, 140)}`);
+    const cdOn = await req2("POST", "/api/settings", { manualCdOff: false });
+    const cdSend3 = await req2("POST", "/api/send", { to: "outra@teste-cooldown.com", subject: "Oi", message: "corpo escrito pelo usuário" });
+    check("⏱️ v120: religou a proteção → o 429 com cooldownLeft volta imediatamente",
+      cdOn.json?.ok === true && cdSend3.status === 429 && typeof cdSend3.json?.cooldownLeft === "number",
+      `status=${cdSend3.status} body=${cdSend3.body.slice(0, 120)}`);
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", name: "Smoke", isAdmin: true });
 
     // v48: INCIDENTE REAL "vagas sumiram" — o fixture semeou /data com

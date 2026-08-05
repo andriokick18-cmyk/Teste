@@ -308,7 +308,14 @@
     garantia e os limites de hoje. Ritmo: automático ~7min/envio
     (calcSmartInterval 6,5–7,5min; custom de admin continua); manual tem
     cooldown de 1 minuto (429 + cooldownLeft no /api/send, espelhado no
-    front via _manualCdUntil; admin isento). PROIBIDO mudar limite de
+    front via _manualCdUntil; admin isento). **v120 (dono, 05/08)**: o
+    cooldown do MANUAL é o padrão mas o usuário pode DESLIGAR — pill no
+    modal de envio (#m-cd-pill → manualCdModal) com aceite de risco
+    obrigatório (checkbox "meu Gmail pode ser bloqueado para sempre";
+    carimbo manualCdOffAt no servidor); religar é 1 clique. `manualCdOff`
+    vive no usuário via /api/settings e é espelhado no /api/status. O
+    intervalo do AUTOMÁTICO não é editável por usuário comum — 7min
+    sempre (só o custom de admin existe). PROIBIDO mudar limite de
     plano mexendo só na tabela — mudança nova = tabela nova + carimbo na
     ativação, mantendo os carimbos antigos intocados (mesma filosofia).
     Atenção à ordem do histórico: addHist usa unshift — o envio mais
