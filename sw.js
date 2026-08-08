@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v87"; // v87 (08/08): coleta bimestral H-2A roda em BACKGROUND com barra de %, tempo, estimativa e log ao vivo no painel (v121c) — o clique nunca mais fica mudo nem estoura timeout de HTTP.
+const CACHE_NAME = "h2bapply-v88"; // v88 (08/08): planilha H-2A automática virou MENSAL (v122, ordem do dono) — todo mês nasce e publica sozinha a "H-2A <Mês> <Ano>" com as vagas dos últimos 90 dias; próxima em Setembro, sem clique nenhum.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

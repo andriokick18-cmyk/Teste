@@ -3819,20 +3819,22 @@ const MESES_PT=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","A
 async function _runH2aBimestral(trigger,force,background){
   if(_dolColeta.running)return{ok:false,error:"já existe uma coleta rodando — tente de novo em alguns minutos"};
   const now=new Date();
+  // v122 (dono, 08/08: "agende para daqui 1 mês gerar outra em setembro"):
+  // virou MENSAL — roda de novo assim que muda o mês do calendário.
   if(!force&&DB_H2A_BIM.lastRunAt){
     const last=new Date(DB_H2A_BIM.lastRunAt);
     const meses=(now.getUTCFullYear()*12+now.getUTCMonth())-(last.getUTCFullYear()*12+last.getUTCMonth());
-    if(meses<2)return{ok:false,skipped:true,error:`ainda não venceu — última foi ${DB_H2A_BIM.lastKey||"?"} (falta${2-meses>1?"m":""} ${2-meses} mês${2-meses>1?"es":""})`};
+    if(meses<1)return{ok:false,skipped:true,error:`ainda não venceu — a deste mês (${DB_H2A_BIM.lastKey||"?"}) já foi gerada; a próxima sai sozinha no mês que vem`};
   }
   const key=`h2a-${now.getUTCFullYear()}${String(now.getUTCMonth()+1).padStart(2,"0")}`;
   if(!force&&DB_SHEETS_META[key])return{ok:false,skipped:true,error:`planilha ${key} já existe`};
   const nome=`H-2A ${MESES_PT[now.getUTCMonth()]} ${now.getUTCFullYear()}`;
   const feedDates=[];for(let i=0;i<6;i++)feedDates.push(new Date(now.getTime()-i*18*86400_000).toISOString().slice(0,10));
   const minPub=Math.max(5,parseInt(process.env.H2A_BIM_MIN_PUBLICAR||"200",10)||200);
-  botLog('h2a-bimestral','Planilha H-2A Bimestral',`🌾 Montando "${nome}" (${trigger||"agendado"}): 6 feeds cobrindo 90 dias, mínimo pra publicar sozinho: ${minPub} vagas.`,'info');
+  botLog('h2a-bimestral','Planilha H-2A Mensal',`🌾 Montando "${nome}" (${trigger||"agendado"}): 6 feeds cobrindo 90 dias, mínimo pra publicar sozinho: ${minPub} vagas.`,'info');
   const _depois=async()=>{
     if(_dolColeta.error){
-      botLog('h2a-bimestral','Planilha H-2A Bimestral',`⚠️ Coleta da "${nome}" falhou: ${_dolColeta.error} — nada foi salvo, tenta no próximo ciclo.`,'warn');
+      botLog('h2a-bimestral','Planilha H-2A Mensal',`⚠️ Coleta da "${nome}" falhou: ${_dolColeta.error} — nada foi salvo, tenta no próximo ciclo.`,'warn');
       // v121b: falha NUNCA é silenciosa — o dono descobre por push, não
       // esperando uma planilha que não vem (aconteceu de verdade em 08/08).
       for(const ae of ADMIN_EMAILS)pushToUser(ae,{type:"generic",
@@ -3844,8 +3846,8 @@ async function _runH2aBimestral(trigger,force,background){
     const publicada=DB_SHEETS_META[key]?.published===true;
     DB_H2A_BIM={lastKey:key,lastRunAt:Date.now(),lastCount:_dolColeta.count,lastPublished:publicada,lastTrigger:String(trigger||"")};
     try{fs.writeFileSync(H2A_BIM_FILE,JSON.stringify(DB_H2A_BIM,null,2));}catch{}
-    botLog('h2a-bimestral','Planilha H-2A Bimestral',publicada
-      ?`✅ "${nome}" no ar: ${_dolColeta.count} vagas dos últimos 90 dias, publicada automaticamente (Manual + Automático). Próxima em 2 meses.`
+    botLog('h2a-bimestral','Planilha H-2A Mensal',publicada
+      ?`✅ "${nome}" no ar: ${_dolColeta.count} vagas dos últimos 90 dias, publicada automaticamente (Manual + Automático). Próxima sai sozinha no mês que vem.`
       :`⚠️ "${nome}" coletou só ${_dolColeta.count} vagas (mínimo ${minPub}) — ficou em RASCUNHO pro admin revisar.`,publicada?'ok':'warn');
     for(const ae of ADMIN_EMAILS)pushToUser(ae,{type:"generic",
       title:publicada?`🌾 Planilha "${nome}" publicada!`:`⚠️ Planilha "${nome}" precisa de revisão`,
@@ -8751,7 +8753,7 @@ ul li{margin-bottom:6px}
       // v121c: dispara em BACKGROUND (resposta imediata) — o painel
       // acompanha % e log ao vivo pelo /api/admin/sheet/coleta-status.
       const r=await _runH2aBimestral("manual: "+s.user_email,b.force===true,true);
-      if(r.ok)addLog(s.user_email,{status:"sistema",jobTitle:`🌾 Planilha bimestral iniciada: ${r.nome}`,company:"Planilha H-2A Bimestral"});
+      if(r.ok)addLog(s.user_email,{status:"sistema",jobTitle:`🌾 Planilha mensal iniciada: ${r.nome}`,company:"Planilha H-2A Mensal"});
       return json(res,r.ok?200:(r.skipped?409:502),{...r,state:DB_H2A_BIM});
     }catch(e){return json(res,500,{ok:false,error:e.message});}
   }

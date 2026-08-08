@@ -129,6 +129,12 @@ fs.writeFileSync(path.join(DATA, "users.json"), JSON.stringify(users, null, 2));
 // ⏳ v118: histórico com 1 envio manual carimbado AGORA — o teste do cooldown
 // (1 manual/minuto) roda LOGO após o boot, enquanto a janela de 60s do
 // fixture ainda está aberta, e tem que levar 429 com cooldownLeft.
+// 🌾 v122 (dono, 08/08: "daqui 1 mês gera outra em setembro"): a mensal
+// roda de novo assim que muda o mês. Fixture: última rodada há EXATAMENTE
+// 1 mês — o robô TEM que rodar (no regime antigo de 2 meses, recusaria;
+// se alguém reverter pra bimestral, esta guarda quebra na hora).
+const _bimMesPassado = new Date(); _bimMesPassado.setUTCMonth(_bimMesPassado.getUTCMonth() - 1);
+fs.writeFileSync(path.join(DATA, "h2a_bimestral.json"), JSON.stringify({ lastKey: "h2a-mes-anterior", lastRunAt: _bimMesPassado.getTime() }));
 const COOLDOWN_FIX_TS = Date.now();
 fs.writeFileSync(path.join(DATA, "history.json"), JSON.stringify({
   "cooldown@test.com": [{ to: "empresa@teste-cooldown.com", subject: "x", type: "manual", sentAt: new Date(COOLDOWN_FIX_TS).toISOString(), date: "hoje" }],
@@ -1424,8 +1430,10 @@ async function testAuthWatchdogPush() {
     // v121c: o disparo é em BACKGROUND (resposta imediata, sem timeout de
     // HTTP no meio da coleta) — o resultado se acompanha pelo coleta-status
     // (% de progresso + log ao vivo), exatamente como o painel faz.
+    // SEM force: o fixture diz que a última rodada foi há 1 mês — no regime
+    // MENSAL (v122) tem que rodar; se alguém reverter pra "2 meses", quebra.
     const bim1 = await req2("POST", "/api/admin/sheet/h2a-bimestral-run", {});
-    check("🌾 v121c: disparo responde NA HORA (started:true) com a chave do mês",
+    check("🌾 v121c+v122: com a última rodada há 1 mês, o disparo MENSAL responde NA HORA (started:true) com a chave do mês",
       bim1.json?.ok === true && bim1.json?.started === true && /^h2a-\d{6}$/.test(bim1.json?.key || ""),
       bim1.body.slice(0, 160));
     let bimSt = null;
@@ -1442,7 +1450,7 @@ async function testAuthWatchdogPush() {
     check("🌾 v121: a planilha nova já aparece na lista dos usuários (Manual/Automático), publicada",
       _shBim && _shBim.count === 14, JSON.stringify(_shBim || {}).slice(0, 160));
     const bim2 = await req2("POST", "/api/admin/sheet/h2a-bimestral-run", {});
-    check("🌾 v121: rodar de novo ANTES de vencer os 2 meses é recusado (409) — nunca duplica planilha",
+    check("🌾 v121+v122: rodar de novo DENTRO do mesmo mês é recusado (409) — nunca duplica planilha",
       bim2.status === 409 && bim2.json?.skipped === true, `status=${bim2.status} body=${bim2.body.slice(0, 120)}`);
     const bim3 = await req2("POST", "/api/admin/sheet/h2a-bimestral-run", { force: true });
     let bimSt3 = null;
