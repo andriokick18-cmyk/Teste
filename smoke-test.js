@@ -460,6 +460,13 @@ async function testAuthWatchdogPush() {
     check("CSP libera googletagmanager (funil gaEvent deixa de ser bloqueado)",
       String(home.headers["content-security-policy"] || "").includes("googletagmanager.com"));
 
+    // 🌾 v121b: o painel admin tem o botão de gerar a planilha bimestral na
+    // hora (o dono esperou a de Agosto "às cegas" — nunca mais: botão +
+    // resultado visível + push também na falha).
+    check("🌾 v121b: botão 'Gerar a deste mês agora' da bimestral existe no admin",
+      admPage.body.includes('id="h2a-bim-btn"') && admPage.body.includes("h2aBimestralRun"),
+      "h2a-bim-btn/h2aBimestralRun não encontrados no admin.html");
+
     // v106: telas financeiras do admin CONSOLIDADAS (fila do dono) — menu de
     // dinheiro com 2 itens (Visão do Dono + Pedidos) e régua 💰 no topo de
     // cada tela financeira (_renderMoneyNav/MONEY_VIEWS). Guarda: a régua

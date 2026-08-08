@@ -3651,7 +3651,7 @@ async function _runDolColeta({visa,sheetKey,sheetName,beginFrom,beginTo,feedDate
         _dcLog(`📥 feed ${feedDate}: ${recs.length} registros brutos`);
       }catch(e){_dcLog(`⚠️ feed ${feedDate} falhou (${e.message}) — seguindo com os demais`,"warn");}
       // educado com o DOL: pausa entre downloads (só quando há mais de um)
-      if(datas.length>1)await new Promise(r=>setTimeout(r,process.env.DOL_FEED_BASE?50:3000));
+      if(datas.length>1)await new Promise(r=>setTimeout(r,process.env.DOL_FEED_BASE?50:8000));
     }
     if(!feedsOk)throw new Error("nenhum feed do DOL respondeu — nada foi salvo");
     _dcLog(`📦 ${records.length} registros brutos no total (${feedsOk}/${datas.length} feeds ok)`);
@@ -3830,6 +3830,12 @@ async function _runH2aBimestral(trigger,force){
   await _runDolColeta({visa:"H-2A",sheetKey:key,sheetName:nome,feedDates,visaStrict:true,autoPublishMin:minPub,publishedBy:"robô-bimestral"});
   if(_dolColeta.error){
     botLog('h2a-bimestral','Planilha H-2A Bimestral',`⚠️ Coleta da "${nome}" falhou: ${_dolColeta.error} — nada foi salvo, tenta no próximo ciclo.`,'warn');
+    // v121b: falha NUNCA é silenciosa — o dono descobre por push, não
+    // esperando uma planilha que não vem (aconteceu de verdade em 08/08).
+    for(const ae of ADMIN_EMAILS)pushToUser(ae,{type:"generic",
+      title:`⚠️ Planilha "${nome}" falhou na coleta`,
+      body:`${String(_dolColeta.error).slice(0,120)} — o robô tenta de novo em 12h, ou gere agora no painel Robôs.`,
+      icon:"/icon-192.png",url:"/admin"}).catch(()=>{});
     return{ok:false,error:_dolColeta.error,key};
   }
   const publicada=DB_SHEETS_META[key]?.published===true;

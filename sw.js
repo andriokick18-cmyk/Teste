@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v85"; // v85 (05/08): cooldown do envio manual editável (v120) — 1 min continua padrão, mas o usuário pode desligar no modal de envio aceitando o risco de bloqueio do Gmail; automático segue 7min fixo.
+const CACHE_NAME = "h2bapply-v86"; // v86 (08/08): botão "Gerar a deste mês agora" da Planilha H-2A Bimestral no painel admin (v121b) + push aos admins também quando a coleta FALHA — nunca mais esperar planilha às cegas.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

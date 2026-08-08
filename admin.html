@@ -3709,6 +3709,19 @@ document.addEventListener('DOMContentLoaded',()=>{
   <button type="button" class="btn btn-primary btn-sm" id="h2a-novas-btn" onclick="h2aNovasRun()"><i class="ti ti-plant-2"></i> Buscar novas agora</button>
 </div>
 
+<!-- 🌾 v121 — PLANILHA H-2A BIMESTRAL: nasce sozinha a cada 2 meses (8min após
+     o boot quando vence) e AUTO-PUBLICA acima do mínimo de qualidade. Botão =
+     gerar/refazer a do mês agora, sem esperar o agendador. -->
+<div style="background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(16,185,129,.06));border:1.5px solid rgba(139,92,246,.3);border-radius:14px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+  <div style="font-size:26px">📅</div>
+  <div style="flex:1;min-width:220px">
+    <div style="font-size:13.5px;font-weight:800;color:#fff">Planilha H-2A Bimestral (automática, a cada 2 meses)</div>
+    <div style="font-size:11px;color:var(--t3)">Monta sozinha a "H-2A &lt;Mês&gt; &lt;Ano&gt;" com as vagas dos últimos 90 dias (6 feeds do DOL) e PUBLICA sozinha se passar na guarda de qualidade. O botão gera/refaz a deste mês agora — a coleta leva ~1 minuto.</div>
+    <div style="font-size:11px;color:var(--green);margin-top:3px;display:none" id="h2a-bim-result"></div>
+  </div>
+  <button type="button" class="btn btn-primary btn-sm" id="h2a-bim-btn" onclick="h2aBimestralRun()"><i class="ti ti-calendar-repeat"></i> Gerar a deste mês agora</button>
+</div>
+
 <!-- 🤖 BOT DE COLETA — Nova Planilha do DOL (v35, reescrito do KB) -->
 <div style="background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(5,150,105,.06));border:1.5px solid rgba(16,185,129,.3);border-radius:14px;padding:16px;margin-bottom:16px">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
@@ -10295,6 +10308,29 @@ async function h2aNovasRun(){
     }else toast(d.error||'Erro no robô','err');
   }catch(e){toast(e.message,'err');}
   if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-plant-2"></i> Buscar novas agora';}
+}
+
+// ── 🌾 v121: Planilha H-2A Bimestral — gerar/refazer a do mês agora (o
+// agendado roda sozinho a cada 2 meses). force=true: refaz mesmo se a do
+// mês já existe (mesma chave, nunca duplica).
+async function h2aBimestralRun(){
+  const btn=document.getElementById('h2a-bim-btn');
+  const out=document.getElementById('h2a-bim-result');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2"></i> Coletando 6 feeds (~1 min)...';}
+  try{
+    const r=await fetch('/api/admin/sheet/h2a-bimestral-run',{method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({force:true})});
+    let d=null;try{d=await r.json();}catch{}
+    if(d?.ok){
+      if(out){out.style.display='block';out.style.color=d.published?'var(--green)':'var(--amber)';out.textContent=d.published?`✅ "${d.nome}" publicada: ${d.count} vagas dos últimos 90 dias — já no ar pro pessoal.`:`⚠️ "${d.nome}" coletou só ${d.count} vagas — ficou em RASCUNHO (abaixo do mínimo de qualidade). Veja o log dos Robôs.`;}
+      toast(d.published?`🌾 ${d.nome}: ${d.count} vagas publicadas!`:`⚠️ Ficou em rascunho (${d.count} vagas)`,d.published?'ok':'err');
+      if(typeof loadPlanilhas==='function')loadPlanilhas();
+    }else{
+      if(out){out.style.display='block';out.style.color='var(--red)';out.textContent=`❌ ${d?.error||('HTTP '+r.status)} — detalhes no log dos Robôs.`;}
+      toast(d?.error||('Erro '+r.status),'err');
+    }
+  }catch(e){toast(e.message,'err');}
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-calendar-repeat"></i> Gerar a deste mês agora';}
 }
 
 // ── 🤖 COLETA "Nova Planilha do DOL" (v35) — log NO CLIQUE (lição KB-045:
