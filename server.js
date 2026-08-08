@@ -3630,6 +3630,7 @@ function _dcLog(msg,type){
 async function _runDolColeta({visa,sheetKey,sheetName,beginFrom,beginTo,feedDates,visaStrict,autoPublishMin,publishedBy}){
   _dolColeta.running=true;_dolColeta.log=[];_dolColeta.startedAt=Date.now();
   _dolColeta.finishedAt=0;_dolColeta.key=sheetKey;_dolColeta.count=0;_dolColeta.error=null;
+  _dolColeta.progress=0; // v121c: % ao vivo pro painel (downloads 0-70, processa 70-90, salvo 100)
   try{
     const bs=require("./build-sheets.js");
     // DOL_FEED_BASE: override pra teste (o smoke aponta pra um feed local) —
@@ -3641,7 +3642,7 @@ async function _runDolColeta({visa,sheetKey,sheetName,beginFrom,beginTo,feedDate
     // VÁRIAS datas escalonadas e a coleta junta tudo (dedupe cuida do resto).
     const datas=(Array.isArray(feedDates)&&feedDates.length?feedDates:[new Date().toISOString().slice(0,10)]).slice(0,8);
     _dcLog(`🚀 Coleta iniciada: ${sheetName} (${visa}) — ${datas.length} feed(s): ${datas.join(", ")}`);
-    const records=[];let feedsOk=0;
+    const records=[];let feedsOk=0,feedsDone=0;
     for(const feedDate of datas){
       const url=`${base}/${type}/${feedDate}`;
       try{
@@ -3650,6 +3651,7 @@ async function _runDolColeta({visa,sheetKey,sheetName,beginFrom,beginTo,feedDate
         records.push(...recs);feedsOk++;
         _dcLog(`📥 feed ${feedDate}: ${recs.length} registros brutos`);
       }catch(e){_dcLog(`⚠️ feed ${feedDate} falhou (${e.message}) — seguindo com os demais`,"warn");}
+      feedsDone++;_dolColeta.progress=Math.round((feedsDone/datas.length)*70);
       // educado com o DOL: pausa entre downloads (só quando há mais de um)
       if(datas.length>1)await new Promise(r=>setTimeout(r,process.env.DOL_FEED_BASE?50:8000));
     }
@@ -3670,6 +3672,7 @@ async function _runDolColeta({visa,sheetKey,sheetName,beginFrom,beginTo,feedDate
     }
     _dcLog(`✅ ${compact.length} vagas válidas (${descartadas} sem e-mail/qualidade${foraJanela?`, ${foraJanela} fora da janela de datas`:""}${outroVisto?`, ${outroVisto} de outro visto`:""})`);
     if(compact.length<10)throw new Error(`só ${compact.length} vagas válidas — resposta suspeita do DOL, NADA foi salvo (planilha anterior intacta)`);
+    _dolColeta.progress=85;
     const check=_vagasVerify(compact,{caseField:"c"});
     if(!check.ok)throw new Error("guarda de integridade achou duplicata após o dedupe — NADA foi salvo");
     compact.forEach(r=>{r._sheet=sheetKey;});
@@ -3688,7 +3691,7 @@ async function _runDolColeta({visa,sheetKey,sheetName,beginFrom,beginTo,feedDate
       source:"coleta-feed",uploaded:Date.now(),
       ...(_autoPub?{publishedAt:Date.now(),publishedBy:publishedBy||"robô"}:{})};
     try{fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));}catch(e){_dcLog("⚠️ meta não gravado: "+e.message,"warn");}
-    _dolColeta.count=compact.length;
+    _dolColeta.count=compact.length;_dolColeta.progress=100;
     const comEmail=compact.filter(r=>r.e&&r.e.includes("@")).length;
     if(_autoPub)_dcLog(`📢 Planilha PUBLICADA automaticamente: ${compact.length} vagas (${comEmail} com e-mail) — já disponível no Manual e no Automático.`);
     else if(typeof autoPublishMin==="number")_dcLog(`⚠️ Só ${compact.length} vagas válidas (mínimo pra publicar sozinho: ${autoPublishMin}) — ficou em RASCUNHO, revise no painel.`,"warn");
@@ -3813,7 +3816,7 @@ async function _runH2aNovasCycle(trigger){
 const H2A_BIM_FILE=path.join(DATA_DIR,"h2a_bimestral.json");
 let DB_H2A_BIM={};try{DB_H2A_BIM=JSON.parse(fs.readFileSync(H2A_BIM_FILE,"utf8"))||{};}catch{}
 const MESES_PT=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-async function _runH2aBimestral(trigger,force){
+async function _runH2aBimestral(trigger,force,background){
   if(_dolColeta.running)return{ok:false,error:"já existe uma coleta rodando — tente de novo em alguns minutos"};
   const now=new Date();
   if(!force&&DB_H2A_BIM.lastRunAt){
@@ -3827,28 +3830,37 @@ async function _runH2aBimestral(trigger,force){
   const feedDates=[];for(let i=0;i<6;i++)feedDates.push(new Date(now.getTime()-i*18*86400_000).toISOString().slice(0,10));
   const minPub=Math.max(5,parseInt(process.env.H2A_BIM_MIN_PUBLICAR||"200",10)||200);
   botLog('h2a-bimestral','Planilha H-2A Bimestral',`🌾 Montando "${nome}" (${trigger||"agendado"}): 6 feeds cobrindo 90 dias, mínimo pra publicar sozinho: ${minPub} vagas.`,'info');
-  await _runDolColeta({visa:"H-2A",sheetKey:key,sheetName:nome,feedDates,visaStrict:true,autoPublishMin:minPub,publishedBy:"robô-bimestral"});
-  if(_dolColeta.error){
-    botLog('h2a-bimestral','Planilha H-2A Bimestral',`⚠️ Coleta da "${nome}" falhou: ${_dolColeta.error} — nada foi salvo, tenta no próximo ciclo.`,'warn');
-    // v121b: falha NUNCA é silenciosa — o dono descobre por push, não
-    // esperando uma planilha que não vem (aconteceu de verdade em 08/08).
+  const _depois=async()=>{
+    if(_dolColeta.error){
+      botLog('h2a-bimestral','Planilha H-2A Bimestral',`⚠️ Coleta da "${nome}" falhou: ${_dolColeta.error} — nada foi salvo, tenta no próximo ciclo.`,'warn');
+      // v121b: falha NUNCA é silenciosa — o dono descobre por push, não
+      // esperando uma planilha que não vem (aconteceu de verdade em 08/08).
+      for(const ae of ADMIN_EMAILS)pushToUser(ae,{type:"generic",
+        title:`⚠️ Planilha "${nome}" falhou na coleta`,
+        body:`${String(_dolColeta.error).slice(0,120)} — o robô tenta de novo em 12h, ou gere agora no painel Robôs.`,
+        icon:"/icon-192.png",url:"/admin"}).catch(()=>{});
+      return{ok:false,error:_dolColeta.error,key,nome};
+    }
+    const publicada=DB_SHEETS_META[key]?.published===true;
+    DB_H2A_BIM={lastKey:key,lastRunAt:Date.now(),lastCount:_dolColeta.count,lastPublished:publicada,lastTrigger:String(trigger||"")};
+    try{fs.writeFileSync(H2A_BIM_FILE,JSON.stringify(DB_H2A_BIM,null,2));}catch{}
+    botLog('h2a-bimestral','Planilha H-2A Bimestral',publicada
+      ?`✅ "${nome}" no ar: ${_dolColeta.count} vagas dos últimos 90 dias, publicada automaticamente (Manual + Automático). Próxima em 2 meses.`
+      :`⚠️ "${nome}" coletou só ${_dolColeta.count} vagas (mínimo ${minPub}) — ficou em RASCUNHO pro admin revisar.`,publicada?'ok':'warn');
     for(const ae of ADMIN_EMAILS)pushToUser(ae,{type:"generic",
-      title:`⚠️ Planilha "${nome}" falhou na coleta`,
-      body:`${String(_dolColeta.error).slice(0,120)} — o robô tenta de novo em 12h, ou gere agora no painel Robôs.`,
+      title:publicada?`🌾 Planilha "${nome}" publicada!`:`⚠️ Planilha "${nome}" precisa de revisão`,
+      body:publicada?`${_dolColeta.count} vagas H-2A dos últimos 90 dias já no ar pro pessoal usar no Manual e no Automático.`:`Coletou só ${_dolColeta.count} vagas (mínimo ${minPub}) — ficou em rascunho, revise no painel Robôs.`,
       icon:"/icon-192.png",url:"/admin"}).catch(()=>{});
-    return{ok:false,error:_dolColeta.error,key};
-  }
-  const publicada=DB_SHEETS_META[key]?.published===true;
-  DB_H2A_BIM={lastKey:key,lastRunAt:Date.now(),lastCount:_dolColeta.count,lastPublished:publicada,lastTrigger:String(trigger||"")};
-  try{fs.writeFileSync(H2A_BIM_FILE,JSON.stringify(DB_H2A_BIM,null,2));}catch{}
-  botLog('h2a-bimestral','Planilha H-2A Bimestral',publicada
-    ?`✅ "${nome}" no ar: ${_dolColeta.count} vagas dos últimos 90 dias, publicada automaticamente (Manual + Automático). Próxima em 2 meses.`
-    :`⚠️ "${nome}" coletou só ${_dolColeta.count} vagas (mínimo ${minPub}) — ficou em RASCUNHO pro admin revisar.`,publicada?'ok':'warn');
-  for(const ae of ADMIN_EMAILS)pushToUser(ae,{type:"generic",
-    title:publicada?`🌾 Planilha "${nome}" publicada!`:`⚠️ Planilha "${nome}" precisa de revisão`,
-    body:publicada?`${_dolColeta.count} vagas H-2A dos últimos 90 dias já no ar pro pessoal usar no Manual e no Automático.`:`Coletou só ${_dolColeta.count} vagas (mínimo ${minPub}) — ficou em rascunho, revise no painel Robôs.`,
-    icon:"/icon-192.png",url:"/admin"}).catch(()=>{});
-  return{ok:true,key,nome,count:_dolColeta.count,published:publicada};
+    return{ok:true,key,nome,count:_dolColeta.count,published:publicada};
+  };
+  const promessa=_runDolColeta({visa:"H-2A",sheetKey:key,sheetName:nome,feedDates,visaStrict:true,autoPublishMin:minPub,publishedBy:"robô-bimestral"}).then(_depois)
+    .catch(e=>{console.error("[h2a-bimestral]",e.message);return{ok:false,error:e.message,key,nome};});
+  // v121c (dono, 08/08: clicou e "não sei nem o que tá acontecendo"): o
+  // painel dispara em BACKGROUND e acompanha pelo log ao vivo do
+  // coleta-status (com % e tempo) — a resposta HTTP nunca mais estoura o
+  // tempo no meio da coleta. O agendador continua aguardando o resultado.
+  if(background)return{ok:true,started:true,key,nome,minPub};
+  return await promessa;
 }
 
 // ── 📰 /noticias — página PÚBLICA das notícias DOL traduzidas (v33-SEO) ─────
@@ -8707,7 +8719,7 @@ ul li{margin-bottom:6px}
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
     const published=_dolColeta.key?DB_SHEETS_META[_dolColeta.key]?.published===true:false;
-    return json(res,200,{ok:true,..._dolColeta,published});
+    return json(res,200,{ok:true,..._dolColeta,published,bimestral:DB_H2A_BIM});
   }
   // POST coleta-publish — publicação MANUAL e explícita (KB-078: nenhuma
   // planilha nova chega a cliente sem o admin decidir).
@@ -8736,8 +8748,10 @@ ul li{margin-bottom:6px}
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
     let b={};try{b=JSON.parse((await readBody(req))||"{}");}catch{return json(res,400,{error:"JSON inválido."});}
     try{
-      const r=await _runH2aBimestral("manual: "+s.user_email,b.force===true);
-      if(r.ok)addLog(s.user_email,{status:"sistema",jobTitle:`🌾 Planilha bimestral: ${r.nome} (${r.count} vagas${r.published?", publicada":", rascunho"})`,company:"Planilha H-2A Bimestral"});
+      // v121c: dispara em BACKGROUND (resposta imediata) — o painel
+      // acompanha % e log ao vivo pelo /api/admin/sheet/coleta-status.
+      const r=await _runH2aBimestral("manual: "+s.user_email,b.force===true,true);
+      if(r.ok)addLog(s.user_email,{status:"sistema",jobTitle:`🌾 Planilha bimestral iniciada: ${r.nome}`,company:"Planilha H-2A Bimestral"});
       return json(res,r.ok?200:(r.skipped?409:502),{...r,state:DB_H2A_BIM});
     }catch(e){return json(res,500,{ok:false,error:e.message});}
   }

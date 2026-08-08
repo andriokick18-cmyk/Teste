@@ -1421,10 +1421,22 @@ async function testAuthWatchdogPush() {
     // filtra qualidade e — autorizado por escrito — PUBLICA SOZINHO acima
     // do mínimo (aqui 10; feed falso rende 14 válidas de 6×16 registros:
     // duplicadas mescladas + sem e-mail descartada, provando a esteira).
+    // v121c: o disparo é em BACKGROUND (resposta imediata, sem timeout de
+    // HTTP no meio da coleta) — o resultado se acompanha pelo coleta-status
+    // (% de progresso + log ao vivo), exatamente como o painel faz.
     const bim1 = await req2("POST", "/api/admin/sheet/h2a-bimestral-run", {});
-    check("🌾 v121: robô bimestral junta 6 feeds (90 dias), dedupa e PUBLICA sozinho acima do mínimo",
-      bim1.json?.ok === true && bim1.json?.published === true && bim1.json?.count === 14 && /^h2a-\d{6}$/.test(bim1.json?.key || ""),
-      bim1.body.slice(0, 200));
+    check("🌾 v121c: disparo responde NA HORA (started:true) com a chave do mês",
+      bim1.json?.ok === true && bim1.json?.started === true && /^h2a-\d{6}$/.test(bim1.json?.key || ""),
+      bim1.body.slice(0, 160));
+    let bimSt = null;
+    for (let i = 0; i < 40; i++) {
+      await new Promise((r) => setTimeout(r, 300));
+      bimSt = (await get("/api/admin/sheet/coleta-status")).json;
+      if (bimSt && !bimSt.running && bimSt.finishedAt) break;
+    }
+    check("🌾 v121: robô junta 6 feeds (90 dias), dedupa, PUBLICA sozinho e reporta % concluído",
+      bimSt && bimSt.error === null && bimSt.count === 14 && bimSt.published === true && bimSt.progress === 100 && bimSt.bimestral?.lastKey === bim1.json?.key,
+      JSON.stringify({ error: bimSt?.error, count: bimSt?.count, published: bimSt?.published, progress: bimSt?.progress, lastKey: bimSt?.bimestral?.lastKey }));
     const shlBim = await get("/api/sheets-list");
     const _shBim = (shlBim.json?.sheets || []).find((x) => x.key === bim1.json?.key);
     check("🌾 v121: a planilha nova já aparece na lista dos usuários (Manual/Automático), publicada",
@@ -1433,8 +1445,15 @@ async function testAuthWatchdogPush() {
     check("🌾 v121: rodar de novo ANTES de vencer os 2 meses é recusado (409) — nunca duplica planilha",
       bim2.status === 409 && bim2.json?.skipped === true, `status=${bim2.status} body=${bim2.body.slice(0, 120)}`);
     const bim3 = await req2("POST", "/api/admin/sheet/h2a-bimestral-run", { force: true });
+    let bimSt3 = null;
+    for (let i = 0; i < 40; i++) {
+      await new Promise((r) => setTimeout(r, 300));
+      bimSt3 = (await get("/api/admin/sheet/coleta-status")).json;
+      if (bimSt3 && !bimSt3.running && bimSt3.finishedAt) break;
+    }
     check("🌾 v121: force=true refaz a do mês do zero (MESMA chave, sem duplicar)",
-      bim3.json?.ok === true && bim3.json?.key === bim1.json?.key && bim3.json?.count === 14, bim3.body.slice(0, 160));
+      bim3.json?.ok === true && bim3.json?.key === bim1.json?.key && bimSt3?.count === 14 && bimSt3?.error === null,
+      `resp=${bim3.body.slice(0, 100)} status=${JSON.stringify({ count: bimSt3?.count, error: bimSt3?.error })}`);
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "cliente@test.com" });
     const bim403 = await req2("POST", "/api/admin/sheet/h2a-bimestral-run", {});
     check("🌾 v121: usuário comum recebe 403 no robô bimestral (admin-only)", bim403.status === 403, `status=${bim403.status}`);

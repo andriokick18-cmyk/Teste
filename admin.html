@@ -3712,14 +3712,25 @@ document.addEventListener('DOMContentLoaded',()=>{
 <!-- 🌾 v121 — PLANILHA H-2A BIMESTRAL: nasce sozinha a cada 2 meses (8min após
      o boot quando vence) e AUTO-PUBLICA acima do mínimo de qualidade. Botão =
      gerar/refazer a do mês agora, sem esperar o agendador. -->
-<div style="background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(16,185,129,.06));border:1.5px solid rgba(139,92,246,.3);border-radius:14px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-  <div style="font-size:26px">📅</div>
-  <div style="flex:1;min-width:220px">
-    <div style="font-size:13.5px;font-weight:800;color:#fff">Planilha H-2A Bimestral (automática, a cada 2 meses)</div>
-    <div style="font-size:11px;color:var(--t3)">Monta sozinha a "H-2A &lt;Mês&gt; &lt;Ano&gt;" com as vagas dos últimos 90 dias (6 feeds do DOL) e PUBLICA sozinha se passar na guarda de qualidade. O botão gera/refaz a deste mês agora — a coleta leva ~1 minuto.</div>
-    <div style="font-size:11px;color:var(--green);margin-top:3px;display:none" id="h2a-bim-result"></div>
+<div style="background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(16,185,129,.06));border:1.5px solid rgba(139,92,246,.3);border-radius:14px;padding:14px 16px;margin-bottom:16px">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="font-size:26px">📅</div>
+    <div style="flex:1;min-width:220px">
+      <div style="font-size:13.5px;font-weight:800;color:#fff">Planilha H-2A Bimestral (automática, a cada 2 meses)</div>
+      <div style="font-size:11px;color:var(--t3)">Monta sozinha a "H-2A &lt;Mês&gt; &lt;Ano&gt;" com as vagas dos últimos 90 dias (6 feeds do DOL) e PUBLICA sozinha se passar na guarda de qualidade. Leva 2 a 3 minutos — acompanhe a barra e o log abaixo.</div>
+      <div style="font-size:11.5px;font-weight:700;margin-top:3px;display:none" id="h2a-bim-result"></div>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" id="h2a-bim-btn" onclick="h2aBimestralRun()"><i class="ti ti-calendar-repeat"></i> Gerar a deste mês agora</button>
   </div>
-  <button type="button" class="btn btn-primary btn-sm" id="h2a-bim-btn" onclick="h2aBimestralRun()"><i class="ti ti-calendar-repeat"></i> Gerar a deste mês agora</button>
+  <div id="h2a-bim-area" style="display:none;margin-top:10px">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-bottom:4px">
+      <span id="h2a-bim-pct">0%</span><span id="h2a-bim-time">0s</span>
+    </div>
+    <div style="height:8px;background:rgba(255,255,255,.08);border-radius:6px;overflow:hidden;margin-bottom:8px">
+      <div id="h2a-bim-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--purple,#8b5cf6),#10b981);transition:width .5s"></div>
+    </div>
+    <div class="enrich-log" id="h2a-bim-log"></div>
+  </div>
 </div>
 
 <!-- 🤖 BOT DE COLETA — Nova Planilha do DOL (v35, reescrito do KB) -->
@@ -10313,24 +10324,61 @@ async function h2aNovasRun(){
 // ── 🌾 v121: Planilha H-2A Bimestral — gerar/refazer a do mês agora (o
 // agendado roda sozinho a cada 2 meses). force=true: refaz mesmo se a do
 // mês já existe (mesma chave, nunca duplica).
+// v121c (dono: clicou e "não sei nem o que tá acontecendo"): o disparo é em
+// BACKGROUND e o card acompanha % + tempo + log AO VIVO pelo coleta-status
+// (poll de 2s) — a resposta HTTP nunca mais estoura o tempo no meio.
+let _bimPoll=null,_bimT0=0;
 async function h2aBimestralRun(){
   const btn=document.getElementById('h2a-bim-btn');
   const out=document.getElementById('h2a-bim-result');
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2"></i> Coletando 6 feeds (~1 min)...';}
+  const area=document.getElementById('h2a-bim-area');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2"></i> Coletando...';}
+  if(out)out.style.display='none';
   try{
     const r=await fetch('/api/admin/sheet/h2a-bimestral-run',{method:'POST',credentials:'include',
       headers:{'Content-Type':'application/json'},body:JSON.stringify({force:true})});
     let d=null;try{d=await r.json();}catch{}
-    if(d?.ok){
-      if(out){out.style.display='block';out.style.color=d.published?'var(--green)':'var(--amber)';out.textContent=d.published?`✅ "${d.nome}" publicada: ${d.count} vagas dos últimos 90 dias — já no ar pro pessoal.`:`⚠️ "${d.nome}" coletou só ${d.count} vagas — ficou em RASCUNHO (abaixo do mínimo de qualidade). Veja o log dos Robôs.`;}
-      toast(d.published?`🌾 ${d.nome}: ${d.count} vagas publicadas!`:`⚠️ Ficou em rascunho (${d.count} vagas)`,d.published?'ok':'err');
-      if(typeof loadPlanilhas==='function')loadPlanilhas();
-    }else{
-      if(out){out.style.display='block';out.style.color='var(--red)';out.textContent=`❌ ${d?.error||('HTTP '+r.status)} — detalhes no log dos Robôs.`;}
+    if(!d?.ok){
+      if(out){out.style.display='block';out.style.color='var(--red)';out.textContent=`❌ ${d?.error||('HTTP '+r.status)}`;}
       toast(d?.error||('Erro '+r.status),'err');
+      if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-calendar-repeat"></i> Gerar a deste mês agora';}
+      return;
     }
-  }catch(e){toast(e.message,'err');}
-  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-calendar-repeat"></i> Gerar a deste mês agora';}
+    if(area){area.style.display='block';document.getElementById('h2a-bim-log').innerHTML='';}
+    _bimT0=Date.now();
+    if(_bimPoll)clearInterval(_bimPoll);
+    _bimPoll=setInterval(h2aBimestralPoll,2000);
+    h2aBimestralPoll();
+  }catch(e){
+    toast(e.message,'err');
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-calendar-repeat"></i> Gerar a deste mês agora';}
+  }
+}
+async function h2aBimestralPoll(){
+  try{
+    const r=await fetch('/api/admin/sheet/coleta-status',{credentials:'include'});
+    const d=await r.json();if(!d?.ok)return;
+    const pct=Math.max(1,Math.min(100,d.running?(d.progress||1):100));
+    const bar=document.getElementById('h2a-bim-bar');if(bar)bar.style.width=pct+'%';
+    const el=Math.round((Date.now()-_bimT0)/1000);
+    const eta=d.running&&pct>3?Math.max(0,Math.round(el*(100-pct)/pct)):0;
+    const pctEl=document.getElementById('h2a-bim-pct');if(pctEl)pctEl.textContent=pct+'%'+(d.running&&eta?` · falta ~${eta>=60?Math.ceil(eta/60)+'min':eta+'s'}`:'');
+    const tEl=document.getElementById('h2a-bim-time');if(tEl)tEl.textContent=el>=60?`${Math.floor(el/60)}m${String(el%60).padStart(2,'0')}s`:`${el}s`;
+    const logEl=document.getElementById('h2a-bim-log');
+    if(logEl&&Array.isArray(d.log))logEl.innerHTML=d.log.map(l=>`<div class="log-${l.type||'info'}">${new Date(l.t).toLocaleTimeString('pt-BR')} ${String(l.msg).replace(/</g,'&lt;')}</div>`).join(''),logEl.scrollTop=logEl.scrollHeight;
+    if(!d.running&&d.finishedAt){
+      clearInterval(_bimPoll);_bimPoll=null;
+      const btn=document.getElementById('h2a-bim-btn');
+      if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-calendar-repeat"></i> Gerar a deste mês agora';}
+      const out=document.getElementById('h2a-bim-result');
+      if(out){out.style.display='block';
+        if(d.error){out.style.color='var(--red)';out.textContent=`❌ ${d.error}`;toast('Coleta falhou — veja o log','err');}
+        else if(d.published){out.style.color='var(--green)';out.textContent=`✅ ${d.count} vagas publicadas — planilha já no ar pro pessoal (Manual + Automático).`;toast(`🌾 ${d.count} vagas publicadas!`,'ok');}
+        else{out.style.color='var(--amber)';out.textContent=`⚠️ ${d.count} vagas — ficou em RASCUNHO (abaixo do mínimo de qualidade).`;toast('Ficou em rascunho','err');}
+      }
+      if(typeof loadPlanilhas==='function')loadPlanilhas();
+    }
+  }catch(e){}
 }
 
 // ── 🤖 COLETA "Nova Planilha do DOL" (v35) — log NO CLIQUE (lição KB-045:
