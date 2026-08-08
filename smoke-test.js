@@ -240,7 +240,7 @@ async function testAuthWatchdogPush() {
   await testAuthWatchdogPush(); // unit puro, não precisa do servidor
   const srv = spawn(process.execPath, ["server.js"], {
     cwd: __dirname,
-    env: { ...process.env, PORT: String(PORT), DATA_DIR: DATA, STORAGE: "json", TEST_LOGIN_TOKEN: TEST_TOKEN, DATA_ENC_KEY: "smoke-enc-key-1234567890", DOL_FEED_BASE: `http://127.0.0.1:${FEED_PORT}/feed` },
+    env: { ...process.env, PORT: String(PORT), DATA_DIR: DATA, STORAGE: "json", TEST_LOGIN_TOKEN: TEST_TOKEN, DATA_ENC_KEY: "smoke-enc-key-1234567890", DOL_FEED_BASE: `http://127.0.0.1:${FEED_PORT}/feed`, H2A_BIM_MIN_PUBLICAR: "10" },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let log = "";
@@ -1407,6 +1407,30 @@ async function testAuthWatchdogPush() {
     const brOk = await rawPost("/api/servers/backup-receive", _gzB, { "x-peer-fin": _peerTokB, "x-backup-from": "1", "x-backup-stamp": "2026-07-26", "Content-Type": "application/gzip" });
     check("🗄️ backup do irmão é aceito e confirma os bytes", brOk.json?.ok === true && brOk.json?.bytes === _gzB.length, brOk.body.slice(0, 100));
     check("🗄️ blob gzip gravado no disco (backups_peers/srv1)", fs.existsSync(path.join(DATA, "backups_peers", "srv1", "2026-07-26.json.gz")));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+
+    // ═══ 🌾 v121 (ORDEM DO DONO, 08/08): PLANILHA H-2A BIMESTRAL ═══
+    // O robô junta 6 feeds escalonados (90 dias), dedupa por case number,
+    // filtra qualidade e — autorizado por escrito — PUBLICA SOZINHO acima
+    // do mínimo (aqui 10; feed falso rende 14 válidas de 6×16 registros:
+    // duplicadas mescladas + sem e-mail descartada, provando a esteira).
+    const bim1 = await req2("POST", "/api/admin/sheet/h2a-bimestral-run", {});
+    check("🌾 v121: robô bimestral junta 6 feeds (90 dias), dedupa e PUBLICA sozinho acima do mínimo",
+      bim1.json?.ok === true && bim1.json?.published === true && bim1.json?.count === 14 && /^h2a-\d{6}$/.test(bim1.json?.key || ""),
+      bim1.body.slice(0, 200));
+    const shlBim = await get("/api/sheets-list");
+    const _shBim = (shlBim.json?.sheets || []).find((x) => x.key === bim1.json?.key);
+    check("🌾 v121: a planilha nova já aparece na lista dos usuários (Manual/Automático), publicada",
+      _shBim && _shBim.count === 14, JSON.stringify(_shBim || {}).slice(0, 160));
+    const bim2 = await req2("POST", "/api/admin/sheet/h2a-bimestral-run", {});
+    check("🌾 v121: rodar de novo ANTES de vencer os 2 meses é recusado (409) — nunca duplica planilha",
+      bim2.status === 409 && bim2.json?.skipped === true, `status=${bim2.status} body=${bim2.body.slice(0, 120)}`);
+    const bim3 = await req2("POST", "/api/admin/sheet/h2a-bimestral-run", { force: true });
+    check("🌾 v121: force=true refaz a do mês do zero (MESMA chave, sem duplicar)",
+      bim3.json?.ok === true && bim3.json?.key === bim1.json?.key && bim3.json?.count === 14, bim3.body.slice(0, 160));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "cliente@test.com" });
+    const bim403 = await req2("POST", "/api/admin/sheet/h2a-bimestral-run", {});
+    check("🌾 v121: usuário comum recebe 403 no robô bimestral (admin-only)", bim403.status === 403, `status=${bim403.status}`);
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
     const bst = await get("/api/admin/backup-peers");
     check("🗄️ admin vê o backup recebido na visão de status", bst.json?.ok === true && (bst.json?.recebidos || []).some((r) => r.de === "srv1"), bst.body.slice(0, 140));

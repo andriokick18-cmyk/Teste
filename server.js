@@ -3627,7 +3627,7 @@ function _dcLog(msg,type){
   if(_dolColeta.log.length>200)_dolColeta.log=_dolColeta.log.slice(-200);
   console.log("[coleta]",msg);
 }
-async function _runDolColeta({visa,sheetKey,sheetName,beginFrom,beginTo}){
+async function _runDolColeta({visa,sheetKey,sheetName,beginFrom,beginTo,feedDates,visaStrict,autoPublishMin,publishedBy}){
   _dolColeta.running=true;_dolColeta.log=[];_dolColeta.startedAt=Date.now();
   _dolColeta.finishedAt=0;_dolColeta.key=sheetKey;_dolColeta.count=0;_dolColeta.error=null;
   try{
@@ -3636,24 +3636,39 @@ async function _runDolColeta({visa,sheetKey,sheetName,beginFrom,beginTo}){
     // em produção fica vazio e usa o datahub oficial.
     const base=(process.env.DOL_FEED_BASE||bs.DOL_BASE).replace(/\/$/,"");
     const type=visa==="H-2A"?"h2a":"h2b";
-    const feedDate=new Date().toISOString().slice(0,10);
-    const url=`${base}/${type}/${feedDate}`;
-    _dcLog(`🚀 Coleta iniciada: ${sheetName} (${visa}) — feed ${url}`);
-    const raw=await bs.downloadAndParse(url);
-    const records=Array.isArray(raw)?raw:(raw.data||raw.results||raw.items||raw.cases||[]);
-    _dcLog(`📥 ${records.length} registros brutos do DOL`);
+    // v121: cada feed do DOL cobre ~20 dias pra trás da data pedida — pra
+    // janelas maiores (ex.: 90 dias da planilha bimestral) o chamador manda
+    // VÁRIAS datas escalonadas e a coleta junta tudo (dedupe cuida do resto).
+    const datas=(Array.isArray(feedDates)&&feedDates.length?feedDates:[new Date().toISOString().slice(0,10)]).slice(0,8);
+    _dcLog(`🚀 Coleta iniciada: ${sheetName} (${visa}) — ${datas.length} feed(s): ${datas.join(", ")}`);
+    const records=[];let feedsOk=0;
+    for(const feedDate of datas){
+      const url=`${base}/${type}/${feedDate}`;
+      try{
+        const raw=await bs.downloadAndParse(url);
+        const recs=Array.isArray(raw)?raw:(raw.data||raw.results||raw.items||raw.cases||[]);
+        records.push(...recs);feedsOk++;
+        _dcLog(`📥 feed ${feedDate}: ${recs.length} registros brutos`);
+      }catch(e){_dcLog(`⚠️ feed ${feedDate} falhou (${e.message}) — seguindo com os demais`,"warn");}
+      // educado com o DOL: pausa entre downloads (só quando há mais de um)
+      if(datas.length>1)await new Promise(r=>setTimeout(r,process.env.DOL_FEED_BASE?50:3000));
+    }
+    if(!feedsOk)throw new Error("nenhum feed do DOL respondeu — nada foi salvo");
+    _dcLog(`📦 ${records.length} registros brutos no total (${feedsOk}/${datas.length} feeds ok)`);
     for(const rec of records){rec._cn=(rec.case_number||rec.case_id||"").trim().toUpperCase();}
     const {rows:uniq,uniqueCount,duplicatesMerged}=_vagasDedupe(records,{caseField:"_cn"});
     _dcLog(`🔑 ${uniqueCount} ETA case numbers únicos${duplicatesMerged?` (${duplicatesMerged} duplicados mesclados, nenhum dado perdido)`:""}`);
-    let descartadas=0,foraJanela=0;const compact=[];
+    let descartadas=0,foraJanela=0,outroVisto=0;const compact=[];
     for(const rec of uniq){
       if(bs.shouldDiscard(rec)){descartadas++;continue;}
       const c=bs.toCompact(rec);
+      if(visaStrict&&String(c.visa||"").toUpperCase()!==visa){outroVisto++;continue;}
       if(beginFrom&&c.d&&c.d<beginFrom){foraJanela++;continue;}
       if(beginTo&&c.d&&c.d>beginTo){foraJanela++;continue;}
+      if(!c.k)c.k=detectCategory(`${c.n||""} ${c.t||""}`);
       compact.push(c);
     }
-    _dcLog(`✅ ${compact.length} vagas válidas (${descartadas} sem e-mail/qualidade${foraJanela?`, ${foraJanela} fora da janela de datas`:""})`);
+    _dcLog(`✅ ${compact.length} vagas válidas (${descartadas} sem e-mail/qualidade${foraJanela?`, ${foraJanela} fora da janela de datas`:""}${outroVisto?`, ${outroVisto} de outro visto`:""})`);
     if(compact.length<10)throw new Error(`só ${compact.length} vagas válidas — resposta suspeita do DOL, NADA foi salvo (planilha anterior intacta)`);
     const check=_vagasVerify(compact,{caseField:"c"});
     if(!check.ok)throw new Error("guarda de integridade achou duplicata após o dedupe — NADA foi salvo");
@@ -3663,14 +3678,21 @@ async function _runDolColeta({visa,sheetKey,sheetName,beginFrom,beginTo}){
     try{fs.writeFileSync(path.join(SHEETS_DIR,sheetKey+".manifest.json"),
       JSON.stringify(_vagasManifest(compact,{caseField:"c",extra:{feedUrl:url,visa,sheetName}}),null,2));}catch{}
     SHEET_EXTRAS[sheetKey]=compact;
+    // v121 (ORDEM DO DONO, 08/08): coleta bimestral H-2A pode PUBLICAR
+    // SOZINHA — mas só se passar na guarda de qualidade (mínimo de vagas
+    // válidas com e-mail). Abaixo do mínimo, fica em rascunho e avisa.
+    const _autoPub=typeof autoPublishMin==="number"&&compact.length>=autoPublishMin;
     DB_SHEETS_META[sheetKey]={name:sheetName,key:sheetKey,emoji:visa==="H-2A"?"🌾":"📋",
-      file:sheetKey+".json",published:false,visaType:visa,
+      file:sheetKey+".json",published:_autoPub,visaType:visa,
       count:compact.length,uniqueCaseCount:compact.length,
-      source:"coleta-feed",uploaded:Date.now()};
+      source:"coleta-feed",uploaded:Date.now(),
+      ...(_autoPub?{publishedAt:Date.now(),publishedBy:publishedBy||"robô"}:{})};
     try{fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));}catch(e){_dcLog("⚠️ meta não gravado: "+e.message,"warn");}
     _dolColeta.count=compact.length;
     const comEmail=compact.filter(r=>r.e&&r.e.includes("@")).length;
-    _dcLog(`💾 Planilha salva em RASCUNHO: ${compact.length} vagas (${comEmail} já com e-mail). Revise e clique PUBLICAR pra liberar aos usuários.`);
+    if(_autoPub)_dcLog(`📢 Planilha PUBLICADA automaticamente: ${compact.length} vagas (${comEmail} com e-mail) — já disponível no Manual e no Automático.`);
+    else if(typeof autoPublishMin==="number")_dcLog(`⚠️ Só ${compact.length} vagas válidas (mínimo pra publicar sozinho: ${autoPublishMin}) — ficou em RASCUNHO, revise no painel.`,"warn");
+    else _dcLog(`💾 Planilha salva em RASCUNHO: ${compact.length} vagas (${comEmail} já com e-mail). Revise e clique PUBLICAR pra liberar aos usuários.`);
     _dcLog(`🤖 O Enriquecimento automático completa os campos que faltarem (roda sozinho em até 30min).`);
   }catch(e){
     _dolColeta.error=e.message;
@@ -3777,6 +3799,50 @@ async function _runH2aNovasCycle(trigger){
     botLog('h2a-novas','Vagas Novas H-2A',`⚠️ ${e.message} (planilha atual intacta — tenta de novo no próximo ciclo)`,'warn');
     return{ok:false,error:e.message};
   }finally{_h2aNovasBot.running=false;}
+}
+
+// ── 🌾 v121 — PLANILHA H-2A BIMESTRAL (ORDEM DO DONO, 08/08/2026) ───────────
+// "Crie uma planilha do H-2A com as últimas vagas dos últimos 3 meses; daqui
+// a dois meses a gente faz de novo; pode publicar sozinho." Cada feed ZIP do
+// datahub cobre ~20 dias pra trás — 6 datas escalonadas de 18 dias cobrem os
+// 90 dias completos, sem buraco. Mesma esteira das outras planilhas (dedupe
+// por case number, filtro de qualidade, integridade) via _runDolColeta, com
+// AUTO-PUBLICAÇÃO autorizada por escrito — mas só acima do mínimo de
+// qualidade (H2A_BIM_MIN_PUBLICAR, padrão 200 vagas válidas); abaixo disso
+// fica em rascunho e os admins são avisados por push pra revisar.
+const H2A_BIM_FILE=path.join(DATA_DIR,"h2a_bimestral.json");
+let DB_H2A_BIM={};try{DB_H2A_BIM=JSON.parse(fs.readFileSync(H2A_BIM_FILE,"utf8"))||{};}catch{}
+const MESES_PT=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+async function _runH2aBimestral(trigger,force){
+  if(_dolColeta.running)return{ok:false,error:"já existe uma coleta rodando — tente de novo em alguns minutos"};
+  const now=new Date();
+  if(!force&&DB_H2A_BIM.lastRunAt){
+    const last=new Date(DB_H2A_BIM.lastRunAt);
+    const meses=(now.getUTCFullYear()*12+now.getUTCMonth())-(last.getUTCFullYear()*12+last.getUTCMonth());
+    if(meses<2)return{ok:false,skipped:true,error:`ainda não venceu — última foi ${DB_H2A_BIM.lastKey||"?"} (falta${2-meses>1?"m":""} ${2-meses} mês${2-meses>1?"es":""})`};
+  }
+  const key=`h2a-${now.getUTCFullYear()}${String(now.getUTCMonth()+1).padStart(2,"0")}`;
+  if(!force&&DB_SHEETS_META[key])return{ok:false,skipped:true,error:`planilha ${key} já existe`};
+  const nome=`H-2A ${MESES_PT[now.getUTCMonth()]} ${now.getUTCFullYear()}`;
+  const feedDates=[];for(let i=0;i<6;i++)feedDates.push(new Date(now.getTime()-i*18*86400_000).toISOString().slice(0,10));
+  const minPub=Math.max(5,parseInt(process.env.H2A_BIM_MIN_PUBLICAR||"200",10)||200);
+  botLog('h2a-bimestral','Planilha H-2A Bimestral',`🌾 Montando "${nome}" (${trigger||"agendado"}): 6 feeds cobrindo 90 dias, mínimo pra publicar sozinho: ${minPub} vagas.`,'info');
+  await _runDolColeta({visa:"H-2A",sheetKey:key,sheetName:nome,feedDates,visaStrict:true,autoPublishMin:minPub,publishedBy:"robô-bimestral"});
+  if(_dolColeta.error){
+    botLog('h2a-bimestral','Planilha H-2A Bimestral',`⚠️ Coleta da "${nome}" falhou: ${_dolColeta.error} — nada foi salvo, tenta no próximo ciclo.`,'warn');
+    return{ok:false,error:_dolColeta.error,key};
+  }
+  const publicada=DB_SHEETS_META[key]?.published===true;
+  DB_H2A_BIM={lastKey:key,lastRunAt:Date.now(),lastCount:_dolColeta.count,lastPublished:publicada,lastTrigger:String(trigger||"")};
+  try{fs.writeFileSync(H2A_BIM_FILE,JSON.stringify(DB_H2A_BIM,null,2));}catch{}
+  botLog('h2a-bimestral','Planilha H-2A Bimestral',publicada
+    ?`✅ "${nome}" no ar: ${_dolColeta.count} vagas dos últimos 90 dias, publicada automaticamente (Manual + Automático). Próxima em 2 meses.`
+    :`⚠️ "${nome}" coletou só ${_dolColeta.count} vagas (mínimo ${minPub}) — ficou em RASCUNHO pro admin revisar.`,publicada?'ok':'warn');
+  for(const ae of ADMIN_EMAILS)pushToUser(ae,{type:"generic",
+    title:publicada?`🌾 Planilha "${nome}" publicada!`:`⚠️ Planilha "${nome}" precisa de revisão`,
+    body:publicada?`${_dolColeta.count} vagas H-2A dos últimos 90 dias já no ar pro pessoal usar no Manual e no Automático.`:`Coletou só ${_dolColeta.count} vagas (mínimo ${minPub}) — ficou em rascunho, revise no painel Robôs.`,
+    icon:"/icon-192.png",url:"/admin"}).catch(()=>{});
+  return{ok:true,key,nome,count:_dolColeta.count,published:publicada};
 }
 
 // ── 📰 /noticias — página PÚBLICA das notícias DOL traduzidas (v33-SEO) ─────
@@ -8656,6 +8722,19 @@ ul li{margin-bottom:6px}
 
   // ── 🌾 Robô "Vagas Novas H-2A" — rodar agora (admin) + status ────────────
   // O ciclo agendado roda sozinho 2x/dia; este botão é pro admin não esperar.
+  // 🌾 v121 — Planilha H-2A Bimestral: disparo manual do admin (o agendado
+  // roda sozinho a cada 2 meses). force=true ignora o vencimento e refaz a
+  // do mês atual do zero.
+  if(pathname==="/api/admin/sheet/h2a-bimestral-run"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    let b={};try{b=JSON.parse((await readBody(req))||"{}");}catch{return json(res,400,{error:"JSON inválido."});}
+    try{
+      const r=await _runH2aBimestral("manual: "+s.user_email,b.force===true);
+      if(r.ok)addLog(s.user_email,{status:"sistema",jobTitle:`🌾 Planilha bimestral: ${r.nome} (${r.count} vagas${r.published?", publicada":", rascunho"})`,company:"Planilha H-2A Bimestral"});
+      return json(res,r.ok?200:(r.skipped?409:502),{...r,state:DB_H2A_BIM});
+    }catch(e){return json(res,500,{ok:false,error:e.message});}
+  }
   if(pathname==="/api/admin/sheet/h2a-novas-run"&&req.method==="POST"){
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
@@ -18309,6 +18388,12 @@ RESPONDA APENAS com array JSON:
   // boot; erro só loga e tenta no próximo ciclo (planilha atual sempre intacta).
   setTimeout(()=>_runH2aNovasCycle("boot").catch(e=>console.error("[h2a-novas] boot erro:",e.message)), 2*60_000);
   setInterval(()=>_runH2aNovasCycle("agendado").catch(e=>console.error("[h2a-novas] ciclo erro:",e.message)), 12*3600_000);
+  // 🌾 v121 — Planilha H-2A Bimestral (ordem do dono, 08/08): checa 8min após
+  // o boot (cria a 1ª — "H-2A Agosto 2026" — sozinho no primeiro deploy) e
+  // depois a cada 12h; só roda de verdade quando vencem os 2 meses. Auto-
+  // publica acima do mínimo de qualidade; erro só loga e tenta no próximo.
+  setTimeout(()=>_runH2aBimestral("boot").catch(e=>console.error("[h2a-bimestral] boot erro:",e.message)), 8*60_000);
+  setInterval(()=>_runH2aBimestral("agendado").catch(e=>console.error("[h2a-bimestral] ciclo erro:",e.message)), 12*3600_000);
   // v26 — 🔎 Pesquisa diária de notícias H-2B/H-2A com IA (busca do Google
   // via Gemini): 1ª rodada 15min após o boot, depois a cada 24h.
   setTimeout(()=>dolNoticiasPesquisaIA().catch(e=>console.error("[noticias-ia] boot erro:",e.message)), 15*60_000);

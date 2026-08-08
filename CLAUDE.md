@@ -321,6 +321,23 @@
     Atenção à ordem do histórico: addHist usa unshift — o envio mais
     recente está no ÍNDICE 0 (o scan do cooldown varre do começo).
 
+13p. **🌾 Planilha H-2A bimestral (dono, 08/08/2026 — "pode fazer o robô
+    publicar sozinho")**: a cada 2 meses o robô `_runH2aBimestral` monta
+    sozinho a planilha "H-2A <Mês> <Ano>" (chave `h2a-YYYYMM`) com as
+    vagas dos últimos 90 dias — 6 feeds ZIP escalonados de 18 dias (cada
+    feed do datahub cobre ~20 dias pra trás), MESMA esteira das outras
+    (dedupe por case number, filtro de qualidade, integridade) via
+    `_runDolColeta` (que agora aceita `feedDates[]`/`visaStrict`/
+    `autoPublishMin`). AUTO-PUBLICA — exceção autorizada por escrito à
+    regra KB-078 de rascunho, SÓ deste robô — quando coleta ≥
+    `H2A_BIM_MIN_PUBLICAR` (padrão 200) vagas válidas; abaixo disso fica
+    em RASCUNHO e os admins recebem push pra revisar. Agenda: checa 8min
+    após o boot (cria a 1ª sozinho) e a cada 12h; só roda de verdade
+    quando vencem 2 meses (estado em `h2a_bimestral.json`). Disparo
+    manual: POST `/api/admin/sheet/h2a-bimestral-run` (`force:true` refaz
+    a do mês). A coleta real só roda em PRODUÇÃO (sandbox não alcança o
+    DOL) — o smoke prova a esteira inteira com o feed falso.
+
 ## 🖥️ UX (usuário e admin nunca se perdem)
 
 14. **Site intuitivo e autoexplicativo**: tour em slides no primeiro
