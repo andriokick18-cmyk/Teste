@@ -258,11 +258,16 @@ async function downloadAndParse(url) {
     const tmpZip = path.join(os.tmpdir(), `dol_feed_${Date.now()}.zip`);
     fs.writeFileSync(tmpZip, buf);
     const { execSync } = require("child_process");
+    // v121d (bug real em produção, 08/08: "spawnSync /bin/sh ENOBUFS" nos 6
+    // feeds da bimestral): o maxBuffer padrão do execSync é 1MB e o JSON
+    // descompactado do feed H-2A passa fácil disso — TODA extração de feed
+    // precisa do maxBuffer alto, senão o download morre depois de baixar.
+    const EXEC_MAX = 512 * 1024 * 1024;
     try {
-      const list = execSync(`unzip -Z1 "${tmpZip}"`).toString().trim().split("\n");
+      const list = execSync(`unzip -Z1 "${tmpZip}"`, { maxBuffer: EXEC_MAX }).toString().trim().split("\n");
       const jsonFile = list.find(f => f.endsWith(".json") || f.endsWith(".JSON"));
       if (!jsonFile) throw new Error("No JSON inside ZIP");
-      const jsonBuf = execSync(`unzip -p "${tmpZip}" "${jsonFile.trim()}"`);
+      const jsonBuf = execSync(`unzip -p "${tmpZip}" "${jsonFile.trim()}"`, { maxBuffer: EXEC_MAX });
       data = jsonBuf;
     } finally {
       try { fs.unlinkSync(tmpZip); } catch(_) {}
