@@ -7248,7 +7248,7 @@ function renderNextStep(){
   } else if(sentToday===0 && !autoActive){
     step={icon:"🚀",ic:"var(--green)",bg:"linear-gradient(135deg,#ecfdf5,#d1fae5)",bd:"var(--greenb)",title:"Tudo pronto! Comece a se candidatar",sub:"Seu perfil está completo. Envie sua primeira candidatura de hoje.",cta:"Buscar vagas",act:"goJobs"};
   } else if(U.plan==="free" && (U.manualRemaining||0)<=0){
-    step={icon:"⭐",ic:"var(--purple)",bg:"linear-gradient(135deg,#f5f3ff,#ede9fe)",bd:"var(--purpleb)",title:"Você atingiu o limite de hoje",sub:"Vire VIP e envie até 200 candidaturas por dia.",cta:"Ver planos",act:"goPlans"};
+    step={icon:"⭐",ic:"var(--purple)",bg:"linear-gradient(135deg,#f5f3ff,#ede9fe)",bd:"var(--purpleb)",title:"Você atingiu o limite de hoje",sub:"Vire VIP e envie até 100 candidaturas por dia.",cta:"Ver planos",act:"goPlans"};
   } else if(U.plan!=="free" && !autoActive){
     step={icon:"🤖",ic:"var(--purple)",bg:"linear-gradient(135deg,#f5f3ff,#ede9fe)",bd:"var(--purpleb)",title:"Ative o Envio Automático",sub:"Deixe o sistema enviar candidaturas enquanto você trabalha.",cta:"Ativar",act:"goAuto"};
   }

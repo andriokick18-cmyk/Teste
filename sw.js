@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v88"; // v88 (08/08): planilha H-2A automática virou MENSAL (v122, ordem do dono) — todo mês nasce e publica sozinha a "H-2A <Mês> <Ano>" com as vagas dos últimos 90 dias; próxima em Setembro, sem clique nenhum.
+const CACHE_NAME = "h2bapply-v89"; // v89 (09/08): varredura completa dos números de plano (v123) — TODOS os textos de venda agora mostram a tabela nova (VIP 100 · VIPro 100+100 · DoublePro 200+200): cards do wizard, FAQ, calculadora de resultados, painel admin, Termos e a tabela que a IA do chat usa.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

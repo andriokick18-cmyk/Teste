@@ -8368,10 +8368,10 @@ setTimeout(()=>{
 // ══════════════════════════════════════════════════════════
 // Configuração dos planos — deve bater EXATAMENTE com PLAN_LIMITS no server.js
 const PLAN_CONFIG = {
-  vip:       { manualDays:30, autoDays:0,  label:'⭐ VIP — 30 dias (só manual)',          desc:'Manual: 200/dia · Auto: desativado' },
-  vipro:     { manualDays:30, autoDays:30, label:'⭐🤖 VIPro — 30 dias (manual + auto)',  desc:'Manual: 200/dia · Auto: 200/dia' },
-  doublepro: { manualDays:30, autoDays:30, label:'🚀💎 DoublePro — 30 dias',              desc:'Manual: 400/dia · Auto: 400/dia · 2 Gmails' },
-  pro:       { manualDays:0,  autoDays:30, label:'🤖 Só Auto — 30 dias',                  desc:'Auto: 200/dia · Manual: desativado' },
+  vip:       { manualDays:30, autoDays:0,  label:'⭐ VIP — 30 dias (só manual)',          desc:'Manual: 100/dia · Auto: desativado' },
+  vipro:     { manualDays:30, autoDays:30, label:'⭐🤖 VIPro — 30 dias (manual + auto)',  desc:'Manual: 100/dia · Auto: 100/dia' },
+  doublepro: { manualDays:30, autoDays:30, label:'🚀💎 DoublePro — 30 dias',              desc:'Manual: 200/dia · Auto: 200/dia · 2 Gmails' },
+  pro:       { manualDays:0,  autoDays:30, label:'🤖 Só Auto — 30 dias',                  desc:'Auto: 100/dia · Manual: desativado' },
 };
 
 function selectPlan(planKey) {
@@ -10271,9 +10271,9 @@ async function adminSendMessage(email){
 //  PEDIDOS DE PLANO
 // ══════════════════════════════════════════════════════════
 const PLAN_PRICES = {
-  vip:       { month: 100, name: '⭐ VIP Manual',  desc: '200 manual/dia' },
-  vipro:     { month: 150, name: '🤖 VIPro',       desc: '200 manual + 200 auto/dia' },
-  doublepro: { month: 250, name: '💎 DoublePro',   desc: '400 manual + 400 auto/dia (2 Gmails)' },
+  vip:       { month: 100, name: '⭐ VIP Manual',  desc: '100 manual/dia' },
+  vipro:     { month: 150, name: '🤖 VIPro',       desc: '100 manual + 100 auto/dia' },
+  doublepro: { month: 250, name: '💎 DoublePro',   desc: '200 manual + 200 auto/dia (2 Gmails)' },
 };
 
 const PED_STATUS_LABELS = {
@@ -14439,15 +14439,15 @@ function clearEventsCache(){
         <div class="plan-selector">
           <div class="plan-opt" id="plan-opt-vip" onclick="cccSelectPlan('vip')">
             <div class="plan-opt-name">VIP Manual</div>
-            <div class="plan-opt-desc">200 envios/dia manual · Sem automático</div>
+            <div class="plan-opt-desc">100 envios/dia manual · Sem automático</div>
           </div>
           <div class="plan-opt" id="plan-opt-vipro" onclick="cccSelectPlan('vipro')">
             <div class="plan-opt-name">VIPro</div>
-            <div class="plan-opt-desc">200 manual + 200 auto/dia</div>
+            <div class="plan-opt-desc">100 manual + 100 auto/dia</div>
           </div>
           <div class="plan-opt" id="plan-opt-doublepro" onclick="cccSelectPlan('doublepro')">
             <div class="plan-opt-name">DoublePro</div>
-            <div class="plan-opt-desc">400 manual + 400 auto/dia · 2 Gmails</div>
+            <div class="plan-opt-desc">200 manual + 200 auto/dia · 2 Gmails</div>
           </div>
           <div class="plan-opt" id="plan-opt-free" onclick="cccSelectPlan('free')">
             <div class="plan-opt-name" style="color:#f87171">Revogar / Free</div>

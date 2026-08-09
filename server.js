@@ -8324,13 +8324,14 @@ const server=http.createServer(async(req,res)=>{
       <li>Respeitar os limites de envio do seu plano</li>
     </ul>
 
-    <h2>4. Planos e pagamentos</h2>
+    <h2>4. Planos, diamantes e recompensas</h2>
     <ul>
       <li><strong>Free:</strong> 20 envios manuais + 10 automáticos por dia, gratuito</li>
-      <li><strong>VIP:</strong> 400 manuais + 10 automáticos por dia — R$ 99,90/mês</li>
-      <li><strong>VIPro:</strong> 300 manuais + 200 automáticos por dia — R$ 149,90/mês</li>
+      <li><strong>VIP:</strong> 100 envios manuais por dia (sem automático)</li>
+      <li><strong>VIPro:</strong> 100 manuais + 100 automáticos por dia</li>
+      <li><strong>DoublePro:</strong> 200 manuais + 200 automáticos por dia (2 contas Gmail)</li>
     </ul>
-    <p>Pagamentos são realizados via PIX. Não há reembolso após ativação do plano.</p>
+    <p>Os planos são trocados por diamantes (💎) dentro do app. Diamantes são creditados a partir de doações via PIX confirmadas pela administração ou de recompensas de uso. Não há reembolso após a troca por um plano. Quem ativou um plano antes de uma mudança de regras mantém os limites da ativação até o vencimento.</p>
 
     <h2>5. Limitação de responsabilidade</h2>
     <p>O H2BApply <strong>não garante</strong>:</p>
@@ -15973,14 +15974,14 @@ candidaturas para vistos H-2B e H-2A (trabalho sazonal nos EUA).
 Fundadores: Andrio (técnico) e Diego (comercial/pagamentos).
 Deploy: Render.com, disco persistente /data 1GB.
 
-PLANOS ATUAIS (CORRETOS jun/2026):
+PLANOS ATUAIS (v118, valem pra contratação NOVA desde 02/08/2026 — quem pagou antes mantém os limites antigos até o plano vencer):
 ┌─────────────┬──────────────┬─────────────────────────────────────┐
 │ Plano       │ Preço        │ Limites diários                     │
 ├─────────────┼──────────────┼─────────────────────────────────────┤
 │ FREE        │ Grátis       │ 20 manual + 10 auto                 │
-│ VIP Manual  │ R$100/mês    │ 200 manual + 10 auto                │
-│ VIPro       │ R$150/mês    │ 200 manual + 200 auto               │
-│ DoublePro   │ R$250/mês    │ 400 manual + 400 auto (2 Gmails)    │
+│ VIP Manual  │ R$100/mês    │ 100 manuais/dia (sem automático)    │
+│ VIPro       │ R$150/mês    │ 100 manual + 100 auto               │
+│ DoublePro   │ R$250/mês    │ 200 manual + 200 auto (2 Gmails)    │
 └─────────────┴──────────────┴─────────────────────────────────────┘
 TRIAL: 1 dia VIP Manual apenas (sem automático) no primeiro login.
 Anti-abuse: IP + telefone + Google ID (3 camadas).
