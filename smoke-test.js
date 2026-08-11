@@ -135,6 +135,13 @@ fs.writeFileSync(path.join(DATA, "users.json"), JSON.stringify(users, null, 2));
 // se alguém reverter pra bimestral, esta guarda quebra na hora).
 const _bimMesPassado = new Date(); _bimMesPassado.setUTCMonth(_bimMesPassado.getUTCMonth() - 1);
 fs.writeFileSync(path.join(DATA, "h2a_bimestral.json"), JSON.stringify({ lastKey: "h2a-mes-anterior", lastRunAt: _bimMesPassado.getTime() }));
+// 🧟 v124 (vídeo do dono, 10/08): job ZUMBI — active:true com fila VAZIA
+// (sobra de crash/deploy no instante em que a fila zerou). O cliente monta
+// uma fila NOVA e clica iniciar: o start NUNCA pode ressuscitar o zumbi
+// ("reiniciei — 0 vagas") nem bloquear — descarta o velho e inicia o novo.
+fs.writeFileSync(path.join(DATA, "auto_jobs.json"), JSON.stringify({
+  "zumbi@test.com": { active: true, status: "sending", source: "manual", queue: [], originalCount: 7, startedAt: Date.now() - 3600_000, subjects: ["a"], emailBodies: ["b"] },
+}));
 const COOLDOWN_FIX_TS = Date.now();
 fs.writeFileSync(path.join(DATA, "history.json"), JSON.stringify({
   "cooldown@test.com": [{ to: "empresa@teste-cooldown.com", subject: "x", type: "manual", sentAt: new Date(COOLDOWN_FIX_TS).toISOString(), date: "hoje" }],
@@ -636,6 +643,25 @@ async function testAuthWatchdogPush() {
     check("⏱️ v120: religou a proteção → o 429 com cooldownLeft volta imediatamente",
       cdOn.json?.ok === true && cdSend3.status === 429 && typeof cdSend3.json?.cooldownLeft === "number",
       `status=${cdSend3.status} body=${cdSend3.body.slice(0, 120)}`);
+
+    // ═══ 🧟 v124 (vídeo do dono, 10/08): START NOVO nunca ressuscita ZUMBI ═══
+    // O fixture semeou um job active:true com fila VAZIA pro zumbi@test.com.
+    // Cliente monta fila nova de 3 vagas e clica iniciar: tem que COMEÇAR A
+    // NOVA (nunca "reiniciei — 0 vagas", nunca 409). Roda AQUI (logo após o
+    // boot) pra pegar o zumbi ainda intacto, antes do reaproveitamento dos 6s.
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "zumbi@test.com", name: "Zumbi" });
+    const pdfZ = Buffer.from("%PDF-1.4 " + "zumbi ".repeat(300)).toString("base64");
+    const upZ = await req2("POST", "/api/cv/upload", { base64: pdfZ, name: "CV_Zumbi.pdf", cvType: "resume" });
+    const zQueue = [1, 2, 3].map((i) => ({ to: `vaga${i}@zumbitest.com`, title: "Cook", company: `Empresa Z${i}`, category: "food", state: "FL" }));
+    const zStart = await req2("POST", "/api/auto/start", { queue: zQueue, resumeIdx: upZ.json?.cv?.idx, subjects: ["x"], emailBodies: ["y"] });
+    check("🧟 v124: cliente com job zumbi (ativo, fila VAZIA) inicia a fila NOVA de verdade — nunca mais 'reiniciei — 0 vagas'",
+      zStart.json?.ok === true && zStart.json?.healed !== true && zStart.json?.queueSize === 3,
+      zStart.body.slice(0, 160));
+    const zSt = await get("/api/auto/status");
+    check("🧟 v124: o robô fica ATIVO com as 3 vagas do cliente na fila",
+      zSt.json?.job?.active === true && zSt.json?.job?.queueSize === 3,
+      JSON.stringify(zSt.json?.job || {}));
+    await req2("POST", "/api/auto/stop", {});
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", name: "Smoke", isAdmin: true });
 
     // v48: INCIDENTE REAL "vagas sumiram" — o fixture semeou /data com

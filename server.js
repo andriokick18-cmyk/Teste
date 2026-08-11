@@ -13452,7 +13452,20 @@ const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filte
       return json(res,503,{error:"⚠️ Servidor sem volume persistente (/tmp). Configure DATA_DIR=/data com volume Docker/Railway antes de usar o automático.",diskVolatile:true});
     }
     const existingJob=getAutoJob(s.user_email);
-    if(existingJob&&existingJob.active){
+    // v124 (BUG REAL, vídeo do dono 10/08: cliente PAGANTE montou a fila nova,
+    // clicou iniciar e recebeu "robô estava travado — reiniciei. 0 vaga(s) na
+    // fila" pra sempre, sem enviar nada): um job ZUMBI (active:true com fila
+    // VAZIA — sobra de crash/deploy no instante exato em que a fila zerou, ou
+    // pausa com fila já vazia) caía no ramo de auto-heal abaixo, que
+    // ressuscitava o job VELHO e JOGAVA FORA a fila nova que o cliente acabou
+    // de configurar. Zumbi de fila vazia não se ressuscita: finaliza e segue
+    // com o início NOVO que o cliente pediu.
+    if(existingJob&&existingJob.active&&!(existingJob.queue?.length)){
+      try{if(autoTimers.has(s.user_email)){clearTimeout(autoTimers.get(s.user_email));autoTimers.delete(s.user_email);}}catch{}
+      setAutoJob(s.user_email,{...existingJob,active:false,queue:[],status:"finished",finishedAt:existingJob.finishedAt||Date.now()});
+      console.warn(`[auto/start] 🧟 ${s.user_email}: job ativo com fila VAZIA (zumbi) — finalizado; seguindo com o início novo do cliente.`);
+      addLog(s.user_email,{status:"sistema",jobTitle:"🔧 Robô antigo (fila zerada) finalizado — começando sua fila nova",company:"auto-heal"});
+    }else if(existingJob&&existingJob.active){
       // v19-FIX: "active:true" no disco não significa que o robô está de fato
       // rodando — o timer (autoTimers, em memória) morre em todo restart do
       // processo (deploy/spin-down/disco efêmero); reactivateAutoJobs() cobre
