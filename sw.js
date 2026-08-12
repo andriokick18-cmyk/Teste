@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v89"; // v89 (09/08): varredura completa dos números de plano (v123) — TODOS os textos de venda agora mostram a tabela nova (VIP 100 · VIPro 100+100 · DoublePro 200+200): cards do wizard, FAQ, calculadora de resultados, painel admin, Termos e a tabela que a IA do chat usa.
+const CACHE_NAME = "h2bapply-v90"; // v90 (12/08): aba 🔖 Vagas Salvas de verdade (v126) — entrada na sidebar, vaga salva guarda snapshot no servidor (aparece mesmo meses depois), salvos antigos curados sozinhos, botão de remover, e o 🔖 agora existe também nos cards das planilhas.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

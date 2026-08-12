@@ -2128,6 +2128,22 @@ const buildUserSentSet = (u) => {
   for (const h of (DB_HIST[u] || [])) { const n = _normEmail(h.to); if (n) set.add(n); }
   return set;
 };
+
+// 🔖 v126 (dono, 12/08: "salvou há meses TEM que aparecer"): acha uma vaga
+// pelo ETA case number em TODAS as fontes carregadas (seasonal + planilhas
+// fixas + extras) e devolve um snapshot compacto pro acervo de salvas.
+// Usado pela auto-cura do GET /api/saved (vagas salvas ANTES do v126 só
+// tinham o id — sem isso, sumiam da aba se saíssem da tela).
+function _resolveVagaById(id){
+  const nid=String(id||"").trim().toUpperCase();if(!nid)return null;
+  const achar=rows=>(rows||[]).find(r=>String(r.c||"").trim().toUpperCase()===nid);
+  let r=achar(getAllSheets());
+  if(!r){for(const k of Object.keys(SHEET_EXTRAS||{})){r=achar(SHEET_EXTRAS[k]);if(r)break;}}
+  if(!r)return null;
+  return {id:r.c,caseNum:r.c,title:r.t||"Seasonal Worker",company:r.n||"",city:r.ci||"",state:r.s||"",
+    wage:r.w?`$${r.w}/${r.wunit||"h"}`:"",email:r.e||"",visa:r.visa||"",category:r.k||"other",
+    url:r.c&&String(r.c).startsWith("H-")?`https://seasonaljobs.dol.gov/jobs/${r.c}`:""};
+}
 const getNote    = (u,j) => DB_NOTES[u]?.[j]||"";
 // v47: nota/alerta é ação corriqueira de usuário — nunca gravar o banco
 // inteiro síncrono por clique (mesma classe do setUser). flushAll cobre.
@@ -13315,7 +13331,46 @@ const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filte
     }catch(e){return json(res,500,{error:e.message});}
   }
 
-  if(pathname==="/api/saved"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});if(req.method==="GET")return json(res,200,{saved:(getUser(s.user_email)||{}).saved||[]});if(req.method==="POST"){try{const d=JSON.parse(await readBody(req));setUser(s.user_email,{saved:(d.saved||[]).slice(0,500)});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}}
+  // 🔖 v126 (dono, 12/08): vaga salva agora guarda o SNAPSHOT completo
+  // (u.savedJobs) — aparece na aba Vagas Salvas mesmo meses depois, mesmo
+  // que a vaga já não esteja em nenhuma planilha. u.saved (ids) continua
+  // sendo a fonte do estado dos botõezinhos 🔖 nos cards.
+  if(pathname==="/api/saved"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const u=getUser(s.user_email)||{};
+    if(req.method==="GET"){
+      // AUTO-CURA (regra 4 — migração idempotente, com log): id salvo antes
+      // do v126 não tem snapshot — resolve agora pelas planilhas carregadas.
+      let sj=Array.isArray(u.savedJobs)?u.savedJobs:[];
+      const ids=u.saved||[];
+      const faltando=ids.filter(id=>!sj.some(j=>String(j.id)===String(id)));
+      if(faltando.length){
+        const novos=faltando.map(_resolveVagaById).filter(Boolean).map(j=>({...j,savedAt:Date.now()}));
+        if(novos.length){sj=[...sj,...novos];setUser(s.user_email,{savedJobs:sj});
+          console.log(`[saved] 🔖 ${s.user_email}: ${novos.length} snapshot(s) recuperado(s) de salvas antigas (${faltando.length-novos.length} não encontradas nas planilhas atuais)`);}
+      }
+      return json(res,200,{saved:ids,jobs:sj});
+    }
+    if(req.method==="POST"){try{const d=JSON.parse(await readBody(req));
+      if(d.add&&d.job&&d.job.id){ // salvar COM snapshot
+        const id=String(d.job.id).slice(0,60);
+        const ids=[...new Set([...(u.saved||[]),id])].slice(0,500);
+        const snap={id,caseNum:String(d.job.caseNum||id).slice(0,60),title:String(d.job.title||"").slice(0,140),
+          company:String(d.job.company||"").slice(0,140),city:String(d.job.city||"").slice(0,80),state:String(d.job.state||"").slice(0,40),
+          wage:String(d.job.wage||"").slice(0,30),email:String(d.job.email||"").slice(0,140),visa:String(d.job.visa||"").slice(0,10),
+          category:String(d.job.category||"").slice(0,40),url:String(d.job.url||"").slice(0,200),sheet:String(d.job.sheet||"").slice(0,40),savedAt:Date.now()};
+        setUser(s.user_email,{saved:ids,savedJobs:[...(u.savedJobs||[]).filter(j=>String(j.id)!==id),snap].slice(-500)});
+        return json(res,200,{ok:true,count:ids.length});
+      }
+      if(d.remove){ // tirar dos salvos (id + snapshot juntos)
+        const id=String(d.remove).slice(0,60);
+        setUser(s.user_email,{saved:(u.saved||[]).filter(x=>String(x)!==id),savedJobs:(u.savedJobs||[]).filter(j=>String(j.id)!==id)});
+        return json(res,200,{ok:true});
+      }
+      // legado (front antigo em cache): lista inteira de ids — sincroniza e poda snapshots órfãos
+      const ids=(d.saved||[]).slice(0,500);
+      setUser(s.user_email,{saved:ids,savedJobs:(u.savedJobs||[]).filter(j=>ids.includes(j.id))});
+      return json(res,200,{ok:true});
+    }catch(e){return json(res,500,{error:e.message});}}}
   if(pathname==="/api/disconnect"){const id=getSessId(req);if(id&&sessions[id]){delete sessions[id];persistSessionsDebounced(500);}res.writeHead(200,{"Content-Type":"application/json","Set-Cookie":clearCookieStr()});return res.end('{"ok":true}');}
 
   // ── POST /api/account/delete — usuário deleta a própria conta ──────────

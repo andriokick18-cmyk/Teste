@@ -1892,8 +1892,10 @@ function mkSheetCard(j){
   const wkTag=j.workers&&j.workers>0?`<span class="tag tgr">👥 ${j.workers} vagas</span>`:"";
 
   const _inAutoQ=_autoQueueIds.has(j.id)||_autoQueueIds.has(j.caseNum);
+  const _sv=SAVED.has(j.id); // 🔖 v126: salvar também nas planilhas (antes só a Seasonal tinha)
   return`<div class="jcard${isApplied||_inAutoQ?" applied":""}" id="jcard-${iid}" onclick="selSheetJob('${esc(j.id)}')"${(isApplied||_inAutoQ)?' style="display:none"':""}>
-    <div class="jcard-cat-row" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+    <button class="save-btn${_sv?" on":""}" onclick="event.stopPropagation();toggleSave('${esc(j.id)}')" aria-label="Salvar"><i class="ti ti-bookmark${_sv?"-filled":""}"></i></button>
+    <div class="jcard-cat-row" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;padding-right:26px">
       <span class="jcard-cat-badge" id="jctg-cat-${iid}"><i class="ti ${catInfo.icon}" style="font-size:9px"></i> ${catInfo.name}</span>
       ${j.wage&&j.wage!=="–"?`<span style="font-size:12px;font-weight:800;color:#10b981">💰 ${esc(j.wage)}</span>`:""}
     </div>
@@ -2157,11 +2159,23 @@ function showDetail(html){
 }
 function closeMobDetail(){g("#mob-detail")?.classList.remove("show");}
 
+/* 🔖 v126: salvar guarda o SNAPSHOT da vaga no servidor — a aba Vagas
+   Salvas mostra pra sempre, mesmo a vaga saindo das planilhas. */
 function toggleSave(id){
-  if(SAVED.has(id)){SAVED.delete(id);toast("Removido");}else{SAVED.add(id);toast("Salvo ✓","g");}
-  const sb=document.querySelector(`#jcard-${id} .save-btn`);if(sb){sb.classList.toggle("on",SAVED.has(id));sb.innerHTML=`<i class="ti ti-bookmark${SAVED.has(id)?"-filled":""}"></i>`;}
+  if(SAVED.has(id)){
+    SAVED.delete(id);toast(t('saved_removed'),"g");
+    fetch("/api/saved",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({remove:id})}).catch(()=>{});
+  }else{
+    SAVED.add(id);toast("🔖 "+t('saved_ok'),"g");
+    const _s=(typeof JOBS!=="undefined"&&JOBS.find(x=>x.id===id))||(typeof sCache!=="undefined"&&sCache[id])||((typeof _currentModalJob!=="undefined"&&_currentModalJob&&(_currentModalJob.id===id||_currentModalJob.caseNum===id))?_currentModalJob:null)||{};
+    const job={id,caseNum:_s.caseNum||id,title:_s.title||_s.job||"",company:_s.company||"",city:_s.city||"",state:_s.state||"",wage:_s.wage||"",email:_s.email||_s.to||"",visa:_s.visa||_s.visaType||"",category:_s.category||"",url:_s.url||"",sheet:(typeof tab!=="undefined"&&tab!=="seasonal")?tab:"seasonal"};
+    fetch("/api/saved",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({add:true,job})}).catch(()=>{});
+  }
+  const _iid="s_"+String(id).replace(/[^a-zA-Z0-9]/g,"_");
+  for(const sel of [`#jcard-${CSS.escape(String(id))} .save-btn`,`#jcard-${_iid} .save-btn`]){
+    try{const sb=document.querySelector(sel);if(sb){sb.classList.toggle("on",SAVED.has(id));sb.innerHTML=`<i class="ti ti-bookmark${SAVED.has(id)?"-filled":""}"></i>`;}}catch(e){}
+  }
   updSavedBadge();
-  fetch("/api/saved",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({saved:[...SAVED]})}).catch(()=>{});
 }
 
 // ═══════════════════════════════════════════
@@ -4173,7 +4187,7 @@ async function fetchHistJobDOL(caseNum,btn){
   }
 }
 
-function openModalFromHist(jobJSON){
+function openModalFromHist(jobJSON,tituloModal){ // v126: título opcional (Vagas Salvas reusa o modal com "Candidatar")
   try{
     const j=typeof jobJSON==="string"?JSON.parse(jobJSON):jobJSON;
     // Tenta achar nos JOBS carregados; senão usa o objeto do histórico
@@ -4182,7 +4196,7 @@ function openModalFromHist(jobJSON){
     if(!found.hasEmail&&!(found.email)){toast("Sem e-mail para reenvio","r");return;}
     if(U.manualRemaining<=0){sv("plans");toast("Limite atingido! Faça upgrade.","r");return;}
     curJob=found;_currentModalJob=found;
-    g("#m-title").textContent="Reenviar Candidatura";g("#m-sub").textContent=found.company||"";
+    g("#m-title").textContent=tituloModal||"Reenviar Candidatura";g("#m-sub").textContent=found.company||"";
     const to=found.email||found.to||"";
     const _ti2=g("#m-job-title");if(_ti2)_ti2.textContent=found.job||found.title||found.company||"–";
     const _di2=g("#m-job-details");
@@ -4326,11 +4340,44 @@ async function doDeleteHistEntry(key,ovEl){
 // ═══════════════════════════════════════════
 //  SAVED
 // ═══════════════════════════════════════════
-function renderSaved(){
+/* 🔖 v126 (dono, 12/08): a aba busca os SNAPSHOTS no servidor — vaga salva
+   ontem ou há meses SEMPRE aparece, com data, abrir e remover. */
+let _savedJobsCache=[];
+async function renderSaved(){
   const el=g("#saved-list");if(!el)return;
-  const jobs=JOBS.filter(j=>SAVED.has(j.id));
-  if(!SAVED.size){el.innerHTML='<div class="empty-state"><i class="ti ti-bookmark"></i><div style="font-size:14px;font-weight:600;color:var(--t2)">Nenhuma vaga salva</div></div>';return;}
-  el.innerHTML=`<div style="font-size:18px;font-weight:800;margin-bottom:14px">Vagas Salvas</div>`+(jobs.length?jobs.map(j=>`<div class="hcard" style="cursor:pointer" onclick="sv('jobs');setTimeout(()=>selJob2('${j.id}'),300)"><div style="display:flex;justify-content:space-between;gap:8px"><div class="hcard-job">${esc(j.title)}</div><button aria-label="Remover dos salvos" title="Remover dos salvos" class="btn btn-danger btn-xs" onclick="event.stopPropagation();toggleSave('${j.id}');renderSaved()"><i class="ti ti-trash"></i></button></div><div style="font-size:12px;color:var(--t2);margin-top:3px">${esc(j.company)} · ${esc(j.state)}</div></div>`).join(""):`<div style="font-size:13px;color:var(--t3)">Salve vagas clicando no 🔖.</div>`);
+  el.innerHTML='<div style="padding:24px;text-align:center"><span class="spin"></span></div>';
+  try{
+    const d=await fetch("/api/saved",{credentials:"include"}).then(r=>r.json());
+    (d.saved||[]).forEach(id=>SAVED.add(id));
+    _savedJobsCache=(d.jobs||[]).slice().sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));
+  }catch(e){}
+  updSavedBadge();
+  const jobs=_savedJobsCache;
+  if(!jobs.length){el.innerHTML=`<div class="empty-state"><i class="ti ti-bookmark"></i><div style="font-size:14px;font-weight:600;color:var(--t2)">${esc(t('saved_empty'))}</div><div style="font-size:12px;color:var(--t3);margin-top:6px">${esc(t('saved_empty_sub'))}</div></div>`;return;}
+  el.innerHTML=`<div style="font-size:18px;font-weight:800;margin-bottom:4px">🔖 ${esc(t('saved_jobs'))}</div>
+    <div style="font-size:12px;color:var(--t3);margin-bottom:14px">${jobs.length} vaga${jobs.length>1?"s":""}</div>`+
+    jobs.map((j,i)=>{
+      const dt=j.savedAt?new Date(j.savedAt).toLocaleDateString("pt-BR"):"";
+      const enviada=typeof empregadorStatus==="function"&&j.email&&empregadorStatus(j.email)==="sent";
+      return `<div class="hcard" style="cursor:pointer" onclick="openSavedJob(${i})">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+          <div class="hcard-job">${esc(j.title||j.company||"–")}</div>
+          <button aria-label="${esc(t('saved_remove'))}" title="${esc(t('saved_remove'))}" class="btn btn-danger btn-xs" onclick="event.stopPropagation();toggleSave('${esc(j.id)}');renderSaved()"><i class="ti ti-trash"></i></button>
+        </div>
+        <div style="font-size:12px;color:var(--t2);margin-top:3px">${esc(j.company||"")}${j.city?` · ${esc(j.city)}`:""}${j.state?`, ${esc(j.state)}`:""}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center">
+          ${j.visa?`<span class="tag ${j.visa==="H-2A"?"ta":"tb"}">${esc(j.visa)}</span>`:""}
+          ${j.wage?`<span class="tag tg">${esc(j.wage)}</span>`:""}
+          ${enviada?`<span class="tag tgr">✅ ${esc(t('saved_already_sent'))}</span>`:""}
+          ${dt?`<span style="font-size:11px;color:var(--t3);margin-left:auto">🔖 ${dt}</span>`:""}
+        </div>
+      </div>`;
+    }).join("");
+}
+function openSavedJob(i){
+  const j=_savedJobsCache[i];if(!j)return;
+  if(!j.email){if(j.url){window.open(j.url,"_blank");}else{toast(t('saved_no_email'),"r");}return;}
+  openModalFromHist({id:j.id,caseNum:j.caseNum||j.id,title:j.title,job:j.title,company:j.company,city:j.city,state:j.state,wage:j.wage,email:j.email,visa:j.visa,category:j.category,url:j.url},t('saved_apply_title'));
 }
 function updSavedBadge(){const n=SAVED.size;const b=g("#sib-saved");if(b){b.style.display=n?"":"none";b.textContent=String(n);}}
 
@@ -10559,6 +10606,11 @@ const LANG_DICT = {
     "all_states":"Todos estados","salary":"Salário","qty_jobs":"Qtd vagas",
     // v119: sugestões instantâneas da busca
     "sug_companies":"Empresas","sug_roles":"Cargos","sug_cities":"Cidades","sug_regions":"Regiões","sug_states":"Estados","sug_jobs":"vagas",
+    // v126: aba Vagas Salvas
+    "saved_jobs":"Vagas Salvas","saved_ok":"Vaga salva!","saved_removed":"Removida das salvas",
+    "saved_empty":"Nenhuma vaga salva","saved_empty_sub":"Toque no 🔖 de qualquer vaga para guardá-la aqui",
+    "saved_remove":"Remover dos salvos","saved_already_sent":"já enviada","saved_no_email":"Esta vaga não tem e-mail — abra o link do DOL",
+    "saved_apply_title":"Candidatar-se",
     // v120: cooldown do manual editável
     "cd_on_lbl":"Proteção: 1 min entre envios manuais","cd_change":"alterar",
     "cd_off_lbl":"Proteção de 1 min DESLIGADA","cd_reactivate":"reativar",
@@ -10649,6 +10701,10 @@ const LANG_DICT = {
     "roi_calc":"Results Calculator","roi_if":"If only 1% of companies reply positively:","roi_cta":"Just 1 company confirms → you're in the USA ✈️",
     "all_states":"All states","salary":"Salary","qty_jobs":"# Positions",
     "sug_companies":"Companies","sug_roles":"Job titles","sug_cities":"Cities","sug_regions":"Regions","sug_states":"States","sug_jobs":"jobs",
+    "saved_jobs":"Saved Jobs","saved_ok":"Job saved!","saved_removed":"Removed from saved",
+    "saved_empty":"No saved jobs","saved_empty_sub":"Tap the 🔖 on any job to keep it here",
+    "saved_remove":"Remove from saved","saved_already_sent":"already sent","saved_no_email":"This job has no email — open the DOL link",
+    "saved_apply_title":"Apply",
     "cd_on_lbl":"Protection: 1 min between manual sends","cd_change":"change",
     "cd_off_lbl":"1-min protection is OFF","cd_reactivate":"turn back on",
     "cd_modal_title":"Turn off the 1-minute protection?",
@@ -10726,6 +10782,10 @@ const LANG_DICT = {
     "roi_calc":"Calculadora de Resultados","roi_if":"Si solo el 1% de las empresas responde positivamente:","roi_cta":"¡Solo 1 empresa confirma → estás en los EUA! ✈️",
     "all_states":"Todos los estados","salary":"Salario","qty_jobs":"# Puestos",
     "sug_companies":"Empresas","sug_roles":"Puestos","sug_cities":"Ciudades","sug_regions":"Regiones","sug_states":"Estados","sug_jobs":"empleos",
+    "saved_jobs":"Empleos Guardados","saved_ok":"¡Empleo guardado!","saved_removed":"Quitado de guardados",
+    "saved_empty":"Ningún empleo guardado","saved_empty_sub":"Toca el 🔖 de cualquier empleo para guardarlo aquí",
+    "saved_remove":"Quitar de guardados","saved_already_sent":"ya enviada","saved_no_email":"Este empleo no tiene email — abre el enlace del DOL",
+    "saved_apply_title":"Postularse",
     "cd_on_lbl":"Protección: 1 min entre envíos manuales","cd_change":"cambiar",
     "cd_off_lbl":"Protección de 1 min APAGADA","cd_reactivate":"reactivar",
     "cd_modal_title":"¿Apagar la protección de 1 minuto?",
@@ -10826,6 +10886,7 @@ function applyLang(){
   _si('bn-ranking','span',t('ranking'));
 
   // ── SIDEBAR ──
+  _sbItem('si-saved',t('saved_jobs')); // v126
   _sbItem('si-notificacoes',t('notifications'));
   _sbItem('si-plans',t('plans'));
   _sbItem('si-profile',t('profile'));
