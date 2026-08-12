@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v91"; // v91 (12/08): i18n profissional Etapa 1 (v127) — seletor de idioma com bandeiras grandes 🇧🇷🇺🇸🇲🇽, motor novo de tradução automática (data-i18n), Home/sidebar/gaveta 100% nas 3 línguas e guarda de teste que proíbe chave sem tradução.
+const CACHE_NAME = "h2bapply-v92"; // v92 (12/08): i18n Etapa 2 (v128) — telas de Vagas, Pesquisa e o modal de envio 100% nas 3 línguas (ordenação, buscas, detalhe da vaga, currículo/perfil de envio, botões).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

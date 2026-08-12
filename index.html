@@ -3028,9 +3028,9 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                digita "mass" → MASSACHUSETTS; "marth" → Martha's Vineyard).
                As listas vêm de /api/lugares — só lugar que TEM vaga. -->
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <div class="search-wrap" style="flex:2;min-width:170px"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" placeholder="Cargo, empresa..." oninput="onSearch();qSugInput()" onkeydown="qSugKey(event)" onfocus="qSugInput()" onblur="qSugBlur()" autocomplete="off" inputmode="search" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="q-sug"><div id="q-sug" class="q-sug" role="listbox" aria-label="Sugestões de busca"></div></div>
-            <input class="search-inp" list="dl-estados" id="q-estado" placeholder="📍 Estado…" autocomplete="off" style="flex:1;min-width:110px;border:1.5px solid var(--border2);border-radius:12px;padding:0 10px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--text)" onchange="qEstadoPick(this.value)">
-            <input class="search-inp" list="dl-cidades" id="q-cidade" placeholder="🏙️ Cidade…" autocomplete="off" style="flex:1;min-width:110px;border:1.5px solid var(--border2);border-radius:12px;padding:0 10px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--text)" onchange="qCidadePick(this.value)">
+            <div class="search-wrap" style="flex:2;min-width:170px"><i class="ti ti-search"></i><input class="search-inp" type="text" id="q" data-i18n-ph="q_ph" placeholder="Cargo, empresa..." oninput="onSearch();qSugInput()" onkeydown="qSugKey(event)" onfocus="qSugInput()" onblur="qSugBlur()" autocomplete="off" inputmode="search" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="q-sug"><div id="q-sug" class="q-sug" role="listbox" aria-label="Sugestões de busca"></div></div>
+            <input class="search-inp" list="dl-estados" id="q-estado" data-i18n-ph="q_state_ph" placeholder="📍 Estado…" autocomplete="off" style="flex:1;min-width:110px;border:1.5px solid var(--border2);border-radius:12px;padding:0 10px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--text)" onchange="qEstadoPick(this.value)">
+            <input class="search-inp" list="dl-cidades" id="q-cidade" data-i18n-ph="q_city_ph" placeholder="🏙️ Cidade…" autocomplete="off" style="flex:1;min-width:110px;border:1.5px solid var(--border2);border-radius:12px;padding:0 10px;background:var(--surface);font-family:inherit;font-size:13px;color:var(--text)" onchange="qCidadePick(this.value)">
             <datalist id="dl-estados"></datalist>
             <datalist id="dl-cidades"></datalist>
           </div>
@@ -3041,11 +3041,11 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             </button>
             <!-- v111: atalhos de 1 toque (nova experiência de busca) — os sorts
                  match/wage/start já existem no servidor desde o v82 -->
-            <button class="fbtn on" id="so-rand"  onclick="setSort('random')">🔀 Aleatório</button>
-            <button class="fbtn"    id="so-match" onclick="setSort('match')" style="font-weight:800;color:#059669">🎯 Melhor pra mim</button>
-            <button class="fbtn"    id="so-wage"  onclick="setSort('wage')">💰 Maior salário</button>
-            <button class="fbtn"    id="so-start" onclick="setSort('start')">🗓️ Começa logo</button>
-            <button class="fbtn"    id="so-desc"  onclick="setSort('desc')">Recentes</button>
+            <button class="fbtn on" id="so-rand"  onclick="setSort('random')" data-i18n="sort_rand">🔀 Aleatório</button>
+            <button class="fbtn"    id="so-match" onclick="setSort('match')" style="font-weight:800;color:#059669" data-i18n="sort_match">🎯 Melhor pra mim</button>
+            <button class="fbtn"    id="so-wage"  onclick="setSort('wage')" data-i18n="sort_wage">💰 Maior salário</button>
+            <button class="fbtn"    id="so-start" onclick="setSort('start')" data-i18n="sort_start">🗓️ Começa logo</button>
+            <button class="fbtn"    id="so-desc"  onclick="setSort('desc')" data-i18n="sort_recent">Recentes</button>
           </div>
         </div>
         <div id="jobs-filter-chips" style="display:none;flex-wrap:wrap;gap:5px;padding:6px 14px 0"></div>
@@ -3058,7 +3058,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div id="lmore"></div>
           </div>
           <div class="jdetail" id="jdetail">
-            <div class="jd-empty" id="jd-empty"><i class="ti ti-briefcase"></i><div style="font-size:14px;font-weight:600;color:var(--t2)">Selecione uma vaga</div><div style="font-size:13px;color:var(--t3)">Clique para ver os detalhes e candidatar-se</div></div>
+            <div class="jd-empty" id="jd-empty"><i class="ti ti-briefcase"></i><div style="font-size:14px;font-weight:600;color:var(--t2)" data-i18n="select_job">Selecione uma vaga</div><div style="font-size:13px;color:var(--t3)" data-i18n="select_job_sub">Clique para ver os detalhes e candidatar-se</div></div>
             <div id="jd-content" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;display:none"></div>
           </div>
         </div>
@@ -3068,7 +3068,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <div class="mob-detail" id="mob-detail">
         <div class="mob-back" onclick="closeMobDetail()">
           <div class="mob-back-circle"><i class="ti ti-arrow-left" style="font-size:17px"></i></div>
-          <span style="flex:1">Voltar às vagas</span>
+          <span style="flex:1" data-i18n="back_jobs">Voltar às vagas</span>
           <i class="ti ti-briefcase" style="font-size:16px;opacity:.5"></i>
         </div>
         <div id="mob-detail-content" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch"></div>
@@ -3123,7 +3123,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           </div>
           <!-- Chips de fonte -->
           <div style="display:flex;gap:5px;flex-wrap:wrap">
-            <button class="pesq-src-chip active" data-src="all" onclick="setPesqSrc('all')">🌐 Todas as fontes</button>
+            <button class="pesq-src-chip active" data-src="all" onclick="setPesqSrc('all')" data-i18n="all_sources">🌐 Todas as fontes</button>
             <button class="pesq-src-chip" data-src="seasonal" onclick="setPesqSrc('seasonal')"><i class="ti ti-globe" style="font-size:11px"></i> Seasonal</button>
             <button class="pesq-src-chip" data-src="jan2026" onclick="setPesqSrc('jan2026')">☀️ Jan 2026</button>
             <button class="pesq-src-chip" data-src="jul2025" onclick="setPesqSrc('jul2025')">❄️ Jul 2025</button>
@@ -3166,8 +3166,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <div class="view gone" id="v-logs">
         <!-- ══ LOGS AUTOMÁTICO ══ -->
         <div class="view-scroll">
-          <div style="font-size:18px;font-weight:800;margin-bottom:4px">📋 Logs do Envio Automático</div>
-          <div style="font-size:13px;color:var(--t2);margin-bottom:14px">Histórico completo de todos os envios automáticos</div>
+          <div style="font-size:18px;font-weight:800;margin-bottom:4px" data-i18n="logs_auto_title">📋 Logs do Envio Automático</div>
+          <div style="font-size:13px;color:var(--t2);margin-bottom:14px" data-i18n="logs_auto_sub">Histórico completo de todos os envios automáticos</div>
           <!-- Toolbar -->
           <div class="logs-toolbar">
             <input class="logs-search" type="text" id="log-q" placeholder="🔍 Buscar empresa, e-mail..." oninput="loadLogs()" inputmode="search">
@@ -4077,7 +4077,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
           </div>
           <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0">
-            <button class="btn btn-secondary" style="flex:1" onclick="closePreflight()">Cancelar</button>
+            <button class="btn btn-secondary" style="flex:1" onclick="closePreflight()" data-i18n="cancel">Cancelar</button>
             <button class="btn btn-auto" style="flex:2" onclick="confirmStartAuto()">
               <i class="ti ti-rocket"></i> Confirmar e Iniciar
             </button>
@@ -5070,7 +5070,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <option>VERMONT</option><option>VIRGINIA</option><option>WASHINGTON</option><option>WEST VIRGINIA</option>
           <option>WISCONSIN</option><option>WYOMING</option>
         </select>
-        <input class="mf-input" id="f-city" type="text" placeholder="🏙️ Cidade ou região — ex.: Martha´s Vineyard, Key West…" oninput="mfOnChange()" style="border-color:rgba(124,58,237,.45)">
+        <input class="mf-input" id="f-city" type="text" data-i18n-ph="f_city_ph" placeholder="🏙️ Cidade ou região — ex.: Martha´s Vineyard, Key West…" oninput="mfOnChange()" style="border-color:rgba(124,58,237,.45)">
       </div>
 
       <!-- SALÁRIO E VAGAS -->
@@ -5194,7 +5194,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <input type="hidden" id="pe-icon" value="🎯">
 
         <div class="field">
-          <label>Descrição <span style="color:var(--t3);font-weight:400">(opcional)</span></label>
+          <label>Descrição <span style="color:var(--t3);font-weight:400" data-i18n="optional_lbl">(opcional)</span></label>
           <input class="input" id="pe-desc" placeholder="Ex: Perfil para vagas de paisagismo no verão">
         </div>
 
@@ -5498,19 +5498,19 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       </div>
       <!-- Contador -->
       <div style="margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span id="m-lim-lbl">Envios manuais hoje</span><span id="m-lim-num" style="font-weight:700"></span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px"><span id="m-lim-lbl" data-i18n="manual_today">Envios manuais hoje</span><span id="m-lim-num" style="font-weight:700"></span></div>
         <div class="lbar-bg"><div class="lbar-fill" id="m-lbar"></div></div>
       </div>
       <!-- Aviso de erro — no topo para sempre ficar visível -->
       <div id="m-sender-box" style="display:none;margin-bottom:8px">
-        <label style="font-size:11px;font-weight:700;color:var(--t2);display:block;margin-bottom:4px">📧 Enviar por</label>
+        <label style="font-size:11px;font-weight:700;color:var(--t2);display:block;margin-bottom:4px" data-i18n="send_by">📧 Enviar por</label>
         <select class="input" id="m-sender" style="font-size:12.5px"></select>
       </div>
       <div id="m-warn"></div>
       <!-- Perfil -->
       <div class="field">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
-          <label style="margin:0">📋 Perfil de envio</label>
+          <label style="margin:0" data-i18n="send_profile">📋 Perfil de envio</label>
           <span style="font-size:11px;color:var(--blue);cursor:pointer;font-weight:600" onclick="closeModal();sv('profile')">+ Criar perfil</span>
         </div>
         <div id="m-profile-slots"></div>
@@ -5520,12 +5520,12 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <input type="hidden" id="m-subj">
       <textarea id="m-body" style="display:none"></textarea>
       <div class="field">
-        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><label style="margin:0">📄 Currículo</label><span style="font-size:11px;color:var(--blue);cursor:pointer" onclick="closeModal();sv('profile')">+ Adicionar</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><label style="margin:0" data-i18n="resume_lbl">📄 Currículo</label><span style="font-size:11px;color:var(--blue);cursor:pointer" onclick="closeModal();sv('profile')" data-i18n="add_new">+ Adicionar</span></div>
         <div id="m-res-slots"></div>
       </div>
       <div class="field">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-          <label style="margin:0">📝 Cover Letter <span style="color:var(--t3);font-weight:400">(opcional)</span></label>
+          <label style="margin:0">📝 Cover Letter <span style="color:var(--t3);font-weight:400" data-i18n="optional_lbl">(opcional)</span></label>
           <!-- v22 (ordem do dono): botão "IA gera" removido — era template fixo escrevendo a candidatura pelo usuário -->
 
         </div>
@@ -5534,9 +5534,9 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
     </div>
     <div id="m-cd-pill" style="padding:4px 18px 0;font-size:11.5px;color:var(--t3);cursor:pointer;display:flex;align-items:center;gap:5px" onclick="manualCdModal()"></div>
     <div class="mfoot">
-      <div style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--t2)" id="m-sending"><span class="spin spin-sm"></span>Enviando...</div>
+      <div style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--t2)" id="m-sending"><span class="spin spin-sm"></span><span data-i18n="sending">Enviando...</span></div>
       <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-primary" id="m-send" onclick="doSend()"><i class="ti ti-send"></i> Enviar</button>
+      <button class="btn btn-primary" id="m-send" onclick="doSend()"><i class="ti ti-send"></i> <span data-i18n="send_btn">Enviar</span></button>
     </div>
   </div>
 </div>

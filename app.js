@@ -2240,7 +2240,7 @@ async function openModal(jobId){
   }catch(e){}
   const pct=Math.min(100,Math.round((U.todaySentManual/U.manualLimit)*100));
   const col=pct>=80?"var(--red)":pct>=60?"var(--amber)":"var(--green)";
-  g("#m-lim-lbl").textContent="Envios manuais hoje";
+  g("#m-lim-lbl").textContent=t('manual_today');
   g("#m-lim-num").textContent=`${U.todaySentManual}/${U.manualLimit}`;
   g("#m-lbar").style.cssText=`width:${pct}%;background:${col}`;
   buildModalProfileSlots(j);
@@ -4209,7 +4209,7 @@ function openModalFromHist(jobJSON,tituloModal){ // v126: título opcional (Vaga
     g("#m-warn").innerHTML="";
     const pct=Math.min(100,Math.round((U.todaySentManual/U.manualLimit)*100));
     const col=pct>=80?"var(--red)":pct>=60?"var(--amber)":"var(--green)";
-    g("#m-lim-lbl").textContent="Envios manuais hoje";g("#m-lim-num").textContent=`${U.todaySentManual}/${U.manualLimit}`;
+    g("#m-lim-lbl").textContent=t('manual_today');g("#m-lim-num").textContent=`${U.todaySentManual}/${U.manualLimit}`;
     g("#m-lbar").style.cssText=`width:${pct}%;background:${col}`;
     buildCvSlots();
     /* v22: ai-btn removido */
@@ -10606,6 +10606,12 @@ const LANG_DICT = {
     "all_states":"Todos estados","salary":"Salário","qty_jobs":"Qtd vagas",
     // v119: sugestões instantâneas da busca
     "sug_companies":"Empresas","sug_roles":"Cargos","sug_cities":"Cidades","sug_regions":"Regiões","sug_states":"Estados","sug_jobs":"vagas",
+    // 🌐 Etapa 2 do i18n — Vagas/Pesquisa/modal de envio
+    "sort_rand":"🔀 Aleatório","sort_match":"🎯 Melhor pra mim","sort_wage":"💰 Maior salário","sort_start":"🗓️ Começa logo","sort_recent":"Recentes",
+    "q_ph":"Cargo, empresa...","q_state_ph":"📍 Estado…","q_city_ph":"🏙️ Cidade…","f_city_ph":"🏙️ Cidade ou região — ex.: Martha´s Vineyard, Key West…",
+    "manual_today":"Envios manuais hoje","send_by":"📧 Enviar por","send_profile":"📋 Perfil de envio","resume_lbl":"📄 Currículo",
+    "cancel":"Cancelar","send_btn":"Enviar","sending":"Enviando...","optional_lbl":"(opcional)","add_new":"+ Adicionar",
+    "logs_auto_title":"📋 Logs do Envio Automático","logs_auto_sub":"Histórico completo de todos os envios automáticos",
     // 🌐 Etapa 1 do i18n profissional (12/08)
     "home_welcome":"Bem-vindo(a) de volta! Pronto para enviar muitas candidaturas hoje?",
     "manual_send_title":"Envio Manual","manual_send_sub":"Busque vagas e envie candidaturas agora",
@@ -10708,6 +10714,11 @@ const LANG_DICT = {
     "roi_calc":"Results Calculator","roi_if":"If only 1% of companies reply positively:","roi_cta":"Just 1 company confirms → you're in the USA ✈️",
     "all_states":"All states","salary":"Salary","qty_jobs":"# Positions",
     "sug_companies":"Companies","sug_roles":"Job titles","sug_cities":"Cities","sug_regions":"Regions","sug_states":"States","sug_jobs":"jobs",
+    "sort_rand":"🔀 Random","sort_match":"🎯 Best for me","sort_wage":"💰 Highest pay","sort_start":"🗓️ Starts soon","sort_recent":"Recent",
+    "q_ph":"Job title, company...","q_state_ph":"📍 State…","q_city_ph":"🏙️ City…","f_city_ph":"🏙️ City or region — e.g. Martha´s Vineyard, Key West…",
+    "manual_today":"Manual sends today","send_by":"📧 Send from","send_profile":"📋 Sending profile","resume_lbl":"📄 Resume",
+    "cancel":"Cancel","send_btn":"Send","sending":"Sending...","optional_lbl":"(optional)","add_new":"+ Add",
+    "logs_auto_title":"📋 Auto Send Logs","logs_auto_sub":"Full history of every automatic send",
     "home_welcome":"Welcome back! Ready to send lots of applications today?",
     "manual_send_title":"Manual Send","manual_send_sub":"Find jobs and apply right now",
     "inicio":"Home","auto_send":"Auto Send","manual_send":"Manual Send",
@@ -10795,6 +10806,11 @@ const LANG_DICT = {
     "roi_calc":"Calculadora de Resultados","roi_if":"Si solo el 1% de las empresas responde positivamente:","roi_cta":"¡Solo 1 empresa confirma → estás en los EUA! ✈️",
     "all_states":"Todos los estados","salary":"Salario","qty_jobs":"# Puestos",
     "sug_companies":"Empresas","sug_roles":"Puestos","sug_cities":"Ciudades","sug_regions":"Regiones","sug_states":"Estados","sug_jobs":"empleos",
+    "sort_rand":"🔀 Aleatorio","sort_match":"🎯 Mejor para mí","sort_wage":"💰 Mayor salario","sort_start":"🗓️ Empieza pronto","sort_recent":"Recientes",
+    "q_ph":"Puesto, empresa...","q_state_ph":"📍 Estado…","q_city_ph":"🏙️ Ciudad…","f_city_ph":"🏙️ Ciudad o región — ej.: Martha´s Vineyard, Key West…",
+    "manual_today":"Envíos manuales hoy","send_by":"📧 Enviar desde","send_profile":"📋 Perfil de envío","resume_lbl":"📄 Currículum",
+    "cancel":"Cancelar","send_btn":"Enviar","sending":"Enviando...","optional_lbl":"(opcional)","add_new":"+ Añadir",
+    "logs_auto_title":"📋 Registros del Envío Automático","logs_auto_sub":"Historial completo de todos los envíos automáticos",
     "home_welcome":"¡Bienvenido(a) de nuevo! ¿Listo para enviar muchas postulaciones hoy?",
     "manual_send_title":"Envío Manual","manual_send_sub":"Busca empleos y postúlate ahora",
     "inicio":"Inicio","auto_send":"Envío Automático","manual_send":"Envío Manual",
