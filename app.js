@@ -7402,7 +7402,7 @@ function renderHome(){
 
   // Saudação por hora
   const hr=new Date().getHours();
-  const gr=hr>=6&&hr<12?"👋 Bom dia,":hr>=12&&hr<18?"👋 Boa tarde,":hr>=18?"👋 Boa noite,":"👋 Madrugada,";
+  const gr=hr>=6&&hr<12?t('greet_m'):hr>=12&&hr<18?t('greet_t'):hr>=18?t('greet_n'):t('greet_d'); // 🌐 Etapa 1
   const gEl=g("#home-greeting");const nEl=g("#home-name");
   if(gEl)gEl.textContent=gr;
   if(nEl)nEl.textContent=U.name||U.email||"–";
@@ -10606,6 +10606,13 @@ const LANG_DICT = {
     "all_states":"Todos estados","salary":"Salário","qty_jobs":"Qtd vagas",
     // v119: sugestões instantâneas da busca
     "sug_companies":"Empresas","sug_roles":"Cargos","sug_cities":"Cidades","sug_regions":"Regiões","sug_states":"Estados","sug_jobs":"vagas",
+    // 🌐 Etapa 1 do i18n profissional (12/08)
+    "home_welcome":"Bem-vindo(a) de volta! Pronto para enviar muitas candidaturas hoje?",
+    "manual_send_title":"Envio Manual","manual_send_sub":"Busque vagas e envie candidaturas agora",
+    "inicio":"Início","auto_send":"Envio Automático","manual_send":"Envio Manual",
+    "news_h2b":"Notícias H-2B","sent_tab":"Enviadas","download_app":"Baixar App","menu_lbl":"MENU",
+    "hist_short":"Enviadas","saved_short":"Salvas",
+    "greet_m":"👋 Bom dia,","greet_t":"👋 Boa tarde,","greet_n":"👋 Boa noite,","greet_d":"👋 Madrugada,",
     // v126: aba Vagas Salvas
     "saved_jobs":"Vagas Salvas","saved_ok":"Vaga salva!","saved_removed":"Removida das salvas",
     "saved_empty":"Nenhuma vaga salva","saved_empty_sub":"Toque no 🔖 de qualquer vaga para guardá-la aqui",
@@ -10701,6 +10708,12 @@ const LANG_DICT = {
     "roi_calc":"Results Calculator","roi_if":"If only 1% of companies reply positively:","roi_cta":"Just 1 company confirms → you're in the USA ✈️",
     "all_states":"All states","salary":"Salary","qty_jobs":"# Positions",
     "sug_companies":"Companies","sug_roles":"Job titles","sug_cities":"Cities","sug_regions":"Regions","sug_states":"States","sug_jobs":"jobs",
+    "home_welcome":"Welcome back! Ready to send lots of applications today?",
+    "manual_send_title":"Manual Send","manual_send_sub":"Find jobs and apply right now",
+    "inicio":"Home","auto_send":"Auto Send","manual_send":"Manual Send",
+    "news_h2b":"H-2B News","sent_tab":"Sent","download_app":"Get the App","menu_lbl":"MENU",
+    "hist_short":"Sent","saved_short":"Saved",
+    "greet_m":"👋 Good morning,","greet_t":"👋 Good afternoon,","greet_n":"👋 Good evening,","greet_d":"👋 Late night,",
     "saved_jobs":"Saved Jobs","saved_ok":"Job saved!","saved_removed":"Removed from saved",
     "saved_empty":"No saved jobs","saved_empty_sub":"Tap the 🔖 on any job to keep it here",
     "saved_remove":"Remove from saved","saved_already_sent":"already sent","saved_no_email":"This job has no email — open the DOL link",
@@ -10782,6 +10795,12 @@ const LANG_DICT = {
     "roi_calc":"Calculadora de Resultados","roi_if":"Si solo el 1% de las empresas responde positivamente:","roi_cta":"¡Solo 1 empresa confirma → estás en los EUA! ✈️",
     "all_states":"Todos los estados","salary":"Salario","qty_jobs":"# Puestos",
     "sug_companies":"Empresas","sug_roles":"Puestos","sug_cities":"Ciudades","sug_regions":"Regiones","sug_states":"Estados","sug_jobs":"empleos",
+    "home_welcome":"¡Bienvenido(a) de nuevo! ¿Listo para enviar muchas postulaciones hoy?",
+    "manual_send_title":"Envío Manual","manual_send_sub":"Busca empleos y postúlate ahora",
+    "inicio":"Inicio","auto_send":"Envío Automático","manual_send":"Envío Manual",
+    "news_h2b":"Noticias H-2B","sent_tab":"Enviadas","download_app":"Descargar App","menu_lbl":"MENÚ",
+    "hist_short":"Enviadas","saved_short":"Guardadas",
+    "greet_m":"👋 Buenos días,","greet_t":"👋 Buenas tardes,","greet_n":"👋 Buenas noches,","greet_d":"👋 Madrugada,",
     "saved_jobs":"Empleos Guardados","saved_ok":"¡Empleo guardado!","saved_removed":"Quitado de guardados",
     "saved_empty":"Ningún empleo guardado","saved_empty_sub":"Toca el 🔖 de cualquier empleo para guardarlo aquí",
     "saved_remove":"Quitar de guardados","saved_already_sent":"ya enviada","saved_no_email":"Este empleo no tiene email — abre el enlace del DOL",
@@ -10866,6 +10885,11 @@ function setAppLang(lang){
   if(!LANG_DICT[lang]) return;
   _curLang = lang;
   try{localStorage.setItem('h2b_lang',lang);}catch{}
+  // 🌐 Etapa 1 (BUG REAL achado no E2E): sem gravar no servidor, o boot
+  // seguinte lia language:"pt-BR" da conta e DESFAZIA a escolha de quem
+  // mudou pra EN/ES. Agora a escolha vale em todos os aparelhos e sobrevive
+  // ao reload — o boot (d.language) passa a devolver exatamente ela.
+  fetch("/api/settings",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({language:lang})}).catch(()=>{});
   applyLang();
   toggleLangMenu(true); // close menu
 }
@@ -10876,6 +10900,15 @@ function applyLang(){
   // Lang button
   const lbl=document.getElementById('lang-label');
   if(lbl) lbl.textContent=_curLang.toUpperCase();
+  const _fl=document.getElementById('lang-flag');
+  if(_fl)_fl.textContent=({pt:"🇧🇷",en:"🇺🇸",es:"🇲🇽"})[_curLang]||"🇧🇷";
+  // 🌐 Etapa 1 do i18n profissional (dono, 12/08): VARREDURA AUTOMÁTICA —
+  // qualquer elemento com data-i18n / data-i18n-ph / data-i18n-title é
+  // traduzido sozinho pelo dicionário. Nunca mais depender de lista manual
+  // de elementos; marcou no HTML, traduziu. (t() cai no PT se faltar chave.)
+  document.querySelectorAll("[data-i18n]").forEach(el=>{const v=t(el.getAttribute("data-i18n"));if(v)el.innerHTML=v;});
+  document.querySelectorAll("[data-i18n-ph]").forEach(el=>{const v=t(el.getAttribute("data-i18n-ph"));if(v)el.placeholder=v;});
+  document.querySelectorAll("[data-i18n-title]").forEach(el=>{const v=t(el.getAttribute("data-i18n-title"));if(v){el.title=v;el.setAttribute("aria-label",v);}});
   document.querySelectorAll('.lang-opt').forEach(b=>b.classList.toggle('active',b.dataset.lang===_curLang));
 
   // ── BOTTOM NAV ──
@@ -10888,6 +10921,16 @@ function applyLang(){
   // ── SIDEBAR ──
   _sbItem('si-saved',t('saved_jobs')); // v126
   _sbItem('si-notificacoes',t('notifications'));
+  // 🌐 Etapa 1: sidebar 100% coberta (itens que ficavam de fora)
+  _sbItem('si-home',t('inicio'));
+  // sb-auto-btn NÃO usa _sbItem (o pontinho verde não é .sb-badge e seria
+  // apagado) — o texto dele tem span data-i18n e o sweep acima cuida.
+  _sbItem('si-jobs',t('manual_send'));
+  _sbItem('si-ranking',t('ranking'));
+  _sbItem('si-noticias',t('news_h2b'));
+  _sbItem('si-hist',t('sent_tab'));
+  _sbItem('si-app',t('download_app'));
+  _sbItem('si-menu',t('menu_lbl'));
   _sbItem('si-plans',t('plans'));
   _sbItem('si-profile',t('profile'));
   _sbItem('si-cvs',t('profiles'));

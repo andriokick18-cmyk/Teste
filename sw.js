@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v90"; // v90 (12/08): aba 🔖 Vagas Salvas de verdade (v126) — entrada na sidebar, vaga salva guarda snapshot no servidor (aparece mesmo meses depois), salvos antigos curados sozinhos, botão de remover, e o 🔖 agora existe também nos cards das planilhas.
+const CACHE_NAME = "h2bapply-v91"; // v91 (12/08): i18n profissional Etapa 1 (v127) — seletor de idioma com bandeiras grandes 🇧🇷🇺🇸🇲🇽, motor novo de tradução automática (data-i18n), Home/sidebar/gaveta 100% nas 3 línguas e guarda de teste que proíbe chave sem tradução.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

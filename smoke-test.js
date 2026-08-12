@@ -466,6 +466,22 @@ async function testAuthWatchdogPush() {
     check("🔎 v119: sugestões instantâneas da busca — dropdown no HTML, handlers no JS e rótulos no dicionário (PT+EN)",
       _v119Front, "id=q-sug, qSugInput/Pick/Key, _lugaresData ou chaves sug_* não encontrados");
 
+    // 🌐 i18n Etapa 1 (dono, 12/08 — "profissionalizar TODO o sistema de
+    // tradução, sem falha nenhuma"): (a) GUARDA PERMANENTE — toda chave
+    // data-i18n usada no HTML precisa existir NAS 3 línguas do dicionário;
+    // faltou uma, o teste quebra (é o que garante "sem falhas" pra sempre,
+    // inclusive nas próximas etapas); (b) seletor com BANDEIRA grande;
+    // (c) motor de varredura automática data-i18n presente.
+    const _i18nKeys = [...home.body.matchAll(/data-i18n(?:-ph|-title)?="([a-z_0-9]+)"/g)].map((m) => m[1]);
+    const _dictOf = (lang) => { const i = appJs.body.indexOf(`  ${lang}: {`); const e = appJs.body.indexOf("\n  }", i); return appJs.body.slice(i, e); };
+    const _dPt = _dictOf("pt"), _dEn = _dictOf("en"), _dEs = _dictOf("es");
+    const _semTrad = [...new Set(_i18nKeys)].filter((k) => !(_dPt.includes(`"${k}":`) && _dEn.includes(`"${k}":`) && _dEs.includes(`"${k}":`)));
+    check("🌐 i18n-1: TODA chave data-i18n do HTML existe em PT+EN+ES (guarda permanente contra buraco de tradução)",
+      _i18nKeys.length >= 8 && _semTrad.length === 0, `chaves=${_i18nKeys.length} faltando=[${_semTrad.join(",")}]`);
+    check("🌐 i18n-1: seletor de idioma com BANDEIRAS grandes + motor de varredura data-i18n",
+      home.body.includes('id="lang-flag"') && home.body.includes("🇺🇸") && frontAll.includes('querySelectorAll("[data-i18n]")'),
+      "lang-flag, bandeiras ou sweep data-i18n não encontrados");
+
     // 🔖 v126: a aba Vagas Salvas tem entrada VISÍVEL na sidebar, o card de
     // PLANILHA também tem o 🔖 (antes só a Seasonal tinha), e a lista vem
     // dos snapshots do servidor (não mais do filtro da página carregada).

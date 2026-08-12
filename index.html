@@ -2709,11 +2709,11 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
     <!-- Direita: idioma + planos -->
     <div class="hdr-right" style="gap:8px">
       <!-- Idioma -->
-      <button id="lang-btn" onclick="toggleLangMenu()" title="Idioma" style="background:var(--sf2);border:1.5px solid var(--border);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;flex-shrink:0"><i class="ti ti-language" style="font-size:13px"></i><span id="lang-label">PT</span></button>
-      <div id="lang-menu" style="display:none;position:absolute;top:56px;right:100px;background:var(--surface);border:1.5px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:300;min-width:160px;overflow:hidden">
-        <button onclick="setAppLang('pt')" class="lang-opt" data-lang="pt">🇧🇷 Português</button>
-        <button onclick="setAppLang('en')" class="lang-opt" data-lang="en">🇺🇸 English</button>
-        <button onclick="setAppLang('es')" class="lang-opt" data-lang="es">🇲🇽 Español</button>
+      <button id="lang-btn" onclick="toggleLangMenu()" title="Idioma / Language / Idioma" aria-label="Mudar idioma" style="background:var(--sf2);border:1.5px solid var(--border);border-radius:20px;padding:3px 10px 3px 6px;font-size:12px;font-weight:800;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit;flex-shrink:0"><span id="lang-flag" style="font-size:20px;line-height:1">🇧🇷</span><span id="lang-label">PT</span><i class="ti ti-chevron-down" style="font-size:11px"></i></button>
+      <div id="lang-menu" style="display:none;position:absolute;top:56px;right:100px;background:var(--surface);border:1.5px solid var(--border);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:300;min-width:200px;overflow:hidden">
+        <button onclick="setAppLang('pt')" class="lang-opt" data-lang="pt"><span style="font-size:22px;vertical-align:middle;margin-right:8px">🇧🇷</span>Português</button>
+        <button onclick="setAppLang('en')" class="lang-opt" data-lang="en"><span style="font-size:22px;vertical-align:middle;margin-right:8px">🇺🇸</span>English</button>
+        <button onclick="setAppLang('es')" class="lang-opt" data-lang="es"><span style="font-size:22px;vertical-align:middle;margin-right:8px">🇲🇽</span>Español</button>
       </div>
       <!-- Botão Planos — destaque -->
       <button id="hdr-plans-btn" onclick="sv('plans')" style="display:none;align-items:center;gap:5px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:20px;padding:6px 13px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">
@@ -2735,7 +2735,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <button class="sb-item" id="si-profile" onclick="sv('profile')"><i class="ti ti-user"></i>Meu Perfil</button>
         <!-- v96: acesso DIRETO ao editor de perfis H2B/H2A (dono: "a pessoa não acha o botão de editar currículos") -->
         <button class="sb-item" id="si-cvs" onclick="sv('profile');setTimeout(()=>{if(typeof switchProfileTab==='function')switchProfileTab('profiles')},120)"><i class="ti ti-file-cv"></i>Currículos</button>
-        <button class="sb-item" id="sb-auto-btn" onclick="openAutoModal()"><i class="ti ti-robot"></i>Envio Automático<span id="sb-auto-dot" style="display:none;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid var(--surface);animation:pulseDot 2s infinite;flex-shrink:0;margin-left:auto"></span></button>
+        <button class="sb-item" id="sb-auto-btn" onclick="openAutoModal()"><i class="ti ti-robot"></i><span data-i18n="auto_send">Envio Automático</span><span id="sb-auto-dot" style="display:none;width:10px;height:10px;border-radius:50%;background:#4ade80;border:2px solid var(--surface);animation:pulseDot 2s infinite;flex-shrink:0;margin-left:auto"></span></button>
         <button class="sb-item" id="si-jobs" onclick="sv('jobs')"><i class="ti ti-send"></i>Envio Manual<span class="sb-badge sb-badge-b" id="sib-jobs" style="display:none"></span></button>
         <button class="sb-item" id="si-ranking" onclick="sv('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
         <button class="sb-item" id="si-plans" onclick="sv('plans')"><i class="ti ti-diamond"></i>Planos</button>
@@ -2839,7 +2839,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 </div>
                 <div class="home-name" id="home-name" style="font-size:24px;font-weight:900;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:9px">–</div>
                 <div class="home-plan-row" id="home-plan-row" style="margin-bottom:11px"></div>
-                <div id="home-hero-status" style="font-size:12.5px;color:rgba(255,255,255,.78);line-height:1.5">Bem-vindo(a) de volta! Pronto para enviar muitas candidaturas hoje?</div>
+                <div id="home-hero-status" data-i18n="home_welcome" style="font-size:12.5px;color:rgba(255,255,255,.78);line-height:1.5">Bem-vindo(a) de volta! Pronto para enviar muitas candidaturas hoje?</div>
               </div>
             </div>
           </div>
@@ -2865,8 +2865,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 <div style="display:flex;align-items:center;gap:13px">
                   <div style="width:50px;height:50px;border-radius:14px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.28);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:26px">📤</div>
                   <div style="flex:1;min-width:0">
-                    <div style="font-size:15.5px;font-weight:900;color:#fff">Envio Manual</div>
-                    <div style="font-size:11.5px;color:rgba(255,255,255,.82);margin-top:3px;line-height:1.4">Busque vagas e envie candidaturas agora</div>
+                    <div style="font-size:15.5px;font-weight:900;color:#fff" data-i18n="manual_send_title">Envio Manual</div>
+                    <div style="font-size:11.5px;color:rgba(255,255,255,.82);margin-top:3px;line-height:1.4" data-i18n="manual_send_sub">Busque vagas e envie candidaturas agora</div>
                   </div>
                   <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;flex-shrink:0">
                     <i class="ti ti-arrow-right" style="font-size:17px;color:#fff"></i>
@@ -5680,10 +5680,10 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
     <div style="padding:12px 12px 8px">
       <div style="font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Atalhos Rápidos</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button onclick="closeDrawer();sv('home')" class="d-quick-btn"><i class="ti ti-home-2" style="color:#4f46e5"></i><span>Home</span></button>
-        <button onclick="closeDrawer();sv('ranking')" class="d-quick-btn"><i class="ti ti-trophy" style="color:#f59e0b"></i><span>Ranking</span></button>
-        <button onclick="closeDrawer();sv('hist')" class="d-quick-btn"><i class="ti ti-history" style="color:#059669"></i><span>Enviadas</span></button>
-        <button onclick="closeDrawer();sv('saved')" class="d-quick-btn"><i class="ti ti-bookmark" style="color:#e11d48"></i><span>Salvas</span></button>
+        <button onclick="closeDrawer();sv('home')" class="d-quick-btn"><i class="ti ti-home-2" style="color:#4f46e5"></i><span data-i18n="home">Home</span></button>
+        <button onclick="closeDrawer();sv('ranking')" class="d-quick-btn"><i class="ti ti-trophy" style="color:#f59e0b"></i><span data-i18n="ranking">Ranking</span></button>
+        <button onclick="closeDrawer();sv('hist')" class="d-quick-btn"><i class="ti ti-history" style="color:#059669"></i><span data-i18n="hist_short">Enviadas</span></button>
+        <button onclick="closeDrawer();sv('saved')" class="d-quick-btn"><i class="ti ti-bookmark" style="color:#e11d48"></i><span data-i18n="saved_short">Salvas</span></button>
         <button onclick="closeDrawer();sv('noticias');loadNoticias()" class="d-quick-btn"><i class="ti ti-news" style="color:#1e40af"></i><span>Notícias H-2B</span><span id="noticias-new-badge" style="display:none;background:var(--red);color:#fff;font-size:9px;font-weight:800;padding:1px 6px;border-radius:99px;margin-left:4px">NOVA</span></button>
         <!-- v99: atalho Currículos no drawer (mesma queixa do dono: "não acham o editor") — e fecha a linha órfã do grid de 5 -->
         <button onclick="closeDrawer();sv('profile');setTimeout(()=>{if(typeof switchProfileTab==='function')switchProfileTab('profiles')},120)" class="d-quick-btn"><i class="ti ti-file-cv" style="color:#7c3aed"></i><span>Currículos</span></button>
