@@ -4723,6 +4723,27 @@ function scheduleAuto(email) {
   doAutoSend(email);
 }
 
+// ⏫ v125 (BUG REAL, print do dono 12/08: cliente ativou VIPro às 09:58 e o
+// robô ficou "Limite diário atingido 10/100 — retoma em 14h"): quando o
+// usuário bateu o limite do plano ANTIGO e DEPOIS ativou/melhorou o plano,
+// o timer de "espera a meia-noite" não ficava sabendo do upgrade — pagante
+// esperando por um limite que não existe mais. Toda ativação de plano
+// (troca 💎, upgrade, set-plan do admin, código) chama isto: se o robô está
+// dormindo por limite (waiting_limit — e SÓ nesse estado, nunca mexe no
+// ritmo de 7min de quem está enviando), acorda AGORA; o scheduleAuto
+// recalcula o limite do zero e, se ainda estiver estourado (ex.: renovou o
+// mesmo plano), simplesmente re-agenda a meia-noite — idempotente.
+function acordarRoboAposPlano(email){
+  try{
+    const j=getAutoJob(email);
+    if(!j||!j.active||j.status!=="waiting_limit")return;
+    if(autoTimers.has(email)){clearTimeout(autoTimers.get(email));autoTimers.delete(email);}
+    addLog(email,{status:"sistema",jobTitle:"⏫ Plano ativado — robô acordou na hora",company:"O limite novo já vale agora; o robô voltou a trabalhar sem esperar a meia-noite."});
+    console.log(`[auto] ⏫ ${email}: acordado após ativação de plano (estava waiting_limit)`);
+    scheduleAuto(email);
+  }catch(e){console.warn("[auto] acordarRoboAposPlano:",e.message);}
+}
+
 // ── Tipo de visto da vaga: 'h2a' | 'h2b' | null ─────────────────────────────
 // v19 (dono, 15/07/2026): a vaga manda no perfil. H-2A → perfil H-2A;
 // H-2B → perfil H-2B. Detecta pelo campo visa da vaga, senão pela planilha.
@@ -11217,6 +11238,7 @@ filtrar();
       const tgtFresh=getUser(email)||tgt;
       setUser(email,{plan,vip:{...(tgtFresh.vip||{}),active:plan!=='free',plan,source:'admin',activatedBy:s.user_email,...(plan!=='free'?{limits:limitesDoPlanoNovo(plan)}:{})}});
       logAdminAction(s.user_email,"set_plan",email,_audBefore,_vipSnapshot(getUser(email)),`Plano → ${plan}${plan!=='free'?" (+30d)":""}`);
+      if(plan!=='free')acordarRoboAposPlano(email); // v125: robô dormindo por limite antigo acorda já
       // 11/07 (caso Cleiton): plano foi ativado 3x e sumia após cada restart porque
       // o persist falhava em silêncio com o disco cheio. Agora VERIFICA a gravação
       // e grita para o admin — nunca mais falha silenciosa em dado de dinheiro.
@@ -11667,6 +11689,7 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
       trackJourney(s.user_email,'plan_activated',{detail:`Troca 💎: ${planoKey} ${dias}d por ${preco}`});
       ;(async()=>{try{await pushToUser(s.user_email,{type:"plan_activated",title:"🎉 Plano ativado!",body:`Troca feita: ${preco} 💎 → ${planoKey.toUpperCase()} por ${dias} dias. Bom envio!`,icon:"/icon-192.png"});}catch(e){}})();
       console.log(`[diamonds] 💎 troca: ${s.user_email} ${preco}💎 → ${planoKey} ${dias}d`);
+      acordarRoboAposPlano(s.user_email); // v125: robô dormindo por limite antigo acorda já
       return json(res,200,{ok:true,plano:planoKey,dias,preco,saldo:novo});
     }catch(e){return json(res,400,{error:"Dados inválidos: "+e.message});}
   }
@@ -11726,6 +11749,7 @@ ${pedido.criadoPor&&pedido.criadoPor!==pedido.userEmail?`\n🛠️ Registrado re
       trackJourney(s.user_email,'plan_upgraded',{detail:`${planoAtual}→${novoPlano} por ${diferenca}💎, dias preservados`});
       ;(async()=>{try{await pushToUser(s.user_email,{type:"plan_activated",title:"⬆️ Upgrade feito!",body:`Agora você é ${novoPlano.toUpperCase()}. Seus dias continuam os mesmos de antes — não reiniciaram.`,icon:"/icon-192.png"});}catch(e){}})();
       console.log(`[upgrade] ⬆️ ${s.user_email}: ${planoAtual}→${novoPlano} por ${diferenca}💎 (dias preservados, período=${dias}d)`);
+      acordarRoboAposPlano(s.user_email); // v125: robô dormindo por limite antigo acorda já
       return json(res,200,{ok:true,planoAnterior:planoAtual,planoNovo:novoPlano,diferenca,saldo:novoSaldo});
     }catch(e){return json(res,400,{error:"Dados inválidos: "+e.message});}
   }
@@ -15314,6 +15338,7 @@ Responda APENAS em JSON (sem markdown):
         persistCodes();
       } // remoto: o servidor de origem já marcou o uso
       console.log(`[codes] ${code} usado por ${s.user_email} manual:${c.manualDays}d auto:${c.autoDays}d${_codeRemoto?` (origem: Servidor ${_codeRemoto})`:""}`);
+      acordarRoboAposPlano(s.user_email); // v125: robô dormindo por limite antigo acorda já
       return json(res,200,{ok:true,manualDays:c.manualDays,autoDays:c.autoDays,manualExpiresDate:c.manualDays>0?new Date(manualExpires).toLocaleDateString("pt-BR"):null,autoExpiresDate:c.autoDays>0?new Date(autoExpires).toLocaleDateString("pt-BR"):null});
     }catch(e){return json(res,500,{error:e.message});}
   }
@@ -18445,6 +18470,26 @@ RESPONDA APENAS com array JSON:
   setInterval(()=>{
     _autoEnrichCycle().catch(e=>console.error("[auto-enrich] watchdog erro:",e.message));
   }, 30 * 60 * 1000);
+
+  // ⏰ v125b (mesmo incidente do print de 12/08): varredura anti-preso — a
+  // cada 10min, robô parado em waiting_limit com timer MORTO (deploy pegou o
+  // servidor no meio da espera) ou já ABAIXO do limite atual (plano melhorou,
+  // virada do dia perdida) volta pro agendador. scheduleAuto re-avalia tudo
+  // do zero (se ainda estiver no limite real, só re-arma a meia-noite), então
+  // a varredura é sempre segura — e o cliente preso se solta SOZINHO, sem
+  // precisar clicar em nada.
+  setInterval(()=>{try{
+    for(const [em,j] of Object.entries(DB_AUTO)){
+      if(!j?.active||j.status!=="waiting_limit")continue;
+      const p=getUser(em)||{};
+      const abaixo=countAutoToday(getHist(em))<(isAdminVip(p)?9999:getAutoLimit(p));
+      if(!autoTimers.has(em)||abaixo){
+        if(autoTimers.has(em)){clearTimeout(autoTimers.get(em));autoTimers.delete(em);}
+        console.log(`[auto] ⏰ sweep: ${em} em waiting_limit ${abaixo?"já ABAIXO do limite atual":"com timer morto"} — reagendado agora`);
+        scheduleAuto(em);
+      }
+    }
+  }catch(e){console.warn("[auto-sweep]",e.message);}}, 10*60_000);
 });
 
 // ══════════════════════════════════════════════════════════════════════════

@@ -121,6 +121,8 @@ for (let i = 0; i < 5000; i++) {
 // com VipPro pago ANTES da mudança (sem vip.limits carimbado). O contrato
 // dele é o da tabela ANTIGA (200/200) até expirar — nenhum pagante perde
 // nada — e o /api/status precisa AVISAR (planRulesNotice).
+// ⏫ v125: dono do robô que dorme em waiting_limit (fixture em auto_jobs.json)
+users["dormindo@test.com"] = { name: "Dormindo", plan: "free", cvs: [], profiles: [] };
 users["legadoplano@test.com"] = {
   name: "Legado Plano", plan: "vipro", cvs: [], profiles: [],
   vip: { manualExpires: Date.now() + 20 * 86400_000, autoExpires: Date.now() + 20 * 86400_000, days: 30, source: "pix", active: true },
@@ -141,6 +143,10 @@ fs.writeFileSync(path.join(DATA, "h2a_bimestral.json"), JSON.stringify({ lastKey
 // ("reiniciei — 0 vagas") nem bloquear — descarta o velho e inicia o novo.
 fs.writeFileSync(path.join(DATA, "auto_jobs.json"), JSON.stringify({
   "zumbi@test.com": { active: true, status: "sending", source: "manual", queue: [], originalCount: 7, startedAt: Date.now() - 3600_000, subjects: ["a"], emailBodies: ["b"] },
+  // ⏫ v125 (print do dono, 12/08): robô dormindo por LIMITE DO PLANO ANTIGO
+  // ("waiting_limit" até amanhã). Quando o plano novo for ativado, tem que
+  // ACORDAR na hora — nunca mais pagante esperando a meia-noite à toa.
+  "dormindo@test.com": { active: true, status: "waiting_limit", source: "manual", nextSendAt: Date.now() + 14 * 3600_000, queue: [{ to: "vaga@dormindo-test.com", title: "Cook", company: "Empresa D" }], originalCount: 5, startedAt: Date.now() - 7200_000, subjects: ["a"], emailBodies: ["b"] },
 }));
 const COOLDOWN_FIX_TS = Date.now();
 fs.writeFileSync(path.join(DATA, "history.json"), JSON.stringify({
@@ -662,6 +668,25 @@ async function testAuthWatchdogPush() {
       zSt.json?.job?.active === true && zSt.json?.job?.queueSize === 3,
       JSON.stringify(zSt.json?.job || {}));
     await req2("POST", "/api/auto/stop", {});
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", name: "Smoke", isAdmin: true });
+
+    // ═══ ⏫ v125 (print do dono, 12/08): plano ativado ACORDA o robô ═══
+    // dormindo@test.com está em waiting_limit até amanhã (limite do plano
+    // ANTIGO). Admin ativa VIPro → o robô tem que sair do waiting_limit NA
+    // HORA — nunca mais pagante esperando a meia-noite por limite que não
+    // existe mais.
+    const spDorm = await req2("POST", "/api/admin/set-plan", { email: "dormindo@test.com", plan: "vipro" });
+    await new Promise((r) => setTimeout(r, 500));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "dormindo@test.com" });
+    const dormSt = await get("/api/auto/status");
+    const _dj = dormSt.json?.job || {};
+    // O fixture não tem token do Gmail, então o envio imediato termina em
+    // paused_no_session — e isso é exatamente a PROVA do acordar: o robô saiu
+    // do waiting_limit e TENTOU enviar na hora (cliente real, com token,
+    // simplesmente envia). O que não pode é continuar waiting_limit.
+    check("⏫ v125: ativar plano novo tira o robô do waiting_limit na hora (sem esperar meia-noite)",
+      spDorm.json?.ok === true && _dj.status !== "waiting_limit",
+      JSON.stringify({ setPlan: spDorm.status, status: _dj.status, nextSendAt: _dj.nextSendAt }));
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", name: "Smoke", isAdmin: true });
 
     // v48: INCIDENTE REAL "vagas sumiram" — o fixture semeou /data com
