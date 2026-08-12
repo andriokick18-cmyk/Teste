@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v93"; // v93 (13/08): os 3 servidores viram UM negócio só (v129) — ranking e landing somam os 3 servidores automaticamente, e a contabilidade do admin mostra o total geral (entradas, pagantes, usuários, gastos e líquido dos 3 juntos).
+const CACHE_NAME = "h2bapply-v94"; // v94 (13/08): i18n Etapa 3 (v130) — Automático e Notificações nas 3 línguas + perfil do ranking de usuário de OUTRO servidor abre certo (revisão do v129: antes dava "não encontrado").
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

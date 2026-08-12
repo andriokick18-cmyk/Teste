@@ -15734,6 +15734,21 @@ Responda APENAS em JSON (sem markdown):
     for(const[email,user]of Object.entries(DB_USERS)){
       if(crypto.createHash("sha256").update(email).digest("hex").slice(0,16)===uid){found=user;foundEmail=email;break;}
     }
+    // 🌍 v129b (revisão do v129 — "veja se não esqueceu nada"): com o ranking
+    // global, o usuário clicado pode morar em OUTRO servidor — antes dava
+    // "não encontrado". Não achou local → pergunta aos irmãos (mesma rota
+    // pública, cache de 10min, fail-open).
+    if(!found&&u.searchParams.get("local")!=="1"&&!process.env.TEST_LOGIN_TOKEN){
+      const _selfId=_resolveServerId(req);
+      for(const sv of _getServersConfig()){
+        if(sv.id===_selfId||!sv.url)continue;
+        try{
+          // local=1 = anti-recursão (o irmão responde só o dele, nunca repergunta)
+          const pp=await _fetchPeerJson(sv.url,"/api/ranking/profile?local=1&uid="+encodeURIComponent(uid));
+          if(pp&&pp.ok!==false&&pp.name)return json(res,200,{...pp,serverId:sv.id});
+        }catch(e){/* fail-open */}
+      }
+    }
     if(!found||DB_RANK_HIDDEN[foundEmail])return json(res,404,{error:"Usuário não encontrado"});
     const h=getHist(foundEmail);
     const totS=h.filter(e=>e.type!=="reply").length;

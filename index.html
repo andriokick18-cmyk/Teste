@@ -3082,7 +3082,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
           <div style="font-size:18px;font-weight:800">Candidaturas Enviadas</div>
           <div style="display:flex;gap:6px;align-items:center">
-            <button class="fbtn on" id="ht-all"    onclick="setHistTab('all')"><span id="htab-lbl-all">Todas</span></button>
+            <button class="fbtn on" id="ht-all"    onclick="setHistTab('all')"><span id="htab-lbl-all" data-i18n="all_f">Todas</span></button>
             <button class="fbtn"    id="ht-manual" onclick="setHistTab('manual')"><span id="htab-lbl-manual">Manual</span></button>
             <button class="fbtn"    id="ht-auto"   onclick="setHistTab('auto')"><span id="htab-lbl-auto">🤖 Auto</span></button>
             <button class="btn btn-secondary btn-sm" onclick="confirmClearHist()" title="Resetar — vagas voltam para a lista" style="padding:5px 11px;font-size:12px;border-color:var(--amber);color:var(--amber)"><i class="ti ti-refresh"></i> Reset</button>
@@ -3798,7 +3798,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <div class="auto-hero" style="position:relative">
           <button onclick="closeAutoModal()" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,.28);border:1.5px solid rgba(255,255,255,.5);box-shadow:0 2px 10px rgba(0,0,0,.25);border-radius:50%;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;z-index:2" title="Fechar / Voltar"><i class="ti ti-x" style="font-size:18px"></i></button>
           <div class="auto-hero-title"><i class="ti ti-robot"></i> Envio Automático</div>
-          <div class="auto-hero-sub">Configure uma vez. O sistema envia enquanto você trabalha.</div>
+          <div class="auto-hero-sub" data-i18n="auto_cfg_sub">Configure uma vez. O sistema envia enquanto você trabalha.</div>
           <span class="auto-free-note" id="auto-free-note-lbl"><i class="ti ti-gift"></i> 10 envios GRÁTIS/dia para todos!</span>
         </div>
         <div class="view-scroll" style="background:var(--bg)">
@@ -3839,13 +3839,13 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 <div class="auto-dashboard" style="margin-bottom:14px">
                   <div class="auto-dash-box"><div class="auto-dash-val" id="dash-sent" style="color:var(--green)">0</div><div class="auto-dash-lbl">Enviados</div></div>
                   <div class="auto-dash-box"><div class="auto-dash-val" id="dash-failed" style="color:var(--red)">0</div><div class="auto-dash-lbl">Falhas</div></div>
-                  <div class="auto-dash-box"><div class="auto-dash-val" id="dash-queue">–</div><div class="auto-dash-lbl">Na fila</div></div>
-                  <div class="auto-dash-box"><div class="auto-dash-val" id="dash-limit">–</div><div class="auto-dash-lbl" id="dash-limit-lbl">Limite diário</div></div>
+                  <div class="auto-dash-box"><div class="auto-dash-val" id="dash-queue">–</div><div class="auto-dash-lbl" data-i18n="in_queue">Na fila</div></div>
+                  <div class="auto-dash-box"><div class="auto-dash-val" id="dash-limit">–</div><div class="auto-dash-lbl" id="dash-limit-lbl" data-i18n="daily_limit">Limite diário</div></div>
                 </div>
                 <!-- Progress -->
                 <div>
                   <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:5px">
-                    <span style="font-weight:600">Progresso da fila</span>
+                    <span style="font-weight:600" data-i18n="queue_progress">Progresso da fila</span>
                     <span id="dash-pct" style="font-weight:800;color:var(--blue)">0%</span>
                   </div>
                   <div class="auto-prog-bg" style="height:10px"><div class="auto-prog-fill" id="dash-prog" style="width:0%;height:100%"></div></div>
@@ -3875,7 +3875,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               <button class="btn btn-secondary btn-sm" onclick="sv('logs')"><i class="ti ti-list-details"></i> Ver logs</button>
             </div>
             <!-- Recent logs preview -->
-            <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Últimos envios</div>
+            <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px" data-i18n="last_sends">Últimos envios</div>
             <div id="auto-log-chips" style="display:none;flex-wrap:wrap;gap:5px;margin-bottom:8px"></div>
             <div id="auto-recent-logs" style="background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:14px"></div>
           </div>
@@ -3886,7 +3886,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div class="wizard-step" id="ws-1">
               <div class="wizard-step-hdr">
                 <div class="wizard-step-n active" id="ws-n-1">1</div>
-                <div><div class="wizard-step-title">Escolha a fonte das vagas</div><div class="wizard-step-sub" id="ws-sub-1">Selecione de onde puxar as vagas</div></div>
+                <div><div class="wizard-step-title" data-i18n="auto_src_title">Escolha a fonte das vagas</div><div class="wizard-step-sub" id="ws-sub-1" data-i18n="auto_src_sub">Selecione de onde puxar as vagas</div></div>
               </div>
               <div class="source-btns" id="source-btns">
                 <button class="source-btn" data-src="jan2026" onclick="selectSource('jan2026')">
@@ -3946,7 +3946,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div class="wizard-step locked" id="ws-25">
               <div class="wizard-step-hdr">
                 <div class="wizard-step-n" id="ws-n-25">3</div>
-                <div><div class="wizard-step-title">Qual currículo usar?</div><div class="wizard-step-sub">Os e-mails sairão com o currículo e os textos deste perfil</div></div>
+                <div><div class="wizard-step-title" data-i18n="auto_cv_title">Qual currículo usar?</div><div class="wizard-step-sub" data-i18n="auto_cv_sub">Os e-mails sairão com o currículo e os textos deste perfil</div></div>
               </div>
               <div id="auto-profile-cards" style="display:flex;flex-direction:column;gap:6px"></div>
             </div>
@@ -3964,7 +3964,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               <div style="font-size:11px;color:var(--t2);text-align:center;margin-bottom:12px;line-height:1.5">Os e-mails sairão com o currículo e os textos do perfil escolhido no Passo 3 — assuntos e corpos alternam automaticamente contra spam.</div>
               <button class="auto-start-mega" id="auto-start-btn" onclick="openPreflightModal()">
                 <i class="ti ti-rocket" style="font-size:22px"></i>
-                <span>🤖 Começar Envio Automático</span>
+                <span data-i18n="auto_start_btn">🤖 Começar Envio Automático</span>
               </button>
               <div style="text-align:center;margin-top:10px">
                 <button onclick="confirmResetAuto()" style="background:none;border:none;color:var(--t3);font-size:11.5px;font-weight:700;cursor:pointer;text-decoration:underline;font-family:inherit"><i class="ti ti-refresh"></i> O automático zerou a fila? Resetar enviados</button>
@@ -3982,7 +3982,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <div class="mhandle"></div>
           <div class="mhdr">
             <div>
-              <div style="font-size:16px;font-weight:800">🚀 Confirmar Envio Automático</div>
+              <div style="font-size:16px;font-weight:800" data-i18n="auto_confirm_btn">🚀 Confirmar Envio Automático</div>
               <div style="font-size:12px;color:var(--t3);margin-top:2px" id="pf-subtitle">–</div>
             </div>
             <button aria-label="Fechar" title="Fechar" onclick="closePreflight()" style="background:none;border:none;cursor:pointer;color:var(--t3);padding:4px"><i class="ti ti-x" style="font-size:18px"></i></button>
@@ -4022,11 +4022,11 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <!-- Servidor continua mesmo offline -->
             <div class="alert al-green" style="margin-bottom:14px;font-size:12px">
               <i class="ti ti-server-bolt" style="flex-shrink:0"></i>
-              <div><strong>✅ Funciona com app fechado!</strong> O envio roda no nosso servidor na nuvem — feche o celular, desligue o Wi-Fi, não importa. Quando você voltar, os e-mails já foram enviados. <em>Só precisa estar logado uma vez.</em></div>
+              <div><strong data-i18n="auto_bg_ok">✅ Funciona com app fechado!</strong> O envio roda no nosso servidor na nuvem — feche o celular, desligue o Wi-Fi, não importa. Quando você voltar, os e-mails já foram enviados. <em>Só precisa estar logado uma vez.</em></div>
             </div>
 
             <!-- Escolha quando iniciar -->
-            <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px">Quando começar?</div>
+            <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px" data-i18n="auto_when">Quando começar?</div>
             <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
               <label id="pf-opt-now" style="display:flex;align-items:center;gap:10px;background:var(--greenl);border:2px solid var(--green);border-radius:var(--r);padding:12px 14px;cursor:pointer">
                 <input type="radio" name="pf-when" value="now" checked style="accent-color:var(--green);width:16px;height:16px;flex-shrink:0" onchange="pfToggleWhen()">
@@ -4646,11 +4646,11 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <div class="view gone" id="v-notificacoes"><div class="view-scroll" style="padding:0 0 80px">
         <div style="background:linear-gradient(135deg,#3b0764,#4c1d95,#6d28d9);color:#fff;padding:16px;margin-bottom:0">
           <div style="font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px"><i class="ti ti-bell"></i> Notificações</div>
-          <div style="font-size:12px;opacity:.8;margin-top:3px">Avisos e atualizações do sistema</div>
+          <div style="font-size:12px;opacity:.8;margin-top:3px" data-i18n="notif_sub">Avisos e atualizações do sistema</div>
           <!-- Tabs: Não lidas / Todas -->
           <div style="display:flex;gap:6px;margin-top:12px">
-            <button id="notif-tab-unread" onclick="setNotifTab('unread')" style="background:rgba(255,255,255,.25);color:#fff;border:none;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Não lidas</button>
-            <button id="notif-tab-all" onclick="setNotifTab('all')" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border:none;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Todas</button>
+            <button id="notif-tab-unread" onclick="setNotifTab('unread')" style="background:rgba(255,255,255,.25);color:#fff;border:none;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit" data-i18n="unread">Não lidas</button>
+            <button id="notif-tab-all" onclick="setNotifTab('all')" style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border:none;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit" data-i18n="all_f">Todas</button>
           </div>
         </div>
         <div id="notif-history-list" style="padding:16px;display:flex;flex-direction:column;gap:10px">
@@ -4663,8 +4663,8 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
       <div class="view gone" id="v-noticias" style="display:flex;flex-direction:column;overflow:hidden">
         <div style="background:linear-gradient(135deg,#0f172a,#1e40af);color:#fff;padding:12px 16px 10px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px">
           <div>
-            <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px">📰 Notícias do DOL</div>
-            <div style="font-size:11px;opacity:.75;margin-top:1px">Anúncios oficiais do governo americano, traduzidos</div>
+            <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px" data-i18n="dol_news_title">📰 Notícias do DOL</div>
+            <div style="font-size:11px;opacity:.75;margin-top:1px" data-i18n="dol_news_sub">Anúncios oficiais do governo americano, traduzidos</div>
           </div>
           <button aria-label="Atualizar notícias" title="Atualizar notícias" onclick="loadNoticias(true)" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25)"><i class="ti ti-refresh"></i></button>
         </div>
