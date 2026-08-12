@@ -1519,6 +1519,31 @@ async function testAuthWatchdogPush() {
     const dmM3 = await get("/api/diamonds");
     check("🔒 v84b: a tentativa de doação recusada não mexeu no saldo de bônus", (dmM3.json?.saldo?.bonus || 0) === _bonusAntes && (dmM3.json?.saldo?.real || 0) === 0, JSON.stringify(dmM3.json?.saldo));
 
+    // ═══ 🌍 v129 (ORDEM DO DONO, 13/08): OS 3 SERVIDORES SÃO UM NEGÓCIO SÓ ═══
+    // Ranking, landing e contabilidade somam os 3. No smoke não há irmãos
+    // (fail-open comprovado: nada quebra sem peer); aqui provamos as PEÇAS:
+    // a rota peer de ranking por período/categoria, a rota peer financeira
+    // com gastos+usuários, e a landing com modo ?local=1 (anti-recursão).
+    const rkExp = await get("/api/servers/ranking-export?period=day&category=sends");
+    check("🌍 v129: rota peer de ranking aceita período/categoria e devolve lista pública (uid/score, nunca e-mail)",
+      rkExp.json?.ok === true && Array.isArray(rkExp.json?.list) && typeof rkExp.json?.total === "number" &&
+      rkExp.json.list.every((r) => r.uid && !("email" in r)),
+      rkExp.body.slice(0, 160));
+    const rkLoc = await get("/api/ranking?period=day&category=sends");
+    check("🌍 v129: /api/ranking segue 100% funcional sem irmãos (fail-open — a aba nunca quebra)",
+      rkLoc.json?.ok === true && Array.isArray(rkLoc.json?.list), rkLoc.body.slice(0, 120));
+    const _finTok = crypto.createHmac("sha256", "smoke-enc-key-1234567890").update("h2b-peer-financeiro-v1").digest("hex");
+    const finPeer = await new Promise((resolve, reject) => {
+      http.get(BASE + "/api/servers/financeiro", { headers: { "x-peer-fin": _finTok } }, (r) => { let b = ""; r.on("data", (c) => (b += c)); r.on("end", () => { let j = null; try { j = JSON.parse(b); } catch {} resolve({ status: r.statusCode, json: j, body: b }); }); }).on("error", reject);
+    });
+    check("🌍 v129: rota peer financeira agora carrega gastos (30d/total) e usuários — tudo que o dono quer somar",
+      finPeer.json?.ok === true && typeof finPeer.json?.entradas?.gastos30 === "number" && typeof finPeer.json?.entradas?.gastosTotal === "number" && typeof finPeer.json?.entradas?.usuariosTotal === "number",
+      JSON.stringify(finPeer.json?.entradas || {}).slice(0, 160));
+    const psLocal = await get("/api/public-stats?local=1");
+    check("🌍 v129: landing tem modo ?local=1 (o que os irmãos pedem entre si — nunca recursão)",
+      typeof psLocal.json?.totalUsers === "number" && psLocal.json?.global === undefined,
+      psLocal.body.slice(0, 120));
+
     // ═══ 🗄️ v69: BACKUP ENTRE IRMÃOS — rota de recepção blindada ═══
     const zlibB = require("zlib");
     const _peerTokB = crypto.createHmac("sha256", "smoke-enc-key-1234567890").update("h2b-peer-financeiro-v1").digest("hex");

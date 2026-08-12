@@ -14337,7 +14337,8 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
       }
       const tot=k=>servidores.reduce((a,s2)=>a+((s2.entradas&&s2.entradas[k])||0),0);
       return json(res,200,{ok:true,servidores,peerAuth:!!tok,
-        global:{hoje:tot("hoje"),dias7:tot("dias7"),dias30:tot("dias30"),total:tot("total"),pagantes:tot("pagantes")}});
+        global:{hoje:tot("hoje"),dias7:tot("dias7"),dias30:tot("dias30"),total:tot("total"),pagantes:tot("pagantes"),
+          gastos30:tot("gastos30"),gastosTotal:tot("gastosTotal"),usuariosTotal:tot("usuariosTotal")}}); // 🌍 v129
     }
     if(pathname==="/api/admin/dono-resumo"&&req.method==="GET"){
       const now=Date.now(),DAY=86400_000;
@@ -14373,12 +14374,36 @@ const job={active:true,startedAt:Date.now(),queue,originalCount:queue.length,fil
         if(c>=now-7*DAY)novos7++;
         if(c&&new Date(c-3*3600_000).toISOString().slice(0,10)===hojeISO)novosHoje++;
       }
+      // 🌍 v129 (ORDEM DO DONO, 13/08: "se eu entrar e for ver quanto já tem
+      // de pessoas com planos, quanto dinheiro entrou e quanto gastamos,
+      // quero nos 3 servers a info TOTAL"): a 1ª tela soma os 3 servidores —
+      // mesma fonte do Faturamento Global (rota peer + fallback manual),
+      // cache de 10min, peer fora do ar nunca quebra a tela.
+      let global=null;
+      if(!process.env.TEST_LOGIN_TOKEN){
+        try{
+          const selfId=_resolveServerId(req);const tok=_peerFinToken();
+          const soma={hoje:janelas.hoje,dias7:janelas.dias7,dias30:janelas.dias30,total:janelas.total,pagantes:janelas.pagantes,gastos30:g30,usuariosTotal:totalUsers};
+          const porServidor=[{id:selfId,self:true,ok:true,total:janelas.total,dias30:janelas.dias30,pagantes:janelas.pagantes,usuarios:totalUsers}];
+          let okN=1;
+          for(const sv of _getServersConfig()){
+            if(sv.id===selfId||!sv.url)continue;
+            let ent=null;
+            if(tok){const pi=await _fetchPeerJson(sv.url,"/api/servers/financeiro",{"x-peer-fin":tok});if(pi&&pi.ok&&pi.entradas)ent=pi.entradas;}
+            const manual=parseFloat(DB_ADMIN_SETTINGS["fgManual"+sv.id]);
+            if(!ent&&Number.isFinite(manual)&&manual>0)ent={hoje:0,dias7:0,dias30:0,total:manual,pagantes:0,gastos30:0,usuariosTotal:0};
+            if(ent){okN++;for(const k of ["hoje","dias7","dias30","total","pagantes"])soma[k]+=parseFloat(ent[k])||0;soma.gastos30+=parseFloat(ent.gastos30)||0;soma.usuariosTotal+=parseInt(ent.usuariosTotal)||0;}
+            porServidor.push({id:sv.id,self:false,ok:!!ent,total:ent?Math.round(ent.total||0):0,dias30:ent?Math.round(ent.dias30||0):0,pagantes:ent?(ent.pagantes||0):0,usuarios:ent?(ent.usuariosTotal||0):0});
+          }
+          global={...soma,servidoresOk:okN,porServidor};
+        }catch(e){/* fail-open: tela local sempre funciona */}
+      }
       return json(res,200,{ok:true,
         entradas:{hoje:janelas.hoje,dias7:janelas.dias7,dias30:janelas.dias30,total:janelas.total,ticketMedio30:janelas.n30?Math.round(janelas.dias30/janelas.n30):0},
         gastos30:g30,liquido30:janelas.dias30-g30,
         pendentes:{qtd:pend.length,valor:pendValor},
         pagantes:janelas.pagantes,vencendo7d:vencendo.slice(0,8),vencendoQtd:vencendo.length,
-        novos:{hoje:novosHoje,dias7:novos7,total:totalUsers}});
+        novos:{hoje:novosHoje,dias7:novos7,total:totalUsers},global});
     }
     // ── Admin: PAGANTES — visão única "quem pagou + dias de VIP" (calculada no servidor = fonte única) ──
 if(pathname==="/api/admin/pagantes"&&req.method==="GET"){try{
@@ -15548,7 +15573,18 @@ Responda APENAS em JSON (sem markdown):
   }
   // GET /api/servers/ranking-export — top 50 público deste servidor (mesmos
   // dados já públicos no ranking: nome/avatar/plano/envios; NUNCA e-mail).
+  // 🌍 v129 (dono, 13/08: "os rankings de todos os servers são sempre
+  // juntos"): aceita ?period=&category= e devolve o MESMO recorte que a aba
+  // Ranking usa — assim o merge dos 3 servidores vale pra toda combinação.
   if(pathname==="/api/servers/ranking-export"&&req.method==="GET"){
+    const _p=u.searchParams.get("period"),_c=u.searchParams.get("category");
+    if(["day","week","month","all"].includes(_p)&&["sends","vip","active"].includes(_c)){
+      const{list,total}=calcRanking(_p,_c,null);
+      return json(res,200,{ok:true,serverId:_resolveServerId(req),total,
+        list:list.map(r=>({name:r.name,picture:r.picture,appAvatarId:r.appAvatarId,plan:r.plan,
+          sends:r.sends,autoSends:r.autoSends,manualSends:r.manualSends,responses:r.responses,
+          responseRate:r.responseRate,score:r.score,isOnline:r.isOnline,uid:r.uid,xp:r.xp,nivel:r.nivel}))});
+    }
     return json(res,200,{ok:true,serverId:_resolveServerId(req),list:_calcGlobalExport()});
   }
   // GET /api/ranking/global — ranking geral de TODOS os servidores (local + peers).
@@ -15589,7 +15625,27 @@ Responda APENAS em JSON (sem markdown):
     const totalAuto=allHist.reduce((n,a)=>n+a.filter(h=>h.type==="auto").length,0);
     // Preview do ranking diário para landing page (top 5 sem dados sensíveis)
     const { list: rankPreview } = calcRanking("day", "sends", null);
-    return json(res,200,{totalUsers,vipUsers,todaySent,todayAuto,totalSent,totalAuto,trialEnabled:!!DB_ADMIN_SETTINGS.newUserTrialEnabled,trialDays:1,rankPreview:rankPreview.slice(0,5)}); // FIX Fase-0: era hardcode 5; trial real = 1 dia (KB-686: números de plano nunca hardcodados... este estava)
+    const out={totalUsers,vipUsers,todaySent,todayAuto,totalSent,totalAuto,trialEnabled:!!DB_ADMIN_SETTINGS.newUserTrialEnabled,trialDays:1,rankPreview:rankPreview.slice(0,5)}; // FIX Fase-0: era hardcode 5; trial real = 1 dia (KB-686)
+    // 🌍 v129 (ORDEM DO DONO, 13/08): a landing mostra o negócio INTEIRO —
+    // soma dos 3 servidores. ?local=1 = resposta só local (é o que os irmãos
+    // pedem entre si — nunca recursão). Peer fora do ar: fail-open.
+    if(u.searchParams.get("local")!=="1"&&!process.env.TEST_LOGIN_TOKEN){
+      const _selfId=_resolveServerId(req);let srvOk=1;
+      for(const sv of _getServersConfig()){
+        if(sv.id===_selfId||!sv.url)continue;
+        try{
+          const pi=await _fetchPeerJson(sv.url,"/api/public-stats?local=1");
+          if(pi&&typeof pi.totalUsers==="number"){
+            srvOk++;
+            for(const k of ["totalUsers","vipUsers","todaySent","todayAuto","totalSent","totalAuto"])out[k]+=parseInt(pi[k])||0;
+            if(Array.isArray(pi.rankPreview))out.rankPreview.push(...pi.rankPreview.slice(0,5));
+          }
+        }catch(e){/* fail-open */}
+      }
+      out.rankPreview=out.rankPreview.sort((a,b)=>(b.score||b.sends||0)-(a.score||a.sends||0)).slice(0,5);
+      out.global=srvOk>1;out.servidores=srvOk;
+    }
+    return json(res,200,out);
   }
 
   // ── /api/public-wage-stats — GET, sem login (SEO: página "quanto ganha quem
@@ -15632,7 +15688,44 @@ Responda APENAS em JSON (sem markdown):
     const s = getSess(req);
     if (s?.user_email) markOnline(s.user_email);
     const { list, myPos, total } = calcRanking(period, category, s?.user_email || null);
-    return json(res,200,{ok:true,list,myPos,total,period,category,updatedAt:new Date().toISOString()});
+    // 🌍 v129 (ORDEM DO DONO, 13/08): os 3 servidores são UM negócio só — o
+    // ranking que o usuário vê SEMPRE junta os 3 (o servidor separado é só
+    // limite de capacidade). Peers com cache de 10min; peer fora do ar =
+    // fail-open (ranking local, nunca quebra a aba).
+    const _selfId=_resolveServerId(req);
+    let lista=list.map(r=>({...r,serverId:_selfId}));let totalG=total;let peersOk=0;
+    if(!process.env.TEST_LOGIN_TOKEN){
+      for(const sv of _getServersConfig()){
+        if(sv.id===_selfId||!sv.url)continue;
+        try{
+          const pr=await _fetchPeerJson(sv.url,`/api/servers/ranking-export?period=${period}&category=${category}`);
+          if(pr&&pr.ok&&Array.isArray(pr.list)){
+            peersOk++;totalG+=parseInt(pr.total)||pr.list.length;
+            lista.push(...pr.list.slice(0,50).map(r=>({
+              name:String(r.name||"Usuário").slice(0,40),picture:String(r.picture||"").slice(0,500),
+              appAvatarId:String(r.appAvatarId||"").slice(0,10),plan:String(r.plan||"free").slice(0,12),
+              sends:parseInt(r.sends)||0,autoSends:parseInt(r.autoSends)||0,manualSends:parseInt(r.manualSends)||0,
+              responses:parseInt(r.responses)||0,responseRate:r.responseRate||0,score:parseInt(r.score)||0,
+              isOnline:!!r.isOnline,uid:String(r.uid||"").slice(0,16),xp:parseInt(r.xp)||0,nivel:r.nivel||null,
+              change:null,isMe:false,serverId:sv.id})));
+          }
+        }catch(e){/* fail-open */}
+      }
+      lista.sort((a,b)=>(b.score||0)-(a.score||0));
+      lista=lista.slice(0,50).map((r,i)=>({...r,pos:i+1}));
+      if(myPos&&peersOk){
+        myPos.total=totalG;
+        const _minTop=lista.length?(lista[lista.length-1].score||0):0;
+        // Só recalcula a posição quando o usuário está DENTRO do top-50
+        // global (dá pra contar exato); abaixo disso a posição local é a
+        // melhor estimativa honesta — nunca inventa número.
+        if((myPos.score||0)>=_minTop){
+          const acima=lista.filter(r=>!r.isMe&&(r.score||0)>(myPos.score||0)).length;
+          myPos.pos=Math.max(1,acima+1);
+        }
+      }
+    }
+    return json(res,200,{ok:true,list:lista,myPos,total:totalG,period,category,global:peersOk>0,servidores:peersOk+1,updatedAt:new Date().toISOString()});
   }
   if(pathname==="/api/ranking/profile"&&req.method==="GET"){
     const uid=(u.searchParams.get("uid")||"").trim();
@@ -17602,7 +17695,19 @@ async function _fetchPeerJson(baseUrl,apiPath,extraHeaders){
 // DATA_ENC_KEY, que os 3 servidores compartilham — nenhuma env nova).
 // v83: era uma cópia inteira do cálculo de computeEntradasJanelas() — agora
 // só delega (fonte única, sem correção de pedido duplicada/desatualizada).
-function _entradasResumo(){ return computeEntradasJanelas(); }
+// 🌍 v129: a rota peer financeira agora carrega TUDO que o dono quer somar
+// entre servidores — entradas (janelas), GASTOS (30d e total) e usuários.
+function _entradasResumo(){
+  const j=computeEntradasJanelas();
+  const now=Date.now(),DAY=86400_000;
+  const _ts=x=>{if(!x)return 0;if(typeof x==="number")return x;const t=Date.parse(x);return isNaN(t)?0:t;};
+  let gastos30=0,gastosTotal=0;
+  for(const g of (DB_FINANCEIRO.gastos||[])){
+    const v=parseFloat(g.valor)||0;gastosTotal+=v;
+    if(_ts(g.dataPagamento||g.data)>=now-30*DAY)gastos30+=v;
+  }
+  return {...j,gastos30,gastosTotal,usuariosTotal:Object.keys(DB_USERS).length};
+}
 // Token de autenticação entre servidores irmãos: HMAC da DATA_ENC_KEY (os 3
 // compartilham a mesma). Sem a chave → recurso desligado (fail closed).
 function _peerFinToken(){

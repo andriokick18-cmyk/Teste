@@ -4059,7 +4059,7 @@ async function loadFaturamentoGlobal(){
     const R=v=>'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
     const tEl=document.getElementById('fg-total');if(tEl)tEl.textContent=R(d.global.total);
     const lEl=document.getElementById('fg-linha');
-    if(lEl)lEl.textContent=`hoje ${R(d.global.hoje)} · 7d ${R(d.global.dias7)} · 30d ${R(d.global.dias30)} · ${d.global.pagantes} pagante(s) no total`+(d.peerAuth?'':' — ⚠️ DATA_ENC_KEY ausente: soma só deste servidor');
+    if(lEl)lEl.textContent=`hoje ${R(d.global.hoje)} · 7d ${R(d.global.dias7)} · 30d ${R(d.global.dias30)} · ${d.global.pagantes} pagante(s) · ${d.global.usuariosTotal||0} usuário(s)`+(d.global.gastosTotal?` · gastos ${R(d.global.gastosTotal)} (30d ${R(d.global.gastos30)}) · líquido ${R((d.global.total||0)-(d.global.gastosTotal||0))}`:'')+(d.peerAuth?'':' — ⚠️ DATA_ENC_KEY ausente: soma só deste servidor'); // 🌍 v129: pagantes, usuários, gastos e líquido dos 3 juntos
     const sEl=document.getElementById('fg-servidores');
     if(sEl)sEl.innerHTML=(d.servidores||[]).map(s2=>`
       <div style="background:var(--glass);border:1px solid var(--border2);border-radius:10px;padding:9px 11px">

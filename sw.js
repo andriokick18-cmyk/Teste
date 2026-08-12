@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v92"; // v92 (12/08): i18n Etapa 2 (v128) — telas de Vagas, Pesquisa e o modal de envio 100% nas 3 línguas (ordenação, buscas, detalhe da vaga, currículo/perfil de envio, botões).
+const CACHE_NAME = "h2bapply-v93"; // v93 (13/08): os 3 servidores viram UM negócio só (v129) — ranking e landing somam os 3 servidores automaticamente, e a contabilidade do admin mostra o total geral (entradas, pagantes, usuários, gastos e líquido dos 3 juntos).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
