@@ -3227,7 +3227,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div class="rk-hero-left">
               <div class="rk-hero-label"><span class="live-dot"></span> Atualizado ao vivo</div>
               <div class="rk-hero-title"><i class="ti ti-trophy"></i> Ranking Competitivo</div>
-              <div class="rk-hero-sub">Compita com outros usuários • Suba de posição • Conquiste o topo</div>
+              <div class="rk-hero-sub" data-i18n="rank_sub">Compita com outros usuários • Suba de posição • Conquiste o topo</div>
             </div>
             <div class="rk-hero-right" id="rk-my-hero-stat">
               <!-- Posição do usuário logado — preenchida via JS -->
@@ -3318,7 +3318,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
             <!-- ══ HERO DO PERFIL ══ -->
             <div class="prof-hdr" style="position:relative;padding:20px 18px 18px;border-bottom:1px solid var(--border)">
-              <div id="prof-server-badge" style="display:none;margin-bottom:10px"><span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.35);color:#60a5fa;border-radius:20px;padding:3px 11px;font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;gap:5px">🌐 <span id="prof-server-badge-txt">Servidor 1</span></span> <span style="font-size:10px;color:var(--t3)">Sua conta pertence a este servidor — o login é sempre aqui.</span></div>
+              <div id="prof-server-badge" style="display:none;margin-bottom:10px"><span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.35);color:#60a5fa;border-radius:20px;padding:3px 11px;font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;gap:5px">🌐 <span id="prof-server-badge-txt">Servidor 1</span></span> <span style="font-size:10px;color:var(--t3)" data-i18n="acct_server_note">Sua conta pertence a este servidor — o login é sempre aqui.</span></div>
               <!-- Avatar + nome inline -->
               <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
                 <div id="pav" style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;flex-shrink:0">?</div>
@@ -3353,16 +3353,16 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:16px;overflow:hidden">
               <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
                 <i class="ti ti-user" style="font-size:15px;color:var(--blue)"></i>
-                <span style="font-size:12px;font-weight:800;color:var(--text)">Dados Pessoais</span>
+                <span style="font-size:12px;font-weight:800;color:var(--text)" data-i18n="personal_data">Dados Pessoais</span>
               </div>
               <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
                 <div class="field-row">
                   <div class="field">
-                    <label>Nome completo *</label>
+                    <label data-i18n="full_name">Nome completo *</label>
                     <input class="input" id="cfg-name" type="text" placeholder="Seu nome completo">
                   </div>
                   <div class="field">
-                    <label>País</label>
+                    <label data-i18n="country">País</label>
                     <input class="input" id="cfg-country" type="text" placeholder="Brazil">
                   </div>
                 </div>
@@ -3374,7 +3374,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                   <div class="field">
                     <label style="display:flex;align-items:center;gap:5px">
                       WhatsApp
-                      <span style="font-size:9px;font-weight:800;background:#ef4444;color:#fff;padding:1px 5px;border-radius:99px">OBRIGATÓRIO</span>
+                      <span style="font-size:9px;font-weight:800;background:#ef4444;color:#fff;padding:1px 5px;border-radius:99px" data-i18n="required_lbl">OBRIGATÓRIO</span>
                     </label>
                     <div style="position:relative">
                       <input class="input" id="cfg-phone" type="tel" inputmode="tel" placeholder="+55 (00) 99999-9999" oninput="document.getElementById('wpp-ok-badge').style.display=this.value.replace(/\D/g,'').length>=8?'flex':'none'">
@@ -3383,7 +3383,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                   </div>
                 </div>
                 <div class="field">
-                  <label>Idioma</label>
+                  <label data-i18n="language_lbl">Idioma</label>
                   <select class="input" id="cfg-lang">
                     <option value="pt-BR">🇧🇷 Português</option>
                     <option value="en-US">🇺🇸 English</option>
@@ -3459,11 +3459,11 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div style="background:var(--surface);border:1.5px solid rgba(245,158,11,.25);border-radius:16px;overflow:hidden">
               <div style="padding:12px 16px;border-bottom:1px solid rgba(245,158,11,.12);display:flex;align-items:center;gap:8px">
                 <i class="ti ti-star" style="font-size:15px;color:var(--amber)"></i>
-                <span style="font-size:12px;font-weight:800;color:var(--text)">Perfil Público</span>
+                <span style="font-size:12px;font-weight:800;color:var(--text)" data-i18n="public_profile">Perfil Público</span>
                 <span style="font-size:10px;color:var(--t3);font-weight:400">100% opcional</span>
               </div>
               <div style="padding:14px 16px;display:flex;flex-direction:column;gap:13px">
-                <div style="font-size:11.5px;color:var(--t2);line-height:1.6;background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:9px 12px">💡 O que você escrever aqui aparece quando alguém <strong>clica no seu nome no Ranking</strong>. Conte sua história para a comunidade — ou deixe tudo em branco, ninguém é obrigado. <strong>Seu e-mail e telefone nunca aparecem.</strong></div>
+                <div style="font-size:11.5px;color:var(--t2);line-height:1.6;background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:9px 12px">💡 O que você escrever aqui aparece quando alguém <strong>clica no seu nome no Ranking</strong>. Conte sua história para a comunidade — ou deixe tudo em branco, ninguém é obrigado. <strong data-i18n="never_shown">Seu e-mail e telefone nunca aparecem.</strong></div>
                 <div class="field">
                   <label style="font-size:12px;font-weight:700;color:var(--t2)">👤 Sobre você <span style="font-size:10px;color:var(--t3);font-weight:400">(até 600 caracteres)</span></label>
                   <textarea class="input" id="pp-sobre" maxlength="600" rows="3" placeholder="Ex: Sou de Minas Gerais, cozinheiro há 8 anos, buscando minha primeira temporada nos EUA..." style="resize:vertical;min-height:64px"></textarea>
@@ -3473,11 +3473,11 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                   <textarea class="input" id="pp-exp" maxlength="400" rows="2" placeholder="Ex: Kitchen Supervisor em Martha's Vineyard (2024-2025), landscaping na Flórida..." style="resize:vertical;min-height:52px"></textarea>
                 </div>
                 <div class="field">
-                  <label style="font-size:12px;font-weight:700;color:var(--t2);display:block;margin-bottom:7px">🇺🇸 Já foi contratado pelo programa H-2B/H-2A?</label>
+                  <label style="font-size:12px;font-weight:700;color:var(--t2);display:block;margin-bottom:7px" data-i18n="hired_before">🇺🇸 Já foi contratado pelo programa H-2B/H-2A?</label>
                   <div style="display:flex;gap:7px">
                     <button type="button" class="pp-hired-btn" data-v="sim" onclick="ppSetHired('sim')" style="flex:1;padding:9px 6px;border-radius:10px;border:1.5px solid var(--border);background:var(--sf2);color:var(--t2);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .13s">✅ Sim</button>
-                    <button type="button" class="pp-hired-btn" data-v="nao" onclick="ppSetHired('nao')" style="flex:1;padding:9px 6px;border-radius:10px;border:1.5px solid var(--border);background:var(--sf2);color:var(--t2);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .13s">Ainda não</button>
-                    <button type="button" class="pp-hired-btn" data-v="" onclick="ppSetHired('')" style="flex:1;padding:9px 6px;border-radius:10px;border:1.5px solid var(--border);background:var(--sf2);color:var(--t2);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .13s">Prefiro não dizer</button>
+                    <button type="button" class="pp-hired-btn" data-v="nao" onclick="ppSetHired('nao')" style="flex:1;padding:9px 6px;border-radius:10px;border:1.5px solid var(--border);background:var(--sf2);color:var(--t2);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .13s" data-i18n="not_yet">Ainda não</button>
+                    <button type="button" class="pp-hired-btn" data-v="" onclick="ppSetHired('')" style="flex:1;padding:9px 6px;border-radius:10px;border:1.5px solid var(--border);background:var(--sf2);color:var(--t2);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .13s" data-i18n="prefer_not">Prefiro não dizer</button>
                   </div>
                 </div>
                 <div class="field">
@@ -3486,7 +3486,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 </div>
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">
                   <input type="checkbox" id="pp-showpic" checked style="accent-color:var(--blue);width:17px;height:17px;flex-shrink:0">
-                  <span style="font-size:12px;color:var(--t2);line-height:1.5"><strong style="color:var(--text)">Mostrar minha foto do Google no ranking</strong><br><span style="font-size:11px;color:var(--t3)">Desmarque para aparecer só com seu avatar do app ou inicial do nome.</span></span>
+                  <span style="font-size:12px;color:var(--t2);line-height:1.5"><strong style="color:var(--text)" data-i18n="show_photo">Mostrar minha foto do Google no ranking</strong><br><span style="font-size:11px;color:var(--t3)" data-i18n="show_photo_sub">Desmarque para aparecer só com seu avatar do app ou inicial do nome.</span></span>
                 </label>
                 <div style="font-size:10.5px;color:var(--t3);line-height:1.5">💾 Salve com o botão <strong>"Salvar dados"</strong> no fim da página.</div>
               </div>
@@ -4103,9 +4103,9 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
              Doação PIX → 💎 diamantes (1 💎 = R$1,50) → troca por plano na hora. -->
         <div style="background:linear-gradient(160deg,#0f172a,#1e3a8a,#2563eb,#7c3aed);color:#fff;border-radius:var(--rl);padding:24px 20px;text-align:center;margin-bottom:16px">
           <div style="font-size:44px;margin-bottom:8px">💎</div>
-          <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800">Diamantes & Planos</div>
-          <div style="font-size:13px;opacity:.8;margin-top:6px">Doe via PIX, ganhe diamantes e troque por planos quando quiser</div>
-          <div style="font-size:11px;opacity:.6;margin-top:4px">Doação confirmada em até 24h • Troca por plano ativa NA HORA</div>
+          <div style="font-family:'Sora',sans-serif;font-size:22px;font-weight:800" data-i18n="plans_title">Diamantes & Planos</div>
+          <div style="font-size:13px;opacity:.8;margin-top:6px" data-i18n="plans_sub">Doe via PIX, ganhe diamantes e troque por planos quando quiser</div>
+          <div style="font-size:11px;opacity:.6;margin-top:4px" data-i18n="plans_note">Doação confirmada em até 24h • Troca por plano ativa NA HORA</div>
         </div>
 
         <!-- ETAPAS -->
@@ -4140,7 +4140,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 </div>
               </div>
               <div>
-                <label style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:5px">Quantidade de diamantes</label>
+                <label style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:5px" data-i18n="diamond_qty">Quantidade de diamantes</label>
                 <input class="input" id="diam-qty" type="number" min="1" step="1" inputmode="numeric" placeholder="Ex.: 100" oninput="updatePlanCalc()">
               </div>
               <div id="plan-calc" style="background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(59,130,246,.07));border:1.5px solid rgba(99,102,241,.25);border-radius:12px;padding:14px;margin-top:4px">
@@ -4148,7 +4148,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                   <div style="font-size:12px;color:var(--t2)" id="calc-desc">Escolha um pacote ou digite a quantidade</div>
                   <div style="font-size:24px;font-weight:800;color:var(--green)" id="calc-total">—</div>
                 </div>
-                <div style="font-size:10px;color:var(--t3);text-align:center;margin-top:6px" id="calc-note">Os diamantes caem na conta quando o admin confirmar o comprovante</div>
+                <div style="font-size:10px;color:var(--t3);text-align:center;margin-top:6px" id="calc-note" data-i18n="diamond_when">Os diamantes caem na conta quando o admin confirmar o comprovante</div>
               </div>
 
               <button class="btn btn-primary w100" style="margin-top:8px" onclick="goToPlanStep2()">
@@ -4164,7 +4164,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <div id="diam-upgrade" style="margin-bottom:14px"></div>
           <div id="diam-troca" style="margin-bottom:14px"></div>
           <div id="diam-transfer-card" style="background:var(--surface);border:2px solid var(--border2);border-radius:var(--rl);padding:14px 16px;margin-bottom:14px">
-            <div style="font-size:14px;font-weight:800;margin-bottom:4px">🎁 Doar diamantes para um amigo</div>
+            <div style="font-size:14px;font-weight:800;margin-bottom:4px" data-i18n="gift_friend">🎁 Doar diamantes para um amigo</div>
             <div style="font-size:11.5px;color:var(--t3);line-height:1.6;margin-bottom:10px">Só <strong>💎 reais</strong> (que vieram de doação) podem ser doados — diamante de brinde é pessoal. A pessoa precisa ter conta <strong>neste servidor</strong>.</div>
             <input class="input" id="diam-tx-email" type="email" inputmode="email" placeholder="email.do.amigo@gmail.com" style="margin-bottom:8px">
             <div style="display:flex;gap:8px">
@@ -4182,19 +4182,19 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div style="background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(59,130,246,.08));padding:12px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">
               <div style="width:28px;height:28px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0">2</div>
               <div style="flex:1">
-                <div style="font-size:14px;font-weight:800">Seus dados de contato</div>
-                <div style="font-size:11px;color:var(--t3)">Para ativarmos seu plano e entrar em contato</div>
+                <div style="font-size:14px;font-weight:800" data-i18n="contact_data">Seus dados de contato</div>
+                <div style="font-size:11px;color:var(--t3)" data-i18n="contact_sub">Para ativarmos seu plano e entrar em contato</div>
               </div>
               <button onclick="goToPlanStep1()" style="background:none;border:none;color:var(--t3);cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px"><i class="ti ti-arrow-left"></i> Voltar</button>
             </div>
             <!-- Resumo do pedido -->
             <div id="plan-order-summary" style="padding:12px 16px;border-bottom:1px solid var(--border);background:var(--sf2)">
-              <div style="font-size:12px;font-weight:700;color:var(--t3);margin-bottom:6px">📋 Resumo do pedido</div>
+              <div style="font-size:12px;font-weight:700;color:var(--t3);margin-bottom:6px" data-i18n="order_summary">📋 Resumo do pedido</div>
               <div id="plan-summary-content"></div>
             </div>
             <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
               <div>
-                <label style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:5px">Nome completo *</label>
+                <label style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:5px" data-i18n="full_name">Nome completo *</label>
                 <input class="input" id="plan-form-name" type="text" placeholder="Seu nome completo" autocomplete="name">
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -4218,7 +4218,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 </div>
               </div>
               <div>
-                <label style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:5px">Observações</label>
+                <label style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:5px" data-i18n="notes_lbl">Observações</label>
                 <textarea class="input" id="plan-form-nota" rows="2" placeholder="Alguma observação? Ex: quero começar no dia X..."></textarea>
               </div>
             </div>
@@ -4745,7 +4745,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <!-- Header -->
         <div style="background:linear-gradient(135deg,#1a1040,#2d1b69,#7c3aed);color:#fff;padding:16px 16px 14px;flex-shrink:0">
           <div style="font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:4px"><i class="ti ti-settings"></i> Configurações</div>
-          <div style="font-size:12px;opacity:.8">Sua conta, sua privacidade.</div>
+          <div style="font-size:12px;opacity:.8" data-i18n="settings_sub">Sua conta, sua privacidade.</div>
         </div>
 
         <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;gap:14px">
@@ -4754,7 +4754,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
           <!-- Conta -->
           <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:16px">
-            <div style="font-size:13px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Sua conta</div>
+            <div style="font-size:13px;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px" data-i18n="your_account">Sua conta</div>
             <div style="display:flex;align-items:center;gap:12px">
               <div id="set-av" style="width:48px;height:48px;border-radius:50%;overflow:hidden;background:var(--sf2);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;flex-shrink:0">?</div>
               <div style="flex:1;min-width:0">
@@ -4827,18 +4827,18 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
           <!-- Informações -->
           <div style="background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(99,102,241,.05));border:1.5px solid rgba(124,58,237,.2);border-radius:12px;padding:14px">
-            <div style="font-size:13px;font-weight:800;color:#5b21b6;margin-bottom:8px">💡 Como funciona?</div>
+            <div style="font-size:13px;font-weight:800;color:#5b21b6;margin-bottom:8px" data-i18n="how_works">💡 Como funciona?</div>
             <div style="font-size:12px;color:#6d28d9;line-height:1.65;display:flex;flex-direction:column;gap:6px">
-              <div style="display:flex;gap:8px;align-items:flex-start"><span>1️⃣</span><span>Escreva sua sugestão e clique em enviar</span></div>
-              <div style="display:flex;gap:8px;align-items:flex-start"><span>2️⃣</span><span>A equipe recebe e analisa todas as sugestões</span></div>
-              <div style="display:flex;gap:8px;align-items:flex-start"><span>3️⃣</span><span>As mais pedidas viram funcionalidades nas próximas atualizações</span></div>
+              <div style="display:flex;gap:8px;align-items:flex-start"><span>1️⃣</span><span data-i18n="sug_step1">Escreva sua sugestão e clique em enviar</span></div>
+              <div style="display:flex;gap:8px;align-items:flex-start"><span>2️⃣</span><span data-i18n="sug_step2">A equipe recebe e analisa todas as sugestões</span></div>
+              <div style="display:flex;gap:8px;align-items:flex-start"><span>3️⃣</span><span data-i18n="sug_step3">As mais pedidas viram funcionalidades nas próximas atualizações</span></div>
               <div style="display:flex;gap:8px;align-items:flex-start"><span>📣</span><span>Fique de olho no <a href="https://instagram.com/andrio.k" target="_blank" rel="noopener noreferrer" style="color:#7c3aed;font-weight:700">@andrio.k</a> para novidades!</span></div>
             </div>
           </div>
 
           <!-- Histórico das próprias sugestões -->
           <div>
-            <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:10px">📋 Suas sugestões enviadas</div>
+            <div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:10px" data-i18n="sug_sent">📋 Suas sugestões enviadas</div>
             <div id="sug-history" style="display:flex;flex-direction:column;gap:8px">
               <div style="text-align:center;color:var(--t3);font-size:12px;padding:20px"><span class="spin spin-sm"></span> Carregando...</div>
             </div>

@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v94"; // v94 (13/08): i18n Etapa 3 (v130) — Automático e Notificações nas 3 línguas + perfil do ranking de usuário de OUTRO servidor abre certo (revisão do v129: antes dava "não encontrado").
+const CACHE_NAME = "h2bapply-v95"; // v95 (13/08): i18n Etapa 4 (v131) — Perfil, Planos (linguagem de diamantes), Ranking e Configurações nas 3 línguas (31 textos novos traduzidos, guarda permanente validando tudo).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
