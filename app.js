@@ -5456,24 +5456,25 @@ function updateAutoUI(){
   // recarregada...) apareciam como CÓDIGO CRU EM INGLÊS pro usuário leigo,
   // justo nos momentos em que ele mais precisava de instrução. Cada falha
   // agora tem rótulo claro em PT + a linha de baixo diz O QUE FAZER.
-  const statusLabels={starting:"🟡 Iniciando...",sending:"🟢 Enviando...",paused:"⏸ Pausado",
-    paused_no_session:"⚠️ Faça login novamente",finished:"✅ Concluído",resuming:"🟢 Retomando...",
-    recovering:"🟢 Retomando...",recovered:"🟢 Retomando...",refilled:"🔄 Fila recarregada — enviando...",
-    waiting_interval:"⏳ Aguardando intervalo...",waiting_hour:"⏳ Aguardando horário...",
-    waiting_limit:"📊 Limite diário atingido",
-    waiting_rate_limit:"⏳ O Google pediu uma pausa — retomamos sozinhos",
-    paused_auth_error:"⛔ Pausado — reconecte seu Gmail",
-    paused_token_revoked:"🔐 Acesso Google revogado — faça login de novo",
-    paused_no_refresh_token:"🔐 Faça login de novo para reativar",
-    paused_corrupt_queue:"❌ Fila com problema — reinicie o automático",
-    paused_no_vip:"⏸ Pausado"};
+  // 🌐 i18n Etapa 5: o texto dinâmico mais visto do app fala as 3 línguas
+  const statusLabels={starting:t('st_starting'),sending:t('st_sending'),paused:t('st_paused'),
+    paused_no_session:t('st_no_session'),finished:t('st_finished'),resuming:t('st_resuming'),
+    recovering:t('st_resuming'),recovered:t('st_resuming'),refilled:t('st_refilled'),
+    waiting_interval:t('st_wait_interval'),waiting_hour:t('st_wait_hour'),
+    waiting_limit:t('st_wait_limit'),
+    waiting_rate_limit:t('st_wait_rate'),
+    paused_auth_error:t('st_auth_err'),
+    paused_token_revoked:t('st_token_revoked'),
+    paused_no_refresh_token:t('st_no_refresh'),
+    paused_corrupt_queue:t('st_corrupt'),
+    paused_no_vip:t('st_paused')};
   const statusHints={
-    paused_auth_error:"Abra Configurações e conecte sua conta Google de novo — sua fila continua salva.",
-    paused_token_revoked:"Saia e faça login com o Google de novo — sua fila continua salva.",
-    paused_no_refresh_token:"Faça login com o Google de novo — sua fila continua salva.",
-    paused_no_session:"Entre de novo com o Google — sua fila continua salva.",
-    paused_corrupt_queue:"Toque em Parar e inicie o automático de novo.",
-    waiting_rate_limit:"Proteção normal do Gmail contra spam — nada a fazer, o robô retoma sozinho."};
+    paused_auth_error:t('hint_auth_err'),
+    paused_token_revoked:t('hint_token_revoked'),
+    paused_no_refresh_token:t('hint_no_refresh'),
+    paused_no_session:t('hint_no_session'),
+    paused_corrupt_queue:t('hint_corrupt'),
+    waiting_rate_limit:t('hint_rate')};
   if(banner){banner.className="auto-status-banner "+(active?"asb-sending":j.status==="finished"?"asb-done":"asb-paused");}
   if(txt)txt.textContent=statusLabels[j.status]||("⏸ "+(j.status||"–"));
 
@@ -5483,8 +5484,8 @@ function updateAutoUI(){
   if(j.nextSendAt&&(j.status==="waiting_interval"||j.status==="waiting_hour"||j.status==="waiting_limit"||j.status==="waiting_rate_limit")&&sub){
     const updateCountdown=()=>{
       const left=Math.max(0,Math.round((j.nextSendAt-Date.now())/1000));
-      if(left===0){sub.textContent="Enviando em instantes...";if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}return;}
-      const label=j.status==="waiting_interval"?"Próximo envio em":j.status==="waiting_hour"?"Inicia em":"Retoma em";
+      if(left===0){sub.textContent=t('cd_soon');if(_autoCountdown){clearInterval(_autoCountdown);_autoCountdown=null;}return;}
+      const label=j.status==="waiting_interval"?t('cd_next'):j.status==="waiting_hour"?t('cd_starts'):t('cd_resumes');
       sub.textContent=`${label} ${Math.floor(left/60)}:${String(left%60).padStart(2,"0")}`;
     };
     updateCountdown();
@@ -10606,6 +10607,20 @@ const LANG_DICT = {
     "all_states":"Todos estados","salary":"Salário","qty_jobs":"Qtd vagas",
     // v119: sugestões instantâneas da busca
     "sug_companies":"Empresas","sug_roles":"Cargos","sug_cities":"Cidades","sug_regions":"Regiões","sug_states":"Estados","sug_jobs":"vagas",
+    // 🌐 Etapa 5 do i18n — status dinâmicos do robô
+    "st_starting":"🟡 Iniciando...","st_sending":"🟢 Enviando...","st_paused":"⏸ Pausado",
+    "st_no_session":"⚠️ Faça login novamente","st_finished":"✅ Concluído","st_resuming":"🟢 Retomando...",
+    "st_refilled":"🔄 Fila recarregada — enviando...","st_wait_interval":"⏳ Aguardando intervalo...","st_wait_hour":"⏳ Aguardando horário...",
+    "st_wait_limit":"📊 Limite diário atingido","st_wait_rate":"⏳ O Google pediu uma pausa — retomamos sozinhos",
+    "st_auth_err":"⛔ Pausado — reconecte seu Gmail","st_token_revoked":"🔐 Acesso Google revogado — faça login de novo",
+    "st_no_refresh":"🔐 Faça login de novo para reativar","st_corrupt":"❌ Fila com problema — reinicie o automático",
+    "hint_auth_err":"Abra Configurações e conecte sua conta Google de novo — sua fila continua salva.",
+    "hint_token_revoked":"Saia e faça login com o Google de novo — sua fila continua salva.",
+    "hint_no_refresh":"Faça login com o Google de novo — sua fila continua salva.",
+    "hint_no_session":"Entre de novo com o Google — sua fila continua salva.",
+    "hint_corrupt":"Toque em Parar e inicie o automático de novo.",
+    "hint_rate":"Proteção normal do Gmail contra spam — nada a fazer, o robô retoma sozinho.",
+    "cd_soon":"Enviando em instantes...","cd_next":"Próximo envio em","cd_starts":"Inicia em","cd_resumes":"Retoma em",
     // 🌐 Etapa 4 do i18n — Perfil/Planos/Ranking/Configurações
     "acct_server_note":"Sua conta pertence a este servidor — o login é sempre aqui.",
     "personal_data":"Dados Pessoais","full_name":"Nome completo *","country":"País","required_lbl":"OBRIGATÓRIO","language_lbl":"Idioma",
@@ -10737,6 +10752,19 @@ const LANG_DICT = {
     "roi_calc":"Results Calculator","roi_if":"If only 1% of companies reply positively:","roi_cta":"Just 1 company confirms → you're in the USA ✈️",
     "all_states":"All states","salary":"Salary","qty_jobs":"# Positions",
     "sug_companies":"Companies","sug_roles":"Job titles","sug_cities":"Cities","sug_regions":"Regions","sug_states":"States","sug_jobs":"jobs",
+    "st_starting":"🟡 Starting...","st_sending":"🟢 Sending...","st_paused":"⏸ Paused",
+    "st_no_session":"⚠️ Please log in again","st_finished":"✅ Done","st_resuming":"🟢 Resuming...",
+    "st_refilled":"🔄 Queue refilled — sending...","st_wait_interval":"⏳ Waiting interval...","st_wait_hour":"⏳ Waiting scheduled time...",
+    "st_wait_limit":"📊 Daily limit reached","st_wait_rate":"⏳ Google asked for a break — we resume on our own",
+    "st_auth_err":"⛔ Paused — reconnect your Gmail","st_token_revoked":"🔐 Google access revoked — log in again",
+    "st_no_refresh":"🔐 Log in again to reactivate","st_corrupt":"❌ Queue issue — restart auto send",
+    "hint_auth_err":"Open Settings and connect your Google account again — your queue is safe.",
+    "hint_token_revoked":"Sign out and log in with Google again — your queue is safe.",
+    "hint_no_refresh":"Log in with Google again — your queue is safe.",
+    "hint_no_session":"Log in with Google again — your queue is safe.",
+    "hint_corrupt":"Tap Stop and start auto send again.",
+    "hint_rate":"Normal Gmail anti-spam protection — nothing to do, the robot resumes on its own.",
+    "cd_soon":"Sending any moment...","cd_next":"Next send in","cd_starts":"Starts in","cd_resumes":"Resumes in",
     "acct_server_note":"Your account belongs to this server — always log in here.",
     "personal_data":"Personal Info","full_name":"Full name *","country":"Country","required_lbl":"REQUIRED","language_lbl":"Language",
     "public_profile":"Public Profile","never_shown":"Your email and phone are never shown.",
@@ -10850,6 +10878,19 @@ const LANG_DICT = {
     "roi_calc":"Calculadora de Resultados","roi_if":"Si solo el 1% de las empresas responde positivamente:","roi_cta":"¡Solo 1 empresa confirma → estás en los EUA! ✈️",
     "all_states":"Todos los estados","salary":"Salario","qty_jobs":"# Puestos",
     "sug_companies":"Empresas","sug_roles":"Puestos","sug_cities":"Ciudades","sug_regions":"Regiones","sug_states":"Estados","sug_jobs":"empleos",
+    "st_starting":"🟡 Iniciando...","st_sending":"🟢 Enviando...","st_paused":"⏸ Pausado",
+    "st_no_session":"⚠️ Inicia sesión de nuevo","st_finished":"✅ Completado","st_resuming":"🟢 Reanudando...",
+    "st_refilled":"🔄 Cola recargada — enviando...","st_wait_interval":"⏳ Esperando intervalo...","st_wait_hour":"⏳ Esperando horario...",
+    "st_wait_limit":"📊 Límite diario alcanzado","st_wait_rate":"⏳ Google pidió una pausa — reanudamos solos",
+    "st_auth_err":"⛔ Pausado — reconecta tu Gmail","st_token_revoked":"🔐 Acceso Google revocado — inicia sesión de nuevo",
+    "st_no_refresh":"🔐 Inicia sesión de nuevo para reactivar","st_corrupt":"❌ Problema en la cola — reinicia el automático",
+    "hint_auth_err":"Abre Configuración y conecta tu cuenta Google de nuevo — tu cola sigue guardada.",
+    "hint_token_revoked":"Cierra sesión y entra con Google de nuevo — tu cola sigue guardada.",
+    "hint_no_refresh":"Entra con Google de nuevo — tu cola sigue guardada.",
+    "hint_no_session":"Entra con Google de nuevo — tu cola sigue guardada.",
+    "hint_corrupt":"Toca Parar e inicia el automático de nuevo.",
+    "hint_rate":"Protección anti-spam normal de Gmail — nada que hacer, el robot reanuda solo.",
+    "cd_soon":"Enviando en instantes...","cd_next":"Próximo envío en","cd_starts":"Inicia en","cd_resumes":"Reanuda en",
     "acct_server_note":"Tu cuenta pertenece a este servidor — inicia sesión siempre aquí.",
     "personal_data":"Datos Personales","full_name":"Nombre completo *","country":"País","required_lbl":"OBLIGATORIO","language_lbl":"Idioma",
     "public_profile":"Perfil Público","never_shown":"Tu email y teléfono nunca aparecen.",

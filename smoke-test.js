@@ -481,6 +481,16 @@ async function testAuthWatchdogPush() {
     check("🌐 i18n-1: seletor de idioma com BANDEIRAS grandes + motor de varredura data-i18n",
       home.body.includes('id="lang-flag"') && home.body.includes("🇺🇸") && frontAll.includes('querySelectorAll("[data-i18n]")'),
       "lang-flag, bandeiras ou sweep data-i18n não encontrados");
+    // 🌐 i18n-5 (Etapa 5): CATRACA — o nº de textos PT visíveis SEM etiqueta
+    // data-i18n nas views só pode DIMINUIR. Quem adicionar tela nova sem
+    // tradução quebra este teste na hora (regra 6f virou guarda automática).
+    const _vp = home.body.slice(home.body.indexOf('id="v-home"'), home.body.indexOf('id="modal"'));
+    const _ptTexts = [...new Set([..._vp.matchAll(/>([^<>{}\n]{4,80})</g)].map((m) => m[1].trim())
+      .filter((t2) => t2 && !/^[\d\s\W]+$/.test(t2) && !/^(ti |var\(|http)/.test(t2))
+      .filter((t2) => /[áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]|(^| )(de|do|da|para|com|seu|sua|você|não|vaga|envio|dia|até|mês)( |$)/i.test(t2)))];
+    const _semTag = _ptTexts.filter((t2) => !new RegExp('data-i18n[^>]*>' + t2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(_vp));
+    check(`🌐 i18n-5: CATRACA de tradução — textos PT sem data-i18n nas views: ${_semTag.length} (teto 265, só pode cair)`,
+      _semTag.length <= 265, `estourou o teto: ${_semTag.length} — novas telas PRECISAM nascer com data-i18n (amostra: ${_semTag.slice(0, 3).join(" | ")})`);
 
     // 🔖 v126: a aba Vagas Salvas tem entrada VISÍVEL na sidebar, o card de
     // PLANILHA também tem o 🔖 (antes só a Seasonal tinha), e a lista vem

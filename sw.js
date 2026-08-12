@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v95"; // v95 (13/08): i18n Etapa 4 (v131) — Perfil, Planos (linguagem de diamantes), Ranking e Configurações nas 3 línguas (31 textos novos traduzidos, guarda permanente validando tudo).
+const CACHE_NAME = "h2bapply-v96"; // v96 (13/08): i18n Etapa 5 (v132) — status dinâmicos do robô nas 3 línguas (Enviando/Pausado/Limite/contagens e as dicas de conserto) + catraca de tradução no teste: tela nova sem tradução quebra a suíte.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
