@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v97"; // v97 (13/08): 📡 Radar de Vagas (salve seus filtros e receba push de vaga nova que combina, máx 1/dia) + funil do limite diário (acabou o limite → mostra o que resta hoje e a troca por 💎 a 1 clique) — v134.
+const CACHE_NAME = "h2bapply-v98"; // v98 (13/08): aba 🎯 Respostas Certas EXCLUÍDA por ordem do dono (v135) — a regra "o app só envia, nunca lê caixa de entrada" volta a ser absoluta pra todos, admin incluído; + guarda anti-vídeo no upload (só PDF de verdade entra).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

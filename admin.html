@@ -294,14 +294,6 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
         <span id="sb-contabil-alert" style="display:none;width:7px;height:7px;border-radius:50%;background:var(--amber);animation:pulse 1.5s infinite;margin-left:4px"></span>
       </button>
       <!-- v29 LIMPEZA: Emails Inválidos virou acesso dentro da tela Robôs -->
-      <!-- v74 (ordem do dono, 27/07/2026): aba SÓ-ADMIN — IA analisa em tempo
-           real as respostas que chegam nas caixas de leitura conectadas pelo
-           admin (entrevista/pergunta = mostra; automático/rejeição = ignora). -->
-      <button class="sb-item" id="sb-respostas-certas-item" onclick="showView('respostas-certas');loadRespostasCertas()" style="background:linear-gradient(135deg,rgba(16,185,129,.15),rgba(5,150,105,.08));border:1px solid rgba(16,185,129,.3);color:#34d399;font-weight:800">
-        <i class="ti ti-target-arrow" style="color:#34d399"></i>🎯 Respostas Certas
-        <span class="sb-badge sb-badge-g" id="sb-respostas-certas" style="display:none">0</span>
-      </button>
-
       <button class="sb-item" onclick="showView('codes')"><i class="ti ti-ticket"></i>Códigos Promo</button>
       <button class="sb-item" onclick="showView('download');loadSheetDownloads()" style="background:linear-gradient(135deg,rgba(37,99,235,.14),rgba(37,99,235,.06));border:1px solid rgba(37,99,235,.3);color:#60a5fa;font-weight:800"><i class="ti ti-download" style="color:#60a5fa"></i>📥 Baixar Planilhas</button>
       <button class="sb-item" onclick="showView('ranking')"><i class="ti ti-trophy"></i>Ranking</button>
@@ -1325,38 +1317,6 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
         </div>
       </div>
 
-      <!-- 🎯 RESPOSTAS CERTAS (v74, admin-only) — IA analisa o dia todo as
-           respostas reais nas caixas de leitura conectadas por ESTE admin. -->
-      <div class="view" id="view-respostas-certas">
-        <div class="section-hdr">
-          <i class="ti ti-target-arrow" style="color:#34d399"></i>
-          <div>
-            <div class="section-title">🎯 Respostas Certas</div>
-            <div class="section-sub">A IA lê suas caixas de entrada conectadas o dia todo e só mostra aqui o que parece entrevista ou pergunta real — rejeição, automático e spam ela ignora sozinha.</div>
-          </div>
-          <div class="section-actions">
-            <button class="btn btn-ghost btn-sm" onclick="rcScanNow()" id="rc-scan-btn" title="Força uma varredura agora, sem esperar o ciclo automático"><i class="ti ti-refresh"></i> Analisar agora</button>
-            <button class="btn btn-primary btn-sm" onclick="rcConnectAccount()"><i class="ti ti-plus"></i> Conectar Gmail</button>
-          </div>
-        </div>
-
-        <div id="rc-setup-banner" style="display:none;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:12.5px;color:var(--t2);line-height:1.6">
-          ⚠️ Este servidor ainda não tem o Google Cloud separado configurado (<code>ADMIN_REPLY_CLIENT_ID</code>/<code>ADMIN_REPLY_CLIENT_SECRET</code>). Isso é DIFERENTE do login normal — é um projeto próprio, isolado, em modo "Testing" só com e-mails de admin como test user, pra não afetar a verificação do app público. Passo a passo em <code>README_SERVIDORES.txt</code>.
-        </div>
-
-        <div id="rc-accounts-wrap" style="margin-bottom:22px">
-          <div class="section-title" style="font-size:13px;margin-bottom:8px">📥 Caixas conectadas</div>
-          <div id="rc-accounts-list" style="display:flex;gap:10px;flex-wrap:wrap"><div class="empty-state">Carregando…</div></div>
-        </div>
-
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-          <div class="section-title" style="font-size:13px">🏆 Ranking de respostas</div>
-          <span id="rc-gemini-budget" style="font-size:11px;color:var(--t3)"></span>
-        </div>
-        <div id="rc-list" style="display:flex;flex-direction:column;gap:12px"><div class="empty-state">Carregando…</div></div>
-      </div>
-
-      <!-- AUDITORIA & DUPLICADAS (v19) -->
       <div class="view" id="view-auditoria">
         <div class="section-hdr">
           <i class="ti ti-history-toggle" style="color:#fbbf24"></i>
@@ -4116,7 +4076,7 @@ function showView(name) {
   const v = document.getElementById('view-'+name);
   if(v) v.classList.add('active');
   _renderMoneyNav(name);
-  const titles={dashboard:'Visão Geral','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'💳 Confirmação de Pagamentos',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',pagantes:'💳 Pagantes',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas',robos:'🤖 Robôs',auditoria:'🕓 Auditoria & Contas Duplicadas',conferencia:'🧾 Conferência de Pagamentos','respostas-certas':'🎯 Respostas Certas',diamantes:'💎 Diamantes'};
+  const titles={dashboard:'Visão Geral','ia-admin':'🧠 IA Admin',workers:'Automáticos',events:'💳 Confirmação de Pagamentos',incidentes:'🚨 Central de Incidentes','pedidos-lixeira':'🗑️ Lixeira de Pedidos',users:'Usuários',vip:'VIP & Planos',vencimentos:'Vencimentos VIP',pagantes:'💳 Pagantes',codes:'Códigos Promo',ranking:'Ranking',settings:'Configurações',notificacoes:'Notificações',pedidos:'Pedidos de Plano','robo-contabil':'🔍 Robô de Auditoria — Diagnóstico do Sistema','emails-invalidos':'⛔ Emails Inválidos — Base Global','planilhas':'📋 Planilhas de Vagas',robos:'🤖 Robôs',auditoria:'🕓 Auditoria & Contas Duplicadas',conferencia:'🧾 Conferência de Pagamentos',diamantes:'💎 Diamantes'};
   setText('view-title', titles[name]||name);
   if(name==='robo-contabil' && typeof rcCheckGeminiStatus==='function') setTimeout(rcCheckGeminiStatus,300);
   if(name==='incidentes'){
@@ -4226,132 +4186,6 @@ async function reverterAcao(id){
     else toast('Erro: '+(d.error||'falhou'),'r');
   }catch(e){toast('Erro: '+e.message,'r');}
 }
-
-// ══════════════════════════════════════════════════════════
-// 🎯 v74 — RESPOSTAS CERTAS (admin-only)
-// ══════════════════════════════════════════════════════════
-const _rcClassLabel={POSITIVE_INTERVIEW:{txt:'🎉 Possível entrevista',color:'#34d399'},QUESTION:{txt:'❓ Pergunta da empresa',color:'#fbbf24'}};
-function _rcFmtDate(ts){ if(!ts) return '—'; try{ return new Date(ts).toLocaleString('pt-BR'); }catch{ return '—'; } }
-
-async function loadRespostasCertas(){
-  await Promise.all([rcLoadAccounts(), rcLoadList()]);
-}
-
-async function rcLoadAccounts(){
-  const wrap=document.getElementById('rc-accounts-list');
-  const banner=document.getElementById('rc-setup-banner');
-  const budgetEl=document.getElementById('rc-gemini-budget');
-  try{
-    const r=await fetch('/api/admin/reply-triage/status',{credentials:'include'});
-    const d=await r.json();
-    if(!d.ok){wrap.innerHTML=`<div class="empty-state" style="color:var(--red)">${esc(d.error||'Erro')}</div>`;return;}
-    banner.style.display=d.configured?'none':'block';
-    if(budgetEl) budgetEl.textContent=`IA: ${d.geminiUsed||0}/${d.geminiLimit||0} classificações hoje`;
-    const accs=d.accounts||[];
-    if(!accs.length){
-      wrap.innerHTML=`<div class="empty-state"><i class="ti ti-inbox"></i> Nenhuma caixa conectada ainda. Clique em "Conectar Gmail" pra IA começar a analisar suas respostas.</div>`;
-      return;
-    }
-    wrap.innerHTML=accs.map(a=>{
-      const statusColor=a.lastError?'var(--red)':(a.lastScan?'var(--green)':'var(--t3)');
-      const statusTxt=a.lastError?`⚠️ ${esc(a.lastError)}`:(a.lastScan?`✅ última varredura: ${_rcFmtDate(a.lastScan)}`:'⏳ aguardando 1ª varredura');
-      return `<div style="background:var(--glass);border:1px solid var(--border2);border-radius:12px;padding:10px 14px;min-width:240px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <strong style="font-size:12.5px;color:#fff">${esc(a.email)}</strong>
-          <button onclick="rcDisconnectAccount('${esc(a.email)}')" title="Desconectar" style="margin-left:auto;background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px"><i class="ti ti-x"></i></button>
-        </div>
-        <div style="font-size:11px;color:${statusColor};margin-top:4px">${statusTxt}</div>
-        <div style="font-size:10.5px;color:var(--t3);margin-top:2px">Conectada em ${_rcFmtDate(a.addedAt)}${a.lastCount?` · ${a.lastCount} nova(s) na última varredura`:''}</div>
-      </div>`;
-    }).join('');
-  }catch(e){ wrap.innerHTML=`<div class="empty-state" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
-}
-
-async function rcLoadList(){
-  const el=document.getElementById('rc-list');
-  try{
-    const r=await fetch('/api/admin/reply-triage/list',{credentials:'include'});
-    const d=await r.json();
-    if(!d.ok){el.innerHTML=`<div class="empty-state" style="color:var(--red)">${esc(d.error||'Erro')}</div>`;return;}
-    const entries=d.entries||[];
-    document.getElementById('sb-respostas-certas').style.display = entries.length ? 'inline-block' : 'none';
-    document.getElementById('sb-respostas-certas').textContent = entries.length;
-    if(!entries.length){
-      el.innerHTML=`<div class="empty-state"><i class="ti ti-mail-opened"></i> Nada por aqui ainda — assim que uma resposta relevante chegar numa das caixas conectadas, a IA já vai ter classificado quando você abrir esta aba.</div>`;
-      return;
-    }
-    el.innerHTML=entries.map(e=>{
-      const cls=_rcClassLabel[e.classification]||{txt:e.classification,color:'var(--t2)'};
-      return `<div style="background:var(--glass);border:1px solid var(--border2);border-left:3px solid ${cls.color};border-radius:12px;padding:14px 16px">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-          <span style="font-size:12.5px;font-weight:800;color:${cls.color}">${cls.txt}</span>
-          <span style="font-size:10.5px;color:var(--t3)">confiança ${e.confidence||0}%</span>
-          <span style="font-size:10.5px;color:var(--t3);margin-left:auto">via ${esc(e.accountEmail||'')} · ${_rcFmtDate(e.replyDate)}</span>
-          <button onclick="rcDislike('${e.id}')" title="A IA errou — isso não é ${cls.txt}" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;color:#f87171;cursor:pointer;font-family:inherit"><i class="ti ti-thumb-down"></i> A IA errou</button>
-        </div>
-        ${e.company||e.jobTitle?`<div style="font-size:11px;color:var(--t3);margin-bottom:8px">🏢 ${esc(e.company||'')}${e.jobTitle?` — ${esc(e.jobTitle)}`:''}</div>`:''}
-        <div style="background:var(--glass2);border-radius:9px;padding:10px 12px;margin-bottom:8px">
-          <div style="font-size:10px;font-weight:800;color:var(--t3);text-transform:uppercase;margin-bottom:4px">📤 Você enviou</div>
-          <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:3px">${esc(e.sentSubject||'(sem registro do assunto)')}</div>
-          <div style="font-size:11.5px;color:var(--t3);white-space:pre-wrap;max-height:120px;overflow-y:auto">${esc(e.sentBody||'(sem registro do corpo — candidatura enviada antes desta função existir)')}</div>
-        </div>
-        <div style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.15);border-radius:9px;padding:10px 12px">
-          <div style="font-size:10px;font-weight:800;color:#34d399;text-transform:uppercase;margin-bottom:4px">📥 Resposta de ${esc(e.replyFrom||'')}</div>
-          <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:3px">${esc(e.replySubject||'')}</div>
-          <div style="font-size:11.5px;color:var(--t2);white-space:pre-wrap;max-height:200px;overflow-y:auto">${esc(e.replyBodyTranslated||e.replyBody||'')}</div>
-          ${e.replyBodyTranslated&&e.replyBody?`<details style="margin-top:6px"><summary style="font-size:10px;color:var(--t3);cursor:pointer">Ver original</summary><div style="font-size:11px;color:var(--t3);white-space:pre-wrap;margin-top:4px">${esc(e.replyBody)}</div></details>`:''}
-        </div>
-      </div>`;
-    }).join('');
-  }catch(e){ el.innerHTML=`<div class="empty-state" style="color:var(--red)">Erro: ${esc(e.message)}</div>`; }
-}
-
-function rcConnectAccount(){ location.href='/oauth/admin-reply/start'; }
-
-async function rcDisconnectAccount(email){
-  if(!confirm(`Desconectar ${email}? A IA para de analisar essa caixa.`))return;
-  try{
-    const r=await fetch('/api/admin/reply-triage/accounts/'+encodeURIComponent(email),{method:'DELETE',credentials:'include'});
-    const d=await r.json();
-    if(d.ok){toast('Conta desconectada','ok');rcLoadAccounts();}
-    else toast(d.error||'Erro','r');
-  }catch(e){toast(e.message,'r');}
-}
-
-async function rcScanNow(){
-  const btn=document.getElementById('rc-scan-btn');
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2"></i> Analisando...';}
-  try{
-    const r=await fetch('/api/admin/reply-triage/scan-now',{method:'POST',credentials:'include'});
-    const d=await r.json();
-    if(d.ok){toast(d.msg||'Varredura iniciada','ok');setTimeout(loadRespostasCertas,4000);}
-    else toast(d.error||'Erro','r');
-  }catch(e){toast(e.message,'r');}
-  finally{ if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-refresh"></i> Analisar agora';} }
-}
-
-async function rcDislike(id){
-  try{
-    const r=await fetch('/api/admin/reply-triage/'+encodeURIComponent(id)+'/dislike',{method:'POST',credentials:'include'});
-    const d=await r.json();
-    if(d.ok){toast('👎 Marcado — a IA aprende com isso','ok');rcLoadList();}
-    else toast(d.error||'Erro','r');
-  }catch(e){toast(e.message,'r');}
-}
-
-// Volta do /oauth/admin-reply/callback (?ok=...&tab=respostas-certas ou ?err=...) —
-// mostra o toast e já abre a aba certa, sem deixar os params sujando a URL.
-document.addEventListener('DOMContentLoaded',()=>{
-  try{
-    const qp=new URLSearchParams(location.search);
-    if(qp.get('tab')==='respostas-certas'){
-      const ok=qp.get('ok'), err=qp.get('err');
-      if(ok) toast(ok,'ok'); if(err) toast(err,'r');
-      showView('respostas-certas'); loadRespostasCertas();
-      history.replaceState(null,'','/admin');
-    }
-  }catch(e){}
-});
 
 function roboSubTab(name){
   window._roboActiveSub=name;

@@ -792,6 +792,13 @@ async function testAuthWatchdogPush() {
     check("upload de currículo funciona", up1.json?.ok === true, up1.body.slice(0, 120));
     const up2 = await req2("POST", "/api/cv/upload", { base64: pdfB64, name: "Curriculo_Smoke.pdf", cvType: "resume" });
     check("re-upload do MESMO nome substitui (não duplica)", up2.json?.ok === true && up2.json?.replaced === true, up2.body.slice(0, 120));
+    // 🛡️ v135 (pergunta do dono, 13/08: "garanta que ninguém sobe vídeo no
+    // lugar da cover"): o upload SÓ aceita PDF de verdade — os 4 primeiros
+    // bytes TÊM que ser %PDF. Vídeo disfarçado de .pdf é recusado na hora.
+    const fakeVideo = Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x20]), Buffer.from("ftypmp42" + "videofake ".repeat(200))]).toString("base64");
+    const upVid = await req2("POST", "/api/cv/upload", { base64: fakeVideo, name: "curriculo.pdf", cvType: "cover" });
+    check("🛡️ v135: vídeo renomeado pra .pdf é RECUSADO (magic bytes %PDF obrigatórios) — impossível subir vídeo como cover",
+      upVid.status === 400 && /não é um PDF/i.test(upVid.json?.error || ""), `status=${upVid.status} body=${upVid.body.slice(0, 120)}`);
 
     // Perfil: salvar com cover "Nenhuma" e depois salvar SEM o campo (herança)
     const resumeIdx = up1.json?.cv?.idx;
@@ -1711,42 +1718,6 @@ async function testAuthWatchdogPush() {
       "mensagem nova não encontrada, ou status waiting_rate_limit ainda sendo atribuído em algum lugar");
     check("🛡️ bloqueio de verdade (conta suspensa/desativada) continua pausando — só o rate limit parou de pausar",
       _srvSrc.includes('errType === "suspended" || errType === "send_disabled"'));
-
-    // ═══ 🎯 v74: RESPOSTAS CERTAS (admin-only, exceção isolada ao 13d) ═══
-    // Sem ADMIN_REPLY_CLIENT_ID/SECRET nas envs de teste, a feature tem que
-    // ficar 100% INERTE (nunca chama o Google) mas as rotas continuam
-    // respondendo direito pro admin — é o comportamento "banner de setup".
-    check("🎯 client OAuth de Respostas Certas é ISOLADO do CLIENT_ID público (nunca reaproveita)",
-      _srvSrc.includes("ADMIN_REPLY_CLIENT_ID") && _srvSrc.includes("ADMIN_REPLY_CLIENT_SECRET") && _srvSrc.includes('ADMIN_REPLY_SCOPES = "openid email profile https://www.googleapis.com/auth/gmail.readonly"'),
-      "consts ADMIN_REPLY_CLIENT_ID/SECRET/SCOPES não encontrados");
-    check("🎯 rota OAuth de leitura é isolada da rota de login público (/oauth/admin-reply/*, nunca /oauth/callback)",
-      _srvSrc.includes('"/oauth/admin-reply/start"') && _srvSrc.includes('"/oauth/admin-reply/callback"'));
-    check("🎯 feedback do 👎 fica ISOLADO do DB_AI_KB (nunca vaza resposta privada pro IA Chat de outros usuários)",
-      _srvSrc.includes("DB_REPLY_FEEDBACK") && !/DB_AI_KB\.entries\.(unshift|push)\(.*replyBody/.test(_srvSrc),
-      "DB_REPLY_FEEDBACK não encontrado ou parece misturado com DB_AI_KB");
-    const _rcBlockStart = _srvSrc.indexOf("RESPOSTAS CERTAS (admin-only) — OAuth de LEITURA isolado");
-    const _rcBlockEnd = _srvSrc.indexOf("Admin: Central de Incidentes", _rcBlockStart);
-    const _rcBlock = _rcBlockStart !== -1 && _rcBlockEnd !== -1 ? _srvSrc.slice(_rcBlockStart, _rcBlockEnd) : "";
-    const _rcIsAdminCount = (_rcBlock.match(/isAdminVip\(p\)/g) || []).length;
-    check("🎯 todas as rotas /api/admin/reply-triage/* checam isAdminVip antes de responder",
-      _rcBlock && _rcIsAdminCount >= 5, `bloco encontrado=${!!_rcBlock}, isAdminVip(p) contado=${_rcIsAdminCount} (esperado >=5)`);
-
-    const rcStatus = await get("/api/admin/reply-triage/status");
-    check("🎯 /api/admin/reply-triage/status responde ok pro admin (sessão de teste tem isAdmin:true)",
-      rcStatus.status === 200 && rcStatus.json?.ok === true, rcStatus.body.slice(0, 160));
-    check("🎯 sem ADMIN_REPLY_CLIENT_ID/SECRET no ambiente de teste → configured:false (banner de setup, NUNCA chama o Google)",
-      rcStatus.json?.configured === false, JSON.stringify(rcStatus.json));
-    check("🎯 nenhuma conta conectada no fixture → accounts:[]",
-      Array.isArray(rcStatus.json?.accounts) && rcStatus.json.accounts.length === 0);
-
-    const rcList = await get("/api/admin/reply-triage/list");
-    check("🎯 /api/admin/reply-triage/list responde ok e vazio (nada foi classificado ainda)",
-      rcList.status === 200 && rcList.json?.ok === true && Array.isArray(rcList.json?.entries) && rcList.json.entries.length === 0,
-      rcList.body.slice(0, 160));
-
-    const rcScan = await req2("POST", "/api/admin/reply-triage/scan-now", {});
-    check("🎯 scan-now recusa educadamente (não configurado no ambiente de teste) — nunca tenta chamar o Google sem client isolado",
-      rcScan.status === 503 && /não configurado/i.test(rcScan.json?.error || ""), rcScan.body.slice(0, 160));
 
     // Ponta a ponta: /api/status expõe o campo primaryWarmup de verdade (o
     // fixture cliente@test.com não tem created_at → fail-open correto: sem

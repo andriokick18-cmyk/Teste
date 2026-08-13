@@ -144,25 +144,14 @@
     descoberta automática de novos bounces por leitura de inbox. PROIBIDO
     reintroduzir gmail.readonly/gmail.modify, a aba Respostas, ou qualquer
     leitura de caixa de entrada sem ordem EXPRESSA e NOVA do dono.
-13e. **🎯 RESPOSTAS CERTAS — exceção isolada e ADMIN-ONLY ao 13d (dono,
-    27/07/2026)**: essa foi a ordem EXPRESSA e NOVA que o 13d previa. Aba
-    só-admin (painel /admin) onde a IA lê em tempo real as caixas de
-    entrada QUE O PRÓPRIO ADMIN conectou (separado do login normal) e
-    classifica cada resposta nova: entrevista/pergunta real aparece num
-    ranking (topo = e-mail enviado, baixo = resposta já traduzida, conta
-    usada); automático/rejeição/spam a IA ignora sozinha. Botão 👎 quando
-    a IA erra vira treino (DB_REPLY_FEEDBACK, por admin — NUNCA se mistura
-    com o DB_AI_KB do IA Chat, que é visto por TODOS os usuários). Varre
-    sozinha o dia todo (setInterval). Isso NÃO reabre leitura de inbox
-    pros usuários comuns nem pro CLIENT_ID público de envio — usa um
-    CLIENT_ID/SECRET SEPARADO (ADMIN_REPLY_CLIENT_ID/SECRET), de um
-    projeto Google Cloud próprio, em modo "Testing" com só e-mails de
-    admin como test user (nunca passa por verificação pública, nunca
-    aparece pra usuário comum). Sem essas envs configuradas, a aba fica
-    100% inerte (banner de setup, zero chamada ao Google) — ver passo a
-    passo em README_SERVIDORES.txt. O 13d continua valendo por inteiro
-    pros 3 servidores e pros usuários comuns; esta é a ÚNICA exceção, e é
-    só do admin lendo a própria caixa.
+13e. **🎯 RESPOSTAS CERTAS — REVOGADA (dono, 13/08/2026: "exclua a aba
+    respostas")**: a exceção admin-only ao 13d foi EXCLUÍDA por inteiro
+    no v135 — aba do painel, rotas /api/admin/reply-triage/*, OAuth de
+    leitura isolado (ADMIN_REPLY_*), scanner e guardas de teste. O 13d
+    volta a ser ABSOLUTO: NINGUÉM (nem admin) lê caixa de entrada por
+    este sistema, em nenhum dos 3 servidores. Os arquivos de dados
+    antigos (admin_reply_*.json) ficam inertes no disco. Não recriar
+    sem ordem EXPRESSA e NOVA do dono.
 13f. **💎 Arredondamento de diamantes — REGRA ÚNICA (dono, 28/07/2026, bug
     real: "comprou 250 reais, ativou DoublePro, mas não aparece que ele
     tem")**: causa raiz achada — doação creditava 💎 com `Math.floor`
@@ -414,10 +403,10 @@
   alcança os domínios de produção (proxy 403) — confirmação visual de
   produção é sempre do dono.
 
-- 🔴 URGENTE — DNS de applyh2b.com aponta pro parking da Namecheap
-  (162.255.119.149, sem HTTPS → ERR_CONNECTION_TIMED_OUT, print do dono
-  25/07). Corrigir na Namecheap + Custom Domain no Render — passo a passo
-  em README_SERVIDORES.txt (Caso 1).
+- DNS de applyh2b.com (parking Namecheap), EDITOR_PWD_*, GA_MEASUREMENT_ID:
+  **ADIADOS pelo dono (13/08/2026 — "esqueça, não vou fazer agora")**.
+  NÃO relembrar em relatórios; passo a passo continua em
+  README_SERVIDORES.txt pra quando ele quiser.
 - ESTE repo (Applyh2b.com) é a FONTE ÚNICA dos 3 servidores (ordem do
   dono, 25/07): toda mudança daqui vale pros 3. 1º espelho FEITO em
   26/07 (v65b → main de New-repository e Teste), com o estado antigo
@@ -425,10 +414,6 @@
   o mod-dol-monitor.js e os arquivos removidos de propósito). TODA
   entrega nova precisa reespelhar: push --force do main daqui pros mains
   dos 2 repos (comandos em README_SERVIDORES.txt).
-- `EDITOR_PWD_ANDREW`/`EDITOR_PWD_DIEGO` no Render (padrão de fábrica é público).
-- `GA_MEASUREMENT_ID` no Render: criar propriedade GA4 (analytics.google.com)
-  e colar o ID G-XXXX na env — o funil inteiro já está instrumentado
-  (gaEvent) e o servidor injeta o ID em todas as páginas sozinho.
 - Bot de coleta ("Nova Planilha do DOL") foi REESCRITO neste repo (v35,
   caminho do feed ZIP + rascunho/publicação manual, testado no smoke com
   feed falso). Ainda SÓ na produção (conferir antes de sobrescrever, valem
@@ -436,11 +421,5 @@
   papel de notificação dele já foi substituído pela aba Notícias; o bot da
   planilha randomizada hiberna por ordem do dono).
 - `TEST_LOGIN_TOKEN`: NUNCA definir em produção (é só do npm test).
-- `ADMIN_REPLY_CLIENT_ID`/`ADMIN_REPLY_CLIENT_SECRET` no Render (os 3
-  servidores): pendente de criação pelo dono — projeto Google Cloud
-  SEPARADO do OAuth público, OAuth consent screen em modo "Testing",
-  e-mails de admin como test users, escopo gmail.readonly. Sem isso a
-  aba 🎯 Respostas Certas fica inerte (banner de setup). Passo a passo em
-  README_SERVIDORES.txt.
 - Fila futura: gateway de pagamento (aguarda chaves), Play Store (TWA),
   espanhol/inglês, consolidar telas financeiras do admin.

@@ -130,24 +130,6 @@ console.log("[oauth] ✉️ Modo só-envio (permanente, v72): escopo único gmai
 const REDIRECT_URI        = APP_URL + "/oauth/callback";
 const REDIRECT_URI_SENDER = APP_URL + "/oauth/add-sender/callback";
 
-// ── v74 — "Respostas Certas" (ordem do dono, 27/07/2026): EXCEÇÃO isolada e
-// ADMIN-ONLY à regra do v72 acima. O dono pediu uma janela só pra admins que
-// analisa com IA as respostas reais que chegam nas caixas de entrada deles
-// (entrevista? pergunta? ignora rejeição/automático) — isso EXIGE ler a
-// caixa de entrada, o que o cliente OAuth público (CLIENT_ID/CLIENT_SECRET
-// acima) NUNCA deve pedir de novo (é o que destrava a verificação rápida do
-// Google, sem CASA, pros 3 servidores). Solução: um CLIENT_ID/SECRET
-// SEPARADO, de um projeto Google Cloud próprio, mantido em modo "Testing"
-// com só os e-mails dos admins como test users — nunca passa por
-// verificação pública, nunca é visto pelos usuários comuns, e continua
-// 100% inerte (rotas retornam "não configurado") até o dono criar esse
-// projeto e definir as envs no Render. Ver README_SERVIDORES.txt.
-const ADMIN_REPLY_CLIENT_ID     = (process.env.ADMIN_REPLY_CLIENT_ID     || "").trim();
-const ADMIN_REPLY_CLIENT_SECRET = (process.env.ADMIN_REPLY_CLIENT_SECRET || "").trim();
-const ADMIN_REPLY_CONFIGURED    = !!(ADMIN_REPLY_CLIENT_ID && ADMIN_REPLY_CLIENT_SECRET);
-const ADMIN_REPLY_SCOPES = "openid email profile https://www.googleapis.com/auth/gmail.readonly";
-const ADMIN_REPLY_SCAN_INTERVAL_MIN = Math.max(2, parseInt(process.env.ADMIN_REPLY_SCAN_INTERVAL_MIN || "5", 10));
-if(ADMIN_REPLY_CONFIGURED) console.log(`[reply-triage] 🎯 Respostas Certas ATIVO — varredura a cada ${ADMIN_REPLY_SCAN_INTERVAL_MIN}min (client isolado, só-leitura, só admin).`);
 // ── v61: redirect_uri pelo HOST da requisição (com allowlist) ──────────────
 // BUG REAL (25/07, prints do dono): login do Servidor 3 travava "pra sempre"
 // na volta do Google — a env APP_URL apontava pra applyh2b.com (DNS ainda no
@@ -376,14 +358,6 @@ const NOTIF_COOLDOWN_FILE = path.join(DATA_DIR, "notif_cooldowns.json");
 const KB_FILE          = path.join(DATA_DIR, "knowledge_base.json");  // Base de Conhecimento Permanente (IA↔IA)
 const AI_KB_FILE       = path.join(DATA_DIR, "ai_knowledge.json");    // v25: experiências reais + treino extra do IA Chat (editável pelo admin, sem deploy)
 let DB_AI_KB = { entries: [] };
-// v74 — 🎯 Respostas Certas: contas de LEITURA conectadas (isoladas do
-// senderEmails[] de ENVIO) + o ranking de triagem já classificado pela IA.
-// Guardados em arquivos próprios (não misturam com dados de usuário comum).
-const ADMIN_REPLY_ACCOUNTS_FILE = path.join(DATA_DIR, "admin_reply_accounts.json"); // { [adminEmail]: [{email,access_token,refresh_token,token_expiry,addedAt,active,lastScan,lastError,lastCount}] }
-const ADMIN_REPLY_TRIAGE_FILE   = path.join(DATA_DIR, "admin_reply_triage.json");   // { [adminEmail]: [entry,...] }
-const ADMIN_REPLY_FEEDBACK_FILE = path.join(DATA_DIR, "admin_reply_feedback.json"); // { [adminEmail]: [{summary,ts}] } — vem do botão 👎
-let DB_ADMIN_REPLY_ACCOUNTS = {};
-let DB_REPLY_TRIAGE = {};
 try { fs.mkdirSync(CVS_DIR, { recursive: true }); } catch {}
 
 console.log(`[boot] H2BApply v13.0 | ${APP_URL} | ${DATA_DIR}`);
@@ -1104,13 +1078,6 @@ function boot() {
   // Adicionável pelo painel admin sem deploy — "treinar o Gemini sempre mais".
   DB_AI_KB = load(AI_KB_FILE, { entries: [] });
   if(!DB_AI_KB || !Array.isArray(DB_AI_KB.entries)) DB_AI_KB = { entries: [] };
-  // ── v74: Respostas Certas (admin-only) ────────────────────────────────────
-  DB_ADMIN_REPLY_ACCOUNTS = load(ADMIN_REPLY_ACCOUNTS_FILE, {});
-  if(!DB_ADMIN_REPLY_ACCOUNTS || typeof DB_ADMIN_REPLY_ACCOUNTS!=="object") DB_ADMIN_REPLY_ACCOUNTS = {};
-  DB_REPLY_TRIAGE = load(ADMIN_REPLY_TRIAGE_FILE, {});
-  if(!DB_REPLY_TRIAGE || typeof DB_REPLY_TRIAGE!=="object") DB_REPLY_TRIAGE = {};
-  DB_REPLY_FEEDBACK = load(ADMIN_REPLY_FEEDBACK_FILE, {});
-  if(!DB_REPLY_FEEDBACK || typeof DB_REPLY_FEEDBACK!=="object") DB_REPLY_FEEDBACK = {};
   // Sementes de conhecimento (v25.1 — pesquisa em fontes oficiais DOL/USCIS/
   // Federal Register, jul/2026). IDEMPOTENTE por id: entra o que falta, nunca
   // apaga nem duplica — o que Andrio/Diego adicionarem pelo painel é intocado.
@@ -5717,8 +5684,8 @@ async function _doAutoSendInner(email) {
         attachCount: attachments.length,
         category:  target.category,
         state:     target.state,
-        // v74: só pra ADMIN (2-5 contas) guarda o texto literal enviado —
-        // é o que a aba Respostas Certas mostra "em cima". Usuário comum
+        // v74: só pra ADMIN (2-5 contas) guarda o texto literal enviado
+        // (auditoria própria). Usuário comum
         // (escala de milhões) NUNCA guarda isso — subjectUsed truncado em
         // DB_LOGS já basta pro caso deles.
         ...((isAdminVip(p)||isAdminEmail(email)) ? { subjectSent: subject.slice(0,500), bodySent: body.slice(0,3000) } : {}),
@@ -6596,233 +6563,6 @@ async function gmailMarkRead(sid,messageId){
     method:"POST",
     headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"}
   },{removeLabelIds:["UNREAD"]});
-}
-
-// ══════════════════════════════════════════════════════════════════════════
-// 🎯 v74 — RESPOSTAS CERTAS (ordem do dono, 27/07/2026, admin-only)
-// ──────────────────────────────────────────────────────────────────────────
-// Lê (só-leitura, gmail.readonly) as caixas de entrada conectadas pelo admin
-// via o OAuth client ISOLADO (ADMIN_REPLY_CLIENT_ID/SECRET — nunca o público
-// de envio), classifica cada resposta nova com Gemini (entrevista? pergunta?
-// ignora automático/rejeição) e mantém um ranking por admin. Roda sozinho
-// o dia todo (setInterval) — quando o admin abre a aba, já está classificado.
-// ══════════════════════════════════════════════════════════════════════════
-
-async function adminReplyRefreshToken(ownerEmail, accountEmail){
-  const list = DB_ADMIN_REPLY_ACCOUNTS[ownerEmail]||[];
-  const acc = list.find(a=>a.email===accountEmail);
-  if(!acc || !acc.refresh_token){ if(acc) acc.lastError="REPLY_TOKEN_EXPIRED"; throw new Error("REPLY_TOKEN_EXPIRED"); }
-  const tb = new URLSearchParams({client_id:ADMIN_REPLY_CLIENT_ID,client_secret:ADMIN_REPLY_CLIENT_SECRET,refresh_token:acc.refresh_token,grant_type:"refresh_token"}).toString();
-  const {body:tk} = await httpsReq({hostname:"oauth2.googleapis.com",path:"/token",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(tb)}},tb);
-  if(!tk.access_token){ acc.lastError = tk.error_description||tk.error||"REPLY_TOKEN_EXPIRED"; throw new Error("REPLY_TOKEN_EXPIRED"); }
-  acc.access_token = tk.access_token;
-  acc.token_expiry = Date.now()+(tk.expires_in||3500)*1000;
-  acc.lastError = "";
-  persistDebounced(ADMIN_REPLY_ACCOUNTS_FILE, DB_ADMIN_REPLY_ACCOUNTS, 500);
-  return acc.access_token;
-}
-
-async function adminReplyGetToken(ownerEmail, accountEmail){
-  const list = DB_ADMIN_REPLY_ACCOUNTS[ownerEmail]||[];
-  const acc = list.find(a=>a.email===accountEmail);
-  if(!acc) throw new Error("REPLY_ACCOUNT_NOT_FOUND");
-  if(acc.access_token && acc.token_expiry && Date.now()<acc.token_expiry-120_000) return acc.access_token;
-  return adminReplyRefreshToken(ownerEmail, accountEmail);
-}
-
-// Busca mensagens novas na inbox da conta de LEITURA (separada do envio).
-// afterTs: só busca mensagens recebidas depois desse timestamp (janela do scan).
-async function adminReplyFetchInbox(ownerEmail, accountEmail, {maxResults=40, afterTs=0}={}){
-  let token = await adminReplyGetToken(ownerEmail, accountEmail);
-  let headers = {"Authorization":"Bearer "+token};
-  const afterQ = afterTs ? ` after:${Math.floor(afterTs/1000)}` : "";
-  const q = encodeURIComponent("in:inbox -from:me"+afterQ);
-  const listPath = `/gmail/v1/users/me/messages?maxResults=${maxResults}&q=${q}`;
-  let {status:ls, body:lb} = await httpsReq({hostname:"gmail.googleapis.com",path:listPath,method:"GET",headers});
-  if(ls===401){
-    token = await adminReplyRefreshToken(ownerEmail, accountEmail);
-    headers = {"Authorization":"Bearer "+token};
-    const retry = await httpsReq({hostname:"gmail.googleapis.com",path:listPath,method:"GET",headers});
-    ls=retry.status; lb=retry.body;
-  }
-  if(ls===403) throw new Error("REPLY_SCOPE_MISSING"); // reconexão precisa (escopo readonly não concedido/revogado)
-  if(ls===429) throw new Error("REPLY_RATE_LIMITED");
-  if(ls!==200) throw new Error("Gmail list HTTP "+ls);
-  const messages = lb.messages||[];
-  if(!messages.length) return [];
-  const results=[];
-  for(let i=0;i<messages.length;i+=10){
-    const batch = messages.slice(i,i+10);
-    const details = await Promise.all(batch.map(async m=>{
-      try{
-        const {status,body} = await httpsReq({hostname:"gmail.googleapis.com",path:`/gmail/v1/users/me/messages/${m.id}?format=full`,method:"GET",headers});
-        return status===200 ? body : null;
-      }catch{ return null; }
-    }));
-    results.push(...details.filter(Boolean));
-  }
-  return results.map(msg=>{
-    const hdrs = msg.payload?.headers||[];
-    const subject = getHeader(hdrs,"Subject");
-    const from = getHeader(hdrs,"From");
-    const date = getHeader(hdrs,"Date");
-    const inReplyTo = getHeader(hdrs,"In-Reply-To");
-    const references = getHeader(hdrs,"References");
-    const autoSubmitted = getHeader(hdrs,"Auto-Submitted");
-    const precedence = getHeader(hdrs,"Precedence");
-    const body = extractText(msg.payload);
-    return {
-      id: msg.id, threadId: msg.threadId||"",
-      subject: subject||"(sem assunto)", from, date,
-      body: body.slice(0,4000), snippet: (msg.snippet||"").slice(0,300),
-      inReplyTo: inReplyTo||"", references: references||"",
-      // v74: cabeçalhos padrão RFC 3834 de resposta automática — mais um filtro
-      // grátis (sem gastar Gemini) além do isBounceMail já existente.
-      isAutoReply: /^\s*(auto-replied|auto-generated)/i.test(autoSubmitted) || /\b(bulk|auto_reply|list)\b/i.test(precedence),
-      timestamp: msg.internalDate ? parseInt(msg.internalDate) : Date.parse(date||0),
-    };
-  });
-}
-
-// ── Classificação da resposta via Gemini — contador e limite PRÓPRIOS,
-// isolados do IA Chat (não compete pelo mesmo orçamento diário) ────────────
-const ADMIN_REPLY_GEMINI_DAILY_LIMIT = parseInt(process.env.ADMIN_REPLY_GEMINI_DAILY_LIMIT || "400", 10);
-let _replyGeminiCount = { date:"", count:0 };
-// Exemplos de erro que o próprio admin marcou com 👎 (dislike) — aprendido em
-// runtime, NUNCA misturado com DB_AI_KB (aquele vaza pro prompt do IA Chat
-// visto por TODOS os usuários; respostas de e-mail são dado privado do admin).
-let DB_REPLY_FEEDBACK = {}; // { [ownerEmail]: [{summary,ts}] }
-
-async function classifyReplyWithGemini(ownerEmail, {sentSubject,sentBody,replyFrom,replySubject,replyBody}){
-  const today = todayStrBRT();
-  if(_replyGeminiCount.date!==today){ _replyGeminiCount={date:today,count:0}; }
-  if(_replyGeminiCount.count>=ADMIN_REPLY_GEMINI_DAILY_LIMIT) throw new Error("REPLY_GEMINI_LIMIT");
-  const feedback = (DB_REPLY_FEEDBACK[ownerEmail]||[]).slice(0,15);
-  const feedbackCtx = feedback.length ? `\n\nERROS QUE VOCÊ JÁ COMETEU ANTES NESSA CONTA (o admin marcou como errado — não repita esse padrão):\n${feedback.map(f=>`• ${f.summary}`).join("\n")}` : "";
-  const systemPrompt = `Você classifica respostas de e-mails de candidatura a emprego H-2B/H-2A nos EUA para um admin do H2BApply. Responda APENAS com um JSON válido, sem texto extra, neste formato exato:
-{"classification":"POSITIVE_INTERVIEW"|"QUESTION"|"IGNORE","confidence":0-100,"reason":"string curta em português","translated_pt":"tradução em português do corpo da resposta"}
-
-Regras:
-- POSITIVE_INTERVIEW: a empresa demonstra interesse real, convida para entrevista, pede documentos/disponibilidade/referências, confirma vaga aberta, ou qualquer sinal positivo de avanço no processo de contratação.
-- QUESTION: a empresa faz uma pergunta sobre o perfil/currículo/e-mail do candidato, mas ainda não é claramente positiva nem negativa.
-- IGNORE: qualquer coisa que NÃO seja uma resposta humana relevante — resposta automática/fora do escritório, confirmação genérica de recebimento, rejeição ("não temos vaga", "experiência insuficiente", "posição já preenchida"), spam, ou não relacionado à candidatura.
-Na dúvida entre IGNORE e as outras categorias, prefira IGNORE — é pior mostrar lixo pro admin do que perder uma resposta rara.
-NUNCA invente conteúdo que não está no e-mail — traduza fielmente.${feedbackCtx}`;
-  const userPrompt = `=== E-MAIL ENVIADO PELO ADMIN (candidatura original) ===
-Assunto: ${sentSubject||"(desconhecido — sem registro do texto original)"}
-Corpo: ${(sentBody||"(sem registro do texto original)").slice(0,1500)}
-
-=== RESPOSTA RECEBIDA ===
-De: ${replyFrom||""}
-Assunto: ${replySubject||""}
-Corpo: ${(replyBody||"").slice(0,2500)}`;
-  const GEMINI_MODELS = ["gemini-2.0-flash","gemini-2.5-flash-lite","gemini-2.5-flash"];
-  let text="", lastErr="";
-  for(const modelName of GEMINI_MODELS){
-    try{
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${getGeminiKey()}`;
-      const payload = { system_instruction:{parts:[{text:systemPrompt}]}, contents:[{role:"user",parts:[{text:userPrompt}]}], generationConfig:{temperature:0.2,maxOutputTokens:500,topP:0.9} };
-      const result = await new Promise((resolve,reject)=>{
-        const body=JSON.stringify(payload);
-        const url=new URL(geminiUrl);
-        const opts={hostname:url.hostname,path:url.pathname+url.search,method:"POST",headers:{"Content-Type":"application/json","Content-Length":Buffer.byteLength(body)}};
-        const req2=https.request(opts,resp=>{ const ch=[]; resp.on("data",c=>ch.push(c)); resp.on("end",()=>{try{resolve({status:resp.statusCode,body:JSON.parse(Buffer.concat(ch).toString())});}catch{reject(new Error("Resposta inválida"));}}); });
-        req2.on("error",reject);
-        req2.setTimeout(20000,()=>{req2.destroy();reject(new Error("Timeout"));});
-        req2.write(body);req2.end();
-      });
-      if(result.status===200){
-        text = result.body?.candidates?.[0]?.content?.parts?.[0]?.text||"";
-        if(text) break;
-      } else { lastErr = result.body?.error?.message||`HTTP ${result.status}`; }
-    }catch(e){ lastErr = e.message; }
-  }
-  if(!text) throw new Error("Gemini: "+lastErr);
-  _replyGeminiCount.count++;
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if(!jsonMatch) return {classification:"IGNORE",confidence:0,reason:"resposta da IA sem JSON",translated_pt:""};
-  try{
-    const parsed = JSON.parse(jsonMatch[0]);
-    return {
-      classification: ["POSITIVE_INTERVIEW","QUESTION","IGNORE"].includes(parsed.classification) ? parsed.classification : "IGNORE",
-      confidence: Math.max(0,Math.min(100,parseInt(parsed.confidence)||0)),
-      reason: String(parsed.reason||"").slice(0,300),
-      translated_pt: String(parsed.translated_pt||"").slice(0,4000),
-    };
-  }catch{ return {classification:"IGNORE",confidence:0,reason:"JSON inválido",translated_pt:""}; }
-}
-
-// Varre UMA conta conectada, classifica o que for novo e acrescenta ao ranking.
-async function scanAdminReplyAccount(ownerEmail, acc){
-  if(!acc || acc.active===false) return;
-  try{
-    // Primeiro scan: últimos 7 dias. Depois: sobrepõe 6h sobre o último scan
-    // (indexação do Gmail pode atrasar — melhor reprocessar do que perder).
-    const afterTs = acc.lastScan ? acc.lastScan - 6*3600_000 : Date.now()-7*86400_000;
-    const msgs = await adminReplyFetchInbox(ownerEmail, acc.email, {maxResults:40, afterTs});
-    const known = new Set((DB_REPLY_TRIAGE[ownerEmail]||[]).map(e=>e.gmailMessageId));
-    let processed=0, added=0;
-    for(const msg of msgs){
-      if(known.has(msg.id)) continue;
-      processed++;
-      if(isBounceMail(msg) || msg.isAutoReply) continue; // pré-filtro grátis, sem gastar Gemini
-      if(!msg.inReplyTo && !msg.references && !msg.threadId) continue; // sem qualquer sinal de que é resposta
-      const match = matchAppToEmail(ownerEmail, msg);
-      if(!match) continue; // não achou a candidatura original — sem contexto pra classificar com segurança
-      let cls;
-      try{
-        cls = await classifyReplyWithGemini(ownerEmail, {
-          sentSubject: match.app.subjectSent || "",
-          sentBody: match.app.bodySent || "",
-          replyFrom: msg.from, replySubject: msg.subject, replyBody: msg.body||msg.snippet,
-        });
-      }catch(e){ acc.lastError = e.message; if(e.message==="REPLY_GEMINI_LIMIT") break; continue; }
-      if(cls.classification==="IGNORE") continue;
-      const entry = {
-        id: crypto.randomBytes(8).toString("hex"),
-        gmailMessageId: msg.id, threadId: msg.threadId,
-        classification: cls.classification, confidence: cls.confidence, reason: cls.reason,
-        accountEmail: acc.email,
-        senderUsed: match.app.senderEmail || ownerEmail,
-        sentSubject: match.app.subjectSent || "", sentBody: match.app.bodySent || "",
-        sentDate: match.app.sentAt || null,
-        company: match.app.company || "", jobTitle: match.app.job || "",
-        replyFrom: msg.from, replySubject: msg.subject, replyBody: msg.body||msg.snippet,
-        replyBodyTranslated: cls.translated_pt, replyDate: msg.timestamp,
-        matchType: match.matchType, hidden:false, createdAt: Date.now(),
-      };
-      if(!DB_REPLY_TRIAGE[ownerEmail]) DB_REPLY_TRIAGE[ownerEmail]=[];
-      DB_REPLY_TRIAGE[ownerEmail].unshift(entry);
-      added++;
-    }
-    // Cap de armazenamento — mesmo espírito do DB_LOGS (nunca cresce sem limite)
-    if(DB_REPLY_TRIAGE[ownerEmail]?.length>500) DB_REPLY_TRIAGE[ownerEmail]=DB_REPLY_TRIAGE[ownerEmail].slice(0,500);
-    acc.lastScan = Date.now(); if(!acc.lastError||added) acc.lastError=""; acc.lastCount=added;
-    if(added) persist(ADMIN_REPLY_TRIAGE_FILE, DB_REPLY_TRIAGE); else persistDebounced(ADMIN_REPLY_TRIAGE_FILE, DB_REPLY_TRIAGE, 3000);
-    persistDebounced(ADMIN_REPLY_ACCOUNTS_FILE, DB_ADMIN_REPLY_ACCOUNTS, 1000);
-    if(added>0){
-      pushToUser(ownerEmail,{type:"generic",title:"🎯 Nova resposta classificada!",body:`${added} resposta(s) possivelmente relevante(s) em ${acc.email}. Confira em Respostas Certas.`,icon:"/icon-192.png"}).catch(()=>{});
-    }
-    console.log(`[reply-triage] ${ownerEmail}/${acc.email}: ${processed} msg(s) nova(s) analisada(s), ${added} relevante(s)`);
-  }catch(e){
-    acc.lastError = e.message; acc.lastScan = Date.now();
-    persistDebounced(ADMIN_REPLY_ACCOUNTS_FILE, DB_ADMIN_REPLY_ACCOUNTS, 1000);
-    console.warn(`[reply-triage] ${ownerEmail}/${acc.email} falhou:`, e.message);
-  }
-}
-
-async function scanAllAdminReplyAccounts(onlyOwnerEmail){
-  if(!ADMIN_REPLY_CONFIGURED) return;
-  const owners = onlyOwnerEmail ? [onlyOwnerEmail] : Object.keys(DB_ADMIN_REPLY_ACCOUNTS);
-  for(const ownerEmail of owners){
-    for(const acc of (DB_ADMIN_REPLY_ACCOUNTS[ownerEmail]||[])){
-      await scanAdminReplyAccount(ownerEmail, acc);
-    }
-  }
-}
-if(ADMIN_REPLY_CONFIGURED){
-  setInterval(()=>{ scanAllAdminReplyAccounts().catch(e=>console.warn("[reply-triage] varredura geral falhou:",e.message)); }, ADMIN_REPLY_SCAN_INTERVAL_MIN*60*1000);
-  setTimeout(()=>{ scanAllAdminReplyAccounts().catch(()=>{}); }, 30_000); // primeira varredura 30s após o boot
 }
 
 // v22 (ORDEM DO DONO): genCover/"IA gera" removidos — era um template FIXO
@@ -10366,102 +10106,6 @@ filtrar();
       setUser(s.user_email,{senderEmails:senders});
       return json(res,200,{ok:true});
     }catch(e){return json(res,500,{error:e.message});}
-  }
-
-  // ══════════════════════════════════════════════════════════
-  //  🎯 v74 — RESPOSTAS CERTAS (admin-only) — OAuth de LEITURA isolado
-  //  + rotas da aba. Client separado (ADMIN_REPLY_CLIENT_ID/SECRET) — nunca
-  //  o CLIENT_ID público de envio. Ver comentário no topo do arquivo.
-  // ══════════════════════════════════════════════════════════
-  if(pathname==="/oauth/admin-reply/start"){
-    const s=getSess(req);if(!s?.user_email){res.writeHead(302,{Location:"/?err="+encodeURIComponent("Faça login primeiro.")});return res.end();}
-    const p=getUser(s.user_email);
-    if(!isAdminVip(p)){res.writeHead(302,{Location:"/?err="+encodeURIComponent("Acesso negado.")});return res.end();}
-    if(!ADMIN_REPLY_CONFIGURED){res.writeHead(302,{Location:"/admin?tab=respostas-certas&err="+encodeURIComponent("Respostas Certas ainda não configurado neste servidor — defina ADMIN_REPLY_CLIENT_ID/SECRET no Render (ver README_SERVIDORES.txt).")});return res.end();}
-    const st=crypto.randomBytes(20).toString("hex");
-    sessions["__areply__"+st]={ownerEmail:s.user_email,created:Date.now()};
-    persistSessions();
-    const qs=new URLSearchParams({client_id:ADMIN_REPLY_CLIENT_ID,redirect_uri:_oauthBase(req)+"/oauth/admin-reply/callback",response_type:"code",scope:ADMIN_REPLY_SCOPES,access_type:"offline",prompt:"consent select_account",state:st});
-    res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();
-  }
-  if(pathname==="/oauth/admin-reply/callback"){
-    const code=u.searchParams.get("code"),error=u.searchParams.get("error"),st=u.searchParams.get("state")||"";
-    const fail=m=>{res.writeHead(302,{Location:"/admin?err="+encodeURIComponent(m)+"&tab=respostas-certas"});res.end();};
-    if(error)return fail(error==="access_denied"?"Conexão cancelada.":"Erro OAuth: "+error);
-    if(!code||!st)return fail("Código ou state inválido.");
-    const pending=sessions["__areply__"+st];
-    if(!pending||Date.now()-pending.created>600_000){delete sessions["__areply__"+st];return fail("Sessão expirada. Tente novamente.");}
-    const ownerEmail=pending.ownerEmail;
-    delete sessions["__areply__"+st];
-    try{
-      const tb=new URLSearchParams({code,client_id:ADMIN_REPLY_CLIENT_ID,client_secret:ADMIN_REPLY_CLIENT_SECRET,redirect_uri:_oauthBase(req)+"/oauth/admin-reply/callback",grant_type:"authorization_code"}).toString();
-      const{body:tk}=await httpsReq({hostname:"oauth2.googleapis.com",path:"/token",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(tb)}},tb);
-      if(tk.error)return fail(tk.error_description||tk.error);
-      if(!tk.access_token)return fail("Token não recebido.");
-      const{body:ui}=await httpsReq({hostname:"www.googleapis.com",path:"/oauth2/v2/userinfo",method:"GET",headers:{"Authorization":"Bearer "+tk.access_token}});
-      if(!ui.email)return fail("E-mail não obtido.");
-      const newEmail=ui.email.toLowerCase().trim();
-      if(!tk.refresh_token)return fail("Google não devolveu refresh_token — remova o acesso do H2BApply em myaccount.google.com/permissions e tente de novo (garante o prompt de consentimento).");
-      const list=DB_ADMIN_REPLY_ACCOUNTS[ownerEmail]||[];
-      const existing=list.find(a=>a.email===newEmail);
-      const rec={email:newEmail,label:ui.name||newEmail,access_token:tk.access_token,token_expiry:Date.now()+(tk.expires_in||3500)*1000,refresh_token:tk.refresh_token,addedAt:existing?.addedAt||Date.now(),active:true,lastScan:0,lastError:"",lastCount:0};
-      DB_ADMIN_REPLY_ACCOUNTS[ownerEmail]=[...list.filter(a=>a.email!==newEmail),rec];
-      persist(ADMIN_REPLY_ACCOUNTS_FILE,DB_ADMIN_REPLY_ACCOUNTS);
-      console.log(`[reply-triage] ✅ ${newEmail} conectado (leitura) por ${ownerEmail}`);
-      scanAdminReplyAccount(ownerEmail,rec).catch(()=>{}); // primeira varredura já dispara na hora
-      res.writeHead(302,{Location:"/admin?ok="+encodeURIComponent("Conta conectada!")+"&tab=respostas-certas"});return res.end();
-    }catch(e){return fail("Erro ao conectar: "+e.message);}
-  }
-  if(pathname==="/api/admin/reply-triage/status"&&req.method==="GET"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
-    const accounts=(DB_ADMIN_REPLY_ACCOUNTS[s.user_email]||[]).map(a=>({email:a.email,label:a.label,active:a.active!==false,addedAt:a.addedAt,lastScan:a.lastScan||0,lastError:a.lastError||"",lastCount:a.lastCount||0}));
-    return json(res,200,{ok:true,configured:ADMIN_REPLY_CONFIGURED,scanIntervalMin:ADMIN_REPLY_SCAN_INTERVAL_MIN,accounts,geminiUsed:_replyGeminiCount.count,geminiLimit:ADMIN_REPLY_GEMINI_DAILY_LIMIT});
-  }
-  if(/^\/api\/admin\/reply-triage\/accounts\/[^/]+$/.test(pathname)&&req.method==="DELETE"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
-    const emailToRemove=decodeURIComponent(pathname.split("/").pop()).toLowerCase().trim();
-    const list=DB_ADMIN_REPLY_ACCOUNTS[s.user_email]||[];
-    const acc=list.find(a=>a.email===emailToRemove);
-    if(!acc)return json(res,404,{error:"Conta não encontrada."});
-    DB_ADMIN_REPLY_ACCOUNTS[s.user_email]=list.filter(a=>a.email!==emailToRemove);
-    persist(ADMIN_REPLY_ACCOUNTS_FILE,DB_ADMIN_REPLY_ACCOUNTS);
-    const tok=acc.refresh_token||acc.access_token;
-    if(tok)httpsReq({hostname:"oauth2.googleapis.com",path:"/revoke?token="+encodeURIComponent(tok),method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"}}).catch(()=>{});
-    return json(res,200,{ok:true});
-  }
-  if(pathname==="/api/admin/reply-triage/scan-now"&&req.method==="POST"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
-    if(!ADMIN_REPLY_CONFIGURED)return json(res,503,{error:"Respostas Certas não configurado neste servidor."});
-    if(!(DB_ADMIN_REPLY_ACCOUNTS[s.user_email]||[]).length)return json(res,400,{error:"Nenhuma conta conectada ainda."});
-    scanAllAdminReplyAccounts(s.user_email).catch(e=>console.warn("[reply-triage] scan manual falhou:",e.message));
-    return json(res,200,{ok:true,msg:"Varredura iniciada — os resultados aparecem em instantes."});
-  }
-  if(pathname==="/api/admin/reply-triage/list"&&req.method==="GET"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
-    const rank={POSITIVE_INTERVIEW:0,QUESTION:1};
-    const list=(DB_REPLY_TRIAGE[s.user_email]||[]).filter(e=>!e.hidden)
-      .sort((a,b)=>(rank[a.classification]??2)-(rank[b.classification]??2) || (b.replyDate||0)-(a.replyDate||0));
-    return json(res,200,{ok:true,total:list.length,entries:list});
-  }
-  if(/^\/api\/admin\/reply-triage\/[^/]+\/dislike$/.test(pathname)&&req.method==="POST"){
-    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
-    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
-    const id=pathname.split("/")[4];
-    const list=DB_REPLY_TRIAGE[s.user_email]||[];
-    const entry=list.find(e=>e.id===id);
-    if(!entry)return json(res,404,{error:"Entrada não encontrada."});
-    entry.hidden=true;entry.dislikedAt=Date.now();
-    // Feedback pro classificador — isolado do DB_AI_KB (nunca vaza pro IA Chat de outros usuários)
-    if(!DB_REPLY_FEEDBACK[s.user_email])DB_REPLY_FEEDBACK[s.user_email]=[];
-    DB_REPLY_FEEDBACK[s.user_email].unshift({summary:`Resposta de "${(entry.replyFrom||"").slice(0,80)}" com assunto "${(entry.replySubject||"").slice(0,100)}" foi marcada como ${entry.classification} pela IA, mas o admin disse que NÃO é isso — provavelmente é rejeição/automático/irrelevante.`,ts:Date.now()});
-    if(DB_REPLY_FEEDBACK[s.user_email].length>100)DB_REPLY_FEEDBACK[s.user_email]=DB_REPLY_FEEDBACK[s.user_email].slice(0,100);
-    persist(ADMIN_REPLY_TRIAGE_FILE,DB_REPLY_TRIAGE);
-    persist(ADMIN_REPLY_FEEDBACK_FILE,DB_REPLY_FEEDBACK);
-    return json(res,200,{ok:true});
   }
 
   // ── Admin: Central de Incidentes ─────────────────────────
