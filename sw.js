@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v96"; // v96 (13/08): i18n Etapa 5 (v132) — status dinâmicos do robô nas 3 línguas (Enviando/Pausado/Limite/contagens e as dicas de conserto) + catraca de tradução no teste: tela nova sem tradução quebra a suíte.
+const CACHE_NAME = "h2bapply-v97"; // v97 (13/08): 📡 Radar de Vagas (salve seus filtros e receba push de vaga nova que combina, máx 1/dia) + funil do limite diário (acabou o limite → mostra o que resta hoje e a troca por 💎 a 1 clique) — v134.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

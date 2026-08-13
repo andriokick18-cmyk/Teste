@@ -1554,6 +1554,26 @@ async function testAuthWatchdogPush() {
       typeof psLocal.json?.totalUsers === "number" && psLocal.json?.global === undefined,
       psLocal.body.slice(0, 120));
 
+    // ═══ 📡 v134: RADAR DE VAGAS (aprovado pelo dono) + funil do limite ═══
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "radaruser@test.com", name: "Radar User" });
+    const rdVazio = await req2("POST", "/api/radar", { estados: [], cidade: "", q: "" });
+    check("📡 v134: radar sem NENHUM filtro é recusado (400) — radar de tudo viraria spam", rdVazio.status === 400, rdVazio.body.slice(0, 120));
+    const rdSave = await req2("POST", "/api/radar", { estados: ["MA"], cidade: "Martha's Vineyard", q: "housekeeper" });
+    const rdGet = await get("/api/radar");
+    check("📡 v134: radar salva e aparece no GET (estados/cidade/busca, ativo)",
+      rdSave.json?.ok === true && rdGet.json?.radar?.estados?.[0] === "MA" && rdGet.json?.radar?.ativo === true,
+      rdGet.body.slice(0, 140));
+    const rdOff = await req2("POST", "/api/radar", { remove: true });
+    const rdGet2 = await get("/api/radar");
+    check("📡 v134: desligar o radar remove de verdade", rdOff.json?.ok === true && rdGet2.json?.radar === null, rdGet2.body.slice(0, 100));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    check("📡⭐ v134: front tem o botão 📡 Radar e o funil do limite (limitUpsell 1x/dia)",
+      frontAll.includes("function radarModal") && frontAll.includes("function limitUpsell") && home.body.includes('id="radar-btn"') && frontAll.includes("h2b_upsell"),
+      "radarModal/limitUpsell/radar-btn/h2b_upsell não encontrados");
+    const _srvRadar = fs.readFileSync(path.join(__dirname, "server.js"), "utf8");
+    check("📡 v134: vaga nova dispara o radar nos 2 caminhos (Vagas Novas H-2A + planilha mensal publicada)",
+      (_srvRadar.match(/notificarRadares\(/g) || []).length >= 3, "chamadas de notificarRadares ausentes");
+
     // 🤖 v133: o prompt da IA do chat (1) responde na LÍNGUA do usuário e
     // (2) não menciona mais a aba Respostas (removida — regra 13d) nem o
     // intervalo antigo de 5-6min (é ~7 desde o v118). Guarda no fonte.

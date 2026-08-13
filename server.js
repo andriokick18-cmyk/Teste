@@ -3709,7 +3709,7 @@ async function _runDolColeta({visa,sheetKey,sheetName,beginFrom,beginTo,feedDate
     try{fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));}catch(e){_dcLog("⚠️ meta não gravado: "+e.message,"warn");}
     _dolColeta.count=compact.length;_dolColeta.progress=100;
     const comEmail=compact.filter(r=>r.e&&r.e.includes("@")).length;
-    if(_autoPub)_dcLog(`📢 Planilha PUBLICADA automaticamente: ${compact.length} vagas (${comEmail} com e-mail) — já disponível no Manual e no Automático.`);
+    if(_autoPub){_dcLog(`📢 Planilha PUBLICADA automaticamente: ${compact.length} vagas (${comEmail} com e-mail) — já disponível no Manual e no Automático.`);notificarRadares(compact,`Planilha nova ${sheetName}`).catch(()=>{});} // 📡 v134
     else if(typeof autoPublishMin==="number")_dcLog(`⚠️ Só ${compact.length} vagas válidas (mínimo pra publicar sozinho: ${autoPublishMin}) — ficou em RASCUNHO, revise no painel.`,"warn");
     else _dcLog(`💾 Planilha salva em RASCUNHO: ${compact.length} vagas (${comEmail} já com e-mail). Revise e clique PUBLICAR pra liberar aos usuários.`);
     _dcLog(`🤖 O Enriquecimento automático completa os campos que faltarem (roda sozinho em até 30min).`);
@@ -3800,6 +3800,7 @@ async function _runH2aNovasCycle(trigger){
       const chk=_vagasVerify([...SHEET_H2A,...novas],{caseField:"c"});
       if(!chk.ok)throw new Error(`integridade: duplicata após o merge (${chk.duplicateCases.length}) — NADA foi salvo`);
       SHEET_H2A.push(...novas);
+      notificarRadares(novas,"Vagas novas H-2A").catch(()=>{}); // 📡 v134
     }
     if(novas.length||removidas>0||atualizadas>0){
       _saveEnrichedSheet("h2a-jun2026",SHEET_H2A);
@@ -3879,6 +3880,43 @@ async function _runH2aBimestral(trigger,force,background){
   // tempo no meio da coleta. O agendador continua aguardando o resultado.
   if(background)return{ok:true,started:true,key,nome,minPub};
   return await promessa;
+}
+
+// ── 📡 v134 — RADAR DE VAGAS (aprovado pelo dono, 13/08) ────────────────────
+// O usuário salva UM radar (estado(s)/cidade/busca/categoria) e recebe PUSH
+// quando entra vaga NOVA que combina — máx 1 push por dia por usuário
+// (anti-spam), opt-in por natureza (só tem radar quem criou; push só chega
+// pra quem ativou notificações). Chamado pelos 2 pontos onde vaga nova
+// entra no sistema: robô Vagas Novas H-2A (diário) e a planilha mensal
+// auto-publicada.
+async function notificarRadares(novas,origem){
+  try{
+    if(!Array.isArray(novas)||!novas.length)return 0;
+    const _nrm=x=>String(x||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/["'‘’`´]/g,"").replace(/[^a-z0-9@.\s]+/g," ").replace(/\s+/g," ").trim();
+    const now=Date.now();let avisados=0;
+    for(const [em,u2] of Object.entries(DB_USERS)){
+      const r=u2?.radar;if(!r||r.ativo===false)continue;
+      if(r.lastPushAt&&now-r.lastPushAt<20*3600_000)continue; // máx 1/dia
+      const matches=novas.filter(j=>{
+        const est=String(j.s||j.state||"").toUpperCase().trim();
+        const cat=String(j.k||j.category||"");
+        const hay=_nrm(`${j.t||j.title||""} ${j.n||j.company||""} ${j.ci||j.city||""} ${est}`);
+        if(Array.isArray(r.estados)&&r.estados.length&&!r.estados.includes(est))return false;
+        if(r.categoria&&cat!==r.categoria)return false;
+        if(r.cidade&&!hay.includes(_nrm(r.cidade)))return false;
+        if(r.q&&!_nrm(r.q).split(" ").every(t2=>hay.includes(t2)))return false;
+        return true;
+      });
+      if(!matches.length)continue;
+      setUser(em,{radar:{...r,lastPushAt:now,totalAvisos:(r.totalAvisos||0)+1}});
+      avisados++;
+      pushToUser(em,{type:"radar",title:`📡 ${matches.length} vaga${matches.length>1?"s":""} nova${matches.length>1?"s":""} no seu radar!`,
+        body:`${origem}: ${matches.slice(0,2).map(j=>j.t||j.title||"vaga").join(", ")}${matches.length>2?"…":""} — candidate-se antes da concorrência.`,
+        icon:"/icon-192.png",url:"/"}).catch(()=>{});
+    }
+    if(avisados)console.log(`[radar] 📡 ${avisados} usuário(s) avisado(s) (${origem}, ${novas.length} vagas novas)`);
+    return avisados;
+  }catch(e){console.warn("[radar]",e.message);return 0;}
 }
 
 // ── 📰 /noticias — página PÚBLICA das notícias DOL traduzidas (v33-SEO) ─────
@@ -13330,6 +13368,23 @@ const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filte
       return json(res,200,{ok:true,devices:subs.length});
     }catch(e){return json(res,500,{error:e.message});}
   }
+
+  // 📡 v134 — RADAR DE VAGAS: GET vê, POST {estados,cidade,q,categoria}
+  // salva (1 por usuário), POST {remove:true} desliga.
+  if(pathname==="/api/radar"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const u2=getUser(s.user_email)||{};
+    if(req.method==="GET")return json(res,200,{ok:true,radar:u2.radar||null});
+    if(req.method==="POST"){try{
+      const d=JSON.parse(await readBody(req));
+      if(d.remove===true){setUser(s.user_email,{radar:null});return json(res,200,{ok:true,removed:true});}
+      const estados=(Array.isArray(d.estados)?d.estados:[]).map(x=>String(x).toUpperCase().trim().slice(0,30)).filter(Boolean).slice(0,8);
+      const radar={estados,cidade:String(d.cidade||"").slice(0,60).trim(),q:String(d.q||"").slice(0,60).trim(),
+        categoria:String(d.categoria||"").slice(0,30).trim(),ativo:true,createdAt:u2.radar?.createdAt||Date.now(),
+        lastPushAt:u2.radar?.lastPushAt||0,totalAvisos:u2.radar?.totalAvisos||0};
+      if(!radar.estados.length&&!radar.cidade&&!radar.q&&!radar.categoria)return json(res,400,{error:"Escolha ao menos 1 filtro (estado, cidade, busca ou categoria) antes de criar o radar."});
+      setUser(s.user_email,{radar});
+      return json(res,200,{ok:true,radar});
+    }catch(e){return json(res,500,{error:e.message});}}}
 
   // 🔖 v126 (dono, 12/08): vaga salva agora guarda o SNAPSHOT completo
   // (u.savedJobs) — aparece na aba Vagas Salvas mesmo meses depois, mesmo

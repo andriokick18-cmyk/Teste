@@ -3046,6 +3046,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <button class="fbtn"    id="so-wage"  onclick="setSort('wage')" data-i18n="sort_wage">💰 Maior salário</button>
             <button class="fbtn"    id="so-start" onclick="setSort('start')" data-i18n="sort_start">🗓️ Começa logo</button>
             <button class="fbtn"    id="so-desc"  onclick="setSort('desc')" data-i18n="sort_recent">Recentes</button>
+            <button class="fbtn"    id="radar-btn" onclick="radarModal()" style="font-weight:800;color:#7c3aed" data-i18n="radar_btn">📡 Radar</button>
           </div>
         </div>
         <div id="jobs-filter-chips" style="display:none;flex-wrap:wrap;gap:5px;padding:6px 14px 0"></div>
@@ -3119,7 +3120,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <div style="position:relative;margin-bottom:10px">
             <i class="ti ti-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--blue);font-size:16px;pointer-events:none"></i>
             <input class="input" id="pesq-input" type="text" placeholder="Empresa, e-mail, ETA case number, cargo, estado..." style="padding-left:38px;font-size:14px;height:46px;border-color:var(--blue);border-width:2px;box-shadow:0 0 0 3px rgba(59,130,246,.1)" oninput="doPesquisa()" autocomplete="off" inputmode="search">
-            <button onclick="doPesquisaBtn()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Buscar</button>
+            <button onclick="doPesquisaBtn()" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit" data-i18n="search_btn">Buscar</button>
           </div>
           <!-- Chips de fonte -->
           <div style="display:flex;gap:5px;flex-wrap:wrap">
@@ -3400,7 +3401,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div id="profile-sender-section" style="background:var(--surface);border:1.5px solid rgba(59,130,246,.25);border-radius:16px;overflow:hidden;display:none">
               <div style="padding:12px 16px;border-bottom:1px solid rgba(59,130,246,.15);display:flex;align-items:center;gap:8px">
                 <i class="ti ti-mail-forward" style="font-size:15px;color:var(--blue)"></i>
-                <span style="font-size:12px;font-weight:800;color:var(--blue)">Gmail Extra para Envios</span>
+                <span style="font-size:12px;font-weight:800;color:var(--blue)" data-i18n="extra_gmail">Gmail Extra para Envios</span>
               </div>
               <div style="padding:14px 16px">
                 <div style="font-size:12px;color:var(--t2);margin-bottom:12px;line-height:1.5">Adicione um segundo Gmail. O automático distribui os envios entre os dois emails, reduzindo risco de spam.</div>
@@ -3413,7 +3414,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             </div>
             <div id="profile-sender-free" style="background:rgba(245,158,11,.06);border:1.5px solid rgba(245,158,11,.25);border-radius:16px;padding:14px 16px;display:none">
               <div style="font-size:11px;font-weight:800;color:var(--amber);text-transform:uppercase;margin-bottom:5px">🔒 Gmail Extra — VIP Exclusivo</div>
-              <div style="font-size:12px;color:var(--t2)">Usuários pagantes podem conectar um Gmail extra para reduzir risco de spam. <strong style="color:var(--amber)">Faça upgrade para ativar.</strong></div>
+              <div style="font-size:12px;color:var(--t2)">Usuários pagantes podem conectar um Gmail extra para reduzir risco de spam. <strong style="color:var(--amber)" data-i18n="upgrade_to_enable">Faça upgrade para ativar.</strong></div>
             </div>
 
             <!-- CARD: Identidade & Avatar -->
@@ -3429,7 +3430,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                   <div id="cfg-rankname-fb" style="font-size:11px;margin-top:3px;min-height:14px"></div>
                 </div>
                 <!-- Avatar grid redesenhado -->
-                <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:10px;text-align:center">🎭 Escolha seu avatar <span style="color:var(--t3);font-weight:500">(toque para escolher)</span></div>
+                <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:10px;text-align:center">🎭 Escolha seu avatar <span style="color:var(--t3);font-weight:500" data-i18n="tap_to_pick">(toque para escolher)</span></div>
                 <div id="prf-avatar-grid" style="display:grid;grid-template-columns:repeat(auto-fit,44px);justify-content:center;gap:10px;margin:0 auto;max-width:340px">
                   <div class="ob-av prf-av" data-av="av01" onclick="selectPrfAvatar('av01',this)" style="background:linear-gradient(135deg,#065f46,#10b981);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">🧑‍🌾</div>
                   <div class="ob-av prf-av" data-av="av02" onclick="selectPrfAvatar('av02',this)" style="background:linear-gradient(135deg,#7c2d12,#ea580c);border-radius:12px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border:2.5px solid transparent;transition:all .14s">👷</div>

@@ -1757,6 +1757,58 @@ function qSugKey(ev){
 function qSugClose(){const box=g("#q-sug");if(box){box.classList.remove("open");box.innerHTML="";}_sugIdx=-1;_sugItems=[];g("#q")?.setAttribute("aria-expanded","false");}
 function qSugBlur(){setTimeout(qSugClose,160);}
 
+/* 📡 v134: RADAR DE VAGAS (aprovado pelo dono) — salva os filtros atuais e
+   o servidor avisa por push quando entrar vaga nova que combina (máx 1/dia). */
+async function radarModal(){
+  let r=null;try{const d=await fetch("/api/radar",{credentials:"include"}).then(x=>x.json());r=d.radar;}catch(e){}
+  const ov=document.createElement("div");
+  ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)";
+  const cur=r?`<div style="background:var(--sf2);border:1.5px solid var(--border2);border-radius:12px;padding:12px;margin-bottom:12px;font-size:13px">
+      <b>📡 ${esc(t('radar_active'))}</b><br>
+      <span style="color:var(--t2)">${[r.q&&("🔎 "+esc(r.q)),(r.estados||[]).length?("📍 "+r.estados.map(esc).join(", ")):"",r.cidade&&("🏙️ "+esc(r.cidade))].filter(Boolean).join(" · ")||esc(t('radar_all'))}</span>
+      <div style="font-size:11px;color:var(--t3);margin-top:4px">🔔 ${(r.totalAvisos||0)} ${esc(t('radar_alerts'))}</div>
+      <button class="btn btn-danger btn-sm" style="margin-top:8px" onclick="radarRemove();this.closest('div[style*=fixed]').remove()">🗑️ ${esc(t('radar_off'))}</button>
+    </div>`:"";
+  ov.innerHTML=`<div style="background:var(--sf);border-radius:18px;padding:22px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="font-size:17px;font-weight:800;margin-bottom:6px">📡 ${esc(t('radar_title'))}</div>
+    <div style="font-size:13px;color:var(--t2);line-height:1.5;margin-bottom:12px">${esc(t('radar_sub'))}</div>
+    ${cur}
+    <button class="btn btn-primary" style="width:100%" onclick="radarCreate();this.closest('div[style*=fixed]').remove()">📡 ${esc(t('radar_create'))}</button>
+    <button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="this.closest('div[style*=fixed]').remove()">${esc(t('cancel'))}</button>
+  </div>`;
+  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
+async function radarCreate(){
+  const payload={estados:fState?[fState]:[],cidade:(g("#f-city")?.value||"").trim(),q:(g("#q")?.value||fQ||"").trim(),categoria:""};
+  try{
+    const d=await fetch("/api/radar",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).then(x=>x.json());
+    if(d.ok){toast("📡 "+t('radar_created'),"g");try{_autoPushSetup().catch(()=>{});}catch(e){}}
+    else toast(d.error||"Erro","r");
+  }catch(e){toast("❌ "+e.message,"r");}
+}
+async function radarRemove(){
+  try{await fetch("/api/radar",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({remove:true})});toast(t('radar_removed'),"g");}catch(e){}
+}
+
+/* ⭐ v134: FUNIL — limite diário atingido = mostrar o que ele está perdendo
+   e a troca por 💎 a 1 clique. No máx 1x por dia (não vira perseguição). */
+function limitUpsell(){
+  try{const day=new Date().toISOString().slice(0,10);if(localStorage.getItem("h2b_upsell")===day)return;localStorage.setItem("h2b_upsell",day);}catch(e){}
+  const rest=(typeof total!=="undefined"&&total>1)?total:null;
+  const ov=document.createElement("div");
+  ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)";
+  ov.innerHTML=`<div style="background:var(--sf);border-radius:18px;padding:24px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center">
+    <div style="font-size:40px;margin-bottom:6px">⭐</div>
+    <div style="font-size:17px;font-weight:800;margin-bottom:8px">${esc(t('upsell_title'))}</div>
+    <div style="font-size:13.5px;color:var(--t2);line-height:1.55;margin-bottom:16px">${rest?esc(t('upsell_left')).replace("{n}",rest.toLocaleString("pt-BR")):esc(t('upsell_left_generic'))}</div>
+    <button class="btn btn-primary" style="width:100%" onclick="this.closest('div[style*=fixed]').remove();sv('plans')">💎 ${esc(t('upsell_cta'))}</button>
+    <button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="this.closest('div[style*=fixed]').remove()">${esc(t('upsell_later'))}</button>
+  </div>`;
+  ov.addEventListener("click",e=>{if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+}
+
 function setSort(s){fSort=s;const _mf=g("#mf-sort");if(_mf&&[..._mf.options].some(o=>o.value===s))_mf.value=s;["rand:random","match:match","wage:wage","start:start","desc:desc"].forEach(p=>{const[i,v]=p.split(":");g("#so-"+i)?.classList.toggle("on",s===v);});renderJobsFilterChips();if(tab==="seasonal")loadJobs(true);else{sSkip=0;sDone=false;sJobs=[];loadSheetMeta(true);}}
 
 const PAGE=25;
@@ -2451,7 +2503,7 @@ async function doSend(){
       if(d.alreadySent)toast("⚠️ Você já enviou para esta empresa.","r");
       else if(d.inAutoQueue)toast("🤖 Esta empresa está na fila automática.","r");
       else if(d.duplicate)toast("⚠️ Envio em andamento. Aguarde.","r");
-      else if(d.limitReached)toast("📊 Limite diário atingido.","r");
+      else if(d.limitReached){toast("📊 Limite diário atingido.","r");if(!U.isAdmin)limitUpsell();} // ⭐ v134: funil
       else toast("❌ "+errMsg.slice(0,80),"r");
       return;
     }
@@ -10607,6 +10659,14 @@ const LANG_DICT = {
     "all_states":"Todos estados","salary":"Salário","qty_jobs":"Qtd vagas",
     // v119: sugestões instantâneas da busca
     "sug_companies":"Empresas","sug_roles":"Cargos","sug_cities":"Cidades","sug_regions":"Regiões","sug_states":"Estados","sug_jobs":"vagas",
+    "extra_gmail":"Gmail Extra para Envios","upgrade_to_enable":"Faça upgrade para ativar.","tap_to_pick":"(toque para escolher)","search_btn":"Buscar",
+    // 📡⭐ v134 — Radar de Vagas + funil do limite
+    "radar_btn":"📡 Radar","radar_title":"Radar de Vagas","radar_sub":"Salve os filtros de agora (busca, estado, cidade) e receba um aviso no celular quando entrar vaga NOVA que combina — no máximo 1 aviso por dia.",
+    "radar_create":"Criar radar com os filtros atuais","radar_active":"Seu radar está LIGADO","radar_off":"Desligar radar",
+    "radar_all":"Todas as vagas novas","radar_alerts":"aviso(s) já enviados","radar_created":"Radar ligado! Você será avisado quando entrar vaga nova que combina.","radar_removed":"Radar desligado.",
+    "upsell_title":"Seu limite de hoje acabou — as vagas não esperam","upsell_left":"Ainda restam {n} vagas disponíveis HOJE que você não vai alcançar no plano atual. Troque diamantes por um plano e continue agora mesmo — ativa na hora.",
+    "upsell_left_generic":"Amanhã o limite volta — mas as melhores vagas de hoje já terão recebido outros candidatos. Troque diamantes por um plano e continue agora — ativa na hora.",
+    "upsell_cta":"Ver planos e trocar por 💎","upsell_later":"Continuar amanhã de graça",
     // 🌐 Etapa 5 do i18n — status dinâmicos do robô
     "st_starting":"🟡 Iniciando...","st_sending":"🟢 Enviando...","st_paused":"⏸ Pausado",
     "st_no_session":"⚠️ Faça login novamente","st_finished":"✅ Concluído","st_resuming":"🟢 Retomando...",
@@ -10752,6 +10812,13 @@ const LANG_DICT = {
     "roi_calc":"Results Calculator","roi_if":"If only 1% of companies reply positively:","roi_cta":"Just 1 company confirms → you're in the USA ✈️",
     "all_states":"All states","salary":"Salary","qty_jobs":"# Positions",
     "sug_companies":"Companies","sug_roles":"Job titles","sug_cities":"Cities","sug_regions":"Regions","sug_states":"States","sug_jobs":"jobs",
+    "extra_gmail":"Extra Gmail for Sending","upgrade_to_enable":"Upgrade to enable.","tap_to_pick":"(tap to choose)","search_btn":"Search",
+    "radar_btn":"📡 Radar","radar_title":"Job Radar","radar_sub":"Save your current filters (search, state, city) and get a phone alert when a NEW matching job arrives — at most 1 alert per day.",
+    "radar_create":"Create radar with current filters","radar_active":"Your radar is ON","radar_off":"Turn radar off",
+    "radar_all":"All new jobs","radar_alerts":"alert(s) sent so far","radar_created":"Radar on! You'll be alerted when a new matching job arrives.","radar_removed":"Radar off.",
+    "upsell_title":"Today's limit is gone — jobs won't wait","upsell_left":"There are still {n} jobs available TODAY that you can't reach on your current plan. Swap diamonds for a plan and keep going right now — activates instantly.",
+    "upsell_left_generic":"The limit resets tomorrow — but today's best jobs will already have other applicants. Swap diamonds for a plan and keep going now — activates instantly.",
+    "upsell_cta":"See plans & swap 💎","upsell_later":"Continue free tomorrow",
     "st_starting":"🟡 Starting...","st_sending":"🟢 Sending...","st_paused":"⏸ Paused",
     "st_no_session":"⚠️ Please log in again","st_finished":"✅ Done","st_resuming":"🟢 Resuming...",
     "st_refilled":"🔄 Queue refilled — sending...","st_wait_interval":"⏳ Waiting interval...","st_wait_hour":"⏳ Waiting scheduled time...",
@@ -10878,6 +10945,13 @@ const LANG_DICT = {
     "roi_calc":"Calculadora de Resultados","roi_if":"Si solo el 1% de las empresas responde positivamente:","roi_cta":"¡Solo 1 empresa confirma → estás en los EUA! ✈️",
     "all_states":"Todos los estados","salary":"Salario","qty_jobs":"# Puestos",
     "sug_companies":"Empresas","sug_roles":"Puestos","sug_cities":"Ciudades","sug_regions":"Regiones","sug_states":"Estados","sug_jobs":"empleos",
+    "extra_gmail":"Gmail Extra para Envíos","upgrade_to_enable":"Haz upgrade para activar.","tap_to_pick":"(toca para elegir)","search_btn":"Buscar",
+    "radar_btn":"📡 Radar","radar_title":"Radar de Empleos","radar_sub":"Guarda tus filtros actuales (búsqueda, estado, ciudad) y recibe un aviso en el celular cuando llegue un empleo NUEVO que combine — máximo 1 aviso al día.",
+    "radar_create":"Crear radar con los filtros actuales","radar_active":"Tu radar está ENCENDIDO","radar_off":"Apagar radar",
+    "radar_all":"Todos los empleos nuevos","radar_alerts":"aviso(s) enviados","radar_created":"¡Radar encendido! Te avisaremos cuando llegue un empleo nuevo que combine.","radar_removed":"Radar apagado.",
+    "upsell_title":"Tu límite de hoy se acabó — los empleos no esperan","upsell_left":"Aún quedan {n} empleos disponibles HOY que no alcanzarás con tu plan actual. Cambia diamantes por un plan y sigue ahora mismo — activa al instante.",
+    "upsell_left_generic":"El límite vuelve mañana — pero los mejores empleos de hoy ya tendrán otros candidatos. Cambia diamantes por un plan y sigue ahora — activa al instante.",
+    "upsell_cta":"Ver planes y cambiar 💎","upsell_later":"Seguir gratis mañana",
     "st_starting":"🟡 Iniciando...","st_sending":"🟢 Enviando...","st_paused":"⏸ Pausado",
     "st_no_session":"⚠️ Inicia sesión de nuevo","st_finished":"✅ Completado","st_resuming":"🟢 Reanudando...",
     "st_refilled":"🔄 Cola recargada — enviando...","st_wait_interval":"⏳ Esperando intervalo...","st_wait_hour":"⏳ Esperando horario...",
