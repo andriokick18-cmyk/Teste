@@ -1554,6 +1554,14 @@ async function testAuthWatchdogPush() {
       typeof psLocal.json?.totalUsers === "number" && psLocal.json?.global === undefined,
       psLocal.body.slice(0, 120));
 
+    // 🤖 v133: o prompt da IA do chat (1) responde na LÍNGUA do usuário e
+    // (2) não menciona mais a aba Respostas (removida — regra 13d) nem o
+    // intervalo antigo de 5-6min (é ~7 desde o v118). Guarda no fonte.
+    const _srvSrcIA = fs.readFileSync(path.join(__dirname, "server.js"), "utf8");
+    check("🤖 v133: IA do chat com regra de idioma e sem conteúdo defasado (aba Respostas / 5-6min)",
+      _srvSrcIA.includes("REGRA DE IDIOMA") && !/aba Respostas, o botão de gráfico/.test(_srvSrcIA) && !/Intervalo de 5 a 6 minutos/.test(_srvSrcIA),
+      "REGRA DE IDIOMA ausente ou conteúdo defasado ainda no prompt");
+
     // ═══ 🗄️ v69: BACKUP ENTRE IRMÃOS — rota de recepção blindada ═══
     const zlibB = require("zlib");
     const _peerTokB = crypto.createHmac("sha256", "smoke-enc-key-1234567890").update("h2b-peer-financeiro-v1").digest("hex");

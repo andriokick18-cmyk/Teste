@@ -8619,7 +8619,7 @@ async function iaFloatSend(){
   _iafMsgs.push({role:"user",text:txt});
   _iafBusy=true;_iafRender();
   try{
-    const r=await fetch("/api/gemini/chat",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:_iafMsgs.slice(-20)})});
+    const r=await fetch("/api/gemini/chat",{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:_iafMsgs.slice(-20),lang:_curLang})});
     const d=await r.json();
     _iafMsgs.push({role:"model",text:d.ok?(d.text||"(sem resposta)"):("⚠️ "+(d.error||"Erro ao responder."))});
   }catch(e){_iafMsgs.push({role:"model",text:"⚠️ Sem conexão agora. Tente de novo."});}
@@ -11660,7 +11660,7 @@ console.debug("[v19] Language system (PT/EN/ES) loaded");
       const r = await fetch("/api/gemini/chat", {
         method:"POST", credentials:"include",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({messages:[..._iaHistory]})
+        body:JSON.stringify({messages:[..._iaHistory],lang:_curLang})
       });
       const d = await r.json();
       _setTyping(false);
