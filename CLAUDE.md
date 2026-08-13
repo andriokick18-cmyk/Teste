@@ -341,6 +341,15 @@
     a do mês). A coleta real só roda em PRODUÇÃO (sandbox não alcança o
     DOL) — o smoke prova a esteira inteira com o feed falso.
 
+13q. **🚫 INDICAÇÃO PREMIADA — NUNCA (dono, 13/08/2026)**: programa de
+    indicação com recompensa (💎/dias por convidar amigo) está PROIBIDO
+    para sempre — "as pessoas ficam criando e-mails falsos em
+    indicação". Não implementar, não sugerir, não reintroduzir o que
+    existir de resquício. 📡 Radar de Vagas (v134) foi APROVADO por
+    escrito: push opt-in (só quem criou radar), máx 1/dia por usuário,
+    radar vazio recusado — é a única exceção nova de push além das
+    já regradas (10/10b).
+
 ## 🖥️ UX (usuário e admin nunca se perdem)
 
 14. **Site intuitivo e autoexplicativo**: tour em slides no primeiro
