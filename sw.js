@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v98"; // v98 (13/08): aba 🎯 Respostas Certas EXCLUÍDA por ordem do dono (v135) — a regra "o app só envia, nunca lê caixa de entrada" volta a ser absoluta pra todos, admin incluído; + guarda anti-vídeo no upload (só PDF de verdade entra).
+const CACHE_NAME = "h2bapply-v99"; // v99 (13/08): 🌐 TRADUÇÃO 100% — todas as telas do site, do início ao fim, nas 3 línguas (v136: as 257 frases restantes traduzidas em PT/EN/ES; catraca do teste agora em ZERO — tela nova sem tradução não passa).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
