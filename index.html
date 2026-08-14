@@ -2903,18 +2903,18 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                   <div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#78350f;font-size:8px;font-weight:900;padding:3px 8px;border-radius:99px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.15)">👑 MAIS POPULAR</div>
                   <div style="font-size:22px;margin-top:3px">👑</div>
                   <div style="font-size:11.5px;font-weight:800;color:var(--text);margin-top:6px">VIP Pro</div>
-                  <div style="font-size:16px;font-weight:900;color:var(--purple);margin-top:4px">100 💎<span style="font-size:9px;font-weight:600;color:var(--t3)">/mês</span></div>
+                  <div style="font-size:16px;font-weight:900;color:var(--purple);margin-top:4px">100 💎<span style="font-size:9px;font-weight:600;color:var(--t3)" data-i18n="g_3">/mês</span></div>
                   <div style="font-size:9.5px;color:var(--t3);margin-top:4px" data-i18n="g_4">Automático + Manual</div>
                 </div>
                 <div style="background:var(--sf2);border:1.5px solid var(--border);border-radius:14px;padding:16px 6px 13px;text-align:center">
                   <div style="font-size:22px">💎</div>
                   <div style="font-size:11.5px;font-weight:800;color:var(--text);margin-top:6px">Double Pro</div>
-                  <div style="font-size:16px;font-weight:900;color:var(--purple);margin-top:4px">R$250<span style="font-size:9px;font-weight:600;color:var(--t3)">/mês</span></div>
+                  <div style="font-size:16px;font-weight:900;color:var(--purple);margin-top:4px">R$250<span style="font-size:9px;font-weight:600;color:var(--t3)" data-i18n="g_3">/mês</span></div>
                   <div style="font-size:9.5px;color:var(--t3);margin-top:4px" data-i18n="g_5">Máximo desempenho</div>
                 </div>
               </div>
               <button onclick="sv('plans')" style="width:100%;background:linear-gradient(90deg,#10b981,#7c3aed);color:#fff;border:none;border-radius:99px;padding:13px;font-size:13.5px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 8px 22px rgba(16,185,129,.28);transition:transform .15s" onmouseenter="this.style.transform='translateY(-1px)'" onmouseleave="this.style.transform=''">Ver todos os planos e valores →</button>
-              <div style="font-size:10px;color:var(--t3);text-align:center;margin-top:9px">Já pagou antes? É só enviar o mesmo comprovante na tela de planos — sem pagar de novo.</div>
+              <div style="font-size:10px;color:var(--t3);text-align:center;margin-top:9px" data-i18n="g_258">Já pagou antes? É só enviar o mesmo comprovante na tela de planos — sem pagar de novo.</div>
             </div>
           </div>
 
@@ -2928,12 +2928,12 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer;border-radius:16px;padding:18px 6px 15px;text-align:center;background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 14px rgba(15,23,42,.05)">
                 <div style="font-size:22px;line-height:1;margin-bottom:8px">📤</div>
                 <div class="home-stat-val" style="color:var(--blue);font-size:26px;font-weight:900" id="home-stat-manual">–</div>
-                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-top:4px">Envio Manual</div>
+                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-top:4px" data-i18n="manual_send">Envio Manual</div>
               </div>
               <div class="home-stat-card" onclick="openAutoModal()" style="cursor:pointer;border-radius:16px;padding:18px 6px 15px;text-align:center;background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 14px rgba(15,23,42,.05)">
                 <div style="font-size:22px;line-height:1;margin-bottom:8px">🤖</div>
                 <div class="home-stat-val" style="color:var(--purple);font-size:26px;font-weight:900" id="home-stat-auto">–</div>
-                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-top:4px">Envio Automático</div>
+                <div class="home-stat-lbl" style="font-size:9px;color:var(--t3);font-weight:800;text-transform:uppercase;letter-spacing:.05em;margin-top:4px" data-i18n="auto_send">Envio Automático</div>
               </div>
               <div class="home-stat-card" onclick="sv('hist')" style="cursor:pointer;border-radius:16px;padding:18px 6px 15px;text-align:center;background:var(--surface);border:1.5px solid var(--border);box-shadow:0 4px 14px rgba(15,23,42,.05)">
                 <div style="font-size:22px;line-height:1;margin-bottom:8px">🎯</div>
@@ -2964,7 +2964,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               <!-- Enviadas (novo — layout do print) -->
               <button onclick="sv('hist')" class="home-shortcut" style="border:1.5px solid rgba(124,58,237,.3);border-radius:16px;padding:15px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;font-family:inherit;transition:all .15s;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 14px rgba(124,58,237,.10)" onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 10px 24px rgba(124,58,237,.22)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 4px 14px rgba(124,58,237,.10)'">
                 <div style="width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#7c3aed,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 6px 16px rgba(124,58,237,.4)">✈️</div>
-                <div style="font-size:11.5px;font-weight:800;color:#7c3aed;line-height:1.2;text-align:center">Enviadas</div>
+                <div style="font-size:11.5px;font-weight:800;color:#7c3aed;line-height:1.2;text-align:center" data-i18n="sent_tab">Enviadas</div>
               </button>
 
               <!-- Currículos / Perfis -->
@@ -3110,7 +3110,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div style="font-size:16px;font-weight:800;display:flex;align-items:center;gap:7px">
               <i class="ti ti-search" style="font-size:18px"></i> Buscar Vagas
             </div>
-            <div style="font-size:11px;opacity:.7;margin-top:2px">Vagas ao Vivo · Jan 2026 · Jul 2025 · Enviadas</div>
+            <div style="font-size:11px;opacity:.7;margin-top:2px"><span data-i18n="pesq_srcs">Vagas ao Vivo · Jan 2026 · Jul 2025 · Enviadas</span></div>
           </div>
           <button id="pesq-clear-btn" onclick="clearPesquisa()" style="background:rgba(255,255,255,.15);color:#fff;border:1.5px solid rgba(255,255,255,.25);padding:6px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:none"><i class="ti ti-x"></i> Limpar</button>
         </div>
@@ -3147,7 +3147,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             </div>
             <div>
               <div style="font-size:16px;font-weight:800;color:var(--text);margin-bottom:6px">Pesquise qualquer coisa</div>
-              <div style="font-size:13px;color:var(--t3);line-height:1.6;max-width:300px">Digite o nome da empresa, um e-mail recebido, o ETA case number, o cargo ou o estado para encontrar todas as vagas correspondentes</div>
+              <div style="font-size:13px;color:var(--t3);line-height:1.6;max-width:300px" data-i18n="g_259">Digite o nome da empresa, um e-mail recebido, o ETA case number, o cargo ou o estado para encontrar todas as vagas correspondentes</div>
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:320px">
               <button onclick="setPesqExample('cerminara')" style="background:var(--sf3);border:1px solid var(--border2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;font-family:inherit">cerminara</button>
@@ -3404,7 +3404,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 <span style="font-size:12px;font-weight:800;color:var(--blue)" data-i18n="extra_gmail">Gmail Extra para Envios</span>
               </div>
               <div style="padding:14px 16px">
-                <div style="font-size:12px;color:var(--t2);margin-bottom:12px;line-height:1.5">Adicione um segundo Gmail. O automático distribui os envios entre os dois emails, reduzindo risco de spam.</div>
+                <div style="font-size:12px;color:var(--t2);margin-bottom:12px;line-height:1.5" data-i18n="g_260">Adicione um segundo Gmail. O automático distribui os envios entre os dois emails, reduzindo risco de spam.</div>
                 <div id="profile-sender-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
                 <button class="btn btn-outline btn-sm w100" id="profile-add-sender-btn" onclick="location.href='/oauth/add-sender'" style="display:none">
                   <i class="ti ti-brand-google" style="color:#ea4335;font-size:14px"></i> Conectar Gmail Extra
@@ -3515,7 +3515,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                     <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Trabalhou H2B/H2A?</div>
                     <div style="display:flex;gap:6px">
                       <button class="btn btn-secondary ob-toggle cfg-toggle" id="cfg-h2b-yes" onclick="cfgToggle('h2b','yes')" style="flex:1;justify-content:center;font-size:12px">✅ Sim</button>
-                      <button class="btn btn-secondary ob-toggle cfg-toggle on" id="cfg-h2b-no" onclick="cfgToggle('h2b','no')" style="flex:1;justify-content:center;font-size:12px">❌ Não</button>
+                      <button class="btn btn-secondary ob-toggle cfg-toggle on" id="cfg-h2b-no" onclick="cfgToggle('h2b','no')" style="flex:1;justify-content:center;font-size:12px" data-i18n="g_19">❌ Não</button>
                     </div>
                   </div>
                 </div>
@@ -3564,7 +3564,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                     <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">🚗 Tem CNH?</div>
                     <div style="display:flex;gap:6px">
                       <button class="btn btn-secondary ob-toggle cfg-toggle" id="cfg-cnh-yes" onclick="cfgToggle('cnh','yes')" style="flex:1;justify-content:center;font-size:12px">✅ Sim</button>
-                      <button class="btn btn-secondary ob-toggle cfg-toggle on" id="cfg-cnh-no" onclick="cfgToggle('cnh','no')" style="flex:1;justify-content:center;font-size:12px">❌ Não</button>
+                      <button class="btn btn-secondary ob-toggle cfg-toggle on" id="cfg-cnh-no" onclick="cfgToggle('cnh','no')" style="flex:1;justify-content:center;font-size:12px" data-i18n="g_19">❌ Não</button>
                     </div>
                   </div>
                   <div style="background:var(--sf2);border:1px solid var(--border);border-radius:12px;padding:12px">
@@ -3962,7 +3962,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <!-- Start button — mega CTA destacado -->
             <div style="background:linear-gradient(135deg,rgba(124,58,237,.08),rgba(37,99,235,.06));border:2px solid rgba(124,58,237,.2);border-radius:var(--rl);padding:16px;margin-bottom:4px">
               <div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;text-align:center">🚀 Tudo pronto? Inicie agora!</div>
-              <div style="font-size:11px;color:var(--t2);text-align:center;margin-bottom:12px;line-height:1.5">Os e-mails sairão com o currículo e os textos do perfil escolhido no Passo 3 — assuntos e corpos alternam automaticamente contra spam.</div>
+              <div style="font-size:11px;color:var(--t2);text-align:center;margin-bottom:12px;line-height:1.5" data-i18n="g_261">Os e-mails sairão com o currículo e os textos do perfil escolhido no Passo 3 — assuntos e corpos alternam automaticamente contra spam.</div>
               <button class="auto-start-mega" id="auto-start-btn" onclick="openPreflightModal()">
                 <i class="ti ti-rocket" style="font-size:22px"></i>
                 <span data-i18n="auto_start_btn">🤖 Começar Envio Automático</span>
@@ -4017,7 +4017,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <div id="pf-profiles-info" style="background:var(--bluel);border:1.5px solid var(--blueb);border-radius:var(--r);padding:11px 13px;margin-bottom:10px;font-size:12px;color:#1e3a8a">
               <div style="font-weight:700;margin-bottom:5px" data-i18n="g_50">🎯 Seu perfil será usado em todos os envios:</div>
 <div id="pf-profiles-list" style="display:flex;flex-direction:column;gap:4px"></div>
-              <div style="font-size:11px;color:#374151;margin-top:8px">O sistema rotaciona entre os assuntos e corpos de e-mail cadastrados para evitar parecer spam. Quer ajustar algo? Toque em "Trocar" acima.</div>
+              <div style="font-size:11px;color:#374151;margin-top:8px" data-i18n="g_262">O sistema rotaciona entre os assuntos e corpos de e-mail cadastrados para evitar parecer spam. Quer ajustar algo? Toque em "Trocar" acima.</div>
             </div>
 
             <!-- Servidor continua mesmo offline -->
@@ -4358,10 +4358,10 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 <span style="font-size:16px">1️⃣</span><span>Configurar Perfil</span>
               </div>
               <div onclick="document.getElementById('tut-step2').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border-radius:8px;border:1px solid #bbf7d0">
-                <span style="font-size:16px">2️⃣</span><span>Envio Manual</span>
+                <span style="font-size:16px">2️⃣</span><span data-i18n="manual_send">Envio Manual</span>
               </div>
               <div onclick="document.getElementById('tut-step3').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border-radius:8px;border:1px solid #bbf7d0">
-                <span style="font-size:16px">3️⃣</span><span>Envio Automático</span>
+                <span style="font-size:16px">3️⃣</span><span data-i18n="auto_send">Envio Automático</span>
               </div>
               <div onclick="document.getElementById('tut-step4').scrollIntoView({behavior:'smooth'})" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 8px;background:#fff;border-radius:8px;border:1px solid #bbf7d0">
                 <span style="font-size:16px">4️⃣</span><span data-i18n="g_74">Resposta da empresa</span>
@@ -4396,7 +4396,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               </div>
 
               <div style="background:#fef9c3;border-radius:10px;padding:10px 12px;border:1px solid #fde68a">
-                <strong style="color:#92400e">⚠️ IMPORTANTE:</strong> <span style="color:#78350f">Escreva seu nome exatamente como está no passaporte. Se o nome estiver errado, pode causar problemas com o empregador.</span>
+                <strong style="color:#92400e">⚠️ IMPORTANTE:</strong> <span style="color:#78350f" data-i18n="g_263">Escreva seu nome exatamente como está no passaporte. Se o nome estiver errado, pode causar problemas com o empregador.</span>
               </div>
 
               <div style="display:flex;gap:10px;align-items:flex-start">
@@ -4489,7 +4489,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
               <div style="background:#f5f3ff;border-radius:10px;padding:12px;border:1px solid #ddd6fe">
                 <strong style="color:#5b21b6" data-i18n="g_96">🤖 O que é o Envio Automático?</strong><br>
-                <span style="color:#374151">É como um robô que trabalha por você. Você configura uma vez e ele fica enviando candidaturas sozinho, mesmo com seu celular desligado.</span>
+                <span style="color:#374151" data-i18n="g_264">É como um robô que trabalha por você. Você configura uma vez e ele fica enviando candidaturas sozinho, mesmo com seu celular desligado.</span>
               </div>
 
               <div style="display:flex;gap:10px;align-items:flex-start">
@@ -4509,7 +4509,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
               </div>
 
               <div style="background:#f0fdf4;border-radius:10px;padding:10px 12px;border:1px solid #86efac">
-                <strong style="color:#065f46">✅ Plano VIP e Pro:</strong> <span style="color:#047857">O automático envia mais e-mails por dia. No plano gratuito são 10 por dia. Com VIP Pro são até 200 por dia.</span>
+                <strong style="color:#065f46" data-i18n="h_paid_t">✅ Planos pagos:</strong> <span style="color:#047857" data-i18n="h_paid_d">O automático envia mais e-mails por dia. No plano gratuito são 10 por dia; com VIPro são 100 e com DoublePro 200 por dia.</span>
               </div>
             </div>
           </div>
@@ -4603,27 +4603,27 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
 
               <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
                 <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i><span data-i18n="g_233">Por que minhas vagas sumiram do manual?</span></summary>
-                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Vagas somem do manual em dois casos: (1) você já enviou candidatura para aquela empresa, ou (2) aquela vaga está na fila do automático. Isso é correto — evita enviar duas vezes para a mesma empresa.</div>
+                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6" data-i18n="h_faq_gone">Vagas somem do manual em dois casos: (1) você já enviou candidatura para aquela empresa, ou (2) aquela vaga está na fila do automático. Isso é correto — evita enviar duas vezes para a mesma empresa.</div>
               </details>
 
               <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
                 <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i><span data-i18n="g_234">O automático parou. O que faço?</span></summary>
-                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Verifique na aba Home se o automático ainda aparece como ativo. Se parou, pode ter atingido o limite diário do seu plano — ele reinicia automaticamente no dia seguinte à meia-noite.</div>
+                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6" data-i18n="g_265">Verifique na aba Home se o automático ainda aparece como ativo. Se parou, pode ter atingido o limite diário do seu plano — ele reinicia automaticamente no dia seguinte à meia-noite.</div>
               </details>
 
               <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
                 <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i><span data-i18n="g_235">Recebi um e-mail em inglês. O que faço?</span></summary>
-                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Abra o e-mail direto no seu Gmail e leia. Se a empresa perguntar se você está disponível, responda: <em>"Yes, I am available to start on the requested date."</em> <span data-i18n="g_236">Se pedir documentos, entre em contato com um despachante de vistos.</span></div>
+                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6" data-i18n="h_faq_reply">Abra o e-mail direto no seu Gmail e leia. Se a empresa perguntar se você está disponível, responda: <em>"Yes, I am available to start on the requested date."</em> <span data-i18n="g_236">Se pedir documentos, entre em contato com um despachante de vistos.</span></div>
               </details>
 
               <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
-                <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i>Quantos e-mails devo enviar por dia?</summary>
-                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6">Quanto mais melhor — mas com qualidade. O sistema tem proteção anti-spam. No plano gratuito são 20 manuais + 10 automáticos por dia. Com VIP Manual são 100 manuais por dia. Com VIPro são 100 + 100 por dia. Com DoublePro (2 Gmails) são 200 + 200 por dia. Enviar para muitas empresas aumenta suas chances.</div>
+                <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i><span data-i18n="h_faq_qty_q">Quantos e-mails devo enviar por dia?</span></summary>
+                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6" data-i18n="h_faq_qty">Quanto mais melhor — mas com qualidade. O sistema tem proteção anti-spam. No plano gratuito são 20 manuais + 10 automáticos por dia. Com VIP Manual são 100 manuais por dia. Com VIPro são 100 + 100 por dia. Com DoublePro (2 Gmails) são 200 + 200 por dia. Enviar para muitas empresas aumenta suas chances.</div>
               </details>
 
               <details style="border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
                 <summary style="padding:12px;cursor:pointer;font-weight:700;color:#374151;background:#f9fafb;list-style:none;display:flex;align-items:center;gap:8px"><i class="ti ti-question-mark" style="color:#4f46e5;font-size:16px"></i>O site garante que vou conseguir o visto?</summary>
-                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6"><strong data-i18n="g_117">Não.</strong> O H2BApply é uma ferramenta que envia e-mails para você. A decisão de te contratar é do empregador. A decisão do visto é do consulado americano. Quanto mais candidaturas você enviar, maiores as chances de receber uma oferta.</div>
+                <div style="padding:12px;color:#374151;font-size:12px;line-height:1.6" data-i18n="h_faq_visa"><strong data-i18n="g_117">Não.</strong> O H2BApply é uma ferramenta que envia e-mails para você. A decisão de te contratar é do empregador. A decisão do visto é do consulado americano. Quanto mais candidaturas você enviar, maiores as chances de receber uma oferta.</div>
               </details>
 
               <div style="background:#eff6ff;border-radius:10px;padding:12px;border:1.5px solid #bfdbfe;text-align:center">
@@ -4781,7 +4781,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
         <!-- Header -->
         <div style="background:linear-gradient(135deg,#1a1040,#2d1b69,#7c3aed);color:#fff;padding:16px 16px 14px;flex-shrink:0">
           <div style="font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:4px"><i class="ti ti-bulb"></i> <span data-i18n="g_242">Sugestões para os Devs</span></div>
-          <div style="font-size:12px;opacity:.8">Sua ideia pode virar uma funcionalidade! Mande sua sugestão para a equipe do H2BApply.</div>
+          <div style="font-size:12px;opacity:.8" data-i18n="sug_hero">Sua ideia pode virar uma funcionalidade! Mande sua sugestão para a equipe do H2BApply.</div>
         </div>
 
         <!-- Formulário de envio -->
@@ -4798,7 +4798,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
                 <button class="sug-cat-btn active" data-cat="funcionalidade" onclick="selectSugCat('funcionalidade',this)">⚡ Funcionalidade nova</button>
                 <button class="sug-cat-btn" data-cat="melhoria" onclick="selectSugCat('melhoria',this)">✨ Melhoria</button>
                 <button class="sug-cat-btn" data-cat="bug" onclick="selectSugCat('bug',this)">🐛 Bug / Erro</button>
-                <button class="sug-cat-btn" data-cat="vagas" onclick="selectSugCat('vagas',this)">💼 Sobre as vagas</button>
+                <button class="sug-cat-btn" data-cat="vagas" onclick="selectSugCat('vagas',this)" data-i18n="sc_vagas">💼 Sobre as vagas</button>
                 <button class="sug-cat-btn" data-cat="outro" onclick="selectSugCat('outro',this)">💬 Outro</button>
               </div>
               <input type="hidden" id="sug-cat" value="funcionalidade">
@@ -5338,7 +5338,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
              dono do site pediu pra tirar ("gente preguiçosa usa sempre, fica
              igual aos outros"). Escreva os SEUS 3 assuntos usando as variáveis
              acima ({vaga}, {empresa}, {nome}, {categoria}). -->
-        <div id="pe-subjects-empty" style="font-size:11px;color:var(--t3);padding:6px 0;font-style:italic">Nenhum assunto ainda. Escreva pelo menos 3 variações suas em "+ Adicionar" — use as variáveis acima pra personalizar automaticamente.</div>
+        <div id="pe-subjects-empty" style="font-size:11px;color:var(--t3);padding:6px 0;font-style:italic" data-i18n="g_266">Nenhum assunto ainda. Escreva pelo menos 3 variações suas em "+ Adicionar" — use as variáveis acima pra personalizar automaticamente.</div>
         <div id="pe-subjects-warn" style="display:none;align-items:center;gap:7px;background:var(--redl);border:1.5px solid var(--redb);border-radius:var(--r);padding:8px 11px;font-size:12px;color:var(--red);font-weight:600;margin-top:6px">
           <i class="ti ti-alert-circle" style="font-size:15px;flex-shrink:0"></i>
           Mínimo <strong>3 assuntos</strong> para evitar bloqueio por spam. Adicione mais variações.
@@ -5385,7 +5385,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
           <button onclick="peAddBody()" style="background:var(--blue);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer"><i class="ti ti-plus"></i> Adicionar</button>
         </div>
         <div id="pe-bodies-list" style="display:flex;flex-direction:column;gap:8px"></div>
-        <div id="pe-bodies-empty" style="font-size:11px;color:var(--t3);padding:6px 0;font-style:italic">Nenhum corpo de e-mail ainda. Escreva pelo menos 3 variações suas em "+ Adicionar" — use as variáveis acima pra personalizar automaticamente.</div>
+        <div id="pe-bodies-empty" style="font-size:11px;color:var(--t3);padding:6px 0;font-style:italic" data-i18n="g_267">Nenhum corpo de e-mail ainda. Escreva pelo menos 3 variações suas em "+ Adicionar" — use as variáveis acima pra personalizar automaticamente.</div>
         <div id="pe-bodies-warn" style="display:none;align-items:center;gap:7px;background:var(--redl);border:1.5px solid var(--redb);border-radius:var(--r);padding:8px 11px;font-size:12px;color:var(--red);font-weight:600;margin-top:6px">
           <i class="ti ti-alert-circle" style="font-size:15px;flex-shrink:0"></i>
           Mínimo <strong data-i18n="g_169">3 corpos de e-mail</strong> para evitar spam. Adicione mais modelos.
@@ -5405,7 +5405,7 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             <span style="font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--t3);background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:1px 8px">categorias · planilhas</span>
             <i class="ti ti-chevron-down" style="margin-left:auto;color:var(--t3)"></i>
           </summary>
-          <div style="font-size:11px;color:var(--t3);line-height:1.5;margin:8px 0 12px">Perfil único: seu perfil serve automaticamente para qualquer vaga, de qualquer planilha.</div>
+          <div style="font-size:11px;color:var(--t3);line-height:1.5;margin:8px 0 12px" data-i18n="g_268">Perfil único: seu perfil serve automaticamente para qualquer vaga, de qualquer planilha.</div>
         <!-- v18-FIX: "Planilhas compatíveis" escondido — mesma situação das
              categorias (ver #pe-cats-section abaixo): selectProfile() em
              server.js recebe um parâmetro `sheet` mas NUNCA o usa; o valor
@@ -6872,7 +6872,7 @@ html, body, #app, .bottom-nav, .sidebar, .drawer{
         <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px">✈️ Já foi aos Estados Unidos antes?</div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-secondary ob-toggle" id="ob-usa-yes" onclick="obToggle('ob-usa','yes')">✅ Sim</button>
-          <button class="btn btn-secondary ob-toggle on" id="ob-usa-no" onclick="obToggle('ob-usa','no')">❌ Não</button>
+          <button class="btn btn-secondary ob-toggle on" id="ob-usa-no" onclick="obToggle('ob-usa','no')" data-i18n="g_19">❌ Não</button>
         </div>
       </div>
 
@@ -6881,7 +6881,7 @@ html, body, #app, .bottom-nav, .sidebar, .drawer{
         <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px">💼 Já trabalhou com visto H2B ou H2A?</div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-secondary ob-toggle" id="ob-h2b-yes" onclick="obToggle('ob-h2b','yes')">✅ Sim</button>
-          <button class="btn btn-secondary ob-toggle on" id="ob-h2b-no" onclick="obToggle('ob-h2b','no')">❌ Não</button>
+          <button class="btn btn-secondary ob-toggle on" id="ob-h2b-no" onclick="obToggle('ob-h2b','no')" data-i18n="g_19">❌ Não</button>
         </div>
         <div id="ob-h2b-seasons-wrap" style="display:none;margin-top:8px">
           <div style="font-size:11px;color:var(--t3);margin-bottom:5px">Quantas temporadas?</div>
@@ -6928,7 +6928,7 @@ html, body, #app, .bottom-nav, .sidebar, .drawer{
           <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px">🚗 Tem CNH?</div>
           <div style="display:flex;gap:6px">
             <button class="btn btn-secondary ob-toggle-cnh" id="ob-cnh-yes" onclick="obToggleCnh('yes')">✅ Sim</button>
-            <button class="btn btn-secondary ob-toggle-cnh on" id="ob-cnh-no" onclick="obToggleCnh('no')">❌ Não</button>
+            <button class="btn btn-secondary ob-toggle-cnh on" id="ob-cnh-no" onclick="obToggleCnh('no')" data-i18n="g_19">❌ Não</button>
           </div>
         </div>
         <div>

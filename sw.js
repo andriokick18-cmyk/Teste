@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v99"; // v99 (13/08): 🌐 TRADUÇÃO 100% — todas as telas do site, do início ao fim, nas 3 línguas (v136: as 257 frases restantes traduzidas em PT/EN/ES; catraca do teste agora em ZERO — tela nova sem tradução não passa).
+const CACHE_NAME = "h2bapply-v100"; // v100 (14/08): 🌐 v137 — teste E2E navegando TODAS as 17 telas em EN e ES: EN 100% limpo (sons, checklist de boas-vindas, extrato de 💎, FAQ, missões, próximos passos e 11 textos longos traduzidos); bug TDZ que matava o app inteiro pego pelo teste E2E e corrigido (tradução dos sons virou preguiçosa).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
