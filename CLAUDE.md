@@ -268,7 +268,13 @@
     simultâneos baterem no mesmo empregador. Uma função de pontuação só
     (`computeJobMatchScore` + `_matchSignalFromRow`/`_matchSignalFromJob`
     convergindo os 2 formatos de vaga pro mesmo sinal) — nunca duplicada
-    por endpoint.
+    por endpoint. **v139 (14/08)**: a nota ganhou prateleira própria na
+    Home — "🎯 Vagas pra você" (`/api/jobs/pra-voce` + `#home-pravoce`):
+    top 8 empregadores AINDA disponíveis, ranking cacheado 10min por
+    usuário MAS o corte da regra 8 (enviado/na fila) roda FRESCO em toda
+    resposta; vaga morta/encerrada fica de fora; matchWhy traduzido no
+    front por mapa de chaves (9 frases fixas → pv_w1..pv_w9). Snapshot de
+    vaga tem fonte única `_vagaSnapshot()` (Salvas + Pra Você).
 13n. **💰 Janelas de entradas — fonte única (dono, 29/07/2026 — fila futura
     "consolidar telas financeiras do admin")**: achado revisando a régua —
     Visão do Dono (`/api/admin/dono-resumo`) e o resumo usado no

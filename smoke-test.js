@@ -1684,6 +1684,34 @@ async function testAuthWatchdogPush() {
       _srvSrc.includes('_runH2bMensal("boot")') && _srvSrc.includes('_runH2bMensal("agendado")') &&
       /_runH2bMensal[\s\S]{0,400}autoPublish:false/.test(_srvSrc),
       "agendador ou autoPublish:false do H-2B não encontrados no server.js");
+
+    // ═══ 🎯 v139: VAGAS PRA VOCÊ — prateleira do match na Home (regra 13m) ═══
+    // O ranking é cacheado 10min por usuário, mas o corte da regra 8
+    // (enviado OU na fila nunca reaparece) roda FRESCO em toda resposta —
+    // o teste prova exatamente isso pondo o empregador nº1 na fila.
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "pravoce@test.com", name: "PraVoce" });
+    await req2("POST", "/api/settings", { h2bProfile: { preferredArea: "landscape", englishLevel: "basic", experiencedH2B: false, h2bSeasons: 0 } });
+    const pv1 = await get("/api/jobs/pra-voce");
+    const _pvJobs1 = pv1.json?.jobs || [];
+    check("🎯 v139: prateleira responde com 1 a 8 vagas, todas com e-mail e nota de match",
+      pv1.json?.ok === true && _pvJobs1.length >= 1 && _pvJobs1.length <= 8 && _pvJobs1.every((j) => j.email && typeof j.matchScore === "number"),
+      pv1.body.slice(0, 160));
+    check("🎯 v139: empregadores ÚNICOS, ordenados da maior nota pra menor (nunca caixa preta: matchWhy vem junto)",
+      new Set(_pvJobs1.map((j) => String(j.email).toLowerCase())).size === _pvJobs1.length &&
+      _pvJobs1.every((j, i) => i === 0 || _pvJobs1[i - 1].matchScore >= j.matchScore) &&
+      _pvJobs1.some((j) => Array.isArray(j.matchWhy)),
+      JSON.stringify(_pvJobs1.map((j) => j.matchScore)));
+    const pdfPv = Buffer.from("%PDF-1.4 pra-voce conteudo de teste ".repeat(60)).toString("base64");
+    const upPv = await req2("POST", "/api/cv/upload", { base64: pdfPv, name: "CV_PraVoce.pdf", cvType: "resume" });
+    const _pvTop = _pvJobs1[0];
+    const pvStart = await req2("POST", "/api/auto/start", { queue: [{ to: _pvTop.email, title: _pvTop.title, company: _pvTop.company, category: _pvTop.category || "other", state: _pvTop.state || "TX" }], resumeIdx: upPv.json?.cv?.idx, subjects: ["x"], emailBodies: ["y"] });
+    check("🎯 v139: (setup) fila de 1 vaga com o empregador nº1 da prateleira iniciou", pvStart.json?.ok === true, pvStart.body.slice(0, 140));
+    const pv2 = await get("/api/jobs/pra-voce");
+    check("🎯 v139: empregador que entrou na fila do automático SOME da prateleira NA HORA (regra 8 corta fresco, mesmo com ranking cacheado)",
+      pv2.json?.ok === true && !(pv2.json?.jobs || []).some((j) => String(j.email || "").toLowerCase() === String(_pvTop.email || "").toLowerCase()),
+      pv2.body.slice(0, 140));
+    await req2("POST", "/api/auto/stop", {});
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
     const bst = await get("/api/admin/backup-peers");
     check("🗄️ admin vê o backup recebido na visão de status", bst.json?.ok === true && (bst.json?.recebidos || []).some((r) => r.de === "srv1"), bst.body.slice(0, 140));
     // DRILL DE RESTAURAÇÃO (regra da casa: ensaiada de verdade, nunca presumida)

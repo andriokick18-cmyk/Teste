@@ -3002,6 +3002,15 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
             </div>
           </div>
 
+          <!-- 🎯 v139: Vagas pra você — prateleira do match (regra 13m) -->
+          <div id="home-pravoce" style="display:none;padding:14px 14px 0">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">🎯 <span data-i18n="pv_title">Vagas pra você</span></div>
+              <button onclick="sv('jobs')" style="background:none;border:none;font-size:11px;color:var(--purple,#7c3aed);font-weight:800;cursor:pointer;font-family:inherit;padding:2px 4px" data-i18n="pv_all">Ver todas</button>
+            </div>
+            <div id="pv-strip" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch"></div>
+          </div>
+
           <!-- Follow-ups sugeridos -->
           <div id="home-followup-section" style="display:none;padding:14px 14px 0">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">

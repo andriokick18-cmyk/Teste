@@ -2101,16 +2101,24 @@ const buildUserSentSet = (u) => {
 // fixas + extras) e devolve um snapshot compacto pro acervo de salvas.
 // Usado pela auto-cura do GET /api/saved (vagas salvas ANTES do v126 só
 // tinham o id — sem isso, sumiam da aba se saíssem da tela).
+// v139: mapeamento linha-compacta → snapshot (fonte única — usado pelas
+// Vagas Salvas E pelo Vagas Pra Você; nunca duplicar este shape).
+function _vagaSnapshot(r){
+  return {id:r.c,caseNum:r.c,title:r.t||"Seasonal Worker",company:r.n||"",city:r.ci||"",state:r.s||"",
+    wage:r.w?`$${r.w}/${r.wunit||"h"}`:"",email:r.e||"",visa:r.visa||"",category:r.k||"other",
+    url:r.c&&String(r.c).startsWith("H-")?`https://seasonaljobs.dol.gov/jobs/${r.c}`:""};
+}
 function _resolveVagaById(id){
   const nid=String(id||"").trim().toUpperCase();if(!nid)return null;
   const achar=rows=>(rows||[]).find(r=>String(r.c||"").trim().toUpperCase()===nid);
   let r=achar(getAllSheets());
   if(!r){for(const k of Object.keys(SHEET_EXTRAS||{})){r=achar(SHEET_EXTRAS[k]);if(r)break;}}
   if(!r)return null;
-  return {id:r.c,caseNum:r.c,title:r.t||"Seasonal Worker",company:r.n||"",city:r.ci||"",state:r.s||"",
-    wage:r.w?`$${r.w}/${r.wunit||"h"}`:"",email:r.e||"",visa:r.visa||"",category:r.k||"other",
-    url:r.c&&String(r.c).startsWith("H-")?`https://seasonaljobs.dol.gov/jobs/${r.c}`:""};
+  return _vagaSnapshot(r);
 }
+// 🎯 v139: cache do ranking "pra você" (10min por usuário) — só o RANKING é
+// cacheado; o corte de enviados/fila (regra 8) roda fresco em toda resposta.
+const _praVoceCache=new Map();
 const getNote    = (u,j) => DB_NOTES[u]?.[j]||"";
 // v47: nota/alerta é ação corriqueira de usuário — nunca gravar o banco
 // inteiro síncrono por clique (mesma classe do setUser). flushAll cobre.
@@ -13075,6 +13083,52 @@ const typeLimit=cvType==="cover"?MAX_COVERS:MAX_RESUMES;const sameType=cvs.filte
   // (u.savedJobs) — aparece na aba Vagas Salvas mesmo meses depois, mesmo
   // que a vaga já não esteja em nenhuma planilha. u.saved (ids) continua
   // sendo a fonte do estado dos botõezinhos 🔖 nos cards.
+  // ── 🎯 v139 — VAGAS PRA VOCÊ (prateleira da Home) ────────────────────────
+  // Completa a regra 13m: a nota de match (computeJobMatchScore) ganhou uma
+  // prateleira própria — as melhores vagas AINDA DISPONÍVEIS pro perfil do
+  // usuário, com o porquê (matchWhy, nunca caixa preta). Regra 8 absoluta:
+  // empregador já enviado OU na fila do automático NUNCA aparece aqui — o
+  // ranking é cacheado 10min por usuário, mas esse corte roda FRESCO em
+  // toda resposta. Vaga morta/encerrada também fica de fora. Sem perfil,
+  // a nota é neutra (50) e a prateleira ainda mostra vagas — nunca bloqueia.
+  if(pathname==="/api/jobs/pra-voce"&&req.method==="GET"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    try{
+      const em=s.user_email;
+      let cand=_praVoceCache.get(em);
+      if(!cand||Date.now()-cand.t>10*60_000){
+        const ctx=buildMatchCtx(getUser(em));
+        const hoje=new Date().toISOString().slice(0,10);
+        const _DEAD=/denied|withdrawn|invalidat|expired|cancel/i;
+        const top=[];
+        for(const r of getAllSheets()){
+          const e2=_normEmail(r.e);
+          if(!e2||!e2.includes("@"))continue;
+          if(_DEAD.test(String(r.st||"")))continue;
+          if(r.de&&/^\d{4}-\d{2}-\d{2}$/.test(r.de)&&r.de<hoje)continue;
+          const m=ctx?computeJobMatchScore(_matchSignalFromRow(r),ctx):null;
+          top.push({row:r,score:m?m.score:50,why:m?(m.why||null):null});
+        }
+        top.sort((a,b)=>b.score-a.score);
+        cand={t:Date.now(),top:top.slice(0,80)};
+        if(_praVoceCache.size>2000)_praVoceCache.clear();
+        _praVoceCache.set(em,cand);
+      }
+      const sentSet=buildUserSentSet(em);
+      const aj=getAutoJob(em);
+      const qEmails=new Set();
+      if(aj&&Array.isArray(aj.queue))for(const it of aj.queue){const qe=_normEmail(it.email||it.to);if(qe)qEmails.add(qe);}
+      const out=[];const seen=new Set();
+      for(const c of cand.top){
+        const e2=_normEmail(c.row.e);
+        if(!e2||seen.has(e2)||sentSet.has(e2)||qEmails.has(e2))continue;
+        seen.add(e2);
+        out.push({..._vagaSnapshot(c.row),sheet:c.row._sheet||"",matchScore:c.score,matchWhy:c.why});
+        if(out.length>=8)break;
+      }
+      return json(res,200,{ok:true,jobs:out});
+    }catch(e){return json(res,500,{ok:false,error:e.message});}
+  }
   if(pathname==="/api/saved"){const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
     const u=getUser(s.user_email)||{};
     if(req.method==="GET"){

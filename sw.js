@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v101"; // v101 (14/08): 🧊 v138 — Planilha H-2B MENSAL automática (mesmo robô mensal do H-2A, visto H-2B, sempre em RASCUNHO por KB-078 — admin publica com 1 clique; card do admin virou "Planilhas do Mês" com os 2 botões). Bump por convenção de entrega (admin.html mudou; index.html/app.js intactos).
+const CACHE_NAME = "h2bapply-v102"; // v102 (14/08): 🎯 v139 — "Vagas pra você" na Home (regra 13m completa): prateleira com as melhores vagas AINDA disponíveis pro perfil, nota + porquê traduzido nas 3 línguas, 1 toque pra candidatar; regra 8 corta enviados/fila fresco em toda resposta.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
