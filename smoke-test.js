@@ -1685,6 +1685,19 @@ async function testAuthWatchdogPush() {
       /_runH2bMensal[\s\S]{0,400}autoPublish:false/.test(_srvSrc),
       "agendador ou autoPublish:false do H-2B não encontrados no server.js");
 
+    // ═══ 💸 v140 (conta do Render): gzip nas conversas de robô ═══
+    // Os 23GB de "Service-Initiated" eram em boa parte JSON cru — o
+    // httpsReq agora descomprime sozinho e os robôs pedem gzip do DOL e
+    // dos irmãos. As 2 chamadas de streaming cru (proxy e download de
+    // buffer) CONTINUAM identity de propósito — não descomprimem.
+    const _gmailSrcV140 = fs.readFileSync(path.join(__dirname, "mod-gmail.js"), "utf8");
+    check("💸 v140: httpsReq descomprime gzip/deflate/br sozinho (fail-open pro corpo cru se falhar)",
+      _gmailSrcV140.includes("content-encoding") && _gmailSrcV140.includes("gunzipSync") && _gmailSrcV140.includes("brotliDecompressSync"),
+      "descompressão não encontrada no mod-gmail.js");
+    check("💸 v140: robôs pedem gzip (DOL + irmãos ≥5 chamadas) e o streaming cru segue identity",
+      (_srvSrc.match(/"Accept-Encoding":"gzip"/g) || []).length >= 5 && (_srvSrc.match(/"Accept-Encoding":"identity"/g) || []).length >= 2,
+      `gzip=${(_srvSrc.match(/"Accept-Encoding":"gzip"/g) || []).length} identity=${(_srvSrc.match(/"Accept-Encoding":"identity"/g) || []).length}`);
+
     // ═══ 🎯 v139: VAGAS PRA VOCÊ — prateleira do match na Home (regra 13m) ═══
     // O ranking é cacheado 10min por usuário, mas o corte da regra 8
     // (enviado OU na fila nunca reaparece) roda FRESCO em toda resposta —

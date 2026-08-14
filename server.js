@@ -4610,7 +4610,7 @@ async function fetchDOL(skip,top,opts={}) {
   if(f.length)p.append("$filter",f.join(" and "));
   p.append("$orderby","dhTimestamp "+(sort==="asc"?"asc":"desc"));
   p.append("$top",String(top));p.append("$skip",String(skip));
-  const{status,body}=await httpsReq({hostname:"api.seasonaljobs.dol.gov",path:"/datahub/?"+p,method:"GET",headers:{"Accept":"application/json","Accept-Encoding":"identity","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Cache-Control":"no-cache","Referer":"https://seasonaljobs.dol.gov/"}});
+  const{status,body}=await httpsReq({hostname:"api.seasonaljobs.dol.gov",path:"/datahub/?"+p,method:"GET",headers:{"Accept":"application/json","Accept-Encoding":"gzip","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Cache-Control":"no-cache","Referer":"https://seasonaljobs.dol.gov/"}});
   if(status!==200)throw new Error("DOL "+status);
   const raw=body.value||body.results||body.data||(Array.isArray(body)?body:[]);
   return{jobs:raw.map((j,i)=>normJob(j,skip+i)),total:body["@odata.count"]||body.count||raw.length};
@@ -4659,7 +4659,7 @@ async function fetchByCase(cases) {
   // ── PASSO 3: DOL só para o que não está na planilha local ──
   // Se o DOL estiver fora do ar, simplesmente ignora — não trava nada
   if(stillMissing.length){
-    const HDR={"Accept":"application/json","Accept-Encoding":"identity","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Cache-Control":"no-cache","Referer":"https://seasonaljobs.dol.gov/"};
+    const HDR={"Accept":"application/json","Accept-Encoding":"gzip","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36","Cache-Control":"no-cache","Referer":"https://seasonaljobs.dol.gov/"};
     for(let i=0;i<stillMissing.length;i+=10){
       const batch=stillMissing.slice(i,i+10);
       try{
@@ -7564,7 +7564,7 @@ async function _runEnrichBot(sheetKey, resume=false){
     return {
       "Accept":"application/json, text/plain, */*",
       "Accept-Language":"en-US,en;q=0.9",
-      "Accept-Encoding":"identity",
+      "Accept-Encoding":"gzip",
       "User-Agent": USER_AGENTS[_uaIdx],
       "Cache-Control":"no-cache",
       "Pragma":"no-cache",
@@ -17496,7 +17496,9 @@ async function _fetchPeerJson(baseUrl,apiPath,extraHeaders){
   try{
     const h=new URL(baseUrl);
     if(h.protocol!=="https:") throw new Error("peer não-https");
-    const {status,body}=await httpsReq({hostname:h.hostname,port:h.port||443,path:apiPath,method:"GET",headers:{"Accept":"application/json","User-Agent":"H2BApply-Server/"+SERVER_ID,...(extraHeaders||{})}});
+    // 💸 v140: gzip entre irmãos — o json() do peer já comprime respostas
+    // >16KB quando pedimos; o httpsReq descomprime sozinho. Menos banda paga.
+    const {status,body}=await httpsReq({hostname:h.hostname,port:h.port||443,path:apiPath,method:"GET",headers:{"Accept":"application/json","Accept-Encoding":"gzip","User-Agent":"H2BApply-Server/"+SERVER_ID,...(extraHeaders||{})}});
     if(status===200&&body&&typeof body==="object"){ _peerCache[key]={at:Date.now(),data:body}; return body; }
   }catch(e){ console.warn("[servers] peer",baseUrl,apiPath,"falhou:",e.message); }
   _peerCache[key]={at:Date.now(),data:null}; // cacheia a falha p/ não martelar o peer
@@ -18107,7 +18109,7 @@ async function _runFreshCycle(){
   }
   _freshBot.running=true;_freshBot.sheetKey=pick;_freshBot.checked=0;_freshBot.changed=0;
   botLog('planilha-fresca','Planilha Sempre Fresca',`🚀 ${pick}: conferindo ${batch.length} vaga(s) no DOL (status/datas/salário)`,'info');
-  const HDRS={"Accept":"application/json","Accept-Encoding":"identity","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36","Cache-Control":"no-cache","Referer":"https://seasonaljobs.dol.gov/"};
+  const HDRS={"Accept":"application/json","Accept-Encoding":"gzip","User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36","Cache-Control":"no-cache","Referer":"https://seasonaljobs.dol.gov/"};
   let delay=1500,errs=0;
   try{
     for(const row of batch){

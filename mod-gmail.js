@@ -8,6 +8,7 @@
 "use strict";
 const https = require("https");
 const crypto = require("crypto");
+const zlib = require("zlib");
 
 // PERF FIX (V-perf): antes cada chamada a gmail.googleapis.com / oauth2.googleapis.com
 // abria uma conexão TCP+TLS NOVA do zero (handshake completo a cada envio manual).
@@ -16,7 +17,10 @@ const crypto = require("crypto");
 // relatada no Envio Manual (30s por clique).
 const _keepAliveAgent = new https.Agent({ keepAlive: true, keepAliveMsecs: 30000, maxSockets: 50, maxFreeSockets: 10 });
 
-function httpsReq(opts,body){return new Promise((res,rej)=>{const p=body?(typeof body==="string"?body:JSON.stringify(body)):null;const finalOpts=opts.agent?opts:{...opts,agent:_keepAliveAgent};const r=https.request(finalOpts,resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{const raw=Buffer.concat(ch).toString();try{res({status:resp.statusCode,body:JSON.parse(raw)});}catch{res({status:resp.statusCode,body:raw});}});});r.on("error",rej);r.setTimeout(15000,()=>{r.destroy();rej(new Error("Timeout"));});if(p)r.write(p);r.end();});}
+// 💸 v140 (conta do Render): agora entende resposta COMPRIMIDA (gzip/deflate/
+// br) — quem pedir "Accept-Encoding: gzip" recebe ~80% menos bytes do DOL e
+// dos servidores irmãos. Falha na descompressão cai no corpo cru (fail-open).
+function httpsReq(opts,body){return new Promise((res,rej)=>{const p=body?(typeof body==="string"?body:JSON.stringify(body)):null;const finalOpts=opts.agent?opts:{...opts,agent:_keepAliveAgent};const r=https.request(finalOpts,resp=>{const ch=[];resp.on("data",c=>ch.push(c));resp.on("end",()=>{let buf=Buffer.concat(ch);const enc=String(resp.headers["content-encoding"]||"").toLowerCase();try{if(enc.includes("gzip"))buf=zlib.gunzipSync(buf);else if(enc.includes("deflate"))buf=zlib.inflateSync(buf);else if(enc.includes("br"))buf=zlib.brotliDecompressSync(buf);}catch(e){}const raw=buf.toString();try{res({status:resp.statusCode,body:JSON.parse(raw)});}catch{res({status:resp.statusCode,body:raw});}});});r.on("error",rej);r.setTimeout(15000,()=>{r.destroy();rej(new Error("Timeout"));});if(p)r.write(p);r.end();});}
 
 function normalizeEmail(raw) {
   if (!raw) return "";
