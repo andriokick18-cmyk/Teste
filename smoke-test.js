@@ -1649,6 +1649,41 @@ async function testAuthWatchdogPush() {
     const bim403 = await req2("POST", "/api/admin/sheet/h2a-bimestral-run", {});
     check("🌾 v121: usuário comum recebe 403 no robô bimestral (admin-only)", bim403.status === 403, `status=${bim403.status}`);
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+
+    // ═══ 🧊 v138: PLANILHA H-2B MENSAL — RASCUNHO SEMPRE (KB-078) ═══
+    // Mesmo núcleo mensal do H-2A, visto H-2B. A diferença INEGOCIÁVEL:
+    // auto-publicar é exceção autorizada por escrito SÓ do robô H-2A (13p);
+    // o H-2B fica em rascunho MESMO acima do mínimo, até o admin publicar.
+    const h2b1 = await req2("POST", "/api/admin/sheet/h2b-mensal-run", { force: true });
+    check("🧊 v138: robô H-2B mensal dispara em background (started:true) com a chave do mês",
+      h2b1.json?.ok === true && h2b1.json?.started === true && /^h2b-\d{6}$/.test(h2b1.json?.key || ""),
+      h2b1.body.slice(0, 160));
+    let h2bSt = null;
+    for (let i = 0; i < 40; i++) {
+      await new Promise((r) => setTimeout(r, 300));
+      h2bSt = (await get("/api/admin/sheet/coleta-status")).json;
+      if (h2bSt && !h2bSt.running && h2bSt.finishedAt) break;
+    }
+    check("🧊 v138: coleta os 6 feeds H-2B (14 válidas do feed falso) e fica em RASCUNHO mesmo acima do mínimo — auto-publicar segue SÓ do H-2A (KB-078)",
+      h2bSt && h2bSt.error === null && h2bSt.count === 14 && h2bSt.published === false && h2bSt.progress === 100 &&
+      h2bSt.mensalH2b?.lastKey === h2b1.json?.key && h2bSt.mensalH2b?.lastPublished === false,
+      JSON.stringify({ error: h2bSt?.error, count: h2bSt?.count, published: h2bSt?.published, lastKey: h2bSt?.mensalH2b?.lastKey }));
+    const shlH2bDraft = await get("/api/sheets-list");
+    check("🧊 v138: em rascunho, a planilha H-2B do mês NÃO aparece pros usuários",
+      !(shlH2bDraft.json?.sheets || []).some((x) => x.key === h2b1.json?.key), JSON.stringify((shlH2bDraft.json?.sheets || []).map((x) => x.key)));
+    const h2bPub = await req2("POST", "/api/admin/sheet/coleta-publish", { key: h2b1.json?.key });
+    check("🧊 v138: publicação manual explícita do admin funciona (1 clique)", h2bPub.json?.ok === true && h2bPub.json?.count === 14, h2bPub.body.slice(0, 120));
+    const shlH2bPub = await get("/api/sheets-list");
+    const _shH2b = (shlH2bPub.json?.sheets || []).find((x) => x.key === h2b1.json?.key);
+    check("🧊 v138: publicada, a \"H-2B <Mês> <Ano>\" aparece pra todo mundo (Manual/Automático) com o nome certo",
+      _shH2b && _shH2b.count === 14 && /^H-2B /.test(String(_shH2b.name || "")), JSON.stringify(_shH2b || {}).slice(0, 160));
+    const h2b2 = await req2("POST", "/api/admin/sheet/h2b-mensal-run", {});
+    check("🧊 v138: rodar de novo DENTRO do mesmo mês sem force é recusado (409) — nunca duplica",
+      h2b2.status === 409 && h2b2.json?.skipped === true, `status=${h2b2.status} body=${h2b2.body.slice(0, 120)}`);
+    check("🧊 v138: agendador do H-2B mensal existe (boot+20min + ciclo 12h) e o robô NUNCA auto-publica (autoPublish:false)",
+      _srvSrc.includes('_runH2bMensal("boot")') && _srvSrc.includes('_runH2bMensal("agendado")') &&
+      /_runH2bMensal[\s\S]{0,400}autoPublish:false/.test(_srvSrc),
+      "agendador ou autoPublish:false do H-2B não encontrados no server.js");
     const bst = await get("/api/admin/backup-peers");
     check("🗄️ admin vê o backup recebido na visão de status", bst.json?.ok === true && (bst.json?.recebidos || []).some((r) => r.de === "srv1"), bst.body.slice(0, 140));
     // DRILL DE RESTAURAÇÃO (regra da casa: ensaiada de verdade, nunca presumida)

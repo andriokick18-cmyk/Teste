@@ -3669,18 +3669,20 @@ document.addEventListener('DOMContentLoaded',()=>{
   <button type="button" class="btn btn-primary btn-sm" id="h2a-novas-btn" onclick="h2aNovasRun()"><i class="ti ti-plant-2"></i> Buscar novas agora</button>
 </div>
 
-<!-- 🌾 v121 — PLANILHA H-2A BIMESTRAL: nasce sozinha a cada 2 meses (8min após
-     o boot quando vence) e AUTO-PUBLICA acima do mínimo de qualidade. Botão =
-     gerar/refazer a do mês agora, sem esperar o agendador. -->
+<!-- 🌾 v121 / 🧊 v138 — PLANILHAS DO MÊS: todo mês nascem sozinhas a
+     "H-2A <Mês> <Ano>" (auto-publica acima do mínimo — exceção autorizada
+     13p) e a "H-2B <Mês> <Ano>" (fica SEMPRE em rascunho — KB-078 — e o
+     admin publica com 1 clique). Botões = gerar/refazer a do mês agora. -->
 <div style="background:linear-gradient(135deg,rgba(139,92,246,.12),rgba(16,185,129,.06));border:1.5px solid rgba(139,92,246,.3);border-radius:14px;padding:14px 16px;margin-bottom:16px">
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <div style="font-size:26px">📅</div>
     <div style="flex:1;min-width:220px">
-      <div style="font-size:13.5px;font-weight:800;color:#fff">Planilha H-2A do Mês (automática, todo mês)</div>
-      <div style="font-size:11px;color:var(--t3)">Todo mês nasce sozinha a "H-2A &lt;Mês&gt; &lt;Ano&gt;" com as vagas dos últimos 90 dias (6 feeds do DOL) e PUBLICA sozinha se passar na guarda de qualidade — a próxima sai em Setembro sem você fazer nada. Leva 2 a 3 minutos — acompanhe a barra e o log abaixo.</div>
+      <div style="font-size:13.5px;font-weight:800;color:#fff">Planilhas do Mês (automáticas, todo mês)</div>
+      <div style="font-size:11px;color:var(--t3)">Todo mês nascem sozinhas a "H-2A &lt;Mês&gt; &lt;Ano&gt;" (publica sozinha se passar na guarda de qualidade) e a "H-2B &lt;Mês&gt; &lt;Ano&gt;" (fica em RASCUNHO — você recebe push e publica com 1 clique no card de planilhas). Vagas dos últimos 90 dias, 6 feeds do DOL, 2 a 3 minutos cada — acompanhe a barra e o log abaixo.</div>
       <div style="font-size:11.5px;font-weight:700;margin-top:3px;display:none" id="h2a-bim-result"></div>
     </div>
-    <button type="button" class="btn btn-primary btn-sm" id="h2a-bim-btn" onclick="h2aBimestralRun()"><i class="ti ti-calendar-repeat"></i> Gerar a deste mês agora</button>
+    <button type="button" class="btn btn-primary btn-sm" id="h2a-bim-btn" onclick="h2aBimestralRun()"><i class="ti ti-calendar-repeat"></i> Gerar H-2A do mês</button>
+    <button type="button" class="btn btn-primary btn-sm" id="h2b-men-btn" onclick="h2bMensalRun()"><i class="ti ti-calendar-repeat"></i> Gerar H-2B do mês</button>
   </div>
   <div id="h2a-bim-area" style="display:none;margin-top:10px">
     <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-bottom:4px">
@@ -10161,21 +10163,26 @@ async function h2aNovasRun(){
 // v121c (dono: clicou e "não sei nem o que tá acontecendo"): o disparo é em
 // BACKGROUND e o card acompanha % + tempo + log AO VIVO pelo coleta-status
 // (poll de 2s) — a resposta HTTP nunca mais estoura o tempo no meio.
-let _bimPoll=null,_bimT0=0;
-async function h2aBimestralRun(){
-  const btn=document.getElementById('h2a-bim-btn');
+let _bimPoll=null,_bimT0=0,_bimBtnId='h2a-bim-btn',_bimBtnLbl='';
+// 🧊 v138: runner ÚNICO pros dois robôs mensais (H-2A e H-2B) — mesmo card,
+// mesma barra de % e mesmo log ao vivo; só muda a rota e o botão.
+async function h2aBimestralRun(){return _mensalRun('/api/admin/sheet/h2a-bimestral-run','h2a-bim-btn');}
+async function h2bMensalRun(){return _mensalRun('/api/admin/sheet/h2b-mensal-run','h2b-men-btn');}
+async function _mensalRun(url,btnId){
+  const btn=document.getElementById(btnId);
   const out=document.getElementById('h2a-bim-result');
   const area=document.getElementById('h2a-bim-area');
+  _bimBtnId=btnId;_bimBtnLbl=btn?btn.innerHTML:'';
   if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2"></i> Coletando...';}
   if(out)out.style.display='none';
   try{
-    const r=await fetch('/api/admin/sheet/h2a-bimestral-run',{method:'POST',credentials:'include',
+    const r=await fetch(url,{method:'POST',credentials:'include',
       headers:{'Content-Type':'application/json'},body:JSON.stringify({force:true})});
     let d=null;try{d=await r.json();}catch{}
     if(!d?.ok){
       if(out){out.style.display='block';out.style.color='var(--red)';out.textContent=`❌ ${d?.error||('HTTP '+r.status)}`;}
       toast(d?.error||('Erro '+r.status),'err');
-      if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-calendar-repeat"></i> Gerar a deste mês agora';}
+      if(btn){btn.disabled=false;btn.innerHTML=_bimBtnLbl;}
       return;
     }
     if(area){area.style.display='block';document.getElementById('h2a-bim-log').innerHTML='';}
@@ -10185,7 +10192,7 @@ async function h2aBimestralRun(){
     h2aBimestralPoll();
   }catch(e){
     toast(e.message,'err');
-    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-calendar-repeat"></i> Gerar a deste mês agora';}
+    if(btn){btn.disabled=false;btn.innerHTML=_bimBtnLbl;}
   }
 }
 async function h2aBimestralPoll(){
@@ -10202,13 +10209,13 @@ async function h2aBimestralPoll(){
     if(logEl&&Array.isArray(d.log))logEl.innerHTML=d.log.map(l=>`<div class="log-${l.type||'info'}">${new Date(l.t).toLocaleTimeString('pt-BR')} ${String(l.msg).replace(/</g,'&lt;')}</div>`).join(''),logEl.scrollTop=logEl.scrollHeight;
     if(!d.running&&d.finishedAt){
       clearInterval(_bimPoll);_bimPoll=null;
-      const btn=document.getElementById('h2a-bim-btn');
-      if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-calendar-repeat"></i> Gerar a deste mês agora';}
+      const btn=document.getElementById(_bimBtnId);
+      if(btn){btn.disabled=false;btn.innerHTML=_bimBtnLbl||btn.innerHTML;}
       const out=document.getElementById('h2a-bim-result');
       if(out){out.style.display='block';
         if(d.error){out.style.color='var(--red)';out.textContent=`❌ ${d.error}`;toast('Coleta falhou — veja o log','err');}
-        else if(d.published){out.style.color='var(--green)';out.textContent=`✅ ${d.count} vagas publicadas — planilha já no ar pro pessoal (Manual + Automático).`;toast(`🌾 ${d.count} vagas publicadas!`,'ok');}
-        else{out.style.color='var(--amber)';out.textContent=`⚠️ ${d.count} vagas — ficou em RASCUNHO (abaixo do mínimo de qualidade).`;toast('Ficou em rascunho','err');}
+        else if(d.published){out.style.color='var(--green)';out.textContent=`✅ ${d.count} vagas publicadas — planilha já no ar pro pessoal (Manual + Automático).`;toast(`📅 ${d.count} vagas publicadas!`,'ok');}
+        else{out.style.color='var(--amber)';out.textContent=`📝 ${d.count} vagas em RASCUNHO — revise e clique PUBLICAR no card de planilhas abaixo.`;toast('Pronta em rascunho — publique quando quiser','ok');}
       }
       if(typeof loadPlanilhas==='function')loadPlanilhas();
     }

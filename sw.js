@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v100"; // v100 (14/08): 🌐 v137 — teste E2E navegando TODAS as 17 telas em EN e ES: EN 100% limpo (sons, checklist de boas-vindas, extrato de 💎, FAQ, missões, próximos passos e 11 textos longos traduzidos); bug TDZ que matava o app inteiro pego pelo teste E2E e corrigido (tradução dos sons virou preguiçosa).
+const CACHE_NAME = "h2bapply-v101"; // v101 (14/08): 🧊 v138 — Planilha H-2B MENSAL automática (mesmo robô mensal do H-2A, visto H-2B, sempre em RASCUNHO por KB-078 — admin publica com 1 clique; card do admin virou "Planilhas do Mês" com os 2 botões). Bump por convenção de entrega (admin.html mudou; index.html/app.js intactos).
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

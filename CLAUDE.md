@@ -330,6 +330,21 @@
     a do mês). A coleta real só roda em PRODUÇÃO (sandbox não alcança o
     DOL) — o smoke prova a esteira inteira com o feed falso.
 
+13p2. **🧊 Planilha H-2B MENSAL (CEO mode, 14/08/2026 — o site chama
+    H2BApply e a planilha H-2B mais nova era de janeiro, em plena época
+    de contratação da temporada de inverno)**: mesmo núcleo mensal do
+    13p (`_runPlanilhaMensal`, função ÚNICA usada pelos 2 robôs;
+    `_runH2aBimestral` e `_runH2bMensal` são só wrappers de config) monta
+    todo mês a "H-2B <Mês> <Ano>" (chave `h2b-YYYYMM`, estado em
+    `h2b_mensal.json`, boot+20min e ciclo 12h — defasado do H-2A pra
+    nunca colidir na `_dolColeta`). DIFERENÇA INEGOCIÁVEL: o H-2B fica
+    SEMPRE em RASCUNHO (KB-078) — a auto-publicação continua exceção
+    autorizada por escrito SÓ do robô H-2A; os admins recebem push e
+    publicam com 1 clique (coleta-publish). Se o dono autorizar por
+    escrito o auto-publicar do H-2B, é trocar `autoPublish:false` no
+    wrapper — nunca mexer no núcleo. Disparo manual: POST
+    `/api/admin/sheet/h2b-mensal-run`. Publicar um rascunho dispara o
+    📡 Radar (v134) na 1ª publicação — mesma regra da auto-publicação.
 13q. **🚫 INDICAÇÃO PREMIADA — NUNCA (dono, 13/08/2026)**: programa de
     indicação com recompensa (💎/dias por convidar amigo) está PROIBIDO
     para sempre — "as pessoas ficam criando e-mails falsos em

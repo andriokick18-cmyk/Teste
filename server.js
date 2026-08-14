@@ -3799,26 +3799,33 @@ async function _runH2aNovasCycle(trigger){
 // fica em rascunho e os admins são avisados por push pra revisar.
 const H2A_BIM_FILE=path.join(DATA_DIR,"h2a_bimestral.json");
 let DB_H2A_BIM={};try{DB_H2A_BIM=JSON.parse(fs.readFileSync(H2A_BIM_FILE,"utf8"))||{};}catch{}
+// 🧊 v138: estado próprio do robô mensal H-2B (mesmo formato do H-2A).
+const H2B_MEN_FILE=path.join(DATA_DIR,"h2b_mensal.json");
+let DB_H2B_MEN={};try{DB_H2B_MEN=JSON.parse(fs.readFileSync(H2B_MEN_FILE,"utf8"))||{};}catch{}
 const MESES_PT=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
-async function _runH2aBimestral(trigger,force,background){
+// ── 📅 NÚCLEO MENSAL ÚNICO (v138) — usado pelos robôs H-2A e H-2B ──────────
+// v122 (dono, 08/08: "agende para daqui 1 mês gerar outra em setembro"):
+// cadência MENSAL — roda de novo assim que muda o mês do calendário.
+// Diferença entre os dois robôs: o H-2A tem autorização POR ESCRITO pra
+// publicar sozinho (13p); o H-2B fica SEMPRE em rascunho (KB-078) até o
+// admin clicar PUBLICAR — auto-publicar aqui exigiria ordem nova do dono.
+async function _runPlanilhaMensal(cfg,trigger,force,background){
   if(_dolColeta.running)return{ok:false,error:"já existe uma coleta rodando — tente de novo em alguns minutos"};
   const now=new Date();
-  // v122 (dono, 08/08: "agende para daqui 1 mês gerar outra em setembro"):
-  // virou MENSAL — roda de novo assim que muda o mês do calendário.
-  if(!force&&DB_H2A_BIM.lastRunAt){
-    const last=new Date(DB_H2A_BIM.lastRunAt);
+  const st0=cfg.getState();
+  if(!force&&st0.lastRunAt){
+    const last=new Date(st0.lastRunAt);
     const meses=(now.getUTCFullYear()*12+now.getUTCMonth())-(last.getUTCFullYear()*12+last.getUTCMonth());
-    if(meses<1)return{ok:false,skipped:true,error:`ainda não venceu — a deste mês (${DB_H2A_BIM.lastKey||"?"}) já foi gerada; a próxima sai sozinha no mês que vem`};
+    if(meses<1)return{ok:false,skipped:true,error:`ainda não venceu — a deste mês (${st0.lastKey||"?"}) já foi gerada; a próxima sai sozinha no mês que vem`};
   }
-  const key=`h2a-${now.getUTCFullYear()}${String(now.getUTCMonth()+1).padStart(2,"0")}`;
+  const key=`${cfg.prefix}-${now.getUTCFullYear()}${String(now.getUTCMonth()+1).padStart(2,"0")}`;
   if(!force&&DB_SHEETS_META[key])return{ok:false,skipped:true,error:`planilha ${key} já existe`};
-  const nome=`H-2A ${MESES_PT[now.getUTCMonth()]} ${now.getUTCFullYear()}`;
+  const nome=`${cfg.visa} ${MESES_PT[now.getUTCMonth()]} ${now.getUTCFullYear()}`;
   const feedDates=[];for(let i=0;i<6;i++)feedDates.push(new Date(now.getTime()-i*18*86400_000).toISOString().slice(0,10));
-  const minPub=Math.max(5,parseInt(process.env.H2A_BIM_MIN_PUBLICAR||"200",10)||200);
-  botLog('h2a-bimestral','Planilha H-2A Mensal',`🌾 Montando "${nome}" (${trigger||"agendado"}): 6 feeds cobrindo 90 dias, mínimo pra publicar sozinho: ${minPub} vagas.`,'info');
+  botLog(cfg.botId,cfg.botNome,`${cfg.emoji} Montando "${nome}" (${trigger||"agendado"}): 6 feeds cobrindo 90 dias${cfg.autoPublish?`, mínimo pra publicar sozinho: ${cfg.minPub} vagas`:` — fica em RASCUNHO pro admin revisar e publicar (KB-078)`}.`,'info');
   const _depois=async()=>{
     if(_dolColeta.error){
-      botLog('h2a-bimestral','Planilha H-2A Mensal',`⚠️ Coleta da "${nome}" falhou: ${_dolColeta.error} — nada foi salvo, tenta no próximo ciclo.`,'warn');
+      botLog(cfg.botId,cfg.botNome,`⚠️ Coleta da "${nome}" falhou: ${_dolColeta.error} — nada foi salvo, tenta no próximo ciclo.`,'warn');
       // v121b: falha NUNCA é silenciosa — o dono descobre por push, não
       // esperando uma planilha que não vem (aconteceu de verdade em 08/08).
       for(const ae of ADMIN_EMAILS)pushToUser(ae,{type:"generic",
@@ -3828,25 +3835,41 @@ async function _runH2aBimestral(trigger,force,background){
       return{ok:false,error:_dolColeta.error,key,nome};
     }
     const publicada=DB_SHEETS_META[key]?.published===true;
-    DB_H2A_BIM={lastKey:key,lastRunAt:Date.now(),lastCount:_dolColeta.count,lastPublished:publicada,lastTrigger:String(trigger||"")};
-    try{fs.writeFileSync(H2A_BIM_FILE,JSON.stringify(DB_H2A_BIM,null,2));}catch{}
-    botLog('h2a-bimestral','Planilha H-2A Mensal',publicada
+    cfg.setState({lastKey:key,lastRunAt:Date.now(),lastCount:_dolColeta.count,lastPublished:publicada,lastTrigger:String(trigger||"")});
+    botLog(cfg.botId,cfg.botNome,publicada
       ?`✅ "${nome}" no ar: ${_dolColeta.count} vagas dos últimos 90 dias, publicada automaticamente (Manual + Automático). Próxima sai sozinha no mês que vem.`
-      :`⚠️ "${nome}" coletou só ${_dolColeta.count} vagas (mínimo ${minPub}) — ficou em RASCUNHO pro admin revisar.`,publicada?'ok':'warn');
+      :cfg.autoPublish
+        ?`⚠️ "${nome}" coletou só ${_dolColeta.count} vagas (mínimo ${cfg.minPub}) — ficou em RASCUNHO pro admin revisar.`
+        :`📝 "${nome}" pronta: ${_dolColeta.count} vagas dos últimos 90 dias em RASCUNHO — revise e clique PUBLICAR no painel Robôs. Próxima sai sozinha no mês que vem.`,publicada?'ok':'warn');
     for(const ae of ADMIN_EMAILS)pushToUser(ae,{type:"generic",
-      title:publicada?`🌾 Planilha "${nome}" publicada!`:`⚠️ Planilha "${nome}" precisa de revisão`,
-      body:publicada?`${_dolColeta.count} vagas H-2A dos últimos 90 dias já no ar pro pessoal usar no Manual e no Automático.`:`Coletou só ${_dolColeta.count} vagas (mínimo ${minPub}) — ficou em rascunho, revise no painel Robôs.`,
+      title:publicada?`${cfg.emoji} Planilha "${nome}" publicada!`:cfg.autoPublish?`⚠️ Planilha "${nome}" precisa de revisão`:`${cfg.emoji} Planilha "${nome}" pronta pra publicar`,
+      body:publicada?`${_dolColeta.count} vagas ${cfg.visa} dos últimos 90 dias já no ar pro pessoal usar no Manual e no Automático.`
+        :cfg.autoPublish?`Coletou só ${_dolColeta.count} vagas (mínimo ${cfg.minPub}) — ficou em rascunho, revise no painel Robôs.`
+        :`${_dolColeta.count} vagas ${cfg.visa} dos últimos 90 dias em rascunho — revise e clique PUBLICAR no painel Robôs.`,
       icon:"/icon-192.png",url:"/admin"}).catch(()=>{});
     return{ok:true,key,nome,count:_dolColeta.count,published:publicada};
   };
-  const promessa=_runDolColeta({visa:"H-2A",sheetKey:key,sheetName:nome,feedDates,visaStrict:true,autoPublishMin:minPub,publishedBy:"robô-bimestral"}).then(_depois)
-    .catch(e=>{console.error("[h2a-bimestral]",e.message);return{ok:false,error:e.message,key,nome};});
+  const promessa=_runDolColeta({visa:cfg.visa,sheetKey:key,sheetName:nome,feedDates,visaStrict:true,...(cfg.autoPublish?{autoPublishMin:cfg.minPub}:{}),publishedBy:cfg.publishedBy}).then(_depois)
+    .catch(e=>{console.error(`[${cfg.botId}]`,e.message);return{ok:false,error:e.message,key,nome};});
   // v121c (dono, 08/08: clicou e "não sei nem o que tá acontecendo"): o
   // painel dispara em BACKGROUND e acompanha pelo log ao vivo do
   // coleta-status (com % e tempo) — a resposta HTTP nunca mais estoura o
   // tempo no meio da coleta. O agendador continua aguardando o resultado.
-  if(background)return{ok:true,started:true,key,nome,minPub};
+  if(background)return{ok:true,started:true,key,nome,minPub:cfg.minPub};
   return await promessa;
+}
+async function _runH2aBimestral(trigger,force,background){ // nome interno mantido (13p); cadência é 1 mês
+  return _runPlanilhaMensal({visa:"H-2A",prefix:"h2a",emoji:"🌾",botId:"h2a-bimestral",botNome:"Planilha H-2A Mensal",
+    autoPublish:true,minPub:Math.max(5,parseInt(process.env.H2A_BIM_MIN_PUBLICAR||"200",10)||200),publishedBy:"robô-bimestral",
+    getState:()=>DB_H2A_BIM,setState:(st)=>{DB_H2A_BIM=st;try{fs.writeFileSync(H2A_BIM_FILE,JSON.stringify(st,null,2));}catch{}}},trigger,force,background);
+}
+// 🧊 v138 (CEO mode, 14/08): o site chama H2BApply e a planilha H-2B mais
+// nova era de JANEIRO — em plena época de contratação da temporada de
+// inverno. Mesmo robô mensal, visto H-2B, SEM auto-publicar (KB-078).
+async function _runH2bMensal(trigger,force,background){
+  return _runPlanilhaMensal({visa:"H-2B",prefix:"h2b",emoji:"🧊",botId:"h2b-mensal",botNome:"Planilha H-2B Mensal",
+    autoPublish:false,minPub:null,publishedBy:"robô-mensal",
+    getState:()=>DB_H2B_MEN,setState:(st)=>{DB_H2B_MEN=st;try{fs.writeFileSync(H2B_MEN_FILE,JSON.stringify(st,null,2));}catch{}}},trigger,force,background);
 }
 
 // ── 📡 v134 — RADAR DE VAGAS (aprovado pelo dono, 13/08) ────────────────────
@@ -8537,7 +8560,7 @@ ul li{margin-bottom:6px}
     const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
     const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
     const published=_dolColeta.key?DB_SHEETS_META[_dolColeta.key]?.published===true:false;
-    return json(res,200,{ok:true,..._dolColeta,published,bimestral:DB_H2A_BIM});
+    return json(res,200,{ok:true,..._dolColeta,published,bimestral:DB_H2A_BIM,mensalH2b:DB_H2B_MEN});
   }
   // POST coleta-publish — publicação MANUAL e explícita (KB-078: nenhuma
   // planilha nova chega a cliente sem o admin decidir).
@@ -8549,8 +8572,13 @@ ul li{margin-bottom:6px}
     const meta=DB_SHEETS_META[key];
     if(!meta)return json(res,404,{error:"Planilha não encontrada."});
     if(!Array.isArray(SHEET_EXTRAS[key])||!SHEET_EXTRAS[key].length)return json(res,400,{error:"Planilha sem vagas carregadas — colete de novo antes de publicar."});
+    const _jaPublicada=meta.published===true;
     meta.published=true;meta.publishedAt=Date.now();meta.publishedBy=s.user_email;
     try{fs.writeFileSync(SHEETS_META_FILE,JSON.stringify(DB_SHEETS_META,null,2));}catch{}
+    // 📡 v138: publicar um rascunho é vaga NOVA entrando no sistema — o
+    // Radar (v134, aprovado) avisa quem tem filtro combinando, igual já
+    // faz na auto-publicação do robô H-2A. Só na 1ª publicação.
+    if(!_jaPublicada)notificarRadares(SHEET_EXTRAS[key],`Planilha nova ${meta.name||key}`).catch(()=>{});
     addLog(s.user_email,{status:"sistema",jobTitle:`📢 Planilha publicada: ${meta.name||key} (${SHEET_EXTRAS[key].length} vagas)`,company:"Nova Planilha do DOL"});
     console.log(`[coleta] 📢 ${key} publicada por ${s.user_email} (${SHEET_EXTRAS[key].length} vagas)`);
     return json(res,200,{ok:true,key,count:SHEET_EXTRAS[key].length});
@@ -8571,6 +8599,19 @@ ul li{margin-bottom:6px}
       const r=await _runH2aBimestral("manual: "+s.user_email,b.force===true,true);
       if(r.ok)addLog(s.user_email,{status:"sistema",jobTitle:`🌾 Planilha mensal iniciada: ${r.nome}`,company:"Planilha H-2A Mensal"});
       return json(res,r.ok?200:(r.skipped?409:502),{...r,state:DB_H2A_BIM});
+    }catch(e){return json(res,500,{ok:false,error:e.message});}
+  }
+  // 🧊 v138 — Planilha H-2B Mensal: mesmo disparo em background do H-2A,
+  // MAS o resultado fica SEMPRE em rascunho (KB-078 — auto-publicar segue
+  // sendo exceção autorizada por escrito SÓ do robô H-2A).
+  if(pathname==="/api/admin/sheet/h2b-mensal-run"&&req.method==="POST"){
+    const s=getSess(req);if(!s?.user_email)return json(res,401,{error:"Não autenticado."});
+    const p=getUser(s.user_email);if(!isAdminVip(p))return json(res,403,{error:"Acesso negado."});
+    let b={};try{b=JSON.parse((await readBody(req))||"{}");}catch{return json(res,400,{error:"JSON inválido."});}
+    try{
+      const r=await _runH2bMensal("manual: "+s.user_email,b.force===true,true);
+      if(r.ok)addLog(s.user_email,{status:"sistema",jobTitle:`🧊 Planilha mensal iniciada: ${r.nome}`,company:"Planilha H-2B Mensal"});
+      return json(res,r.ok?200:(r.skipped?409:502),{...r,state:DB_H2B_MEN});
     }catch(e){return json(res,500,{ok:false,error:e.message});}
   }
   if(pathname==="/api/admin/sheet/h2a-novas-run"&&req.method==="POST"){
@@ -18334,6 +18375,12 @@ RESPONDA APENAS com array JSON:
   // publica acima do mínimo de qualidade; erro só loga e tenta no próximo.
   setTimeout(()=>_runH2aBimestral("boot").catch(e=>console.error("[h2a-bimestral] boot erro:",e.message)), 8*60_000);
   setInterval(()=>_runH2aBimestral("agendado").catch(e=>console.error("[h2a-bimestral] ciclo erro:",e.message)), 12*3600_000);
+  // 🧊 v138: robô H-2B mensal — 20min após o boot (nunca colide com a coleta
+  // H-2A dos 8min, que leva 2-3min) e a cada 12h com o mesmo deslocamento.
+  setTimeout(()=>{
+    _runH2bMensal("boot").catch(e=>console.error("[h2b-mensal] boot erro:",e.message));
+    setInterval(()=>_runH2bMensal("agendado").catch(e=>console.error("[h2b-mensal] ciclo erro:",e.message)), 12*3600_000);
+  }, 20*60_000);
   // v26 — 🔎 Pesquisa diária de notícias H-2B/H-2A com IA (busca do Google
   // via Gemini): 1ª rodada 15min após o boot, depois a cada 24h.
   setTimeout(()=>dolNoticiasPesquisaIA().catch(e=>console.error("[noticias-ia] boot erro:",e.message)), 15*60_000);
