@@ -359,6 +359,32 @@
     escrito: push opt-in (só quem criou radar), máx 1/dia por usuário,
     radar vazio recusado — é a única exceção nova de push além das
     já regradas (10/10b).
+13r. **💳 Auditoria Financeira por usuário — caso Cleiton (dono,
+    15/08/2026: "esse Cleiton e também o outro ali, eu sei que nenhum dos
+    2 tem todos esses dias de plano. algo deu errado!")**: causa raiz
+    achada — `/api/admin/set-plan` era a ÚNICA rota que soma dias de VIP
+    sem trava de clique duplo/retry (`vip/activate` já tinha desde o
+    v18-FIX). Corrigido com a mesma trava de 5s, mas a CHAVE inclui o
+    PLANO (admin+email+plano) — upgrade legítimo e imediato pro plano
+    seguinte (caso real do Diego, v79) continua passando; só repetir o
+    MESMO plano é bloqueado. `detectarConcessoesDuplicadas()` varre
+    `DB_ADMIN_AUDIT` e acha sozinho 2+ concessões pro mesmo usuário em
+    ≤15min terminando no MESMO plano final (não flagra escaladas
+    legítimas) — aparece como divergência `concessoes_duplicadas` na
+    Conferência. Nova aba principal da sidebar **"💳 Pagantes & Dias
+    VIP"** (antes só acessível pela régua 💰) e nova aba do CCC **"💳
+    Auditoria"** (`GET /api/admin/financeiro-usuario/:email`, fonte
+    única — sem duplicar armazenamento) juntam o que antes vivia em 5
+    rotas espalhadas: plano+reconciliação, comprovante de cada pedido,
+    extrato de dias concedidos (`vip.creditos` — `set-plan` passou a
+    alimentar também, lacuna que existia), trilha de auditoria
+    administrativa com reversão em 1 clique, extrato de diamantes, uso
+    real (envios hoje/limite/histórico) e sinais de risco (comprovante
+    reusado, Gmail bloqueado, missão já paga). Ações rápidas
+    diferenciam explicitamente **somar dias** (`vip/activate`) de
+    **definir vencimento exato** (`vip/set-expiry`) — a ambiguidade
+    entre as duas semânticas era um dos riscos identificados na
+    auditoria do código.
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 

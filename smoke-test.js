@@ -1255,6 +1255,58 @@ async function testAuthWatchdogPush() {
       JSON.stringify({ manualLimit: stEsdras.json?.manualLimit, autoLimit: stEsdras.json?.autoLimit }));
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
 
+    // ═══ 💳 v141 (dono, 15/08 — "esse Cleiton e também o outro ali, eu sei
+    // que nenhum dos 2 tem todos esses dias de plano. algo deu errado!") ═══
+    // CAUSA RAIZ achada revisando o próprio código: /api/admin/set-plan era
+    // a ÚNICA rota que soma dias de VIP SEM trava de clique duplo/retry
+    // (vip/activate já tinha desde o v18-FIX). O comentário "caso Cleiton"
+    // de 11/07 já estava no código (disco cheio engolindo o plano) — mas só
+    // resolvia o SINTOMA (sumir do disco); a causa de "dias A MAIS" nunca
+    // tinha trava. Reproduz o cenário exato: mesmo admin, MESMO plano,
+    // 2 cliques em sequência no mesmo usuário.
+    const cleiton1 = await req2("POST", "/api/admin/set-plan", { email: "esdras@test.com", plan: "vip" });
+    check("💳 v141: 1º clique em set-plan funciona normalmente", cleiton1.json?.ok === true, cleiton1.body.slice(0, 140));
+    const cleiton2 = await req2("POST", "/api/admin/set-plan", { email: "esdras@test.com", plan: "vip" });
+    check("💳 v141: 2º clique NO MESMO plano é BLOQUEADO (409) — nunca mais empilha dias sem querer (o próprio caso Cleiton)",
+      cleiton2.status === 409 && cleiton2.json?.duplicate === true, `status=${cleiton2.status} body=${cleiton2.body.slice(0, 140)}`);
+    // Mas o upgrade LEGÍTIMO pro PLANO DIFERENTE (o cenário real do v79,
+    // Diego escalando VipPro→DoublePro pro Esdras em segundos) PRECISA
+    // continuar passando — já provado pelas checagens v79 acima, que rodam
+    // ANTES desta seção e continuam 100% verdes.
+    // A trava de 5s barra o clique-colado, mas o Cleiton real (11/07) foi o
+    // admin voltando a clicar MINUTOS depois, achando que a 1ª não tinha
+    // ido (aviso de disco cheio) — isso a trava de 5s NÃO pega sozinha.
+    // Espera a trava expirar e repete a MESMA concessão pra simular esse
+    // retorno — é aqui que o DETECTOR na Conferência precisa entrar.
+    await new Promise((r) => setTimeout(r, 5300));
+    const cleiton3 = await req2("POST", "/api/admin/set-plan", { email: "esdras@test.com", plan: "vip" });
+    check("💳 v141: (setup) 3ª tentativa passa da trava de 5s e se repete — reproduz o retorno minutos depois do caso Cleiton", cleiton3.json?.ok === true, cleiton3.body.slice(0, 140));
+    const cleitonDup = await get("/api/admin/conferencia");
+    const _cleitonDivs = (cleitonDup.json?.divergencias || []).filter((d) => d.tipo === "concessoes_duplicadas" && d.email === "esdras@test.com");
+    check("💳 v141: a Conferência DETECTA a duplicata sozinha (2 concessões do MESMO plano em minutos) — teria achado o caso Cleiton na hora",
+      _cleitonDivs.length >= 1, JSON.stringify(_cleitonDivs.slice(0, 1)));
+    check("💳 v141: a divergência NÃO aparece pro upgrade legítimo VipPro→DoublePro (planos diferentes) — sem lobo em falso",
+      !(cleitonDup.json?.divergencias || []).some((d) => d.tipo === "concessoes_duplicadas" && d.msg?.includes("doublepro")),
+      "achou divergência falsa pro upgrade legítimo");
+
+    // GET /api/admin/financeiro-usuario/:email — a ficha única por usuário
+    // (antes espalhada em 5 rotas: user-detail, pedidos filtrados no
+    // cliente, diamonds/user, audit sem filtro, creditos só via /pedido/:id).
+    const finU = await get("/api/admin/financeiro-usuario/" + encodeURIComponent("esdras@test.com"));
+    check("💳 v141: financeiro-usuario junta plano, reconciliação, pedidos, créditos, auditoria e uso — tudo num lugar só",
+      finU.json?.ok === true &&
+      Array.isArray(finU.json?.creditos) && finU.json.creditos.length >= 3 && // vip.creditos agora recebe TAMBÉM do set-plan (antes só vip/activate/pedido/diamante)
+      Array.isArray(finU.json?.auditoria) && finU.json.auditoria.length >= 3 &&
+      Array.isArray(finU.json?.reconciliacao?.duplicacoes) && finU.json.reconciliacao.duplicacoes.length >= 1 &&
+      typeof finU.json?.uso?.manualLimit === "number",
+      JSON.stringify({ plano: finU.json?.plano?.atual, creditos: finU.json?.creditos?.length, auditoria: finU.json?.auditoria?.length, dup: finU.json?.reconciliacao?.duplicacoes?.length }).slice(0, 300));
+    const finU404 = await get("/api/admin/financeiro-usuario/" + encodeURIComponent("ninguem-existe-aqui@test.com"));
+    check("💳 v141: e-mail inexistente devolve 404 limpo (nunca quebra a tela)", finU404.status === 404, `status=${finU404.status}`);
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "esdras@test.com" });
+    const finU403 = await get("/api/admin/financeiro-usuario/" + encodeURIComponent("esdras@test.com"));
+    check("💳 v141: usuário comum recebe 401/403 (admin-only — dado financeiro sensível)", [401, 403].includes(finU403.status), `status=${finU403.status}`);
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+
     // ═══ ⬆️ v80 (ordem do dono, 29/07): UPGRADE DE PLANO — quem já tem plano
     // pago ativo paga só a DIFERENÇA em 💎 (mesmo período) pra subir de tier
     // — NUNCA reinicia nem soma dias. Cobre exatamente os 3 requisitos do

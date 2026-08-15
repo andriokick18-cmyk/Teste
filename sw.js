@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v102"; // v102 (14/08): 🎯 v139 — "Vagas pra você" na Home (regra 13m completa): prateleira com as melhores vagas AINDA disponíveis pro perfil, nota + porquê traduzido nas 3 línguas, 1 toque pra candidatar; regra 8 corta enviados/fila fresco em toda resposta.
+const CACHE_NAME = "h2bapply-v103"; // v103 (15/08): 💳 v141 — Auditoria Financeira por usuário (caso Cleiton): causa raiz corrigida (set-plan sem trava de clique duplo), detector automático de concessão duplicada, e ficha única por usuário (comprovante, extrato de dias, trilha de auditoria, uso real) — nova aba principal "Pagantes & Dias VIP" + aba "Auditoria" no CCC. admin.html mudou.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

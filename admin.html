@@ -279,6 +279,13 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
            O badge de vencimentos (sb-venc) subiu pra Visão do Dono. -->
       <button class="sb-item active" onclick="showView('dono');loadDonoResumo()" style="background:linear-gradient(135deg,rgba(16,185,129,.16),rgba(5,150,105,.08));border:1px solid rgba(16,185,129,.4);font-weight:800"><i class="ti ti-cash-banknote" style="color:#34d399"></i>Visão do Dono<span class="sb-badge sb-badge-a" id="sb-venc" style="display:none" title="Vencimentos VIP chegando — veja em 💳 Pagantes">!</span></button>
       <button class="sb-item" onclick="showView('pedidos');loadPedidos()" style="font-weight:800;color:var(--green)"><i class="ti ti-shopping-cart" style="color:var(--green)"></i>Pedidos de Plano<span class="sb-badge sb-badge-g" id="sb-pedidos" style="display:none">0</span></button>
+      <!-- 💳 v141 (dono, 15/08 — "aqui tem que ser uma aba principal na
+           esquerda", achou 2 usuários com dias de plano a mais que não
+           pagaram): antes só chegava aqui pela régua 💰 dentro de outra
+           tela — virou item direto da sidebar. Clique no usuário abre a
+           ficha (CCC) já na aba 💳 Auditoria com tudo: comprovante, quem
+           editou, quando pagou, histórico, dias, quem ativou e como. -->
+      <button class="sb-item" onclick="showView('pagantes');loadPagantes()" style="font-weight:800;color:#60a5fa"><i class="ti ti-cash" style="color:#60a5fa"></i>Pagantes &amp; Dias VIP</button>
       <div class="sb-label">Operação</div>
       <button class="sb-item" onclick="showView('dashboard')"><i class="ti ti-dashboard"></i>Visão Geral<span class="sb-badge sb-badge-r" id="sb-alerts" style="display:none">0</span></button>
       <!-- IA Admin removido do menu a pedido do dono (não utilizado) -->
@@ -5210,7 +5217,7 @@ function closeUserModal(){
 // Selecionar aba CCC
 function cccTab(name){
   document.querySelectorAll('.ccc-tab').forEach((b,i)=>{
-    const names=['overview','edit','plano','pagamento','pdfs','profiles','auto','enviados','health','journey','historico'];
+    const names=['overview','edit','plano','pagamento','auditoria','pdfs','profiles','auto','enviados','health','journey','historico'];
     b.classList.toggle('active', names[i]===name);
   });
   document.querySelectorAll('.ccc-pane').forEach(p=>p.classList.remove('active'));
@@ -5219,6 +5226,9 @@ function cccTab(name){
   // Compatibilidade: mapear para abas legado onde necessário
   const legadoMap={pdfs:'pdfs',profiles:'profiles',auto:'auto',enviados:'enviados',health:'health',journey:'journey'};
   // nada extra necessário — os divs legado já estão dentro dos painéis
+  // 💳 v141: carrega a Auditoria só quando a aba é aberta pela 1ª vez —
+  // é um fetch a mais, não vale pagar o custo em todo openUser().
+  if(name==='auditoria')cccLoadAuditoria(currentModalEmail);
 }
 
 // Selecionar plano no seletor visual
@@ -5451,6 +5461,179 @@ function cccRenderHistorico(d,u){
       <div style="color:rgba(255,255,255,.5);font-size:10px">Campos: ${esc(h.changes||'–')}</div>
       ${h.note?`<div style="color:#fbbf24;font-size:11px;margin-top:4px">📝 ${esc(h.note)}</div>`:''}
     </div>`).join('')}</div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+//  💳 v141 — AUDITORIA FINANCEIRA POR USUÁRIO (caso Cleiton)
+//  "esse Cleiton e também o outro ali, eu sei que nenhum dos 2 tem todos
+//  esses dias de plano. algo deu errado!" — o dono pediu uma ficha ÚNICA:
+//  clicar no usuário, ver comprovante, editar quem recebeu/quanto pagou/
+//  que dia pagou, histórico completo, e saber se as contas batem.
+//  Fonte única: GET /api/admin/financeiro-usuario/:email (server.js).
+// ══════════════════════════════════════════════════════════
+let _auditCache={email:null,data:null};
+async function cccLoadAuditoria(email,force){
+  const el=document.getElementById('ccc-audit-body');if(!el)return;
+  if(!force&&_auditCache.email===email&&_auditCache.data){cccRenderAuditoriaBody(_auditCache.data);return;}
+  el.innerHTML='<div class="empty-state"><i class="ti ti-loader"></i>Carregando auditoria...</div>';
+  try{
+    const r=await fetch('/api/admin/financeiro-usuario/'+encodeURIComponent(email),{credentials:'include'});
+    const d=await r.json();
+    if(!d.ok){el.innerHTML=`<div class="empty-state" style="color:var(--red)">${esc(d.error||'Erro ao carregar')}</div>`;return;}
+    _auditCache={email,data:d};
+    cccRenderAuditoriaBody(d);
+  }catch(e){el.innerHTML=`<div class="empty-state" style="color:var(--red)">❌ ${esc(e.message)}</div>`;}
+}
+function cccRenderAuditoriaBody(d){
+  const el=document.getElementById('ccc-audit-body');if(!el)return;
+  const email=d.usuario.email;
+  const money=v=>'R$ '+(v||0).toFixed(2).replace('.',',');
+  const dt=ts=>ts?new Date(ts).toLocaleString('pt-BR'):'–';
+  const dtD=ts=>ts?new Date(ts).toLocaleDateString('pt-BR'):'–';
+  const card=(lbl,val,color,sub)=>`<div class="ccc-card"><div class="ccc-field-label">${lbl}</div><div style="font-size:19px;font-weight:900;color:${color||'#fff'};margin-top:4px">${val}</div>${sub?`<div style="font-size:10.5px;color:rgba(255,255,255,.35);margin-top:3px">${sub}</div>`:''}</div>`;
+  const dup=d.reconciliacao.duplicacoes||[];
+  const reusados=d.reconciliacao.comprovantesReusados||[];
+
+  let html='';
+
+  // ⚠️ Banner de duplicidade — o próprio caso Cleiton, detectado sozinho.
+  if(dup.length){
+    const ult=dup[dup.length-1];
+    html+=`<div style="background:rgba(239,68,68,.1);border:1.5px solid rgba(239,68,68,.4);border-radius:12px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-weight:800;color:#f87171;font-size:13px;margin-bottom:4px">🚨 Possível concessão duplicada</div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:8px">Plano ativado 2x em ${ult.gapMin}min: "${esc(ult.a1.detail)}" → "${esc(ult.a2.detail)}". Pode ser exatamente o caso de dias a mais sem ter pago.</div>
+      <button class="btn btn-danger btn-sm" onclick="reverterAcao('${esc(ult.a2.id)}')"><i class="ti ti-arrow-back-up"></i> Reverter a mais recente</button>
+    </div>`;
+  }
+  if(reusados.length){
+    html+=`<div style="background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.4);border-radius:12px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-weight:800;color:#fbbf24;font-size:13px">⚠️ Comprovante usado em outra conta</div>
+      <div style="font-size:12px;color:var(--t2);margin-top:4px">Mesmo comprovante aparece em: ${reusados.map(r=>esc(r.email)).join(', ')}</div>
+    </div>`;
+  }
+
+  // Status do plano + reconciliação lado a lado.
+  html+=`<div class="ccc-grid-3" style="margin-bottom:14px">
+    ${card('Plano atual',(d.plano.atual||'free').toUpperCase(),'#a78bfa',esc(d.plano.source||'–'))}
+    ${card('Dias manual',d.plano.manual.diasRestantes===null?'–':d.plano.manual.diasRestantes+'d',d.plano.manual.ativo?'#34d399':'#64748b',d.plano.manual.expira?'até '+dtD(d.plano.manual.expira):'sem VIP manual')}
+    ${card('Dias automático',d.plano.auto.diasRestantes===null?'–':d.plano.auto.diasRestantes+'d',d.plano.auto.ativo?'#34d399':'#64748b',d.plano.auto.expira?'até '+dtD(d.plano.auto.expira):'sem automático')}
+  </div>
+  <div style="font-size:11.5px;color:var(--t3);margin-bottom:14px">Ativado por <strong style="color:var(--t2)">${esc(d.plano.ativadoPor||'–')}</strong> em ${dt(d.plano.ativadoEm)}${d.plano.usedCode?` · código: <code>${esc(d.plano.usedCode)}</code>`:''}${d.plano.note?` · nota: "${esc(d.plano.note)}"`:''}</div>
+
+  <div class="ccc-grid-3" style="margin-bottom:16px">
+    ${card('Total pago (histórico)',money(d.reconciliacao.totalPagoHistorico),'#34d399',d.reconciliacao.pedidosPagosCount+' pedido(s) pago(s)')}
+    ${card('Dias pagos (ledger)',d.reconciliacao.diasPagosLedger+'d','#34d399','extrato de créditos')}
+    ${card('Dias grátis (ledger)',d.reconciliacao.diasGratisLedger+'d','#fbbf24','admin/código/presente')}
+  </div>
+
+  <!-- Ações rápidas -->
+  <div class="ccc-section-title"><i class="ti ti-bolt"></i> Ações rápidas</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+    <button class="btn btn-primary btn-sm" onclick="auditSomarDias('${esc(email)}')"><i class="ti ti-plus"></i> Somar dias</button>
+    <button class="btn btn-ghost btn-sm" onclick="auditDefinirVencimento('${esc(email)}')"><i class="ti ti-calendar"></i> Definir vencimento exato</button>
+    <button class="btn btn-ghost btn-sm" onclick="pagDarDiasGratis('${esc(email)}')"><i class="ti ti-gift"></i> Dias grátis (cortesia)</button>
+    <button class="btn btn-ghost btn-sm" onclick="dmAdjustPrompt('${esc(email)}')"><i class="ti ti-diamond"></i> Ajustar diamantes</button>
+    <button class="btn btn-danger btn-sm" onclick="if(confirm('Revogar TODO o plano de ${esc(email)}?'))auditRevogar('${esc(email)}')"><i class="ti ti-ban"></i> Revogar plano</button>
+  </div>
+
+  <!-- Pedidos -->
+  <div class="ccc-section-title"><i class="ti ti-receipt"></i> Pedidos (${d.pedidos.length})</div>
+  <div style="max-height:260px;overflow-y:auto;border:1px solid rgba(255,255,255,.08);border-radius:10px;margin-bottom:18px">
+    ${!d.pedidos.length?'<div class="empty-state" style="font-size:11px">Nenhum pedido</div>':d.pedidos.map(p=>`
+      <div style="display:flex;justify-content:space-between;gap:10px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.06);font-size:12px;align-items:center">
+        <div style="flex:1;min-width:0">
+          <div><strong style="color:#fff">${esc(p.plano||'?')}</strong> · ${p.dias||0}d · <span style="color:${p.status==='ativo'||p.status==='pago'?'#34d399':p.status==='cancelado'?'#f87171':'var(--t3)'}">${esc(p.status||'?')}</span>${p.ativadoPor?` · por ${esc(p.ativadoPor)}`:''}</div>
+          <div style="color:var(--t3);font-size:10.5px">${dt(p.createdAt)}${p.valorCorrigidoPor?` · valor corrigido por ${esc(p.valorCorrigidoPor)}`:''}</div>
+        </div>
+        <strong style="color:#34d399;flex-shrink:0">${money(p.valorTotal)}</strong>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          ${p.temComprovante?`<button class="btn btn-ghost btn-xs" onclick="verComprovante('${esc(p.id)}')" title="Ver comprovante"><i class="ti ti-photo"></i></button>`:''}
+          <button class="btn btn-ghost btn-xs" onclick="confEditarValor('${esc(p.id)}',${p.valorTotal||0})" title="Corrigir valor"><i class="ti ti-pencil"></i></button>
+        </div>
+      </div>`).join('')}
+  </div>
+
+  <!-- Extrato de créditos (de onde vieram os dias) -->
+  <div class="ccc-section-title"><i class="ti ti-list-details"></i> Extrato de dias concedidos (${d.creditos.length})</div>
+  <div style="max-height:200px;overflow-y:auto;border:1px solid rgba(255,255,255,.08);border-radius:10px;margin-bottom:18px">
+    ${!d.creditos.length?'<div class="empty-state" style="font-size:11px">Nenhum crédito registrado</div>':d.creditos.map(c=>`
+      <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.06);font-size:11.5px">
+        <div style="flex:1;min-width:0"><span style="color:${c.tipo==='pago'?'#34d399':'#fbbf24'}">${c.tipo==='pago'?'💰 pago':'🎁 grátis'}</span> · ${esc(c.origem||'?')}${c.motivo?` · ${esc(c.motivo)}`:''} · por ${esc(c.dadoPor||'sistema')}<div style="color:var(--t3);font-size:10px">${dt(c.quando)}</div></div>
+        <strong style="color:#a78bfa;flex-shrink:0">+${c.dias}d</strong>
+      </div>`).join('')}
+  </div>
+
+  <!-- Trilha de auditoria administrativa -->
+  <div class="ccc-section-title"><i class="ti ti-shield-check"></i> Trilha de auditoria (${d.auditoria.length})</div>
+  <div style="max-height:220px;overflow-y:auto;border:1px solid rgba(255,255,255,.08);border-radius:10px;margin-bottom:18px">
+    ${!d.auditoria.length?'<div class="empty-state" style="font-size:11px">Nenhuma ação administrativa registrada</div>':[...d.auditoria].reverse().map(a=>`
+      <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.06);font-size:11.5px;align-items:center">
+        <div style="flex:1;min-width:0"><strong style="color:#fff">${esc(a.admin)}</strong> · ${esc(a.action)} · ${esc(a.detail)}${a.reverted?' · <span style="color:#f87171">↩️ revertido</span>':''}<div style="color:var(--t3);font-size:10px">${dt(a.ts)}</div></div>
+        ${!a.reverted?`<button class="btn btn-ghost btn-xs" onclick="reverterAcao('${esc(a.id)}')" title="Reverter"><i class="ti ti-arrow-back-up"></i></button>`:''}
+      </div>`).join('')}
+  </div>
+
+  <!-- Extrato de diamantes -->
+  <div class="ccc-section-title"><i class="ti ti-diamond"></i> Extrato de diamantes (${d.diamondLedger.length})</div>
+  <div style="max-height:180px;overflow-y:auto;border:1px solid rgba(255,255,255,.08);border-radius:10px;margin-bottom:18px">
+    ${!d.diamondLedger.length?'<div class="empty-state" style="font-size:11px">Nenhum lançamento</div>':d.diamondLedger.slice(0,50).map(e=>`
+      <div style="display:flex;justify-content:space-between;gap:10px;padding:7px 14px;border-bottom:1px solid rgba(255,255,255,.06);font-size:11px">
+        <div style="flex:1;min-width:0">${_dmTipoLabel[e.tipo]||esc(e.tipo||'')}${e.nota?` · ${esc(e.nota)}`:''}<div style="color:var(--t3);font-size:10px">${dt(e.ts)}</div></div>
+        <strong style="color:${(e.qtd||0)>=0?'#34d399':'#f87171'};flex-shrink:0">${(e.qtd||0)>=0?'+':''}${e.qtd||0} 💎</strong>
+      </div>`).join('')}
+  </div>
+
+  <!-- Uso real do plano -->
+  <div class="ccc-section-title"><i class="ti ti-chart-bar"></i> Uso real</div>
+  <div class="ccc-grid-3" style="margin-bottom:14px">
+    ${card('Manual hoje',d.uso.todayManual+'/'+d.uso.manualLimit,'#60a5fa')}
+    ${card('Automático hoje',d.uso.todayAuto+'/'+d.uso.autoLimit,'#a78bfa')}
+    ${card('Total histórico',d.uso.totalHistorico+' envios','#34d399',d.uso.ultimoEnvio?'última: '+esc(d.uso.ultimoEnvio.empresa||''):'')}
+  </div>
+
+  <!-- Sinais de risco -->
+  ${(d.risco.gmailsBloqueados.length||d.risco.missoesPagas.length)?`<div class="ccc-section-title"><i class="ti ti-alert-triangle"></i> Sinais de risco</div>
+  <div style="font-size:11.5px;color:var(--t3);margin-bottom:10px">
+    ${d.risco.gmailsBloqueados.length?`⛔ Gmail(s) bloqueado(s) pelo Google: ${d.risco.gmailsBloqueados.map(g=>esc(g.email)).join(', ')}<br>`:''}
+    ${d.risco.missoesPagas.length?`🎁 Missões já pagas (não repagam): ${d.risco.missoesPagas.join(', ')}`:''}
+  </div>`:''}`;
+
+  el.innerHTML=html;
+}
+async function auditSomarDias(email){
+  const dias=parseInt(prompt('Somar quantos dias de acesso MANUAL? (0 = não mexe)','30'),10)||0;
+  const autoDias=parseInt(prompt('Somar quantos dias de acesso AUTOMÁTICO? (0 = não mexe)','0'),10)||0;
+  if(!dias&&!autoDias)return;
+  const plan=prompt('Plano final (vip / vipro / doublepro):',autoDias>0?'vipro':'vip');
+  if(!plan)return;
+  const note=prompt('Nota (opcional, fica no extrato):','')||'';
+  try{
+    const r=await fetch('/api/admin/vip/activate',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,days:dias,autoDays:autoDias,plan,note})});
+    const d=await r.json();
+    if(r.ok&&d.ok){toast('✅ Dias somados','ok');cccLoadAuditoria(email,true);loadPagantes();}
+    else toast('❌ '+(d.error||'Erro'),'r');
+  }catch(e){toast(e.message,'r');}
+}
+async function auditDefinirVencimento(email){
+  const manualDays=parseInt(prompt('Vencimento MANUAL a partir de HOJE, em quantos dias? (0 = desativa o manual)','30'),10);
+  if(isNaN(manualDays))return;
+  const autoDays=parseInt(prompt('Vencimento AUTOMÁTICO a partir de HOJE, em quantos dias? (0 = desativa o automático)','0'),10);
+  if(isNaN(autoDays))return;
+  if(!confirm(`Isso DEFINE (não soma) o vencimento: manual em ${manualDays}d, automático em ${autoDays}d a partir de HOJE. Confirma?`))return;
+  try{
+    const r=await fetch('/api/admin/vip/set-expiry',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,manualDays,autoDays})});
+    const d=await r.json();
+    if(r.ok&&d.ok){toast('✅ Vencimento definido','ok');cccLoadAuditoria(email,true);loadPagantes();}
+    else toast('❌ '+(d.error||'Erro'),'r');
+  }catch(e){toast(e.message,'r');}
+}
+async function auditRevogar(email){
+  try{
+    const r=await fetch('/api/admin/set-plan',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,plan:'free'})});
+    const d=await r.json();
+    if(r.ok&&d.ok){toast('⛔ Plano revogado','ok');cccLoadAuditoria(email,true);loadPagantes();}
+    else toast('❌ '+(d.error||'Erro'),'r');
+  }catch(e){toast(e.message,'r');}
 }
 
 // Salvar perfil via CCC
@@ -7932,7 +8115,7 @@ function renderPagantes(){
     const daysLabel=dl===null?'s/data':dl<=0?`vencido há ${Math.abs(dl)}d`:`${dl}d`;
     const sb=r.status==='vencido'?pill('rgba(239,68,68,.18)','#f87171','⛔ VENCIDO'):r.status==='vencendo'?pill('rgba(245,158,11,.18)','#fbbf24','⚠️ VENCE JÁ'):r.status==='ativo'?pill('rgba(16,185,129,.18)','#34d399','✅ ATIVO'):pill('rgba(148,163,184,.18)','var(--t3)','SEM DATA');
     const wa=r.whatsapp?String(r.whatsapp).replace(/[^0-9]/g,''):'';
-    return `<div class="venc-card ${cls}">
+    return `<div class="venc-card ${cls}" style="cursor:pointer" onclick="if(!event.target.closest('button,a,i.ti-pencil'))openUser('${esc(r.email)}','auditoria')" title="Clique para abrir a Auditoria Financeira completa">
       <div class="venc-avatar">${esc((r.name||r.email||'?')[0].toUpperCase())}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.name||r.email)}</div>
@@ -7947,6 +8130,7 @@ function renderPagantes(){
       </div>
       <div class="venc-days" style="color:${color}" title="dias restantes">${daysLabel}</div>
       <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+        <button onclick="openUser('${esc(r.email)}','auditoria')" title="Comprovante, quem pagou, quanto, quando, e se as contas batem" style="display:inline-flex;align-items:center;gap:3px;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.35);border-radius:6px;padding:5px 9px;font-size:10px;font-weight:800;color:#60a5fa;cursor:pointer;font-family:inherit;white-space:nowrap"><i class="ti ti-search"></i> 💳 Auditoria</button>
         <button onclick="pagRenovar('${esc(r.email)}','${esc(r.plan)}')" style="display:inline-flex;align-items:center;gap:3px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);border-radius:6px;padding:5px 9px;font-size:10px;font-weight:800;color:#34d399;cursor:pointer;font-family:inherit;white-space:nowrap"><i class="ti ti-plus"></i> Renovar 30d</button>
         <button onclick="pagDarDiasGratis('${esc(r.email)}')" title="Cortesia: estende o vencimento SEM mexer na contabilidade (ex.: site fora do ar)" style="display:inline-flex;align-items:center;gap:3px;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.35);border-radius:6px;padding:5px 9px;font-size:10px;font-weight:800;color:#fbbf24;cursor:pointer;font-family:inherit;white-space:nowrap">🎁 +Dias grátis</button>
         ${wa?`<a href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:3px;justify-content:center;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);border-radius:6px;padding:5px 9px;font-size:10px;font-weight:700;color:#25d366;cursor:pointer;text-decoration:none"><i class="ti ti-brand-whatsapp"></i> WhatsApp</a>`:''}
@@ -10313,7 +10497,7 @@ async function loadConferencia(){
     if(dv.length){
       dvHtml=`<div style="grid-column:1/-1;background:rgba(239,68,68,.08);border:1.5px solid rgba(239,68,68,.35);border-radius:10px;padding:10px 12px">
         <div style="font-size:12px;font-weight:800;color:#f87171;margin-bottom:6px">🔍 ${dv.length} divergência(s) entre plano, pedido e caixa — cada uma é dinheiro contado errado:</div>
-        ${dv.map(x=>`<div style="font-size:11.5px;color:var(--t2);padding:3px 0;border-top:1px solid rgba(239,68,68,.12)"><span style="cursor:pointer;font-weight:700" onclick="openUser('${esc(x.email||'')}')">${esc(x.nome||x.email||'?')}</span> — ${esc(x.msg||'')}</div>`).join('')}
+        ${dv.map(x=>`<div style="font-size:11.5px;color:var(--t2);padding:3px 0;border-top:1px solid rgba(239,68,68,.12)"><span style="cursor:pointer;font-weight:700" onclick="openUser('${esc(x.email||'')}','auditoria')">${esc(x.nome||x.email||'?')}</span> — ${esc(x.msg||'')}</div>`).join('')}
       </div>`;
     }
     const st=document.getElementById('conf-stats');
@@ -10344,7 +10528,7 @@ function confFiltrar(){
     return `<div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px;flex-wrap:wrap">
       <div style="font-size:11px;color:var(--t3);width:62px;flex-shrink:0">${dt}</div>
       <div style="flex:1;min-width:150px">
-        <div style="font-size:13px;font-weight:700;cursor:pointer" onclick="openUser('${esc(r.email||'')}')">${esc(r.nome||r.email||'–')}</div>
+        <div style="font-size:13px;font-weight:700;cursor:pointer" onclick="openUser('${esc(r.email||'')}','auditoria')">${esc(r.nome||r.email||'–')}</div>
         <div style="font-size:11px;color:var(--t3)">${esc(r.email||'')}</div>
       </div>
       <div style="font-size:11.5px;color:var(--t2);min-width:130px">${origem}${provis}</div>
@@ -14180,6 +14364,7 @@ function clearEventsCache(){
       <button class="ccc-tab" onclick="cccTab('edit')"><i class="ti ti-edit"></i> Editar Perfil</button>
       <button class="ccc-tab" onclick="cccTab('plano')"><i class="ti ti-diamond"></i> Plano & VIP</button>
       <button class="ccc-tab" onclick="cccTab('pagamento')"><i class="ti ti-cash"></i> Pagamento</button>
+      <button class="ccc-tab" onclick="cccTab('auditoria')" style="color:#60a5fa"><i class="ti ti-search"></i> 💳 Auditoria</button>
       <button class="ccc-tab" onclick="cccTab('pdfs')"><i class="ti ti-file-type-pdf"></i> Documentos</button>
       <button class="ccc-tab" onclick="cccTab('profiles')"><i class="ti ti-id-badge"></i> Perfis Email</button>
       <button class="ccc-tab" onclick="cccTab('auto')"><i class="ti ti-robot"></i> Automático</button>
@@ -14384,6 +14569,11 @@ function clearEventsCache(){
           <button onclick="cccSavePayment()" style="width:100%;background:linear-gradient(135deg,rgba(52,211,153,.2),rgba(16,185,129,.1));border:1.5px solid rgba(52,211,153,.35);border-radius:10px;padding:12px;font-size:13px;font-weight:800;color:#34d399;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px"><i class="ti ti-check"></i> Salvar Dados Financeiros</button>
           <div id="ccc-pay-result" style="margin-top:10px;font-size:12px;text-align:center"></div>
         </div>
+      </div>
+
+      <!-- PAINEL: 💳 Auditoria Financeira (v141, caso Cleiton) -->
+      <div class="ccc-pane" id="ccc-pane-auditoria">
+        <div id="ccc-audit-body"><div class="empty-state"><i class="ti ti-loader"></i>Carregando...</div></div>
       </div>
 
       <!-- PAINEL: Documentos -->

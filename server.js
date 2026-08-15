@@ -479,6 +479,43 @@ function logAdminAction(admin, action, targetEmail, before, after, detail){
     return entry.id;
   }catch(e){console.warn("[audit]",e.message);return null;}
 }
+// 💳 v141 (caso Cleiton — dois usuários com mais dias de plano do que
+// pagaram): detector que teria achado isso na hora, sem esperar o dono
+// perceber por acaso. Varre DB_ADMIN_AUDIT procurando 2+ concessões de dias
+// (set_plan/vip_activate) pro MESMO usuário numa janela curta — o padrão
+// exato de "admin clicou e clicou de novo achando que não tinha ido".
+// Não usa "dias pagos vs dias no vip" como comparação direta porque ativação
+// manual LEGÍTIMA sem pedido formal é rotina desta casa (regra 6c/13b) —
+// compararia sempre "divergente" e gritaria lobo falso. Isto aqui, não:
+// duas concessões em poucos minutos pro mesmo e-mail é sinal específico.
+function detectarConcessoesDuplicadas(janelaMin){
+  const JAN=(janelaMin||15)*60_000;
+  const porEmail={};
+  for(const a of DB_ADMIN_AUDIT){
+    if(!["set_plan","vip_activate"].includes(a.action)||!a.targetEmail)continue;
+    (porEmail[a.targetEmail]=porEmail[a.targetEmail]||[]).push(a);
+  }
+  const achados=[];
+  for(const [email,acts] of Object.entries(porEmail)){
+    if(acts.length<2)continue;
+    acts.sort((x,y)=>x.ts-y.ts);
+    for(let i=1;i<acts.length;i++){
+      const gap=acts[i].ts-acts[i-1].ts;
+      if(gap>JAN)continue;
+      // v79 (Diego, real): VipPro→DoublePro no mesmo usuário em segundos é
+      // upgrade LEGÍTIMO, não clique duplo — só conta como duplicata quando
+      // as duas concessões terminam no MESMO plano (o sinal de "clicou 2x
+      // achando que não foi", não de escalada proposital).
+      const p1=acts[i-1].after?.plan,p2=acts[i].after?.plan;
+      if(p1&&p2&&p1!==p2)continue;
+      if(acts[i-1].reverted||acts[i].reverted)continue; // já corrigido, não repete alarme
+      achados.push({email,gapMin:Math.round(gap/60000),
+        a1:{id:acts[i-1].id,ts:acts[i-1].ts,action:acts[i-1].action,admin:acts[i-1].admin,detail:acts[i-1].detail,reverted:acts[i-1].reverted},
+        a2:{id:acts[i].id,ts:acts[i].ts,action:acts[i].action,admin:acts[i].admin,detail:acts[i].detail,reverted:acts[i].reverted}});
+    }
+  }
+  return achados;
+}
 // Snapshot mínimo e suficiente pra reverter plano/VIP de um usuário
 function _vipSnapshot(u){
   if(!u)return null;
@@ -10972,6 +11009,21 @@ filtrar();
       const {email,plan}=d;if(!email||!plan)return json(res,400,{error:"email e plan obrigatórios"});
       const VALID_PLANS=['free','vip','vipro','doublepro','pro'];
       if(!VALID_PLANS.includes(plan))return json(res,400,{error:"Plano inválido"});
+      // 💳 v141 (caso Cleiton, achado na auditoria: "nenhum dos 2 tem todos
+      // esses dias de plano"): esta era a ÚNICA rota que soma dias de VIP
+      // SEM nenhuma trava de clique duplo/retry — vip/activate já tinha
+      // (v18-FIX). Se o admin clicasse 2x achando que a 1ª falhou (ex.: pelo
+      // aviso de disco cheio do caso Cleiton original, 11/07), cada clique
+      // empilhava +30 dias, silenciosamente. Mesma trava de 5s, mesmo padrão
+      // — MAS a chave inclui o PLANO (não só admin+email): upgrade legítimo
+      // e imediato de um plano pro outro (caso real do Diego, v79 — VipPro
+      // → DoublePro pro mesmo usuário em segundos) precisa continuar
+      // passando; só o clique duplo no MESMO plano é bloqueado.
+      const _spKey=s.user_email+"|"+String(email||"").toLowerCase()+"|"+plan;
+      if(_adminVipActivateLock.has(_spKey))
+        return json(res,409,{error:"Ativação em andamento para este usuário. Aguarde alguns segundos e confira antes de tentar de novo.",duplicate:true});
+      _adminVipActivateLock.set(_spKey,Date.now());
+      setTimeout(()=>_adminVipActivateLock.delete(_spKey),5000);
       const tgt=getUser(email);if(!tgt)return json(res,404,{error:"Usuário não encontrado"});
       const _audBefore=_vipSnapshot(tgt); // v19: snapshot pra reversão
       if(plan!=='free'){addManualVipDays(email,30);if(['vipro','doublepro','pro'].includes(plan))addAutoVipDays(email,30);}
@@ -10985,6 +11037,11 @@ filtrar();
       const tgtFresh=getUser(email)||tgt;
       setUser(email,{plan,vip:{...(tgtFresh.vip||{}),active:plan!=='free',plan,source:'admin',activatedBy:s.user_email,...(plan!=='free'?{limits:limitesDoPlanoNovo(plan)}:{})}});
       logAdminAction(s.user_email,"set_plan",email,_audBefore,_vipSnapshot(getUser(email)),`Plano → ${plan}${plan!=='free'?" (+30d)":""}`);
+      // 💳 v141: faltava aqui — era a única rota de concessão de dias que NÃO
+      // alimentava o extrato vip.creditos (addCredito), então a Auditoria
+      // Financeira por usuário não via essa concessão no "quanto já foi dado
+      // e por quê". Agora toda rota que soma dias grava no mesmo ledger.
+      if(plan!=='free')addCredito(email,{dias:30,tipo:"gratis",origem:"admin",motivo:`set-plan → ${plan}`,dadoPor:isAdminEmail(s.user_email)&&s.user_email===ADMIN_EMAIL?"Andrio":(ADMIN_EMAIL_2&&s.user_email===ADMIN_EMAIL_2?"Diego":s.user_email)});
       if(plan!=='free')acordarRoboAposPlano(email); // v125: robô dormindo por limite antigo acorda já
       // 11/07 (caso Cleiton): plano foi ativado 3x e sumia após cada restart porque
       // o persist falhava em silêncio com o disco cheio. Agora VERIFICA a gravação
@@ -12223,6 +12280,14 @@ JSON APENAS (sem markdown): {"status":"OK" ou "DIVERGENCIA","resumo":"frase curt
         msg:`Entrada de R$ ${(pg.valor||0).toFixed(2)} no caixa de pedido CANCELADO #${(pdX.id||"").slice(-8).toUpperCase()} — receita inflada`});
       else if(Math.abs((pg.valor||0)-(pdX.valorTotal||0))>0.01)divergencias.push({tipo:"valor_diverge",email:pg.email,nome:pg.nome||pg.email,pedidoId:pdX.id,
         msg:`Caixa R$ ${(pg.valor||0).toFixed(2)} ≠ pedido R$ ${(pdX.valorTotal||0).toFixed(2)} (#${(pdX.id||"").slice(-8).toUpperCase()}) — corrija pelo ✏️ da Conferência`});
+    }
+    // 💳 v141 — 5ª divergência (caso Cleiton): concessão de dias duplicada
+    // (mesmo usuário, 2 ativações de plano em poucos minutos).
+    for(const dup of detectarConcessoesDuplicadas(15)){
+      if(isAdminEmail(dup.email))continue; // v53
+      const u2=getUser(dup.email);
+      divergencias.push({tipo:"concessoes_duplicadas",email:dup.email,nome:u2?.name||dup.email,
+        msg:`Plano ativado 2x em ${dup.gapMin}min — possível clique duplo (${dup.a1.detail} → ${dup.a2.detail}). Confira em 💳 Pagantes → clique no usuário.`});
     }
     return json(res,200,{ok:true,rows,resumo,divergencias});
   }
@@ -14266,6 +14331,95 @@ if(pathname==="/api/admin/pagantes"&&req.method==="GET"){try{
   };
   return json(res,200,{ok:true,rows,summary,generatedAt:now});
 }catch(e){return json(res,500,{error:e.message});}}
+
+// ── 💳 v141 — AUDITORIA FINANCEIRA POR USUÁRIO (caso Cleiton) ───────────────
+// Pedido do dono depois de achar 2 usuários com mais dias de plano do que
+// pagaram: uma ficha ÚNICA por usuário juntando tudo que hoje vive espalhado
+// em 5 rotas diferentes (user-detail, pedidos filtrados no cliente, diamonds/
+// user, audit sem filtro, creditos só via /api/pedido/:id) — comprovante,
+// quem editou, quando pagou, histórico completo, dias restantes, quem
+// ativou e como, e um comparativo "bate ou não bate". Fonte única: NENHUM
+// dado novo é armazenado aqui, só agregação do que já existe (getUser,
+// DB_PEDIDOS, DB_ADMIN_AUDIT, vip.creditos, diamondLedger).
+if(pathname.startsWith("/api/admin/financeiro-usuario/")&&req.method==="GET"){try{
+  const email=decodeURIComponent(pathname.replace("/api/admin/financeiro-usuario/","")).toLowerCase().trim();
+  const u=getUser(email);
+  if(!u)return json(res,404,{error:"Usuário não encontrado."});
+  const now=Date.now();
+  const vip=u.vip||{};
+  const hist=getHist(email);
+  const daysLeftOf=ts=>ts&&ts>now?Math.ceil((ts-now)/86400_000):(ts?0:null);
+
+  // Pedidos deste usuário — completo (comprovante fica como flag; o admin
+  // abre o comprovante inteiro clicando, via GET /api/pedido/:id já existente).
+  const pedidos=DB_PEDIDOS.filter(pd=>String(pd.userEmail||"").toLowerCase()===email)
+    .map(pd=>({id:pd.id,plano:pd.plano,dias:pd.dias,diasBase:pd.diasBase,diasBonus:pd.diasBonus,
+      valorTotal:pd.valorTotal,valorOriginal:pd.valorOriginal,status:pd.status,tipo:pd.tipo||"plano",
+      temComprovante:!!pd.comprovante,comprovanteHash:pd.comprovanteHash||null,
+      createdAt:pd.createdAt,pagoEm:pd.pagoEm,ativadoEm:pd.ativadoEm,
+      ativadoPor:pd._ativadoEditor||pd.ativadoPor||null,notaAdmin:pd.notaAdmin||null,
+      valorCorrigidoPor:pd.valorCorrigidoPor||null,valorCorrigidoEm:pd.valorCorrigidoEm||null,
+      diamantesCreditados:pd.diamantesCreditados||0}))
+    .sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  const totalPagoHistorico=pedidos.filter(p=>["pago","ativo"].includes(p.status)).reduce((s2,p)=>s2+(p.valorTotal||0),0);
+
+  // 🚨 Comprovante reutilizado — mesmo hash em pedido de OUTRO usuário.
+  const hashesDoUsuario=new Set(pedidos.map(p=>p.comprovanteHash).filter(Boolean));
+  const comprovantesReusados=hashesDoUsuario.size?DB_PEDIDOS.filter(pd=>
+    pd.comprovanteHash&&hashesDoUsuario.has(pd.comprovanteHash)&&String(pd.userEmail||"").toLowerCase()!==email
+  ).map(pd=>({email:pd.userEmail,pedidoId:pd.id})):[];
+
+  // Trilha de auditoria administrativa (todas as ações sobre este usuário).
+  const auditoria=DB_ADMIN_AUDIT.filter(a=>a.targetEmail===email)
+    .map(a=>({id:a.id,ts:a.ts,admin:a.admin,action:a.action,detail:a.detail,reverted:!!a.reverted,revertedBy:a.revertedBy||null,revertedAt:a.revertedAt||null}));
+  const duplicacoes=detectarConcessoesDuplicadas(15).filter(d=>d.email===email);
+
+  // Extrato de dias (creditos) + presentes (giftHistory) — "de onde vieram os dias".
+  const creditos=Array.isArray(vip.creditos)?[...vip.creditos].sort((a,b)=>b.quando-a.quando):[];
+  const giftHistory=Array.isArray(vip.giftHistory)?[...vip.giftHistory].sort((a,b)=>(b.quando||0)-(a.quando||0)):[];
+  const diasPagosLedger=creditos.filter(c=>c.tipo==="pago").reduce((s2,c)=>s2+(c.dias||0),0);
+  const diasGratisLedger=creditos.filter(c=>c.tipo==="gratis").reduce((s2,c)=>s2+(c.dias||0),0);
+
+  // Diamantes.
+  const diamondLedger=Array.isArray(u.diamondLedger)?[...u.diamondLedger]:[];
+
+  // Uso real do plano — está usando o que paga?
+  const todayManual=countManualToday(hist),todayAuto=countAutoToday(hist);
+  const ultimoEnvio=hist[0]||null;
+  const autoJob=getAutoJob(email);
+
+  // Sinais de risco.
+  const gmailsBloqueados=(u.senderEmails||[]).filter(se=>se.blocked).map(se=>({email:se.email,motivo:se.blockedReason||null}));
+  const missoesPagas=Object.keys(u.missoes||{});
+
+  return json(res,200,{ok:true,
+    usuario:{email:u.email,name:u.name||u.email,createdAt:u.created_at||null,serverId:_resolveServerId(req),
+      isAdmin:!!u.isAdmin,whatsapp:u.whatsapp||u.phone||"",country:u.country||"",language:u.language||"pt"},
+    plano:{
+      atual:getPlan(u),source:vip.source||null,note:vip.note||"",
+      manual:{ativo:isManualVipActive(u),expira:vip.manualExpires||0,diasRestantes:daysLeftOf(vip.manualExpires)},
+      auto:{ativo:isAutoVipActive(u),expira:vip.autoExpires||0,diasRestantes:daysLeftOf(vip.autoExpires)},
+      limites:vip.limits||null,limitesEfetivos:{manual:getManualLimit(u),auto:getAutoLimit(u)},
+      ativadoPor:vip.activatedBy||null,ativadoEm:vip.activatedAt||null,usedCode:vip.usedCode||null,codeNote:vip.codeNote||null,
+    },
+    reconciliacao:{
+      diasPagosLedger,diasGratisLedger,totalPagoHistorico,
+      pedidosPagosCount:pedidos.filter(p=>["pago","ativo"].includes(p.status)).length,
+      duplicacoes, // 2+ ativações no mesmo usuário em ≤15min — sinal direto do caso Cleiton
+      comprovantesReusados,
+    },
+    pedidos,
+    creditos,giftHistory,auditoria,diamondLedger,
+    uso:{
+      todayManual,manualLimit:getManualLimit(u),todayAuto,autoLimit:getAutoLimit(u),
+      totalHistorico:hist.length,ultimoEnvio:ultimoEnvio?{empresa:ultimoEnvio.company,quando:ultimoEnvio.sentAt,tipo:ultimoEnvio.type}:null,
+      autoJobStatus:autoJob?{active:autoJob.active,status:autoJob.status,queueSize:autoJob.queue?.length||0}:null,
+      perfisCurriculo:(u.profiles||[]).length,cvs:(u.cvs||[]).length,
+    },
+    risco:{gmailsBloqueados,missoesPagas,comprovanteReusadoCount:comprovantesReusados.length},
+  });
+}catch(e){return json(res,500,{error:e.message});}}
+
 if(pathname.startsWith("/api/admin/user/")&&req.method==="DELETE"){const te=decodeURIComponent(pathname.split("/").pop());if(te===s.user_email)return json(res,400,{error:"Não pode deletar a si mesmo."});const t=getUser(te);if(t)(t.cvs||[]).forEach(c=>deleteCv(te,c.idx));if(autoTimers.has(te)){clearTimeout(autoTimers.get(te));autoTimers.delete(te);}delUser(te);delHist(te);if(DB_AUTO[te]){delete DB_AUTO[te];persist(AUTO_FILE,DB_AUTO);}if(DB_SENT[te]){delete DB_SENT[te];persistSent();}// BUG-011 CORRIGIDO: limpa dados órfãos ao deletar usuário
 if(DB_LOGS[te]){delete DB_LOGS[te];persistLogs();}if(DB_APP_INDEX[te]){delete DB_APP_INDEX[te];persist(APPIDX_FILE,DB_APP_INDEX);}if(DB_PUSH[te]){delete DB_PUSH[te];persistPush();}if(DB_NOTES[te]){delete DB_NOTES[te];persist(NOTES_FILE,DB_NOTES);}if(DB_ALERTS[te]){delete DB_ALERTS[te];persist(ALERTS_FILE,DB_ALERTS);}return json(res,200,{ok:true});}
     if(pathname==="/api/admin/message"&&req.method==="POST"){try{const d=JSON.parse(await readBody(req));if(!d.email||!d.text)return json(res,400,{error:"email e text obrigatórios."});const target=getUser(d.email);if(!target)return json(res,404,{error:"Usuário não encontrado."});setUser(d.email,{adminMessage:{text:d.text,date:new Date().toISOString(),from:s.user_email}});return json(res,200,{ok:true});}catch(e){return json(res,500,{error:e.message});}}
