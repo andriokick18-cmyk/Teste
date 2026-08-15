@@ -907,6 +907,31 @@ async function testAuthWatchdogPush() {
     check("🎬 Conferência lista o resgate do código YouTube valendo R$147",
       !!ytRow && ytRow.valor === 147, JSON.stringify(ytRow || {}).slice(0, 140));
 
+    // ═══ 🎟️ v142 (dono, 15/08 — usuário perdeu acesso ao Gmail, admin vai
+    // recriar a conta e "quero repor os 15 dias dele que sobraram do Google
+    // Pro... 15 dias doublepro 400 manual e 400 automático") ═══
+    // Antes: todo código caía cego na tabela NOVA (v118) por nome de plano —
+    // no máximo vipro 100/100, nunca reproduzia um contrato LEGADO (ex.:
+    // doublepro 400/400) numa conta recriada do zero. Agora o admin pode
+    // sobrescrever o limite exato na criação do código.
+    const ccCustom = await req2("POST", "/api/admin/codes/create", { manualDays: 15, autoDays: 15, maxUses: 1, note: "Migração Gmail perdido", manualLimit: 400, autoLimit: 400 });
+    check("🎟️ v142: código com limite customizado (400/400) é criado e devolve os limites na resposta",
+      ccCustom.json?.ok === true && ccCustom.json?.manualLimit === 400 && ccCustom.json?.autoLimit === 400, ccCustom.body.slice(0, 160));
+    const customCode = ccCustom.json?.code;
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "migrado@test.com", name: "Migrado" });
+    const rdCustom = await req2("POST", "/api/redeem-code", { code: customCode });
+    check("🎟️ v142: usuário resgata o código de 15 dias", rdCustom.json?.ok === true && rdCustom.json?.manualDays === 15 && rdCustom.json?.autoDays === 15, rdCustom.body.slice(0, 160));
+    const stMigrado = await get("/api/status");
+    check("🎟️ v142: o limite EXATO do código (400 manual + 400 auto) é aplicado — não o padrão do plano (que daria no máximo 200/200)",
+      stMigrado.json?.manualLimit === 400 && stMigrado.json?.autoLimit === 400,
+      JSON.stringify({ manualLimit: stMigrado.json?.manualLimit, autoLimit: stMigrado.json?.autoLimit, plan: stMigrado.json?.plan }));
+    check("🎟️ v142: mesmo com limite legado, a origem continua 'code' (cortesia, NUNCA pagamento — regra 13c intacta)",
+      stMigrado.json?.vip?.source === "code", JSON.stringify({ source: stMigrado.json?.vip?.source }));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", name: "Smoke", isAdmin: true });
+    const ccNormal = await req2("POST", "/api/admin/codes/create", { manualDays: 5, autoDays: 0, maxUses: 1, code: "PROMOSMOKE2" });
+    check("🎟️ v142: código SEM limite customizado continua funcionando exatamente como antes (comportamento padrão preservado)",
+      ccNormal.json?.ok === true && ccNormal.json?.manualLimit == null && ccNormal.json?.autoLimit == null, ccNormal.body.slice(0, 160));
+
     // ═══ CAMINHO DO DINHEIRO: comprador (não-admin) compra, admin aprova ═══
     await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "comprador@test.com", name: "Comprador" });
     const pd1 = await req2("POST", "/api/pedido", { plano: "vipro", dias: 30, valorTotal: 150, userName: "Comprador" });

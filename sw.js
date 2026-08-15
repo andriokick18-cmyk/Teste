@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v103"; // v103 (15/08): 💳 v141 — Auditoria Financeira por usuário (caso Cleiton): causa raiz corrigida (set-plan sem trava de clique duplo), detector automático de concessão duplicada, e ficha única por usuário (comprovante, extrato de dias, trilha de auditoria, uso real) — nova aba principal "Pagantes & Dias VIP" + aba "Auditoria" no CCC. admin.html mudou.
+const CACHE_NAME = "h2bapply-v104"; // v104 (15/08): 🎟️ v142 — Código Promo com limite avançado customizado (manual/dia + auto/dia): migrar usuário que perdeu acesso ao Gmail pra conta nova SEM perder o limite legado (ex.: DoublePro 400/400) que a tabela nova (v118) nunca reproduziria sozinha. admin.html mudou.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

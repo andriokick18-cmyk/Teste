@@ -1231,6 +1231,19 @@ td{padding:11px 14px;vertical-align:middle;font-size:14px}
                 <div class="form-group"><label class="form-label">Nota</label><input class="form-inp" id="code-note" placeholder="Opcional"></div>
               </div>
               <div class="form-group"><label class="form-label">Código personalizado (vazio = auto)</label><input class="form-inp" id="code-custom" placeholder="Ex: PROMO2024" maxlength="12" style="text-transform:uppercase;letter-spacing:2px;font-family:monospace"></div>
+              <!-- 🎟️ v142 (dono, 15/08 — migrar usuário que perdeu Gmail SEM
+                   perder o limite que ele já tinha: "15 dias doublepro 400
+                   manual e 400 automático"): por padrão o código usa o
+                   limite do plano (tabela nova, v118) — só preencher aqui
+                   quando precisar de um número EXATO diferente do padrão. -->
+              <details style="border:1px dashed var(--border2);border-radius:8px;padding:8px 10px">
+                <summary style="cursor:pointer;font-size:11px;font-weight:800;color:var(--t2)"><i class="ti ti-adjustments"></i> Limite avançado (opcional — vazio = padrão do plano)</summary>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+                  <div class="form-group"><label class="form-label">Limite Manual/dia</label><input class="form-inp" id="code-manual-limit" type="number" inputmode="decimal" placeholder="padrão" min="0" max="999"></div>
+                  <div class="form-group"><label class="form-label">Limite Auto/dia</label><input class="form-inp" id="code-auto-limit" type="number" inputmode="decimal" placeholder="padrão" min="0" max="999"></div>
+                </div>
+                <div style="font-size:10px;color:var(--t3);margin-top:6px">Ex.: migrar conta antiga (DoublePro legado) → Manual 400 + Auto 400. Preenchido, o resgate usa ESSE número — ignora a tabela de planos.</div>
+              </details>
               <button class="btn btn-amber" style="justify-content:center" onclick="createCode()"><i class="ti ti-ticket"></i> Gerar Código (cortesia)</button>
               <div style="border-top:1px solid var(--border2);margin:4px 0 0;padding-top:12px">
                 <button class="btn btn-danger" style="justify-content:center;width:100%;background:linear-gradient(135deg,#dc2626,#b91c1c)" onclick="createYtCode()"><i class="ti ti-brand-youtube"></i> Código Membro YouTube · R$147</button>
@@ -7099,7 +7112,7 @@ async function loadCodes(){
         const usedList = (c.usedBy||[]).slice(0,3).map(e=>`<div style="font-size:10px;color:var(--amber);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px">${esc(e)}</div>`).join('');
         const moreUsed = usedCount > 3 ? `<div style="font-size:10px;color:var(--t3)">+${usedCount-3} outros</div>` : '';
         return `<tr>
-          <td class="mono" style="font-size:15px;font-weight:800;letter-spacing:2px;color:var(--amber)">${esc(c.code)}${(c.yt===true||Math.max(c.manualDays||0,c.autoDays||0)===30)?'<div style="font-size:9px;letter-spacing:0;color:#f87171;font-weight:700">🎬 R$147</div>':''}</td>
+          <td class="mono" style="font-size:15px;font-weight:800;letter-spacing:2px;color:var(--amber)">${esc(c.code)}${(c.yt===true||Math.max(c.manualDays||0,c.autoDays||0)===30)?'<div style="font-size:9px;letter-spacing:0;color:#f87171;font-weight:700">🎬 R$147</div>':''}${(c.manualLimit!=null||c.autoLimit!=null)?`<div style="font-size:9px;letter-spacing:0;color:#60a5fa;font-weight:700"><i class="ti ti-adjustments"></i> ${c.manualLimit??'-'}/${c.autoLimit??'-'} por dia</div>`:''}</td>
           <td style="font-size:13px">${c.manualDays||0}d</td>
           <td style="font-size:13px">${c.autoDays||0}d</td>
           <td>
@@ -7129,7 +7142,13 @@ async function createCode(){
   const note=document.getElementById('code-note')?.value.trim();
   const customCode=document.getElementById('code-custom')?.value.trim().toUpperCase()||undefined;
   if(!manualDays&&!autoDays){toast('Configure pelo menos 1 dia (manual ou auto)','err');return;}
-  await _postCreateCode({manualDays,autoDays,maxUses,note,code:customCode});
+  // 🎟️ v142: limite avançado — vazio = null (não manda no payload como 0,
+  // que seria um limite REAL de zero envios/dia, bem diferente de "não mexi").
+  const _mlRaw=document.getElementById('code-manual-limit')?.value.trim();
+  const _alRaw=document.getElementById('code-auto-limit')?.value.trim();
+  const manualLimit=_mlRaw?parseInt(_mlRaw,10):null;
+  const autoLimit=_alRaw?parseInt(_alRaw,10):null;
+  await _postCreateCode({manualDays,autoDays,maxUses,note,code:customCode,manualLimit,autoLimit});
 }
 // v46 (pedido do dono): código de MEMBRO YOUTUBE — uso único, 30d manual+auto,
 // vale R$147 na Conferência (flag yt no servidor). Um clique, sem preencher nada.
@@ -7149,6 +7168,7 @@ async function _postCreateCode(payload){
           <div style="font-size:10px;color:var(--green);font-weight:700;text-transform:uppercase;margin-bottom:6px">✅ Código Gerado${d.yt?' · 🎬 Membro YouTube':''}</div>
           <div style="font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:800;color:var(--green);letter-spacing:4px">${esc(d.code)}</div>
           <div style="font-size:11px;color:var(--t2);margin-top:6px">Manual: ${d.manualDays}d · Auto: ${d.autoDays}d · Usos: ${payload.maxUses}${d.yt?' · <b style="color:var(--green)">vale R$147</b>':' · cortesia (R$0)'}</div>
+          ${(d.manualLimit!=null||d.autoLimit!=null)?`<div style="font-size:10.5px;color:#60a5fa;margin-top:4px"><i class="ti ti-adjustments"></i> Limite customizado: ${d.manualLimit??'padrão'} manual/dia · ${d.autoLimit??'padrão'} auto/dia</div>`:''}
         </div>`;
       }
       loadCodes();

@@ -385,6 +385,22 @@
     **definir vencimento exato** (`vip/set-expiry`) — a ambiguidade
     entre as duas semânticas era um dos riscos identificados na
     auditoria do código.
+13s. **🎟️ Código Promo com limite avançado (dono, 15/08/2026 — usuário
+    perdeu acesso ao Gmail, admin recria a conta e quer "repor os 15
+    dias dele que sobraram do Google Pro... 15 dias doublepro 400
+    manual e 400 automático")**: até aqui todo código resgatado caía
+    cego na tabela NOVA (v118, `limitesDoPlanoNovo` por nome do plano)
+    — no máximo vipro 100/100, nunca reproduzia um contrato LEGADO
+    (ex.: doublepro 400/400) numa conta recriada do zero. Campos
+    OPCIONAIS `manualLimit`/`autoLimit` na criação do código (painel
+    Códigos Promo → "Limite avançado", vazio = comportamento de sempre):
+    se preenchidos, o resgate usa ESSES números diretamente em
+    `vip.limits`, ignorando a tabela — funciona porque
+    `getManualLimit`/`getAutoLimit` já liam `vip.limits` primeiro,
+    antes de qualquer tabela por nome. Propagado no resgate local E no
+    caminho cross-servidor (`/api/servers/code-redeem`). Continua
+    valendo a regra 13c: origem do plano fica `source:"code"` sempre
+    (cortesia, NUNCA pagamento), mesmo com limite legado.
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 

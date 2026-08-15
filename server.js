@@ -15234,6 +15234,17 @@ Responda APENAS em JSON (sem markdown):
         if(manualDays===0&&autoDays===0)return json(res,400,{error:"Informe pelo menos 1 dia (manual ou auto)."});
         const note=String(d.note||"").slice(0,200);
         const maxUses=Math.max(1,Math.min(10000,parseInt(d.maxUses||1,10)));
+        // 🎟️ v142 (dono, 15/08 — migrar usuário que perdeu acesso ao Gmail
+        // pra conta nova SEM perder o limite antigo, "quero repor os 15 dias
+        // dele que sobraram do Google Pro"): até aqui todo código caía cego
+        // na tabela NOVA (limitesDoPlanoNovo por nome do plano) — nunca dava
+        // pra reproduzir um contrato legado (ex.: doublepro 400/400) numa
+        // conta recriada. Campos OPCIONAIS: se vazios, comportamento igual
+        // a sempre (limite deriva do plano, tabela nova v118). Se
+        // preenchidos, o resgate usa ESSES números diretamente, ignorando a
+        // tabela — o admin decide o limite exato, caso a caso.
+        const manualLimit=d.manualLimit!=null&&d.manualLimit!==""?Math.max(0,Math.min(999,parseInt(d.manualLimit,10)||0)):null;
+        const autoLimit=d.autoLimit!=null&&d.autoLimit!==""?Math.max(0,Math.min(999,parseInt(d.autoLimit,10)||0)):null;
         // v46: código de MEMBRO YOUTUBE (pedido do dono, 23/07) — uso único,
         // 30d, entra na Conferência valendo R$147 (regra 13b). O flag fica
         // gravado no código pra Conferência/lista não dependerem só dos dias.
@@ -15248,10 +15259,10 @@ Responda APENAS em JSON (sem markdown):
         } else {
           do{code=crypto.randomBytes(4).toString("hex").toUpperCase();}while(DB_CODES[code]);
         }
-        DB_CODES[code]={manualDays,autoDays,note,maxUses,yt,createdAt:Date.now(),createdBy:s.user_email,active:true,usedBy:[]};
+        DB_CODES[code]={manualDays,autoDays,note,maxUses,yt,manualLimit,autoLimit,createdAt:Date.now(),createdBy:s.user_email,active:true,usedBy:[]};
         persistCodes();
-        console.log(`[codes] Criado ${code} manual:${manualDays}d auto:${autoDays}d maxUses:${maxUses}${yt?" [🎬 Membro YouTube R$147]":""}`);
-        return json(res,200,{ok:true,code,manualDays,autoDays,note,maxUses,yt});
+        console.log(`[codes] Criado ${code} manual:${manualDays}d auto:${autoDays}d maxUses:${maxUses}${yt?" [🎬 Membro YouTube R$147]":""}${(manualLimit!=null||autoLimit!=null)?` [limite custom: ${manualLimit??"-"}/${autoLimit??"-"}]`:""}`);
+        return json(res,200,{ok:true,code,manualDays,autoDays,note,maxUses,yt,manualLimit,autoLimit});
       }catch(e){return json(res,500,{error:e.message});}
     }
     if(pathname==="/api/admin/codes/revoke"&&req.method==="POST"){
@@ -15338,7 +15349,7 @@ Responda APENAS em JSON (sem markdown):
         for(const sv of _getServersConfig()){
           if(sv.id===_resolveServerId(req)||!sv.url)continue;
           const r=await _postPeerJson(sv.url,"/api/servers/code-redeem",{code,email:s.user_email});
-          if(r&&r.ok){c={manualDays:r.manualDays||0,autoDays:r.autoDays||0,note:r.note||"",yt:r.yt===true,active:true,usedBy:[],maxUses:1};_codeRemoto=sv.id;console.log(`[codes] ${code} encontrado no Servidor ${sv.id} — resgate remoto ok`);break;}
+          if(r&&r.ok){c={manualDays:r.manualDays||0,autoDays:r.autoDays||0,note:r.note||"",yt:r.yt===true,manualLimit:r.manualLimit??null,autoLimit:r.autoLimit??null,active:true,usedBy:[],maxUses:1};_codeRemoto=sv.id;console.log(`[codes] ${code} encontrado no Servidor ${sv.id} — resgate remoto ok`);break;}
           if(r&&r.error==="ja-usado")return json(res,400,{error:"Você já usou este código."});
           if(r&&r.error==="esgotado")return json(res,400,{error:"Limite de usos deste código atingido."});
           if(r&&r.error==="cancelado")return json(res,400,{error:"Este código foi cancelado pelo administrador."});
@@ -15355,11 +15366,19 @@ Responda APENAS em JSON (sem markdown):
       let autoExpires=u.vip?.autoExpires&&u.vip.autoExpires>now?u.vip.autoExpires:now;
       if(c.manualDays>0)manualExpires+=c.manualDays*86400_000;
       if(c.autoDays>0)autoExpires+=c.autoDays*86400_000;
-      const planName=c.autoDays>0&&c.manualDays>0?'vipro':c.manualDays>0?'vip':c.autoDays>0?'pro':'vip';
+      // 🎟️ v142: código com manualLimit/autoLimit customizados (caso de
+      // migração de conta — dono quis repor exatamente o 400/400 que a
+      // conta antiga tinha) usa ESSES números como limite, ignorando a
+      // tabela padrão. 'doublepro' como rótulo é só cosmético aqui: quem
+      // realmente manda no limite é vip.limits, lido antes de qualquer
+      // tabela por nome (getManualLimit/getAutoLimit) — mas o rótulo certo
+      // evita o badge "VIPro" confundir um limite que é maior que o normal.
+      const temLimiteCustom=c.manualLimit!=null||c.autoLimit!=null;
+      const planName=temLimiteCustom?'doublepro':(c.autoDays>0&&c.manualDays>0?'vipro':c.manualDays>0?'vip':c.autoDays>0?'pro':'vip');
       const vip={...(u.vip||{}),active:true,manualExpires,autoExpires,
         source:'code',usedCode:code,codeNote:c.note||'',
         activatedAt:now,plan:planName,days:c.manualDays||c.autoDays,autoDays:c.autoDays||0,
-        limits:limitesDoPlanoNovo(planName)}; // v118: código = contrato novo
+        limits:temLimiteCustom?{manual:c.manualLimit??limitesDoPlanoNovo(planName).manual,auto:c.autoLimit??limitesDoPlanoNovo(planName).auto}:limitesDoPlanoNovo(planName)}; // v118: código = contrato novo (v142: exceto limite customizado)
       setUser(s.user_email,{vip,plan:planName});
       if(!_codeRemoto){
         DB_CODES[code]={...c,usedBy:[...c.usedBy,s.user_email]};
@@ -15402,7 +15421,7 @@ Responda APENAS em JSON (sem markdown):
       DB_CODES[code]={...c,usedBy:[...(c.usedBy||[]),email]};
       persistCodes();
       console.log(`[codes] ${code} resgatado REMOTAMENTE por ${email} (código criado aqui, usuário em outro servidor)`);
-      return json(res,200,{ok:true,manualDays:c.manualDays||0,autoDays:c.autoDays||0,note:c.note||"",yt:c.yt===true});
+      return json(res,200,{ok:true,manualDays:c.manualDays||0,autoDays:c.autoDays||0,note:c.note||"",yt:c.yt===true,manualLimit:c.manualLimit??null,autoLimit:c.autoLimit??null});
     }catch(e){return json(res,500,{ok:false,error:e.message});}
   }
   // GET /api/servers/has-account?h=<sha256 do e-mail> — checagem de conta única
