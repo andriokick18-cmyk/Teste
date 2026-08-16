@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v104"; // v104 (15/08): 🎟️ v142 — Código Promo com limite avançado customizado (manual/dia + auto/dia): migrar usuário que perdeu acesso ao Gmail pra conta nova SEM perder o limite legado (ex.: DoublePro 400/400) que a tabela nova (v118) nunca reproduziria sozinha. admin.html mudou.
+const CACHE_NAME = "h2bapply-v105"; // v105 (15/08): 📝 v143 — Rascunho do Editor de Perfil (caso real Keyla, Servidor 3): autosave local (nunca servidor) do que a pessoa está digitando (assuntos/corpos de e-mail) + restauração automática ao reabrir o mesmo perfil — nunca mais perde texto quando a sessão cai por reinício do processo (KB-078). app.js mudou.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

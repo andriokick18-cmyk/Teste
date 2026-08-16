@@ -401,6 +401,29 @@
     caminho cross-servidor (`/api/servers/code-redeem`). Continua
     valendo a regra 13c: origem do plano fica `source:"code"` sempre
     (cortesia, NUNCA pagamento), mesmo com limite legado.
+13t. **📝 Rascunho do Editor de Perfil (dono, 15/08/2026 — print via
+    WhatsApp: "o usuário não consegue completar o perfil dele", caso real
+    da Keyla no Servidor 3)**: causa raiz investigada e NÃO é bug de
+    front nem de validação — é consequência de uma decisão deliberada
+    já existente (KB-078): o servidor derruba TODAS as sessões de login
+    a cada reinício do processo Node (deploy OU Render "acordando" no
+    plano free/starter). Servidor 3 é a fonte deste repo e recebe
+    deploy a cada commit, então reinicia com muito mais frequência que
+    os espelhos — quem está no meio de escrever um perfil novo (a parte
+    mais chata de digitar do site: 3+ assuntos, 3+ corpos de e-mail)
+    recebia "Sessão expirada" e perdia tudo, sem aviso. **NÃO revertemos
+    o KB-078** (a decisão de segurança continua valendo) — só garantimos
+    que o TEXTO nunca se perde: `_peSaveDraftNow()`/`_peLoadDraft()`
+    (app.js) fazem autosave debounced (500ms) do que está sendo digitado
+    no editor de perfil pro `localStorage` (nunca servidor), com
+    snapshot extra garantido no instante do clique em "Salvar". Ao
+    reabrir o MESMO perfil (mesmo tipo de visto + mesmo id, nunca mistura
+    rascunho de perfis diferentes), oferece restaurar. Mensagem de erro
+    também ficou mais clara (`_peSessionMsg`) quando é sessão caída.
+    Lição geral pra qualquer formulário longo do site: um 401 real do
+    servidor não é bug — mas perder o trabalho da pessoa por causa dele
+    é, e a correção certa é preservar o rascunho no aparelho, não tentar
+    evitar o 401 (ele é intencional).
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 

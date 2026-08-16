@@ -481,6 +481,20 @@ async function testAuthWatchdogPush() {
     check("🌐 i18n-1: seletor de idioma com BANDEIRAS grandes + motor de varredura data-i18n",
       home.body.includes('id="lang-flag"') && home.body.includes("🇺🇸") && frontAll.includes('querySelectorAll("[data-i18n]")'),
       "lang-flag, bandeiras ou sweep data-i18n não encontrados");
+    // 📝 v143 (caso real: Keyla, print via WhatsApp — "usuário não consegue
+    // completar o perfil dele"). Causa raiz: o servidor derruba TODAS as
+    // sessões de login a cada reinício do processo (KB-078, decisão
+    // deliberada do dono — não mexemos nisso); Servidor 3 é a fonte e
+    // reinicia a cada deploy, então quem está no meio de escrever um
+    // perfil novo (assuntos/corpos de e-mail) recebe "Sessão expirada" e
+    // perdia TUDO. Guarda estrutural: o autosave de rascunho (localStorage,
+    // nunca servidor) e a restauração ao reabrir o mesmo perfil continuam
+    // no código — provado ponta a ponta com navegador real (capDraft143.js).
+    check("📝 v143: rascunho do editor de perfil existe (autosave local + restauração) — nunca mais perde texto por sessão caída",
+      frontAll.includes("_peSaveDraftNow") && frontAll.includes("_peLoadDraft") &&
+      frontAll.includes("_peSessionMsg") && /sess[aã]o caiu/.test(frontAll) &&
+      appJs.body.includes('addEventListener("input"'),
+      "funções de rascunho do editor de perfil (v143) não encontradas em app.js");
     // 🌐 i18n-5 (Etapa 5): CATRACA — o nº de textos PT visíveis SEM etiqueta
     // data-i18n nas views só pode DIMINUIR. Quem adicionar tela nova sem
     // tradução quebra este teste na hora (regra 6f virou guarda automática).
