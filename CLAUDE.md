@@ -477,6 +477,27 @@
     única também usada pela rota de corpo único) com progresso ao vivo
     (% + MB + tempo). Uploads abandonados são varridos no boot (>24h).
 
+13v. **🛡️ Conta única & contrato do e-mail no login (dono, 20/08/2026 —
+    print do ranking com todo mundo aparecendo 2x)**: (1) o ranking
+    global deduplica por `uid` (pós-fusão a MESMA conta vive no Servidor
+    1 importada E no irmão ainda no ar; o uid deriva do e-mail) mantendo
+    a maior contagem, e o total de um peer cujo top-50 repete uid do
+    local NÃO soma — PROIBIDO reintroduzir merge de ranking sem esse
+    dedupe. Aqueles "duplicados" do print NÃO eram pessoas com 2 contas.
+    (2) O e-mail digitado no card de entrada vai pro Google como
+    `login_hint` e fica no state; o callback BARRA se a pessoa
+    autenticar OUTRO e-mail e REVOGA o token na hora (cada conta
+    autenticada consome 1 das 100 vagas do OAuth não-verificado — a
+    autenticação errada devolve a vaga). Só o e-mail digitado NESTA
+    visita (_agEmail) vira hint — nunca um salvo antigo do aparelho.
+    (3) Aviso permanente de CONTA ÚNICA na landing (au_t/au_b/au_f, 3
+    línguas): 2ª conta mesmo com outro e-mail = risco de BAN PERMANENTE
+    das duas; o nome no currículo é sempre o mesmo e o sistema cruza
+    nome/telefone/aparelho. (4) O detector de contas duplicadas de
+    VERDADE já existia desde o v53 (`/api/admin/duplicates` — nome
+    normalizado, telefone, IP; grupo com admin some) na aba Auditoria &
+    Duplicadas — banir é decisão HUMANA do admin, nunca automática.
+
 ## 🖥️ UX (usuário e admin nunca se perdem)
 
 14. **Site intuitivo e autoexplicativo**: tour em slides no primeiro

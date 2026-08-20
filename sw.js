@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v110"; // v110 (20/08): 📦 v148b — upload da importação FATIADO em pedaços de 4MB com % e tempo ao vivo (arquivo de 42MB do celular era cortado pelo proxy do Render numa requisição só e ficava em "Enviando..." pra sempre — print do dono). Só admin.html mudou (não é cacheado pelo SW) — bump por convenção de entrega.
+const CACHE_NAME = "h2bapply-v111"; // v111 (20/08): 🛡️ v149 — conta única: ranking global deduplica por uid (pós-fusão a mesma conta vivia nos 2 servidores e todo mundo aparecia 2x), login do Google barra e-mail diferente do digitado (login_hint + revoke — vaga das 100 devolvida), aviso permanente de conta única na landing (2ª conta = risco de ban permanente, 3 línguas). index.html/app.js mudaram.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

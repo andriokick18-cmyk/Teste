@@ -10243,6 +10243,12 @@ filtrar();
   // ── OAuth ─────────────────────────────────────────────
   if(pathname==="/oauth/start"){if(rateLimit((req.headers["x-forwarded-for"]||"anon")+"_oauth",30,900_000)){res.writeHead(302,{Location:"/?err="+encodeURIComponent("Muitas tentativas de login. Aguarde 15 minutos e tente novamente.")});return res.end();}if(!CONFIGURED){res.writeHead(302,{Location:"/?err="+encodeURIComponent("Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET.")});return res.end();}const st=crypto.randomBytes(20).toString("hex");
   sessions["__p__"+st]={pending:true,ts:Date.now()};
+  // 🔒 v149 (dono, 20/08): o e-mail digitado no card de entrada vira um
+  // CONTRATO — vai pro Google como login_hint (pré-seleciona a conta certa)
+  // e fica guardado no state pra callback BARRAR se a pessoa autenticar
+  // outra conta (cada conta autenticada consome 1 das 100 vagas do OAuth).
+  {const _h=(u.searchParams.get("login_hint")||"").trim().toLowerCase();
+   if(/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(_h))sessions["__p__"+st].hint=_h;}
   // Se o usuário já tem refresh_token salvo, não força consent (login silencioso).
   // Se é a primeira vez (sem refresh_token), exige consent para obter o refresh_token.
   // FIX v2: se usuário não tem scopeVersion>=2 (novos escopos gmail.readonly+modify), força consent
@@ -10254,7 +10260,8 @@ filtrar();
   // força consent para o Google emitir um refresh_token NOVO neste login.
   const _rtUsable=_hasRt&&!_hintUser?.rtInvalid;
   const _promptVal=(_rtUsable&&_hasNewScopes)?"select_account":"consent select_account";
-  const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:_oauthBase(req)+"/oauth/callback",response_type:"code",scope:OAUTH_SCOPES,access_type:"offline",prompt:_promptVal,state:st});res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();}
+  const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:_oauthBase(req)+"/oauth/callback",response_type:"code",scope:OAUTH_SCOPES,access_type:"offline",prompt:_promptVal,state:st,
+    ...(sessions["__p__"+st].hint?{login_hint:sessions["__p__"+st].hint}:{})});res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();}
 
   if(pathname==="/oauth/callback"){
     const code=u.searchParams.get("code"),error=u.searchParams.get("error");
@@ -10311,11 +10318,13 @@ filtrar();
     // (login CSRF) — a vítima ficaria logada na conta do atacante e poderia enviar
     // dados sensíveis (currículo, PII) para uma conta que o atacante controla.
     // Mesmo padrão de validação/consumo já usado no fluxo __sender__ acima.
+    let _expectedHint=null; // 🔒 v149: e-mail que a pessoa DIGITOU antes do Google
     {
       const pendingLogin=sessions["__p__"+_st];
       if(!pendingLogin){return fail("Sessão de login inválida ou expirada. Tente entrar novamente.");}
       delete sessions["__p__"+_st]; // uso único — nunca reaproveitar o state
       if(Date.now()-pendingLogin.ts>600_000){return fail("Sessão de login expirada. Tente entrar novamente.");}
+      _expectedHint=pendingLogin.hint||null;
     }
     try{
       const tb=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:_oauthBase(req)+"/oauth/callback",grant_type:"authorization_code"}).toString();
@@ -10323,6 +10332,22 @@ filtrar();
       if(tk.error)return fail(tk.error_description||tk.error);if(!tk.access_token)return fail("Token não recebido.");
       const{body:ui}=await httpsReq({hostname:"www.googleapis.com",path:"/oauth2/v2/userinfo",method:"GET",headers:{"Authorization":"Bearer "+tk.access_token}});
       if(!ui.email)return fail("E-mail não obtido.");
+      // 🔒 v149 (dono, 20/08: "se a pessoa digitar andrio.kick18@gmail.com e
+      // na autenticação clicar em outro e-mail, deve barrar"): o e-mail
+      // digitado no card é um contrato. Autenticou OUTRO? Cancela na hora e
+      // REVOGA o token no Google — a autorização errada não fica pendurada
+      // consumindo 1 das 100 vagas do OAuth não-verificado.
+      {
+        const _authedEmail=String(ui.email||"").toLowerCase().trim();
+        if(_expectedHint&&_authedEmail!==_expectedHint){
+          try{
+            const _rvB="token="+encodeURIComponent(tk.refresh_token||tk.access_token);
+            await httpsReq({hostname:"oauth2.googleapis.com",path:"/revoke",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(_rvB)}},_rvB);
+            console.log(`[oauth] 🔒 barrado: digitou ${_expectedHint}, autenticou ${_authedEmail} — token revogado, vaga devolvida`);
+          }catch(eRv){console.warn("[oauth] revoke pós-mismatch falhou:",eRv.message);}
+          return fail(`Você digitou ${_expectedHint}, mas escolheu ${_authedEmail} na tela do Google — a entrada foi cancelada por segurança. Toque em Entrar de novo e escolha EXATAMENTE o e-mail que você digitou.`);
+        }
+      }
       // ── Verificar se email está banido permanentemente ──
       if(DB_BLOCKED.emails.includes(ui.email.trim().toLowerCase())){
         return fail("Conta suspensa permanentemente. Contate o suporte.");
@@ -16119,8 +16144,12 @@ Responda APENAS em JSON (sem markdown):
         score:parseInt(r.score)||0,uid:String(r.uid||"").slice(0,16),serverId:sv.id
       })));
     }
-    rows.sort((a,b)=>b.score-a.score);
-    return json(res,200,{ok:true,selfId:_selfId,list:rows.slice(0,50).map((r,i)=>({pos:i+1,...r})),updatedAt:new Date().toISOString()});
+    // 🛡️ v149: mesma pessoa nos 2 servidores (pós-fusão) = mesmo uid — fica 1x
+    const _rMelhor={};
+    for(const r of rows){const k=r.uid||(r.name+"|"+r.serverId);if(!_rMelhor[k]||(r.score||0)>(_rMelhor[k].score||0))_rMelhor[k]=r;}
+    const rowsU=Object.values(_rMelhor);
+    rowsU.sort((a,b)=>b.score-a.score);
+    return json(res,200,{ok:true,selfId:_selfId,list:rowsU.slice(0,50).map((r,i)=>({pos:i+1,...r})),updatedAt:new Date().toISOString()});
   }
 
   // 📰 v26: notícias do DOL traduzidas (aba Notícias). Público — é informação
@@ -16215,13 +16244,14 @@ Responda APENAS em JSON (sem markdown):
     // fail-open (ranking local, nunca quebra a aba).
     const _selfId=_resolveServerId(req);
     let lista=list.map(r=>({...r,serverId:_selfId}));let totalG=total;let peersOk=0;
+    const _peerTotais={};
     if(!process.env.TEST_LOGIN_TOKEN){
       for(const sv of _getServersConfig()){
         if(sv.id===_selfId||!sv.url)continue;
         try{
           const pr=await _fetchPeerJson(sv.url,`/api/servers/ranking-export?period=${period}&category=${category}`);
           if(pr&&pr.ok&&Array.isArray(pr.list)){
-            peersOk++;totalG+=parseInt(pr.total)||pr.list.length;
+            peersOk++;_peerTotais[sv.id]=parseInt(pr.total)||pr.list.length;
             lista.push(...pr.list.slice(0,50).map(r=>({
               name:String(r.name||"Usuário").slice(0,40),picture:String(r.picture||"").slice(0,500),
               appAvatarId:String(r.appAvatarId||"").slice(0,10),plan:String(r.plan||"free").slice(0,12),
@@ -16231,6 +16261,27 @@ Responda APENAS em JSON (sem markdown):
               change:null,isMe:false,serverId:sv.id})));
           }
         }catch(e){/* fail-open */}
+      }
+      // 🛡️ v149 (print do dono, 20/08: "devemos eliminar essas contas
+      // duplicadas" — todo mundo aparecia 2x no ranking): depois da fusão a
+      // MESMA conta existe aqui (importada) E no servidor-irmão ainda no ar.
+      // O uid é derivado do e-mail, então a mesma pessoa tem o MESMO uid nos
+      // dois lados — dedupe mantendo a maior contagem. E um peer com usuário
+      // repetido do local já foi fundido pra cá: o total dele NÃO soma
+      // (senão "de X usuários" contaria todo mundo 2x pra sempre).
+      {
+        const _locUids=new Set(list.map(r=>r.uid).filter(Boolean));
+        const _peerFundido={};
+        for(const r of lista){if(r.serverId!==_selfId&&r.uid&&_locUids.has(r.uid))_peerFundido[r.serverId]=true;}
+        for(const [sid,tot] of Object.entries(_peerTotais)){if(!_peerFundido[sid])totalG+=tot;}
+        const _melhor={};
+        for(const r of lista){
+          const k=r.uid||(r.name+"|"+r.serverId);
+          const atual=_melhor[k];
+          if(!atual||(r.score||0)>(atual.score||0))_melhor[k]={...r,isMe:!!(r.isMe||atual?.isMe)};
+          else if(r.isMe)atual.isMe=true;
+        }
+        lista=Object.values(_melhor);
       }
       lista.sort((a,b)=>(b.score||0)-(a.score||0));
       lista=lista.slice(0,50).map((r,i)=>({...r,pos:i+1}));

@@ -2150,6 +2150,31 @@ async function testAuthWatchdogPush() {
       home.body.includes('id="aviso-reset-banner"') && home.body.includes('data-i18n="rst_b"'),
       "banner do reset não encontrado no index.html");
 
+    // ═══ 🛡️ v149: CONTA ÚNICA (ordem do dono, 20/08 — print do ranking com
+    // todo mundo 2x). As 3 defesas: ranking global deduplica por uid (a mesma
+    // conta pós-fusão vive nos 2 servidores), o e-mail digitado vira contrato
+    // no login do Google (autenticou outro = barra + revoga o token, a vaga
+    // das 100 é devolvida), e a landing avisa: 2ª conta = risco de ban.
+    const rkDedup = await get("/api/ranking?period=all&category=sends");
+    check("🛡️ v149: /api/ranking responde ok e nenhum uid aparece 2x na lista",
+      rkDedup.json?.ok === true && Array.isArray(rkDedup.json?.list) &&
+      new Set(rkDedup.json.list.map((r) => r.uid).filter(Boolean)).size === rkDedup.json.list.filter((r) => r.uid).length,
+      JSON.stringify({ n: rkDedup.json?.list?.length }).slice(0, 80));
+    check("🛡️ v149: (estrutural) merge de peers do ranking deduplica por uid e não soma o total de peer já fundido",
+      _srvSrc.includes("_peerFundido") && _srvSrc.includes("_peerTotais") && _srvSrc.includes("dedupe mantendo a maior contagem"),
+      "dedupe do ranking global não encontrado no server.js");
+    check("🛡️ v149: (estrutural) /oauth/start leva login_hint e o callback BARRA e-mail diferente do digitado (com revoke do token)",
+      _srvSrc.includes("login_hint:sessions") && _srvSrc.includes("_expectedHint&&_authedEmail!==_expectedHint") &&
+      _srvSrc.includes('path:"/revoke"'),
+      "trava de login_hint/mismatch/revoke não encontrada no server.js");
+    check("🛡️ v149: (estrutural) o front manda o e-mail digitado como login_hint (só o desta visita, nunca um antigo do aparelho)",
+      appJs.body.includes("login_hint=") && appJs.body.includes("_agEmail"),
+      "login_hint não encontrado no app.js");
+    check("🛡️ v149: aviso de CONTA ÚNICA na landing (ban permanente, nome do currículo denuncia) nas 3 línguas",
+      home.body.includes('data-i18n="au_t"') && home.body.includes('data-i18n="au_b"') &&
+      (appJs.body.match(/"au_t":/g) || []).length === 3 && (appJs.body.match(/"au_b":/g) || []).length === 3,
+      "seção au_t/au_b não encontrada (landing ou dicionário 3 línguas)");
+
     // ═══ 🛡️ v73: AQUECIMENTO DE CONTA GMAIL NOVA (proteção anti-bloqueio) ═══
     // Pedido real do dono: "tem gente sendo bloqueada pelo Google". A defesa:
     // conta recém-conectada manda pouco nos primeiros dias, ganha volume aos
