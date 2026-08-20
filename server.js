@@ -2930,8 +2930,17 @@ async function _runFusao(serverId,quem){
     const bk=criarBackupCompleto();
     if(!bk||bk.ok===false)throw new Error("backup pré-fusão falhou: "+(bk&&bk.error||"?")+" — fusão ABORTADA (regra: nunca fundir sem ter como voltar)");
     _fLog(`✅ Backup ok. Pedindo manifest ao ${sv.nome} (${sv.url})...`);
-    const man=await _peerFusaoReq(sv.url,"/api/servers/fusao/manifest");
-    if(!man||!man.ok)throw new Error("manifest não respondeu — o "+sv.nome+" está no ar e com a MESMA versão (v144+)?");
+    // v147b (caso real do dono na virada): servidor Free do Render DORME e
+    // demora ~1min pra acordar; e logo após um push o deploy ainda pode
+    // estar rodando (versão velha no ar, sem as rotas de fusão). Em vez de
+    // falhar na 1ª tentativa, insiste por ~2min explicando o que espera.
+    let man=null;
+    for(let tent=1;tent<=5;tent++){
+      man=await _peerFusaoReq(sv.url,"/api/servers/fusao/manifest");
+      if(man&&man.ok)break;
+      if(tent<5){_fLog(`⏳ ${sv.nome} não respondeu (tentativa ${tent}/5) — pode estar ACORDANDO (plano Free ≈1min) ou com deploy em andamento. Tentando de novo em 20s...`,"warn");await new Promise(r=>setTimeout(r,process.env.TEST_LOGIN_TOKEN?300:20_000));}
+    }
+    if(!man||!man.ok)throw new Error("manifest não respondeu após 5 tentativas (~2min) — confira no Render se o "+sv.nome+" está com o deploy NOVO (v144+) no estado Live, abra a URL dele numa aba pra acordar, e clique Puxar de novo");
     const emailsPend=(man.emails||[]).filter(e2=>!st.doneEmails[e2]);
     const pedidosPend=(man.pedidosIds||[]).filter(id=>!st.donePedidos[id]);
     _fusaoJob.total=emailsPend.length+pedidosPend.length+1;
@@ -2941,8 +2950,9 @@ async function _runFusao(serverId,quem){
     // usuários em lotes de 5 (PDFs a bordo — memória controlada)
     for(let i=0;i<emailsPend.length;i+=5){
       const lote=emailsPend.slice(i,i+5);
-      const rb=await _peerFusaoReq(sv.url,"/api/servers/fusao/user-batch",{emails:lote});
-      if(!rb||!rb.ok){rel.erros.push("lote de usuários falhou: "+lote.join(","));_fLog(`⚠️ lote falhou (${lote.join(", ")}) — continua nos próximos`,"warn");continue;}
+      let rb=await _peerFusaoReq(sv.url,"/api/servers/fusao/user-batch",{emails:lote});
+      if(!rb||!rb.ok){await new Promise(r=>setTimeout(r,process.env.TEST_LOGIN_TOKEN?200:8000));rb=await _peerFusaoReq(sv.url,"/api/servers/fusao/user-batch",{emails:lote});} // v147b: 1 retry contra soluço de rede
+      if(!rb||!rb.ok){rel.erros.push("lote de usuários falhou: "+lote.join(","));_fLog(`⚠️ lote falhou (${lote.join(", ")}) — continua nos próximos (rode a fusão de novo no fim: só refaz o que faltou)`,"warn");continue;}
       for(const [em,inc] of Object.entries(rb.users||{})){
         try{_fundirUsuario(em,inc,serverId,rel);st.doneEmails[em]=Date.now();}
         catch(e){rel.erros.push(em+": "+e.message);_fLog(`⚠️ ${em}: ${e.message}`,"warn");}
