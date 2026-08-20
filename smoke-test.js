@@ -1946,6 +1946,26 @@ async function testAuthWatchdogPush() {
     check("🚚 v144: caixa do B fundido no caixa local (pagamento de R$150 presente, sem duplicar)",
       (finGlob.json?.pagamentos || []).filter((p2) => p2.id === "pgB0001").length === 1, JSON.stringify((finGlob.json?.pagamentos || []).filter((p2) => p2.id === "pgB0001")).slice(0, 140));
     srvB.kill();
+    // ═══ 🚚 v146: MODO APOSENTADO — depois da fusão, o servidor antigo
+    // redireciona TODO MUNDO pro Servidor 1 (env REDIRECT_ALL_TO), mas as
+    // rotas peer continuam vivas (pra re-puxar a fusão se precisar).
+    await new Promise((r) => setTimeout(r, 500));
+    const srvB2 = spawn(process.execPath, ["server.js"], {
+      cwd: __dirname,
+      env: { ...process.env, PORT: String(PORT_B), DATA_DIR: DATA_B, STORAGE: "json", TEST_LOGIN_TOKEN: TEST_TOKEN, DATA_ENC_KEY: "smoke-enc-key-1234567890", DOL_FEED_BASE: `http://127.0.0.1:${FEED_PORT}/feed`, REDIRECT_ALL_TO: "https://h2bapply.com" },
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+    const _rawB = (p, headers) => new Promise((rs) => { http.get({ host: "127.0.0.1", port: PORT_B, path: p, headers: headers || {} }, (r) => { let b = ""; r.on("data", (c) => (b += c)); r.on("end", () => rs({ status: r.statusCode, location: r.headers.location || "", body: b })); }).on("error", () => rs(null)); });
+    const _waitB2 = async (ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { const r = await _rawB("/"); if (r && r.status) return true; await new Promise((r2) => setTimeout(r2, 400)); } return false; };
+    check("🚚 v146: (setup) servidor aposentado subiu com REDIRECT_ALL_TO", await _waitB2(40_000));
+    const rd1 = await _rawB("/admin?x=1");
+    check("🚚 v146: MODO APOSENTADO — quem entra no servidor antigo é jogado pro Servidor 1 (302, caminho preservado)",
+      rd1 && rd1.status === 302 && rd1.location === "https://h2bapply.com/admin?x=1", JSON.stringify(rd1).slice(0, 140));
+    const _peerTokFu = require("crypto").createHmac("sha256", "smoke-enc-key-1234567890").update("h2b-peer-financeiro-v1").digest("hex");
+    const rd2 = await _rawB("/api/servers/fusao/manifest", { "x-peer-fin": _peerTokFu });
+    check("🚚 v146: rotas peer continuam VIVAS no modo aposentado (dá pra re-puxar a fusão mesmo com o redirect ligado)",
+      rd2 && rd2.status === 200 && JSON.parse(rd2.body || "{}").ok === true, JSON.stringify({ status: rd2?.status }).slice(0, 100));
+    srvB2.kill();
     try { fs.rmSync(DATA_B, { recursive: true, force: true }); } catch {}
 
     // 📢 v144: aviso do reset de login — toggle do admin liga o banner público

@@ -8125,6 +8125,20 @@ const server=http.createServer(async(req,res)=>{
   res.setHeader("Access-Control-Allow-Origin",ao);res.setHeader("Access-Control-Allow-Credentials","true");res.setHeader("Access-Control-Allow-Methods","GET,POST,DELETE,PATCH,OPTIONS");res.setHeader("Access-Control-Allow-Headers","Content-Type");
   if(req.method==="OPTIONS"){res.writeHead(204);return res.end();}
 
+  // ══ 🚚 v146 — MODO APOSENTADO (ordem do dono, 15/08): depois da fusão,
+  // quem tentar entrar no Servidor 2/3 é JOGADO pro Servidor 1. Liga com a
+  // env REDIRECT_ALL_TO=https://h2bapply.com no Render do servidor antigo.
+  // Exceção ÚNICA: as rotas peer /api/servers/* continuam respondendo (pra
+  // fusão/re-puxada continuar funcionando enquanto o servidor viver). O
+  // caminho é preservado no redirect (link antigo de /admin cai no /admin
+  // novo). 302 (temporário) de propósito — se um dia a env sair, os
+  // navegadores não ficam presos num 301 cacheado pra sempre.
+  const _redirAlvo=String(process.env.REDIRECT_ALL_TO||"").trim().replace(/\/+$/,"");
+  if(_redirAlvo&&/^https?:\/\//.test(_redirAlvo)&&!pathname.startsWith("/api/servers/")){
+    res.writeHead(302,{Location:_redirAlvo+pathname+(u.search||""),"Cache-Control":"no-store"});
+    return res.end("Este servidor foi unificado. Acesse: "+_redirAlvo);
+  }
+
   const serveHtml=f=>sendAsset(req,res,f,"text/html; charset=utf-8","no-cache"); // V951: brotli/gzip + ETag
   // v40 (reclamação real do dono, 22/07): os ícones Tabler vinham de CDN
   // (jsdelivr/unpkg) que MUITAS redes móveis brasileiras bloqueiam — app
