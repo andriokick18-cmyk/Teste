@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v108"; // v108 (15/08): 🙈 v147 — status "oculto" por servidor: some do seletor público e da pill 🌐 (todo mundo forçado pro Servidor 1 pós-fusão), mas as rotas internas (fusão/peers) continuam enxergando a URL. openServerSelect pula o seletor quando só há 1 visível. index.html/app.js mudaram.
+const CACHE_NAME = "h2bapply-v109"; // v109 (20/08): 📦 v148 — migração por ARQUIVO no painel admin: exportar tudo no Servidor 2/3 (⬇️ .fusao.gz com contas, VIP, 💎, envios, PDFs, pedidos+comprovante, caixa) e importar no Servidor 1 (⬆️ mesmo motor de fusão, backup antes, idempotente, log ao vivo). Só admin.html mudou (não é cacheado pelo SW) — bump por convenção de entrega.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

@@ -447,6 +447,27 @@
     e-mail, conta duplicada = risco de ban dos dois e-mails". A
     verificação DEFINITIVA do Google (gmail.send é escopo SENSÍVEL →
     verificação GRATUITA, sem CASA) está no GUIA_VERIFICACAO_GOOGLE.txt.
+    **📦 v148 (dono, 20/08/2026 — "já que a fusão não está dando certo...
+    botão de download de todas as informações... e no server um, o
+    importar")**: a fusão por rede exigia os 2 servidores no ar ao mesmo
+    tempo (Free hiberna + deploy defasado = "manifest não respondeu").
+    Caminho por ARQUIVO virou o principal no card: no Servidor 2/3 o
+    admin clica ⬇️ (`GET /api/admin/fusao/exportar` — .fusao.gz em
+    stream, 1 usuário por vez, tokens OAuth NUNCA no arquivo) e no
+    Servidor 1 clica ⬆️ (`POST /api/admin/fusao/importar`, corpo binário
+    com teto próprio de 300MB — o readBody de 50MB é pouco). O import
+    roda `_runFusaoArquivo` = MESMO motor (`_fundirUsuario`,
+    `_fusaoAplicarGlobais`, `_fusaoPersistTudo` — funções únicas
+    compartilhadas com a fusão por rede; `_fusaoUserPayload`/
+    `_fusaoGlobaisPayload` são a fonte única do formato), mesmo backup
+    prévio obrigatório, mesma idempotência por servidor de origem
+    (`fusao_state.json`) e mesmo log ao vivo no painel. GUARDA: arquivo
+    exportado do PRÓPRIO servidor é recusado (400) — importar em si
+    mesmo duplicaria dias/diamantes de todo mundo. Puxar por rede
+    continua existindo como modo secundário (colapsado em <details>).
+    Drill real no smoke: sobe um 3º servidor (SERVER_ID=3), exporta pela
+    rota, MATA o servidor de origem e importa só com o arquivo — prova
+    exatamente o cenário que a rede não cobria.
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 

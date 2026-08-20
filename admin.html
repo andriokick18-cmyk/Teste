@@ -7288,12 +7288,22 @@ async function loadSettings(){
            conflito: vence a conta criada por último, mas dias VIP pagos +
            diamantes + envios + anti-duplicado são SOMADOS. Idempotente. -->
       <div style="border-top:1px solid var(--border2);padding-top:14px;margin-top:4px">
-        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:4px">🚚 Fusão de Servidores (migração pro OAuth novo)</div>
-        <div style="font-size:11px;color:var(--t3);line-height:1.55;margin-bottom:10px">Puxa TODOS os dados de um servidor-irmão pra cá: contas, dias de VIP, diamantes, envios, anti-duplicado, currículos PDF, pedidos com comprovante, caixa, códigos e avaliações. <strong>Backup completo automático antes de começar.</strong> E-mail repetido nos dois: vence a conta criada por último, mas dias pagos/diamantes/envios são <strong>somados</strong> — ninguém perde nada. Pode rodar de novo sem medo: o que já foi fundido não soma duas vezes. <strong>Rode isto no servidor que vai SOBREVIVER</strong> (o do OAuth novo), com os irmãos ainda no ar.</div>
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:4px">📦 Migração de Servidores por ARQUIVO (reset do OAuth)</div>
+        <div style="font-size:11px;color:var(--t3);line-height:1.55;margin-bottom:10px"><strong>Passo 1 — no Servidor 2 e no Servidor 3:</strong> entre neste mesmo painel lá e clique <em>⬇️ Baixar arquivo completo</em> (o arquivo desce pro seu aparelho com TUDO: contas, dias de VIP, diamantes, envios, anti-duplicado, currículos PDF, pedidos com comprovante, caixa, códigos e avaliações). <strong>Passo 2 — aqui no Servidor 1:</strong> escolha o arquivo baixado e clique <em>⬆️ Importar</em>. <strong>Backup completo automático antes de importar.</strong> E-mail repetido nos dois: vence a conta criada por último, mas dias pagos/diamantes/envios são <strong>somados</strong> — ninguém perde nada. Importar o mesmo arquivo 2x não duplica nada. Funciona <strong>sem</strong> os dois servidores precisarem estar no ar ao mesmo tempo.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-          <button type="button" class="btn btn-amber btn-sm" id="fusao-btn-2" onclick="fusaoPuxar(2)"><i class="ti ti-truck"></i> Puxar Servidor 2</button>
-          <button type="button" class="btn btn-amber btn-sm" id="fusao-btn-3" onclick="fusaoPuxar(3)"><i class="ti ti-truck"></i> Puxar Servidor 3</button>
+          <button type="button" class="btn btn-amber btn-sm" id="fusao-btn-export" onclick="fusaoExportar()"><i class="ti ti-download"></i> ⬇️ Baixar arquivo completo DESTE servidor</button>
         </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+          <input type="file" id="fusao-file" accept=".gz,application/gzip" style="font-size:11px;max-width:280px;color:var(--t2)">
+          <button type="button" class="btn btn-amber btn-sm" id="fusao-btn-import" onclick="fusaoImportar()"><i class="ti ti-upload"></i> ⬆️ Importar arquivo aqui</button>
+        </div>
+        <details style="margin-bottom:8px">
+          <summary style="font-size:11px;color:var(--t3);cursor:pointer">Modo antigo: puxar direto pela rede (só funciona com os DOIS servidores no ar e na mesma versão)</summary>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+            <button type="button" class="btn btn-amber btn-sm" id="fusao-btn-2" onclick="fusaoPuxar(2)"><i class="ti ti-truck"></i> Puxar Servidor 2</button>
+            <button type="button" class="btn btn-amber btn-sm" id="fusao-btn-3" onclick="fusaoPuxar(3)"><i class="ti ti-truck"></i> Puxar Servidor 3</button>
+          </div>
+        </details>
         <div id="fusao-result" style="display:none;font-size:11.5px;font-weight:700;margin-bottom:8px"></div>
         <div id="fusao-area" style="display:none">
           <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-bottom:4px"><span id="fusao-pct">0</span><span id="fusao-time">0s</span></div>
@@ -7353,7 +7363,58 @@ async function aikbDel(id){
 
 // ── 🚚 v144: FUSÃO DE SERVIDORES — dispara em background e acompanha com
 // log ao vivo (mesmo padrão comprovado do card de planilhas mensais).
-let _fusaoPoll=null,_fusaoT0=0;
+// 📦 v148: mesmo painel/poll também serve a importação por ARQUIVO.
+let _fusaoPoll=null,_fusaoT0=0,_fusaoBtn=null;
+// 📦 v148: baixa o arquivo completo DESTE servidor (o dono clica no 2 e no 3)
+async function fusaoExportar(){
+  const btn=document.getElementById('fusao-btn-export');
+  const out=document.getElementById('fusao-result');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2"></i> Gerando o arquivo (pode levar 1-2 min)...';}
+  if(out)out.style.display='none';
+  try{
+    const r=await fetch('/api/admin/fusao/exportar',{credentials:'include'});
+    if(!r.ok){let m='HTTP '+r.status;try{m=(await r.json()).error||m;}catch(e){}throw new Error(m);}
+    const nUsers=r.headers.get('x-fusao-users')||'?',nPed=r.headers.get('x-fusao-pedidos')||'?',sid=r.headers.get('x-fusao-server')||'?';
+    const blob=await r.blob();
+    const cd=r.headers.get('content-disposition')||'';
+    const fname=(cd.match(/filename="([^"]+)"/)||[])[1]||('h2bapply-servidor-'+sid+'-completo.fusao.gz');
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),10000);
+    if(out){out.style.display='block';out.style.color='var(--green)';out.textContent=`✅ Arquivo gerado e baixado: ${fname} · ${(blob.size/1048576).toFixed(1)}MB · ${nUsers} usuário(s) · ${nPed} pedido(s). Agora importe no Servidor 1.`;}
+    toast('📦 Arquivo baixado! Importe no Servidor 1.','ok');
+  }catch(e){
+    if(out){out.style.display='block';out.style.color='var(--red)';out.textContent='❌ '+e.message;}
+    toast('Erro: '+e.message,'err');
+  }
+  if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-download"></i> ⬇️ Baixar arquivo completo DESTE servidor';}
+}
+// 📦 v148: importa o arquivo baixado no outro servidor (o dono clica no 1)
+async function fusaoImportar(){
+  const inp=document.getElementById('fusao-file');
+  const f=inp&&inp.files&&inp.files[0];
+  if(!f){toast('Escolha primeiro o arquivo baixado no outro servidor','r');return;}
+  if(!confirm(`📦 Importar "${f.name}" (${(f.size/1048576).toFixed(1)}MB) pra DENTRO deste servidor?\n\n• Backup completo automático ANTES\n• E-mail repetido: vence a conta mais nova, mas dias VIP/diamantes/envios são SOMADOS\n• Importar o mesmo arquivo de novo depois não duplica nada`))return;
+  const btn=document.getElementById('fusao-btn-import');
+  const out=document.getElementById('fusao-result');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2"></i> Enviando o arquivo...';}
+  if(out)out.style.display='none';
+  try{
+    const buf=await f.arrayBuffer();
+    const r=await fetch('/api/admin/fusao/importar',{method:'POST',credentials:'include',headers:{'Content-Type':'application/gzip'},body:buf});
+    const d=await r.json().catch(()=>null);
+    if(!d?.ok)throw new Error(d?.error||('HTTP '+r.status));
+    const area=document.getElementById('fusao-area');
+    if(area){area.style.display='block';document.getElementById('fusao-log').innerHTML='';}
+    _fusaoT0=Date.now();
+    _fusaoBtn={id:'fusao-btn-import',html:'<i class="ti ti-upload"></i> ⬆️ Importar arquivo aqui'};
+    if(_fusaoPoll)clearInterval(_fusaoPoll);
+    _fusaoPoll=setInterval(fusaoPollTick,2000);
+    fusaoPollTick();
+  }catch(e){
+    if(out){out.style.display='block';out.style.color='var(--red)';out.textContent='❌ '+e.message;}
+    toast('Erro: '+e.message,'err');
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-upload"></i> ⬆️ Importar arquivo aqui';}
+  }
+}
 async function fusaoPuxar(serverId){
   if(!confirm(`🚚 Puxar TUDO do Servidor ${serverId} pra cá?\n\n• Backup completo automático ANTES\n• E-mail repetido: vence a conta mais nova, mas dias VIP/diamantes/envios são SOMADOS\n• Pode rodar de novo depois sem duplicar nada\n\nO Servidor ${serverId} precisa estar NO AR com a versão v144+.`))return;
   const btn=document.getElementById('fusao-btn-'+serverId);
@@ -7371,15 +7432,16 @@ async function fusaoPuxar(serverId){
     const area=document.getElementById('fusao-area');
     if(area){area.style.display='block';document.getElementById('fusao-log').innerHTML='';}
     _fusaoT0=Date.now();
+    _fusaoBtn={id:'fusao-btn-'+serverId,html:`<i class="ti ti-truck"></i> Puxar Servidor ${serverId}`};
     if(_fusaoPoll)clearInterval(_fusaoPoll);
-    _fusaoPoll=setInterval(()=>fusaoPollTick(serverId),2000);
-    fusaoPollTick(serverId);
+    _fusaoPoll=setInterval(fusaoPollTick,2000);
+    fusaoPollTick();
   }catch(e){
     toast(e.message,'err');
     if(btn){btn.disabled=false;btn.innerHTML=`<i class="ti ti-truck"></i> Puxar Servidor ${serverId}`;}
   }
 }
-async function fusaoPollTick(serverId){
+async function fusaoPollTick(){
   try{
     const r=await fetch('/api/admin/fusao/status',{credentials:'include'});
     const d=await r.json();if(!d?.ok)return;
@@ -7392,13 +7454,13 @@ async function fusaoPollTick(serverId){
     if(logEl&&Array.isArray(d.log))logEl.innerHTML=d.log.map(l=>`<div class="log-${l.type||'info'}">${new Date(l.t).toLocaleTimeString('pt-BR')} ${String(l.msg).replace(/</g,'&lt;')}</div>`).join(''),logEl.scrollTop=logEl.scrollHeight;
     if(!d.running&&d.finishedAt){
       clearInterval(_fusaoPoll);_fusaoPoll=null;
-      const btn=document.getElementById('fusao-btn-'+serverId);
-      if(btn){btn.disabled=false;btn.innerHTML=`<i class="ti ti-truck"></i> Puxar Servidor ${serverId}`;}
+      if(_fusaoBtn){const btn=document.getElementById(_fusaoBtn.id);if(btn){btn.disabled=false;btn.innerHTML=_fusaoBtn.html;}_fusaoBtn=null;}
       const out=document.getElementById('fusao-result');
       const rel=d.relatorio||{};
+      const rotulo=d.modo==='arquivo'?'Importação':'Fusão';
       if(out){out.style.display='block';
-        if(d.error){out.style.color='var(--red)';out.textContent='❌ '+d.error;toast('Fusão falhou — veja o log','err');}
-        else{out.style.color='var(--green)';out.textContent=`✅ Fusão concluída: ${rel.novos||0} contas novas · ${rel.fundidos||0} fundidas · ${rel.pedidosImportados||0} pedidos · ${rel.pdfs||0} PDFs · ${(rel.erros||[]).length} erro(s)`;toast('🚚 Fusão concluída!','ok');}
+        if(d.error){out.style.color='var(--red)';out.textContent='❌ '+d.error;toast(rotulo+' falhou — veja o log','err');}
+        else{out.style.color='var(--green)';out.textContent=`✅ ${rotulo} concluída: ${rel.novos||0} contas novas · ${rel.fundidos||0} fundidas · ${rel.pedidosImportados||0} pedidos · ${rel.pdfs||0} PDFs · ${(rel.erros||[]).length} erro(s)`;toast((d.modo==='arquivo'?'📦 Importação':'🚚 Fusão')+' concluída!','ok');}
       }
     }
   }catch(e){}

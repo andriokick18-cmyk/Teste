@@ -1968,6 +1968,148 @@ async function testAuthWatchdogPush() {
     srvB2.kill();
     try { fs.rmSync(DATA_B, { recursive: true, force: true }); } catch {}
 
+    // ═══ 📦 v148: DRILL REAL DA MIGRAÇÃO POR ARQUIVO (dono, 20/08: "já que a
+    // fusão não está dando certo... botão de download de todas as informações
+    // ... e no server um, o importar. Me garanta que agora vai funcionar").
+    // Sobe um TERCEIRO servidor de verdade (SERVER_ID=3), o admin EXPORTA o
+    // arquivo pela rota real, e o servidor principal IMPORTA o arquivo —
+    // sem os dois nunca se falarem por rede. Mesmo motor, mesmas garantias.
+    const PORT_C = FEED_PORT + 2;
+    const DATA_C = fs.mkdtempSync(path.join(os.tmpdir(), "h2b-fusao-c-"));
+    const _cNow = Date.now();
+    fs.writeFileSync(path.join(DATA_C, "users.json"), JSON.stringify({
+      // conta que SÓ existe no C — entra inteira no A via arquivo
+      "fusao.arquivo@test.com": { email: "fusao.arquivo@test.com", name: "Arquivo Fusão", plan: "vipro",
+        created_at: "2026-06-01T00:00:00.000Z", profiles: [],
+        vip: { active: true, plan: "vipro", manualExpires: _cNow + 12 * 86400_000, autoExpires: _cNow + 12 * 86400_000, source: "payment" },
+        diamonds: { real: 4, bonus: 2 },
+        cvs: [{ idx: 9101, name: "CV_Arquivo.pdf", size: 1500, cvType: "resume" }] },
+      // conta que existe NOS DOIS — no C é MAIS VELHA (2026-07-01) que a local
+      // (2026-08-01, vencedora da fusão do B) → local vence, dias/💎 SOMADOS.
+      "fusao.conflito@test.com": { email: "fusao.conflito@test.com", name: "Conflito Velho C", plan: "vip",
+        created_at: "2026-07-01T00:00:00.000Z", profiles: [],
+        vip: { active: true, plan: "vip", manualExpires: _cNow + 3 * 86400_000, autoExpires: _cNow + 2 * 86400_000, source: "payment" },
+        diamonds: { real: 1, bonus: 0 } },
+      // o admin do teste precisa logar no C pra exportar — pré-semeado BEM
+      // antigo pra, na importação, a conta local (mais nova) vencer sem ruído
+      "smoke@test.com": { email: "smoke@test.com", name: "Smoke", plan: "free",
+        created_at: "2020-01-01T00:00:00.000Z", profiles: [], isAdmin: true },
+    }));
+    fs.writeFileSync(path.join(DATA_C, "history.json"), JSON.stringify({
+      "fusao.arquivo@test.com": [{ appId: "app_c_a1", to: "emp4-c@x.com", subject: "x", type: "manual", sentAt: "2026-07-01T12:00:00.000Z", date: "2026-07-01", dateStr: "2026-07-01" }],
+      "fusao.conflito@test.com": [{ appId: "app_c1", to: "emp3-c@x.com", subject: "x", type: "manual", sentAt: "2026-07-02T12:00:00.000Z", date: "2026-07-02", dateStr: "2026-07-02" }],
+    }));
+    fs.mkdirSync(path.join(DATA_C, "cvs"), { recursive: true });
+    fs.writeFileSync(path.join(DATA_C, "cvs", "fusao.arquivo@test.com_9101.pdf"), "%PDF-1.4 curriculo que viaja dentro do arquivo exportado");
+    const _compC64 = Buffer.from("comprovante-pix-arquivo").toString("base64");
+    fs.writeFileSync(path.join(DATA_C, "pedidos.json"), JSON.stringify([
+      { id: "pedC0001", userEmail: "fusao.arquivo@test.com", userName: "Arquivo Fusão", plano: "vipro", dias: 30,
+        valorTotal: 100, status: "ativo", comprovante: _compC64, comprovanteType: "image/jpeg",
+        createdAt: _cNow - 3 * 86400_000, pagoEm: _cNow - 3 * 86400_000, ativadoEm: _cNow - 2 * 86400_000, ativadoPor: "admin" }]));
+    fs.writeFileSync(path.join(DATA_C, "financeiro.json"), JSON.stringify({
+      pagamentos: [{ id: "pgC0001", email: "fusao.arquivo@test.com", nome: "Arquivo Fusão", valor: 100, dataPagamento: "2026-08-14", criadoEm: _cNow - 2 * 86400_000, pedidoId: "pedC0001", source: "pedido_automatico" }], gastos: [] }));
+    const srvC = spawn(process.execPath, ["server.js"], {
+      cwd: __dirname,
+      env: { ...process.env, PORT: String(PORT_C), DATA_DIR: DATA_C, STORAGE: "json", TEST_LOGIN_TOKEN: TEST_TOKEN, DATA_ENC_KEY: "smoke-enc-key-1234567890", DOL_FEED_BASE: `http://127.0.0.1:${FEED_PORT}/feed`, SERVER_ID: "3" },
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+    // mini-jar de cookie próprio pro servidor C (admin logado LÁ pra exportar)
+    let COOKIE_C = "";
+    const _reqC = (method, p, payload) => new Promise((resolve, reject) => {
+      const body = payload ? JSON.stringify(payload) : null;
+      const r = http.request(`http://127.0.0.1:${PORT_C}` + p, { method, headers: {
+        ...(body ? { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) } : {}),
+        ...(COOKIE_C ? { Cookie: COOKIE_C } : {}) } }, (res2) => {
+        const sc = res2.headers["set-cookie"]; if (sc && sc.length) COOKIE_C = sc[0].split(";")[0];
+        let b = ""; res2.on("data", (c) => (b += c));
+        res2.on("end", () => { let j = null; try { j = JSON.parse(b); } catch {} resolve({ status: res2.statusCode, body: b, json: j }); });
+      });
+      r.on("error", reject); if (body) r.write(body); r.end();
+    });
+    const _getBufC = (p) => new Promise((rs) => { http.get({ host: "127.0.0.1", port: PORT_C, path: p, headers: COOKIE_C ? { Cookie: COOKIE_C } : {} }, (r) => { const ch = []; r.on("data", (c) => ch.push(c)); r.on("end", () => rs({ status: r.statusCode, headers: r.headers, buf: Buffer.concat(ch) })); }).on("error", () => rs(null)); });
+    const _getBufA = (p) => new Promise((rs) => { http.get(BASE + p, { headers: COOKIE ? { Cookie: COOKIE } : {} }, (r) => { const ch = []; r.on("data", (c) => ch.push(c)); r.on("end", () => rs({ status: r.statusCode, headers: r.headers, buf: Buffer.concat(ch) })); }).on("error", () => rs(null)); });
+    const _postBinA = (p, buf) => new Promise((rs, rj) => { const r = http.request(BASE + p, { method: "POST", headers: { "Content-Type": "application/gzip", "Content-Length": buf.length, ...(COOKIE ? { Cookie: COOKIE } : {}) } }, (res2) => { let b = ""; res2.on("data", (c) => (b += c)); res2.on("end", () => { let j = null; try { j = JSON.parse(b); } catch {} rs({ status: res2.statusCode, json: j, body: b }); }); }); r.on("error", rj); r.write(buf); r.end(); });
+    const _waitC = async (ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { try { const ok = await new Promise((rs) => { http.get(`http://127.0.0.1:${PORT_C}/api/public-stats`, (r) => { r.resume(); rs(r.statusCode === 200); }).on("error", () => rs(false)); }); if (ok) return true; } catch {} await new Promise((r) => setTimeout(r, 400)); } return false; };
+    check("📦 v148: (setup) Servidor C (SERVER_ID=3) subiu de verdade na porta " + PORT_C, await _waitC(40_000));
+    await _reqC("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", name: "Smoke", isAdmin: true });
+    // EXPORTAR no C: o mesmo clique que o dono vai dar no Servidor 2 e 3
+    const exC = await _getBufC("/api/admin/fusao/exportar");
+    check("📦 v148: EXPORTAR gera o arquivo .gz com os contadores nos headers (3 usuários, 1 pedido, servidor 3)",
+      exC && exC.status === 200 && String(exC.headers["content-type"]).includes("gzip") &&
+      exC.headers["x-fusao-users"] === "3" && exC.headers["x-fusao-pedidos"] === "1" && exC.headers["x-fusao-server"] === "3",
+      JSON.stringify({ status: exC?.status, u: exC?.headers?.["x-fusao-users"], p: exC?.headers?.["x-fusao-pedidos"], s: exC?.headers?.["x-fusao-server"] }));
+    let _exDados = null;
+    try { _exDados = JSON.parse(require("zlib").gunzipSync(exC.buf).toString("utf8")); } catch {}
+    check("📦 v148: o arquivo é JSON gzipado ÍNTEGRO — formato marcado, PDF em base64 a bordo, pedido com comprovante, globais juntos",
+      _exDados && _exDados.fmt === "h2bapply-fusao-arquivo-v1" && _exDados.serverId === 3 &&
+      _exDados.users["fusao.arquivo@test.com"]?.pdfs?.[0]?.b64?.length > 10 &&
+      _exDados.pedidos?.length === 1 && _exDados.pedidos[0].comprovante === _compC64 &&
+      (_exDados.globais?.financeiro?.pagamentos || []).some((p2) => p2.id === "pgC0001") &&
+      !JSON.stringify(_exDados.users).includes("refresh_token"),
+      JSON.stringify({ fmt: _exDados?.fmt, sid: _exDados?.serverId, users: Object.keys(_exDados?.users || {}).length }).slice(0, 160));
+    // IMPORTAR no A: o clique do dono no Servidor 1 (com o C já MORTO —
+    // é exatamente o cenário que a fusão por rede não cobria)
+    srvC.kill();
+    const imp1 = await _postBinA("/api/admin/fusao/importar", exC.buf);
+    check("📦 v148: IMPORTAR aceita o arquivo e dispara em background (modo arquivo, servidor de origem 3)",
+      imp1.json?.ok === true && imp1.json?.started === true && imp1.json?.modo === "arquivo" && imp1.json?.serverId === 3,
+      (imp1.body || "").slice(0, 160));
+    let impSt = null;
+    for (let i = 0; i < 60; i++) { await new Promise((r) => setTimeout(r, 500)); impSt = (await get("/api/admin/fusao/status")).json; if (impSt && !impSt.running && impSt.finishedAt) break; }
+    check("📦 v148: importação TERMINOU sem erro — log completo pro dono conferir (backup antes + tudo gravado)",
+      impSt && impSt.error === null && impSt.relatorio && (impSt.log || []).some((l) => /IMPORTAÇÃO DO SERVIDOR 3 CONCLUÍDA/.test(l.msg)),
+      JSON.stringify({ error: impSt?.error, rel: impSt?.relatorio }).slice(0, 220));
+    const _relC = impSt?.relatorio || {};
+    check("📦 v148: relatório fecha a conta — 1 conta nova, 2 fundidas (conflito + admin), 1 pedido, 1 PDF, 0 erros",
+      _relC.novos === 1 && _relC.fundidos === 2 && _relC.pedidosImportados === 1 && _relC.pdfs >= 1 && (_relC.erros || []).length === 0,
+      JSON.stringify(_relC).slice(0, 260));
+    const finArq = await get("/api/admin/financeiro-usuario/" + encodeURIComponent("fusao.arquivo@test.com"));
+    check("📦 v148: conta exclusiva do C chegou com os dias de VIP EXATOS e o PDF do currículo NO DISCO do principal",
+      finArq.json?.ok === true && finArq.json?.plano?.manual?.diasRestantes >= 11 && finArq.json?.plano?.manual?.diasRestantes <= 12 &&
+      fs.existsSync(path.join(DATA, "cvs", "fusao.arquivo@test.com_9101.pdf")),
+      JSON.stringify({ m: finArq.json?.plano?.manual?.diasRestantes }).slice(0, 100));
+    const pedArq = await get("/api/pedido/pedC0001");
+    check("📦 v148: pedido do C chegou COM o comprovante intacto e marcado com o servidor de origem 3",
+      pedArq.json?.ok !== false && pedArq.json?.pedido?.comprovante === _compC64 && pedArq.json?.pedido?.origemServidor === 3,
+      JSON.stringify({ tem: !!pedArq.json?.pedido?.comprovante, origem: pedArq.json?.pedido?.origemServidor }).slice(0, 100));
+    const finCon3 = await get("/api/admin/financeiro-usuario/" + encodeURIComponent("fusao.conflito@test.com"));
+    const _mDias3 = finCon3.json?.plano?.manual?.diasRestantes;
+    const _uCon3 = (await get("/api/admin/user-detail/" + encodeURIComponent("fusao.conflito@test.com"))).json?.user;
+    check("📦 v148: CONFLITO via arquivo — conta local (mais nova) vence o perfil, mas os 3 dias e o 💎 do C são SOMADOS",
+      _mDias3 >= _mDias + 2 && _mDias3 <= _mDias + 3 && _uCon3?.name === "Conflito Novo" && _uCon3?.diamonds?.real === 8,
+      JSON.stringify({ dias: _mDias3, antes: _mDias, name: _uCon3?.name, real: _uCon3?.diamonds?.real }).slice(0, 140));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "fusao.conflito@test.com", name: "Conflito" });
+    const seC = await get("/api/sent-emails");
+    check("📦 v148: REGRA 8 — anti-duplicado do arquivo UNIDO ao local (emp3-c@x.com bloqueado; 3 envios no total)",
+      (seC.json?.sent || []).includes("emp3-c@x.com") && (await get("/api/status")).json?.totalSent === 3,
+      JSON.stringify(seC.json?.sent).slice(0, 140));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    // IDEMPOTÊNCIA: importar o MESMO arquivo de novo não pode somar nada
+    const imp2 = await _postBinA("/api/admin/fusao/importar", exC.buf);
+    let impSt2 = null;
+    for (let i = 0; i < 40; i++) { await new Promise((r) => setTimeout(r, 400)); impSt2 = (await get("/api/admin/fusao/status")).json; if (impSt2 && !impSt2.running && impSt2.finishedAt) break; }
+    check("📦 v148: IDEMPOTÊNCIA — importar o MESMO arquivo de novo não duplica nada (0 novos, 0 fundidos, dias e 💎 intactos)",
+      imp2.json?.ok === true && impSt2?.relatorio?.novos === 0 && impSt2?.relatorio?.fundidos === 0 &&
+      (await get("/api/admin/financeiro-usuario/" + encodeURIComponent("fusao.conflito@test.com"))).json?.plano?.manual?.diasRestantes === _mDias3 &&
+      (await get("/api/admin/user-detail/" + encodeURIComponent("fusao.conflito@test.com"))).json?.user?.diamonds?.real === 8,
+      JSON.stringify({ rel2: impSt2?.relatorio }).slice(0, 200));
+    const finGlobC = await get("/api/admin/financeiro");
+    check("📦 v148: caixa do C fundido no caixa local SEM duplicar (pagamento pgC0001 presente exatamente 1 vez)",
+      (finGlobC.json?.pagamentos || []).filter((p2) => p2.id === "pgC0001").length === 1,
+      JSON.stringify((finGlobC.json?.pagamentos || []).filter((p2) => p2.id === "pgC0001")).slice(0, 120));
+    // GUARDA: importar um arquivo exportado DESTE MESMO servidor é recusado
+    // (duplicaria dias/diamantes de todo mundo — o erro explica o porquê)
+    const exA = await _getBufA("/api/admin/fusao/exportar");
+    const impSelf = exA && exA.status === 200 ? await _postBinA("/api/admin/fusao/importar", exA.buf) : null;
+    check("📦 v148: GUARDA — arquivo exportado deste MESMO servidor é recusado na importação (senão duplicava tudo)",
+      exA && exA.status === 200 && impSelf && impSelf.status === 400 && /DESTE mesmo servidor/i.test(impSelf.json?.error || ""),
+      JSON.stringify({ ex: exA?.status, imp: impSelf?.status, err: impSelf?.json?.error }).slice(0, 180));
+    const _admHtml = fs.readFileSync(path.join(__dirname, "admin.html"), "utf8");
+    check("📦 v148: (estrutural) painel tem os botões ⬇️ Baixar e ⬆️ Importar e o modo antigo virou secundário",
+      _admHtml.includes('id="fusao-btn-export"') && _admHtml.includes('id="fusao-file"') && _admHtml.includes("fusaoImportar()") && _admHtml.includes("Modo antigo"),
+      "botões da migração por arquivo não encontrados no admin.html");
+    try { fs.rmSync(DATA_C, { recursive: true, force: true }); } catch {}
+
     // ═══ 🙈 v147: servidor OCULTO some do seletor público, mas as rotas
     // internas (fusão) continuam enxergando — "quem entrar no server 1 não
     // terá mais a opção do server 2 e 3" (dono, 15/08).

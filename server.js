@@ -2774,9 +2774,38 @@ setTimeout(()=>{try{
 // duplica dia nem diamante. Backup completo automático ANTES de fundir.
 const FUSAO_FILE=path.join(DATA_DIR,"fusao_state.json");
 let DB_FUSAO={};try{DB_FUSAO=JSON.parse(fs.readFileSync(FUSAO_FILE,"utf8"))||{};}catch{}
-const _fusaoJob={running:false,serverId:null,progress:0,total:0,log:[],startedAt:0,finishedAt:0,error:null,relatorio:null};
+const _fusaoJob={running:false,serverId:null,modo:null,progress:0,total:0,log:[],startedAt:0,finishedAt:0,error:null,relatorio:null};
 function _fLog(msg,type){_fusaoJob.log.push({t:Date.now(),msg:String(msg).slice(0,300),type:type||"info"});if(_fusaoJob.log.length>400)_fusaoJob.log.shift();console.log("[fusão]",msg);}
 function _fusaoTs(v){if(!v)return 0;if(typeof v==="number")return v;const t=Date.parse(v);return isNaN(t)?0:t;}
+// 📦 v148 — FONTE ÚNICA do formato de exportação (usada pelo user-batch peer
+// E pelo arquivo de exportação): se um dia o shape mudar, muda nos 2 juntos.
+// Tokens OAuth NUNCA viajam (morrem com o client antigo mesmo — regra 13u).
+function _fusaoStripTokens(u){
+  if(!u)return u;
+  const c=JSON.parse(JSON.stringify(u));
+  delete c.refresh_token;delete c.access_token;
+  if(Array.isArray(c.senderEmails))c.senderEmails=c.senderEmails.map(se=>{const{refresh_token,access_token,tokens,...rest}=se||{};return rest;});
+  return c;
+}
+function _fusaoUserPayload(em){
+  const u2=DB_USERS[em];if(!u2)return null;
+  const pdfs=[];
+  for(const cvm of (u2.cvs||[])){
+    try{
+      const fp=cvPath(em,cvm.idx);
+      if(fs.existsSync(fp))pdfs.push({idx:cvm.idx,name:cvm.name||"cv.pdf",cvType:cvm.cvType||"resume",b64:fs.readFileSync(fp).toString("base64")});
+    }catch(e){}
+  }
+  return{user:_fusaoStripTokens(u2),hist:DB_HIST[em]||[],sent:[...(DB_SENT[em]||[])],
+    notes:DB_NOTES[em]||{},alerts:DB_ALERTS[em]||[],journey:DB_JOURNEY[em]||[],
+    push:DB_PUSH[em]||[],appIndex:DB_APP_INDEX[em]||{},pdfs};
+}
+function _fusaoGlobaisPayload(){
+  return{financeiro:{pagamentos:DB_FINANCEIRO.pagamentos||[],gastos:DB_FINANCEIRO.gastos||[],
+      repasses:DB_FINANCEIRO.repasses||[],alteracoes:DB_FINANCEIRO.alteracoes||[]},
+    codes:DB_CODES,reviews:DB_REVIEWS,trialUsed:DB_TRIAL_USED,
+    adminAudit:DB_ADMIN_AUDIT.slice(0,2000)};
+}
 // Requisição peer da fusão: timeout LONGO (batches carregam PDFs) e, SÓ em
 // ambiente de teste, aceita http local (produção continua exigindo https).
 function _peerFusaoReq(baseUrl,apiPath,bodyObj){
@@ -2977,39 +3006,105 @@ async function _runFusao(serverId,quem){
     if(!st.globaisDone){
       const gl=await _peerFusaoReq(sv.url,"/api/servers/fusao/globais");
       if(!gl||!gl.ok)throw new Error("globais não respondeu");
-      const addSemDup=(destino,itens,keyFn)=>{const seen=new Set(destino.map(keyFn));let n=0;for(const it of (itens||[])){const k=keyFn(it);if(k&&seen.has(k))continue;seen.add(k);destino.push({...it,origemServidor:serverId});n++;}return n;};
-      DB_FINANCEIRO.pagamentos=DB_FINANCEIRO.pagamentos||[];DB_FINANCEIRO.gastos=DB_FINANCEIRO.gastos||[];DB_FINANCEIRO.repasses=DB_FINANCEIRO.repasses||[];DB_FINANCEIRO.alteracoes=DB_FINANCEIRO.alteracoes||[];
-      rel.financeiro.pagamentos=addSemDup(DB_FINANCEIRO.pagamentos,gl.financeiro.pagamentos,x=>x.id||((x.email||"")+"|"+(x.valor||0)+"|"+(x.dataPagamento||x.data||x.criadoEm||"")));
-      rel.financeiro.gastos=addSemDup(DB_FINANCEIRO.gastos,gl.financeiro.gastos,x=>x.id||((x.descricao||x.nota||"")+"|"+(x.valor||0)+"|"+(x.data||x.criadoEm||"")));
-      rel.financeiro.repasses=addSemDup(DB_FINANCEIRO.repasses,gl.financeiro.repasses,x=>x.id||JSON.stringify(x));
-      DB_FINANCEIRO.alteracoes.push(...(gl.financeiro.alteracoes||[]).map(a=>({...a,origemServidor:serverId})));
-      for(const [code,c] of Object.entries(gl.codes||{})){
-        if(!DB_CODES[code]){DB_CODES[code]={...c,origemServidor:serverId};rel.codes++;}
-        else DB_CODES[code]={...DB_CODES[code],usedBy:[...new Set([...(DB_CODES[code].usedBy||[]),...(c.usedBy||[])])]};
-      }
-      rel.reviews=addSemDup(DB_REVIEWS,gl.reviews,x=>x.id||((x.email||"")+"|"+(x.createdAt||"")));
-      DB_TRIAL_USED.phones={...(gl.trialUsed&&gl.trialUsed.phones||{}),...(DB_TRIAL_USED.phones||{})};
-      DB_TRIAL_USED.ips=(()=>{const o={...(gl.trialUsed&&gl.trialUsed.ips||{})};for(const [k,v] of Object.entries(DB_TRIAL_USED.ips||{}))o[k]=[...new Set([...(o[k]||[]),...(Array.isArray(v)?v:[v])])];return o;})();
-      DB_TRIAL_USED.googleIds={...(gl.trialUsed&&gl.trialUsed.googleIds||{}),...(DB_TRIAL_USED.googleIds||{})};
-      DB_ADMIN_AUDIT.push(...(gl.adminAudit||[]).map(a=>({...a,origemServidor:serverId})));
-      DB_ADMIN_AUDIT.sort((a,b)=>(b.ts||0)-(a.ts||0));if(DB_ADMIN_AUDIT.length>2000)DB_ADMIN_AUDIT.length=2000;
+      _fusaoAplicarGlobais(gl,serverId,rel);
       st.globaisDone=true;
       _fLog(`💰 Globais fundidos: +${rel.financeiro.pagamentos} pagamentos, +${rel.financeiro.gastos} gastos, +${rel.codes} códigos, +${rel.reviews} avaliações`);
     }else _fLog("💰 Globais já tinham sido fundidos antes — pulando (idempotência)");
     _fusaoJob.progress++;
     // Persistência SÍNCRONA de tudo — dado de dinheiro nunca fica só na memória.
     _fLog("💾 Gravando tudo no disco...");
-    const oks=[persist(USERS_FILE,DB_USERS),persist(HIST_FILE,DB_HIST)];
-    persistSent();persistPedidos();persistFinanceiro();persistCodes();persistPush();
-    persist(NOTES_FILE,DB_NOTES);persist(ALERTS_FILE,DB_ALERTS);persist(JOURNEY_FILE,DB_JOURNEY);
-    persist(APPIDX_FILE,DB_APP_INDEX);persist(REVIEWS_FILE,DB_REVIEWS);persist(TRIAL_USED_FILE,DB_TRIAL_USED);
-    persist(ADMIN_AUDIT_FILE,DB_ADMIN_AUDIT);
-    if(oks.includes(false))throw new Error("GRAVAÇÃO NO DISCO FALHOU (disco cheio?) — dados na memória; libere espaço e rode de novo ANTES de reiniciar");
+    _fusaoPersistTudo();
     st.lastRunAt=Date.now();st.relatorio=rel;st.por=quem;
     fs.writeFileSync(FUSAO_FILE,JSON.stringify(DB_FUSAO,null,2));
     _fusaoJob.relatorio=rel;
     _fLog(`✅ FUSÃO DO ${sv.nome} CONCLUÍDA: ${rel.novos} contas novas · ${rel.fundidos} fundidas (conflito) · ${rel.pulados} já feitas antes · ${rel.pedidosImportados} pedidos importados · ${rel.pdfs} PDFs gravados · ${rel.erros.length} erro(s)`,"ok");
     logAdminAction(quem,"fusao_servidores",("srv"+serverId),null,null,`Fusão do Servidor ${serverId}: ${rel.novos} novos, ${rel.fundidos} fundidos, ${rel.pedidosImportados} pedidos, ${rel.pdfs} PDFs`);
+  }catch(e){
+    _fusaoJob.error=e.message;_fusaoJob.relatorio=rel;
+    _fLog("❌ "+e.message,"error");
+    try{fs.writeFileSync(FUSAO_FILE,JSON.stringify(DB_FUSAO,null,2));}catch{}
+  }
+  _fusaoJob.running=false;_fusaoJob.finishedAt=Date.now();
+}
+// Aplica os GLOBAIS (caixa/códigos/reviews/anti-trial/auditoria) de um irmão —
+// fonte única usada pela fusão por rede E pela importação por arquivo (v148).
+function _fusaoAplicarGlobais(gl,serverId,rel){
+  const addSemDup=(destino,itens,keyFn)=>{const seen=new Set(destino.map(keyFn));let n=0;for(const it of (itens||[])){const k=keyFn(it);if(k&&seen.has(k))continue;seen.add(k);destino.push({...it,origemServidor:serverId});n++;}return n;};
+  DB_FINANCEIRO.pagamentos=DB_FINANCEIRO.pagamentos||[];DB_FINANCEIRO.gastos=DB_FINANCEIRO.gastos||[];DB_FINANCEIRO.repasses=DB_FINANCEIRO.repasses||[];DB_FINANCEIRO.alteracoes=DB_FINANCEIRO.alteracoes||[];
+  rel.financeiro.pagamentos=addSemDup(DB_FINANCEIRO.pagamentos,gl.financeiro&&gl.financeiro.pagamentos,x=>x.id||((x.email||"")+"|"+(x.valor||0)+"|"+(x.dataPagamento||x.data||x.criadoEm||"")));
+  rel.financeiro.gastos=addSemDup(DB_FINANCEIRO.gastos,gl.financeiro&&gl.financeiro.gastos,x=>x.id||((x.descricao||x.nota||"")+"|"+(x.valor||0)+"|"+(x.data||x.criadoEm||"")));
+  rel.financeiro.repasses=addSemDup(DB_FINANCEIRO.repasses,gl.financeiro&&gl.financeiro.repasses,x=>x.id||JSON.stringify(x));
+  DB_FINANCEIRO.alteracoes.push(...((gl.financeiro&&gl.financeiro.alteracoes)||[]).map(a=>({...a,origemServidor:serverId})));
+  for(const [code,c] of Object.entries(gl.codes||{})){
+    if(!DB_CODES[code]){DB_CODES[code]={...c,origemServidor:serverId};rel.codes++;}
+    else DB_CODES[code]={...DB_CODES[code],usedBy:[...new Set([...(DB_CODES[code].usedBy||[]),...(c.usedBy||[])])]};
+  }
+  rel.reviews=addSemDup(DB_REVIEWS,gl.reviews,x=>x.id||((x.email||"")+"|"+(x.createdAt||"")));
+  DB_TRIAL_USED.phones={...(gl.trialUsed&&gl.trialUsed.phones||{}),...(DB_TRIAL_USED.phones||{})};
+  DB_TRIAL_USED.ips=(()=>{const o={...(gl.trialUsed&&gl.trialUsed.ips||{})};for(const [k,v] of Object.entries(DB_TRIAL_USED.ips||{}))o[k]=[...new Set([...(o[k]||[]),...(Array.isArray(v)?v:[v])])];return o;})();
+  DB_TRIAL_USED.googleIds={...(gl.trialUsed&&gl.trialUsed.googleIds||{}),...(DB_TRIAL_USED.googleIds||{})};
+  DB_ADMIN_AUDIT.push(...(gl.adminAudit||[]).map(a=>({...a,origemServidor:serverId})));
+  DB_ADMIN_AUDIT.sort((a,b)=>(b.ts||0)-(a.ts||0));if(DB_ADMIN_AUDIT.length>2000)DB_ADMIN_AUDIT.length=2000;
+}
+// Persistência SÍNCRONA de tudo que a fusão toca — dado de dinheiro nunca
+// fica só na memória. Lança erro se a gravação principal falhar (disco cheio).
+function _fusaoPersistTudo(){
+  const oks=[persist(USERS_FILE,DB_USERS),persist(HIST_FILE,DB_HIST)];
+  persistSent();persistPedidos();persistFinanceiro();persistCodes();persistPush();
+  persist(NOTES_FILE,DB_NOTES);persist(ALERTS_FILE,DB_ALERTS);persist(JOURNEY_FILE,DB_JOURNEY);
+  persist(APPIDX_FILE,DB_APP_INDEX);persist(REVIEWS_FILE,DB_REVIEWS);persist(TRIAL_USED_FILE,DB_TRIAL_USED);
+  persist(ADMIN_AUDIT_FILE,DB_ADMIN_AUDIT);
+  if(oks.includes(false))throw new Error("GRAVAÇÃO NO DISCO FALHOU (disco cheio?) — dados na memória; libere espaço e rode de novo ANTES de reiniciar");
+}
+// 📦 v148 (dono, 20/08/2026 — "já que a fusão não está dando certo... botão
+// de download de todas as informações... e no server 1 o importar"): mesma
+// fusão, mas a FONTE é um ARQUIVO exportado pelo admin no servidor de origem
+// (não depende dos dois servidores estarem no ar ao mesmo tempo). A regra de
+// conflito, a idempotência (fusao_state por servidor de origem) e o backup
+// prévio são EXATAMENTE os mesmos da fusão por rede — funções compartilhadas.
+async function _runFusaoArquivo(dados,quem){
+  const serverId=dados.serverId;
+  const st=DB_FUSAO["srv"+serverId]=DB_FUSAO["srv"+serverId]||{doneEmails:{},donePedidos:{},globaisDone:false};
+  const rel={novos:0,fundidos:0,pulados:0,conflitos:[],pedidosImportados:0,pedidosPulados:0,pdfs:0,erros:[],
+    financeiro:{pagamentos:0,gastos:0,repasses:0},codes:0,reviews:0};
+  try{
+    _fLog(`🗄️ Backup completo do Servidor local ANTES de importar...`);
+    const bk=criarBackupCompleto();
+    if(!bk||bk.ok===false)throw new Error("backup pré-importação falhou: "+(bk&&bk.error||"?")+" — importação ABORTADA (regra: nunca fundir sem ter como voltar)");
+    const usersObj=dados.users||{};
+    const todosEmails=Object.keys(usersObj);
+    const emailsPend=todosEmails.filter(e2=>!st.doneEmails[e2]);
+    const pedidos=Array.isArray(dados.pedidos)?dados.pedidos:[];
+    const pedidosPend=pedidos.filter(pd=>pd&&pd.id&&!st.donePedidos[pd.id]);
+    _fusaoJob.total=emailsPend.length+pedidosPend.length+1;
+    rel.pulados=todosEmails.length-emailsPend.length;
+    rel.pedidosPulados=pedidos.length-pedidosPend.length;
+    _fLog(`📦 Arquivo do Servidor ${serverId} (exportado em ${dados.exportadoEm?new Date(dados.exportadoEm).toLocaleString("pt-BR"):"?"}): ${todosEmails.length} usuário(s) (${emailsPend.length} pendentes) · ${pedidos.length} pedido(s) (${pedidosPend.length} pendentes)`);
+    for(const em of emailsPend){
+      try{_fundirUsuario(em,usersObj[em],serverId,rel);st.doneEmails[em]=Date.now();}
+      catch(e){rel.erros.push(em+": "+e.message);_fLog(`⚠️ ${em}: ${e.message}`,"warn");}
+      _fusaoJob.progress++;
+    }
+    if(emailsPend.length)_fLog(`👤 ${emailsPend.length}/${emailsPend.length} usuários processados`);
+    for(const pd of pedidosPend){
+      if(DB_PEDIDOS.some(x=>x.id===pd.id)){st.donePedidos[pd.id]=1;_fusaoJob.progress++;continue;}
+      DB_PEDIDOS.push({...pd,origemServidor:serverId});
+      st.donePedidos[pd.id]=1;rel.pedidosImportados++;_fusaoJob.progress++;
+    }
+    if(pedidosPend.length)_fLog(`🧾 ${pedidosPend.length}/${pedidosPend.length} pedidos processados`);
+    if(!st.globaisDone){
+      _fusaoAplicarGlobais(dados.globais||{},serverId,rel);
+      st.globaisDone=true;
+      _fLog(`💰 Globais fundidos: +${rel.financeiro.pagamentos} pagamentos, +${rel.financeiro.gastos} gastos, +${rel.codes} códigos, +${rel.reviews} avaliações`);
+    }else _fLog("💰 Globais já tinham sido fundidos antes — pulando (idempotência)");
+    _fusaoJob.progress++;
+    _fLog("💾 Gravando tudo no disco...");
+    _fusaoPersistTudo();
+    st.lastRunAt=Date.now();st.relatorio=rel;st.por=quem;
+    fs.writeFileSync(FUSAO_FILE,JSON.stringify(DB_FUSAO,null,2));
+    _fusaoJob.relatorio=rel;
+    _fLog(`✅ IMPORTAÇÃO DO SERVIDOR ${serverId} CONCLUÍDA: ${rel.novos} contas novas · ${rel.fundidos} fundidas (conflito) · ${rel.pulados} já feitas antes · ${rel.pedidosImportados} pedidos importados · ${rel.pdfs} PDFs gravados · ${rel.erros.length} erro(s)`,"ok");
+    logAdminAction(quem,"fusao_importar_arquivo",("srv"+serverId),null,null,`Importação por arquivo do Servidor ${serverId}: ${rel.novos} novos, ${rel.fundidos} fundidos, ${rel.pedidosImportados} pedidos, ${rel.pdfs} PDFs`);
   }catch(e){
     _fusaoJob.error=e.message;_fusaoJob.relatorio=rel;
     _fLog("❌ "+e.message,"error");
@@ -15796,13 +15891,6 @@ Responda APENAS em JSON (sem markdown):
     const b=crypto.createHash("sha256").update(tok).digest();
     return crypto.timingSafeEqual(a,b);
   };
-  const _stripTokens=(u)=>{
-    if(!u)return u;
-    const c=JSON.parse(JSON.stringify(u));
-    delete c.refresh_token;delete c.access_token;
-    if(Array.isArray(c.senderEmails))c.senderEmails=c.senderEmails.map(se=>{const{refresh_token,access_token,tokens,...rest}=se||{};return rest;});
-    return c;
-  };
   if(pathname==="/api/servers/fusao/manifest"&&req.method==="GET"){
     if(!_fusaoPeerAuth())return json(res,403,{error:"não autorizado"});
     const emails=Object.keys(DB_USERS).sort();
@@ -15818,28 +15906,15 @@ Responda APENAS em JSON (sem markdown):
       const emails=(Array.isArray(d.emails)?d.emails:[]).slice(0,10).map(e2=>String(e2).toLowerCase().trim());
       const out={};
       for(const em of emails){
-        const u2=DB_USERS[em];if(!u2)continue;
-        const pdfs=[];
-        for(const cvm of (u2.cvs||[])){
-          try{
-            const fp=cvPath(em,cvm.idx);
-            if(fs.existsSync(fp))pdfs.push({idx:cvm.idx,name:cvm.name||"cv.pdf",cvType:cvm.cvType||"resume",b64:fs.readFileSync(fp).toString("base64")});
-          }catch(e){}
-        }
-        out[em]={user:_stripTokens(u2),hist:DB_HIST[em]||[],sent:[...(DB_SENT[em]||[])],
-          notes:DB_NOTES[em]||{},alerts:DB_ALERTS[em]||[],journey:DB_JOURNEY[em]||[],
-          push:DB_PUSH[em]||[],appIndex:DB_APP_INDEX[em]||{},pdfs};
+        const pl=_fusaoUserPayload(em);
+        if(pl)out[em]=pl;
       }
       return json(res,200,{ok:true,users:out});
     }catch(e){return json(res,500,{ok:false,error:e.message});}
   }
   if(pathname==="/api/servers/fusao/globais"&&req.method==="GET"){
     if(!_fusaoPeerAuth())return json(res,403,{error:"não autorizado"});
-    return json(res,200,{ok:true,
-      financeiro:{pagamentos:DB_FINANCEIRO.pagamentos||[],gastos:DB_FINANCEIRO.gastos||[],
-        repasses:DB_FINANCEIRO.repasses||[],alteracoes:DB_FINANCEIRO.alteracoes||[]},
-      codes:DB_CODES,reviews:DB_REVIEWS,trialUsed:DB_TRIAL_USED,
-      adminAudit:DB_ADMIN_AUDIT.slice(0,2000)});
+    return json(res,200,{ok:true,..._fusaoGlobaisPayload()});
   }
   if(pathname==="/api/servers/fusao/pedidos-batch"&&req.method==="POST"){
     if(!_fusaoPeerAuth())return json(res,403,{error:"não autorizado"});
@@ -15880,7 +15955,7 @@ Responda APENAS em JSON (sem markdown):
       if(![1,2,3].includes(serverId))return json(res,400,{error:"serverId inválido (2 ou 3)."});
       if(serverId===_resolveServerId(req))return json(res,400,{error:"Não dá pra fundir um servidor com ele mesmo."});
       if(_fusaoJob.running)return json(res,409,{error:"Uma fusão já está rodando — acompanhe pelo log.",running:true});
-      _fusaoJob.running=true;_fusaoJob.serverId=serverId;_fusaoJob.progress=0;_fusaoJob.total=0;
+      _fusaoJob.running=true;_fusaoJob.serverId=serverId;_fusaoJob.modo="puxar";_fusaoJob.progress=0;_fusaoJob.total=0;
       _fusaoJob.log=[];_fusaoJob.startedAt=Date.now();_fusaoJob.finishedAt=0;_fusaoJob.error=null;_fusaoJob.relatorio=null;
       _runFusao(serverId,s.user_email).catch(e=>{_fusaoJob.error=e.message;_fusaoJob.running=false;_fusaoJob.finishedAt=Date.now();});
       return json(res,200,{ok:true,started:true,serverId});
@@ -15890,6 +15965,71 @@ Responda APENAS em JSON (sem markdown):
     const s=getSess(req);const adm=s?.user_email?getUser(s.user_email):null;
     if(!(adm?.isAdmin||isAdminEmail(s?.user_email||"")))return json(res,403,{error:"Só admin."});
     return json(res,200,{ok:true,..._fusaoJob,state:Object.fromEntries(Object.entries(DB_FUSAO).map(([k,v])=>[k,{feitos:Object.keys(v.doneEmails||{}).length,pedidosFeitos:Object.keys(v.donePedidos||{}).length,globaisDone:!!v.globaisDone,lastRunAt:v.lastRunAt||0,relatorio:v.relatorio||null}]))});
+  }
+  // ══ 📦 v148 — MIGRAÇÃO POR ARQUIVO (dono, 20/08/2026: "já que a fusão não
+  // está dando certo... um botão de download de todas as informações... vou no
+  // server dois, baixo o documento completo... no server um, o importar").
+  // EXPORTAR: roda no servidor de ORIGEM (2/3), logado como admin. Gera UM
+  // arquivo .gz com TUDO: contas (sem tokens OAuth — regra 13u), histórico,
+  // anti-duplicado, PDFs dos currículos, pedidos com comprovante e globais.
+  // Escrito em stream, um usuário por vez — memória controlada.
+  if(pathname==="/api/admin/fusao/exportar"&&req.method==="GET"){
+    const s=getSess(req);const adm=s?.user_email?getUser(s.user_email):null;
+    if(!(adm?.isAdmin||isAdminEmail(s?.user_email||"")))return json(res,403,{error:"Só admin."});
+    try{
+      const selfId=_resolveServerId(req);
+      const emails=Object.keys(DB_USERS).sort();
+      const stamp=new Date().toISOString().slice(0,10);
+      res.writeHead(200,{"Content-Type":"application/gzip",
+        "Content-Disposition":`attachment; filename="h2bapply-servidor-${selfId}-completo-${stamp}.fusao.gz"`,
+        "x-fusao-server":String(selfId),"x-fusao-users":String(emails.length),"x-fusao-pedidos":String(DB_PEDIDOS.length),
+        "Cache-Control":"no-store"});
+      const gz=zlib.createGzip({level:6});gz.pipe(res);
+      const w=(str)=>new Promise(r2=>{gz.write(str)?r2():gz.once("drain",r2);});
+      await w(`{"fmt":"h2bapply-fusao-arquivo-v1","serverId":${selfId},"exportadoEm":${Date.now()},"counts":${JSON.stringify({users:emails.length,pedidos:DB_PEDIDOS.length,pagamentos:(DB_FINANCEIRO.pagamentos||[]).length,codes:Object.keys(DB_CODES).length,reviews:DB_REVIEWS.length})},"users":{`);
+      let primeiro=true;
+      for(const em of emails){
+        const pl=_fusaoUserPayload(em);if(!pl)continue;
+        await w((primeiro?"":",")+JSON.stringify(em)+":"+JSON.stringify(pl));
+        primeiro=false;
+      }
+      await w(`},"pedidos":[`);
+      for(let i=0;i<DB_PEDIDOS.length;i++)await w((i>0?",":"")+JSON.stringify(DB_PEDIDOS[i]));
+      await w(`],"globais":${JSON.stringify(_fusaoGlobaisPayload())}}`);
+      gz.end();
+      logAdminAction(s.user_email,"fusao_exportar_arquivo",("srv"+selfId),null,null,`Exportou arquivo completo do Servidor ${selfId}: ${emails.length} usuários, ${DB_PEDIDOS.length} pedidos`);
+      return;
+    }catch(e){
+      // Se os headers já saíram, só encerra a conexão; senão devolve JSON.
+      if(!res.headersSent)return json(res,500,{error:e.message});
+      try{res.end();}catch{}
+      return;
+    }
+  }
+  // IMPORTAR: roda no servidor de DESTINO (1). Recebe o arquivo, valida o
+  // formato e o servidor de origem, e roda o MESMO motor de fusão em
+  // background (backup antes, idempotente, log ao vivo no mesmo painel).
+  if(pathname==="/api/admin/fusao/importar"&&req.method==="POST"){
+    const s=getSess(req);const adm=s?.user_email?getUser(s.user_email):null;
+    if(!(adm?.isAdmin||isAdminEmail(s?.user_email||"")))return json(res,403,{error:"Só admin."});
+    try{
+      if(_fusaoJob.running)return json(res,409,{error:"Uma fusão/importação já está rodando — acompanhe pelo log.",running:true});
+      // corpo BINÁRIO (gzip) com leitor próprio — o teto padrão do readBody
+      // (50MB) é pouco pra um servidor inteiro com PDFs e comprovantes.
+      const buf=await new Promise((rs,rj)=>{const p=[];let sz=0;req.on("data",c=>{sz+=c.length;if(sz>300*1024*1024){rj(new Error("Arquivo grande demais (máx 300MB)"));try{req.destroy();}catch{}return;}p.push(c);});req.on("end",()=>rs(Buffer.concat(p)));req.on("error",rj);});
+      let txt;
+      try{txt=zlib.gunzipSync(buf).toString("utf8");}catch{txt=buf.toString("utf8");}
+      let dados;try{dados=JSON.parse(txt);}catch{return json(res,400,{error:"Arquivo inválido — não parece um arquivo de exportação do H2BApply. Baixe de novo no servidor de origem (botão ⬇️) e importe sem abrir/editar."});}
+      if(dados.fmt!=="h2bapply-fusao-arquivo-v1")return json(res,400,{error:"Formato desconhecido — use exatamente o arquivo gerado pelo botão ⬇️ Baixar do painel do servidor de origem."});
+      const serverId=parseInt(dados.serverId,10)||0;
+      if(![1,2,3].includes(serverId))return json(res,400,{error:"Arquivo sem identificação válida do servidor de origem."});
+      if(serverId===_resolveServerId(req))return json(res,400,{error:`Esse arquivo foi exportado DESTE mesmo servidor (${serverId}) — importar aqui duplicaria tudo. Baixe o arquivo no Servidor 2 ou 3 e importe aqui no que vai sobreviver.`});
+      _fusaoJob.running=true;_fusaoJob.serverId=serverId;_fusaoJob.modo="arquivo";_fusaoJob.progress=0;_fusaoJob.total=0;
+      _fusaoJob.log=[];_fusaoJob.startedAt=Date.now();_fusaoJob.finishedAt=0;_fusaoJob.error=null;_fusaoJob.relatorio=null;
+      _runFusaoArquivo(dados,s.user_email).catch(e=>{_fusaoJob.error=e.message;_fusaoJob.running=false;_fusaoJob.finishedAt=Date.now();});
+      return json(res,200,{ok:true,started:true,serverId,modo:"arquivo",
+        users:Object.keys(dados.users||{}).length,pedidos:(dados.pedidos||[]).length});
+    }catch(e){return json(res,500,{error:e.message});}
   }
   if(pathname==="/api/servers"&&req.method==="GET"){
     const _selfId=_resolveServerId(req);
