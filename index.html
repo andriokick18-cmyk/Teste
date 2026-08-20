@@ -2648,6 +2648,18 @@ html.no-ti .ti-x::before{content:"✕"}html.no-ti .ti-send::before{content:"📤
     </div>
   </section>
 
+  <!-- ✅ v145: transparência do uso da conta Google — requisito da
+       verificação OAuth (a homepage precisa explicar POR QUE o app pede o
+       escopo, com link visível pra política de privacidade). Também é o
+       que o revisor do Google procura ao abrir h2bapply.com. -->
+  <section style="background:linear-gradient(135deg,#0d1530,#0a1024);border-top:1px solid rgba(59,130,246,.2);padding:28px 20px">
+    <div style="max-width:760px;margin:0 auto;text-align:center">
+      <div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:10px">🔒 <span data-i18n="gu_t">Como o H2BApply usa sua conta Google</span></div>
+      <div style="font-size:13px;color:rgba(255,255,255,.65);line-height:1.7;margin-bottom:12px" data-i18n="gu_b">Pedimos <strong>uma única permissão</strong> do Google: enviar e-mails pelo seu Gmail (<code style="background:rgba(255,255,255,.08);padding:1px 6px;border-radius:5px">gmail.send</code>) — usada exclusivamente para enviar as candidaturas de emprego que <strong>você mesmo escreve e autoriza</strong>. O H2BApply <strong>nunca lê, nunca armazena e nunca acessa sua caixa de entrada</strong>. As respostas dos empregadores chegam direto no seu próprio Gmail. Você pode revogar o acesso a qualquer momento em myaccount.google.com.</div>
+      <a href="/privacidade" target="_blank" rel="noopener noreferrer" style="font-size:12.5px;font-weight:700;color:#60a5fa;text-decoration:none" data-i18n="gu_l">Leia nossa Política de Privacidade completa →</a>
+    </div>
+  </section>
+
   <!-- ── FOOTER DA LANDING ── -->
   <footer class="ln-footer">
     <div class="ln-footer-inner">

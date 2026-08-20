@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v106"; // v106 (15/08): 🚚 v144 — Fusão de Servidores (reset do OAuth): o Servidor 1 puxa TUDO dos irmãos antes de desligá-los (contas, dias VIP somados no conflito, diamantes, envios, anti-duplicado, PDFs, pedidos com comprovante, caixa) — drill REAL de 2 servidores no teste. + 📢 banner do aviso de reset na landing (toggle do admin). index.html/app.js/admin.html mudaram.
+const CACHE_NAME = "h2bapply-v107"; // v107 (15/08): ✅ v145 — Site pronto pra verificação OAuth do Google: seção "Como o H2BApply usa sua conta Google" na landing (transparência do gmail.send, requisito da homepage) + GUIA_VERIFICACAO_GOOGLE.txt com o passo a passo completo (Search Console, consent screen sem logo, roteiro do vídeo, justificativa de escopo pronta). index.html/app.js mudaram.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
