@@ -497,8 +497,17 @@ function agRedirect(url,msg){
   const dest=url+(url.includes("?")?"&":"?")+"entrar=1";
   setTimeout(()=>{window.location.href=dest;},900);
 }
-function openServerSelect(){
+// 🙈 v147 (fusão dos servidores): quando só existe 1 servidor visível
+// (os outros foram marcados "oculto" no admin), o seletor NEM ABRE — quem
+// clica em qualquer "🌐 Ver servidores" cai direto no fluxo de entrada do
+// servidor único. Ninguém mais escolhe o 2 ou o 3.
+async function openServerSelect(){
   const ov=g("#srv-select-ov"); if(!ov) return;
+  try{
+    if(!_srvData){const r=await fetch("/api/servers",{credentials:"include"});if(r.ok)_srvData=await r.json();}
+  }catch(e){}
+  const vis=(_srvData&&_srvData.servers)||[];
+  if(vis.length<=1){openAuthGate('choice');return;}
   ov.classList.add("open");
   loadServers();
 }
@@ -5729,6 +5738,9 @@ async function loadPublicStats(){
     // 📢 v144: aviso do reset de login (OAuth novo) — o admin liga na virada
     const _rst=document.getElementById("aviso-reset-banner");
     if(_rst)_rst.style.display=d.avisoResetLogin?"block":"none";
+    // 🙈 v147: só 1 servidor visível → a pill 🌐 some (ninguém escolhe mais)
+    const _sp=document.getElementById("srv-pill-btn");
+    if(_sp&&typeof d.serversVisiveis==="number")_sp.style.display=d.serversVisiveis<=1?"none":"inline-flex";
     // ── Landing rank preview ──
     const prev=document.getElementById("ln-rank-preview");
     if(prev&&d.rankPreview&&d.rankPreview.length){

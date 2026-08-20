@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v107"; // v107 (15/08): ✅ v145 — Site pronto pra verificação OAuth do Google: seção "Como o H2BApply usa sua conta Google" na landing (transparência do gmail.send, requisito da homepage) + GUIA_VERIFICACAO_GOOGLE.txt com o passo a passo completo (Search Console, consent screen sem logo, roteiro do vídeo, justificativa de escopo pronta). index.html/app.js mudaram.
+const CACHE_NAME = "h2bapply-v108"; // v108 (15/08): 🙈 v147 — status "oculto" por servidor: some do seletor público e da pill 🌐 (todo mundo forçado pro Servidor 1 pós-fusão), mas as rotas internas (fusão/peers) continuam enxergando a URL. openServerSelect pula o seletor quando só há 1 visível. index.html/app.js mudaram.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

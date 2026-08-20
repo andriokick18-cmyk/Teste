@@ -7271,7 +7271,7 @@ async function loadSettings(){
         <div id="cfg-servers-rows">${(Array.isArray(s.servers)&&s.servers.length?s.servers:[{id:1,nome:'Servidor 1',url:'https://h2bapply.com',maxExibido:50,status:'lotado'},{id:2,nome:'Servidor 2',url:'https://h2b-teste.onrender.com',maxExibido:100,status:'aberto'}]).map((sv,i)=>`
           <div class="cfg-srv-row" data-sid="${parseInt(sv.id)||i+1}" style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:10px;padding:10px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div><label style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:3px">Nome (ID ${parseInt(sv.id)||i+1})</label><input class="form-inp cfg-srv-nome" value="${String(sv.nome||'').replace(/"/g,'&quot;')}" maxlength="40"></div>
-            <div><label style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:3px">Status</label><select class="form-inp cfg-srv-status"><option value="aberto" ${sv.status!=='lotado'?'selected':''}>🟢 Aberto (cadastro liberado)</option><option value="lotado" ${sv.status==='lotado'?'selected':''}>🔴 Lotado (só login)</option></select></div>
+            <div><label style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:3px">Status</label><select class="form-inp cfg-srv-status"><option value="aberto" ${sv.status!=='lotado'&&sv.status!=='oculto'?'selected':''}>🟢 Aberto (cadastro liberado)</option><option value="lotado" ${sv.status==='lotado'?'selected':''}>🔴 Lotado (só login)</option><option value="oculto" ${sv.status==='oculto'?'selected':''}>🙈 Oculto (some do seletor — pós-fusão)</option></select></div>
             <div style="grid-column:1/-1"><label style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:3px">URL</label><input class="form-inp cfg-srv-url" value="${String(sv.url||'').replace(/"/g,'&quot;')}" placeholder="https://..."></div>
             <div><label style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;display:block;margin-bottom:3px">Máx. exibido</label><input class="form-inp cfg-srv-max" type="number" inputmode="decimal" min="1" value="${parseInt(sv.maxExibido)||100}"></div>
           </div>`).join('')}</div>
@@ -7413,7 +7413,7 @@ async function saveSettings(){
     nome:(row.querySelector('.cfg-srv-nome')?.value||'').trim().slice(0,40)||('Servidor '+row.dataset.sid),
     url:(row.querySelector('.cfg-srv-url')?.value||'').trim().replace(/\/+$/,''),
     maxExibido:Math.max(1,parseInt(row.querySelector('.cfg-srv-max')?.value)||100),
-    status:(row.querySelector('.cfg-srv-status')?.value==='lotado')?'lotado':'aberto'
+    status:['lotado','oculto'].includes(row.querySelector('.cfg-srv-status')?.value)?row.querySelector('.cfg-srv-status').value:'aberto' // 🙈 v147
   })).filter(sv=>sv.id>0);
   try{
     const emailNotifEnabled=!!document.getElementById('cfg-email-notif-en')?.checked;

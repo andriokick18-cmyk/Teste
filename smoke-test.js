@@ -1968,6 +1968,22 @@ async function testAuthWatchdogPush() {
     srvB2.kill();
     try { fs.rmSync(DATA_B, { recursive: true, force: true }); } catch {}
 
+    // ═══ 🙈 v147: servidor OCULTO some do seletor público, mas as rotas
+    // internas (fusão) continuam enxergando — "quem entrar no server 1 não
+    // terá mais a opção do server 2 e 3" (dono, 15/08).
+    await req2("POST", "/api/admin/settings", { servers: [
+      { id: 1, nome: "Servidor 1", url: BASE, maxExibido: 100, status: "aberto" },
+      { id: 2, nome: "Servidor 2", url: `http://127.0.0.1:${PORT_B}`, maxExibido: 100, status: "oculto" }] });
+    const svPub = await get("/api/servers");
+    check("🙈 v147: servidor marcado 'oculto' NÃO aparece no seletor público (todo mundo forçado pro Servidor 1)",
+      (svPub.json?.servers || []).length === 1 && svPub.json?.servers?.[0]?.id === 1, JSON.stringify(svPub.json?.servers?.map((s2) => s2.id)));
+    const psSrv = await get("/api/public-stats");
+    check("🙈 v147: public-stats conta 1 servidor visível → a pill 🌐 some da landing",
+      psSrv.json?.serversVisiveis === 1, JSON.stringify({ vis: psSrv.json?.serversVisiveis }));
+    check("🙈 v147: a pill 🌐 da landing tem id pra sumir + openServerSelect pula o seletor com 1 servidor",
+      home.body.includes('id="srv-pill-btn"') && appJs.body.includes("vis.length<=1"),
+      "srv-pill-btn ou pulo do seletor não encontrados");
+
     // 📢 v144: aviso do reset de login — toggle do admin liga o banner público
     await req2("POST", "/api/admin/settings", { avisoResetLogin: true });
     const psAviso = await get("/api/public-stats");

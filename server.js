@@ -15883,7 +15883,9 @@ Responda APENAS em JSON (sem markdown):
   }
   if(pathname==="/api/servers"&&req.method==="GET"){
     const _selfId=_resolveServerId(req);
-    const list=_getServersConfig();
+    // 🙈 v147: servidor "oculto" não existe pro público — só o seletor filtra;
+    // as rotas internas (fusão, financeiro global, ranking) seguem enxergando.
+    const list=_getServersConfig().filter(sv=>sv.status!=="oculto");
     const out=[];
     for(const sv of list){
       let users=null;
@@ -15948,7 +15950,8 @@ Responda APENAS em JSON (sem markdown):
     // Preview do ranking diário para landing page (top 5 sem dados sensíveis)
     const { list: rankPreview } = calcRanking("day", "sends", null);
     const out={totalUsers,vipUsers,todaySent,todayAuto,totalSent,totalAuto,trialEnabled:!!DB_ADMIN_SETTINGS.newUserTrialEnabled,trialDays:1,rankPreview:rankPreview.slice(0,5),
-      avisoResetLogin:!!DB_ADMIN_SETTINGS.avisoResetLogin}; // 📢 v144: aviso do reset de OAuth na landing (toggle do admin)
+      avisoResetLogin:!!DB_ADMIN_SETTINGS.avisoResetLogin, // 📢 v144: aviso do reset de OAuth na landing (toggle do admin)
+      serversVisiveis:_getServersConfig().filter(sv=>sv.status!=="oculto").length}; // 🙈 v147: com 1 só, a pill 🌐 some da landing
     // 🌍 v129 (ORDEM DO DONO, 13/08): a landing mostra o negócio INTEIRO —
     // soma dos 3 servidores. ?local=1 = resposta só local (é o que os irmãos
     // pedem entre si — nunca recursão). Peer fora do ar: fail-open.
@@ -17932,7 +17935,10 @@ function _getServersConfig(){
     nome:String(sv.nome||("Servidor "+sv.id)).slice(0,40),
     url:String(sv.url||"").replace(/\/+$/,""),
     maxExibido:Math.max(1,parseInt(sv.maxExibido)||100),
-    status:(String(sv.status||"aberto").toLowerCase()==="lotado")?"lotado":"aberto"
+    // 🙈 v147 (fusão): "oculto" tira o servidor do SELETOR público (ninguém
+    // mais escolhe o 2/3 — todo mundo é forçado pro 1), mas ele CONTINUA
+    // nesta lista interna — a fusão/peers ainda precisam achar a URL dele.
+    status:["lotado","oculto"].includes(String(sv.status||"aberto").toLowerCase())?String(sv.status).toLowerCase():"aberto"
   })).filter(sv=>sv.id>0);
 }
 // ── V951: IDENTIDADE ÚNICA POR HOST, usada em TODA rota que precisa saber
