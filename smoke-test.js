@@ -134,6 +134,15 @@ users["legadoplano@test.com"] = {
   name: "Legado Plano", plan: "vipro", cvs: [], profiles: [],
   vip: { manualExpires: Date.now() + 20 * 86400_000, autoExpires: Date.now() + 20 * 86400_000, days: 30, source: "pix", active: true },
 };
+// 🚚 v144: lado LOCAL do drill de FUSÃO — conta que TAMBÉM existe no
+// servidor-irmão B (criada lá DEPOIS, então lá é a vencedora). Aqui: conta
+// ANTIGA com 10d de VIP manual pagos, 5 💎 reais e 1 envio (emp1-a@x.com).
+users["fusao.conflito@test.com"] = {
+  email: "fusao.conflito@test.com", name: "Conflito Antigo", plan: "vip",
+  created_at: "2026-01-01T00:00:00.000Z", cvs: [], profiles: [],
+  vip: { active: true, plan: "vip", manualExpires: Date.now() + 10 * 86400_000, autoExpires: 0, source: "payment" },
+  diamonds: { real: 5, bonus: 0 },
+};
 fs.writeFileSync(path.join(DATA, "users.json"), JSON.stringify(users, null, 2));
 // ⏳ v118: histórico com 1 envio manual carimbado AGORA — o teste do cooldown
 // (1 manual/minuto) roda LOGO após o boot, enquanto a janela de 60s do
@@ -158,6 +167,8 @@ fs.writeFileSync(path.join(DATA, "auto_jobs.json"), JSON.stringify({
 const COOLDOWN_FIX_TS = Date.now();
 fs.writeFileSync(path.join(DATA, "history.json"), JSON.stringify({
   "cooldown@test.com": [{ to: "empresa@teste-cooldown.com", subject: "x", type: "manual", sentAt: new Date(COOLDOWN_FIX_TS).toISOString(), date: "hoje" }],
+  // 🚚 v144: envio local do usuário do drill de fusão (DB_SENT reconstrói do hist)
+  "fusao.conflito@test.com": [{ appId: "app_a1", to: "emp1-a@x.com", subject: "x", type: "manual", sentAt: "2026-02-01T12:00:00.000Z", date: "2026-02-01", dateStr: "2026-02-01" }],
 }));
 // PDF órfão no disco (lixo do antigo delete sem unlink) — o sweep deve apagar
 fs.mkdirSync(path.join(DATA, "cvs"), { recursive: true });
@@ -1824,6 +1835,130 @@ async function testAuthWatchdogPush() {
     _exec(`node restaurar_backup_irmao.js "${path.join(DATA, "backups_peers", "srv1", "2026-07-26.json.gz")}" "${_restDir}"`, { cwd: __dirname, stdio: "pipe" });
     const _restOk = fs.existsSync(path.join(_restDir, "financeiro.json")) && fs.readFileSync(path.join(_restDir, "financeiro.json"), "utf8") === '{"pagamentos":[]}';
     check("🗄️ DRILL de restauração: 1 comando devolve os arquivos do pacote intactos", _restOk);
+
+    // ═══ 🚚 v144: DRILL REAL DE FUSÃO DE SERVIDORES (ordem do dono, 15/08) ═══
+    // Não é simulação: sobe um SEGUNDO servidor de verdade (o "Servidor 2"),
+    // com contas, VIP, diamantes, envios, PDF no disco e pedido com
+    // comprovante — e o servidor principal PUXA e FUNDE tudo, exatamente o
+    // clique que o dono vai dar em produção antes de desligar os irmãos.
+    const PORT_B = FEED_PORT + 1;
+    const DATA_B = fs.mkdtempSync(path.join(os.tmpdir(), "h2b-fusao-b-"));
+    const _fNow = Date.now();
+    fs.writeFileSync(path.join(DATA_B, "users.json"), JSON.stringify({
+      // conta que SÓ existe no B — entra inteira no A
+      "fusao.legado@test.com": { email: "fusao.legado@test.com", name: "Legado Fusão", plan: "vipro",
+        created_at: "2026-05-01T00:00:00.000Z", profiles: [],
+        vip: { active: true, plan: "vipro", manualExpires: _fNow + 20 * 86400_000, autoExpires: _fNow + 20 * 86400_000, source: "payment",
+          creditos: [{ id: "credB1", quando: _fNow - 86400_000, dias: 30, tipo: "pago", origem: "pagamento", motivo: "VIPro", dadoPor: "sistema", valor: 150 }] },
+        diamonds: { real: 7, bonus: 3 },
+        cvs: [{ idx: 9001, name: "CV_Legado.pdf", size: 2000, cvType: "resume" }] },
+      // conta que existe NOS DOIS — no B é a MAIS NOVA (2026-08-01), então
+      // o perfil dela VENCE; dias/diamantes/envios do A são SOMADOS.
+      "fusao.conflito@test.com": { email: "fusao.conflito@test.com", name: "Conflito Novo", plan: "vip",
+        created_at: "2026-08-01T00:00:00.000Z", profiles: [],
+        vip: { active: true, plan: "vip", manualExpires: _fNow + 8 * 86400_000, autoExpires: _fNow + 5 * 86400_000, source: "payment" },
+        diamonds: { real: 2, bonus: 1 } },
+    }));
+    fs.writeFileSync(path.join(DATA_B, "history.json"), JSON.stringify({
+      "fusao.legado@test.com": [
+        { appId: "app_b_l1", to: "l1@x.com", subject: "x", type: "manual", sentAt: "2026-06-01T12:00:00.000Z", date: "2026-06-01", dateStr: "2026-06-01" },
+        { appId: "app_b_l2", to: "l2@x.com", subject: "x", type: "auto", sentAt: "2026-06-02T12:00:00.000Z", date: "2026-06-02", dateStr: "2026-06-02" }],
+      "fusao.conflito@test.com": [
+        { appId: "app_b1", to: "emp2-b@x.com", subject: "x", type: "manual", sentAt: "2026-08-02T12:00:00.000Z", date: "2026-08-02", dateStr: "2026-08-02" }],
+    }));
+    fs.mkdirSync(path.join(DATA_B, "cvs"), { recursive: true });
+    fs.writeFileSync(path.join(DATA_B, "cvs", "fusao.legado@test.com_9001.pdf"), "%PDF-1.4 curriculo do legado que nao pode se perder");
+    const _compB64 = Buffer.from("comprovante-pix-fusao").toString("base64");
+    fs.writeFileSync(path.join(DATA_B, "pedidos.json"), JSON.stringify([
+      { id: "pedB0001", userEmail: "fusao.legado@test.com", userName: "Legado Fusão", plano: "vipro", dias: 30,
+        valorTotal: 150, status: "ativo", comprovante: _compB64, comprovanteType: "image/jpeg",
+        createdAt: _fNow - 2 * 86400_000, pagoEm: _fNow - 2 * 86400_000, ativadoEm: _fNow - 86400_000, ativadoPor: "admin" }]));
+    fs.writeFileSync(path.join(DATA_B, "financeiro.json"), JSON.stringify({
+      pagamentos: [{ id: "pgB0001", email: "fusao.legado@test.com", nome: "Legado Fusão", valor: 150, dataPagamento: "2026-08-13", criadoEm: _fNow - 86400_000, pedidoId: "pedB0001", source: "pedido_automatico" }], gastos: [] }));
+    const srvB = spawn(process.execPath, ["server.js"], {
+      cwd: __dirname,
+      env: { ...process.env, PORT: String(PORT_B), DATA_DIR: DATA_B, STORAGE: "json", TEST_LOGIN_TOKEN: TEST_TOKEN, DATA_ENC_KEY: "smoke-enc-key-1234567890", DOL_FEED_BASE: `http://127.0.0.1:${FEED_PORT}/feed` },
+      stdio: ["ignore", "ignore", "ignore"],
+    });
+    const _waitB = async (ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { try { const ok = await new Promise((rs) => { http.get(`http://127.0.0.1:${PORT_B}/api/public-stats`, (r) => { r.resume(); rs(r.statusCode === 200); }).on("error", () => rs(false)); }); if (ok) return true; } catch {} await new Promise((r) => setTimeout(r, 400)); } return false; };
+    check("🚚 v144: (setup) Servidor B subiu de verdade na porta " + PORT_B, await _waitB(40_000));
+    // aponta o "Servidor 2" da config pro B local e dispara a fusão
+    await req2("POST", "/api/admin/settings", { servers: [
+      { id: 1, nome: "Servidor 1", url: BASE, maxExibido: 100, status: "aberto" },
+      { id: 2, nome: "Servidor 2", url: `http://127.0.0.1:${PORT_B}`, maxExibido: 100, status: "aberto" }] });
+    const fu1 = await req2("POST", "/api/admin/fusao/puxar", { serverId: 2 });
+    check("🚚 v144: fusão dispara em background (started:true)", fu1.json?.ok === true && fu1.json?.started === true, fu1.body.slice(0, 140));
+    let fuSt = null;
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      fuSt = (await get("/api/admin/fusao/status")).json;
+      if (fuSt && !fuSt.running && fuSt.finishedAt) break;
+    }
+    check("🚚 v144: fusão TERMINOU sem erro (backup automático antes + tudo gravado no disco)",
+      fuSt && fuSt.error === null && fuSt.relatorio, JSON.stringify({ error: fuSt?.error, rel: fuSt?.relatorio }).slice(0, 220));
+    const _rel = fuSt?.relatorio || {};
+    check("🚚 v144: relatório fecha a conta — 1 conta nova (só existia no B), 1 fundida (conflito), 1 pedido, 1 PDF, 0 erros",
+      _rel.novos === 1 && _rel.fundidos === 1 && _rel.pedidosImportados === 1 && _rel.pdfs >= 1 && (_rel.erros || []).length === 0,
+      JSON.stringify(_rel).slice(0, 260));
+    // A conta que só existia no B entrou INTEIRA: 20d de VIP, 7💎+3💎, PDF no disco
+    const finLeg = await get("/api/admin/financeiro-usuario/" + encodeURIComponent("fusao.legado@test.com"));
+    check("🚚 v144: conta exclusiva do B chegou com os dias de VIP EXATOS (a pessoa loga e já sai mandando)",
+      finLeg.json?.ok === true && finLeg.json?.plano?.manual?.diasRestantes >= 19 && finLeg.json?.plano?.manual?.diasRestantes <= 20 &&
+      finLeg.json?.plano?.auto?.diasRestantes >= 19 && finLeg.json?.creditos?.length >= 1,
+      JSON.stringify({ m: finLeg.json?.plano?.manual?.diasRestantes, a: finLeg.json?.plano?.auto?.diasRestantes }).slice(0, 120));
+    check("🚚 v144: o PDF do currículo veio junto e está NO DISCO do servidor principal",
+      fs.existsSync(path.join(DATA, "cvs", "fusao.legado@test.com_9001.pdf")));
+    const pedFu = await get("/api/pedido/pedB0001");
+    check("🚚 v144: pedido do B chegou COM comprovante aberto (base64 íntegro) e marcado com o servidor de origem",
+      pedFu.json?.ok !== false && pedFu.json?.pedido?.comprovante === _compB64 && pedFu.json?.pedido?.origemServidor === 2,
+      JSON.stringify({ tem: !!pedFu.json?.pedido?.comprovante, origem: pedFu.json?.pedido?.origemServidor }).slice(0, 120));
+    // O CONFLITO: perfil do B vence (mais novo), dias e diamantes SOMADOS
+    const finCon = await get("/api/admin/financeiro-usuario/" + encodeURIComponent("fusao.conflito@test.com"));
+    const _mDias = finCon.json?.plano?.manual?.diasRestantes, _aDias = finCon.json?.plano?.auto?.diasRestantes;
+    check("🚚 v144: CONFLITO DE E-MAIL — dias de VIP SOMADOS (10 locais + 8 do B ≈ 18 manual · 5 auto) — ninguém perde o que pagou",
+      _mDias >= 17 && _mDias <= 18 && _aDias >= 4 && _aDias <= 5, JSON.stringify({ manual: _mDias, auto: _aDias }));
+    const _uCon = (await get("/api/admin/user-detail/" + encodeURIComponent("fusao.conflito@test.com"))).json?.user;
+    check("🚚 v144: CONFLITO — perfil vencedor é o da conta criada por ÚLTIMO (nome do B) e diamantes somados (5+2 reais, 0+1 bônus)",
+      _uCon?.name === "Conflito Novo" && _uCon?.diamonds?.real === 7 && _uCon?.diamonds?.bonus === 1,
+      JSON.stringify({ name: _uCon?.name, d: _uCon?.diamonds }).slice(0, 120));
+    // Regra 8 (a mais sagrada): anti-duplicado UNIDO — nunca reenvia pra
+    // empregador já contatado em QUALQUER um dos servidores.
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "fusao.conflito@test.com", name: "Conflito" });
+    const seFu = await get("/api/sent-emails");
+    check("🚚 v144: REGRA 8 — anti-duplicado dos DOIS servidores unido (emp1-a@x.com E emp2-b@x.com bloqueados)",
+      (seFu.json?.sent || []).includes("emp1-a@x.com") && (seFu.json?.sent || []).includes("emp2-b@x.com"), JSON.stringify(seFu.json?.sent).slice(0, 140));
+    const stFu = await get("/api/status");
+    check("🚚 v144: envios dos dois servidores SOMADOS no histórico/ranking (1 do A + 1 do B = 2)",
+      stFu.json?.totalSent === 2, JSON.stringify({ totalSent: stFu.json?.totalSent }));
+    await req2("POST", "/api/test/login", { token: TEST_TOKEN, email: "smoke@test.com", isAdmin: true });
+    // IDEMPOTÊNCIA: rodar de novo NÃO pode somar dias/diamantes duas vezes
+    const fu2 = await req2("POST", "/api/admin/fusao/puxar", { serverId: 2 });
+    let fuSt2 = null;
+    for (let i = 0; i < 40; i++) { await new Promise((r) => setTimeout(r, 400)); fuSt2 = (await get("/api/admin/fusao/status")).json; if (fuSt2 && !fuSt2.running && fuSt2.finishedAt) break; }
+    const finCon2 = await get("/api/admin/financeiro-usuario/" + encodeURIComponent("fusao.conflito@test.com"));
+    check("🚚 v144: IDEMPOTÊNCIA — rodar a fusão DE NOVO não duplica nada (0 novos, 0 fundidos, dias e 💎 intactos)",
+      fu2.json?.ok === true && fuSt2?.relatorio?.novos === 0 && fuSt2?.relatorio?.fundidos === 0 &&
+      finCon2.json?.plano?.manual?.diasRestantes === _mDias &&
+      (await get("/api/admin/user-detail/" + encodeURIComponent("fusao.conflito@test.com"))).json?.user?.diamonds?.real === 7,
+      JSON.stringify({ rel2: fuSt2?.relatorio, dias: finCon2.json?.plano?.manual?.diasRestantes }).slice(0, 220));
+    // financeiro do B fundido no caixa local
+    const finGlob = await get("/api/admin/financeiro");
+    check("🚚 v144: caixa do B fundido no caixa local (pagamento de R$150 presente, sem duplicar)",
+      (finGlob.json?.pagamentos || []).filter((p2) => p2.id === "pgB0001").length === 1, JSON.stringify((finGlob.json?.pagamentos || []).filter((p2) => p2.id === "pgB0001")).slice(0, 140));
+    srvB.kill();
+    try { fs.rmSync(DATA_B, { recursive: true, force: true }); } catch {}
+
+    // 📢 v144: aviso do reset de login — toggle do admin liga o banner público
+    await req2("POST", "/api/admin/settings", { avisoResetLogin: true });
+    const psAviso = await get("/api/public-stats");
+    check("📢 v144: toggle ligado → /api/public-stats expõe o aviso pra landing (antes do login)",
+      psAviso.json?.avisoResetLogin === true, psAviso.body.slice(0, 120));
+    await req2("POST", "/api/admin/settings", { avisoResetLogin: false });
+    const psAviso2 = await get("/api/public-stats");
+    check("📢 v144: toggle desligado → aviso some", psAviso2.json?.avisoResetLogin === false, psAviso2.body.slice(0, 100));
+    check("📢 v144: banner existe na landing com o texto do dono (data-i18n rst_t/rst_b, 3 línguas)",
+      home.body.includes('id="aviso-reset-banner"') && home.body.includes('data-i18n="rst_b"'),
+      "banner do reset não encontrado no index.html");
 
     // ═══ 🛡️ v73: AQUECIMENTO DE CONTA GMAIL NOVA (proteção anti-bloqueio) ═══
     // Pedido real do dono: "tem gente sendo bloqueada pelo Google". A defesa:

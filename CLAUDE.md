@@ -424,6 +424,29 @@
     servidor não é bug — mas perder o trabalho da pessoa por causa dele
     é, e a correção certa é preservar o rascunho no aparelho, não tentar
     evitar o 401 (ele é intencional).
+13u. **🚚 FUSÃO DE SERVIDORES — reset do OAuth (dono, 15/08/2026)**: o
+    Google limita OAuth não-verificado a 100 usuários; o dono vai criar
+    um OAuth NOVO só no Servidor 1 (h2bapply.com — o domínio que
+    sobrevive) e DESLIGAR o 2 e o 3. Antes disso, o Servidor 1 PUXA tudo
+    dos irmãos: card "🚚 Fusão de Servidores" em Configurações →
+    `/api/admin/fusao/puxar {serverId}` + status/log ao vivo; lado fonte
+    responde `/api/servers/fusao/{manifest,user-batch,globais,
+    pedidos-batch}` (auth peer x-peer-fin, paginado em 5 usuários/10
+    pedidos pra nunca estourar memória — PDFs do disco e comprovantes
+    base64 viajam nos lotes). REGRA DE CONFLITO DE E-MAIL (aprovada pelo
+    dono): vence a conta criada por ÚLTIMO (perfil/nome/currículos dela),
+    MAS dias de VIP restantes + diamantes + envios (union por appId) +
+    anti-duplicado (union — regra 8 nunca falha) + missões + savedJobs
+    são SOMADOS — ninguém perde o que pagou. Backup completo automático
+    ANTES (aborta se falhar); IDEMPOTENTE via `fusao_state.json` (e-mail
+    já fundido nunca soma 2x — provado no teste rodando 2x). Tokens OAuth
+    NUNCA viajam (morrem com o client novo mesmo). Drill REAL no smoke:
+    sobe um segundo servidor de verdade e funde. 📢 Aviso de reset:
+    toggle `avisoResetLogin` (Configurações) liga banner na landing
+    (rst_t/rst_b, 3 línguas) — "nada foi apagado, entre com o MESMO
+    e-mail, conta duplicada = risco de ban dos dois e-mails". A
+    verificação DEFINITIVA do Google (gmail.send é escopo SENSÍVEL →
+    verificação GRATUITA, sem CASA) está no GUIA_VERIFICACAO_GOOGLE.txt.
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 

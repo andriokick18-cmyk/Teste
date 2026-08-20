@@ -2761,6 +2761,253 @@ setTimeout(()=>{try{
   console.log(`[reconciliar] boot: ${r.length} correção(ões)${r.length?" → "+r.map(x=>x.email).join(", "):""}`);
 }catch(e){console.error("[reconciliar] falha no boot:",e.message);}},120_000);
 
+// ══ 🚚 v144 — MOTOR DE FUSÃO DE SERVIDORES (lado PUXADOR, roda no Srv 1) ════
+// Contexto (dono, 15/08/2026): OAuth do Google limita app não-verificado a
+// 100 usuários. O dono cria um OAuth NOVO só pro Servidor 1 e desliga o 2 e
+// o 3 — mas NADA pode se perder: dias de VIP pagos, comprovantes, envios,
+// ranking, diamantes. O Servidor 1 PUXA tudo dos irmãos (paginado, com os
+// PDFs do disco) e FUNDE. Regra de conflito de e-mail APROVADA pelo dono:
+// vence a conta criada por ÚLTIMO (perfil/currículos/textos dela valem),
+// MAS envios + anti-duplicado (regra 8!) + dias de VIP restantes + diamantes
+// + missões são SOMADOS das outras contas. Idempotente: e-mail já fundido
+// daquele servidor não soma de novo (fusao_state.json), então rodar 2x nunca
+// duplica dia nem diamante. Backup completo automático ANTES de fundir.
+const FUSAO_FILE=path.join(DATA_DIR,"fusao_state.json");
+let DB_FUSAO={};try{DB_FUSAO=JSON.parse(fs.readFileSync(FUSAO_FILE,"utf8"))||{};}catch{}
+const _fusaoJob={running:false,serverId:null,progress:0,total:0,log:[],startedAt:0,finishedAt:0,error:null,relatorio:null};
+function _fLog(msg,type){_fusaoJob.log.push({t:Date.now(),msg:String(msg).slice(0,300),type:type||"info"});if(_fusaoJob.log.length>400)_fusaoJob.log.shift();console.log("[fusão]",msg);}
+function _fusaoTs(v){if(!v)return 0;if(typeof v==="number")return v;const t=Date.parse(v);return isNaN(t)?0:t;}
+// Requisição peer da fusão: timeout LONGO (batches carregam PDFs) e, SÓ em
+// ambiente de teste, aceita http local (produção continua exigindo https).
+function _peerFusaoReq(baseUrl,apiPath,bodyObj){
+  return new Promise((resolve)=>{
+    let u2;try{u2=new URL(baseUrl);}catch{return resolve(null);}
+    const ehTeste=!!process.env.TEST_LOGIN_TOKEN;
+    if(u2.protocol!=="https:"&&!ehTeste)return resolve(null);
+    const mod=u2.protocol==="https:"?https:http;
+    const body=bodyObj?JSON.stringify(bodyObj):null;
+    const rq=mod.request({hostname:u2.hostname,port:u2.port||(u2.protocol==="https:"?443:80),
+      path:apiPath,method:body?"POST":"GET",
+      headers:{"Content-Type":"application/json","Accept":"application/json","Accept-Encoding":"gzip",
+        "x-peer-fin":_peerFinToken()||"","User-Agent":"H2BApply-Fusao/"+SERVER_ID,
+        ...(body?{"Content-Length":Buffer.byteLength(body)}:{})}},resp=>{
+      const ch=[];resp.on("data",c=>ch.push(c));
+      resp.on("end",()=>{
+        let buf=Buffer.concat(ch);
+        try{const enc=String(resp.headers["content-encoding"]||"");if(enc.includes("gzip"))buf=zlib.gunzipSync(buf);}catch{}
+        try{resolve(JSON.parse(buf.toString()));}catch{resolve(null);}
+      });
+    });
+    rq.on("error",()=>resolve(null));
+    rq.setTimeout(120_000,()=>{rq.destroy();resolve(null);});
+    if(body)rq.write(body);rq.end();
+  });
+}
+// Restante de VIP em ms, cobrindo o stack novo E o legado (vip.expiresAt).
+function _vipRems(vip){
+  const now=Date.now();const v=vip||{};
+  let remM=Math.max(0,(v.manualExpires||0)-now);
+  let remA=Math.max(0,(v.autoExpires||0)-now);
+  if(v.active&&(v.expiresAt||0)>now){
+    const legado=(v.expiresAt)-now;const pl=String(v.plan||"vip");
+    if(["vip","vipro"].includes(pl))remM=Math.max(remM,legado);
+    if(["pro","vipro","doublepro"].includes(pl))remA=Math.max(remA,legado);
+    if(pl==="doublepro")remM=Math.max(remM,legado);
+  }
+  return{remM,remA};
+}
+// Funde o VIP: datas do vencedor + SOMA do restante do perdedor (dias pagos
+// nunca se perdem); plano final = o de maior tier entre os ativos.
+function _fundirVip(vipW,vipL,srcId){
+  const now=Date.now();
+  const w=vipW||{};const l=vipL||{};
+  const rw=_vipRems(w);const rl=_vipRems(l);
+  const manualExpires=(rw.remM+rl.remM)>0?now+rw.remM+rl.remM:Math.max(w.manualExpires||0,l.manualExpires||0);
+  const autoExpires=(rw.remA+rl.remA)>0?now+rw.remA+rl.remA:Math.max(w.autoExpires||0,l.autoExpires||0);
+  const ativoW=(rw.remM+rw.remA)>0,ativoL=(rl.remM+rl.remA)>0;
+  let plan=w.plan||l.plan||"vip";
+  if(ativoW&&ativoL)plan=(_PLAN_RANK[String(l.plan||"").toLowerCase()]||0)>(_PLAN_RANK[String(w.plan||"").toLowerCase()]||0)?l.plan:w.plan;
+  else if(!ativoW&&ativoL)plan=l.plan||plan;
+  let limits=w.limits||l.limits||null;
+  if(w.limits&&l.limits)limits={manual:Math.max(w.limits.manual||0,l.limits.manual||0),auto:Math.max(w.limits.auto||0,l.limits.auto||0)};
+  const creditos=[...(Array.isArray(w.creditos)?w.creditos:[]),
+    ...(Array.isArray(l.creditos)?l.creditos:[]).map(c=>({...c,motivo:String(c.motivo||"")+" [srv"+srcId+"]"}))].slice(-300);
+  const giftHistory=[...(Array.isArray(w.giftHistory)?w.giftHistory:[]),...(Array.isArray(l.giftHistory)?l.giftHistory:[])];
+  return{...l,...w,active:(rw.remM+rw.remA+rl.remM+rl.remA)>0||w.active||l.active,
+    manualExpires,autoExpires,plan,limits,creditos,giftHistory,
+    fusao:{de:srcId,em:now,somouManualMs:rl.remM,somouAutoMs:rl.remA}};
+}
+// Funde UM usuário vindo do servidor srcId no banco local. rel = relatório.
+function _fundirUsuario(em,inc,srcId,rel){
+  const incU=inc.user;if(!incU||!incU.email)incU.email=em;
+  const local=DB_USERS[em];
+  const gravaPdfs=(pdfs,remap)=>{
+    let n=0;
+    for(const p2 of (pdfs||[])){
+      try{
+        const idx=remap&&remap[p2.idx]!=null?remap[p2.idx]:p2.idx;
+        const fp=cvPath(em,idx);
+        if(!fs.existsSync(fp)){fs.mkdirSync(CVS_DIR,{recursive:true});fs.writeFileSync(fp,Buffer.from(p2.b64,"base64"));n++;}
+      }catch(e){rel.erros.push(`pdf ${em} idx${p2.idx}: ${e.message}`);}
+    }
+    return n;
+  };
+  if(!local){
+    // Conta só existe no servidor de origem — entra inteira, sem conflito.
+    DB_USERS[em]={...incU,_fusao:{de:srcId,em:Date.now(),conflito:false}};
+    DB_HIST[em]=inc.hist||[];
+    DB_SENT[em]=new Set(inc.sent||[]);
+    if(inc.notes&&Object.keys(inc.notes).length)DB_NOTES[em]=inc.notes;
+    if(Array.isArray(inc.alerts)&&inc.alerts.length)DB_ALERTS[em]=inc.alerts;
+    if(Array.isArray(inc.journey)&&inc.journey.length)DB_JOURNEY[em]=inc.journey;
+    if(Array.isArray(inc.push)&&inc.push.length)DB_PUSH[em]=inc.push;
+    if(inc.appIndex&&Object.keys(inc.appIndex).length)DB_APP_INDEX[em]=inc.appIndex;
+    rel.pdfs+=gravaPdfs(inc.pdfs);
+    rel.novos++;
+    return;
+  }
+  // CONFLITO: mesmo e-mail nos dois — vence a conta criada por ÚLTIMO.
+  const tLocal=_fusaoTs(local.created_at),tInc=_fusaoTs(incU.created_at);
+  const vencedorInc=tInc>tLocal;
+  const W=vencedorInc?incU:local,L=vencedorInc?local:incU;
+  const vip=_fundirVip(W.vip,L.vip,srcId);
+  const dw=(W.diamonds||{}),dl=(L.diamonds||{});
+  const diamonds={real:Math.max(0,parseInt(dw.real,10)||0)+Math.max(0,parseInt(dl.real,10)||0),
+    bonus:Math.max(0,parseInt(dw.bonus,10)||0)+Math.max(0,parseInt(dl.bonus,10)||0)};
+  const somouDiam=(Math.max(0,parseInt(dl.real,10)||0)+Math.max(0,parseInt(dl.bonus,10)||0));
+  const diamondLedger=[
+    ...(somouDiam>0?[{ts:Date.now(),tipo:"credito",qtd:somouDiam,real:Math.max(0,parseInt(dl.real,10)||0),bonus:Math.max(0,parseInt(dl.bonus,10)||0),saldoReal:diamonds.real,saldoBonus:diamonds.bonus,nota:"Fusão de servidores — saldo somado do Servidor "+srcId}]:[]),
+    ...(Array.isArray(W.diamondLedger)?W.diamondLedger:[]),
+    ...(Array.isArray(L.diamondLedger)?L.diamondLedger:[])].slice(0,300);
+  // cvs: os do vencedor entram como estão; os do perdedor entram com idx
+  // remapeado se colidir (arquivos preservados — currículo é trabalho do usuário).
+  const cvsW=Array.isArray(W.cvs)?[...W.cvs]:[];
+  const idxUsados=new Set(cvsW.map(c=>c.idx));
+  const remapL={};const cvsL=[];
+  for(const c of (Array.isArray(L.cvs)?L.cvs:[])){
+    let idx=c.idx;
+    if(idxUsados.has(idx)){idx=Date.now()+Math.floor(Math.random()*100000);remapL[c.idx]=idx;}
+    idxUsados.add(idx);cvsL.push({...c,idx});
+  }
+  const cvs=[...cvsW,...cvsL];
+  const fundido={...L,...W,
+    vip,diamonds,diamondLedger,cvs,
+    missoes:{...(L.missoes||{}),...(W.missoes||{})},
+    saved:[...new Set([...(W.saved||[]),...(L.saved||[])])],
+    savedJobs:(()=>{const seen=new Set();const out=[];for(const j of [...(W.savedJobs||[]),...(L.savedJobs||[])]){const k=String(j.id||j.caseNum||"");if(seen.has(k))continue;seen.add(k);out.push(j);}return out.slice(0,500);})(),
+    senderEmails:(()=>{const seen=new Set();const out=[];for(const se of [...(W.senderEmails||[]),...(L.senderEmails||[])]){const k=String(se.email||"").toLowerCase();if(!k||seen.has(k))continue;seen.add(k);out.push(se);}return out;})(),
+    adminEditHistory:[...(L.adminEditHistory||[]),...(W.adminEditHistory||[])],
+    plan:vip.plan||W.plan||L.plan||"free",
+    isAdmin:!!(W.isAdmin||L.isAdmin),
+    _fusao:{de:srcId,em:Date.now(),conflito:true,vencedor:vencedorInc?("srv"+srcId):"local",
+      somouDiasManual:Math.round((_vipRems(L.vip).remM)/86400_000),somouDiasAuto:Math.round((_vipRems(L.vip).remA)/86400_000),somouDiamantes:somouDiam}};
+  DB_USERS[em]=fundido;
+  // Envios: UNION por appId (regra 8 nunca falha; ranking soma os 2 lados).
+  const histKey=h2=>String(h2.appId||((h2.to||"")+"|"+(h2.sentAt||h2.date||"")));
+  const seenH=new Set((DB_HIST[em]||[]).map(histKey));
+  const novosH=(inc.hist||[]).filter(h2=>!seenH.has(histKey(h2)));
+  DB_HIST[em]=[...(DB_HIST[em]||[]),...novosH].sort((a,b)=>_fusaoTs(b.sentAt||b.date)-_fusaoTs(a.sentAt||a.date));
+  DB_SENT[em]=new Set([...(DB_SENT[em]||[]),...(inc.sent||[])]);
+  DB_NOTES[em]={...(inc.notes||{}),...(DB_NOTES[em]||{})};
+  DB_ALERTS[em]=[...(DB_ALERTS[em]||[]),...(inc.alerts||[])];
+  DB_JOURNEY[em]=[...(DB_JOURNEY[em]||[]),...(inc.journey||[])].slice(0,300);
+  DB_PUSH[em]=(()=>{const seen=new Set();const out=[];for(const s2 of [...(DB_PUSH[em]||[]),...(inc.push||[])]){const k=String(s2.endpoint||JSON.stringify(s2));if(seen.has(k))continue;seen.add(k);out.push(s2);}return out;})();
+  DB_APP_INDEX[em]={...(inc.appIndex||{}),...(DB_APP_INDEX[em]||{})};
+  rel.pdfs+=gravaPdfs(inc.pdfs,vencedorInc?null:remapL);
+  rel.conflitos.push({email:em,vencedor:vencedorInc?("Servidor "+srcId):"Servidor local",
+    somouDiasManual:fundido._fusao.somouDiasManual,somouDiasAuto:fundido._fusao.somouDiasAuto,somouDiamantes:somouDiam,
+    enviosSomados:novosH.length});
+  rel.fundidos++;
+}
+async function _runFusao(serverId,quem){
+  const sv=_getServersConfig().find(x=>x.id===serverId);
+  if(!sv||!sv.url){_fusaoJob.error="Servidor "+serverId+" sem URL configurada";_fusaoJob.running=false;_fusaoJob.finishedAt=Date.now();return;}
+  const st=DB_FUSAO["srv"+serverId]=DB_FUSAO["srv"+serverId]||{doneEmails:{},donePedidos:{},globaisDone:false};
+  const rel={novos:0,fundidos:0,pulados:0,conflitos:[],pedidosImportados:0,pedidosPulados:0,pdfs:0,erros:[],
+    financeiro:{pagamentos:0,gastos:0,repasses:0},codes:0,reviews:0};
+  try{
+    _fLog(`🗄️ Backup completo do Servidor local ANTES da fusão...`);
+    const bk=criarBackupCompleto();
+    if(!bk||bk.ok===false)throw new Error("backup pré-fusão falhou: "+(bk&&bk.error||"?")+" — fusão ABORTADA (regra: nunca fundir sem ter como voltar)");
+    _fLog(`✅ Backup ok. Pedindo manifest ao ${sv.nome} (${sv.url})...`);
+    const man=await _peerFusaoReq(sv.url,"/api/servers/fusao/manifest");
+    if(!man||!man.ok)throw new Error("manifest não respondeu — o "+sv.nome+" está no ar e com a MESMA versão (v144+)?");
+    const emailsPend=(man.emails||[]).filter(e2=>!st.doneEmails[e2]);
+    const pedidosPend=(man.pedidosIds||[]).filter(id=>!st.donePedidos[id]);
+    _fusaoJob.total=emailsPend.length+pedidosPend.length+1;
+    _fLog(`📋 ${man.counts.users} usuário(s) lá (${emailsPend.length} pendentes) · ${man.counts.pedidos} pedido(s) (${pedidosPend.length} pendentes)`);
+    rel.pulados=(man.emails||[]).length-emailsPend.length;
+    rel.pedidosPulados=(man.pedidosIds||[]).length-pedidosPend.length;
+    // usuários em lotes de 5 (PDFs a bordo — memória controlada)
+    for(let i=0;i<emailsPend.length;i+=5){
+      const lote=emailsPend.slice(i,i+5);
+      const rb=await _peerFusaoReq(sv.url,"/api/servers/fusao/user-batch",{emails:lote});
+      if(!rb||!rb.ok){rel.erros.push("lote de usuários falhou: "+lote.join(","));_fLog(`⚠️ lote falhou (${lote.join(", ")}) — continua nos próximos`,"warn");continue;}
+      for(const [em,inc] of Object.entries(rb.users||{})){
+        try{_fundirUsuario(em,inc,serverId,rel);st.doneEmails[em]=Date.now();}
+        catch(e){rel.erros.push(em+": "+e.message);_fLog(`⚠️ ${em}: ${e.message}`,"warn");}
+      }
+      _fusaoJob.progress+=lote.length;
+      _fLog(`👤 ${Math.min(i+5,emailsPend.length)}/${emailsPend.length} usuários processados`);
+    }
+    // pedidos em lotes de 10 (comprovantes a bordo)
+    for(let i=0;i<pedidosPend.length;i+=10){
+      const lote=pedidosPend.slice(i,i+10);
+      const rb=await _peerFusaoReq(sv.url,"/api/servers/fusao/pedidos-batch",{ids:lote});
+      if(!rb||!rb.ok){rel.erros.push("lote de pedidos falhou");_fLog("⚠️ lote de pedidos falhou — continua","warn");continue;}
+      for(const pd of (rb.pedidos||[])){
+        if(!pd.id||DB_PEDIDOS.some(x=>x.id===pd.id)){st.donePedidos[pd.id]=1;continue;}
+        DB_PEDIDOS.push({...pd,origemServidor:serverId});
+        st.donePedidos[pd.id]=1;rel.pedidosImportados++;
+      }
+      _fusaoJob.progress+=lote.length;
+      _fLog(`🧾 ${Math.min(i+10,pedidosPend.length)}/${pedidosPend.length} pedidos processados`);
+    }
+    // globais (financeiro/códigos/reviews/anti-trial/auditoria) — 1 vez
+    if(!st.globaisDone){
+      const gl=await _peerFusaoReq(sv.url,"/api/servers/fusao/globais");
+      if(!gl||!gl.ok)throw new Error("globais não respondeu");
+      const addSemDup=(destino,itens,keyFn)=>{const seen=new Set(destino.map(keyFn));let n=0;for(const it of (itens||[])){const k=keyFn(it);if(k&&seen.has(k))continue;seen.add(k);destino.push({...it,origemServidor:serverId});n++;}return n;};
+      DB_FINANCEIRO.pagamentos=DB_FINANCEIRO.pagamentos||[];DB_FINANCEIRO.gastos=DB_FINANCEIRO.gastos||[];DB_FINANCEIRO.repasses=DB_FINANCEIRO.repasses||[];DB_FINANCEIRO.alteracoes=DB_FINANCEIRO.alteracoes||[];
+      rel.financeiro.pagamentos=addSemDup(DB_FINANCEIRO.pagamentos,gl.financeiro.pagamentos,x=>x.id||((x.email||"")+"|"+(x.valor||0)+"|"+(x.dataPagamento||x.data||x.criadoEm||"")));
+      rel.financeiro.gastos=addSemDup(DB_FINANCEIRO.gastos,gl.financeiro.gastos,x=>x.id||((x.descricao||x.nota||"")+"|"+(x.valor||0)+"|"+(x.data||x.criadoEm||"")));
+      rel.financeiro.repasses=addSemDup(DB_FINANCEIRO.repasses,gl.financeiro.repasses,x=>x.id||JSON.stringify(x));
+      DB_FINANCEIRO.alteracoes.push(...(gl.financeiro.alteracoes||[]).map(a=>({...a,origemServidor:serverId})));
+      for(const [code,c] of Object.entries(gl.codes||{})){
+        if(!DB_CODES[code]){DB_CODES[code]={...c,origemServidor:serverId};rel.codes++;}
+        else DB_CODES[code]={...DB_CODES[code],usedBy:[...new Set([...(DB_CODES[code].usedBy||[]),...(c.usedBy||[])])]};
+      }
+      rel.reviews=addSemDup(DB_REVIEWS,gl.reviews,x=>x.id||((x.email||"")+"|"+(x.createdAt||"")));
+      DB_TRIAL_USED.phones={...(gl.trialUsed&&gl.trialUsed.phones||{}),...(DB_TRIAL_USED.phones||{})};
+      DB_TRIAL_USED.ips=(()=>{const o={...(gl.trialUsed&&gl.trialUsed.ips||{})};for(const [k,v] of Object.entries(DB_TRIAL_USED.ips||{}))o[k]=[...new Set([...(o[k]||[]),...(Array.isArray(v)?v:[v])])];return o;})();
+      DB_TRIAL_USED.googleIds={...(gl.trialUsed&&gl.trialUsed.googleIds||{}),...(DB_TRIAL_USED.googleIds||{})};
+      DB_ADMIN_AUDIT.push(...(gl.adminAudit||[]).map(a=>({...a,origemServidor:serverId})));
+      DB_ADMIN_AUDIT.sort((a,b)=>(b.ts||0)-(a.ts||0));if(DB_ADMIN_AUDIT.length>2000)DB_ADMIN_AUDIT.length=2000;
+      st.globaisDone=true;
+      _fLog(`💰 Globais fundidos: +${rel.financeiro.pagamentos} pagamentos, +${rel.financeiro.gastos} gastos, +${rel.codes} códigos, +${rel.reviews} avaliações`);
+    }else _fLog("💰 Globais já tinham sido fundidos antes — pulando (idempotência)");
+    _fusaoJob.progress++;
+    // Persistência SÍNCRONA de tudo — dado de dinheiro nunca fica só na memória.
+    _fLog("💾 Gravando tudo no disco...");
+    const oks=[persist(USERS_FILE,DB_USERS),persist(HIST_FILE,DB_HIST)];
+    persistSent();persistPedidos();persistFinanceiro();persistCodes();persistPush();
+    persist(NOTES_FILE,DB_NOTES);persist(ALERTS_FILE,DB_ALERTS);persist(JOURNEY_FILE,DB_JOURNEY);
+    persist(APPIDX_FILE,DB_APP_INDEX);persist(REVIEWS_FILE,DB_REVIEWS);persist(TRIAL_USED_FILE,DB_TRIAL_USED);
+    persist(ADMIN_AUDIT_FILE,DB_ADMIN_AUDIT);
+    if(oks.includes(false))throw new Error("GRAVAÇÃO NO DISCO FALHOU (disco cheio?) — dados na memória; libere espaço e rode de novo ANTES de reiniciar");
+    st.lastRunAt=Date.now();st.relatorio=rel;st.por=quem;
+    fs.writeFileSync(FUSAO_FILE,JSON.stringify(DB_FUSAO,null,2));
+    _fusaoJob.relatorio=rel;
+    _fLog(`✅ FUSÃO DO ${sv.nome} CONCLUÍDA: ${rel.novos} contas novas · ${rel.fundidos} fundidas (conflito) · ${rel.pulados} já feitas antes · ${rel.pedidosImportados} pedidos importados · ${rel.pdfs} PDFs gravados · ${rel.erros.length} erro(s)`,"ok");
+    logAdminAction(quem,"fusao_servidores",("srv"+serverId),null,null,`Fusão do Servidor ${serverId}: ${rel.novos} novos, ${rel.fundidos} fundidos, ${rel.pedidosImportados} pedidos, ${rel.pdfs} PDFs`);
+  }catch(e){
+    _fusaoJob.error=e.message;_fusaoJob.relatorio=rel;
+    _fLog("❌ "+e.message,"error");
+    try{fs.writeFileSync(FUSAO_FILE,JSON.stringify(DB_FUSAO,null,2));}catch{}
+  }
+  _fusaoJob.running=false;_fusaoJob.finishedAt=Date.now();
+}
+
 // FIX-BUG15 v2: limpeza inteligente de DB_SENT por data de envio
 // Remove apenas emails enviados há mais de 6 meses, preservando os recentes.
 // NUNCA apaga tudo — evita reenvio para empresas antigas.
@@ -15508,6 +15755,79 @@ Responda APENAS em JSON (sem markdown):
       return json(res,200,{ok:true,bytes:buf.length});
     }catch(e){return json(res,500,{error:e.message});}
   }
+  // ══ 🚚 v144 — FUSÃO DE SERVIDORES (ordem do dono, 15/08/2026) ═══════════
+  // O Google limita OAuth não-verificado a 100 usuários; o dono vai criar um
+  // OAuth novo SÓ no Servidor 1 e desligar o 2 e o 3. Estas rotas deixam o
+  // Servidor 1 PUXAR tudo dos irmãos (mesma conta Render, mesmo DATA_ENC_KEY)
+  // antes do desligamento. REGRA APROVADA DO CONFLITO DE E-MAIL: vence a
+  // conta criada por ÚLTIMO, MAS envios + anti-duplicado + dias de VIP pagos
+  // + diamantes + missões são SOMADOS — ninguém perde nada que pagou.
+  // Lado FONTE (roda nos 3; só responde com o token peer): exporta paginado
+  // pra nunca estourar memória — user-batch leva os PDFs do disco junto.
+  const _fusaoPeerAuth=()=>{
+    const tok=_peerFinToken();
+    if(!tok)return false;
+    const got=String(req.headers["x-peer-fin"]||"");
+    const a=crypto.createHash("sha256").update(got).digest();
+    const b=crypto.createHash("sha256").update(tok).digest();
+    return crypto.timingSafeEqual(a,b);
+  };
+  const _stripTokens=(u)=>{
+    if(!u)return u;
+    const c=JSON.parse(JSON.stringify(u));
+    delete c.refresh_token;delete c.access_token;
+    if(Array.isArray(c.senderEmails))c.senderEmails=c.senderEmails.map(se=>{const{refresh_token,access_token,tokens,...rest}=se||{};return rest;});
+    return c;
+  };
+  if(pathname==="/api/servers/fusao/manifest"&&req.method==="GET"){
+    if(!_fusaoPeerAuth())return json(res,403,{error:"não autorizado"});
+    const emails=Object.keys(DB_USERS).sort();
+    return json(res,200,{ok:true,serverId:_resolveServerId(req),emails,
+      pedidosIds:DB_PEDIDOS.map(p2=>p2.id).filter(Boolean),
+      counts:{users:emails.length,pedidos:DB_PEDIDOS.length,
+        pagamentos:(DB_FINANCEIRO.pagamentos||[]).length,codes:Object.keys(DB_CODES).length,reviews:DB_REVIEWS.length}});
+  }
+  if(pathname==="/api/servers/fusao/user-batch"&&req.method==="POST"){
+    if(!_fusaoPeerAuth())return json(res,403,{error:"não autorizado"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const emails=(Array.isArray(d.emails)?d.emails:[]).slice(0,10).map(e2=>String(e2).toLowerCase().trim());
+      const out={};
+      for(const em of emails){
+        const u2=DB_USERS[em];if(!u2)continue;
+        const pdfs=[];
+        for(const cvm of (u2.cvs||[])){
+          try{
+            const fp=cvPath(em,cvm.idx);
+            if(fs.existsSync(fp))pdfs.push({idx:cvm.idx,name:cvm.name||"cv.pdf",cvType:cvm.cvType||"resume",b64:fs.readFileSync(fp).toString("base64")});
+          }catch(e){}
+        }
+        out[em]={user:_stripTokens(u2),hist:DB_HIST[em]||[],sent:[...(DB_SENT[em]||[])],
+          notes:DB_NOTES[em]||{},alerts:DB_ALERTS[em]||[],journey:DB_JOURNEY[em]||[],
+          push:DB_PUSH[em]||[],appIndex:DB_APP_INDEX[em]||{},pdfs};
+      }
+      return json(res,200,{ok:true,users:out});
+    }catch(e){return json(res,500,{ok:false,error:e.message});}
+  }
+  if(pathname==="/api/servers/fusao/globais"&&req.method==="GET"){
+    if(!_fusaoPeerAuth())return json(res,403,{error:"não autorizado"});
+    return json(res,200,{ok:true,
+      financeiro:{pagamentos:DB_FINANCEIRO.pagamentos||[],gastos:DB_FINANCEIRO.gastos||[],
+        repasses:DB_FINANCEIRO.repasses||[],alteracoes:DB_FINANCEIRO.alteracoes||[]},
+      codes:DB_CODES,reviews:DB_REVIEWS,trialUsed:DB_TRIAL_USED,
+      adminAudit:DB_ADMIN_AUDIT.slice(0,2000)});
+  }
+  if(pathname==="/api/servers/fusao/pedidos-batch"&&req.method==="POST"){
+    if(!_fusaoPeerAuth())return json(res,403,{error:"não autorizado"});
+    try{
+      const d=JSON.parse(await readBody(req));
+      const ids=new Set((Array.isArray(d.ids)?d.ids:[]).slice(0,10));
+      // COM comprovante (base64) — a razão de paginar em 10: nunca estourar memória
+      const pedidos=DB_PEDIDOS.filter(p2=>ids.has(p2.id));
+      return json(res,200,{ok:true,pedidos});
+    }catch(e){return json(res,500,{ok:false,error:e.message});}
+  }
+
   // v69: visão e disparo manual do backup entre irmãos (admin)
   if(pathname==="/api/admin/backup-peers"&&req.method==="GET"){
     const s=getSess(req);const adm=s?.user_email?getUser(s.user_email):null;
@@ -15525,6 +15845,27 @@ Responda APENAS em JSON (sem markdown):
     const s=getSess(req);const adm=s?.user_email?getUser(s.user_email):null;
     if(!(adm?.isAdmin||isAdminEmail(s?.user_email||"")))return json(res,403,{error:"Só admin."});
     return json(res,200,await enviarBackupPeers("manual (admin)"));
+  }
+  // 🚚 v144 — disparo e acompanhamento da FUSÃO (admin do Servidor 1)
+  if(pathname==="/api/admin/fusao/puxar"&&req.method==="POST"){
+    const s=getSess(req);const adm=s?.user_email?getUser(s.user_email):null;
+    if(!(adm?.isAdmin||isAdminEmail(s?.user_email||"")))return json(res,403,{error:"Só admin."});
+    try{
+      const d=JSON.parse((await readBody(req))||"{}");
+      const serverId=parseInt(d.serverId,10)||0;
+      if(![1,2,3].includes(serverId))return json(res,400,{error:"serverId inválido (2 ou 3)."});
+      if(serverId===_resolveServerId(req))return json(res,400,{error:"Não dá pra fundir um servidor com ele mesmo."});
+      if(_fusaoJob.running)return json(res,409,{error:"Uma fusão já está rodando — acompanhe pelo log.",running:true});
+      _fusaoJob.running=true;_fusaoJob.serverId=serverId;_fusaoJob.progress=0;_fusaoJob.total=0;
+      _fusaoJob.log=[];_fusaoJob.startedAt=Date.now();_fusaoJob.finishedAt=0;_fusaoJob.error=null;_fusaoJob.relatorio=null;
+      _runFusao(serverId,s.user_email).catch(e=>{_fusaoJob.error=e.message;_fusaoJob.running=false;_fusaoJob.finishedAt=Date.now();});
+      return json(res,200,{ok:true,started:true,serverId});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  if(pathname==="/api/admin/fusao/status"&&req.method==="GET"){
+    const s=getSess(req);const adm=s?.user_email?getUser(s.user_email):null;
+    if(!(adm?.isAdmin||isAdminEmail(s?.user_email||"")))return json(res,403,{error:"Só admin."});
+    return json(res,200,{ok:true,..._fusaoJob,state:Object.fromEntries(Object.entries(DB_FUSAO).map(([k,v])=>[k,{feitos:Object.keys(v.doneEmails||{}).length,pedidosFeitos:Object.keys(v.donePedidos||{}).length,globaisDone:!!v.globaisDone,lastRunAt:v.lastRunAt||0,relatorio:v.relatorio||null}]))});
   }
   if(pathname==="/api/servers"&&req.method==="GET"){
     const _selfId=_resolveServerId(req);
@@ -15592,7 +15933,8 @@ Responda APENAS em JSON (sem markdown):
     const totalAuto=allHist.reduce((n,a)=>n+a.filter(h=>h.type==="auto").length,0);
     // Preview do ranking diário para landing page (top 5 sem dados sensíveis)
     const { list: rankPreview } = calcRanking("day", "sends", null);
-    const out={totalUsers,vipUsers,todaySent,todayAuto,totalSent,totalAuto,trialEnabled:!!DB_ADMIN_SETTINGS.newUserTrialEnabled,trialDays:1,rankPreview:rankPreview.slice(0,5)}; // FIX Fase-0: era hardcode 5; trial real = 1 dia (KB-686)
+    const out={totalUsers,vipUsers,todaySent,todayAuto,totalSent,totalAuto,trialEnabled:!!DB_ADMIN_SETTINGS.newUserTrialEnabled,trialDays:1,rankPreview:rankPreview.slice(0,5),
+      avisoResetLogin:!!DB_ADMIN_SETTINGS.avisoResetLogin}; // 📢 v144: aviso do reset de OAuth na landing (toggle do admin)
     // 🌍 v129 (ORDEM DO DONO, 13/08): a landing mostra o negócio INTEIRO —
     // soma dos 3 servidores. ?local=1 = resposta só local (é o que os irmãos
     // pedem entre si — nunca recursão). Peer fora do ar: fail-open.

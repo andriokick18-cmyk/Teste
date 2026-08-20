@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v105"; // v105 (15/08): 📝 v143 — Rascunho do Editor de Perfil (caso real Keyla, Servidor 3): autosave local (nunca servidor) do que a pessoa está digitando (assuntos/corpos de e-mail) + restauração automática ao reabrir o mesmo perfil — nunca mais perde texto quando a sessão cai por reinício do processo (KB-078). app.js mudou.
+const CACHE_NAME = "h2bapply-v106"; // v106 (15/08): 🚚 v144 — Fusão de Servidores (reset do OAuth): o Servidor 1 puxa TUDO dos irmãos antes de desligá-los (contas, dias VIP somados no conflito, diamantes, envios, anti-duplicado, PDFs, pedidos com comprovante, caixa) — drill REAL de 2 servidores no teste. + 📢 banner do aviso de reset na landing (toggle do admin). index.html/app.js/admin.html mudaram.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).
