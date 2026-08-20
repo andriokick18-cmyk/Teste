@@ -2774,6 +2774,8 @@ setTimeout(()=>{try{
 // duplica dia nem diamante. Backup completo automático ANTES de fundir.
 const FUSAO_FILE=path.join(DATA_DIR,"fusao_state.json");
 let DB_FUSAO={};try{DB_FUSAO=JSON.parse(fs.readFileSync(FUSAO_FILE,"utf8"))||{};}catch{}
+// 📦 v148b: varre uploads de importação abandonados (celular fechou no meio)
+try{for(const f of fs.readdirSync(DATA_DIR))if(f.startsWith("fusao_upload_")&&f.endsWith(".part")&&Date.now()-fs.statSync(path.join(DATA_DIR,f)).mtimeMs>86400_000)fs.unlinkSync(path.join(DATA_DIR,f));}catch{}
 const _fusaoJob={running:false,serverId:null,modo:null,progress:0,total:0,log:[],startedAt:0,finishedAt:0,error:null,relatorio:null};
 function _fLog(msg,type){_fusaoJob.log.push({t:Date.now(),msg:String(msg).slice(0,300),type:type||"info"});if(_fusaoJob.log.length>400)_fusaoJob.log.shift();console.log("[fusão]",msg);}
 function _fusaoTs(v){if(!v)return 0;if(typeof v==="number")return v;const t=Date.parse(v);return isNaN(t)?0:t;}
@@ -3111,6 +3113,23 @@ async function _runFusaoArquivo(dados,quem){
     try{fs.writeFileSync(FUSAO_FILE,JSON.stringify(DB_FUSAO,null,2));}catch{}
   }
   _fusaoJob.running=false;_fusaoJob.finishedAt=Date.now();
+}
+// 📦 v148b — valida o arquivo e dispara a importação em background. Fonte
+// única compartilhada pelo corpo único (curl/teste) E pelo upload em partes
+// (celular). Devolve {status,body} pra rota responder com json().
+function _fusaoImportStartFromBuf(buf,quem,selfId){
+  let txt;try{txt=zlib.gunzipSync(buf).toString("utf8");}catch{txt=buf.toString("utf8");}
+  let dados;try{dados=JSON.parse(txt);}catch{return{status:400,body:{error:"Arquivo inválido — não parece um arquivo de exportação do H2BApply. Baixe de novo no servidor de origem (botão ⬇️) e importe sem abrir/editar."}};}
+  if(dados.fmt!=="h2bapply-fusao-arquivo-v1")return{status:400,body:{error:"Formato desconhecido — use exatamente o arquivo gerado pelo botão ⬇️ Baixar do painel do servidor de origem."}};
+  const serverId=parseInt(dados.serverId,10)||0;
+  if(![1,2,3].includes(serverId))return{status:400,body:{error:"Arquivo sem identificação válida do servidor de origem."}};
+  if(serverId===selfId)return{status:400,body:{error:`Esse arquivo foi exportado DESTE mesmo servidor (${serverId}) — importar aqui duplicaria tudo. Baixe o arquivo no Servidor 2 ou 3 e importe aqui no que vai sobreviver.`}};
+  if(_fusaoJob.running)return{status:409,body:{error:"Uma fusão/importação já está rodando — acompanhe pelo log.",running:true}};
+  _fusaoJob.running=true;_fusaoJob.serverId=serverId;_fusaoJob.modo="arquivo";_fusaoJob.progress=0;_fusaoJob.total=0;
+  _fusaoJob.log=[];_fusaoJob.startedAt=Date.now();_fusaoJob.finishedAt=0;_fusaoJob.error=null;_fusaoJob.relatorio=null;
+  _runFusaoArquivo(dados,quem).catch(e=>{_fusaoJob.error=e.message;_fusaoJob.running=false;_fusaoJob.finishedAt=Date.now();});
+  return{status:200,body:{ok:true,started:true,serverId,modo:"arquivo",
+    users:Object.keys(dados.users||{}).length,pedidos:(dados.pedidos||[]).length}};
 }
 
 // FIX-BUG15 v2: limpeza inteligente de DB_SENT por data de envio
@@ -16017,18 +16036,44 @@ Responda APENAS em JSON (sem markdown):
       // corpo BINÁRIO (gzip) com leitor próprio — o teto padrão do readBody
       // (50MB) é pouco pra um servidor inteiro com PDFs e comprovantes.
       const buf=await new Promise((rs,rj)=>{const p=[];let sz=0;req.on("data",c=>{sz+=c.length;if(sz>300*1024*1024){rj(new Error("Arquivo grande demais (máx 300MB)"));try{req.destroy();}catch{}return;}p.push(c);});req.on("end",()=>rs(Buffer.concat(p)));req.on("error",rj);});
-      let txt;
-      try{txt=zlib.gunzipSync(buf).toString("utf8");}catch{txt=buf.toString("utf8");}
-      let dados;try{dados=JSON.parse(txt);}catch{return json(res,400,{error:"Arquivo inválido — não parece um arquivo de exportação do H2BApply. Baixe de novo no servidor de origem (botão ⬇️) e importe sem abrir/editar."});}
-      if(dados.fmt!=="h2bapply-fusao-arquivo-v1")return json(res,400,{error:"Formato desconhecido — use exatamente o arquivo gerado pelo botão ⬇️ Baixar do painel do servidor de origem."});
-      const serverId=parseInt(dados.serverId,10)||0;
-      if(![1,2,3].includes(serverId))return json(res,400,{error:"Arquivo sem identificação válida do servidor de origem."});
-      if(serverId===_resolveServerId(req))return json(res,400,{error:`Esse arquivo foi exportado DESTE mesmo servidor (${serverId}) — importar aqui duplicaria tudo. Baixe o arquivo no Servidor 2 ou 3 e importe aqui no que vai sobreviver.`});
-      _fusaoJob.running=true;_fusaoJob.serverId=serverId;_fusaoJob.modo="arquivo";_fusaoJob.progress=0;_fusaoJob.total=0;
-      _fusaoJob.log=[];_fusaoJob.startedAt=Date.now();_fusaoJob.finishedAt=0;_fusaoJob.error=null;_fusaoJob.relatorio=null;
-      _runFusaoArquivo(dados,s.user_email).catch(e=>{_fusaoJob.error=e.message;_fusaoJob.running=false;_fusaoJob.finishedAt=Date.now();});
-      return json(res,200,{ok:true,started:true,serverId,modo:"arquivo",
-        users:Object.keys(dados.users||{}).length,pedidos:(dados.pedidos||[]).length});
+      const r=_fusaoImportStartFromBuf(buf,s.user_email,_resolveServerId(req));
+      return json(res,r.status,r.body);
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  // 📦 v148b — UPLOAD EM PARTES (caso real do dono, 20/08 à noite: 42,6MB do
+  // celular numa requisição só ficava em "Enviando..." pra sempre — o proxy
+  // do Render corta requisição longa ≈100s). O painel fatia o arquivo em
+  // pedaços de 4MB; cada pedaço é uma requisição rápida gravada NO OFFSET
+  // certo do arquivo temporário (idempotente: reenviar o mesmo pedaço numa
+  // retentativa regrava os mesmos bytes no mesmo lugar, nunca corrompe).
+  if(pathname==="/api/admin/fusao/importar-parte"&&req.method==="POST"){
+    const s=getSess(req);const adm=s?.user_email?getUser(s.user_email):null;
+    if(!(adm?.isAdmin||isAdminEmail(s?.user_email||"")))return json(res,403,{error:"Só admin."});
+    try{
+      const upId=String(req.headers["x-up-id"]||"");
+      const off=parseInt(req.headers["x-up-off"],10);
+      if(!/^[a-z0-9]{6,40}$/i.test(upId)||isNaN(off)||off<0||off>300*1024*1024)return json(res,400,{error:"upload inválido (id/offset)"});
+      const buf=await new Promise((rs,rj)=>{const p=[];let sz=0;req.on("data",c=>{sz+=c.length;if(sz>8*1024*1024){rj(new Error("pedaço grande demais (máx 8MB)"));try{req.destroy();}catch{}return;}p.push(c);});req.on("end",()=>rs(Buffer.concat(p)));req.on("error",rj);});
+      if(off+buf.length>300*1024*1024)return json(res,400,{error:"Arquivo grande demais (máx 300MB)"});
+      const fp=path.join(DATA_DIR,"fusao_upload_"+upId.toLowerCase()+".part");
+      const fd=fs.openSync(fp,fs.existsSync(fp)?"r+":"w");
+      try{fs.writeSync(fd,buf,0,buf.length,off);}finally{fs.closeSync(fd);}
+      return json(res,200,{ok:true,bytes:off+buf.length});
+    }catch(e){return json(res,500,{error:e.message});}
+  }
+  if(pathname==="/api/admin/fusao/importar-fim"&&req.method==="POST"){
+    const s=getSess(req);const adm=s?.user_email?getUser(s.user_email):null;
+    if(!(adm?.isAdmin||isAdminEmail(s?.user_email||"")))return json(res,403,{error:"Só admin."});
+    try{
+      const d=JSON.parse((await readBody(req))||"{}");
+      const upId=String(d.upId||"");
+      if(!/^[a-z0-9]{6,40}$/i.test(upId))return json(res,400,{error:"upload inválido"});
+      const fp=path.join(DATA_DIR,"fusao_upload_"+upId.toLowerCase()+".part");
+      if(!fs.existsSync(fp))return json(res,400,{error:"upload não encontrado — envie o arquivo de novo"});
+      const buf=fs.readFileSync(fp);
+      try{fs.unlinkSync(fp);}catch{}
+      const r=_fusaoImportStartFromBuf(buf,s.user_email,_resolveServerId(req));
+      return json(res,r.status,r.body);
     }catch(e){return json(res,500,{error:e.message});}
   }
   if(pathname==="/api/servers"&&req.method==="GET"){

@@ -467,7 +467,15 @@
     continua existindo como modo secundário (colapsado em <details>).
     Drill real no smoke: sobe um 3º servidor (SERVER_ID=3), exporta pela
     rota, MATA o servidor de origem e importa só com o arquivo — prova
-    exatamente o cenário que a rede não cobria.
+    exatamente o cenário que a rede não cobria. **v148b (mesma noite,
+    print do dono: 42,6MB do celular preso em "Enviando..." sem % nem
+    tempo)**: o proxy do Render corta requisição longa (~100s), então o
+    upload do importar é FATIADO em pedaços de 4MB (`importar-parte`
+    grava por OFFSET — retentativa do mesmo pedaço regrava os mesmos
+    bytes, nunca corrompe; 3 tentativas por pedaço no front; `importar-
+    fim` monta, valida e dispara `_fusaoImportStartFromBuf`, função
+    única também usada pela rota de corpo único) com progresso ao vivo
+    (% + MB + tempo). Uploads abandonados são varridos no boot (>24h).
 
 ## 🖥️ UX (usuário e admin nunca se perdem)
 

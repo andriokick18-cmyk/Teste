@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v109"; // v109 (20/08): 📦 v148 — migração por ARQUIVO no painel admin: exportar tudo no Servidor 2/3 (⬇️ .fusao.gz com contas, VIP, 💎, envios, PDFs, pedidos+comprovante, caixa) e importar no Servidor 1 (⬆️ mesmo motor de fusão, backup antes, idempotente, log ao vivo). Só admin.html mudou (não é cacheado pelo SW) — bump por convenção de entrega.
+const CACHE_NAME = "h2bapply-v110"; // v110 (20/08): 📦 v148b — upload da importação FATIADO em pedaços de 4MB com % e tempo ao vivo (arquivo de 42MB do celular era cortado pelo proxy do Render numa requisição só e ficava em "Enviando..." pra sempre — print do dono). Só admin.html mudou (não é cacheado pelo SW) — bump por convenção de entrega.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

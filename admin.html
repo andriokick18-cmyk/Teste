@@ -7387,7 +7387,11 @@ async function fusaoExportar(){
   }
   if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-download"></i> ⬇️ Baixar arquivo completo DESTE servidor';}
 }
-// 📦 v148: importa o arquivo baixado no outro servidor (o dono clica no 1)
+// 📦 v148: importa o arquivo baixado no outro servidor (o dono clica no 1).
+// v148b: o envio é FATIADO em pedaços de 4MB — arquivo de 40MB+ no celular
+// numa requisição só era cortado pelo proxy do Render (≈100s) e ficava em
+// "Enviando..." pra sempre, sem % nem tempo (caso real do dono, 20/08).
+// Cada pedaço tem 3 tentativas (4G oscila) e o progresso aparece ao vivo.
 async function fusaoImportar(){
   const inp=document.getElementById('fusao-file');
   const f=inp&&inp.files&&inp.files[0];
@@ -7395,13 +7399,35 @@ async function fusaoImportar(){
   if(!confirm(`📦 Importar "${f.name}" (${(f.size/1048576).toFixed(1)}MB) pra DENTRO deste servidor?\n\n• Backup completo automático ANTES\n• E-mail repetido: vence a conta mais nova, mas dias VIP/diamantes/envios são SOMADOS\n• Importar o mesmo arquivo de novo depois não duplica nada`))return;
   const btn=document.getElementById('fusao-btn-import');
   const out=document.getElementById('fusao-result');
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2"></i> Enviando o arquivo...';}
-  if(out)out.style.display='none';
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2"></i> Enviando 0%...';}
   try{
-    const buf=await f.arrayBuffer();
-    const r=await fetch('/api/admin/fusao/importar',{method:'POST',credentials:'include',headers:{'Content-Type':'application/gzip'},body:buf});
+    const upId='u'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+    const CHUNK=4*1024*1024;
+    const total=f.size;const t0=Date.now();
+    for(let off=0;off<total;off+=CHUNK){
+      const parte=await f.slice(off,Math.min(off+CHUNK,total)).arrayBuffer();
+      let okParte=false,errParte='';
+      for(let tent=0;tent<3&&!okParte;tent++){
+        try{
+          const rp=await fetch('/api/admin/fusao/importar-parte',{method:'POST',credentials:'include',
+            headers:{'Content-Type':'application/octet-stream','x-up-id':upId,'x-up-off':String(off)},body:parte});
+          const dp=await rp.json().catch(()=>null);
+          if(dp?.ok)okParte=true;else errParte=dp?.error||('HTTP '+rp.status);
+        }catch(e2){errParte=e2.message;}
+        if(!okParte&&tent<2)await new Promise(r2=>setTimeout(r2,1500));
+      }
+      if(!okParte)throw new Error('o envio falhou no meio ('+errParte+') — confira a internet e clique Importar de novo');
+      const feito=Math.min(off+CHUNK,total);
+      const pct=Math.round(feito/total*100);
+      const seg=Math.round((Date.now()-t0)/1000);
+      if(btn)btn.innerHTML='<i class="ti ti-loader-2"></i> Enviando '+pct+'%...';
+      if(out){out.style.display='block';out.style.color='#f59e0b';out.textContent=`⬆️ Enviando: ${(feito/1048576).toFixed(1)} de ${(total/1048576).toFixed(1)}MB (${pct}%) · ${seg>=60?Math.floor(seg/60)+'m'+String(seg%60).padStart(2,'0')+'s':seg+'s'}`;}
+    }
+    if(btn)btn.innerHTML='<i class="ti ti-loader-2"></i> Arquivo enviado — processando...';
+    const r=await fetch('/api/admin/fusao/importar-fim',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({upId})});
     const d=await r.json().catch(()=>null);
     if(!d?.ok)throw new Error(d?.error||('HTTP '+r.status));
+    if(out)out.style.display='none';
     const area=document.getElementById('fusao-area');
     if(area){area.style.display='block';document.getElementById('fusao-log').innerHTML='';}
     _fusaoT0=Date.now();

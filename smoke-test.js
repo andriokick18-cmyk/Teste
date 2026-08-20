@@ -2048,10 +2048,22 @@ async function testAuthWatchdogPush() {
       !JSON.stringify(_exDados.users).includes("refresh_token"),
       JSON.stringify({ fmt: _exDados?.fmt, sid: _exDados?.serverId, users: Object.keys(_exDados?.users || {}).length }).slice(0, 160));
     // IMPORTAR no A: o clique do dono no Servidor 1 (com o C já MORTO —
-    // é exatamente o cenário que a fusão por rede não cobria)
+    // é exatamente o cenário que a fusão por rede não cobria). v148b: o
+    // painel envia em PEDAÇOS de 4MB (arquivo de 42MB do celular era cortado
+    // pelo proxy do Render numa requisição só) — o drill prova o caminho
+    // fatiado de verdade: 2 partes por offset + fim.
     srvC.kill();
-    const imp1 = await _postBinA("/api/admin/fusao/importar", exC.buf);
-    check("📦 v148: IMPORTAR aceita o arquivo e dispara em background (modo arquivo, servidor de origem 3)",
+    const _postParteA = (upId, off, buf) => new Promise((rs, rj) => { const r = http.request(BASE + "/api/admin/fusao/importar-parte", { method: "POST", headers: { "Content-Type": "application/octet-stream", "Content-Length": buf.length, "x-up-id": upId, "x-up-off": String(off), ...(COOKIE ? { Cookie: COOKIE } : {}) } }, (res2) => { let b = ""; res2.on("data", (c) => (b += c)); res2.on("end", () => { let j = null; try { j = JSON.parse(b); } catch {} rs({ status: res2.statusCode, json: j }); }); }); r.on("error", rj); r.write(buf); r.end(); });
+    const _metade = Math.ceil(exC.buf.length / 2);
+    const pt1 = await _postParteA("smokeup1", 0, exC.buf.slice(0, _metade));
+    // a 2ª parte é enviada DUAS vezes (retentativa de 4G) — offset idempotente
+    await _postParteA("smokeup1", _metade, exC.buf.slice(_metade));
+    const pt2 = await _postParteA("smokeup1", _metade, exC.buf.slice(_metade));
+    check("📦 v148b: upload em PARTES grava por offset (retentativa do mesmo pedaço não corrompe; total de bytes fecha)",
+      pt1.json?.ok === true && pt2.json?.ok === true && pt2.json?.bytes === exC.buf.length,
+      JSON.stringify({ p1: pt1.json, p2: pt2.json, esperado: exC.buf.length }).slice(0, 140));
+    const imp1 = await req2("POST", "/api/admin/fusao/importar-fim", { upId: "smokeup1" });
+    check("📦 v148: IMPORTAR aceita o arquivo (montado das partes) e dispara em background (modo arquivo, origem 3)",
       imp1.json?.ok === true && imp1.json?.started === true && imp1.json?.modo === "arquivo" && imp1.json?.serverId === 3,
       (imp1.body || "").slice(0, 160));
     let impSt = null;
@@ -2105,9 +2117,9 @@ async function testAuthWatchdogPush() {
       exA && exA.status === 200 && impSelf && impSelf.status === 400 && /DESTE mesmo servidor/i.test(impSelf.json?.error || ""),
       JSON.stringify({ ex: exA?.status, imp: impSelf?.status, err: impSelf?.json?.error }).slice(0, 180));
     const _admHtml = fs.readFileSync(path.join(__dirname, "admin.html"), "utf8");
-    check("📦 v148: (estrutural) painel tem os botões ⬇️ Baixar e ⬆️ Importar e o modo antigo virou secundário",
-      _admHtml.includes('id="fusao-btn-export"') && _admHtml.includes('id="fusao-file"') && _admHtml.includes("fusaoImportar()") && _admHtml.includes("Modo antigo"),
-      "botões da migração por arquivo não encontrados no admin.html");
+    check("📦 v148: (estrutural) painel tem os botões ⬇️ Baixar e ⬆️ Importar (upload fatiado com %) e o modo antigo virou secundário",
+      _admHtml.includes('id="fusao-btn-export"') && _admHtml.includes('id="fusao-file"') && _admHtml.includes("fusaoImportar()") && _admHtml.includes("Modo antigo") && _admHtml.includes("importar-parte"),
+      "botões da migração por arquivo (ou o upload fatiado) não encontrados no admin.html");
     try { fs.rmSync(DATA_C, { recursive: true, force: true }); } catch {}
 
     // ═══ 🙈 v147: servidor OCULTO some do seletor público, mas as rotas
