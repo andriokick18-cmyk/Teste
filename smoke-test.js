@@ -2188,6 +2188,19 @@ async function testAuthWatchdogPush() {
       (appJs.body.match(/"rn_t":/g) || []).length === 3 && appJs.body.includes("resetNoticeOk") &&
       appJs.body.includes("h2bResetNoticeOk") && appJs.body.includes("_avisoResetOn"),
       "modal rn_* ou interceptação do openAuthGate não encontrados");
+    // 💸 v151 (fatura do Render, 21/08 — 38,6GB de banda "Service-Initiated"
+    // gerada pelos próprios servidores): servidor aposentado (REDIRECT_ALL_TO)
+    // desliga automático, backup entre irmãos, sentinela e TODOS os robôs de
+    // coleta; o vigia de anúncios do DOL caiu de 10 pra 30min em todos.
+    check("💸 v151: (estrutural) MODO_APOSENTADO desliga scheduleAuto + backup peers + sentinela + robôs de coleta (casca só de redirect)",
+      _srvSrc.includes("const MODO_APOSENTADO") &&
+      (_srvSrc.match(/if\(MODO_APOSENTADO\)return/g) || []).length >= 3 &&
+      (_srvSrc.match(/if\(!MODO_APOSENTADO\)\{/g) || []).length >= 2 &&
+      _srvSrc.includes("modo aposentado — enrich/frescor"),
+      "gates do MODO_APOSENTADO não encontrados no server.js");
+    check("💸 v151: vigia de anúncios do DOL roda a cada 30min (não mais 10min — banda em triplicata)",
+      _srvSrc.includes("setInterval(dolNewsAutoTick, 30*60_000)") && !_srvSrc.includes("setInterval(dolNewsAutoTick, 10*60_000)"),
+      "intervalo do dolNewsAutoTick não é 30min");
 
     // ═══ 🛡️ v73: AQUECIMENTO DE CONTA GMAIL NOVA (proteção anti-bloqueio) ═══
     // Pedido real do dono: "tem gente sendo bloqueada pelo Google". A defesa:

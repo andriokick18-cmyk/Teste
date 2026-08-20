@@ -112,6 +112,14 @@ const APP_URL       = (process.env.APP_URL || "http://localhost:3000").replace(/
 // mudam. Default 1 (produção). Se a env estiver errada, a identidade pelo
 // HOST (_selfId) corrige em runtime — mas o certo é definir a env.
 const SERVER_ID     = parseInt(process.env.SERVER_ID || "1", 10) || 1;
+// 💸 v151 (dono, 21/08 — fatura do Render: 38,6GB de banda, 85% "Service-
+// Initiated", gerada pelos PRÓPRIOS servidores): servidor APOSENTADO (env
+// REDIRECT_ALL_TO ligada depois da fusão) vira uma casca de redirecionamento
+// — NENHUM robô de coleta/planilha/notícias, backup entre irmãos, sentinela
+// ou envio automático roda nele. Os dados já moram no Servidor 1; rodar tudo
+// em triplicata era o que inflava banda e CPU da fatura.
+const MODO_APOSENTADO=/^https?:\/\//.test(String(process.env.REDIRECT_ALL_TO||"").trim());
+if(MODO_APOSENTADO)console.log("[servers] 🪦 MODO APOSENTADO: REDIRECT_ALL_TO ligado — robôs, backups entre irmãos, sentinela e automático DESLIGADOS neste servidor (fica só o redirect e as rotas peer/fusão).");
 if(!process.env.SERVER_ID){
   console.warn("⚠️⚠️⚠️ [servers] Env SERVER_ID NÃO DEFINIDA — assumindo 1 (produção). DEFINA no Render: 1 = h2bapply.com, 2 = h2b-teste, 3 = applyh2b.com — senão a trava de 'lotado' pode bloquear os cadastros deste servidor! ⚠️⚠️⚠️");
 }
@@ -2516,6 +2524,7 @@ let _peerBackupDia=null;
 setInterval(()=>{ // 04h BRT, uma vez por dia (horário calmo)
   try{
     if(process.env.TEST_LOGIN_TOKEN)return;
+    if(MODO_APOSENTADO)return; // 💸 v151: dado congelado pós-fusão — 85MB×2/dia de banda à toa
     const brt=new Date(Date.now()-3*3600000);
     const dia=brt.toISOString().slice(0,10);
     if(brt.getUTCHours()===4&&_peerBackupDia!==dia){_peerBackupDia=dia;enviarBackupPeers("agendado 04h").catch(()=>{});}
@@ -2548,6 +2557,7 @@ function _checarDiscoProprio(){
 async function sentinelaIrmaos(){
   try{
     if(process.env.TEST_LOGIN_TOKEN)return; // npm test não tem rede externa
+    if(MODO_APOSENTADO)return; // 💸 v151: casca de redirect não vigia ninguém
     _checarDiscoProprio();
     for(const sv of _getServersConfig()){
       if(sv.id===SERVER_ID||!sv.url)continue;
@@ -5111,6 +5121,10 @@ function updateAutoStats(email, delta) {
 }
 
 function scheduleAuto(email) {
+  // 💸 v151: servidor aposentado não envia — todo mundo já migrou pro
+  // Servidor 1 (mandar daqui em paralelo dobraria contato com empregador,
+  // furando a regra 8 entre servidores). Ponto único: sem timer, nada roda.
+  if(MODO_APOSENTADO)return;
   if(autoTimers.has(email))clearTimeout(autoTimers.get(email));
   const job=getAutoJob(email);
   if(!job||!job.active){autoTimers.delete(email);return;}
@@ -18714,13 +18728,20 @@ function persistFinanceiro(){
 // ── BOOT ─────────────────────────────────────────────────
 boot();loadSheets();
 loadGruposJ26();
-setTimeout(j26AutoTick, 45_000);              // 1ª checagem ~45s depois do boot
-setInterval(j26AutoTick, 5*60_000);            // depois, a cada 5 minutos — pedido do dono
+if(!MODO_APOSENTADO){ // 💸 v151: casca de redirect não roda vigia nenhum
+  setTimeout(j26AutoTick, 45_000);              // 1ª checagem ~45s depois do boot
+  setInterval(j26AutoTick, 5*60_000);            // depois, a cada 5 minutos — pedido do dono
+}
 console.log(`[grupos-j26] 🎯 Sistema de Grupos — Julho 2026 pronto | ${Object.keys(DB_GRUPOS_J26.mapa).length} case(s) no mapa`);
 loadDolNewsWatch();
 loadDolNoticias(); // v26: arquivo da aba Notícias
-setTimeout(dolNewsAutoTick, 60_000);           // 1ª checagem ~60s depois do boot
-setInterval(dolNewsAutoTick, 10*60_000);       // depois, a cada 10 minutos
+if(!MODO_APOSENTADO){
+  setTimeout(dolNewsAutoTick, 60_000);           // 1ª checagem ~60s depois do boot
+  // 💸 v151: 10→30min — a página de anúncios do DOL muda poucas vezes por mês;
+  // checar 144x/dia em cada servidor era banda jogada fora (notícia nova
+  // continua entrando no site no MESMO dia, só com até 30min de folga).
+  setInterval(dolNewsAutoTick, 30*60_000);
+}
 console.log(`[dol-news-watch] 📰 Vigia de Anúncios DOL pronto | último conhecido: ${DB_DOL_NEWS_WATCH.ultimaConhecida.date} — admins: ${getAllAdminEmails().join(", ")}`);
 
 // ── Correção pontual pedida pelo Andrio (05/07/26): o gasto "RENDER 41 DOLARES"
@@ -19228,6 +19249,13 @@ RESPONDA APENAS com array JSON:
   //   • Watchdog a cada 30min verifica novas planilhas pendentes
   //   • Admin pode pausar via botão Parar; watchdog retoma automaticamente
 
+  // 💸 v151 (fatura do Render): servidor aposentado NÃO roda nenhum robô de
+  // planilha/coleta/notícias/renovação — eram esses ciclos, em triplicata
+  // nos 3 servidores, que geravam a banda "Service-Initiated" da fatura.
+  if(MODO_APOSENTADO){
+    console.log("[robôs] 🪦 modo aposentado — enrich/frescor/H-2A/H-2B/notícias-IA/renovação/resumo DESLIGADOS neste servidor");
+    return;
+  }
   // Dispara o ciclo 15s após boot
   setTimeout(()=>_autoEnrichCycle().catch(e=>console.error("[auto-enrich] boot cycle erro:",e.message)), 15000);
   // v24 — PIPELINE AUTOMÁTICO DE DADOS: as planilhas se mantêm sozinhas.

@@ -506,6 +506,22 @@
     normalizado, telefone, IP; grupo com admin some) na aba Auditoria &
     Duplicadas — banir é decisão HUMANA do admin, nunca automática.
 
+13w. **💸 Dieta de banda do Render (dono, 21/08/2026 — fatura de $45,59:
+    38,6GB de banda, 85% "Service-Initiated" gerada pelos PRÓPRIOS
+    servidores)**: `MODO_APOSENTADO` (env REDIRECT_ALL_TO válida, pós-
+    fusão) desliga NESTE servidor: envio automático (gate único em
+    `scheduleAuto` — mandar em paralelo com o Servidor 1 duplicaria
+    contato com empregador, furando a regra 8 entre servidores), backup
+    diário entre irmãos (85MB×2/dia de dado congelado), sentinela e
+    TODOS os robôs de coleta/planilha/notícias/renovação/resumo — fica
+    só o redirect 302 + rotas peer/fusão. O vigia de anúncios do DOL
+    passou de 10 pra 30min em TODOS os servidores (a página muda poucas
+    vezes por mês; 144 fetches/dia por servidor era banda jogada fora).
+    PROIBIDO religar robô em servidor aposentado sem ordem nova do dono.
+    A parte gorda da fatura (Services ~$40) se resolve no PAINEL do
+    Render: depois da migração confirmada, rebaixar os serviços 2 e 3
+    pra instância Free (a casca de redirect roda de graça).
+
 ## 🖥️ UX (usuário e admin nunca se perdem)
 
 14. **Site intuitivo e autoexplicativo**: tour em slides no primeiro
