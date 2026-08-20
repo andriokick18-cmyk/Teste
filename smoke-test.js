@@ -898,9 +898,14 @@ async function testAuthWatchdogPush() {
     const _scopeUses = (_srvSrc.match(/scope:OAUTH_SCOPES/g) || []).length;
     const _sendOnlyConst = (_srvSrc.match(/const GMAIL_SEND_ONLY\s*=\s*(true|false)\s*;/) || [])[1] || "";
     const _scopesLine = (_srvSrc.match(/const OAUTH_SCOPES\s*=\s*"([^"]+)"/) || [])[1] || "";
-    check("✉️ OAuth usa OAUTH_SCOPES nos 2 pontos, GMAIL_SEND_ONLY=true fixo, escopo é SÓ gmail.send (nunca readonly/modify)",
-      _scopeUses === 2 && _sendOnlyConst === "true" && _scopesLine.includes("gmail.send") && !_scopesLine.includes("readonly") && !_scopesLine.includes("modify"),
-      `usos=${_scopeUses} | GMAIL_SEND_ONLY=${_sendOnlyConst} | escopos="${_scopesLine.slice(0, 90)}"`);
+    // v149b: a fase de IDENTIDADE do login usa escopo básico literal — o único
+    // literal permitido é "openid email"; qualquer outro (principalmente com
+    // gmail) tem que passar por OAUTH_SCOPES, senão a regra 13d fura por fora.
+    const _scopeLiterais = [..._srvSrc.matchAll(/scope:"([^"]+)"/g)].map((m) => m[1]);
+    check("✉️ OAuth usa OAUTH_SCOPES nos 3 pontos (v149b somou a 2ª fase do login), GMAIL_SEND_ONLY=true fixo, escopo é SÓ gmail.send (nunca readonly/modify) e o único escopo literal é o básico da fase identidade",
+      _scopeUses === 3 && _sendOnlyConst === "true" && _scopesLine.includes("gmail.send") && !_scopesLine.includes("readonly") && !_scopesLine.includes("modify") &&
+      _scopeLiterais.every((s) => s === "openid email"),
+      `usos=${_scopeUses} | GMAIL_SEND_ONLY=${_sendOnlyConst} | literais=${JSON.stringify(_scopeLiterais)} | escopos="${_scopesLine.slice(0, 90)}"`);
 
     // ═══ v46: CÓDIGOS PROMO — personalizado honrado + Membro YouTube R$147 ═══
     // Bug real: o campo "Código personalizado" do admin era IGNORADO pelo
@@ -2163,10 +2168,11 @@ async function testAuthWatchdogPush() {
     check("🛡️ v149: (estrutural) merge de peers do ranking deduplica por uid e não soma o total de peer já fundido",
       _srvSrc.includes("_peerFundido") && _srvSrc.includes("_peerTotais") && _srvSrc.includes("dedupe mantendo a maior contagem"),
       "dedupe do ranking global não encontrado no server.js");
-    check("🛡️ v149: (estrutural) /oauth/start leva login_hint e o callback BARRA e-mail diferente do digitado (com revoke do token)",
-      _srvSrc.includes("login_hint:sessions") && _srvSrc.includes("_expectedHint&&_authedEmail!==_expectedHint") &&
+    check("🛡️ v149b: (estrutural) login em 2 FASES — identidade primeiro (openid email, fora das 100 vagas) barra e-mail errado ANTES da caixinha; a 2ª fase ainda revalida com revoke de backup",
+      _srvSrc.includes('scope:"openid email"') && _srvSrc.includes('_oauthFase==="identidade"') &&
+      _srvSrc.includes("login_hint:_expectedHint") && _srvSrc.includes("_expectedHint&&_authedEmail!==_expectedHint") &&
       _srvSrc.includes('path:"/revoke"'),
-      "trava de login_hint/mismatch/revoke não encontrada no server.js");
+      "fluxo de 2 fases (identidade → gmail) não encontrado no server.js");
     check("🛡️ v149: (estrutural) o front manda o e-mail digitado como login_hint (só o desta visita, nunca um antigo do aparelho)",
       appJs.body.includes("login_hint=") && appJs.body.includes("_agEmail"),
       "login_hint não encontrado no app.js");

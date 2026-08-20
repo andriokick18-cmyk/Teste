@@ -484,12 +484,15 @@
     a maior contagem, e o total de um peer cujo top-50 repete uid do
     local NÃO soma — PROIBIDO reintroduzir merge de ranking sem esse
     dedupe. Aqueles "duplicados" do print NÃO eram pessoas com 2 contas.
-    (2) O e-mail digitado no card de entrada vai pro Google como
-    `login_hint` e fica no state; o callback BARRA se a pessoa
-    autenticar OUTRO e-mail e REVOGA o token na hora (cada conta
-    autenticada consome 1 das 100 vagas do OAuth não-verificado — a
-    autenticação errada devolve a vaga). Só o e-mail digitado NESTA
-    visita (_agEmail) vira hint — nunca um salvo antigo do aparelho.
+    (2) **Login em 2 FASES (v149b — dono: "revogar não adianta, ela não
+    pode nem marcar a caixinha")**: com e-mail digitado, a 1ª ida ao
+    Google pede SÓ identidade (`openid email` — escopo básico, NÃO conta
+    nas 100 vagas); escolheu o e-mail errado = barrado ali, ANTES da
+    tela de permissão do gmail.send existir. E-mail certo comprovado →
+    2ª etapa pede o gmail.send com a conta cravada (`login_hint`), e o
+    callback ainda revalida + revoga token como defesa de backup (caso
+    troque de conta no meio do consentimento). Só o e-mail digitado
+    NESTA visita (_agEmail) vira hint — nunca um salvo do aparelho.
     (3) Aviso permanente de CONTA ÚNICA na landing (au_t/au_b/au_f, 3
     línguas): 2ª conta mesmo com outro e-mail = risco de BAN PERMANENTE
     das duas; o nome no currículo é sempre o mesmo e o sistema cruza

@@ -10249,6 +10249,17 @@ filtrar();
   // outra conta (cada conta autenticada consome 1 das 100 vagas do OAuth).
   {const _h=(u.searchParams.get("login_hint")||"").trim().toLowerCase();
    if(/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(_h))sessions["__p__"+st].hint=_h;}
+  // 🔒 v149b (dono, 20/08: "revogar o token não adianta — se escolher o
+  // e-mail errado ela NÃO PODE marcar a caixinha e seguir em frente"): com
+  // e-mail digitado, a 1ª ida ao Google pede SÓ IDENTIDADE (openid email —
+  // escopo básico, que NÃO conta nas 100 vagas do OAuth). Escolheu o e-mail
+  // errado? Barra ali, ANTES da tela de permissão do gmail.send existir.
+  // Só com o e-mail certo comprovado é que a 2ª etapa (a caixinha) acontece.
+  if(sessions["__p__"+st].hint){
+    sessions["__p__"+st].fase="identidade";
+    const qsId=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:_oauthBase(req)+"/oauth/callback",response_type:"code",scope:"openid email",state:st,login_hint:sessions["__p__"+st].hint});
+    res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qsId});return res.end();
+  }
   // Se o usuário já tem refresh_token salvo, não força consent (login silencioso).
   // Se é a primeira vez (sem refresh_token), exige consent para obter o refresh_token.
   // FIX v2: se usuário não tem scopeVersion>=2 (novos escopos gmail.readonly+modify), força consent
@@ -10260,8 +10271,7 @@ filtrar();
   // força consent para o Google emitir um refresh_token NOVO neste login.
   const _rtUsable=_hasRt&&!_hintUser?.rtInvalid;
   const _promptVal=(_rtUsable&&_hasNewScopes)?"select_account":"consent select_account";
-  const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:_oauthBase(req)+"/oauth/callback",response_type:"code",scope:OAUTH_SCOPES,access_type:"offline",prompt:_promptVal,state:st,
-    ...(sessions["__p__"+st].hint?{login_hint:sessions["__p__"+st].hint}:{})});res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();}
+  const qs=new URLSearchParams({client_id:CLIENT_ID,redirect_uri:_oauthBase(req)+"/oauth/callback",response_type:"code",scope:OAUTH_SCOPES,access_type:"offline",prompt:_promptVal,state:st});res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+qs});return res.end();}
 
   if(pathname==="/oauth/callback"){
     const code=u.searchParams.get("code"),error=u.searchParams.get("error");
@@ -10318,13 +10328,40 @@ filtrar();
     // (login CSRF) — a vítima ficaria logada na conta do atacante e poderia enviar
     // dados sensíveis (currículo, PII) para uma conta que o atacante controla.
     // Mesmo padrão de validação/consumo já usado no fluxo __sender__ acima.
-    let _expectedHint=null; // 🔒 v149: e-mail que a pessoa DIGITOU antes do Google
+    let _expectedHint=null,_oauthFase=null; // 🔒 v149: e-mail DIGITADO + fase do fluxo
     {
       const pendingLogin=sessions["__p__"+_st];
       if(!pendingLogin){return fail("Sessão de login inválida ou expirada. Tente entrar novamente.");}
       delete sessions["__p__"+_st]; // uso único — nunca reaproveitar o state
       if(Date.now()-pendingLogin.ts>600_000){return fail("Sessão de login expirada. Tente entrar novamente.");}
       _expectedHint=pendingLogin.hint||null;
+      _oauthFase=pendingLogin.fase||null;
+    }
+    // 🔒 v149b — FASE 1 (identidade): o code aqui é do escopo BÁSICO (openid
+    // email — não conta nas 100 vagas). Confere o e-mail escolhido: errado =
+    // barrado AGORA, sem nunca ver a tela de permissão do Gmail; certo =
+    // segue pra 2ª etapa (a caixinha) com a conta já cravada no login_hint.
+    if(_oauthFase==="identidade"){
+      try{
+        const tbI=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:_oauthBase(req)+"/oauth/callback",grant_type:"authorization_code"}).toString();
+        const{body:tkI}=await httpsReq({hostname:"oauth2.googleapis.com",path:"/token",method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","Content-Length":Buffer.byteLength(tbI)}},tbI);
+        if(tkI.error)return fail(tkI.error_description||tkI.error);
+        if(!tkI.access_token)return fail("Token não recebido.");
+        const{body:uiI}=await httpsReq({hostname:"www.googleapis.com",path:"/oauth2/v2/userinfo",method:"GET",headers:{"Authorization":"Bearer "+tkI.access_token}});
+        const _idEmail=String(uiI.email||"").toLowerCase().trim();
+        if(!_idEmail)return fail("E-mail não obtido.");
+        if(_expectedHint&&_idEmail!==_expectedHint){
+          console.log(`[oauth] 🔒 fase identidade barrou: digitou ${_expectedHint}, escolheu ${_idEmail} — nem chegou na tela de permissão do Gmail`);
+          return fail(`Você digitou ${_expectedHint}, mas escolheu ${_idEmail} na tela do Google — a entrada foi cancelada ANTES de qualquer permissão. Toque em Entrar de novo e escolha EXATAMENTE o e-mail que você digitou.`);
+        }
+        const st2=crypto.randomBytes(20).toString("hex");
+        sessions["__p__"+st2]={pending:true,ts:Date.now(),hint:_expectedHint,fase:"gmail"};
+        const _hu=getUser(_expectedHint);
+        const _rtOk=!!(_hu?.refresh_token)&&!_hu?.rtInvalid&&(_hu?.scopeVersion||0)>=2;
+        const q2={client_id:CLIENT_ID,redirect_uri:_oauthBase(req)+"/oauth/callback",response_type:"code",scope:OAUTH_SCOPES,access_type:"offline",state:st2,login_hint:_expectedHint};
+        if(!_rtOk)q2.prompt="consent"; // 1ª vez/token morto: mostra a caixinha (conta já fixa); veterano: login silencioso
+        res.writeHead(302,{Location:"https://accounts.google.com/o/oauth2/v2/auth?"+new URLSearchParams(q2)});return res.end();
+      }catch(eI){return fail("Erro ao verificar o e-mail: "+eI.message);}
     }
     try{
       const tb=new URLSearchParams({code,client_id:CLIENT_ID,client_secret:CLIENT_SECRET,redirect_uri:_oauthBase(req)+"/oauth/callback",grant_type:"authorization_code"}).toString();

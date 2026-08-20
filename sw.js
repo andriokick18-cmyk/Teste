@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v111"; // v111 (20/08): 🛡️ v149 — conta única: ranking global deduplica por uid (pós-fusão a mesma conta vivia nos 2 servidores e todo mundo aparecia 2x), login do Google barra e-mail diferente do digitado (login_hint + revoke — vaga das 100 devolvida), aviso permanente de conta única na landing (2ª conta = risco de ban permanente, 3 línguas). index.html/app.js mudaram.
+const CACHE_NAME = "h2bapply-v112"; // v112 (20/08): 🛡️ v149b/c — login em 2 FASES (identidade básica primeiro: e-mail errado é barrado ANTES da caixinha do gmail.send existir; escopo básico não conta nas 100 vagas) e selos "Servidor N" removidos do drawer/perfil (só existe 1 servidor agora). index.html/app.js mudaram.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

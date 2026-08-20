@@ -154,7 +154,9 @@ async function checkStatus(){
   // Novos campos
   whatsapp:d.whatsapp||"",rankName:d.rankName||"",appAvatarId:d.appAvatarId||"",h2bProfile:d.h2bProfile||{},phone:d.phone||"",serverId:d.serverId||1,publicProfile:d.publicProfile||{},
   diamonds:d.diamonds||{real:0,bonus:0},diamondPrice:d.diamondPrice||1.5};
-      try{updateServerBadges();}catch(e){}
+      // 🌐 v149c (dono, 20/08: "tira aquele negócio de qual servidor você
+      // está, agora só tem 1 server!") — os selos "Servidor N" do drawer e
+      // do perfil foram removidos junto com a era multi-servidor.
       // v55 — MODO SÓ-ENVIO (Servidor 3): este servidor só pede o escopo de
       // ENVIAR do Gmail — não lê caixa de entrada de ninguém. A aba Respostas
       // (e todo atalho pra ela) some, e se ela estiver aberta, volta pra Home.
@@ -573,16 +575,6 @@ function srvGo(i){
     setTimeout(()=>{window.location.href=dest;},350);
   }
 }
-// Badges "Servidor N" dentro do app (drawer + hero do perfil)
-function updateServerBadges(){
-  const sid=(U&&U.serverId)||1;
-  const txt="Servidor "+sid;
-  const d1=g("#drawer-server-badge"),t1=g("#drawer-server-badge-txt");
-  if(d1&&t1){t1.textContent=txt;d1.style.display="block";}
-  const d2=g("#prof-server-badge"),t2=g("#prof-server-badge-txt");
-  if(d2&&t2){t2.textContent=txt;d2.style.display="block";}
-}
-
 function renderOnboardChecklist(){/* removido */}
 
 // Chamada a cada vez que perfis ou docs mudarem — garante que o checklist some imediatamente
@@ -10847,7 +10839,6 @@ const LANG_DICT = {
     "hint_rate":"Proteção normal do Gmail contra spam — nada a fazer, o robô retoma sozinho.",
     "cd_soon":"Enviando em instantes...","cd_next":"Próximo envio em","cd_starts":"Inicia em","cd_resumes":"Retoma em",
     // 🌐 Etapa 4 do i18n — Perfil/Planos/Ranking/Configurações
-    "acct_server_note":"Sua conta pertence a este servidor — o login é sempre aqui.",
     "personal_data":"Dados Pessoais","full_name":"Nome completo *","country":"País","required_lbl":"OBRIGATÓRIO","language_lbl":"Idioma",
     "public_profile":"Perfil Público","never_shown":"Seu e-mail e telefone nunca aparecem.",
     "hired_before":"🇺🇸 Já foi contratado pelo programa H-2B/H-2A?","not_yet":"Ainda não","prefer_not":"Prefiro não dizer",
@@ -11006,7 +10997,6 @@ const LANG_DICT = {
     "hint_corrupt":"Tap Stop and start auto send again.",
     "hint_rate":"Normal Gmail anti-spam protection — nothing to do, the robot resumes on its own.",
     "cd_soon":"Sending any moment...","cd_next":"Next send in","cd_starts":"Starts in","cd_resumes":"Resumes in",
-    "acct_server_note":"Your account belongs to this server — always log in here.",
     "personal_data":"Personal Info","full_name":"Full name *","country":"Country","required_lbl":"REQUIRED","language_lbl":"Language",
     "public_profile":"Public Profile","never_shown":"Your email and phone are never shown.",
     "hired_before":"🇺🇸 Ever been hired through the H-2B/H-2A program?","not_yet":"Not yet","prefer_not":"Prefer not to say",
@@ -11148,7 +11138,6 @@ const LANG_DICT = {
     "hint_corrupt":"Toca Parar e inicia el automático de nuevo.",
     "hint_rate":"Protección anti-spam normal de Gmail — nada que hacer, el robot reanuda solo.",
     "cd_soon":"Enviando en instantes...","cd_next":"Próximo envío en","cd_starts":"Inicia en","cd_resumes":"Reanuda en",
-    "acct_server_note":"Tu cuenta pertenece a este servidor — inicia sesión siempre aquí.",
     "personal_data":"Datos Personales","full_name":"Nombre completo *","country":"País","required_lbl":"OBLIGATORIO","language_lbl":"Idioma",
     "public_profile":"Perfil Público","never_shown":"Tu email y teléfono nunca aparecen.",
     "hired_before":"🇺🇸 ¿Ya fuiste contratado por el programa H-2B/H-2A?","not_yet":"Aún no","prefer_not":"Prefiero no decir",
