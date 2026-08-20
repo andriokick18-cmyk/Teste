@@ -42,7 +42,7 @@
 //    completa (6 temporadas, vagas com e-mail) + reestruturação visual
 //    das abas (seção recolhível "Temporadas Anteriores", Manual+Automático).
 //
-const CACHE_NAME = "h2bapply-v112"; // v112 (20/08): 🛡️ v149b/c — login em 2 FASES (identidade básica primeiro: e-mail errado é barrado ANTES da caixinha do gmail.send existir; escopo básico não conta nas 100 vagas) e selos "Servidor N" removidos do drawer/perfil (só existe 1 servidor agora). index.html/app.js mudaram.
+const CACHE_NAME = "h2bapply-v113"; // v113 (20/08): 📢 v150 — janela obrigatória ANTES do login (mesmo toggle do aviso de reset): comunicado do dono (servidores unificados, entre com o e-mail principal) + anti-duplicação (2 contas com o mesmo nome no currículo = ban permanente das duas); só segue no "Li e entendi", 1x por sessão, fail-open. index.html/app.js mudaram.
 
 // Recursos estáticos que ficam em cache para uso offline.
 // HTML NÃO entra aqui — ver motivo acima (cookie de sessão).

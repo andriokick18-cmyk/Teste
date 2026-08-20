@@ -2180,6 +2180,14 @@ async function testAuthWatchdogPush() {
       home.body.includes('data-i18n="au_t"') && home.body.includes('data-i18n="au_b"') &&
       (appJs.body.match(/"au_t":/g) || []).length === 3 && (appJs.body.match(/"au_b":/g) || []).length === 3,
       "seção au_t/au_b não encontrada (landing ou dicionário 3 línguas)");
+    // 📢 v150 (comunicado do dono): janela obrigatória ANTES do login (mesmo
+    // toggle avisoResetLogin) — reset explicado + anti-duplicação com ban; o
+    // fluxo de entrada só segue depois do "Li e entendi" (fail-open sempre).
+    check("📢 v150: janela do reset ANTES do login (anti-duplicação/ban) nas 3 línguas + intercepta o openAuthGate com fail-open",
+      home.body.includes('id="reset-notice-modal"') && home.body.includes('data-i18n="rn_warn"') &&
+      (appJs.body.match(/"rn_t":/g) || []).length === 3 && appJs.body.includes("resetNoticeOk") &&
+      appJs.body.includes("h2bResetNoticeOk") && appJs.body.includes("_avisoResetOn"),
+      "modal rn_* ou interceptação do openAuthGate não encontrados");
 
     // ═══ 🛡️ v73: AQUECIMENTO DE CONTA GMAIL NOVA (proteção anti-bloqueio) ═══
     // Pedido real do dono: "tem gente sendo bloqueada pelo Google". A defesa:

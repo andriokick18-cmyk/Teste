@@ -444,7 +444,12 @@
     sobe um segundo servidor de verdade e funde. 📢 Aviso de reset:
     toggle `avisoResetLogin` (Configurações) liga banner na landing
     (rst_t/rst_b, 3 línguas) — "nada foi apagado, entre com o MESMO
-    e-mail, conta duplicada = risco de ban dos dois e-mails". A
+    e-mail, conta duplicada = risco de ban dos dois e-mails". **v150
+    (dono, 20/08 — comunicado oficial): o MESMO toggle também liga a
+    JANELA obrigatória antes do login (#reset-notice-modal, rn_t/rn_p1/
+    rn_warn/rn_ok, 3 línguas) — openAuthGate é interceptado e só segue
+    após "Li e entendi" (1x por sessão, sessionStorage h2bResetNoticeOk);
+    qualquer erro = fail-open, o aviso NUNCA pode impedir um login.** A
     verificação DEFINITIVA do Google (gmail.send é escopo SENSÍVEL →
     verificação GRATUITA, sem CASA) está no GUIA_VERIFICACAO_GOOGLE.txt.
     **📦 v148 (dono, 20/08/2026 — "já que a fusão não está dando certo...
